@@ -18,6 +18,10 @@ $totalAppointments = 0;
 $totalRevenue = 0;
 $pendingPayments = 0;
 $completedToday = 0;
+$monthlyRevenueData = [];
+$chartYear = (int)date('Y');
+$monthlyRevenueData = [];
+$chartYear = (int)date('Y');
 
 try {
     $totalPatients = (int)($pdo->query("SELECT COUNT(*) FROM patients")->fetchColumn() ?? 0);
@@ -38,6 +42,23 @@ try {
         WHERE status = 'completed'
           AND DATE(updated_at) = CURDATE()
     ")->fetchColumn() ?? 0);
+
+    $chartYear = (int)($pdo->query("
+        SELECT COALESCE(MAX(YEAR(billing_date)), YEAR(CURDATE()))
+        FROM billing
+    ")->fetchColumn() ?? date('Y'));
+
+    $stmt = $pdo->prepare("
+        SELECT DATE_FORMAT(billing_date, '%Y-%m') AS ym,
+               COALESCE(SUM(paid_amount), 0) AS total
+        FROM billing
+        WHERE YEAR(billing_date) = ?
+        GROUP BY ym
+        ORDER BY ym ASC
+    ");
+    $stmt->execute([$chartYear]);
+    $monthlyRevenueData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 } catch (Exception $e) {
     $totalPatients = 0;
     $totalAppointments = 0;
@@ -94,56 +115,14 @@ try {
                     </div>
                 </div>
 
-                <!-- Admin Action Cards -->
+                <!-- Revenue Overview -->
                 <div class="section-card">
-                    <h2 class="section-title">⚡ Quick Actions</h2>
-                    <div class="quick-actions">
-                        <a href="admin_users.php" class="action-card">
-                            <span class="action-icon">👤</span>
-                            <span class="action-text">Manage Users</span>
-                        </a>
-                        <a href="admin_patients.php" class="action-card">
-                            <span class="action-icon">📋</span>
-                            <span class="action-text">View Patients</span>
-                        </a>
-                        <a href="admin_billing.php" class="action-card">
-                            <span class="action-icon">💵</span>
-                            <span class="action-text">Billing Overview</span>
-                        </a>
-                        <a href="admin_audit_trail.php" class="action-card">
-                            <span class="action-icon">📝</span>
-                            <span class="action-text">Audit Logs</span>
-                        </a>
+                    <h2 class="section-title">Revenue Overview</h2>
+                    <div class="chart-placeholder" style="min-height: 170px;">
+                        <div class="bar-chart" id="revenueBars" style="height: 140px;"></div>
                     </div>
                 </div>
 
-                <!-- Recent Activity -->
-                <div class="section-card">
-                    <h2 class="section-title">📊 Recent Activity</h2>
-                    <div class="activity-list">
-                        <div class="activity-item">
-                            <span class="activity-icon">👤</span>
-                            <div class="activity-details">
-                                <span class="activity-text">New user registered: <strong>John Doe</strong></span>
-                                <span class="activity-time">2 hours ago</span>
-                            </div>
-                        </div>
-                        <div class="activity-item">
-                            <span class="activity-icon">💰</span>
-                            <div class="activity-details">
-                                <span class="activity-text">Payment received: <strong>₱1,500</strong> from Maria Santos</span>
-                                <span class="activity-time">4 hours ago</span>
-                            </div>
-                        </div>
-                        <div class="activity-item">
-                            <span class="activity-icon">📅</span>
-                            <div class="activity-details">
-                                <span class="activity-text">Appointment completed: <strong>Root Canal</strong> for Roberto Garcia</span>
-                                <span class="activity-time">5 hours ago</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <!-- Right Sidebar -->
@@ -183,6 +162,40 @@ try {
                     </div>
                 </div>
             </aside>
+
+<script>
+    const revenueData = <?php echo json_encode($monthlyRevenueData); ?>;
+    const revenueYear = <?php echo (int)$chartYear; ?>;
+    const barContainer = document.getElementById('revenueBars');
+    if (barContainer) {
+        const map = {};
+        revenueData.forEach(item => {
+            map[item.ym] = { total: Number(item.total) };
+        });
+
+        const months = [];
+        const year = revenueYear || new Date().getFullYear();
+        const labels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        for (let m = 0; m < 12; m++) {
+            const ym = `${year}-${String(m + 1).padStart(2, '0')}`;
+            const label = labels[m];
+            const entry = map[ym] || { total: 0 };
+            entry.label = label;
+            months.push(entry);
+        }
+
+        const maxVal = Math.max(1, ...months.map(r => r.total));
+        months.forEach((item) => {
+            const rawPct = (item.total / maxVal) * 100;
+            const heightPct = item.total > 0 ? Math.max(20, Math.round(rawPct)) : 8;
+            const bar = document.createElement('div');
+            bar.className = 'bar';
+            bar.style.setProperty('--bar-height', heightPct + '%');
+            bar.setAttribute('data-label', item.label);
+            barContainer.appendChild(bar);
+        });
+    }
+</script>
 
 <?php
 // Include the layout end
