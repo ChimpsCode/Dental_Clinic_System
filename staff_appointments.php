@@ -32,8 +32,10 @@ try {
     
     // Get all appointments for stats (without pagination)
     $allStmt = $pdo->query("SELECT a.*, 
-                         a.first_name, a.middle_name, a.last_name, 
-                         p.phone 
+                         COALESCE(p.first_name, a.first_name, '') AS first_name, 
+                         COALESCE(p.middle_name, a.middle_name, '') AS middle_name, 
+                         COALESCE(p.last_name, a.last_name, '') AS last_name,
+                         COALESCE(p.phone, a.phone) AS phone
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id
                          " . $whereClause);
@@ -41,8 +43,10 @@ try {
     
     // Get paginated appointments
     $stmt = $pdo->prepare("SELECT a.*, 
-                         a.first_name, a.middle_name, a.last_name, 
-                         p.phone 
+                         COALESCE(p.first_name, a.first_name, '') AS first_name, 
+                         COALESCE(p.middle_name, a.middle_name, '') AS middle_name, 
+                         COALESCE(p.last_name, a.last_name, '') AS last_name,
+                         COALESCE(p.phone, a.phone) AS phone
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id 
                          " . $whereClause . "
@@ -61,19 +65,22 @@ try {
     $showingEnd = 0;
 }
 
-$today = date('Y-m-d');
-$todayCount = count(array_filter($allAppointments, function($a) use ($today) {
-    return $a['appointment_date'] === $today;
-}));
-$completedCount = count(array_filter($allAppointments, function($a) {
-    return strtolower($a['status'] ?? '') === 'completed';
-}));
-$pendingCount = count(array_filter($allAppointments, function($a) {
-    return strtolower($a['status'] ?? '') === 'scheduled' || strtolower($a['status'] ?? '') === 'pending';
-}));
-$cancelledCount = count(array_filter($allAppointments, function($a) {
-    return strtolower($a['status'] ?? '') === 'cancelled';
-}));
+$todayCount = 0;
+$completedCount = 0;
+$pendingCount = 0;
+$cancelledCount = 0;
+try {
+    $baseWhere = $countWhereClause ? $countWhereClause . " AND " : "WHERE ";
+    $todayCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
+    $completedCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) = 'completed'")->fetchColumn() ?? 0);
+    $pendingCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) IN ('scheduled','pending')")->fetchColumn() ?? 0);
+    $cancelledCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) = 'cancelled'")->fetchColumn() ?? 0);
+} catch (Exception $e) {
+    $todayCount = 0;
+    $completedCount = 0;
+    $pendingCount = 0;
+    $cancelledCount = 0;
+}
 
 $inquiryData = null;
 $showModal = false;
@@ -210,7 +217,7 @@ require_once 'includes/staff_layout_start.php';
                     ?>
                         <tr class="appointment-row" 
                             data-name="<?php echo strtolower($displayName); ?>"
-                            data-date="<?php echo htmlspecialchars($appt['appointment_date']); ?>"
+                            data-date="<?php echo date('Y-m-d', strtotime($appt['appointment_date'])); ?>"
                             data-status="<?php echo strtolower($appt['status'] ?? ''); ?>">
                             <td>
                                 <div style="font-weight: 600;"><?php echo $firstName ?: '-'; ?></div>

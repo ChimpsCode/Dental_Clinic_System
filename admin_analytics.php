@@ -45,6 +45,7 @@ $totalCollected = 0;
 $pendingPayments = 0;
 $todaysPatients = 0;
 $monthlyRevenueData = [];
+$chartYear = (int)date('Y');
 $newPatients = 0;
 $returningPatients = 0;
 $ageGroupLabel = 'N/A';
@@ -66,12 +67,19 @@ try {
     $stmt->execute([$startStr, $endStr]);
     $revenueTotal = (float)($stmt->fetchColumn() ?? 0);
 
-    $monthlyRevenue = (float)($pdo->query("
+    $chartYear = (int)($pdo->query("
+        SELECT COALESCE(MAX(YEAR(billing_date)), YEAR(CURDATE()))
+        FROM billing
+    ")->fetchColumn() ?? date('Y'));
+
+    $stmt = $pdo->prepare("
         SELECT COALESCE(SUM(paid_amount), 0)
         FROM billing
-        WHERE YEAR(billing_date) = YEAR(CURDATE())
+        WHERE YEAR(billing_date) = ?
           AND MONTH(billing_date) = MONTH(CURDATE())
-    ")->fetchColumn() ?? 0);
+    ");
+    $stmt->execute([$chartYear]);
+    $monthlyRevenue = (float)($stmt->fetchColumn() ?? 0);
 
     $totalCollected = (float)($pdo->query("
         SELECT COALESCE(SUM(paid_amount), 0)
@@ -92,16 +100,16 @@ try {
         WHERE DATE(created_at) = CURDATE()
     ")->fetchColumn() ?? 0);
 
-    $stmt = $pdo->query("
+    $stmt = $pdo->prepare("
         SELECT
-            DATE_FORMAT(billing_date, '%b') AS month_label,
             DATE_FORMAT(billing_date, '%Y-%m') AS ym,
             COALESCE(SUM(paid_amount), 0) AS total
         FROM billing
-        WHERE billing_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
-        GROUP BY ym, month_label
+        WHERE YEAR(billing_date) = ?
+        GROUP BY ym
         ORDER BY ym ASC
     ");
+    $stmt->execute([$chartYear]);
     $monthlyRevenueData = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $stmt = $pdo->prepare("
@@ -366,20 +374,22 @@ try {
 
 <script>
     const revenueData = <?php echo json_encode($monthlyRevenueData); ?>;
+    const revenueYear = <?php echo (int)$chartYear; ?>;
     const barContainer = document.getElementById('revenueBars');
     if (barContainer) {
         const map = {};
         revenueData.forEach(item => {
-            map[item.ym] = { label: item.month_label, total: Number(item.total) };
+            map[item.ym] = { total: Number(item.total) };
         });
 
         const months = [];
-        const year = new Date().getFullYear();
+        const year = revenueYear || new Date().getFullYear();
         const labels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
         for (let m = 0; m < 12; m++) {
             const ym = `${year}-${String(m + 1).padStart(2, '0')}`;
             const label = labels[m];
-            const entry = map[ym] || { label, total: 0 };
+            const entry = map[ym] || { total: 0 };
+            entry.label = label;
             months.push(entry);
         }
 

@@ -36,8 +36,8 @@ try {
     
     // Get all appointments for stats (without pagination, exclude archived)
     $allStmt = $pdo->query("SELECT a.*, 
-                         CONCAT(a.first_name, ' ', IFNULL(a.middle_name, ''), ' ', a.last_name) as full_name, 
-                         p.phone 
+                         CONCAT(COALESCE(p.first_name, a.first_name, ''), ' ', IFNULL(COALESCE(p.middle_name, a.middle_name, ''), ''), ' ', COALESCE(p.last_name, a.last_name, '')) as full_name, 
+                         COALESCE(p.phone, a.phone) AS phone
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id
                          $whereClause");
@@ -45,8 +45,8 @@ try {
     
     // Get paginated appointments (exclude archived)
     $stmt = $pdo->prepare("SELECT a.*, 
-                         CONCAT(a.first_name, ' ', IFNULL(a.middle_name, ''), ' ', a.last_name) as full_name, 
-                         p.phone 
+                         CONCAT(COALESCE(p.first_name, a.first_name, ''), ' ', IFNULL(COALESCE(p.middle_name, a.middle_name, ''), ''), ' ', COALESCE(p.last_name, a.last_name, '')) as full_name, 
+                         COALESCE(p.phone, a.phone) AS phone
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id 
                          $whereClause
@@ -71,7 +71,7 @@ $pendingCount = 0;
 $cancelledCount = 0;
 try {
     $baseWhere = $countWhereClause ? $countWhereClause . " AND " : "WHERE ";
-    $todayCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere appointment_date = CURDATE()")->fetchColumn() ?? 0);
+    $todayCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
     $completedCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) = 'completed'")->fetchColumn() ?? 0);
     $pendingCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) IN ('scheduled','pending')")->fetchColumn() ?? 0);
     $cancelledCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) = 'cancelled'")->fetchColumn() ?? 0);
@@ -160,7 +160,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                                 <?php foreach ($appointments as $appt): ?>
                                     <tr class="appointment-row" 
                                         data-name="<?php echo strtolower(htmlspecialchars($appt['full_name'] ?? 'Unknown')); ?>"
-                                        data-date="<?php echo htmlspecialchars($appt['appointment_date']); ?>"
+                                        data-date="<?php echo date('Y-m-d', strtotime($appt['appointment_date'])); ?>"
                                         data-status="<?php echo strtolower($appt['status'] ?? ''); ?>">
                                         <td>
                                             <div class="patient-name"><?php echo htmlspecialchars($appt['full_name'] ?? 'Unknown'); ?></div>
