@@ -1,0 +1,48 @@
+<?php
+// Database initialization script
+// Run this once to create the database and tables
+
+$host = 'localhost';
+$user = 'root';
+$pass = '';
+
+try {
+    // Connect without database
+    $pdo = new PDO("mysql:host=$host", $user, $pass);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    // Create database
+    $pdo->exec("CREATE DATABASE IF NOT EXISTS dental_management CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+    echo "Database created successfully!\n";
+
+    // Use the database
+    $pdo->exec("USE dental_management");
+
+    // Create users table
+    $pdo->exec("CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(50) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        email VARCHAR(100),
+        full_name VARCHAR(100),
+        role VARCHAR(20) DEFAULT 'user',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    echo "Users table created successfully!\n";
+
+    // Create default admin user (username: admin, password: admin123)
+    $adminPassword = password_hash('admin123', PASSWORD_DEFAULT);
+    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
+    $stmt->execute(['admin', $adminPassword, 'admin@rfdental.com', 'Administrator', 'admin']);
+
+    echo "Default admin user created!\n";
+    echo "Username: admin\n";
+    echo "Password: admin123\n";
+    echo "\nSetup completed successfully!\n";
+
+} catch (PDOException $e) {
+    die("Error: " . $e->getMessage() . "\n");
+}
+?>
+
