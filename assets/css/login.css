@@ -9,6 +9,7 @@ body {
     height: 100vh;
     overflow: hidden;
     position: relative;
+    background-color: #ffffff;
 }
 
 .container {
@@ -19,51 +20,23 @@ body {
     align-items: center;
     justify-content: flex-end;
     padding-right: 5%;
-    background: #f0f0f0;
-    overflow: hidden;
+    background-color: #ffffff;
 }
 
 .background-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: url('../images/Background.jpg');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    filter: blur(3px);
-    z-index: 0;
+    display: none;
 }
 
-/* Dentist image on the left side */
-.background-overlay::before {
-    content: '';
+.dentist-image {
     position: absolute;
-    left: 0;
-    top: 0;
-    width: 50%;
-    height: 100%;
-    background-image: url('../images/Dentists.png');
-    background-size: contain;
-    background-position: left center;
-    background-repeat: no-repeat;
-    filter: blur(2px);
+    right: 30%;
+    top: 50%;
+    transform: translateY(-50%);
+    width: auto;
+    height: auto;
+    max-height: 100vh;
     z-index: 1;
-    opacity: 0.9;
-}
-
-/* Overlay to darken background slightly */
-.background-overlay::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.2);
-    z-index: 1;
+    object-fit: contain;
 }
 
 .login-form-container {
@@ -72,10 +45,10 @@ body {
     background: white;
     padding: 40px 35px;
     border-radius: 12px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     width: 100%;
     max-width: 420px;
-    margin-right: 5%;
+    backdrop-filter: blur(10px);
 }
 
 .logo-container {
@@ -239,26 +212,26 @@ body {
 }
 
 /* Responsive Design */
+@media (max-width: 1024px) {
+    .dentist-image {
+        width: 40%;
+        left: 3%;
+    }
+}
+
 @media (max-width: 768px) {
     .container {
         justify-content: center;
         padding: 20px;
     }
     
+    .dentist-image {
+        display: none;
+    }
+    
     .login-form-container {
         max-width: 100%;
         padding: 30px 25px;
-    }
-    
-    .background-overlay::before {
-        width: 100%;
-        background-size: cover;
-        background-position: center;
-        filter: blur(4px);
-    }
-    
-    .background-overlay::after {
-        background: rgba(0, 0, 0, 0.3);
     }
 }
 
