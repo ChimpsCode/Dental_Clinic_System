@@ -93,9 +93,17 @@ $cancelled = [
 
     <!-- Main Content -->
     <main class="main-content">
+        <!-- Sidebar Overlay -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+        
         <!-- Top Header -->
         <header class="top-header">
             <div class="header-left">
+                <div class="menu-toggle" id="menuToggle">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
                 <div class="header-title">
                     <h1>Inquiry & Queue Dashboard</h1>
                     <p>Manage patient inquiries and today's queue.</p>

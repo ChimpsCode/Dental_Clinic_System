@@ -12,6 +12,31 @@ body {
     overflow: hidden;
 }
 
+/* Smooth scrolling */
+@media (prefers-reduced-motion: no-preference) {
+    * {
+        scroll-behavior: smooth;
+    }
+}
+
+/* Touch-friendly adjustments */
+@media (hover: none) {
+    .action-btn,
+    .nav-item,
+    .user-profile,
+    .menu-toggle {
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    .patient-item {
+        min-height: 44px;
+    }
+    
+    .action-btn {
+        min-height: 44px;
+    }
+}
+
 /* Left Sidebar */
 .sidebar {
     width: 260px;
@@ -96,13 +121,48 @@ body {
     align-items: center;
     justify-content: space-between;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    z-index: 10;
+    z-index: 1001;
+    position: relative;
 }
 
 .header-left {
     display: flex;
     align-items: center;
     gap: 15px;
+    position: relative;
+    z-index: 1;
+}
+
+.menu-toggle {
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    cursor: pointer;
+    padding: 8px;
+    margin-right: 10px;
+    border-radius: 4px;
+    transition: background 0.2s;
+    position: relative;
+    z-index: 2000;
+    user-select: none;
+    -webkit-user-select: none;
+    pointer-events: auto !important;
+    min-width: 40px;
+    min-height: 40px;
+    background: #e5e7eb;
+}
+
+.menu-toggle:hover {
+    background: #f3f4f6;
+}
+
+.menu-toggle span {
+    width: 24px;
+    height: 2px;
+    background: #1f2937;
+    transition: all 0.3s;
+    display: block;
+    pointer-events: none;
 }
 
 .header-logo {
@@ -415,6 +475,18 @@ body {
     border-radius: 12px;
     padding: 25px;
     margin-bottom: 25px;
+    position: relative;
+    overflow: hidden;
+}
+
+.live-queue::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
 }
 
 .live-queue-header {
@@ -422,6 +494,8 @@ body {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+    position: relative;
+    z-index: 1;
 }
 
 .live-queue-title {
@@ -445,6 +519,8 @@ body {
     padding: 20px;
     border-radius: 8px;
     margin-bottom: 20px;
+    position: relative;
+    z-index: 1;
 }
 
 .complete-btn {
@@ -622,29 +698,361 @@ body {
     }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
     .sidebar {
-        width: 70px;
+        position: fixed;
+        left: -260px;
+        z-index: 1002;
+        transition: left 0.3s ease;
+        height: 100vh;
     }
     
-    .sidebar-logo span {
-        display: none;
+    .sidebar.open {
+        left: 0;
     }
     
-    .nav-item span {
-        display: none;
+    .main-content {
+        margin-left: 0;
+    }
+    
+    .top-header {
+        padding: 15px 20px;
     }
     
     .content-area {
-        flex-direction: column;
+        padding: 20px;
     }
     
     .content-sidebar {
         width: 100%;
+        max-width: 400px;
+        margin: 0 auto;
+    }
+}
+
+@media (max-width: 768px) {
+    body {
+        overflow-x: hidden;
+    }
+    
+    .top-header {
+        padding: 12px 15px;
+    }
+    
+    .header-left {
+        flex: 1;
+    }
+    
+    .header-title h1 {
+        font-size: 18px;
+    }
+    
+    .header-title p {
+        font-size: 12px;
+    }
+    
+    .content-area {
+        flex-direction: column;
+        padding: 15px;
+    }
+    
+    .content-sidebar {
+        width: 100%;
+        position: static;
+        max-height: none;
+    }
+    
+    .summary-cards {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+    
+    .summary-card {
+        padding: 15px;
+    }
+    
+    .summary-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 20px;
+    }
+    
+    .summary-info h3 {
+        font-size: 20px;
+    }
+    
+    .section-card {
+        padding: 15px;
+    }
+    
+    .section-title {
+        font-size: 16px;
+    }
+    
+    .patient-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .patient-info {
+        width: 100%;
+    }
+    
+    .patient-actions {
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+    
+    .patient-actions .action-btn {
+        flex: 1;
+        min-width: 100px;
+        justify-content: center;
+    }
+    
+    .live-queue {
+        padding: 20px 15px;
+    }
+    
+    .live-patient {
+        padding: 15px;
+    }
+    
+    .complete-btn {
+        padding: 14px;
+        font-size: 14px;
+    }
+    
+    .sidebar-section {
+        padding: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .top-header {
+        padding: 10px 12px;
+    }
+    
+    .header-title h1 {
+        font-size: 16px;
+    }
+    
+    .header-title p {
+        font-size: 11px;
+    }
+    
+    .user-name {
+        display: none;
+    }
+    
+    .content-area {
+        padding: 12px;
+        gap: 15px;
     }
     
     .summary-cards {
         grid-template-columns: 1fr;
+    }
+    
+    .summary-card {
+        padding: 12px;
+    }
+    
+    .summary-icon {
+        width: 35px;
+        height: 35px;
+        font-size: 18px;
+    }
+    
+    .summary-info h3 {
+        font-size: 18px;
+    }
+    
+    .summary-info p {
+        font-size: 11px;
+    }
+    
+    .section-card {
+        padding: 12px;
+    }
+    
+    .section-title {
+        font-size: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .patient-name {
+        font-size: 14px;
+    }
+    
+    .patient-details {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+    
+    .patient-treatment {
+        font-size: 12px;
+    }
+    
+    .patient-actions {
+        gap: 6px;
+    }
+    
+    .patient-actions .action-btn {
+        padding: 8px 10px;
+        font-size: 11px;
+    }
+    
+    .live-queue {
+        padding: 15px 12px;
+    }
+    
+    .live-queue-title {
+        font-size: 14px;
+    }
+    
+    .live-patient {
+        padding: 12px;
+    }
+    
+    .live-patient .patient-name {
+        font-size: 16px;
+    }
+    
+    .complete-btn {
+        padding: 12px;
+        font-size: 13px;
+    }
+    
+    .complete-btn-text {
+        font-size: 11px;
+    }
+    
+    .sidebar-section {
+        padding: 12px;
+    }
+    
+    .sidebar-section-title {
+        font-size: 14px;
+    }
+    
+    .sidebar-section-subtitle {
+        font-size: 11px;
+    }
+    
+    .notification-item {
+        padding: 10px;
+    }
+    
+    .notification-text {
+        font-size: 12px;
+    }
+    
+    .reminder-item {
+        padding: 10px;
+    }
+    
+    .reminder-text {
+        font-size: 12px;
+    }
+    
+    .see-all-btn,
+    .add-reminder-btn {
+        padding: 8px;
+        font-size: 12px;
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+    .sidebar {
+        width: 220px;
+    }
+    
+    .sidebar-logo span {
+        font-size: 16px;
+    }
+    
+    .nav-item {
+        padding: 12px 15px;
+    }
+    
+    .summary-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .patient-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .patient-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+
+/* Mobile sidebar overlay */
+@media (max-width: 1024px) {
+    .sidebar-overlay {
+        display: none !important;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 998;
+        pointer-events: none;
+    }
+    
+    .sidebar-overlay.active {
+        display: block !important;
+        pointer-events: auto;
+    }
+    
+    .menu-toggle {
+        display: flex !important;
+    }
+}
+
+@media (min-width: 1025px) {
+    .menu-toggle {
+        display: none;
+    }
+}
+
+/* Landscape mobile */
+@media (max-height: 500px) and (max-width: 1024px) {
+    .top-header {
+        padding: 8px 15px;
+    }
+    
+    .header-title h1 {
+        font-size: 16px;
+    }
+    
+    .header-title p {
+        font-size: 11px;
+    }
+    
+    .content-area {
+        padding: 10px 15px;
+    }
+    
+    .summary-card {
+        padding: 12px 15px;
+    }
+    
+    .summary-icon {
+        width: 35px;
+        height: 35px;
+    }
+    
+    .section-card {
+        padding: 15px;
     }
 }
 

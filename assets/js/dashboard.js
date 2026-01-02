@@ -1,4 +1,46 @@
+// Mobile Sidebar Toggle - Attach immediately
+const menuToggle = document.getElementById('menuToggle');
+const sidebar = document.querySelector('.sidebar');
+const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+function toggleSidebar(e) {
+    if (e) e.preventDefault();
+    if (e) e.stopPropagation();
+    
+    sidebar.classList.toggle('open');
+    sidebarOverlay.classList.toggle('active');
+    document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
+}
+
+if (menuToggle) {
+    menuToggle.addEventListener('click', toggleSidebar);
+}
+
+if (sidebarOverlay) {
+    sidebarOverlay.addEventListener('click', toggleSidebar);
+}
+
+// Handle window resize
+window.addEventListener('resize', function() {
+    if (window.innerWidth > 1024) {
+        sidebar.classList.remove('open');
+        sidebarOverlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+});
+
+// Rest of the code wrapped in DOMContentLoaded
 document.addEventListener('DOMContentLoaded', function() {
+    // Close sidebar when clicking on nav items (mobile)
+    const navItemsSidebar = document.querySelectorAll('.nav-item');
+    navItemsSidebar.forEach(item => {
+        item.addEventListener('click', function() {
+            if (window.innerWidth <= 1024 && sidebar.classList.contains('open')) {
+                toggleSidebar();
+            }
+        });
+    });
+
     // Toggle reminder checkboxes
     const reminderCheckboxes = document.querySelectorAll('.reminder-checkbox');
     reminderCheckboxes.forEach(checkbox => {
@@ -20,7 +62,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (completeBtn) {
         completeBtn.addEventListener('click', function() {
             if (confirm('Mark this treatment as completed?')) {
-                // Here you would typically make an AJAX call to update the database
                 alert('Treatment marked as completed!');
                 location.reload();
             }
@@ -33,7 +74,6 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.addEventListener('click', function() {
             const patientName = this.closest('.patient-item').querySelector('.patient-name').textContent;
             alert(`Calling ${patientName}...`);
-            // Here you would typically make an AJAX call or trigger a notification
         });
     });
 
@@ -43,7 +83,6 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.addEventListener('click', function() {
             const patientName = this.closest('.patient-item').querySelector('.patient-name').textContent;
             if (confirm(`Mark ${patientName} as not present?`)) {
-                // Here you would typically make an AJAX call to update the status
                 alert('Patient marked as not present');
                 location.reload();
             }
@@ -56,7 +95,6 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.addEventListener('click', function() {
             const patientName = this.closest('.patient-item').querySelector('.patient-name').textContent;
             if (confirm(`Re-queue ${patientName}?`)) {
-                // Here you would typically make an AJAX call to re-queue the patient
                 alert('Patient re-queued successfully');
                 location.reload();
             }
@@ -69,7 +107,6 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.addEventListener('click', function() {
             const patientName = this.closest('.patient-item').querySelector('.patient-name').textContent;
             if (confirm(`Are you sure you want to delete this appointment for ${patientName}?`)) {
-                // Here you would typically make an AJAX call to delete
                 alert('Appointment deleted');
                 location.reload();
             }
@@ -81,7 +118,6 @@ document.addEventListener('DOMContentLoaded', function() {
     viewBtns.forEach(btn => {
         btn.addEventListener('click', function() {
             const patientName = this.closest('.patient-item').querySelector('.patient-name').textContent;
-            // Here you would typically navigate to patient details page
             alert(`Viewing details for ${patientName}`);
         });
     });
@@ -92,7 +128,6 @@ document.addEventListener('DOMContentLoaded', function() {
         addReminderBtn.addEventListener('click', function() {
             const reminderText = prompt('Enter new reminder:');
             if (reminderText && reminderText.trim()) {
-                // Here you would typically make an AJAX call to add the reminder
                 const reminderList = document.querySelector('.reminder-list');
                 const newReminder = document.createElement('div');
                 newReminder.className = 'reminder-item';
@@ -102,7 +137,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
                 reminderList.appendChild(newReminder);
                 
-                // Add event listener to new checkbox
                 newReminder.querySelector('.reminder-checkbox').addEventListener('click', function() {
                     this.classList.toggle('checked');
                     const reminderItem = this.closest('.reminder-item');
@@ -122,12 +156,9 @@ document.addEventListener('DOMContentLoaded', function() {
     navItems.forEach(item => {
         item.addEventListener('click', function(e) {
             if (this.getAttribute('href') !== '#') {
-                // Remove active class from all items
                 navItems.forEach(nav => nav.classList.remove('active'));
-                // Add active class to clicked item
                 this.classList.add('active');
             }
         });
     });
 });
-
