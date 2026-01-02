@@ -11,6 +11,52 @@ $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    // Handle AJAX login request
+    if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+        header('Content-Type: application/json');
+        
+        $username = trim($_POST['username'] ?? '');
+        $password = $_POST['password'] ?? '';
+        
+        if (empty($username) || empty($password)) {
+            echo json_encode(['success' => false, 'message' => 'Please fill in all fields']);
+            exit();
+        }
+        
+        try {
+            require_once 'config/database.php';
+            
+            if (!isset($pdo)) {
+                throw new Exception('Database connection not available');
+            }
+            
+            $stmt = $pdo->prepare("SELECT id, username, password, full_name FROM users WHERE username = ? LIMIT 1");
+            $stmt->execute([$username]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($user && password_verify($password, $user['password'])) {
+                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['username'] = $user['username'];
+                if (!empty($user['full_name'])) {
+                    $_SESSION['full_name'] = $user['full_name'];
+                }
+                
+                echo json_encode(['success' => true, 'message' => 'Logged in successfully']);
+                exit();
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Invalid username or password']);
+                exit();
+            }
+        } catch (PDOException $e) {
+            echo json_encode(['success' => false, 'message' => 'Database connection error.']);
+            exit();
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Login failed. Please try again.']);
+            exit();
+        }
+    }
+    
+    // Regular form submission (for non-JS fallback)
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
     
@@ -20,25 +66,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         try {
             require_once 'config/database.php';
             
-            // Check if database connection exists
             if (!isset($pdo)) {
                 throw new Exception('Database connection not available');
             }
             
-            // Optimized single query - fetch all needed data at once
             $stmt = $pdo->prepare("SELECT id, username, password, full_name FROM users WHERE username = ? LIMIT 1");
             $stmt->execute([$username]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($user && password_verify($password, $user['password'])) {
-                // Set session variables immediately
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
                 if (!empty($user['full_name'])) {
                     $_SESSION['full_name'] = $user['full_name'];
                 }
                 
-                // Redirect immediately
                 header('Location: dashboard.php');
                 exit();
             } else {
@@ -83,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <div class="alert alert-success"><?php echo htmlspecialchars($success); ?></div>
             <?php endif; ?>
             
-            <form id="loginForm" method="POST" action="login.php">
+            <form id="loginForm" method="POST">
                 <div class="input-group">
                     <input type="text" id="username" name="username" placeholder="Username" required autocomplete="username">
                 </div>
@@ -104,6 +146,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <span id="loginSpinner" style="display: none; margin-left: 8px;">⏳</span>
                 </button>
             </form>
+        </div>
+    </div>
+    
+    <div id="toast" class="toast">
+        <div class="toast-content">
+            <span class="toast-icon">✓</span>
+            <span class="toast-message">Logged in successfully</span>
         </div>
     </div>
     

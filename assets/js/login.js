@@ -5,6 +5,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const togglePassword = document.getElementById('togglePassword');
     const loginBtn = document.getElementById('loginBtn');
     const errorMessage = document.getElementById('errorMessage');
+    const toast = document.getElementById('toast');
+
+    console.log('=== PAGE LOADED ===');
+    console.log('Login form:', loginForm);
+    console.log('Login button:', loginBtn);
+    console.log('Toast element:', toast);
 
     // Toggle password visibility
     if (togglePassword && passwordInput) {
@@ -16,32 +22,38 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Form submission handler
-    if (loginForm) {
-        loginForm.addEventListener('submit', function(e) {
+    if (loginForm && loginBtn) {
+        loginBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('=== LOGIN CLICKED ===');
+            
             const username = usernameInput ? usernameInput.value.trim() : '';
             const password = passwordInput ? passwordInput.value : '';
+
+            console.log('Username:', username);
+            console.log('Password:', password ? '***' : 'empty');
 
             // Clear previous error
             if (errorMessage) {
                 errorMessage.style.display = 'none';
             }
 
-            // Basic validation - only prevent if fields are empty
+            // Basic validation
             if (!username) {
-                e.preventDefault();
                 showError('Please enter your username');
                 if (usernameInput) usernameInput.focus();
                 return false;
             }
 
             if (!password) {
-                e.preventDefault();
                 showError('Please enter your password');
                 if (passwordInput) passwordInput.focus();
                 return false;
             }
 
-            // Show loading state - but DON'T prevent form submission
+            // Show loading state
             const loginBtnText = document.getElementById('loginBtnText');
             const loginSpinner = document.getElementById('loginSpinner');
             
@@ -58,9 +70,89 @@ document.addEventListener('DOMContentLoaded', function() {
                 loginBtn.style.cursor = 'wait';
                 loginBtn.style.backgroundColor = '#9ca3af';
             }
+
+            // Submit via AJAX
+            const formData = new FormData(loginForm);
+            formData.append('ajax', 'true');
             
-            // Allow form to submit - don't prevent default
-            // Form will submit normally and server will handle redirect
+            console.log('Sending AJAX request...');
+            
+            fetch('login.php', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                console.log('Response received:', response);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Data:', data);
+                
+                if (data.success) {
+                    console.log('=== LOGIN SUCCESSFUL ===');
+                    console.log('Showing toast...');
+                    
+                    // Show success toast with rotating blue border
+                    if (toast) {
+                        toast.classList.add('show');
+                        console.log('Toast show class added');
+                        console.log('Toast current classes:', toast.className);
+                    } else {
+                        console.error('Toast element not found!');
+                    }
+                    
+                    // Wait 2 seconds for user to see animation
+                    console.log('Waiting 2 seconds before redirect...');
+                    setTimeout(() => {
+                        console.log('Redirecting to dashboard...');
+                        // Redirect to dashboard
+                        window.location.href = 'dashboard.php';
+                    }, 2000);
+                } else {
+                    console.log('=== LOGIN FAILED ===');
+                    console.log('Error message:', data.message);
+                    
+                    // Show error
+                    showError(data.message);
+                    
+                    // Reset button state
+                    if (loginBtn) {
+                        loginBtn.disabled = false;
+                        loginBtn.style.opacity = '1';
+                        loginBtn.style.cursor = 'pointer';
+                        loginBtn.style.backgroundColor = '';
+                    }
+                    if (loginBtnText) {
+                        loginBtnText.textContent = 'LOGIN';
+                    }
+                    if (loginSpinner) {
+                        loginSpinner.style.display = 'none';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('=== NETWORK ERROR ===');
+                console.error('Error:', error);
+                
+                showError('Network error. Please try again.');
+                
+                // Reset button state
+                if (loginBtn) {
+                    loginBtn.disabled = false;
+                    loginBtn.style.opacity = '1';
+                    loginBtn.style.cursor = 'pointer';
+                    loginBtn.style.backgroundColor = '';
+                }
+                if (loginBtnText) {
+                    loginBtnText.textContent = 'LOGIN';
+                }
+                if (loginSpinner) {
+                    loginSpinner.style.display = 'none';
+                }
+            });
         });
     }
 
@@ -71,7 +163,6 @@ document.addEventListener('DOMContentLoaded', function() {
             errorMessage.style.display = 'block';
             errorMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         } else {
-            // Create error message if it doesn't exist
             const alertDiv = document.createElement('div');
             alertDiv.className = 'alert alert-error';
             alertDiv.id = 'errorMessage';
@@ -97,7 +188,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // Check if input has value on load
         if (input.value && input.parentElement) {
             input.parentElement.classList.add('focused');
         }
@@ -106,8 +196,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Enter key to submit
     document.addEventListener('keypress', function(e) {
         if (e.key === 'Enter' && document.activeElement && document.activeElement.tagName === 'INPUT') {
-            if (loginForm && !loginBtn.disabled) {
-                loginForm.requestSubmit();
+            if (loginBtn && !loginBtn.disabled) {
+                loginBtn.click();
             }
         }
     });
