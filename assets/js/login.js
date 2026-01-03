@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log('=== LOGIN SUCCESSFUL ===');
                     console.log('Showing toast...');
                     
-                    // Show success toast with rotating blue border
+                    // Show success toast with animated border
                     if (toast) {
                         toast.classList.add('show');
                         console.log('Toast show class added');

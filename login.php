@@ -10,7 +10,7 @@ if (isset($_SESSION['user_id'])) {
 $error = '';
 $success = '';
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {    
     // Handle AJAX login request
     if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
         header('Content-Type: application/json');
@@ -150,9 +150,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     </div>
     
     <div id="toast" class="toast">
-        <div class="toast-content">
+        <div class="toast-wrapper">
+            <span class="toast-line toast-line-top"></span>
+            <span class="toast-line toast-line-right"></span>
+            <span class="toast-line toast-line-bottom"></span>
+            <span class="toast-line toast-line-left"></span>
             <span class="toast-icon">✓</span>
-            <span class="toast-message">Logged in successfully</span>
+            <span class="toast-message">Login Successful!</span>
         </div>
     </div>
     
