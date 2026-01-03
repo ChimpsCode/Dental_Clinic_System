@@ -142,7 +142,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 </div>
                 
                 <button type="submit" class="login-btn" id="loginBtn">
-                    <span id="loginBtnText">LOGIN</span>
+                    <span id="loginBtnText">LOGINnnn</span>
                     <span id="loginSpinner" style="display: none; margin-left: 8px;">⏳</span>
                 </button>
             </form>
