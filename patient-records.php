@@ -323,8 +323,17 @@ $totalPatients = count($patients);
             display: flex;
             align-items: center;
             gap: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            padding: 8px 12px;
+            border-radius: 6px;
         }
-
+        
+        .patient-name-cell:hover {
+            background: #dbeafe;
+            transform: translateX(4px);
+        }
+        
         .patient-avatar {
             width: 40px;
             height: 40px;
@@ -514,12 +523,12 @@ $totalPatients = count($patients);
                     <?php foreach ($patients as $patient): ?>
                     <tr>
                         <td>
-                            <div class="patient-name-cell">
+                            <a href="patient_details.php?id=<?php echo $patient['id']; ?>" class="patient-name-cell" style="text-decoration: none; color: inherit;">
                                 <div class="patient-avatar">
                                     <?php echo strtoupper(substr($patient['name'], 0, 1)); ?>
                                 </div>
                                 <span class="patient-name"><?php echo htmlspecialchars($patient['name']); ?></span>
-                            </div>
+                            </a>
                         </td>
                         <td>
                             <div class="time-date-cell">

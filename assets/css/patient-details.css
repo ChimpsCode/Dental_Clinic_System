@@ -1,0 +1,589 @@
+.patient-header-card {
+    background: white;
+    border-radius: 12px;
+    padding: 32px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.patient-info-left {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.patient-name {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 20px;
+}
+
+.patient-details {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+.detail-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.detail-item svg {
+    color: #6b7280;
+    flex-shrink: 0;
+}
+
+.detail-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #6b7280;
+}
+
+.detail-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.patient-action-right {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.patient-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 16px;
+}
+
+.tab-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.tab-btn {
+    padding: 10px 20px;
+    border: 2px solid #e5e7eb;
+    background: white;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.tab-btn:hover {
+    border-color: #2563eb;
+    color: #2563eb;
+}
+
+.tab-btn.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: white;
+}
+
+.patient-action-right {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-view-full {
+    padding: 12px 24px;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-view-full:hover {
+    background: #1d4ed8;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.summary-section {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    margin-bottom: 24px;
+}
+
+.stat-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+.summary-section .stat-card {
+    background: #f9fafb;
+    padding: 20px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border: 1px solid #e5e7eb;
+}
+
+.summary-section .stat-icon {
+    width: 48px;
+    height: 48px;
+    background: #dbeafe;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #2563eb;
+    flex-shrink: 0;
+}
+
+.summary-section .stat-info {
+    flex: 1;
+}
+
+.summary-section .stat-number {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 4px;
+}
+
+.summary-section .stat-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #6b7280;
+}
+
+.services-list {
+    border-top: 2px solid #e5e7eb;
+    padding-top: 20px;
+}
+
+.list-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 16px;
+}
+
+.services {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.service-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: #f9fafb;
+    border-radius: 4px;
+    transition: all 0.3s;
+}
+
+.service-item:hover {
+    background: #e5e7eb;
+    transform: translateX(4px);
+}
+
+.service-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.service-date {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.content-grid {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 24px;
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.timeline-column {
+    min-width: 0;
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.timeline {
+    position: relative;
+    padding-left: 24px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 11px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e5e7eb;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 32px;
+    padding-left: 20px;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -24px;
+    top: 0;
+    width: 12px;
+    height: 12px;
+    background: #2563eb;
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 0 0 3px white;
+}
+
+.timeline-content {
+    background: #f9fafb;
+    border-radius: 4px;
+    padding: 16px;
+    border-left: 3px solid #2563eb;
+    transition: all 0.3s;
+}
+
+.timeline-content:hover {
+    background: #dbeafe;
+    transform: translateX(4px);
+}
+
+.timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.timeline-status {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-done {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.status-ongoing {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.timeline-date {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.timeline-procedure {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 8px;
+}
+
+.timeline-details {
+    display: flex;
+    gap: 16px;
+    font-size: 13px;
+}
+
+.tooth-number {
+    background: #2563eb;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.doctor-name {
+    color: #6b7280;
+}
+
+.dental-chart-column {
+    min-width: 0;
+}
+
+.dental-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.chart-controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.toggle-btn {
+    padding: 8px 16px;
+    border: 2px solid #e5e7eb;
+    background: white;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.toggle-btn:hover {
+    border-color: #2563eb;
+    color: #2563eb;
+}
+
+.toggle-btn.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: white;
+}
+
+.teeth-container {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.jaw-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 12px;
+    padding-left: 12px;
+}
+
+.jaw {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px;
+    background: linear-gradient(180deg, #f9fafb 0%, #e5e7eb 100%);
+    border-radius: 8px;
+    position: relative;
+}
+
+.upper-jaw {
+    border-bottom: 3px solid #d1d5db;
+}
+
+.lower-jaw {
+    border-top: 3px solid #d1d5db;
+}
+
+.tooth {
+    width: 40px;
+    height: 52px;
+    background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%);
+    border: 2px solid #d1d5db;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.tooth:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(37, 99, 235, 0.3);
+    border-color: #2563eb;
+}
+
+.tooth.selected {
+    background: linear-gradient(135deg, #dbeafe 0%, #2563eb 100%);
+    color: white;
+    border-color: #2563eb;
+}
+
+.tooth.selected::after {
+    content: '✓';
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 20px;
+    height: 20px;
+    background: #22c55e;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(34, 197, 94, 0.4);
+    animation: checkmarkPop 0.3s ease-out;
+}
+
+@keyframes checkmarkPop {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.2);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.chart-legend {
+    border-top: 2px solid #e5e7eb;
+    padding-top: 20px;
+}
+
+.chart-legend h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 16px;
+}
+
+.legend-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.legend-section {
+    background: #f9fafb;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.legend-section h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.legend-items {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: white;
+    border-radius: 4px;
+    transition: all 0.3s;
+}
+
+.legend-item:hover {
+    transform: translateX(4px);
+    background: #dbeafe;
+}
+
+.legend-color {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    border: 2px solid #d1d5db;
+    flex-shrink: 0;
+}
+
+.legend-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+}
+
+@media (max-width: 1200px) {
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .timeline-column,
+    .dental-chart-column {
+        min-width: 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .patient-header-card {
+        flex-direction: column;
+    }
+    
+    .patient-actions {
+        width: 100%;
+        align-items: stretch;
+    }
+    
+    .stat-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .tab-buttons {
+        flex-direction: column;
+    }
+    
+    .legend-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .jaw {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}
+
+.page-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+}
