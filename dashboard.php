@@ -1,30 +1,23 @@
 <?php
-// Start output buffering for faster response
 ob_start();
 session_start();
 
-// Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
     header('Location: login.php');
     exit();
 }
 
-// Only load database if needed for dynamic data
-// For now, using static data so we don't need DB connection on every load
-// require_once 'config/database.php';
 
 $username = $_SESSION['username'] ?? 'User';
 $fullName = $_SESSION['full_name'] ?? 'Dr. Rex';
 
-// Fetch dashboard data (sample data for now)
 $waitingCount = 3;
 $completedCount = 1;
 $cancelledCount = 1;
 $totalPatients = 4;
 $totalPercentage = 20;
 
-// Sample patient data
 $todaySchedule = [
     ['name' => 'Maria Santos', 'status' => 'completed', 'treatment' => 'Follow-up Checkup (Session 2)', 'time' => '09:00 AM'],
     ['name' => 'Maria Santos', 'status' => 'now-serving', 'in_chair' => true, 'treatment' => 'Root Canal (Session 2)', 'time' => '09:30 AM'],
@@ -73,11 +66,11 @@ $cancelled = [
                 <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M19 4h-2V3a1 1 0 0 0-2 0v1H9V3a1 1 0 0 0-2 0v1H5a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3m1 15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-7h16Zm0-9H4V7a1 1 0 0 1 1-1h2v1a1 1 0 0 0 2 0V6h6v1a1 1 0 0 0 2 0V6h2a1 1 0 0 1 1 1Z"/></svg></span>
                 <span>Appointments</span>
             </a>
-            <a href="#" class="nav-item">
+            <a href="analytics.php" class="nav-item">
                 <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M3 22V8h4v14zm7 0V2h4v20zm7 0v-8h4v8z"/></svg></span>
                 <span>Analytics</span>
             </a>
-            <a href="#" class="nav-item">
+            <a href="settings.php" class="nav-item">
                 <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="m9.25 22l-.4-3.2q-.325-.125-.612-.3t-.563-.375L4.7 19.375l-2.75-4.75l2.575-1.95Q4.5 12.5 4.5 12.338v-.675q0-.163.025-.338L1.95 9.375l2.75-4.75l2.975 1.25q.275-.2.575-.375t.6-.3l.4-3.2h5.5l.4 3.2q.325.125.613.3t.562.375l2.975-1.25l2.75 4.75l-2.575 1.95q.025.175.025.338v.674q0 .163-.05.338l2.575 1.95l-2.75 4.75l-2.95-1.25q-.275.2-.575.375t-.6.3l-.4 3.2zm2.8-6.5q1.45 0 2.475-1.025T15.55 12t-1.025-2.475T12.05 8.5q-1.475 0-2.488 1.025T8.55 12t1.013 2.475T12.05 15.5"/></svg></span>
                 <span>Settings</span>
             </a>

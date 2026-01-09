@@ -8,6 +8,10 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
+// Set display name from session
+$username = $_SESSION['username'] ?? 'User';
+$fullName = $_SESSION['full_name'] ?? 'Administrator';
+
 // Handle form submission
 $success_message = '';
 $error_message = '';
@@ -207,6 +211,60 @@ $settings = $_SESSION['queue_settings'] ?? [
             gap: 8px;
             padding: 0 15px;
             border-left: 1px solid #eee;
+        }
+
+        /* Admin profile in top header (compact) */
+        .admin-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f3f4f6;
+            padding: 6px 10px;
+            border-radius: 999px;
+            box-shadow: none;
+        }
+
+        .admin-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: #eef2f7;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .admin-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .admin-initials {
+            font-size: 14px;
+            line-height: 1;
+            display: none;
+        }
+
+        .admin-avatar.initials .admin-initials {
+            display: inline-block;
+        }
+
+        .admin-meta {
+            display: flex;
+            flex-direction: column;
+            line-height: 1;
+        }
+
+        .admin-name {
+            font-size: 13px;
+            color: #111827;
+            font-weight: 600;
         }
 
         .content-wrapper {
@@ -548,8 +606,9 @@ $settings = $_SESSION['queue_settings'] ?? [
                 <h2 class="header-title">⚙️ Queue Settings</h2>
             </div>
             <div class="header-right">
-                <div class="user-info">
-                    <span><?php echo htmlspecialchars($username); ?></span>
+                <div class="user-profile">
+                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23e5e7eb'/%3E%3Ctext x='16' y='22' font-family='Arial' font-size='18' fill='%236b7280' text-anchor='middle'%3E%F0%9F%91%A4%3C/text%3E%3C/svg%3E" alt="User">
+                    <span class="user-name"><?php echo htmlspecialchars($fullName); ?></span>
                 </div>
             </div>
         </header>

@@ -1,9 +1,7 @@
 <?php
-// Start output buffering for faster response
 ob_start();
 session_start();
 
-// Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
     header('Location: login.php');
@@ -15,25 +13,18 @@ require_once 'config/database.php';
 $username = $_SESSION['username'] ?? 'User';
 $fullName = $_SESSION['full_name'] ?? 'Dr. Ann';
 
-// Calculate analytics data
 try {
-    // Get total patients count
     $stmt = $pdo->query("SELECT COUNT(*) as total FROM patients");
     $totalPatients = $stmt->fetch()['total'] ?? 0;
     
-    // Get total revenue (assuming there's a payments or transactions table)
-    // For now, using placeholder
     $totalRevenue = 0;
     
-    // Get active queue (waiting patients)
     $stmt = $pdo->query("SELECT COUNT(*) as total FROM appointments WHERE status = 'scheduled' AND DATE(appointment_date) = CURDATE()");
     $activeQueue = $stmt->fetch()['total'] ?? 0;
     
-    // Get today's sessions
     $stmt = $pdo->query("SELECT COUNT(*) as total FROM appointments WHERE DATE(appointment_date) = CURDATE()");
     $todaySessions = $stmt->fetch()['total'] ?? 0;
     
-    // Calculate percentage changes (placeholder values for now)
     $patientsChange = "+12%";
     $revenueChange = "+8%";
     
@@ -57,7 +48,6 @@ try {
     <link rel="stylesheet" href="assets/css/analytics.css">
 </head>
 <body>
-    <!-- Left Sidebar -->
     <aside class="sidebar">
         <div class="sidebar-logo">
             <img src="assets/images/Logo.png" alt="RF Logo">
@@ -73,7 +63,7 @@ try {
                 <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3s1.34 3 3 3m-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5S5 6.34 5 8s1.34 3 3 3m0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5m8 0c-.29 0-.62.02-.97.05c1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5"/></svg></span>
                 <span>Patient Records</span>
             </a>
-            <a href="#" class="nav-item">
+            <a href="NewAdmission.php" class="nav-item">
                 <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M15.25 18.75q.3 0 .525-.225T16 18t-.225-.525t-.525-.225t-.525.225T14.5 18t.225.525t.525.225m2.75 0q.3 0 .525-.225T18.75 18t-.225-.525T18 17.25t-.525.225t-.225.525t.225.525t.525.225m2.75 0q.3 0 .525-.225T21.5 18t-.225-.525t-.525-.225t-.525.225T20 18t.225.525t.525.225M5 21q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h14q.825 0 1.413.588T21 5v6.7q-.475-.225-.975-.387T19 11.075V5H5v14h6.05q.075.55.238 1.05t.387.95zm0-3v1V5v6.075V11zm2-1h4.075q.075-.525.238-1.025t.362-.975H7zm0-4h6.1q.8-.75 1.788-1.25T17 11.075V11H7zm0-4h10V7H7zm11 14q-2.075 0-3.537-1.463T13 18t1.463-3.537T18 13t3.538 1.463T23 18t-1.463 3.538T18 23"/></svg></span>
                 <span>New Admission</span>
             </a>
@@ -85,7 +75,7 @@ try {
                 <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M3 22V8h4v14zm7 0V2h4v20zm7 0v-8h4v8z"/></svg></span>
                 <span>Analytics</span>
             </a>
-            <a href="#" class="nav-item">
+            <a href="settings.php" class="nav-item">
                 <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="m9.25 22l-.4-3.2q-.325-.125-.612-.3t-.563-.375L4.7 19.375l-2.75-4.75l2.575-1.95Q4.5 12.5 4.5 12.338v-.675q0-.163.025-.338L1.95 9.375l2.75-4.75l2.975 1.25q.275-.2.575-.375t.6-.3l.4-3.2h5.5l.4 3.2q.325.125.613.3t.562.375l2.975-1.25l2.75 4.75l-2.575 1.95q.025.175.025.338v.674q0 .163-.05.338l2.575 1.95l-2.75 4.75l-2.95-1.25q-.275.2-.575.375t-.6.3l-.4 3.2zm2.8-6.5q1.45 0 2.475-1.025T15.55 12t-1.025-2.475T12.05 8.5q-1.475 0-2.488 1.025T8.55 12t1.013 2.475T12.05 15.5"/></svg></span>
                 <span>Settings</span>
             </a>
@@ -99,9 +89,7 @@ try {
         </div>
     </aside>
 
-    <!-- Main Content -->
     <main class="main-content">
-        <!-- Top Header -->
         <header class="top-header">
             <div class="header-left">
                 <div class="menu-toggle" id="menuToggle">
@@ -123,10 +111,8 @@ try {
             </div>
         </header>
 
-        <!-- Content Area -->
         <div class="content-area">
             <div class="analytics-container">
-                <!-- Summary Cards Row -->
                 <div class="analytics-summary-cards">
                     <div class="analytics-summary-card">
                         <div class="card-menu">⋯</div>
@@ -157,7 +143,6 @@ try {
                     </div>
                 </div>
 
-                <!-- Content Blocks Row -->
                 <div class="analytics-content-blocks">
                     <div class="analytics-block">
                         <div class="block-header">
@@ -179,7 +164,6 @@ try {
                             </div>
                         </div>
                         <div class="block-content">
-                            <!-- Empty for now -->
                         </div>
                     </div>
                 </div>
