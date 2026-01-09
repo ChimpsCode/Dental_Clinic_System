@@ -114,7 +114,7 @@ $cancelled = [
                 <div class="user-profile">
                     <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23e5e7eb'/%3E%3Ctext x='16' y='22' font-family='Arial' font-size='18' fill='%236b7280' text-anchor='middle'%3E👤%3C/text%3E%3C/svg%3E" alt="User">
                     <span class="user-name"><?php echo htmlspecialchars($fullName); ?></span>
-                    <span>▼</span>
+                    
                 </div>
             </div>
         </header>
