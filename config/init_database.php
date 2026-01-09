@@ -36,9 +36,18 @@ try {
     $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
     $stmt->execute(['admin', $adminPassword, 'admin@rfdental.com', 'Administrator', 'admin']);
 
-    echo "Default admin user created!\n";
+    // Create staff user (username: staff, password: staff123)
+    $staffPassword = password_hash('staff123', PASSWORD_DEFAULT);
+    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
+    $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com', 'Staff Member', 'staff']);
+
+    echo "Users created successfully!\n";
+    echo "\nAdmin Account:\n";
     echo "Username: admin\n";
     echo "Password: admin123\n";
+    echo "\nStaff Account:\n";
+    echo "Username: staff\n";
+    echo "Password: staff123\n";
     echo "\nSetup completed successfully!\n";
 
 } catch (PDOException $e) {

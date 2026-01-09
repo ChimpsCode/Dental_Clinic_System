@@ -48,6 +48,11 @@ function initializeDatabase($pdo) {
         $adminPassword = password_hash('admin123', PASSWORD_DEFAULT);
         $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
         $stmt->execute(['admin', $adminPassword, 'admin@rfdental.com', 'Administrator', 'admin']);
+
+        // Create staff user (username: staff, password: staff123)
+        $staffPassword = password_hash('staff123', PASSWORD_DEFAULT);
+        $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com', 'Staff Member', 'staff']);
     } catch (PDOException $e) {
         error_log("Database initialization failed: " . $e->getMessage());
         throw $e;

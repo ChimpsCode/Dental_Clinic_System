@@ -120,9 +120,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Wait 2 seconds for user to see animation
                     console.log('Waiting 2 seconds before redirect...');
                     setTimeout(() => {
-                        console.log('Redirecting to dashboard...');
-                        // Redirect to dashboard
-                        window.location.href = 'dashboard.php';
+                        console.log('Redirecting to:', data.redirect || 'dashboard.php');
+                        // Redirect based on user role (admin or staff)
+                        window.location.href = data.redirect || 'dashboard.php';
                     }, 2000);
                 } else {
                     console.log('=== LOGIN FAILED ===');
