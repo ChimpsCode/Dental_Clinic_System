@@ -98,710 +98,194 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Appointments - RF Dental Clinic</title>
-    <style>
-        /* --- CSS VARIABLES & RESET --- */
-        :root {
-            --primary-color: #3b82f6; /* Royal Blue */
-            --primary-hover: #2563eb;
-            --text-dark: #1f2937;
-            --text-gray: #6b7280;
-            --text-light: #9ca3af;
-            --bg-body: #f3f4f6;
-            --bg-white: #ffffff;
-            --border-color: #e5e7eb;
-            --card-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            --sidebar-width: 260px;
-            --header-height: 70px;
-            --transition: all 0.3s ease;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-        }
-
-        body {
-            background-color: var(--bg-body);
-            color: var(--text-dark);
-            height: 100vh;
-            display: flex;
-            overflow: hidden;
-        }
-
-        /* --- SIDEBAR --- */
-        .sidebar {
-            width: var(--sidebar-width);
-            background-color: var(--bg-white);
-            border-right: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            padding: 20px;
-            z-index: 10;
-            transition: var(--transition);
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 40px;
-            color: var(--primary-color);
-            font-weight: 700;
-            font-size: 18px;
-        }
-        
-        .logo svg {
-            width: 32px;
-            height: 32px;
-        }
-
-        .nav-menu {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            flex: 1;
-        }
-
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 16px;
-            text-decoration: none;
-            color: var(--text-gray);
-            border-radius: 8px;
-            font-weight: 500;
-            transition: var(--transition);
-            cursor: pointer;
-        }
-
-        .nav-item svg {
-            width: 20px;
-            height: 20px;
-            stroke-width: 2;
-        }
-
-        .nav-item:hover {
-            background-color: #f9fafb;
-            color: var(--primary-color);
-        }
-
-        .nav-item.active {
-            background-color: #eff6ff;
-            color: var(--primary-color);
-        }
-
-        .sidebar-footer {
-            margin-top: auto;
-            padding-top: 20px;
-            border-top: 1px solid var(--border-color);
-        }
-
-        /* --- MAIN CONTENT AREA --- */
-        .main-wrapper {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        /* --- HEADER --- */
-        header {
-            height: var(--header-height);
-            background-color: var(--bg-white);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 30px;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .header-title h1 {
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--text-dark);
-        }
-
-        .header-title p {
-            font-size: 13px;
-            color: var(--text-gray);
-        }
-
-        .user-profile {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .user-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background-color: #e5e7eb;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-        
-        .user-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .user-name {
-            font-size: 14px;
-            font-weight: 600;
-        }
-
-        /* --- DASHBOARD CONTENT --- */
-        .content-scroll {
-            flex: 1;
-            overflow-y: auto;
-            padding: 30px;
-        }
-
-        /* Stats Cards */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .stat-card {
-            background: var(--bg-white);
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: var(--card-shadow);
-            position: relative;
-            overflow: hidden;
-            border: 1px solid transparent;
-        }
-
-        /* Top border colors per image */
-        .stat-card.total { border-top: 4px solid #fbbf24; }
-        .stat-card.today { border-top: 4px solid #10b981; }
-        .stat-card.tomorrow { border-top: 4px solid #3b82f6; }
-        .stat-card.upcoming { border-top: 4px solid #ef4444; }
-
-        .stat-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 10px;
-        }
-
-        .stat-menu {
-            color: var(--text-light);
-            cursor: pointer;
-            font-size: 18px;
-            font-weight: bold;
-        }
-
-        .stat-value {
-            font-size: 28px;
-            font-weight: 700;
-            margin-bottom: 4px;
-        }
-
-        .stat-card.total .stat-value { color: #d97706; }
-        .stat-card.today .stat-value { color: #059669; }
-        .stat-card.tomorrow .stat-value { color: #2563eb; }
-        .stat-card.upcoming .stat-value { color: #dc2626; }
-
-        .stat-label {
-            font-size: 14px;
-            color: var(--text-gray);
-        }
-
-        /* Filter Section */
-        .filter-container {
-            background: var(--bg-white);
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: var(--card-shadow);
-            margin-bottom: 30px;
-        }
-
-        .search-wrapper {
-            position: relative;
-            margin-bottom: 20px;
-        }
-
-        .search-icon {
-            position: absolute;
-            left: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-gray);
-            width: 18px;
-            height: 18px;
-        }
-
-        .search-input {
-            width: 100%;
-            padding: 12px 12px 12px 44px;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            font-size: 14px;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        .search-input:focus {
-            border-color: var(--primary-color);
-        }
-
-        .filter-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .filter-btn {
-            padding: 8px 16px;
-            border: 1px solid var(--border-color);
-            background: var(--bg-white);
-            border-radius: 8px;
-            color: var(--text-gray);
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .filter-btn:hover {
-            border-color: var(--primary-color);
-            color: var(--primary-color);
-        }
-
-        .filter-btn.active {
-            background-color: var(--primary-color);
-            color: white;
-            border-color: var(--primary-color);
-        }
-
-        /* Empty State */
-        .empty-state-container {
-            background: var(--bg-white);
-            padding: 60px 20px;
-            border-radius: 12px;
-            box-shadow: var(--card-shadow);
-            text-align: center;
-        }
-
-        .empty-icon {
-            font-size: 48px;
-            color: #d1d5db;
-            margin-bottom: 16px;
-            display: inline-block;
-        }
-
-        .empty-title {
-            font-size: 20px;
-            font-weight: 600;
-            color: var(--text-dark);
-            margin-bottom: 8px;
-        }
-
-        .empty-desc {
-            color: var(--text-gray);
-            margin-bottom: 30px;
-        }
-
-        .btn-primary {
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.2s;
-            box-shadow: 0 4px 6px rgba(59, 130, 246, 0.2);
-        }
-
-        .btn-primary:hover {
-            background-color: var(--primary-hover);
-            transform: translateY(-1px);
-        }
-
-        /* --- MODAL (Hidden by default) --- */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 100;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-
-        .modal-overlay.open {
-            display: flex;
-            opacity: 1;
-        }
-
-        .modal {
-            background: white;
-            width: 100%;
-            max-width: 500px;
-            border-radius: 12px;
-            padding: 30px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            transform: translateY(20px);
-            transition: transform 0.3s;
-        }
-
-        .modal-overlay.open .modal {
-            transform: translateY(0);
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-        }
-
-        .modal-title {
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--text-dark);
-        }
-
-        .close-modal {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: var(--text-gray);
-        }
-
-        .form-group {
-            margin-bottom: 16px;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 6px;
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--text-dark);
-        }
-
-        .form-control {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            font-size: 14px;
-        }
-
-        .modal-footer {
-            margin-top: 24px;
-            display: flex;
-            justify-content: flex-end;
-            gap: 12px;
-        }
-
-        .btn-secondary {
-            background: white;
-            border: 1px solid var(--border-color);
-            color: var(--text-dark);
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-        }
-
-        /* Responsive adjustments */
-        @media (max-width: 768px) {
-            .sidebar {
-                position: absolute;
-                left: -100%;
-                height: 100%;
-            }
-            .sidebar.show {
-                left: 0;
-            }
-            header {
-                padding: 0 20px;
-            }
-            .content-scroll {
-                padding: 20px;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="assets/css/dashboard.css">
+    <link rel="stylesheet" href="assets/css/appointments.css">
 </head>
 <body>
-
-    <!-- SIDEBAR -->
+    <!-- Left Sidebar -->
     <aside class="sidebar">
-        <div class="logo">
-            <!-- Tooth Icon Placeholder -->
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4.22 19.78c.49-.49 1.08-1.21 1.08-2.58 0-1.63-1.02-2.28-1.3-3.15-.31-.96.09-2.13.96-2.66 1.26-.77 2.72-.19 3.42.81.39.56.62.94.62.94s.23-.38.62-.94c.7-1 2.16-1.58 3.42-.81.87.53 1.27 1.7.96 2.66-.28.87-1.3 1.52-1.3 3.15 0 1.37.59 2.09 1.08 2.58"></path>
-                <path d="M12 2C8 2 7 5 7 7c0 1.68.83 2.5 1.46 3.08"></path>
-                <path d="M12 2c4 0 5 3 5 5 0 1.68-.83 2.5-1.46 3.08"></path>
-                <path d="M9 13.5v2.7"></path>
-                <path d="M15 13.5v2.7"></path>
-            </svg>
-            RF Dental Clinic
+        <div class="sidebar-logo">
+            <img src="assets/images/Logo.png" alt="RF Logo">
+            <span>RF Dental Clinic</span>
         </div>
-
-        <nav class="nav-menu">
-            <a href="#" class="nav-item">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                Dashboard
+        
+        <nav class="sidebar-nav">
+            <a href="dashboard.php" class="nav-item">
+                <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M3 12a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1zm0 8a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1zm10 0a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1zm1-17a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1z"/></svg></span>
+                <span>Dashboard</span>
+            </a>
+            <a href="patient-records.php" class="nav-item">
+                <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3s1.34 3 3 3m-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5S5 6.34 5 8s1.34 3 3 3m0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5m8 0c-.29 0-.62.02-.97.05c1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5"/></svg></span>
+                <span>Patient Records</span>
             </a>
             <a href="#" class="nav-item">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                Patient Records
+                <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M15.25 18.75q.3 0 .525-.225T16 18t-.225-.525t-.525-.225t-.525.225T14.5 18t.225.525t.525.225m2.75 0q.3 0 .525-.225T18.75 18t-.225-.525T18 17.25t-.525.225t-.225.525t.225.525t.525.225m2.75 0q.3 0 .525-.225T21.5 18t-.225-.525t-.525-.225t-.525.225T20 18t.225.525t.525.225M5 21q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h14q.825 0 1.413.588T21 5v6.7q-.475-.225-.975-.387T19 11.075V5H5v14h6.05q.075.55.238 1.05t.387.95zm0-3v1V5v6.075V11zm2-1h4.075q.075-.525.238-1.025t.362-.975H7zm0-4h6.1q.8-.75 1.788-1.25T17 11.075V11H7zm0-4h10V7H7zm11 14q-2.075 0-3.537-1.463T13 18t1.463-3.537T18 13t3.538 1.463T23 18t-1.463 3.538T18 23"/></svg></span>
+                <span>New Admission</span>
+            </a>
+            <a href="appointments.php" class="nav-item active">
+                <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M19 4h-2V3a1 1 0 0 0-2 0v1H9V3a1 1 0 0 0-2 0v1H5a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3m1 15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-7h16Zm0-9H4V7a1 1 0 0 1 1-1h2v1a1 1 0 0 0 2 0V6h6v1a1 1 0 0 0 2 0V6h2a1 1 0 0 1 1 1Z"/></svg></span>
+                <span>Appointments</span>
+            </a>
+            <a href="analytics.php" class="nav-item">
+                <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M3 22V8h4v14zm7 0V2h4v20zm7 0v-8h4v8z"/></svg></span>
+                <span>Analytics</span>
             </a>
             <a href="#" class="nav-item">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                New Admission
-            </a>
-            <a href="#" class="nav-item active">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                Appointments
-            </a>
-            <a href="#" class="nav-item">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
-                Analytics
+                <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="m9.25 22l-.4-3.2q-.325-.125-.612-.3t-.563-.375L4.7 19.375l-2.75-4.75l2.575-1.95Q4.5 12.5 4.5 12.338v-.675q0-.163.025-.338L1.95 9.375l2.75-4.75l2.975 1.25q.275-.2.575-.375t.6-.3l.4-3.2h5.5l.4 3.2q.325.125.613.3t.562.375l2.975-1.25l2.75 4.75l-2.575 1.95q.025.175.025.338v.674q0 .163-.05.338l2.575 1.95l-2.75 4.75l-2.95-1.25q-.275.2-.575.375t-.6.3l-.4 3.2zm2.8-6.5q1.45 0 2.475-1.025T15.55 12t-1.025-2.475T12.05 8.5q-1.475 0-2.488 1.025T8.55 12t1.013 2.475T12.05 15.5"/></svg></span>
+                <span>Settings</span>
             </a>
         </nav>
-
-        <div class="sidebar-footer">
-            <a href="#" class="nav-item">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-                Logout
+        
+        <div class="sidebar-footer" style="border-top: 1px solid #6b7280; margin-top: 10px; padding-left: 20px;">
+            <a href="logout.php" class="nav-item">
+                <span class="nav-item-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M5 21q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h6q.425 0 .713.288T12 4t-.288.713T11 5H5v14h6q.425 0 .713.288T12 20t-.288.713T11 21zm12.175-8H10q-.425 0-.712-.288T9 12t.288-.712T10 11h7.175L15.3 9.125q-.275-.275-.275-.675t.275-.7t.7-.313t.725.288L20.3 11.3q.3.3.3.7t-.3.7l-3.575 3.575q-.3.3-.712.288t-.713-.313q-.275-.3-.262-.712t.287-.688z"/></svg></span>
+                <span>Logout</span>
             </a>
         </div>
     </aside>
 
-    <!-- MAIN WRAPPER -->
-    <div class="main-wrapper">
-        
-        <!-- HEADER -->
-        <header>
-            <div class="header-title">
-                <h1>Appointments</h1>
-                <p>Manage and schedule patient appointments</p>
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Top Header -->
+        <header class="top-header">
+            <div class="header-left">
+                <div class="menu-toggle" id="menuToggle">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                <div class="header-title">
+                    <h1>Appointments</h1>
+                    <p>Manage and schedule patient appointments</p>
+                </div>
             </div>
-            <div class="user-profile">
-                <span class="user-name">Dr. Ann</span>
-                <div class="user-avatar">
-                    <img src="https://picsum.photos/seed/doctorann/100/100" alt="Dr. Ann Avatar">
+            
+            <div class="header-right">
+                <div class="user-profile">
+                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23e5e7eb'/%3E%3Ctext x='16' y='22' font-family='Arial' font-size='18' fill='%236b7280' text-anchor='middle'%3E👤%3C/text%3E%3C/svg%3E" alt="User">
+                    <span class="user-name"><?php echo htmlspecialchars($fullName); ?></span>
+                  
                 </div>
             </div>
         </header>
 
-        <!-- CONTENT SCROLL AREA -->
-        <div class="content-scroll">
-            
-            <!-- STATS CARDS -->
-            <div class="stats-grid">
-                <div class="stat-card total">
-                    <div class="stat-header">
-                        <div class="stat-menu">⋮</div>
+        <!-- Content Area -->
+        <div class="content-area">
+            <div class="appointments-container">
+                <!-- Summary Cards -->
+                <div class="appointment-summary-cards">
+                    <div class="appointment-summary-card total">
+                        <div class="card-menu">⋯</div>
+                        <h3><?php echo $totalAppointments; ?></h3>
+                        <p>Total Appointments</p>
                     </div>
-                    <div class="stat-value">0</div>
-                    <div class="stat-label">Total Appointments</div>
-                </div>
-                <div class="stat-card today">
-                    <div class="stat-header">
-                        <div class="stat-menu">⋮</div>
+                    
+                    <div class="appointment-summary-card today">
+                        <div class="card-menu">⋯</div>
+                        <h3><?php echo $todayCount; ?></h3>
+                        <p>Today</p>
                     </div>
-                    <div class="stat-value">0</div>
-                    <div class="stat-label">Today</div>
-                </div>
-                <div class="stat-card tomorrow">
-                    <div class="stat-header">
-                        <div class="stat-menu">⋮</div>
+                    
+                    <div class="appointment-summary-card tomorrow">
+                        <div class="card-menu">⋯</div>
+                        <h3><?php echo $tomorrowCount; ?></h3>
+                        <p>Tomorrow</p>
                     </div>
-                    <div class="stat-value">0</div>
-                    <div class="stat-label">Tomorrow</div>
-                </div>
-                <div class="stat-card upcoming">
-                    <div class="stat-header">
-                        <div class="stat-menu">⋮</div>
+                    
+                    <div class="appointment-summary-card upcoming">
+                        <div class="card-menu">⋯</div>
+                        <h3><?php echo $upcomingCount; ?></h3>
+                        <p>Upcoming</p>
                     </div>
-                    <div class="stat-value">0</div>
-                    <div class="stat-label">Upcoming</div>
                 </div>
-            </div>
 
-            <!-- FILTER SECTION -->
-            <div class="filter-container">
-                <div class="search-wrapper">
-                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                    <input type="text" class="search-input" placeholder="Search appointments...">
+                <!-- Search and Filter Section -->
+                <div class="search-filter-section">
+                    <form method="GET" action="appointments.php" id="searchForm">
+                        <div class="search-bar">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <path d="m21 21-4.35-4.35"></path>
+                            </svg>
+                            <input type="text" name="search" placeholder="Search by name or phone..." value="<?php echo htmlspecialchars($search); ?>">
+                            <input type="hidden" name="filter" value="<?php echo htmlspecialchars($filter); ?>">
+                        </div>
+                        
+                        <div class="filter-buttons">
+                            <button type="button" class="filter-btn <?php echo $filter === 'all' ? 'active' : ''; ?>" data-filter="all">
+                                All (<?php echo $totalAppointments; ?>)
+                            </button>
+                            <button type="button" class="filter-btn <?php echo $filter === 'today' ? 'active' : ''; ?>" data-filter="today">
+                                Today (<?php echo $todayCount; ?>)
+                            </button>
+                            <button type="button" class="filter-btn <?php echo $filter === 'tomorrow' ? 'active' : ''; ?>" data-filter="tomorrow">
+                                Tomorrow (<?php echo $tomorrowCount; ?>)
+                            </button>
+                            <button type="button" class="filter-btn <?php echo $filter === 'upcoming' ? 'active' : ''; ?>" data-filter="upcoming">
+                                Upcoming (<?php echo $upcomingCount; ?>)
+                            </button>
+                        </div>
+                    </form>
                 </div>
-                <div class="filter-buttons">
-                    <button class="filter-btn active">All (0)</button>
-                    <button class="filter-btn">Today (0)</button>
-                    <button class="filter-btn">Tomorrow (0)</button>
-                    <button class="filter-btn">Upcoming (0)</button>
-                </div>
-            </div>
 
-            <!-- EMPTY STATE (As shown in image) -->
-            <div class="empty-state-container">
-                <div class="empty-icon">
-                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                        <line x1="16" y1="2" x2="16" y2="6"></line>
-                        <line x1="8" y1="2" x2="8" y2="6"></line>
-                        <line x1="3" y1="10" x2="21" y2="10"></line>
-                    </svg>
+                <!-- Appointments List or Empty State -->
+                <?php if (empty($appointments)): ?>
+                <div class="empty-state">
+                    <div class="empty-state-icon">📅</div>
+                    <h3>No Appointments Found</h3>
+                    <p>Start by creating a new appointment</p>
+                    <button class="new-appointment-btn" onclick="alert('New Appointment feature coming soon!')">
+                        <span>+</span>
+                        <span>New Appointment</span>
+                    </button>
                 </div>
-                <h3 class="empty-title">No Appointments Found</h3>
-                <p class="empty-desc">Start by creating a new appointment</p>
-                <button class="btn-primary" id="btnNewAppointment">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                    New Appointment
-                </button>
+                <?php else: ?>
+                <div class="appointments-list">
+                    <?php foreach ($appointments as $appointment): ?>
+                    <div class="appointment-item">
+                        <div class="appointment-info">
+                            <h4><?php echo htmlspecialchars($appointment['full_name'] ?? 'Unknown Patient'); ?></h4>
+                            <p class="appointment-date">
+                                <?php 
+                                $date = new DateTime($appointment['appointment_date']);
+                                echo $date->format('F d, Y') . ' at ' . $date->format('h:i A');
+                                ?>
+                            </p>
+                            <?php if (!empty($appointment['phone'])): ?>
+                            <p>Phone: <?php echo htmlspecialchars($appointment['phone']); ?></p>
+                            <?php endif; ?>
+                            <?php if (!empty($appointment['notes'])): ?>
+                            <p>Notes: <?php echo htmlspecialchars($appointment['notes']); ?></p>
+                            <?php endif; ?>
+                        </div>
+                        <div class="patient-actions">
+                            <button class="action-btn icon view-btn" title="View">👁️</button>
+                            <button class="action-btn icon delete-btn" title="Delete">🗑️</button>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
             </div>
-
         </div>
-    </div>
+    </main>
 
-    <!-- NEW APPOINTMENT MODAL -->
-    <div class="modal-overlay" id="appointmentModal">
-        <div class="modal">
-            <div class="modal-header">
-                <h3 class="modal-title">New Appointment</h3>
-                <button class="close-modal" id="closeModal">&times;</button>
-            </div>
-            <form id="appointmentForm">
-                <div class="form-group">
-                    <label class="form-label">Patient Name</label>
-                    <input type="text" class="form-control" placeholder="Enter full name" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Date</label>
-                    <input type="date" class="form-control" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Time</label>
-                    <input type="time" class="form-control" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Notes</label>
-                    <textarea class="form-control" rows="3" placeholder="Reason for visit..."></textarea>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn-secondary" id="cancelBtn">Cancel</button>
-                    <button type="submit" class="btn-primary">Create Appointment</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- JAVASCRIPT LOGIC -->
+    <script src="assets/js/dashboard.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            
-            // --- FILTER BUTTONS LOGIC ---
-            const filterBtns = document.querySelectorAll('.filter-btn');
-            
-            filterBtns.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    // Remove active class from all
-                    filterBtns.forEach(b => b.classList.remove('active'));
-                    // Add active to clicked
-                    btn.classList.add('active');
-                    
-                    // In a real app, this would filter data. 
-                    // Here we just visually toggle to simulate the interaction.
-                });
+        // Filter button functionality
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const filter = this.getAttribute('data-filter');
+                const form = document.getElementById('searchForm');
+                const filterInput = form.querySelector('input[name="filter"]');
+                filterInput.value = filter;
+                form.submit();
             });
-
-            // --- MODAL LOGIC ---
-            const modal = document.getElementById('appointmentModal');
-            const openBtn = document.getElementById('btnNewAppointment');
-            const closeBtn = document.getElementById('closeModal');
-            const cancelBtn = document.getElementById('cancelBtn');
-            const form = document.getElementById('appointmentForm');
-
-            function openModal() {
-                modal.classList.add('open');
-            }
-
-            function closeModal() {
-                modal.classList.remove('open');
-                form.reset();
-            }
-
-            openBtn.addEventListener('click', openModal);
-            closeBtn.addEventListener('click', closeModal);
-            cancelBtn.addEventListener('click', closeModal);
-
-            // Close on clicking outside modal content
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    closeModal();
-                }
-            });
-
-            // Form Submission Simulation
-            form.addEventListener('submit', (e) => {
-                e.preventDefault();
-                
-                // Simulate API call/processing
-                const submitBtn = form.querySelector('button[type="submit"]');
-                const originalText = submitBtn.textContent;
-                
-                submitBtn.textContent = "Saving...";
-                submitBtn.disabled = true;
-
-                setTimeout(() => {
-                    // Show success feedback (simple alert替代)
-                    // Ideally this would be a toast notification
-                    closeModal();
-                    
-                    // Update the UI to show the new appointment
-                    // For this demo, we just update the "Total" count to show something happened
-                    const totalCard = document.querySelector('.stat-card.total .stat-value');
-                    let count = parseInt(totalCard.textContent);
-                    totalCard.textContent = count + 1;
-
-                    // Hide empty state and show list (Simulated)
-                    const emptyState = document.querySelector('.empty-state-container');
-                    const emptyTitle = emptyState.querySelector('.empty-title');
-                    const emptyDesc = emptyState.querySelector('.empty-desc');
-                    
-                    emptyTitle.textContent = "Appointment Created!";
-                    emptyDesc.textContent = "List view would be updated here in the full version.";
-                    
-                    submitBtn.textContent = originalText;
-                    submitBtn.disabled = false;
-                }, 800);
-            });
-
-            // --- SIDEBAR ACTIVE STATE ---
-            const navItems = document.querySelectorAll('.nav-item');
-            navItems.forEach(item => {
-                item.addEventListener('click', (e) => {
-                    e.preventDefault(); // Prevent actual navigation
-                    navItems.forEach(n => n.classList.remove('active'));
-                    item.classList.add('active');
-                });
-            });
+        });
+        
+        // Search form submission
+        document.getElementById('searchForm').addEventListener('submit', function(e) {
+            // Form will submit normally
         });
     </script>
 </body>
