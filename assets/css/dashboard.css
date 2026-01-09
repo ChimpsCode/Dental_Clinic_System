@@ -105,6 +105,10 @@ body {
     border-top: 1px solid rgba(255,255,255,0.1);
 }
 
+.sidebar-footer .nav-item {
+    justify-content: center;
+}
+
 /* Main Content */
 .main-content {
     flex: 1;

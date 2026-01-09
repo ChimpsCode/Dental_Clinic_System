@@ -19,6 +19,31 @@ function initializeDatabase($pdo) {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
         
+        // Create patients table
+        $pdo->exec("CREATE TABLE IF NOT EXISTS patients (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            full_name VARCHAR(100) NOT NULL,
+            phone VARCHAR(20),
+            email VARCHAR(100),
+            address TEXT,
+            date_of_birth DATE,
+            gender VARCHAR(10),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        
+        // Create appointments table
+        $pdo->exec("CREATE TABLE IF NOT EXISTS appointments (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            patient_id INT,
+            appointment_date DATETIME NOT NULL,
+            notes TEXT,
+            status VARCHAR(20) DEFAULT 'scheduled',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        
         // Create default admin user (username: admin, password: admin123)
         $adminPassword = password_hash('admin123', PASSWORD_DEFAULT);
         $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
@@ -90,6 +115,37 @@ if (!isset($pdo)) {
                     $adminPassword = password_hash('admin123', PASSWORD_DEFAULT);
                     $stmt = $pdo->prepare("INSERT INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
                     $stmt->execute(['admin', $adminPassword, 'admin@rfdental.com', 'Administrator', 'admin']);
+                }
+                
+                // Check and create patients table if it doesn't exist
+                $stmt = $pdo->query("SHOW TABLES LIKE 'patients'");
+                if ($stmt->rowCount() == 0) {
+                    $pdo->exec("CREATE TABLE IF NOT EXISTS patients (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        full_name VARCHAR(100) NOT NULL,
+                        phone VARCHAR(20),
+                        email VARCHAR(100),
+                        address TEXT,
+                        date_of_birth DATE,
+                        gender VARCHAR(10),
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+                }
+                
+                // Check and create appointments table if it doesn't exist
+                $stmt = $pdo->query("SHOW TABLES LIKE 'appointments'");
+                if ($stmt->rowCount() == 0) {
+                    $pdo->exec("CREATE TABLE IF NOT EXISTS appointments (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        patient_id INT,
+                        appointment_date DATETIME NOT NULL,
+                        notes TEXT,
+                        status VARCHAR(20) DEFAULT 'scheduled',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE SET NULL
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
                 }
             }
         } catch (PDOException $e) {
