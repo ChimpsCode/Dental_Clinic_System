@@ -62,6 +62,12 @@ $(document).ready(function() {
                 tooth.removeClass('selected');
             } else {
                 tooth.addClass('selected');
+                
+                // Add a pulse effect when clicked
+                tooth.css('animation', 'toothPulse 0.3s ease-out');
+                setTimeout(function() {
+                    tooth.css('animation', '');
+                }, 300);
             }
             
             const selectedTeeth = $('.tooth.selected').map(function() {
