@@ -143,18 +143,41 @@ body::before {
 
 .toggle-password {
     position: absolute;
-    right: 16px;
+    right: 12px;
     top: 50%;
     transform: translateY(-50%);
+    background: none;
+    border: none;
+    padding: 8px;
     cursor: pointer;
-    font-size: 18px;
-    user-select: none;
-    opacity: 0.6;
-    transition: opacity 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+    transition: all 0.2s ease;
+    border-radius: 4px;
+    outline: none;
 }
 
 .toggle-password:hover {
-    opacity: 1;
+    color: #2563eb;
+    background-color: rgba(37, 99, 235, 0.05);
+}
+
+.toggle-password:active {
+    transform: translateY(-50%) scale(0.95);
+}
+
+.toggle-password:focus {
+    outline: 2px solid rgba(37, 99, 235, 0.3);
+    outline-offset: 2px;
+}
+
+.eye-icon {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2;
+    pointer-events: none;
 }
 
 .form-links {

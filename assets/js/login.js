@@ -17,7 +17,20 @@ document.addEventListener('DOMContentLoaded', function() {
         togglePassword.addEventListener('click', function() {
             const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
             passwordInput.setAttribute('type', type);
-            togglePassword.textContent = type === 'password' ? '👁️' : '🙈';
+            
+            // Toggle between eye-open and eye-closed icons
+            const eyeOpen = togglePassword.querySelector('.eye-open');
+            const eyeClosed = togglePassword.querySelector('.eye-closed');
+            
+            if (type === 'password') {
+                // Show password is hidden, show open eye
+                if (eyeOpen) eyeOpen.style.display = 'block';
+                if (eyeClosed) eyeClosed.style.display = 'none';
+            } else {
+                // Show password is visible, show closed eye
+                if (eyeOpen) eyeOpen.style.display = 'none';
+                if (eyeClosed) eyeClosed.style.display = 'block';
+            }
         });
     }
 

@@ -5,9 +5,34 @@ define('DB_NAME', 'dental_management');
 define('DB_USER', 'root');
 define('DB_PASS', '');
 
+// Function to initialize database tables and admin user
+function initializeDatabase($pdo) {
+    try {
+        // Create users table
+        $pdo->exec("CREATE TABLE IF NOT EXISTS users (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(50) UNIQUE NOT NULL,
+            password VARCHAR(255) NOT NULL,
+            email VARCHAR(100),
+            full_name VARCHAR(100),
+            role VARCHAR(20) DEFAULT 'user',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        
+        // Create default admin user (username: admin, password: admin123)
+        $adminPassword = password_hash('admin123', PASSWORD_DEFAULT);
+        $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute(['admin', $adminPassword, 'admin@rfdental.com', 'Administrator', 'admin']);
+    } catch (PDOException $e) {
+        error_log("Database initialization failed: " . $e->getMessage());
+        throw $e;
+    }
+}
+
 // Only connect if not already connected
 if (!isset($pdo)) {
     try {
+        // Try to connect to the database directly
         $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4";
         $options = [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -18,12 +43,58 @@ if (!isset($pdo)) {
         
         $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
     } catch (PDOException $e) {
-        // Better error handling - don't expose database details in production
-        error_log("Database connection failed: " . $e->getMessage());
-        if (defined('DEBUG') && DEBUG) {
-            die("Database connection failed: " . $e->getMessage());
+        // If database doesn't exist, try to create it
+        if ($e->getCode() == 1049) { // Error code for unknown database
+            try {
+                // Connect without database
+                $dsn_temp = "mysql:host=" . DB_HOST . ";charset=utf8mb4";
+                $pdo_temp = new PDO($dsn_temp, DB_USER, DB_PASS);
+                $pdo_temp->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                
+                // Create database
+                $pdo_temp->exec("CREATE DATABASE IF NOT EXISTS `" . DB_NAME . "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+                $pdo_temp = null;
+                
+                // Try connecting again
+                $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+                
+                // Initialize tables and admin user for new database
+                initializeDatabase($pdo);
+            } catch (PDOException $e2) {
+                // Log the error
+                error_log("Database connection failed: " . $e2->getMessage());
+                $pdo = null;
+                throw $e2;
+            }
         } else {
-            die("Database connection failed. Please contact administrator.");
+            // Log the error
+            error_log("Database connection failed: " . $e->getMessage());
+            $pdo = null;
+            throw $e;
+        }
+    }
+    
+    // Initialize database tables and admin user if needed
+    if (isset($pdo)) {
+        try {
+            // Check if users table exists
+            $stmt = $pdo->query("SHOW TABLES LIKE 'users'");
+            if ($stmt->rowCount() == 0) {
+                initializeDatabase($pdo);
+            } else {
+                // Check if admin user exists
+                $stmt = $pdo->prepare("SELECT id FROM users WHERE username = 'admin' LIMIT 1");
+                $stmt->execute();
+                if ($stmt->rowCount() == 0) {
+                    // Create admin user
+                    $adminPassword = password_hash('admin123', PASSWORD_DEFAULT);
+                    $stmt = $pdo->prepare("INSERT INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
+                    $stmt->execute(['admin', $adminPassword, 'admin@rfdental.com', 'Administrator', 'admin']);
+                }
+            }
+        } catch (PDOException $e) {
+            // Log but don't throw - table might already exist
+            error_log("Database initialization check failed: " . $e->getMessage());
         }
     }
 }
