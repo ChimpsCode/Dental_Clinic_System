@@ -1,9 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Staff Dashboard - RF Dental Clinic</title>
 <?php
 // Start output buffering for faster response
 ob_start();
@@ -16,15 +10,22 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
     exit();
 }
 
-$username = $_SESSION['username'] ?? 'Staff';
-$fullName = $_SESSION['full_name'] ?? 'Staff Member';
+ $username = $_SESSION['username'] ?? 'Staff';
+ $fullName = $_SESSION['full_name'] ?? 'Staff Member';
 ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Dashboard - RF Dental Clinic</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* CSS Variables for consistent theming */
+        /* CSS Variables for consistent theming based on the Dashboard design */
         :root {
             --primary-color: #0ea5e9; /* Light Blue */
             --primary-dark: #0284c7;
-            --sidebar-bg: #FFFFFF; /* White */
+            --sidebar-bg: #FFFFFF;
             --sidebar-text: #000000;
             --sidebar-active-bg: #2563eb;
             --sidebar-active-text: #ffffff;
@@ -54,7 +55,7 @@ $fullName = $_SESSION['full_name'] ?? 'Staff Member';
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Inter', sans-serif;
         }
 
         body {
@@ -74,6 +75,7 @@ $fullName = $_SESSION['full_name'] ?? 'Staff Member';
             justify-content: space-between;
             flex-shrink: 0;
             transition: width 0.3s ease;
+            border-right: 1px solid var(--border-color);
         }
 
         .sidebar-logo {
@@ -83,8 +85,8 @@ $fullName = $_SESSION['full_name'] ?? 'Staff Member';
             gap: 12px;
             color: #000000;
             font-size: 1.125rem;
-            font-weight: 600;
-            border-bottom: 1px solid rgba(0,0,0,0.1);
+            font-weight: 700;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
         }
 
         .sidebar-logo img {
@@ -103,21 +105,22 @@ $fullName = $_SESSION['full_name'] ?? 'Staff Member';
             align-items: center;
             gap: 12px;
             padding: 14px 20px;
-            color: rgba(0, 0, 0, 0.8);
+            color: rgba(0, 0, 0, 0.7);
             text-decoration: none;
-            transition: all 0.3s;
+            transition: all 0.2s;
             cursor: pointer;
+            border-radius: 0 8px 8px 0;
+            margin-right: 12px;
         }
 
         .nav-item:hover {
-            background: rgba(0,0,0,0.05);
-            color: #0575D5;
+            background: #f3f4f6;
+            color: var(--sidebar-active-bg);
         }
 
         .nav-item.active {
-            background: #2563eb;
+            background: var(--sidebar-active-bg);
             color: white;
-            border-left: 4px solid #60a5fa;
         }
 
         .nav-item svg {
@@ -126,11 +129,15 @@ $fullName = $_SESSION['full_name'] ?? 'Staff Member';
         }
 
         .sidebar-footer {
-            border-top: 1px solid rgba(0,0,0,0.1);
+            border-top: 1px solid rgba(0,0,0,0.05);
+            padding-bottom: 10px;
         }
 
         .sidebar-footer .nav-item {
             justify-content: center;
+            margin-right: 0;
+            border-radius: 8px;
+            margin: 10px;
         }
 
         /* Main Content Wrapper */
@@ -151,6 +158,7 @@ $fullName = $_SESSION['full_name'] ?? 'Staff Member';
             align-items: center;
             border-bottom: 1px solid var(--border-color);
             height: 70px;
+            flex-shrink: 0;
         }
 
         .header-title h1 {
@@ -164,6 +172,9 @@ $fullName = $_SESSION['full_name'] ?? 'Staff Member';
             align-items: center;
             gap: 12px;
             padding: 6px 12px;
+            background: #f9fafb;
+            border-radius: 30px;
+            border: 1px solid var(--border-color);
         }
 
         .user-profile img {
@@ -235,7 +246,7 @@ $fullName = $_SESSION['full_name'] ?? 'Staff Member';
         .section-card, .notification-box {
             background: var(--bg-card);
             border-radius: 12px;
-            padding: 20px;
+            padding: 24px;
             margin-bottom: 24px;
             border: 1px solid var(--border-color);
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
@@ -248,12 +259,13 @@ $fullName = $_SESSION['full_name'] ?? 'Staff Member';
             display: flex;
             align-items: center;
             gap: 8px;
+            color: var(--text-main);
         }
 
         .patient-list { display: flex; flex-direction: column; gap: 12px; }
         .patient-item {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 12px; border: 1px solid var(--border-color); border-radius: 8px;
+            padding: 16px; border: 1px solid var(--border-color); border-radius: 8px;
             background: #fff; transition: background 0.2s;
         }
         .patient-item:hover { background-color: #f9fafb; }
@@ -274,9 +286,11 @@ $fullName = $_SESSION['full_name'] ?? 'Staff Member';
         .action-btn {
             background: transparent; border: 1px solid var(--border-color); border-radius: 6px;
             padding: 6px 10px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
         }
         .action-btn:hover { background-color: #f3f4f6; border-color: #d1d5db; }
 
+        /* Live Queue Controller Styles */
         .live-queue {
             background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
             border: 1px solid #bae6fd; border-radius: 12px; padding: 24px; text-align: center;
@@ -297,9 +311,109 @@ $fullName = $_SESSION['full_name'] ?? 'Staff Member';
             background-color: var(--card-completed); color: white; border: none; padding: 12px 24px;
             border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer;
             display: flex; align-items: center; justify-content: center; gap: 8px;
-            margin: 0 auto; width: 100%; max-width: 300px;
+            margin: 0 auto; width: 100%; max-width: 300px; transition: background 0.2s;
         }
         .complete-btn:hover { background-color: #16a34a; transform: translateY(-1px); }
+        .complete-btn-text { font-size: 0.85rem; color: #6b7280; margin-top: 10px; }
+
+        /* --- NOTIFICATIONS & REMINDERS STYLES --- */
+        .notification-box {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .notification-box h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .notification-item {
+            background: #f9fafb;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 3px solid var(--primary-color);
+        }
+        .notification-title { font-weight: 600; font-size: 0.9rem; margin-bottom: 2px; }
+        .notification-detail { font-size: 0.85rem; color: var(--text-secondary); }
+
+        /* To-Do / Reminders List */
+        .reminder-list {
+            list-style: none;
+            margin-bottom: 16px;
+        }
+
+        .reminder-list li {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 0.9rem;
+            color: var(--text-main);
+        }
+
+        .reminder-list li:last-child {
+            border-bottom: none;
+        }
+
+        /* Checkbox style */
+        .reminder-list li::before {
+            content: '';
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        
+        .reminder-list li.checked::before {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>');
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .reminder-list li.checked {
+            text-decoration: line-through;
+            color: #9ca3af;
+        }
+
+        .add-reminder-btn {
+            background: transparent;
+            color: var(--primary-color);
+            border: 1px dashed var(--primary-color);
+            padding: 10px;
+            width: 100%;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .add-reminder-btn:hover {
+            background: #f0f9ff;
+        }
+
+        .see-all-link {
+            display: block;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            margin-top: 10px;
+        }
+        .see-all-link:hover { text-decoration: underline; }
 
         /* --- APPOINTMENTS VIEW STYLES --- */
         .appt-header-ctrl {
@@ -309,6 +423,7 @@ $fullName = $_SESSION['full_name'] ?? 'Staff Member';
         .btn-primary {
             background-color: #2563eb; color: white; border: none; padding: 10px 20px;
             border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px;
+            transition: background 0.2s;
         }
         .btn-primary:hover { background-color: #1d4ed8; }
 
@@ -373,7 +488,7 @@ $fullName = $_SESSION['full_name'] ?? 'Staff Member';
         @media (max-width: 768px) {
             aside.sidebar { width: 70px; }
             .sidebar-logo span, .nav-item span, .sidebar-footer span { display: none; }
-            .nav-item { justify-content: center; padding: 16px; }
+            .nav-item { justify-content: center; padding: 16px; margin-right: 0; border-radius: 0; }
             .summary-cards, .appt-stats-grid { grid-template-columns: 1fr; }
             .search-filters { flex-direction: column; gap: 10px; }
             .search-input { width: 100%; }
@@ -575,7 +690,7 @@ $fullName = $_SESSION['full_name'] ?? 'Staff Member';
                         <div class="patient-list" id="cancelled-list">
                             <div class="patient-item" id="cancelled-roberto">
                                 <div class="patient-info">
-                                    <div class="patient-name">Roberto Garcia</div>
+                                    <div class="patient-name" style="text-decoration: line-through; color: #9ca3af;">Roberto Garcia</div>
                                     <div class="patient-details">
                                         <span class="status-badge cancelled">Cancelled</span>
                                     </div>
@@ -592,7 +707,7 @@ $fullName = $_SESSION['full_name'] ?? 'Staff Member';
                     </div>
                 </div>
 
-                <!-- Right Column: Notifications -->
+                <!-- Right Column: Notifications & Reminders -->
                 <div class="right-column">
                     <div class="notification-box">
                         <h3>🔔 Notification</h3>
@@ -601,12 +716,13 @@ $fullName = $_SESSION['full_name'] ?? 'Staff Member';
                             <div class="notification-detail">Next patient arriving in 10 mins</div>
                         </div>
                     </div>
+                    
                     <div class="notification-box">
                         <h3>✓ Daily Reminders / To-Do</h3>
                         <ul class="reminder-list" id="reminder-list">
-                            <li>Reply to Facebook inquiries from last night</li>
-                            <li>Print consent form for tomorrow</li>
-                            <li>Call inquiries for new stocks of Composites</li>
+                            <li onclick="this.classList.toggle('checked')">Reply to Facebook inquiries from last night</li>
+                            <li onclick="this.classList.toggle('checked')">Print consent form for tomorrow</li>
+                            <li onclick="this.classList.toggle('checked')">Call inquiries for new stocks of Composites</li>
                         </ul>
                         <button class="add-reminder-btn" id="addReminderBtn">+ Add New Reminder</button>
                         <a href="#" class="see-all-link">See all reminders</a>
@@ -783,6 +899,7 @@ $fullName = $_SESSION['full_name'] ?? 'Staff Member';
             const reminders = ["Check inventory", "Verify insurance claims", "Sterilize tools", "Update patient records", "Lunch break"];
             const randomReminder = reminders[Math.floor(Math.random() * reminders.length)];
             const li = document.createElement('li');
+            li.setAttribute('onclick', 'this.classList.toggle("checked")');
             li.innerText = randomReminder;
             reminderList.appendChild(li);
         });
