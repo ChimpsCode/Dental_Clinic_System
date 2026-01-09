@@ -4,6 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Staff Dashboard - RF Dental Clinic</title>
+<?php
+// Start output buffering for faster response
+ob_start();
+session_start();
+
+// Check if user is logged in and has staff role
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'staff') {
+    ob_end_clean();
+    header('Location: login.php');
+    exit();
+}
+
+$username = $_SESSION['username'] ?? 'Staff';
+$fullName = $_SESSION['full_name'] ?? 'Staff Member';
+?>
     <style>
         /* CSS Variables for consistent theming */
         :root {
