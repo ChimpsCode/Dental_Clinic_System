@@ -472,15 +472,113 @@ body {
     color: #1f2937;
 }
 
-/* Live Queue Controller */
 .live-queue {
-    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-    color: white;
-    border-radius: 12px;
-    padding: 25px;
+            background-color: #3b82f6;
+            color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(59, 130, 246, 0.2);
+        }
+
+.live-queue::before {
+    content: '';
+    position: absolute;
+    top: -50px;
+    right: -50px;
+    width: 150px;
+    height: 150px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+}
+
+.live-queue::after {
+    content: '';
+    position: absolute;
+    bottom: -70px;
+    left: -70px;
+    width: 200px;
+    height: 200px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 50%;
+}
+
+.live-queue-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 25px;
     position: relative;
-    overflow: hidden;
+    z-index: 1;
+}
+
+.live-queue-title {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.now-serving-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background-color: rgba(255, 255, 255, 0.2);
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+}
+
+.live-patient {
+    margin-bottom: 25px;
+    position: relative;
+    z-index: 1;
+}
+
+.live-patient .patient-name {
+    font-size: 24px;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 15px;
+}
+
+.live-patient .patient-details {
+    margin-bottom: 12px;
+}
+
+.live-patient .patient-treatment {
+    font-size: 16px;
+    color: #6b7280;
+}
+
+.complete-btn {
+    background-color: white;
+    color: #3b82f6;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    transition: all 0.2s ease;
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    justify-content: center;
+}
+
+.complete-btn:hover {
+    background-color: #f1f5f9;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.complete-btn-text {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+    text-align: center;
+    position: relative;
+    z-index: 1;
 }
 
 .live-queue::before {
