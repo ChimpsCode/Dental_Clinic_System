@@ -26,19 +26,32 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $error = 'Password must be at least 6 characters long';
     } else {
         try {
-            // Check if username already exists
-            $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ?");
-            $stmt->execute([$username]);
-            if ($stmt->fetch()) {
-                $error = 'Username already exists';
+            // Check if PDO connection exists
+            if (!isset($pdo)) {
+                $error = 'Database connection failed. Please check your database configuration.';
             } else {
-                $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-                $stmt = $pdo->prepare("INSERT INTO users (username, password, email, full_name) VALUES (?, ?, ?, ?)");
-                $stmt->execute([$username, $hashedPassword, $email, $fullName]);
-                $success = 'Account created successfully! You can now login.';
+                // Check if username already exists
+                $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ?");
+                $stmt->execute([$username]);
+                if ($stmt->fetch()) {
+                    $error = 'Username already exists';
+                } else {
+                    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+                    $stmt = $pdo->prepare("INSERT INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, 'user')");
+                    $result = $stmt->execute([$username, $hashedPassword, $email, $fullName]);
+                    if ($result) {
+                        $success = 'Account created successfully! You can now login.';
+                    } else {
+                        $error = 'Failed to create account. Please try again.';
+                    }
+                }
             }
         } catch (PDOException $e) {
-            $error = 'Registration failed. Please try again.';
+            error_log("Registration error: " . $e->getMessage());
+            $error = 'Registration failed: ' . htmlspecialchars($e->getMessage());
+        } catch (Exception $e) {
+            error_log("Registration error: " . $e->getMessage());
+            $error = 'An error occurred. Please try again.';
         }
     }
 }
