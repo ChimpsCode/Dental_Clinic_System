@@ -31,10 +31,10 @@ try {
 
     echo "Users table created successfully!\n";
 
-    // Create default admin user (username: admin, password: admin123)
-    $adminPassword = password_hash('admin123', PASSWORD_DEFAULT);
+    // Create default admin user (username: dentist, password: dentist123)
+    $adminPassword = password_hash('dentist123', PASSWORD_DEFAULT);
     $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
-    $stmt->execute(['admin', $adminPassword, 'admin@rfdental.com', 'Administrator', 'admin']);
+    $stmt->execute(['dentist', $adminPassword, 'dentist@rfdental.com', 'Dentist', 'dentist']);
 
     // Create staff user (username: staff, password: staff123)
     $staffPassword = password_hash('staff123', PASSWORD_DEFAULT);
@@ -42,9 +42,9 @@ try {
     $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com', 'Staff Member', 'staff']);
 
     echo "Users created successfully!\n";
-    echo "\nAdmin Account:\n";
-    echo "Username: admin\n";
-    echo "Password: admin123\n";
+    echo "\nDentist Account:\n";
+    echo "Username: dentist\n";
+    echo "Password: dentist123\n";
     echo "\nStaff Account:\n";
     echo "Username: staff\n";
     echo "Password: staff123\n";

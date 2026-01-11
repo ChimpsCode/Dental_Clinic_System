@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     <div class="login-form-container">
         <div class="logo-container">
-            <img src="assets/images/logo.png" alt="RF Logo" class="logo">
+            <img src="assets/images/xalogo.png" alt="RF Logo" class="logo">
         </div>
 
         <h1 class="clinic-name">Reset Password</h1>

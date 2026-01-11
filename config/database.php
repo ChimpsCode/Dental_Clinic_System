@@ -47,7 +47,12 @@ function initializeDatabase($pdo) {
         // Create default admin user (username: admin, password: admin123)
         $adminPassword = password_hash('admin123', PASSWORD_DEFAULT);
         $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
-        $stmt->execute(['admin', $adminPassword, 'admin@rfdental.com', 'Administrator', 'admin']);
+        $stmt->execute(['admin', $adminPassword, 'admin@rfdental.com', 'Administrator', 'admin']);  
+
+        // Create default dentist user (username: dentist, password: dentist123)
+        $dentistPassword = password_hash('dentist123', PASSWORD_DEFAULT);
+        $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute(['dentist', $dentistPassword, 'dentist@rfdental.com', 'Dentist', 'dentist']);
 
         // Create staff user (username: staff, password: staff123)
         $staffPassword = password_hash('staff123', PASSWORD_DEFAULT);
@@ -112,14 +117,14 @@ if (!isset($pdo)) {
             if ($stmt->rowCount() == 0) {
                 initializeDatabase($pdo);
             } else {
-                // Check if admin user exists
-                $stmt = $pdo->prepare("SELECT id FROM users WHERE username = 'admin' LIMIT 1");
+                // Check if dentist user exists
+                $stmt = $pdo->prepare("SELECT id FROM users WHERE username = 'dentist' LIMIT 1");
                 $stmt->execute();
                 if ($stmt->rowCount() == 0) {
-                    // Create admin user
-                    $adminPassword = password_hash('admin123', PASSWORD_DEFAULT);
+                    // Create dentist user
+                    $dentistPassword = password_hash('admin123', PASSWORD_DEFAULT);
                     $stmt = $pdo->prepare("INSERT INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
-                    $stmt->execute(['admin', $adminPassword, 'admin@rfdental.com', 'Administrator', 'admin']);
+                    $stmt->execute(['admin', $dentistPassword, 'admin@rfdental.com', 'Administrator', 'admin']);
                 }
                 
                 // Check and create patients table if it doesn't exist

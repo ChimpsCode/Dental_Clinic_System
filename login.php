@@ -22,7 +22,17 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
             echo json_encode(['success' => false, 'message' => 'Please fill in all fields']);
             exit();
         }
-        
+
+        // Allow quick admin login without DB for development/testing
+        if ($username === 'admin' && $password === 'admin123') {
+            $_SESSION['user_id'] = 0;
+            $_SESSION['username'] = 'admin';
+            $_SESSION['role'] = 'admin';
+            $_SESSION['full_name'] = 'Administrator';
+            echo json_encode(['success' => true, 'message' => 'Logged in successfully', 'redirect' => 'admin_dashboard.php']);
+            exit();
+        }
+
         try {
             require_once 'config/database.php';
             
@@ -66,6 +76,16 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
     if (empty($username) || empty($password)) {
         $error = 'Please fill in all fields';
     } else {
+        // Allow quick admin login without DB for development/testing
+        if ($username === 'admin' && $password === 'admin123') {
+            $_SESSION['user_id'] = 0;
+            $_SESSION['username'] = 'admin';
+            $_SESSION['role'] = 'admin';
+            $_SESSION['full_name'] = 'Administrator';
+            header('Location: admin_dashboard.php');
+            exit();
+        }
+
         try {
             require_once 'config/database.php';
             
