@@ -1,10 +1,3 @@
--- ============================================
--- Dental Clinic Management System Database Setup
--- Database: dental_management
--- ============================================
-
--- Drop database if exists (uncomment to reset database)
--- DROP DATABASE IF EXISTS dental_management;
 
 -- Create database
 CREATE DATABASE IF NOT EXISTS dental_management 

@@ -29,8 +29,8 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'staff') {
     exit();
 }
 
-$username = $_SESSION['username'] ?? 'Staff';
-$fullName = $_SESSION['full_name'] ?? 'Staff Member';
+ $username = $_SESSION['username'] ?? 'Staff';
+ $fullName = $_SESSION['full_name'] ?? 'Staff Member';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -66,6 +66,115 @@ $fullName = $_SESSION['full_name'] ?? 'Staff Member';
             font-size: 0.75rem;
             font-weight: 600;
         }
+
+        /* ---------------------------------------------------------
+           NEW 3D DENTAL CHART STYLES (Only for Step 5)
+           --------------------------------------------------------- */
+        .dental-stage {
+            perspective: 1000px; /* Essential for 3D effect */
+            padding: 20px;
+        }
+
+        .arch-container {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 30px; /* Space between upper and lower jaw */
+            transform-style: preserve-3d;
+        }
+
+        /* The Tooth Container (Cube) */
+        .tooth-wrapper {
+            width: 34px;
+            height: 46px;
+            position: relative;
+            transform-style: preserve-3d;
+            transform: rotateX(-20deg) rotateY(0deg); /* Slight tilt back */
+            transition: transform 0.3s ease, filter 0.3s ease;
+            cursor: pointer;
+        }
+
+        /* Hover Effect: Tooth leans towards user */
+        .tooth-wrapper:hover {
+            transform: rotateX(0deg) scale(1.1);
+            z-index: 10;
+        }
+
+        /* The visible face of the tooth */
+        .tooth-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: white;
+            border: 1px solid #cbd5e1; /* Slate-300 */
+            border-radius: 6px 6px 12px 12px; /* Anatomical shape */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.75rem;
+            color: #64748b; /* Slate-500 */
+            box-shadow: 
+                0 4px 0 #94a3b8, /* 3D thickness/shadow */
+                0 5px 6px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+        }
+
+        /* Roots visual styling (optional visual cues at bottom) */
+        .tooth-face::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60%;
+            height: 4px;
+            background: #cbd5e1;
+            border-radius: 0 0 4px 4px;
+            z-index: -1;
+        }
+
+        /* STATE: SELECTED (Blue) */
+        .tooth-wrapper.selected .tooth-face {
+            background: #bfdbfe; /* Blue-200 */
+            border-color: #3b82f6; /* Blue-500 */
+            color: #1e3a8a;
+            box-shadow: 
+                0 4px 0 #3b82f6,
+                0 5px 10px rgba(59, 130, 246, 0.3);
+            transform: translateY(-2px);
+        }
+        .tooth-wrapper.selected .tooth-face::after {
+            background: #3b82f6;
+        }
+
+        /* STATE: NEEDS ATTENTION (Yellow) */
+        .tooth-wrapper.attention .tooth-face {
+            background: #fef08a; /* Yellow-200 */
+            border-color: #eab308; /* Yellow-500 */
+            color: #713f12;
+            box-shadow: 
+                0 4px 0 #eab308,
+                0 5px 10px rgba(234, 179, 8, 0.3);
+            transform: translateY(-2px);
+        }
+        .tooth-wrapper.attention .tooth-face::after {
+            background: #eab308;
+        }
+
+        /* Labels */
+        .quadrant-label {
+            position: absolute;
+            font-size: 0.7rem;
+            color: #94a3b8;
+            font-weight: 600;
+            pointer-events: none;
+        }
+        .q-ur { top: 0; left: 0; }
+        .q-ul { top: 0; right: 0; }
+        .q-lr { bottom: 0; left: 0; }
+        .q-ll { bottom: 0; right: 0; }
+
     </style>
 </head>
 <body class="bg-gray-50 text-slate-800 min-h-screen flex flex-col">
@@ -384,39 +493,76 @@ $fullName = $_SESSION['full_name'] ?? 'Staff Member';
                     </section>
                 </div>
 
-                <!-- STEP 5: Dental Chart -->
+                <!-- STEP 5: 3D DENTAL CHART (Updated Only) -->
                 <div id="step-5" class="hidden space-y-8 flex-1">
-                    <section>
-                        <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Dental Chart</h3>
-                        <p class="text-sm text-slate-500 mb-4">Click on teeth to mark them for treatment.</p>
+                    <section class="dental-stage relative min-h-[400px] flex flex-col justify-center">
                         
-                        <!-- Upper Teeth -->
-                        <div class="mb-4">
-                            <p class="text-xs font-medium text-slate-400 uppercase mb-2">Upper Teeth (18-11)</p>
-                            <div class="flex flex-wrap gap-1 justify-center max-w-md mx-auto">
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="18" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">18</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="17" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">17</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="16" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">16</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="15" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">15</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="14" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">14</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="13" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">13</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="12" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">12</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="11" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">11</button>
+                        <!-- UPPER ARCH (Maxilla) -->
+                        <div class="mb-8 relative">
+                            <div class="arch-container">
+                                <!-- Upper Right (18-11) -->
+                                <div class="tooth-wrapper" data-tooth="18" onclick="toggleTooth3D(this)"><div class="tooth-face">18</div></div>
+                                <div class="tooth-wrapper" data-tooth="17" onclick="toggleTooth3D(this)"><div class="tooth-face">17</div></div>
+                                <div class="tooth-wrapper" data-tooth="16" onclick="toggleTooth3D(this)"><div class="tooth-face">16</div></div>
+                                <div class="tooth-wrapper" data-tooth="15" onclick="toggleTooth3D(this)"><div class="tooth-face">15</div></div>
+                                <div class="tooth-wrapper" data-tooth="14" onclick="toggleTooth3D(this)"><div class="tooth-face">14</div></div>
+                                <div class="tooth-wrapper" data-tooth="13" onclick="toggleTooth3D(this)"><div class="tooth-face">13</div></div>
+                                <div class="tooth-wrapper" data-tooth="12" onclick="toggleTooth3D(this)"><div class="tooth-face">12</div></div>
+                                <div class="tooth-wrapper" data-tooth="11" onclick="toggleTooth3D(this)"><div class="tooth-face">11</div></div>
+                                
+                                <!-- Spacer for center -->
+                                <div class="w-4"></div>
+
+                                <!-- Upper Left (21-28) -->
+                                <div class="tooth-wrapper" data-tooth="21" onclick="toggleTooth3D(this)"><div class="tooth-face">21</div></div>
+                                <div class="tooth-wrapper" data-tooth="22" onclick="toggleTooth3D(this)"><div class="tooth-face">22</div></div>
+                                <div class="tooth-wrapper" data-tooth="23" onclick="toggleTooth3D(this)"><div class="tooth-face">23</div></div>
+                                <div class="tooth-wrapper" data-tooth="24" onclick="toggleTooth3D(this)"><div class="tooth-face">24</div></div>
+                                <div class="tooth-wrapper" data-tooth="25" onclick="toggleTooth3D(this)"><div class="tooth-face">25</div></div>
+                                <div class="tooth-wrapper" data-tooth="26" onclick="toggleTooth3D(this)"><div class="tooth-face">26</div></div>
+                                <div class="tooth-wrapper" data-tooth="27" onclick="toggleTooth3D(this)"><div class="tooth-face">27</div></div>
+                                <div class="tooth-wrapper" data-tooth="28" onclick="toggleTooth3D(this)"><div class="tooth-face">28</div></div>
                             </div>
                         </div>
 
-                        <!-- Lower Teeth -->
-                        <div class="mb-4">
-                            <p class="text-xs font-medium text-slate-400 uppercase mb-2">Lower Teeth (41-48)</p>
-                            <div class="flex flex-wrap gap-1 justify-center max-w-md mx-auto">
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="41" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">41</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="42" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">42</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="43" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">43</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="44" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">44</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="45" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">45</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="46" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">46</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="47" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">47</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="48" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">48</button>
+                        <!-- LOWER ARCH (Mandible) -->
+                        <div class="relative">
+                            <div class="arch-container">
+                                <!-- Lower Right (48-41) -->
+                                <div class="tooth-wrapper" data-tooth="48" onclick="toggleTooth3D(this)"><div class="tooth-face">48</div></div>
+                                <div class="tooth-wrapper" data-tooth="47" onclick="toggleTooth3D(this)"><div class="tooth-face">47</div></div>
+                                <div class="tooth-wrapper" data-tooth="46" onclick="toggleTooth3D(this)"><div class="tooth-face">46</div></div>
+                                <div class="tooth-wrapper" data-tooth="45" onclick="toggleTooth3D(this)"><div class="tooth-face">45</div></div>
+                                <div class="tooth-wrapper" data-tooth="44" onclick="toggleTooth3D(this)"><div class="tooth-face">44</div></div>
+                                <div class="tooth-wrapper" data-tooth="43" onclick="toggleTooth3D(this)"><div class="tooth-face">43</div></div>
+                                <div class="tooth-wrapper" data-tooth="42" onclick="toggleTooth3D(this)"><div class="tooth-face">42</div></div>
+                                <div class="tooth-wrapper" data-tooth="41" onclick="toggleTooth3D(this)"><div class="tooth-face">41</div></div>
+
+                                <!-- Spacer for center -->
+                                <div class="w-4"></div>
+
+                                <!-- Lower Left (31-38) -->
+                                <div class="tooth-wrapper" data-tooth="31" onclick="toggleTooth3D(this)"><div class="tooth-face">31</div></div>
+                                <div class="tooth-wrapper" data-tooth="32" onclick="toggleTooth3D(this)"><div class="tooth-face">32</div></div>
+                                <div class="tooth-wrapper" data-tooth="33" onclick="toggleTooth3D(this)"><div class="tooth-face">33</div></div>
+                                <div class="tooth-wrapper" data-tooth="34" onclick="toggleTooth3D(this)"><div class="tooth-face">34</div></div>
+                                <div class="tooth-wrapper" data-tooth="35" onclick="toggleTooth3D(this)"><div class="tooth-face">35</div></div>
+                                <div class="tooth-wrapper" data-tooth="36" onclick="toggleTooth3D(this)"><div class="tooth-face">36</div></div>
+                                <div class="tooth-wrapper" data-tooth="37" onclick="toggleTooth3D(this)"><div class="tooth-face">37</div></div>
+                                <div class="tooth-wrapper" data-tooth="38" onclick="toggleTooth3D(this)"><div class="tooth-face">38</div></div>
+                            </div>
+                        </div>
+
+                        <!-- Legend -->
+                        <div class="flex justify-center gap-6 mt-8 text-xs text-slate-500">
+                            <div class="flex items-center gap-2">
+                                <div class="w-4 h-4 bg-white border border-slate-300 rounded"></div> Healthy
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="w-4 h-4 bg-blue-200 border border-blue-500 rounded"></div> Selected
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="w-4 h-4 bg-yellow-200 border border-yellow-500 rounded"></div> Attention
                             </div>
                         </div>
                     </section>
@@ -522,74 +668,101 @@ $fullName = $_SESSION['full_name'] ?? 'Staff Member';
                     icon.className = 'w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors duration-200 z-10 bg-green-500 border-green-500 text-white';
                     if(dot) dot.classList.remove('hidden');
                     if(!dot) icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
-                    text.className = 'text-sm font-medium text-green-500 transition-colors duration-200';
-                } else if (i === activeStep) {
-                    // Current active step
-                    navItem.classList.remove('opacity-50');
-                    icon.className = 'w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors duration-200 z-10 bg-blue-500 border-blue-500 text-white';
-                    if(dot) dot.classList.remove('hidden');
-                    if(!dot) icon.innerHTML = '<div class="w-3 h-3 bg-white rounded-full"></div>';
-                    text.className = 'text-sm font-medium text-blue-500 transition-colors duration-200';
-                } else {
-                    // Future steps
-                    navItem.classList.add('opacity-50');
-                    icon.className = 'w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors duration-200 z-10 bg-white border-slate-300 text-slate-400';
-                    if(dot) dot.classList.add('hidden');
-                    if(!dot) icon.innerHTML = '<span class="text-xs font-medium">' + i + '</span>';
-                    text.className = 'text-sm font-medium text-slate-400 transition-colors duration-200';
-                }
-            }
-        }
+                    text.className = 'text-sm fonttext-green-500 transition-colors duration-200';
+} else if (i === activeStep) {
+// Current active step
+navItem.classList.remove('opacity-50');
+icon.className = 'w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors duration-200 z-10 bg-blue-500 border-blue-500 text-white';
+if(dot) dot.classList.remove('hidden');
+if(!dot) icon.innerHTML = '<div class="w-3 h-3 bg-white rounded-full"></div>';
+text.className = 'text-sm font-medium text-blue-500 transition-colors duration-200';
+} else {
+// Future steps
+navItem.classList.add('opacity-50');
+icon.className = 'w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors duration-200 z-10 bg-white border-slate-300 text-slate-400';
+if(dot) dot.classList.add('hidden');
+if(!dot) icon.innerHTML = '<span class="text-xs font-medium">' + i + '</span>';
+text.className = 'text-sm font-medium text-slate-400 transition-colors duration-200';
+}
+}
+}
 
-        function toggleTooth(btn) {
-            // Toggle between yellow (needs attention) and blue (selected)
-            if (btn.classList.contains('bg-blue-200')) {
-                btn.classList.remove('bg-blue-200', 'border-blue-400');
-                btn.classList.add('bg-yellow-200', 'border-yellow-400');
-            } else if (btn.classList.contains('bg-yellow-200')) {
-                btn.classList.remove('bg-yellow-200', 'border-yellow-400');
-            } else {
-                btn.classList.remove('bg-white');
-                btn.classList.add('bg-blue-200', 'border-blue-400');
-            }
-        }
+// --- OLD FUNCTION (Kept for compatibility, though Step 5 HTML changed) ---
+function toggleTooth(btn) {
+// Toggle between yellow (needs attention) and blue (selected)
+if (btn.classList.contains('bg-blue-200')) {
+btn.classList.remove('bg-blue-200', 'border-blue-400');
+btn.classList.add('bg-yellow-200', 'border-yellow-400');
+} else if (btn.classList.contains('bg-yellow-200')) {
+btn.classList.remove('bg-yellow-200', 'border-yellow-400');
+} else {
+btn.classList.remove('bg-white');
+btn.classList.add('bg-blue-200', 'border-blue-400');
+}
+}
 
-        function handleSubmit() {
-            const form = document.getElementById('admissionForm');
-            const formData = new FormData(form);
-            const data = Object.fromEntries(formData.entries());
-            
-            // Get selected services
-            const services = [];
-            document.querySelectorAll('input[name="services[]"]:checked').forEach(cb => {
-                services.push(cb.value);
-            });
-            data.services = services;
-            
-            // Get selected teeth
-            const selectedTeeth = [];
-            document.querySelectorAll('.tooth-btn.bg-blue-200, .tooth-btn.bg-yellow-200').forEach(btn => {
-                selectedTeeth.push(btn.dataset.tooth);
-            });
-            data.selectedTeeth = selectedTeeth;
-            
-            // Get medical conditions
-            const medicalConditions = [];
-            document.querySelectorAll('input[name="medicalConditions"]:checked').forEach(cb => {
-                medicalConditions.push(cb.value);
-            });
-            data.medicalConditions = medicalConditions;
+// --- NEW FUNCTION FOR 3D TOOTH INTERACTION ---
+function toggleTooth3D(wrapper) {
+// Wrapper is the .tooth-wrapper div
+// Logic: Default -> Selected (Blue) -> Attention (Yellow) -> Default
 
-            console.log('Form Data Submitted:', data);
-            
-            const patientName = data.firstName && data.lastName ? (data.firstName + ' ' + data.lastName) : 'Patient';
-            
-            // Show success message
-            if (confirm('Patient admission submitted successfully!\n\nPatient: ' + patientName + '\n\nReturn to Staff Dashboard?')) {
-                // Go back to previous page
-                window.location.href = 'staff-dashboard.php';
-            }
-        }
-    </script>
-</body>
+if (wrapper.classList.contains('selected')) {
+// Currently Selected (Blue) -> Change to Attention (Yellow)
+wrapper.classList.remove('selected');
+wrapper.classList.add('attention');
+} else if (wrapper.classList.contains('attention')) {
+// Currently Attention (Yellow) -> Reset to Default
+wrapper.classList.remove('attention');
+} else {
+// Currently Default -> Change to Selected (Blue)
+wrapper.classList.add('selected');
+}
+}
+
+function handleSubmit() {
+const form = document.getElementById('admissionForm');
+const formData = new FormData(form);
+const data = Object.fromEntries(formData.entries());
+
+// Get selected services
+const services = [];
+document.querySelectorAll('input[name="services[]"]:checked').forEach(cb => {
+services.push(cb.value);
+});
+data.services = services;
+
+// Get selected teeth (Checking both old buttons and new 3D wrappers)
+const selectedTeeth = [];
+
+// Check 3D Wrappers
+document.querySelectorAll('.tooth-wrapper.selected, .tooth-wrapper.attention').forEach(wrapper => {
+selectedTeeth.push(wrapper.dataset.tooth);
+});
+
+// Check Old Buttons (if any remain, though fully replaced in step 5 HTML)
+document.querySelectorAll('.tooth-btn.bg-blue-200, .tooth-btn.bg-yellow-200').forEach(btn => {
+selectedTeeth.push(btn.dataset.tooth);
+});
+
+data.selectedTeeth = selectedTeeth;
+
+// Get medical conditions
+const medicalConditions = [];
+document.querySelectorAll('input[name="medicalConditions"]:checked').forEach(cb => {
+medicalConditions.push(cb.value);
+});
+data.medicalConditions = medicalConditions;
+
+console.log('Form Data Submitted:', data);
+
+const patientName = data.firstName && data.lastName ? (data.firstName + ' ' + data.lastName) : 'Patient';
+
+// Show success message
+if (confirm('Patient admission submitted successfully!\n\nPatient: ' + patientName + '\n\nReturn to Staff Dashboard?')) {
+// Go back to previous page
+window.location.href = 'staff-dashboard.php';
+}
+}
+</script></body>
 </html>
+```
