@@ -53,7 +53,13 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 }
                 
                 // Redirect based on role
-                $redirect = ($user['role'] === 'staff') ? 'staff-dashboard.php' : 'dashboard.php';
+                if ($user['role'] === 'admin') {
+                    $redirect = 'admin_dashboard.php';
+                } elseif ($user['role'] === 'staff') {
+                    $redirect = 'staff-dashboard.php';
+                } else {
+                    $redirect = 'dashboard.php';
+                }
                 echo json_encode(['success' => true, 'message' => 'Logged in successfully', 'redirect' => $redirect]);
                 exit();
             } else {
@@ -106,8 +112,13 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 }
                 
                 // Redirect based on role
-                $redirect = ($user['role'] === 'staff') ? 'staff-dashboard.php' : 'dashboard.php';
-                header('Location: ' . $redirect);
+                if ($user['role'] === 'admin') {
+                    header('Location: admin_dashboard.php');
+                } elseif ($user['role'] === 'staff') {
+                    header('Location: staff-dashboard.php');
+                } else {
+                    header('Location: dashboard.php');
+                }
                 exit();
             } else {
                 $error = 'Invalid username or password';

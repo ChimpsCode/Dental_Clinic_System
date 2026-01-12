@@ -2,9 +2,24 @@
 ob_start();
 session_start();
 
+// Redirect admins to admin dashboard
+if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
+    ob_end_clean();
+    header('Location: admin_dashboard.php');
+    exit();
+}
+
+// Redirect non-logged-in users to login
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
     header('Location: login.php');
+    exit();
+}
+
+// Redirect staff to their dashboard
+if (isset($_SESSION['role']) && $_SESSION['role'] === 'staff') {
+    ob_end_clean();
+    header('Location: staff-dashboard.php');
     exit();
 }
 

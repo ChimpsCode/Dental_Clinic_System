@@ -4,9 +4,27 @@ ob_start();
 session_start();
 
 // Check if user is logged in and has staff role
-if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'staff') {
+// Redirect admins and non-staff users to appropriate dashboards
+if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
     header('Location: login.php');
+    exit();
+}
+
+if (!isset($_SESSION['role'])) {
+    ob_end_clean();
+    header('Location: login.php');
+    exit();
+}
+
+// Redirect based on role
+if ($_SESSION['role'] === 'admin') {
+    ob_end_clean();
+    header('Location: admin_dashboard.php');
+    exit();
+} elseif ($_SESSION['role'] !== 'staff') {
+    ob_end_clean();
+    header('Location: dashboard.php');
     exit();
 }
 
