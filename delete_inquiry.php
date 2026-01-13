@@ -10,7 +10,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $role = $_SESSION['role'] ?? '';
-if (!in_array($role, ['dentist', 'admin'])) {
+if (!in_array($role, ['staff', 'dentist', 'admin'])) {
     ob_end_clean();
     header('Content-Type: application/json');
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);

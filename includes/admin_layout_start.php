@@ -124,14 +124,7 @@ function isActivePage($page) {
                 <span>Reports</span>
             </a>
             
-            <a href="admin_inquiries.php" class="nav-item <?php echo isActivePage('admin_inquiries.php') ? 'active' : ''; ?>">
-                <span class="nav-item-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                    </svg>
-                </span>
-                <span>Inquiries</span>
-            </a>
+        
             
             <a href="admin_audit_trail.php" class="nav-item <?php echo isActivePage('admin_audit_trail.php') ? 'active' : ''; ?>">
                 <span class="nav-item-icon">
@@ -152,7 +145,7 @@ function isActivePage($page) {
             </a>
         </nav>
         
-        <div class="sidebar-footer" style="border-top: 1px solid #6b7280; margin-top: 10px; padding-left: 20px;">
+        <div class="sidebar-footer" style="border-top: 1px solid #6b7280; margin-top: 10px; padding-left: 1px;">
             <a href="logout.php" class="nav-item">
                 <span class="nav-item-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
