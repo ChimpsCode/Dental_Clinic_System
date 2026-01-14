@@ -57,6 +57,8 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                     $redirect = 'admin_dashboard.php';
                 } elseif ($user['role'] === 'staff') {
                     $redirect = 'staff-dashboard.php';
+                } elseif ($user['role'] === 'dentist') {
+                    $redirect = 'dentist_dashboard.php';
                 } else {
                     $redirect = 'dashboard.php';
                 }
@@ -116,6 +118,8 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                     header('Location: admin_dashboard.php');
                 } elseif ($user['role'] === 'staff') {
                     header('Location: staff-dashboard.php');
+                } elseif ($user['role'] === 'dentist') {
+                    header('Location: dentist_dashboard.php');
                 } else {
                     header('Location: dashboard.php');
                 }
