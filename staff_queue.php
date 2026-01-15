@@ -8,7 +8,8 @@ try {
     // Get queue data with patient info
     $stmt = $pdo->query("
         SELECT q.*, p.full_name, p.phone, p.age, p.gender, p.address, p.date_of_birth,
-               p.dental_insurance, p.email, p.medical_conditions
+               p.dental_insurance, p.email, p.medical_conditions, p.middle_name, p.suffix,
+               p.city, p.province, p.religion
         FROM queue q 
         LEFT JOIN patients p ON q.patient_id = p.id 
         ORDER BY 
@@ -36,6 +37,258 @@ try {
     $onHoldCount = 0;
 }
 ?>
+
+<style>
+/* Full Screen Modal Overlay */
+.fullscreen-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+}
+
+.fullscreen-modal-overlay.active {
+    display: flex;
+}
+
+.fullscreen-modal-content {
+    background: white;
+    border-radius: 16px;
+    width: 95%;
+    max-width: 900px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.fullscreen-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px;
+    border-bottom: 1px solid #e5e7eb;
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 10;
+}
+
+.fullscreen-modal-close {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    cursor: pointer;
+    color: #6b7280;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.fullscreen-modal-close:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+.fullscreen-modal-body {
+    padding: 24px;
+}
+
+/* 3D Dental Chart Styles for Modal */
+.dental-chart-modal {
+    perspective: 1000px;
+    padding: 20px;
+}
+
+.dental-arch-modal {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    margin-bottom: 20px;
+    transform-style: preserve-3d;
+}
+
+.tooth-modal {
+    width: 36px;
+    height: 48px;
+    position: relative;
+    transform-style: preserve-3d;
+    transform: rotateX(-15deg);
+    transition: transform 0.3s ease;
+    cursor: default;
+}
+
+.tooth-modal.selected {
+    transform: rotateX(0deg) scale(1.15);
+    z-index: 10;
+}
+
+.tooth-modal .tooth-face-modal {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: white;
+    border: 2px solid #d1d5db;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #6b7280;
+    transition: all 0.2s;
+}
+
+.tooth-modal.selected .tooth-face-modal {
+    background: #3b82f6;
+    border-color: #1d4ed8;
+    color: white;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.tooth-label {
+    position: absolute;
+    bottom: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.65rem;
+    color: #9ca3af;
+    white-space: nowrap;
+}
+
+/* Patient Info Grid */
+.patient-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.patient-info-item {
+    background: #f9fafb;
+    padding: 12px 16px;
+    border-radius: 8px;
+}
+
+.patient-info-label {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-bottom: 4px;
+}
+
+.patient-info-value {
+    font-weight: 600;
+    color: #111827;
+}
+
+/* Medical Alert Box */
+.medical-alert {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.medical-alert-title {
+    color: #dc2626;
+    font-weight: 600;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.medical-alert-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+}
+
+.medical-alert-item {
+    background: white;
+    padding: 12px;
+    border-radius: 8px;
+}
+
+.medical-alert-item-label {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-bottom: 4px;
+}
+
+.medical-alert-item-value {
+    font-weight: 600;
+}
+
+.medical-alert-item-value.danger {
+    color: #dc2626;
+}
+
+/* Action Buttons */
+.action-buttons-row {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    padding-top: 20px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.btn-action {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+
+.btn-action-primary {
+    background: #3b82f6;
+    color: white;
+}
+
+.btn-action-primary:hover {
+    background: #2563eb;
+}
+
+.btn-action-success {
+    background: #22c55e;
+    color: white;
+}
+
+.btn-action-success:hover {
+    background: #16a34a;
+}
+
+.btn-action-danger {
+    background: #ef4444;
+    color: white;
+}
+
+.btn-action-danger:hover {
+    background: #dc2626;
+}
+
+.btn-action-secondary {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.btn-action-secondary:hover {
+    background: #e5e7eb;
+}
+</style>
 
 <!-- Queue Stats -->
 <div class="summary-cards">
@@ -120,7 +373,7 @@ try {
                         <div class="patient-actions">
                             <button onclick="callPatient(<?php echo $item['id']; ?>)" class="action-btn icon" title="Call">📞</button>
                             <button onclick="startProcedure(<?php echo $item['id']; ?>)" class="action-btn icon" title="Start Procedure">▶️</button>
-                            <button onclick="viewPatientRecord(<?php echo $item['patient_id']; ?>)" class="action-btn icon" title="View Record">👁️</button>
+                            <button onclick="viewFullPatientRecord(<?php echo $item['patient_id']; ?>, <?php echo $item['id']; ?>)" class="action-btn icon" title="See Details">👁️</button>
                             <button onclick="moveToOnHold(<?php echo $item['id']; ?>)" class="action-btn icon" title="On Hold">⏸️</button>
                             <button onclick="cancelPatient(<?php echo $item['id']; ?>)" class="action-btn icon" title="Cancel">✕</button>
                         </div>
@@ -162,7 +415,7 @@ try {
                         </div>
                         <div class="patient-actions">
                             <button onclick="completeTreatment(<?php echo $item['id']; ?>)" class="action-btn" style="background: #22c55e; color: white; padding: 6px 12px;" title="Complete">✓ Done</button>
-                            <button onclick="viewPatientRecord(<?php echo $item['patient_id']; ?>)" class="action-btn icon" title="View Record">👁️</button>
+                            <button onclick="viewFullPatientRecord(<?php echo $item['patient_id']; ?>, <?php echo $item['id']; ?>)" class="action-btn icon" title="See Details">👁️</button>
                         </div>
                     </div>
                     <?php endforeach; 
@@ -197,7 +450,7 @@ try {
                         </div>
                         <div class="patient-actions">
                             <button onclick="requeuePatient(<?php echo $item['id']; ?>)" class="action-btn" style="background: #84cc16; color: white; padding: 6px 12px; border: none; border-radius: 4px; font-size: 0.8rem;">Re-queue</button>
-                            <button onclick="viewPatientRecord(<?php echo $item['patient_id']; ?>)" class="action-btn icon" title="View Record">👁️</button>
+                            <button onclick="viewFullPatientRecord(<?php echo $item['patient_id']; ?>, <?php echo $item['id']; ?>)" class="action-btn icon" title="See Details">👁️</button>
                         </div>
                     </div>
                     <?php endforeach; 
@@ -228,7 +481,7 @@ try {
                             </div>
                         </div>
                         <div class="patient-actions">
-                            <button onclick="viewPatientRecord(<?php echo $item['patient_id']; ?>)" class="action-btn icon" title="View Record">👁️</button>
+                            <button onclick="viewFullPatientRecord(<?php echo $item['patient_id']; ?>, <?php echo $item['id']; ?>)" class="action-btn icon" title="See Details">👁️</button>
                         </div>
                     </div>
                     <?php endforeach; 
@@ -271,14 +524,19 @@ try {
     </div>
 </div>
 
-<!-- Patient Record Modal -->
-<div id="patientRecordModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
-    <div class="modal" style="background: white; border-radius: 12px; padding: 24px; width: 90%; max-width: 700px; max-height: 85vh; overflow-y: auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h2 style="font-size: 1.25rem; font-weight: 600; margin: 0;">Patient Record</h2>
-            <button onclick="closePatientRecordModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">×</button>
+<!-- Full Screen Patient Record Modal -->
+<div id="fullScreenPatientModal" class="fullscreen-modal-overlay">
+    <div class="fullscreen-modal-content">
+        <div class="fullscreen-modal-header">
+            <div>
+                <h2 style="font-size: 1.5rem; font-weight: 600; margin: 0;">Patient Record Details</h2>
+                <p id="modalPatientName" style="color: #6b7280; margin: 4px 0 0 0; font-size: 0.9rem;"></p>
+            </div>
+            <button onclick="closeFullScreenModal()" class="fullscreen-modal-close">&times;</button>
         </div>
-        <div id="patientRecordContent"></div>
+        <div class="fullscreen-modal-body" id="fullScreenModalContent">
+            <!-- Content will be loaded dynamically -->
+        </div>
     </div>
 </div>
 
@@ -295,6 +553,7 @@ try {
 
 <script>
 const queueItems = <?php echo json_encode($queueItems); ?>;
+let currentQueueItem = null;
 
 // Search and filter functionality
 document.getElementById('searchInput').addEventListener('input', filterQueue);
@@ -418,8 +677,10 @@ function requeuePatient(queueId) {
     });
 }
 
-// Patient Record Modal
-function viewPatientRecord(patientId) {
+// Full Screen Patient Record Modal with 3D Teeth Chart
+function viewFullPatientRecord(patientId, queueId) {
+    currentQueueItem = queueItems.find(q => q.id == queueId);
+    
     fetch('queue_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -431,105 +692,226 @@ function viewPatientRecord(patientId) {
             const p = data.patient;
             const m = data.medical_history || {};
             const d = data.dental_history || {};
-            const q = data.queue_item || {};
+            const q = currentQueueItem || {};
             
             const allergies = m.allergies || 'None';
             const medications = m.current_medications || 'None';
             const medicalConditions = m.medical_conditions || 'None';
             
-            document.getElementById('patientRecordContent').innerHTML = `
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                    <div>
-                        <h3 style="font-size: 0.875rem; font-weight: 600; color: #6b7280; margin-bottom: 12px;">Personal Information</h3>
-                        <div style="display: flex; flex-direction: column; gap: 10px;">
-                            <div><span style="color: #6b7280; font-size: 0.875rem;">Full Name:</span> <span style="font-weight: 500;">${p.full_name || 'N/A'}</span></div>
-                            <div><span style="color: #6b7280; font-size: 0.875rem;">Age:</span> <span style="font-weight: 500;">${p.age || 'N/A'} years</span></div>
-                            <div><span style="color: #6b7280; font-size: 0.875rem;">Gender:</span> <span style="font-weight: 500;">${p.gender || 'N/A'}</span></div>
-                            <div><span style="color: #6b7280; font-size: 0.875rem;">Phone:</span> <span style="font-weight: 500;">${p.phone || 'N/A'}</span></div>
-                            <div><span style="color: #6b7280; font-size: 0.875rem;">Email:</span> <span style="font-weight: 500;">${p.email || 'N/A'}</span></div>
-                        </div>
+            // Parse teeth numbers for 3D chart
+            const teethNumbers = q.teeth_numbers ? q.teeth_numbers.split(',').map(t => t.trim()) : [];
+            
+            document.getElementById('modalPatientName').innerText = p.full_name || 'Unknown';
+            
+            // Generate 3D Dental Chart HTML
+            const upperTeeth = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28];
+            const lowerTeeth = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38];
+            
+            let upperChartHTML = '<div class="dental-arch-modal">';
+            upperTeeth.forEach(tooth => {
+                const isSelected = teethNumbers.includes(tooth.toString());
+                upperChartHTML += `
+                    <div class="tooth-modal ${isSelected ? 'selected' : ''}">
+                        <div class="tooth-face-modal">${tooth}</div>
                     </div>
-                    <div>
-                        <h3 style="font-size: 0.875rem; font-weight: 600; color: #6b7280; margin-bottom: 12px;">Service Requested</h3>
-                        <div style="display: flex; flex-direction: column; gap: 10px;">
-                            <div><span style="color: #6b7280; font-size: 0.875rem;">Treatment:</span> <span style="font-weight: 500;">${q.treatment_type || 'N/A'}</span></div>
-                            <div><span style="color: #6b7280; font-size: 0.875rem;">Teeth Numbers:</span> <span style="font-weight: 500;">${q.teeth_numbers || 'N/A'}</span></div>
-                            <div><span style="color: #6b7280; font-size: 0.875rem;">Status:</span> 
-                                <span class="status-badge" style="background: ${q.status === 'in_procedure' ? '#dcfce7' : q.status === 'waiting' ? '#fef3c7' : '#f3f4f6'}; color: ${q.status === 'in_procedure' ? '#15803d' : q.status === 'waiting' ? '#d97706' : '#6b7280'};">
-                                    ${q.status || 'N/A'}
-                                </span>
-                            </div>
+                `;
+            });
+            upperChartHTML += '</div>';
+            
+            let lowerChartHTML = '<div class="dental-arch-modal">';
+            lowerTeeth.forEach(tooth => {
+                const isSelected = teethNumbers.includes(tooth.toString());
+                lowerChartHTML += `
+                    <div class="tooth-modal ${isSelected ? 'selected' : ''}">
+                        <div class="tooth-face-modal">${tooth}</div>
+                    </div>
+                `;
+            });
+            lowerChartHTML += '</div>';
+            
+            // Check for medical alerts
+            const hasMedicalAlert = allergies === 'Yes' || 
+                                   medicalConditions.toLowerCase().includes('diabetes') ||
+                                   medicalConditions.toLowerCase().includes('heart') ||
+                                   medicalConditions.toLowerCase().includes('blood pressure') ||
+                                   medicalConditions.toLowerCase().includes('asthma');
+            
+            document.getElementById('fullScreenModalContent').innerHTML = `
+                <!-- Patient Basic Info -->
+                <div class="patient-info-grid">
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Full Name</div>
+                        <div class="patient-info-value">${p.full_name || 'N/A'}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Age</div>
+                        <div class="patient-info-value">${p.age || 'N/A'} years</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Gender</div>
+                        <div class="patient-info-value">${p.gender || 'N/A'}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Phone</div>
+                        <div class="patient-info-value">${p.phone || 'N/A'}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Email</div>
+                        <div class="patient-info-value">${p.email || 'N/A'}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Queue Status</div>
+                        <div class="patient-info-value">
+                            <span class="status-badge" style="background: ${q.status === 'in_procedure' ? '#dcfce7' : q.status === 'waiting' ? '#fef3c7' : '#f3f4f6'}; color: ${q.status === 'in_procedure' ? '#15803d' : q.status === 'waiting' ? '#d97706' : '#6b7280'}; padding: 4px 12px; border-radius: 9999px; font-size: 0.85rem;">
+                                ${q.status ? q.status.replace('_', ' ').toUpperCase() : 'N/A'}
+                            </span>
                         </div>
                     </div>
                 </div>
-                
-                <!-- Medical History - IMPORTANT FOR DOCTOR -->
-                <div style="margin-top: 20px;">
-                    <h3 style="font-size: 0.875rem; font-weight: 600; color: #dc2626; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-                        ⚠️ Medical History (Important)
-                    </h3>
-                    <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px;">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                            <div>
-                                <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 4px;">Allergies</div>
-                                <div style="font-weight: 500; ${allergies === 'Yes' ? 'color: #dc2626;' : ''}">${allergies}</div>
-                            </div>
-                            <div>
-                                <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 4px;">Medical Conditions</div>
-                                <div style="font-weight: 500;">${medicalConditions}</div>
-                            </div>
-                            <div style="grid-column: 1 / -1;">
-                                <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 4px;">Current Medications</div>
-                                <div style="font-weight: 500;">${medications}</div>
-                            </div>
+
+                <!-- Medical Alert (If applicable) -->
+                ${hasMedicalAlert ? `
+                <div class="medical-alert">
+                    <div class="medical-alert-title">⚠️ Medical Alert - Important for Treatment</div>
+                    <div class="medical-alert-grid">
+                        <div class="medical-alert-item">
+                            <div class="medical-alert-item-label">Allergies</div>
+                            <div class="medical-alert-item-value ${allergies === 'Yes' ? 'danger' : ''}">${allergies}</div>
+                        </div>
+                        <div class="medical-alert-item">
+                            <div class="medical-alert-item-label">Diabetes</div>
+                            <div class="medical-alert-item-value ${medicalConditions.toLowerCase().includes('diabetes') ? 'danger' : ''}">${medicalConditions.toLowerCase().includes('diabetes') ? 'Yes' : 'No'}</div>
+                        </div>
+                        <div class="medical-alert-item">
+                            <div class="medical-alert-item-label">Heart Disease</div>
+                            <div class="medical-alert-item-value ${medicalConditions.toLowerCase().includes('heart') ? 'danger' : ''}">${medicalConditions.toLowerCase().includes('heart') ? 'Yes' : 'No'}</div>
+                        </div>
+                        <div class="medical-alert-item">
+                            <div class="medical-alert-item-label">High Blood Pressure</div>
+                            <div class="medical-alert-item-value ${medicalConditions.toLowerCase().includes('blood pressure') ? 'danger' : ''}">${medicalConditions.toLowerCase().includes('blood pressure') ? 'Yes' : 'No'}</div>
+                        </div>
+                        <div class="medical-alert-item">
+                            <div class="medical-alert-item-label">Asthma</div>
+                            <div class="medical-alert-item-value ${medicalConditions.toLowerCase().includes('asthma') ? 'danger' : ''}">${medicalConditions.toLowerCase().includes('asthma') ? 'Yes' : 'No'}</div>
+                        </div>
+                        <div class="medical-alert-item">
+                            <div class="medical-alert-item-label">Current Medications</div>
+                            <div class="medical-alert-item-value">${medications}</div>
                         </div>
                     </div>
                 </div>
-                
+                ` : ''}
+
+                <!-- Service Requested -->
+                <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                    <h3 style="font-size: 1rem; font-weight: 600; color: #1e40af; margin-bottom: 16px;">📋 Service Requested</h3>
+                    <div class="patient-info-grid">
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Treatment Type</div>
+                            <div class="patient-info-value">${q.treatment_type || 'Consultation'}</div>
+                        </div>
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Selected Teeth</div>
+                            <div class="patient-info-value">${q.teeth_numbers || 'None specified'}</div>
+                        </div>
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Queue Time</div>
+                            <div class="patient-info-value">${q.queue_time ? new Date(q.queue_time).toLocaleTimeString() : 'N/A'}</div>
+                        </div>
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Notes</div>
+                            <div class="patient-info-value">${q.notes || 'None'}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3D Dental Chart -->
+                <div style="background: #f9fafb; border-radius: 12px; padding: 24px; margin-bottom: 20px;">
+                    <h3 style="font-size: 1rem; font-weight: 600; color: #374151; margin-bottom: 20px; text-align: center;">🦷 Dental Chart - Selected Teeth Highlighted</h3>
+                    
+                    <div style="text-align: center; margin-bottom: 8px; color: #6b7280; font-size: 0.85rem;">Upper Arch (Maxilla)</div>
+                    <div class="dental-chart-modal">
+                        ${upperChartHTML}
+                    </div>
+                    
+                    <div style="text-align: center; margin: 20px 0 8px 0; color: #6b7280; font-size: 0.85rem;">Lower Arch (Mandible)</div>
+                    <div class="dental-chart-modal">
+                        ${lowerChartHTML}
+                    </div>
+                    
+                    <div style="display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 0.85rem;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="width: 20px; height: 20px; background: white; border: 2px solid #d1d5db; border-radius: 4px;"></div>
+                            <span style="color: #6b7280;">Healthy</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="width: 20px; height: 20px; background: #3b82f6; border: 2px solid #1d4ed8; border-radius: 4px;"></div>
+                            <span style="color: #374151; font-weight: 500;">Selected for Treatment</span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Dental History -->
-                <div style="margin-top: 20px;">
-                    <h3 style="font-size: 0.875rem; font-weight: 600; color: #6b7280; margin-bottom: 12px;">Dental History</h3>
-                    <div style="background: #f9fafb; border-radius: 8px; padding: 16px;">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                            <div>
-                                <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 4px;">Previous Dentist</div>
-                                <div style="font-weight: 500;">${d.previous_dentist || 'N/A'}</div>
-                            </div>
-                            <div>
-                                <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 4px;">Last Visit</div>
-                                <div style="font-weight: 500;">${d.last_visit_date || 'N/A'}</div>
-                            </div>
-                            <div style="grid-column: 1 / -1;">
-                                <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 4px;">Current Complaints</div>
-                                <div style="font-weight: 500;">${d.current_complaints || 'None'}</div>
-                            </div>
+                <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                    <h3 style="font-size: 1rem; font-weight: 600; color: #374151; margin-bottom: 16px;">📜 Dental History</h3>
+                    <div class="patient-info-grid">
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Previous Dentist</div>
+                            <div class="patient-info-value">${d.previous_dentist || 'N/A'}</div>
+                        </div>
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Last Visit</div>
+                            <div class="patient-info-value">${d.last_visit_date || 'N/A'}</div>
+                        </div>
+                        <div class="patient-info-item" style="grid-column: 1 / -1;">
+                            <div class="patient-info-label">Current Complaints</div>
+                            <div class="patient-info-value">${d.current_complaints || 'None'}</div>
+                        </div>
+                        <div class="patient-info-item" style="grid-column: 1 / -1;">
+                            <div class="patient-info-label">Previous Treatments</div>
+                            <div class="patient-info-value">${d.previous_treatments || 'None'}</div>
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Address -->
-                <div style="margin-top: 20px;">
-                    <h3 style="font-size: 0.875rem; font-weight: 600; color: #6b7280; margin-bottom: 12px;">Address</h3>
-                    <div style="font-weight: 500;">${p.address || 'N/A'} ${p.city ? ', ' + p.city : ''} ${p.province ? ', ' + p.province : ''}</div>
+                <div style="background: #f9fafb; border-radius: 12px; padding: 20px;">
+                    <h3 style="font-size: 1rem; font-weight: 600; color: #374151; margin-bottom: 16px;">📍 Address</h3>
+                    <p style="color: #374151;">${p.address || 'N/A'} ${p.city ? ', ' + p.city : ''} ${p.province ? ', ' + p.province : ''}</p>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons-row">
+                    <button onclick="closeFullScreenModal()" class="btn-action btn-action-secondary">Close</button>
+                    ${q.status === 'waiting' ? `<button onclick="startProcedure(${q.id}); closeFullScreenModal();" class="btn-action btn-action-primary">Start Procedure</button>` : ''}
+                    ${q.status === 'in_procedure' ? `<button onclick="completeTreatment(${q.id}); closeFullScreenModal();" class="btn-action btn-action-success">Mark Complete</button>` : ''}
                 </div>
             `;
             
-            document.getElementById('patientRecordModal').style.display = 'flex';
+            document.getElementById('fullScreenPatientModal').classList.add('active');
         }
     });
 }
 
-function closePatientRecordModal() {
-    document.getElementById('patientRecordModal').style.display = 'none';
+function closeFullScreenModal() {
+    document.getElementById('fullScreenPatientModal').classList.remove('active');
 }
 
-// Close modals on outside click
-document.getElementById('patientRecordModal').addEventListener('click', function(e) {
-    if (e.target === this) closePatientRecordModal();
+// Close modal on outside click
+document.getElementById('fullScreenPatientModal').addEventListener('click', function(e) {
+    if (e.target === this) closeFullScreenModal();
 });
 
 document.getElementById('callingModal').addEventListener('click', function(e) {
     if (e.target === this) closeCallingModal();
+});
+
+// ESC key to close modal
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeFullScreenModal();
+        closeCallingModal();
+    }
 });
 </script>
 
