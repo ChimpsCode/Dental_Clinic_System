@@ -5,8 +5,14 @@ require_once 'includes/dentist_layout_start.php';
 try {
     require_once 'config/database.php';
     
-    // Get all patients
-    $stmt = $pdo->query("SELECT * FROM patients ORDER BY last_visit_date DESC");
+    // Get all patients with their latest queue status
+    $stmt = $pdo->query("
+        SELECT p.*, 
+               (SELECT status FROM queue WHERE patient_id = p.id ORDER BY created_at DESC LIMIT 1) as queue_status,
+               (SELECT treatment_type FROM queue WHERE patient_id = p.id ORDER BY created_at DESC LIMIT 1) as current_treatment
+        FROM patients p 
+        ORDER BY p.created_at DESC
+    ");
     $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
 } catch (Exception $e) {
@@ -26,15 +32,15 @@ try {
     <div class="summary-card">
         <div class="summary-icon yellow">⏰</div>
         <div class="summary-info">
-            <h3><?php echo count(array_filter($patients, fn($p) => $p['status'] === 'active')); ?></h3>
-            <p>Active Patients</p>
+            <h3><?php echo count(array_filter($patients, fn($p) => in_array($p['queue_status'] ?? '', ['waiting', 'in_procedure']))); ?></h3>
+            <p>In Queue</p>
         </div>
     </div>
     <div class="summary-card">
         <div class="summary-icon green">✓</div>
         <div class="summary-info">
-            <h3><?php echo count(array_filter($patients, fn($p) => !empty($p['last_treatment_date']) && strtotime($p['last_treatment_date']) > strtotime('-30 days'))); ?></h3>
-            <p>Visited This Month</p>
+            <h3><?php echo count(array_filter($patients, fn($p) => !empty($p['created_at']) && strtotime($p['created_at']) > strtotime('-30 days'))); ?></h3>
+            <p>New This Month</p>
         </div>
     </div>
     <div class="summary-card">
@@ -48,19 +54,20 @@ try {
 
 <!-- Search & Filters -->
 <div class="search-filters">
-    <input type="text" id="searchInput" placeholder="Search by name, code, or phone..." class="search-input" style="flex: 1;">
+    <input type="text" id="searchInput" placeholder="Search by name or phone..." class="search-input" style="flex: 1;">
     <select id="statusFilter" class="filter-select">
         <option value="">All Status</option>
-        <option value="active">Active</option>
-        <option value="inactive">Inactive</option>
+        <option value="waiting">Waiting</option>
+        <option value="in_procedure">In Procedure</option>
+        <option value="completed">Completed</option>
     </select>
     <select id="sortFilter" class="filter-select">
-        <option value="last_visit">Last Visit</option>
+        <option value="newest">Newest First</option>
         <option value="name">Name (A-Z)</option>
     </select>
 </div>
 
- <!-- Patient Records Table -->
+<!-- Patient Records Table -->
 <div class="section-card">
     <div class="section-title">
         <span>Patient Records</span>
@@ -82,34 +89,28 @@ try {
             <table class="data-table" id="patientsTable">
                 <thead>
                     <tr>
-                        <th>Patient Code</th>
-                        <th>Name</th>
+                        <th>Patient Name</th>
                         <th>Age/Gender</th>
                         <th>Contact</th>
-                        <th>Last Visit</th>
-                        <th>Status</th>
+                        <th>Current Treatment</th>
+                        <th>Queue Status</th>
+                        <th>Date Added</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($patients as $patient): ?>
                         <tr class="patient-row" 
-                            data-name="<?php echo strtolower($patient['full_name']); ?>" 
-                            data-code="<?php echo strtolower($patient['patient_code']); ?>" 
-                            data-phone="<?php echo strtolower($patient['phone']); ?>" 
-                            data-status="<?php echo $patient['status']; ?>">
+                            data-name="<?php echo strtolower(htmlspecialchars($patient['full_name'] ?? '')); ?>" 
+                            data-phone="<?php echo strtolower(htmlspecialchars($patient['phone'] ?? '')); ?>" 
+                            data-status="<?php echo $patient['queue_status'] ?? ''; ?>">
                             <td>
-                                <span style="background: #f3f4f6; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">
-                                    <?php echo htmlspecialchars($patient['patient_code']); ?>
-                                </span>
-                            </td>
-                            <td>
-                                <div class="patient-name" style="font-weight: 600;"><?php echo htmlspecialchars($patient['full_name']); ?></div>
+                                <div class="patient-name" style="font-weight: 600;"><?php echo htmlspecialchars($patient['full_name'] ?? 'Unknown'); ?></div>
                             </td>
                             <td>
                                 <div style="font-size: 0.9rem;">
-                                    <span style="font-weight: 500;"><?php echo $patient['age']; ?> yrs</span>
-                                    <span style="color: #6b7280; margin-left: 8px;"><?php echo $patient['gender']; ?></span>
+                                    <span style="font-weight: 500;"><?php echo $patient['age'] ?? 'N/A'; ?> yrs</span>
+                                    <span style="color: #6b7280; margin-left: 8px;"><?php echo $patient['gender'] ?? 'N/A'; ?></span>
                                 </div>
                             </td>
                             <td>
@@ -118,23 +119,44 @@ try {
                                     <div><?php echo htmlspecialchars($patient['email'] ?: ''); ?></div>
                                 </div>
                             </td>
-                             <td>
-                                 <div style="font-size: 0.9rem; font-weight: 500;">
-                                     <?php echo !empty($patient['last_visit_date']) ? date('M d, Y', strtotime($patient['last_visit_date'])) : 'N/A'; ?>
-                                 </div>
-                             </td>
-                             <td>
-                                 <span class="status-badge" style="background: <?php echo $patient['status'] === 'active' ? '#d1fae5' : '#f3f4f6'; ?>; color: <?php echo $patient['status'] === 'active' ? '#065f46' : '#6b7280'; ?>;">
-                                     <?php echo ucfirst($patient['status']); ?>
-                                 </span>
-                             </td>
-                             <td>
-                                 <div class="patient-actions">
-                                     <button onclick="viewPatientDetails(<?php echo $patient['id']; ?>)" class="action-btn icon" title="View Details">👁️</button>
-                                     <button onclick="addPrescription(<?php echo $patient['id']; ?>)" class="action-btn icon" title="Add Prescription">💊</button>
-                                 </div>
-                             </td>
-                         </tr>
+                            <td>
+                                <div style="font-size: 0.9rem; font-weight: 500;">
+                                    <?php echo htmlspecialchars($patient['current_treatment'] ?: 'N/A'); ?>
+                                </div>
+                            </td>
+                            <td>
+                                <?php 
+                                    $status = $patient['queue_status'] ?? '';
+                                    $statusColors = [
+                                        'waiting' => '#fef3c7:#92400e',
+                                        'in_procedure' => '#dbeafe:#1e40af',
+                                        'completed' => '#d1fae5:#065f46',
+                                        'on_hold' => '#f3f4f6:#6b7280',
+                                        'cancelled' => '#fee2e2:#dc2626'
+                                    ];
+                                    $bgColor = '#f3f4f6';
+                                    $textColor = '#6b7280';
+                                    if (isset($statusColors[$status])) {
+                                        list($bg, $text) = explode(':', $statusColors[$status]);
+                                        $bgColor = $bg;
+                                        $textColor = $text;
+                                    }
+                                ?>
+                                <span class="status-badge" style="background: <?php echo $bgColor; ?>; color: <?php echo $textColor; ?>;">
+                                    <?php echo ucfirst(str_replace('_', ' ', $status ?: 'None')); ?>
+                                </span>
+                            </td>
+                            <td>
+                                <div style="font-size: 0.9rem; font-weight: 500;">
+                                    <?php echo !empty($patient['created_at']) ? date('M d, Y', strtotime($patient['created_at'])) : 'N/A'; ?>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="patient-actions">
+                                    <button onclick="viewPatientDetails(<?php echo $patient['id']; ?>)" class="action-btn icon" title="View Details">👁️</button>
+                                </div>
+                            </td>
+                        </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
@@ -169,7 +191,6 @@ function filterPatients() {
     document.querySelectorAll('.patient-row').forEach(row => {
         const matchSearch = !search || 
             row.dataset.name.includes(search) || 
-            row.dataset.code.includes(search) || 
             row.dataset.phone.includes(search);
         const matchStatus = !status || row.dataset.status === status;
         
@@ -183,16 +204,11 @@ function sortPatients() {
     const rows = Array.from(document.querySelectorAll('.patient-row'));
     
     rows.sort((a, b) => {
-        if (sortBy === 'last_visit') {
-            const lastVisitA = a.querySelector('td:nth-child(5) div').textContent.trim();
-            const lastVisitB = b.querySelector('td:nth-child(5) div').textContent.trim();
-            if (lastVisitA === 'N/A') return 1;
-            if (lastVisitB === 'N/A') return -1;
-            return new Date(lastVisitB) - new Date(lastVisitA);
-        } else if (sortBy === 'treatments') {
-            return b.dataset.name.localeCompare(a.dataset.name);
-        } else {
+        if (sortBy === 'name') {
             return a.dataset.name.localeCompare(b.dataset.name);
+        } else {
+            // Keep original order (newest first)
+            return 0;
         }
     });
     
@@ -201,7 +217,7 @@ function sortPatients() {
 
 // View patient details
 function viewPatientDetails(patientId) {
-    const patient = patients.find(p => p.id === patientId);
+    const patient = patients.find(p => p.id == patientId);
     if (!patient) return;
     
     document.getElementById('patientModalContent').innerHTML = `
@@ -209,11 +225,10 @@ function viewPatientDetails(patientId) {
             <div>
                 <h3 style="font-size: 1.1rem; margin-bottom: 16px;">Personal Information</h3>
                 <div style="display: flex; flex-direction: column; gap: 12px;">
-                    <div><span style="color: #6b7280; font-size: 0.9rem;">Patient Code:</span> <span style="font-weight: 500;">${patient.patient_code}</span></div>
-                    <div><span style="color: #6b7280; font-size: 0.9rem;">Full Name:</span> <span style="font-weight: 500;">${patient.full_name}</span></div>
-                    <div><span style="color: #6b7280; font-size: 0.9rem;">Age:</span> <span style="font-weight: 500;">${patient.age} years</span></div>
-                    <div><span style="color: #6b7280; font-size: 0.9rem;">Gender:</span> <span style="font-weight: 500;">${patient.gender}</span></div>
-                    <div><span style="color: #6b7280; font-size: 0.9rem;">Status:</span> <span class="status-badge" style="background: ${patient.status === 'active' ? '#d1fae5' : '#f3f4f6'}; color: ${patient.status === 'active' ? '#065f46' : '#6b7280'};">${patient.status}</span></div>
+                    <div><span style="color: #6b7280; font-size: 0.9rem;">Full Name:</span> <span style="font-weight: 500;">${patient.full_name || 'N/A'}</span></div>
+                    <div><span style="color: #6b7280; font-size: 0.9rem;">Age:</span> <span style="font-weight: 500;">${patient.age || 'N/A'} years</span></div>
+                    <div><span style="color: #6b7280; font-size: 0.9rem;">Gender:</span> <span style="font-weight: 500;">${patient.gender || 'N/A'}</span></div>
+                    <div><span style="color: #6b7280; font-size: 0.9rem;">Date of Birth:</span> <span style="font-weight: 500;">${patient.date_of_birth || 'N/A'}</span></div>
                 </div>
             </div>
             <div>
@@ -221,25 +236,25 @@ function viewPatientDetails(patientId) {
                 <div style="display: flex; flex-direction: column; gap: 12px;">
                     <div><span style="color: #6b7280; font-size: 0.9rem;">Phone:</span> <span style="font-weight: 500;">${patient.phone || 'N/A'}</span></div>
                     <div><span style="color: #6b7280; font-size: 0.9rem;">Email:</span> <span style="font-weight: 500;">${patient.email || 'N/A'}</span></div>
+                    <div><span style="color: #6b7280; font-size: 0.9rem;">Address:</span> <span style="font-weight: 500;">${patient.address || 'N/A'}</span></div>
                 </div>
             </div>
         </div>
         <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-            <h3 style="font-size: 1.1rem; margin-bottom: 12px;">Treatment Statistics</h3>
+            <h3 style="font-size: 1.1rem; margin-bottom: 12px;">Current Status</h3>
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
                 <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; text-align: center;">
-                    <div style="font-size: 1.2rem; font-weight: 700; color: #059669;">${patient.last_visit_date ? new Date(patient.last_visit_date).toLocaleDateString() : 'N/A'}</div>
-                    <div style="font-size: 0.9rem; color: #6b7280; margin-top: 4px;">Last Visit</div>
+                    <div style="font-size: 1.2rem; font-weight: 700; color: #059669;">${patient.current_treatment || 'None'}</div>
+                    <div style="font-size: 0.9rem; color: #6b7280; margin-top: 4px;">Current Treatment</div>
                 </div>
                 <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; text-align: center;">
-                    <div style="font-size: 1.2rem; font-weight: 700; color: #0891b2;">${patient.status === 'active' ? 'Active' : 'Inactive'}</div>
-                    <div style="font-size: 0.9rem; color: #6b7280; margin-top: 4px;">Patient Status</div>
+                    <div style="font-size: 1.2rem; font-weight: 700; color: #0891b2;">${patient.queue_status ? patient.queue_status.replace('_', ' ').toUpperCase() : 'NONE'}</div>
+                    <div style="font-size: 0.9rem; color: #6b7280; margin-top: 4px;">Queue Status</div>
                 </div>
             </div>
         </div>
         <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px;">
             <button onclick="closePatientModal()" class="btn-cancel">Close</button>
-            <button onclick="addPrescription(${patient.id}); closePatientModal();" class="btn-primary">Add Prescription</button>
         </div>
     `;
     
@@ -250,39 +265,9 @@ function closePatientModal() {
     document.getElementById('patientModal').style.display = 'none';
 }
 
-function closeTreatmentModal() {
-    document.getElementById('treatmentModal').style.display = 'none';
-}
-
-function addPrescription(patientId) {
-    alert('Prescription feature coming soon! This will open a prescription form for patient ID: ' + patientId);
-}
-
 // Close modal on outside click
 document.getElementById('patientModal').addEventListener('click', function(e) {
     if (e.target === this) closePatientModal();
-});
-
-// Add treatment form submission
-document.getElementById('addTreatmentForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    alert('Treatment saved successfully! (This will be connected to database in next step)');
-    closeAddTreatmentModal();
-});
-
-document.getElementById('treatmentModal').addEventListener('click', function(e) {
-    if (e.target === this) closeTreatmentModal();
-});
-
-document.getElementById('addTreatmentModal').addEventListener('click', function(e) {
-    if (e.target === this) closeAddTreatmentModal();
-});
-
-// Add treatment form submission
-document.getElementById('addTreatmentForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    alert('Treatment saved successfully! (This will be connected to database in the next step)');
-    closeAddTreatmentModal();
 });
 </script>
 

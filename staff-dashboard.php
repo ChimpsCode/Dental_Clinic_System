@@ -1,6 +1,50 @@
 <?php
 $pageTitle = 'Dashboard';
 require_once 'includes/staff_layout_start.php';
+
+try {
+    require_once 'config/database.php';
+    
+    // Get queue data
+    $stmt = $pdo->query("
+        SELECT q.*, p.full_name, p.phone, p.age
+        FROM queue q 
+        LEFT JOIN patients p ON q.patient_id = p.id 
+        WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'on_hold', 'cancelled')
+        AND DATE(q.created_at) = CURDATE()
+        ORDER BY 
+            CASE q.status 
+                WHEN 'in_procedure' THEN 1 
+                WHEN 'waiting' THEN 2 
+                WHEN 'on_hold' THEN 3 
+                WHEN 'completed' THEN 4 
+                WHEN 'cancelled' THEN 5 
+            END,
+            q.queue_time ASC
+    ");
+    $queueItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    $waitingCount = count(array_filter($queueItems, fn($q) => $q['status'] === 'waiting'));
+    $procedureCount = count(array_filter($queueItems, fn($q) => $q['status'] === 'in_procedure'));
+    $completedCount = count(array_filter($queueItems, fn($q) => $q['status'] === 'completed'));
+    $onHoldCount = count(array_filter($queueItems, fn($q) => $q['status'] === 'on_hold'));
+    $cancelledCount = count(array_filter($queueItems, fn($q) => $q['status'] === 'cancelled'));
+    
+    $inProcedureItem = array_filter($queueItems, fn($q) => $q['status'] === 'in_procedure');
+    $inProcedureItem = !empty($inProcedureItem) ? reset($inProcedureItem) : null;
+    
+    $waitingItems = array_filter($queueItems, fn($q) => $q['status'] === 'waiting');
+    
+} catch (Exception $e) {
+    $queueItems = [];
+    $waitingCount = 0;
+    $procedureCount = 0;
+    $completedCount = 0;
+    $onHoldCount = 0;
+    $cancelledCount = 0;
+    $inProcedureItem = null;
+    $waitingItems = [];
+}
 ?>
 
 <!-- VIEW 1: DASHBOARD -->
@@ -10,82 +54,78 @@ require_once 'includes/staff_layout_start.php';
         <div class="summary-card">
             <div class="summary-icon yellow">⏰</div>
             <div class="summary-info">
-                <h3 id="count-waiting">3</h3>
+                <h3 id="count-waiting"><?php echo $waitingCount; ?></h3>
                 <p>Waiting</p>
             </div>
         </div>
         <div class="summary-card">
             <div class="summary-icon green">✓</div>
             <div class="summary-info">
-                <h3 id="count-completed">0</h3>
+                <h3 id="count-completed"><?php echo $completedCount; ?></h3>
                 <p>Completed</p>
             </div>
         </div>
         <div class="summary-card">
-            <div class="summary-icon red">⚠️</div>
+            <div class="summary-icon red" style="cursor: pointer;" onclick="openCancelledModal()">⚠️</div>
             <div class="summary-info">
-                <h3 id="count-cancelled">1</h3>
-                <p>Cancelled</p>
+                <h3 id="count-cancelled"><?php echo $cancelledCount; ?></h3>
+                <p style="cursor: pointer;" onclick="openCancelledModal()">Cancelled</p>
             </div>
         </div>
         <div class="summary-card">
-            <div class="summary-icon gray">⊘</div>
+            <div class="summary-icon gray">⏸️</div>
             <div class="summary-info">
-                <h3 id="count-skipped">0</h3>
-                <p>Skipped</p>
+                <h3 id="count-skipped"><?php echo $onHoldCount; ?></h3>
+                <p>On Hold</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cancelled Modal -->
+    <div id="cancelledModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+        <div class="modal" style="background: white; border-radius: 12px; padding: 24px; width: 90%; max-width: 700px; max-height: 80vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="font-size: 1.25rem; font-weight: 600; margin: 0;">Cancelled / On Hold</h2>
+                <button onclick="closeCancelledModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">×</button>
+            </div>
+            <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+                <button onclick="filterCancelled('today')" id="cancelled-today-btn" style="padding: 8px 24px; border: 1px solid #d1d5db; border-radius: 6px; background: #2563eb; color: white; cursor: pointer;">Today</button>
+                <button onclick="filterCancelled('week')" id="cancelled-week-btn" style="padding: 8px 24px; border: 1px solid #d1d5db; border-radius: 6px; background: white; color: #374151; cursor: pointer;">This Week</button>
+            </div>
+            <div id="cancelled-modal-list">
+                <div id="cancelled-today-list">
+                    <?php 
+                    $cancelledItems = array_filter($queueItems, fn($q) => $q['status'] === 'cancelled');
+                    if (empty($cancelledItems)): ?>
+                        <p style="text-align: center; color: #6b7280; padding: 20px;">No cancelled patients today</p>
+                    <?php else: ?>
+                        <?php foreach ($cancelledItems as $item): ?>
+                        <div class="patient-item" id="cancelled-<?php echo $item['id']; ?>">
+                            <div class="patient-info">
+                                <div class="patient-name" style="text-decoration: line-through; color: #9ca3af;"><?php echo htmlspecialchars($item['full_name'] ?? 'Unknown'); ?></div>
+                                <div class="patient-details">
+                                    <span class="status-badge cancelled">Cancelled</span>
+                                </div>
+                                <div class="patient-treatment"><?php echo htmlspecialchars($item['treatment_type'] ?? ''); ?></div>
+                            </div>
+                            <div class="patient-actions">
+                                <button class="action-btn icon view-btn">👁️</button>
+                                <button class="action-btn" style="background: #84cc16; color: white; padding: 8px 12px; border-radius: 6px; border: none; font-size: 12px; cursor: pointer;" onclick="requeuePatientDashboard(<?php echo $item['id']; ?>)">Re-queue</button>
+                                <button class="action-btn icon delete-btn">🗑️</button>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+                <div id="cancelled-week-list" style="display: none;">
+                    <p style="text-align: center; color: #6b7280; padding: 20px;">No cancelled patients this week</p>
+                </div>
             </div>
         </div>
     </div>
 
     <div class="two-column">
         <div class="left-column">
-            <!-- Today's Schedule -->
-            <div class="section-card">
-                <h2 class="section-title">📅 Today's Schedule</h2>
-                <div class="patient-list" id="schedule-list">
-                    <div class="patient-item">
-                        <div class="patient-info">
-                            <div class="patient-name">Maria Santos</div>
-                            <div class="patient-details">
-                                <span class="status-badge now-serving">NOW SERVING</span>
-                                <span class="patient-time">09:30 AM</span>
-                            </div>
-                            <div class="patient-treatment">Root Canal (Session 2)</div>
-                            <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">Source: Phone Call</div>
-                        </div>
-                        <div class="patient-actions">
-                            <button class="action-btn icon view-btn">👁️</button>
-                        </div>
-                    </div>
-                    <div class="patient-item">
-                        <div class="patient-info">
-                            <div class="patient-name">Juan Dela Cruz</div>
-                            <div class="patient-details">
-                                <span class="status-badge waiting">Waiting</span>
-                                <span class="patient-time">09:00 AM</span>
-                            </div>
-                            <div class="patient-treatment">Root Canal (Session 2)</div>
-                        </div>
-                        <div class="patient-actions">
-                            <button class="action-btn icon view-btn">👁️</button>
-                        </div>
-                    </div>
-                    <div class="patient-item">
-                        <div class="patient-info">
-                            <div class="patient-name">Ana Reyes</div>
-                            <div class="patient-details">
-                                <span class="status-badge waiting">Waiting</span>
-                                <span class="patient-time">10:00 AM</span>
-                            </div>
-                            <div class="patient-treatment">Oral Prophylaxis</div>
-                        </div>
-                        <div class="patient-actions">
-                            <button class="action-btn icon view-btn">👁️</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Live Queue Controller -->
             <div class="live-queue">
                 <div class="live-queue-header">
@@ -93,16 +133,22 @@ require_once 'includes/staff_layout_start.php';
                     <div class="now-serving-badge"><span>👁️</span><span>Now Serving</span></div>
                 </div>
                 <div class="live-patient">
-                    <div class="patient-name" id="live-patient-name">Maria Santos</div>
+                    <div class="patient-name" id="live-patient-name"><?php echo $inProcedureItem ? htmlspecialchars($inProcedureItem['full_name']) : 'No Patient'; ?></div>
                     <div class="patient-details" style="margin-top: 10px;">
                         <span class="status-badge now-serving">In Chair</span>
-                        <span class="patient-time" id="live-patient-time">09:30 AM</span>
+                        <span class="patient-time" id="live-patient-time"><?php echo $inProcedureItem ? htmlspecialchars($inProcedureItem['queue_time']) : '--:--'; ?></span>
                     </div>
-                    <div class="patient-treatment" id="live-patient-treatment" style="margin-top: 8px;">Root Canal (Session 2)</div>
+                    <div class="patient-treatment" id="live-patient-treatment" style="margin-top: 8px;"><?php echo $inProcedureItem ? htmlspecialchars($inProcedureItem['treatment_type']) : 'Queue Empty'; ?></div>
                 </div>
-                <button class="complete-btn" id="completeTreatmentBtn">
+                <?php if ($inProcedureItem): ?>
+                <button class="complete-btn" id="completeTreatmentBtn" onclick="completeCurrentPatient(<?php echo $inProcedureItem['id']; ?>)">
                     <span>✓</span> <span>Complete Treatment</span>
                 </button>
+                <?php else: ?>
+                <button class="complete-btn" id="completeTreatmentBtn" disabled style="background: #9ca3af;">
+                    <span>✓</span> <span>No Patient in Chair</span>
+                </button>
+                <?php endif; ?>
                 <div class="complete-btn-text">Click when patient treatment is finished</div>
             </div>
 
@@ -110,58 +156,61 @@ require_once 'includes/staff_layout_start.php';
             <div class="section-card">
                 <h2 class="section-title">⏭️ Up Next</h2>
                 <div class="patient-list" id="up-next-list">
-                    <div class="patient-item" id="next-juan">
-                        <div class="patient-info">
-                            <div class="patient-name">Juan Dela Cruz</div>
-                            <div class="patient-details">
-                                <span class="status-badge waiting">Waiting</span>
-                                <span class="patient-time">09:00 AM</span>
+                    <?php if (empty($waitingItems)): ?>
+                        <div style="text-align: center; padding: 40px 20px; color: #6b7280;">
+                            <p>No patients waiting</p>
+                            <a href="staff_new_admission.php" class="btn-primary" style="display: inline-block; margin-top: 12px; text-decoration: none;">Add New Patient</a>
+                        </div>
+                    <?php else: ?>
+                        <?php foreach (array_slice($waitingItems, 0, 5) as $index => $item): ?>
+                        <div class="patient-item" id="next-<?php echo $item['id']; ?>">
+                            <div class="patient-info">
+                                <div class="patient-name"><?php echo htmlspecialchars($item['full_name'] ?? 'Unknown'); ?></div>
+                                <div class="patient-details">
+                                    <span class="status-badge waiting">Waiting</span>
+                                    <span class="patient-time"><?php echo htmlspecialchars($item['queue_time'] ?? ''); ?></span>
+                                </div>
+                                <div class="patient-treatment"><?php echo htmlspecialchars($item['treatment_type'] ?? ''); ?></div>
                             </div>
-                            <div class="patient-treatment">Root Canal (Session 2)</div>
-                        </div>
-                        <div class="patient-actions">
-                            <button class="action-btn icon view-btn">👁️</button>
-                            <button class="action-btn icon delete-btn" onclick="this.innerHTML = 'Calling...'; setTimeout(() => this.innerHTML = '📞', 2000)">📞</button>
-                            <button class="action-btn icon delete-btn" onclick="moveToCancelled(this)">⚠️</button>
-                        </div>
-                    </div>
-                    <div class="patient-item" id="next-ana">
-                        <div class="patient-info">
-                            <div class="patient-name">Ana Reyes</div>
-                            <div class="patient-details">
-                                <span class="status-badge waiting">Waiting</span>
-                                <span class="patient-time">10:30 AM</span>
+                            <div class="patient-actions">
+                                <button class="action-btn text-btn" onclick="viewPatientDashboard(<?php echo $item['patient_id']; ?>)">See</button>
+                                <button class="action-btn text-btn" onclick="moveToOnHoldDashboard(<?php echo $item['id']; ?>)">On Hold</button>
+                                <button class="action-btn text-btn" onclick="cancelPatientDashboard(<?php echo $item['id']; ?>)">Cancel</button>
                             </div>
-                            <div class="patient-treatment">Oral Prophylaxis</div>
                         </div>
-                        <div class="patient-actions">
-                            <button class="action-btn icon view-btn">👁️</button>
-                            <button class="action-btn icon delete-btn" onclick="this.innerHTML = 'Calling...'; setTimeout(() => this.innerHTML = '📞', 2000)">📞</button>
-                            <button class="action-btn icon delete-btn" onclick="moveToCancelled(this)">⚠️</button>
-                        </div>
-                    </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </div>
             </div>
 
-            <!-- Cancelled -->
+            <!-- On Hold -->
             <div class="section-card">
-                <h2 class="section-title">Cancelled</h2>
-                <div class="patient-list" id="cancelled-list">
-                    <div class="patient-item" id="cancelled-roberto">
-                        <div class="patient-info">
-                            <div class="patient-name" style="text-decoration: line-through; color: #9ca3af;">Roberto Garcia</div>
-                            <div class="patient-details">
-                                <span class="status-badge cancelled">Cancelled</span>
+                <h2 class="section-title">⏸️ On Hold</h2>
+                <div class="patient-list" id="onhold-list">
+                    <?php 
+                    $onHoldItems = array_filter($queueItems, fn($q) => $q['status'] === 'on_hold');
+                    if (empty($onHoldItems)): ?>
+                        <div style="text-align: center; padding: 40px 20px; color: #6b7280;">
+                            <p>No patients on hold</p>
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($onHoldItems as $item): ?>
+                        <div class="patient-item" id="onhold-<?php echo $item['id']; ?>">
+                            <div class="patient-info">
+                                <div class="patient-name"><?php echo htmlspecialchars($item['full_name'] ?? 'Unknown'); ?></div>
+                                <div class="patient-details">
+                                    <span class="status-badge cancelled">On Hold</span>
+                                </div>
+                                <div class="patient-treatment"><?php echo htmlspecialchars($item['treatment_type'] ?? ''); ?></div>
                             </div>
-                            <div class="patient-treatment">Denture Adjustment</div>
-                            <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">No show / Did not arrive</div>
+                            <div class="patient-actions">
+                                <button class="action-btn icon view-btn">👁️</button>
+                                <button class="action-btn" style="background: #84cc16; color: white; padding: 8px 12px; border-radius: 6px; border: none; font-size: 12px; cursor: pointer;" onclick="requeuePatientDashboard(<?php echo $item['id']; ?>)">Re-queue</button>
+                                <button class="action-btn icon delete-btn">🗑️</button>
+                            </div>
                         </div>
-                        <div class="patient-actions">
-                            <button class="action-btn icon view-btn">👁️</button>
-                            <button class="action-btn" style="background: #84cc16; color: white; padding: 8px 12px; border-radius: 6px; border: none; font-size: 12px; cursor: pointer;" onclick="requeuePatient('cancelled-roberto', 'Roberto Garcia', 'Denture Adjustment', '11:00 AM')">Re-queue</button>
-                            <button class="action-btn icon delete-btn">🗑️</button>
-                        </div>
-                    </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -169,13 +218,13 @@ require_once 'includes/staff_layout_start.php';
         <!-- Right Column: Notifications & Reminders -->
         <div class="right-column">
             <div class="notification-box">
-                <h3>🔔 Notification</h3>
-                <div class="notification-item">
-                    <div class="notification-title">Upcoming Appointment</div>
-                    <div class="notification-detail">Next patient arriving in 10 mins</div>
+                <h3>🔔 Quick Links</h3>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <a href="staff_queue.php" class="btn-primary" style="width: 100%; text-align: center; text-decoration: none;">View Full Queue</a>
+                    <a href="staff_new_admission.php" class="btn-primary" style="width: 100%; text-align: center; text-decoration: none; background: #6b7280;">+ New Patient</a>
                 </div>
             </div>
-             
+              
             <div class="notification-box">
                 <h3>✓ Daily Reminders / To-Do</h3>
                 <ul class="reminder-list" id="reminder-list">
@@ -184,322 +233,212 @@ require_once 'includes/staff_layout_start.php';
                     <li onclick="this.classList.toggle('checked')">Call inquiries for new stocks of Composites</li>
                 </ul>
                 <button class="add-reminder-btn" id="addReminderBtn">+ Add New Reminder</button>
-                <a href="#" class="see-all-link">See all reminders</a>
             </div>
         </div>
     </div>
 </div>
 
-<!-- VIEW 2: APPOINTMENTS -->
-<div id="view-appointments" class="view-section">
-    <!-- Appointment Stats Header -->
-    <div class="appt-stats-grid">
-        <div class="appt-stat-card">
-            <h4 id="appt-total">0</h4>
-            <p>Total Appointments</p>
+<!-- Patient Record Modal -->
+<div id="patientRecordModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+    <div class="modal" style="background: white; border-radius: 12px; padding: 24px; width: 90%; max-width: 700px; max-height: 85vh; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="font-size: 1.25rem; font-weight: 600; margin: 0;">Patient Record</h2>
+            <button onclick="closePatientRecordModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">×</button>
         </div>
-        <div class="appt-stat-card">
-            <h4 id="appt-today">0</h4>
-            <p>Today</p>
-        </div>
-        <div class="appt-stat-card">
-            <h4 id="appt-tomorrow">0</h4>
-            <p>Tomorrow</p>
-        </div>
-        <div class="appt-stat-card">
-            <h4 id="appt-upcoming">0</h4>
-            <p>Upcoming</p>
-        </div>
-    </div>
-
-    <!-- Search & Filter -->
-    <div class="search-filters">
-        <div class="filter-tabs">
-            <span class="active">All (0)</span>
-            <span>Upcoming</span>
-            <span>Completed</span>
-            <span>Cancelled</span>
-        </div>
-        <input type="text" class="search-input" placeholder="Search appointments...">
-    </div>
-
-    <!-- Empty State (Simulated) -->
-    <div class="empty-state" id="appt-empty-state">
-        <h3>No Appointments Found</h3>
-        <p>Create your first appointment to get started.</p>
-    </div>
-
-    <!-- Add Button -->
-    <div style="margin-top: 20px; display: flex; justify-content: center;">
-        <button class="btn-primary" onclick="openModal()">+ New Appointment</button>
-    </div>
-</div>
-
-<!-- NEW APPOINTMENT MODAL -->
-<div id="appointmentModal" class="modal-overlay">
-    <div class="modal">
-        <h2 style="margin-bottom: 24px; font-size: 1.5rem;">New Appointment</h2>
-         
-        <div class="form-group">
-            <label>Patient Name</label>
-            <input type="text" id="appt-name" class="form-control" placeholder="Enter full name">
-        </div>
-
-        <div class="form-group">
-            <label>Phone Number</label>
-            <input type="text" id="appt-phone" class="form-control" value="0912 - 345 - 6789">
-        </div>
-
-        <div class="form-row">
-            <div class="form-group" style="flex:1;">
-                <label>Date</label>
-                <input type="date" id="appt-date" class="form-control">
-            </div>
-            <div class="form-group" style="flex:1;">
-                <label>Time</label>
-                <input type="time" id="appt-time" class="form-control">
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label>Inquiry Source</label>
-            <div class="radio-group">
-                <label class="radio-option">
-                    <input type="radio" name="source" value="Phone Call" checked> Phone Call
-                </label>
-                <label class="radio-option">
-                    <input type="radio" name="source" value="Messenger"> Messenger
-                </label>
-                <label class="radio-option">
-                    <input type="radio" name="source" value="Walk in"> Walk in
-                </label>
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label>Notes</label>
-            <textarea id="appt-notes" class="form-control" rows="3" placeholder="Add notes..."></textarea>
-        </div>
-
-        <div class="modal-actions">
-            <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-            <button class="btn-primary" onclick="createAppointment()">Create Appointment</button>
-        </div>
+        <div id="patientRecordContent"></div>
     </div>
 </div>
 
 <script>
-    // --- View Switching Logic ---
-    function switchView(viewName, element) {
-        // Update Sidebar Active State
-        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-        if(element) element.classList.add('active');
+const queueItems = <?php echo json_encode($queueItems); ?>;
 
-        // Hide all views
-        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-
-        // Show selected view
-        document.getElementById('view-' + viewName).classList.add('active');
-
-        // Update Title
-        const titles = {
-            'dashboard': 'Inquiry & Queue Dashboard',
-            'appointments': 'Appointments Management'
-        };
-        document.getElementById('page-title').innerText = titles[viewName] || 'Staff Dashboard';
-    }
-
-    // --- Dashboard Logic ---
-    const countWaiting = document.getElementById('count-waiting');
-    const countCompleted = document.getElementById('count-completed');
-    const countCancelled = document.getElementById('count-cancelled');
-    const liveName = document.getElementById('live-patient-name');
-    const liveTime = document.getElementById('live-patient-time');
-    const liveTreatment = document.getElementById('live-patient-treatment');
-    const completeBtn = document.getElementById('completeTreatmentBtn');
-    const upNextList = document.getElementById('up-next-list');
-    const cancelledList = document.getElementById('cancelled-list');
-    const reminderList = document.getElementById('reminder-list');
-    const addReminderBtn = document.getElementById('addReminderBtn');
-
-    let completedCount = 0;
-
-    completeBtn.addEventListener('click', () => {
-        completedCount++;
-        countCompleted.innerText = completedCount;
-        completeBtn.innerText = "✓ Treatment Completed";
-        completeBtn.style.backgroundColor = "#15803d";
-         
-        setTimeout(() => {
-            completeBtn.innerHTML = "<span>✓</span><span>Complete Treatment</span>";
-            completeBtn.style.backgroundColor = "";
-            const nextPatientItem = upNextList.firstElementChild;
-                 
-            if (nextPatientItem) {
-                const name = nextPatientItem.querySelector('.patient-name').innerText;
-                const time = nextPatientItem.querySelector('.patient-time').innerText;
-                const treatment = nextPatientItem.querySelector('.patient-treatment').innerText;
-                liveName.innerText = name;
-                liveTime.innerText = time;
-                liveTreatment.innerText = treatment;
-                nextPatientItem.remove();
-                let currentWaiting = parseInt(countWaiting.innerText);
-                if(currentWaiting > 0) countWaiting.innerText = currentWaiting - 1;
-            } else {
-                liveName.innerText = "No Patients";
-                liveTime.innerText = "--:--";
-                liveTreatment.innerText = "Queue Empty";
-            }
-        }, 1000);
+// Dashboard Queue Actions
+function completeCurrentPatient(queueId) {
+    if (!confirm('Mark treatment as complete?')) return;
+    
+    fetch('queue_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'complete', queue_id: queueId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message);
+        }
     });
+}
 
-    addReminderBtn.addEventListener('click', () => {
-        const reminders = ["Check inventory", "Verify insurance claims", "Sterilize tools", "Update patient records", "Lunch break"];
-        const randomReminder = reminders[Math.floor(Math.random() * reminders.length)];
-        const li = document.createElement('li');
-        li.setAttribute('onclick', 'this.classList.toggle("checked")');
-        li.innerText = randomReminder;
-        reminderList.appendChild(li);
+function moveToOnHoldDashboard(queueId) {
+    if (!confirm('Put patient on hold?')) return;
+    
+    fetch('queue_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'on_hold', queue_id: queueId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message);
+        }
     });
+}
 
-    window.moveToCancelled = function(btn) {
-        const patientItem = btn.closest('.patient-item');
-        const name = patientItem.querySelector('.patient-name').innerText;
-        const treatment = patientItem.querySelector('.patient-treatment').innerText;
+function cancelPatientDashboard(queueId) {
+    if (!confirm('Cancel this patient?')) return;
+    
+    fetch('queue_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel', queue_id: queueId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    });
+}
 
-        const cancelledItem = document.createElement('div');
-        cancelledItem.className = 'patient-item';
-        cancelledItem.innerHTML = `
-            <div class="patient-info">
-                <div class="patient-name" style="text-decoration: line-through; color: #9ca3af;">${name}</div>
-                <div class="patient-details">
-                    <span class="status-badge cancelled">Cancelled</span>
+function requeuePatientDashboard(queueId) {
+    fetch('queue_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'requeue', queue_id: queueId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    });
+}
+
+// Cancelled Modal Functions
+function openCancelledModal() {
+    document.getElementById('cancelledModal').style.display = 'flex';
+}
+
+function closeCancelledModal() {
+    document.getElementById('cancelledModal').style.display = 'none';
+}
+
+function filterCancelled(filter) {
+    const todayBtn = document.getElementById('cancelled-today-btn');
+    const weekBtn = document.getElementById('cancelled-week-btn');
+    const todayList = document.getElementById('cancelled-today-list');
+    const weekList = document.getElementById('cancelled-week-list');
+    
+    if (filter === 'today') {
+        todayBtn.style.background = '#2563eb';
+        todayBtn.style.color = 'white';
+        weekBtn.style.background = 'white';
+        weekBtn.style.color = '#374151';
+        todayList.style.display = 'block';
+        weekList.style.display = 'none';
+    } else {
+        weekBtn.style.background = '#2563eb';
+        weekBtn.style.color = 'white';
+        todayBtn.style.background = 'white';
+        todayBtn.style.color = '#374151';
+        weekList.style.display = 'block';
+        todayList.style.display = 'none';
+    }
+}
+
+// Patient Record Modal
+function viewPatientDashboard(patientId) {
+    fetch('queue_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get_patient_record', patient_id: patientId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const p = data.patient;
+            const m = data.medical_history || {};
+            const d = data.dental_history || {};
+            const q = data.queue_item || {};
+            
+            const allergies = m.allergies || 'None';
+            const medications = m.current_medications || 'None';
+            const medicalConditions = m.medical_conditions || 'None';
+            
+            document.getElementById('patientRecordContent').innerHTML = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                    <div>
+                        <h3 style="font-size: 0.875rem; font-weight: 600; color: #6b7280; margin-bottom: 12px;">Personal Information</h3>
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <div><span style="color: #6b7280; font-size: 0.875rem;">Full Name:</span> <span style="font-weight: 500;">${p.full_name || 'N/A'}</span></div>
+                            <div><span style="color: #6b7280; font-size: 0.875rem;">Age:</span> <span style="font-weight: 500;">${p.age || 'N/A'} years</span></div>
+                            <div><span style="color: #6b7280; font-size: 0.875rem;">Phone:</span> <span style="font-weight: 500;">${p.phone || 'N/A'}</span></div>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 0.875rem; font-weight: 600; color: #6b7280; margin-bottom: 12px;">Service Requested</h3>
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <div><span style="color: #6b7280; font-size: 0.875rem;">Treatment:</span> <span style="font-weight: 500;">${q.treatment_type || 'N/A'}</span></div>
+                            <div><span style="color: #6b7280; font-size: 0.875rem;">Teeth:</span> <span style="font-weight: 500;">${q.teeth_numbers || 'N/A'}</span></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="patient-treatment">${treatment}</div>
-            </div>
-            <div class="patient-actions">
-                <button class="action-btn icon view-btn">👁️</button>
-                <button class="action-btn" style="background: #84cc16; color: white; padding: 8px 12px; border-radius: 6px; border: none; font-size: 12px; cursor: pointer;" onclick="requeueNew(this, '${name}', '${treatment}')">Re-queue</button>
-                <button class="action-btn icon delete-btn">🗑️</button>
-            </div>
-        `;
-        cancelledList.appendChild(cancelledItem);
-        patientItem.remove();
-        let currentCancelled = parseInt(countCancelled.innerText);
-        countCancelled.innerText = currentCancelled + 1;
-        let currentWaiting = parseInt(countWaiting.innerText);
-        if(currentWaiting > 0) countWaiting.innerText = currentWaiting - 1;
-    };
-
-    window.requeuePatient = function(id, name, treatment, time) {
-        const item = document.getElementById(id);
-        if(item) {
-            createWaitingItem(name, treatment, time);
-            item.remove();
-            let currentCancelled = parseInt(countCancelled.innerText);
-            if(currentCancelled > 0) countCancelled.innerText = currentCancelled - 1;
-            let currentWaiting = parseInt(countWaiting.innerText);
-            countWaiting.innerText = currentWaiting + 1;
-        }
-    };
-
-    window.requeueNew = function(btn, name, treatment) {
-        const item = btn.closest('.patient-item');
-        createWaitingItem(name, treatment, "Re-queued");
-        item.remove();
-        let currentCancelled = parseInt(countCancelled.innerText);
-        if(currentCancelled > 0) countCancelled.innerText = currentCancelled - 1;
-        let currentWaiting = parseInt(countWaiting.innerText);
-        countWaiting.innerText = currentWaiting + 1;
-    };
-
-    function createWaitingItem(name, treatment, time) {
-        const newItem = document.createElement('div');
-        newItem.className = 'patient-item';
-        newItem.innerHTML = `
-            <div class="patient-info">
-                <div class="patient-name">${name}</div>
-                <div class="patient-details">
-                    <span class="status-badge waiting">Waiting</span>
-                    <span class="patient-time">${time}</span>
+                <div style="margin-top: 20px;">
+                    <h3 style="font-size: 0.875rem; font-weight: 600; color: #dc2626; margin-bottom: 12px;">⚠️ Medical History</h3>
+                    <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div>
+                                <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 4px;">Allergies</div>
+                                <div style="font-weight: 500; ${allergies === 'Yes' ? 'color: #dc2626;' : ''}">${allergies}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 4px;">Conditions</div>
+                                <div style="font-weight: 500;">${medicalConditions}</div>
+                            </div>
+                            <div style="grid-column: 1 / -1;">
+                                <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 4px;">Current Medications</div>
+                                <div style="font-weight: 500;">${medications}</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="patient-treatment">${treatment}</div>
-            </div>
-            <div class="patient-actions">
-                <button class="action-btn icon view-btn">👁️</button>
-                <button class="action-btn icon delete-btn" onclick="this.innerHTML = 'Calling...'; setTimeout(() => this.innerHTML = '📞', 2000)">📞</button>
-                <button class="action-btn icon delete-btn" onclick="moveToCancelled(this)">⚠️</button>
-            </div>
-        `;
-        upNextList.appendChild(newItem);
-    }
-
-    // --- Appointments Logic ---
-    function openModal() {
-        document.getElementById('appointmentModal').style.display = 'flex';
-    }
-
-    function closeModal() {
-        document.getElementById('appointmentModal').style.display = 'none';
-    }
-
-    // Close modal on outside click
-    window.onclick = function(event) {
-        const modal = document.getElementById('appointmentModal');
-        if (event.target == modal) {
-            modal.style.display = "none";
+            `;
+            
+            document.getElementById('patientRecordModal').style.display = 'flex';
         }
-    }
+    });
+}
 
-    function createAppointment() {
-        // Get values
-        const name = document.getElementById('appt-name').value;
-        const phone = document.getElementById('appt-phone').value;
-        const date = document.getElementById('appt-date').value;
-        const time = document.getElementById('appt-time').value;
-        const source = document.querySelector('input[name="source"]:checked').value;
-        const notes = document.getElementById('appt-notes').value;
+function closePatientRecordModal() {
+    document.getElementById('patientRecordModal').style.display = 'none';
+}
 
-        if(!name || !date || !time) {
-            alert("Please fill in Name, Date, and Time.");
-            return;
-        }
+// Close modals on outside click
+window.onclick = function(event) {
+    const cancelledModal = document.getElementById('cancelledModal');
+    const patientModal = document.getElementById('patientRecordModal');
+    if (event.target == cancelledModal) closeCancelledModal();
+    if (event.target == patientModal) closePatientRecordModal();
+}
 
-        // Hide Empty State
-        document.getElementById('appt-empty-state').style.display = 'none';
-
-        // Create Item
-        const container = document.querySelector('.search-filters');
-         
-        const newAppt = document.createElement('div');
-        newAppt.style.cssText = "background: white; padding: 16px; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; animation: fadeIn 0.3s ease;";
-        newAppt.innerHTML = `
-            <div>
-                <div style="font-weight: 700; font-size: 1rem;">${name}</div>
-                <div style="font-size: 0.9rem; color: #64748b; margin-top: 4px;">${date} at ${time} • ${source}</div>
-                <div style="font-size: 0.85rem; color: #64748b; margin-top: 2px;">${notes}</div>
-            </div>
-            <div>
-                <button class="btn-cancel" style="padding: 6px 12px; font-size: 0.85rem;">Edit</button>
-            </div>
-        `;
-
-        // Insert after the filter bar
-        const filterBar = document.querySelector('.search-filters');
-        filterBar.parentNode.insertBefore(newAppt, filterBar.nextSibling);
-
-        // Update Stats (Simulation)
-        let total = parseInt(document.getElementById('appt-total').innerText);
-        document.getElementById('appt-total').innerText = total + 1;
-        document.getElementById('appt-upcoming').innerText = parseInt(document.getElementById('appt-upcoming').innerText) + 1;
-
-        // Reset Form & Close
-        document.getElementById('appt-name').value = "";
-        document.getElementById('appt-date').value = "";
-        document.getElementById('appt-time').value = "";
-        document.getElementById('appt-notes').value = "";
-        closeModal();
-    }
+// Reminder functionality
+document.getElementById('addReminderBtn')?.addEventListener('click', () => {
+    const reminders = ["Check inventory", "Verify insurance claims", "Sterilize tools", "Update patient records"];
+    const randomReminder = reminders[Math.floor(Math.random() * reminders.length)];
+    const li = document.createElement('li');
+    li.setAttribute('onclick', 'this.classList.toggle("checked")');
+    li.innerText = randomReminder;
+    document.getElementById('reminder-list').appendChild(li);
+});
 </script>
 
 <?php require_once 'includes/staff_layout_end.php'; ?>

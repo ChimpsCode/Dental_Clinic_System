@@ -51,7 +51,9 @@ function initializeDatabase($pdo) {
         $pdo->exec("CREATE TABLE IF NOT EXISTS appointments (
             id INT AUTO_INCREMENT PRIMARY KEY,
             patient_id INT,
-            appointment_date DATETIME NOT NULL,
+            appointment_date DATE NOT NULL,
+            appointment_time TIME NOT NULL,
+            treatment VARCHAR(100) DEFAULT 'General Checkup',
             notes TEXT,
             status VARCHAR(20) DEFAULT 'scheduled',
             created_by INT,
@@ -171,6 +173,46 @@ function initializeDatabase($pdo) {
             INDEX idx_payment_date (payment_date)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
         
+        // Create treatment_plans table
+        $pdo->exec("CREATE TABLE IF NOT EXISTS treatment_plans (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            patient_id INT NOT NULL,
+            treatment_name VARCHAR(200) NOT NULL,
+            treatment_type VARCHAR(100),
+            teeth_numbers VARCHAR(100),
+            total_sessions INT DEFAULT 1,
+            completed_sessions INT DEFAULT 0,
+            status VARCHAR(20) DEFAULT 'active',
+            next_session_date DATE,
+            estimated_cost DECIMAL(10, 2),
+            notes TEXT,
+            doctor_id INT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE,
+            FOREIGN KEY (doctor_id) REFERENCES users(id) ON DELETE SET NULL,
+            INDEX idx_patient_id (patient_id),
+            INDEX idx_status (status),
+            INDEX idx_next_session (next_session_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        
+        // Create inquiries table
+        $pdo->exec("CREATE TABLE IF NOT EXISTS inquiries (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            contact_info VARCHAR(255),
+            source ENUM('Facebook', 'Phone Call', 'Walk-in', 'Referral', 'Instagram', 'Messenger') NOT NULL DEFAULT 'Facebook',
+            inquiry_message TEXT,
+            topic VARCHAR(100) DEFAULT 'General',
+            status ENUM('Pending', 'Answered', 'Closed', 'Booked') DEFAULT 'Pending',
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_status (status),
+            INDEX idx_source (source),
+            INDEX idx_created_at (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        
         // Create default admin user (username: admin, password: admin123)
         $adminPassword = password_hash('admin123', PASSWORD_DEFAULT);
         $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
@@ -261,7 +303,7 @@ if (!isset($pdo)) {
                 initializeDatabase($pdo);
             } else {
                 // Check if all required tables exist, create missing ones
-                $requiredTables = ['users', 'patients', 'appointments', 'dental_history', 'medical_history', 'treatments', 'services', 'billing', 'payments'];
+                $requiredTables = ['users', 'patients', 'appointments', 'dental_history', 'medical_history', 'treatments', 'services', 'billing', 'payments', 'treatment_plans', 'inquiries', 'queue'];
                 $stmt = $pdo->query("SHOW TABLES");
                 $existingTables = $stmt->fetchAll(PDO::FETCH_COLUMN);
                 $missingTables = array_diff($requiredTables, $existingTables);

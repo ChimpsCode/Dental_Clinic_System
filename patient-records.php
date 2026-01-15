@@ -4,7 +4,7 @@ require_once 'includes/staff_layout_start.php';
 
 try {
     require_once 'config/database.php';
-    $stmt = $pdo->query("SELECT * FROM patients ORDER BY created_at DESC LIMIT 50");
+    $stmt = $pdo->query("SELECT * FROM patients ORDER BY created_at DESC LIMIT 100");
     $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
     $patients = [];
@@ -35,15 +35,14 @@ try {
                             <tr>
                                 <th>Patient Name</th>
                                 <th>Contact</th>
-                                <th>Last Visit</th>
-                                <th>Status</th>
+                                <th>Date Added</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="patientsTableBody">
                             <?php if (empty($patients)): ?>
                                 <tr>
-                                    <td colspan="5" style="text-align: center; padding: 60px; color: #6b7280;">
+                                    <td colspan="4" style="text-align: center; padding: 60px; color: #6b7280;">
                                         <p style="font-size: 1.1rem; margin-bottom: 8px;">No patient records found</p>
                                     </td>
                                 </tr>
@@ -59,12 +58,10 @@ try {
                                             </div>
                                         </td>
                                         <td><?php echo htmlspecialchars($patient['phone'] ?? $patient['contact_info'] ?? 'N/A'); ?></td>
-                                        <td><?php echo isset($patient['last_visit']) ? date('M d, Y', strtotime($patient['last_visit'])) : (isset($patient['created_at']) ? date('M d, Y', strtotime($patient['created_at'])) : 'N/A'); ?></td>
-                                        <td><span class="status-badge" style="background: #dbeafe; color: #1e40af;">Active</span></td>
+                                        <td><?php echo isset($patient['created_at']) ? date('M d, Y', strtotime($patient['created_at'])) : 'N/A'; ?></td>
                                         <td>
                                             <div class="patient-actions">
-                                                <a href="patient_details.php?id=<?php echo $patient['id']; ?>" class="action-btn icon" title="View" style="text-decoration: none;">👁️</a>
-                                                <button class="action-btn icon" title="Edit">✏️</button>
+                                                <button onclick="viewPatientRecord(<?php echo $patient['id']; ?>)" class="action-btn icon" title="View" style="text-decoration: none;">👁️</button>
                                             </div>
                                         </td>
                                     </tr>
@@ -75,6 +72,17 @@ try {
                 </div>
             </div>
 
+    <!-- Patient Record Modal -->
+    <div id="patientRecordModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+        <div class="modal" style="background: white; border-radius: 12px; padding: 24px; width: 90%; max-width: 700px; max-height: 85vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="font-size: 1.25rem; font-weight: 600; margin: 0;">Patient Record</h2>
+                <button onclick="closePatientRecordModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">×</button>
+            </div>
+            <div id="patientRecordContent"></div>
+        </div>
+    </div>
+
     <script>
         document.getElementById('searchInput').addEventListener('input', function() {
             const search = this.value.toLowerCase();
@@ -82,6 +90,75 @@ try {
                 const match = row.dataset.name.includes(search);
                 row.style.display = match ? '' : 'none';
             });
+        });
+
+        function viewPatientRecord(patientId) {
+            fetch('patient_record_details.php?id=' + patientId)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const p = data.patient;
+                    const m = data.medical_history || {};
+                    const d = data.dental_history || {};
+                    
+                    const allergies = m.allergies || 'None';
+                    const medications = m.current_medications || 'None';
+                    const conditions = m.medical_conditions || 'None';
+                    
+                    document.getElementById('patientRecordContent').innerHTML = `
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                            <div>
+                                <h3 style="font-size: 0.875rem; font-weight: 600; color: #6b7280; margin-bottom: 12px;">Personal Information</h3>
+                                <div style="display: flex; flex-direction: column; gap: 10px;">
+                                    <div><span style="color: #6b7280;">Full Name:</span> <span style="font-weight: 500;">${p.full_name || 'N/A'}</span></div>
+                                    <div><span style="color: #6b7280;">Age:</span> <span style="font-weight: 500;">${p.age || 'N/A'} years</span></div>
+                                    <div><span style="color: #6b7280;">Gender:</span> <span style="font-weight: 500;">${p.gender || 'N/A'}</span></div>
+                                    <div><span style="color: #6b7280;">Phone:</span> <span style="font-weight: 500;">${p.phone || 'N/A'}</span></div>
+                                    <div><span style="color: #6b7280;">Email:</span> <span style="font-weight: 500;">${p.email || 'N/A'}</span></div>
+                                </div>
+                            </div>
+                            <div>
+                                <h3 style="font-size: 0.875rem; font-weight: 600; color: #6b7280; margin-bottom: 12px;">Service Requested</h3>
+                                <div style="display: flex; flex-direction: column; gap: 10px;">
+                                    <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500;">${data.queue_item?.treatment_type || 'N/A'}</span></div>
+                                    <div><span style="color: #6b7280;">Teeth:</span> <span style="font-weight: 500;">${data.queue_item?.teeth_numbers || 'N/A'}</span></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 20px;">
+                            <h3 style="font-size: 0.875rem; font-weight: 600; color: #dc2626; margin-bottom: 12px;">⚠️ Medical History</h3>
+                            <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                    <div>
+                                        <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 4px;">Allergies</div>
+                                        <div style="font-weight: 500; ${allergies === 'Yes' ? 'color: #dc2626;' : ''}">${allergies}</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 4px;">Conditions</div>
+                                        <div style="font-weight: 500;">${conditions}</div>
+                                    </div>
+                                    <div style="grid-column: 1 / -1;">
+                                        <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 4px;">Current Medications</div>
+                                        <div style="font-weight: 500;">${medications}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end;">
+                            <button onclick="closePatientRecordModal()" class="btn-cancel" style="padding: 10px 24px;">Close</button>
+                        </div>
+                    `;
+                    document.getElementById('patientRecordModal').style.display = 'flex';
+                }
+            });
+        }
+
+        function closePatientRecordModal() {
+            document.getElementById('patientRecordModal').style.display = 'none';
+        }
+
+        document.getElementById('patientRecordModal').addEventListener('click', function(e) {
+            if (e.target === this) closePatientRecordModal();
         });
     </script>
 <?php require_once 'includes/staff_layout_end.php'; ?>

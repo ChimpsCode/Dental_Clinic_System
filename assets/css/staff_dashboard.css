@@ -300,6 +300,28 @@ header.top-header {
 }
 .action-btn:hover { background-color: #f3f4f6; border-color: #d1d5db; }
 
+/* Text Buttons Style */
+.action-btn.text-btn {
+    padding: 8px 16px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    min-width: 80px;
+    justify-content: center;
+}
+
+.action-btn.text-btn:hover {
+    background-color: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.action-btn.text-btn:active {
+    background-color: #e5e7eb;
+}
+
 /* Live Queue Controller Styles */
 .live-queue {
     background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);

@@ -1,251 +1,498 @@
+-- phpMyAdmin SQL Dump
+-- version 5.2.1
+-- https://www.phpmyadmin.net/
+--
+-- Host: 127.0.0.1
+-- Generation Time: Jan 15, 2026 at 02:39 AM
+-- Server version: 10.4.32-MariaDB
+-- PHP Version: 8.2.12
 
--- Create database
-CREATE DATABASE IF NOT EXISTS dental_management 
-    CHARACTER SET utf8mb4 
-    COLLATE utf8mb4_unicode_ci;
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+00:00";
 
--- Use the database
-USE dental_management;
 
--- ============================================
--- TABLE: users
--- Description: System users (admin, dentist, staff)
--- ============================================
-CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(50) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    email VARCHAR(100),
-    full_name VARCHAR(100),
-    role VARCHAR(20) DEFAULT 'user',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+
+--
+-- Database: `dental_management`
+--
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `appointments`
+--
+
+CREATE TABLE `appointments` (
+  `id` int(11) NOT NULL,
+  `first_name` varchar(100) DEFAULT NULL,
+  `patient_id` int(11) DEFAULT NULL,
+  `appointment_date` datetime NOT NULL,
+  `appointment_time` time NOT NULL DEFAULT '09:00:00',
+  `treatment` varchar(100) DEFAULT 'General Checkup',
+  `notes` text DEFAULT NULL,
+  `status` varchar(20) DEFAULT 'scheduled',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `created_by` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- TABLE: patients
--- Description: Patient information and demographics
--- ============================================
-CREATE TABLE IF NOT EXISTS patients (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    first_name VARCHAR(100),
-    middle_name VARCHAR(100),
-    last_name VARCHAR(100),
-    suffix VARCHAR(10),
-    full_name VARCHAR(200) NOT NULL,
-    phone VARCHAR(20),
-    email VARCHAR(100),
-    address TEXT,
-    city VARCHAR(100),
-    province VARCHAR(100),
-    zip_code VARCHAR(20),
-    date_of_birth DATE,
-    age INT,
-    gender VARCHAR(10),
-    religion VARCHAR(50),
-    dental_insurance VARCHAR(100),
-    insurance_effective_date DATE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_full_name (full_name),
-    INDEX idx_phone (phone),
-    INDEX idx_email (email)
+--
+-- Dumping data for table `appointments`
+--
+
+INSERT INTO `appointments` (`id`, `first_name`, `patient_id`, `appointment_date`, `appointment_time`, `treatment`, `notes`, `status`, `created_at`, `updated_at`, `created_by`) VALUES
+(1, NULL, 4, '2025-12-31 00:00:00', '19:04:00', 'General Checkup', 'sadsad', 'scheduled', '2026-01-14 11:02:30', '2026-01-14 11:02:30', 4),
+(2, NULL, 5, '2026-01-15 00:00:00', '19:08:00', 'Teeth Cleaning', 'he needs cleaning later', 'scheduled', '2026-01-14 11:04:47', '2026-01-14 11:04:47', 4),
+(3, NULL, 6, '2026-01-07 00:00:00', '12:06:00', 'Tooth Extraction', 'adwadwadags aweqawdwad', 'scheduled', '2026-01-14 13:06:49', '2026-01-14 13:06:49', 4);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `billing`
+--
+
+CREATE TABLE `billing` (
+  `id` int(11) NOT NULL,
+  `patient_id` int(11) NOT NULL,
+  `treatment_id` int(11) DEFAULT NULL,
+  `appointment_id` int(11) DEFAULT NULL,
+  `total_amount` decimal(10,2) NOT NULL,
+  `paid_amount` decimal(10,2) DEFAULT 0.00,
+  `balance` decimal(10,2) DEFAULT 0.00,
+  `payment_status` varchar(20) DEFAULT 'pending',
+  `billing_date` date NOT NULL,
+  `due_date` date DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- TABLE: appointments
--- Description: Patient appointments and scheduling
--- ============================================
-CREATE TABLE IF NOT EXISTS appointments (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    patient_id INT,
-    appointment_date DATETIME NOT NULL,
-    notes TEXT,
-    status VARCHAR(20) DEFAULT 'scheduled',
-    created_by INT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE SET NULL,
-    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
-    INDEX idx_appointment_date (appointment_date),
-    INDEX idx_status (status)
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `dental_history`
+--
+
+CREATE TABLE `dental_history` (
+  `id` int(11) NOT NULL,
+  `patient_id` int(11) NOT NULL,
+  `previous_dentist` varchar(100) DEFAULT NULL,
+  `last_visit_date` date DEFAULT NULL,
+  `reason_last_visit` text DEFAULT NULL,
+  `previous_treatments` text DEFAULT NULL,
+  `current_complaints` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- TABLE: dental_history
--- Description: Patient dental history and records
--- ============================================
-CREATE TABLE IF NOT EXISTS dental_history (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    patient_id INT NOT NULL,
-    previous_dentist VARCHAR(100),
-    last_visit_date DATE,
-    reason_last_visit TEXT,
-    previous_treatments TEXT,
-    current_complaints TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE,
-    INDEX idx_patient_id (patient_id)
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `inquiries`
+--
+
+CREATE TABLE `inquiries` (
+  `id` int(11) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `contact_info` varchar(255) DEFAULT NULL,
+  `source` enum('Facebook','Phone Call','Walk-in','Referral','Instagram','Messenger') NOT NULL DEFAULT 'Facebook',
+  `inquiry_message` text DEFAULT NULL,
+  `topic` varchar(100) DEFAULT 'General',
+  `status` enum('Pending','Answered','Closed','Booked') DEFAULT 'Pending',
+  `notes` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `medical_history`
+--
+
+CREATE TABLE `medical_history` (
+  `id` int(11) NOT NULL,
+  `patient_id` int(11) NOT NULL,
+  `allergies` text DEFAULT NULL,
+  `current_medications` text DEFAULT NULL,
+  `medical_conditions` text DEFAULT NULL,
+  `blood_pressure` varchar(20) DEFAULT NULL,
+  `heart_rate` varchar(20) DEFAULT NULL,
+  `other_notes` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- TABLE: medical_history
--- Description: Patient medical history and conditions
--- ============================================
-CREATE TABLE IF NOT EXISTS medical_history (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    patient_id INT NOT NULL,
-    allergies TEXT,
-    current_medications TEXT,
-    medical_conditions TEXT,
-    blood_pressure VARCHAR(20),
-    heart_rate VARCHAR(20),
-    other_notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE,
-    INDEX idx_patient_id (patient_id)
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `patients`
+--
+
+CREATE TABLE `patients` (
+  `id` int(11) NOT NULL,
+  `last_name` varchar(100) DEFAULT NULL,
+  `first_name` varchar(100) DEFAULT NULL,
+  `full_name` varchar(100) NOT NULL,
+  `phone` varchar(20) DEFAULT NULL,
+  `email` varchar(100) DEFAULT NULL,
+  `address` text DEFAULT NULL,
+  `date_of_birth` date DEFAULT NULL,
+  `gender` varchar(10) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `created_by` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- TABLE: treatments
--- Description: Dental treatments and procedures performed
--- ============================================
-CREATE TABLE IF NOT EXISTS treatments (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    patient_id INT NOT NULL,
-    treatment_date DATE NOT NULL,
-    procedure_name VARCHAR(200) NOT NULL,
-    tooth_number VARCHAR(20),
-    description TEXT,
-    status VARCHAR(20) DEFAULT 'completed',
-    doctor_id INT,
-    cost DECIMAL(10, 2),
-    notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE,
-    FOREIGN KEY (doctor_id) REFERENCES users(id) ON DELETE SET NULL,
-    INDEX idx_patient_id (patient_id),
-    INDEX idx_treatment_date (treatment_date),
-    INDEX idx_status (status)
+--
+-- Dumping data for table `patients`
+--
+
+INSERT INTO `patients` (`id`, `last_name`, `first_name`, `full_name`, `phone`, `email`, `address`, `date_of_birth`, `gender`, `created_at`, `updated_at`, `created_by`) VALUES
+(4, '', 'sdasd', 'sdasd', '09525231006', NULL, NULL, NULL, NULL, '2026-01-14 11:02:30', '2026-01-14 11:02:30', NULL),
+(5, 'Lim', 'David', 'David Lim', '09525231006', NULL, NULL, NULL, NULL, '2026-01-14 11:04:47', '2026-01-14 11:04:47', NULL),
+(6, 'mali', 'watawaw', 'watawaw mali', '09525231001', NULL, NULL, NULL, NULL, '2026-01-14 13:06:49', '2026-01-14 13:06:49', NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `payments`
+--
+
+CREATE TABLE `payments` (
+  `id` int(11) NOT NULL,
+  `billing_id` int(11) NOT NULL,
+  `patient_id` int(11) NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `payment_method` varchar(50) DEFAULT NULL,
+  `payment_date` date NOT NULL,
+  `reference_number` varchar(100) DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `created_by` int(11) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- TABLE: services
--- Description: Available dental services and procedures
--- ============================================
-CREATE TABLE IF NOT EXISTS services (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    service_name VARCHAR(200) NOT NULL,
-    description TEXT,
-    default_cost DECIMAL(10, 2),
-    category VARCHAR(50),
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_category (category),
-    INDEX idx_is_active (is_active)
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `services`
+--
+
+CREATE TABLE `services` (
+  `id` int(11) NOT NULL,
+  `service_name` varchar(200) NOT NULL,
+  `description` text DEFAULT NULL,
+  `default_cost` decimal(10,2) DEFAULT NULL,
+  `category` varchar(50) DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT 1,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- TABLE: billing
--- Description: Patient billing and invoices
--- ============================================
-CREATE TABLE IF NOT EXISTS billing (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    patient_id INT NOT NULL,
-    treatment_id INT,
-    appointment_id INT,
-    total_amount DECIMAL(10, 2) NOT NULL,
-    paid_amount DECIMAL(10, 2) DEFAULT 0.00,
-    balance DECIMAL(10, 2) DEFAULT 0.00,
-    payment_status VARCHAR(20) DEFAULT 'pending',
-    billing_date DATE NOT NULL,
-    due_date DATE,
-    notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE,
-    FOREIGN KEY (treatment_id) REFERENCES treatments(id) ON DELETE SET NULL,
-    FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE SET NULL,
-    INDEX idx_patient_id (patient_id),
-    INDEX idx_payment_status (payment_status),
-    INDEX idx_billing_date (billing_date)
+--
+-- Dumping data for table `services`
+--
+
+INSERT INTO `services` (`id`, `service_name`, `description`, `default_cost`, `category`, `is_active`, `created_at`, `updated_at`) VALUES
+(1, 'Dental Cleaning', 'Professional teeth cleaning and polishing', 1500.00, 'Preventive', 1, '2026-01-12 02:44:24', '2026-01-12 02:44:24'),
+(2, 'Tooth Extraction', 'Simple tooth extraction procedure', 2000.00, 'Surgery', 1, '2026-01-12 02:44:24', '2026-01-12 02:44:24'),
+(3, 'Root Canal', 'Root canal treatment', 8000.00, 'Endodontics', 1, '2026-01-12 02:44:24', '2026-01-12 02:44:24'),
+(4, 'Tooth Filling', 'Dental filling for cavities', 2500.00, 'Restorative', 1, '2026-01-12 02:44:24', '2026-01-12 02:44:24'),
+(5, 'Denture Adjustment', 'Adjustment of dentures', 1000.00, 'Prosthodontics', 1, '2026-01-12 02:44:24', '2026-01-12 02:44:24'),
+(6, 'Follow-up Checkup', 'Routine follow-up examination', 500.00, 'Preventive', 1, '2026-01-12 02:44:24', '2026-01-12 02:44:24'),
+(7, 'Teeth Whitening', 'Professional teeth whitening', 5000.00, 'Cosmetic', 1, '2026-01-12 02:44:25', '2026-01-12 02:44:25'),
+(8, 'Dental X-Ray', 'Dental radiography', 800.00, 'Diagnostic', 1, '2026-01-12 02:44:25', '2026-01-12 02:44:25');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `treatments`
+--
+
+CREATE TABLE `treatments` (
+  `id` int(11) NOT NULL,
+  `patient_id` int(11) NOT NULL,
+  `treatment_date` date NOT NULL,
+  `procedure_name` varchar(200) NOT NULL,
+  `tooth_number` varchar(20) DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `status` varchar(20) DEFAULT 'completed',
+  `doctor_id` int(11) DEFAULT NULL,
+  `cost` decimal(10,2) DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- TABLE: payments
--- Description: Payment transactions and records
--- ============================================
-CREATE TABLE IF NOT EXISTS payments (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    billing_id INT NOT NULL,
-    patient_id INT NOT NULL,
-    amount DECIMAL(10, 2) NOT NULL,
-    payment_method VARCHAR(50),
-    payment_date DATE NOT NULL,
-    reference_number VARCHAR(100),
-    notes TEXT,
-    created_by INT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (billing_id) REFERENCES billing(id) ON DELETE CASCADE,
-    FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE,
-    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
-    INDEX idx_patient_id (patient_id),
-    INDEX idx_payment_date (payment_date)
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `treatment_plans`
+--
+
+CREATE TABLE `treatment_plans` (
+  `id` int(11) NOT NULL,
+  `patient_id` int(11) NOT NULL,
+  `treatment_name` varchar(200) NOT NULL,
+  `treatment_type` varchar(100) DEFAULT NULL,
+  `teeth_numbers` varchar(100) DEFAULT NULL,
+  `total_sessions` int(11) DEFAULT 1,
+  `completed_sessions` int(11) DEFAULT 0,
+  `status` varchar(20) DEFAULT 'active',
+  `next_session_date` date DEFAULT NULL,
+  `estimated_cost` decimal(10,2) DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `doctor_id` int(11) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- TABLE: treatment_plans
--- Description: Patient treatment plans and progress tracking
--- ============================================
-CREATE TABLE IF NOT EXISTS treatment_plans (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    patient_id INT NOT NULL,
-    treatment_name VARCHAR(200) NOT NULL,
-    treatment_type VARCHAR(100),
-    teeth_numbers VARCHAR(100),
-    total_sessions INT DEFAULT 1,
-    completed_sessions INT DEFAULT 0,
-    status VARCHAR(20) DEFAULT 'active',
-    next_session_date DATE,
-    estimated_cost DECIMAL(10, 2),
-    notes TEXT,
-    doctor_id INT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE,
-    FOREIGN KEY (doctor_id) REFERENCES users(id) ON DELETE SET NULL,
-    INDEX idx_patient_id (patient_id),
-    INDEX idx_status (status),
-    INDEX idx_next_session (next_session_date)
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `users`
+--
+
+CREATE TABLE `users` (
+  `id` int(11) NOT NULL,
+  `username` varchar(50) NOT NULL,
+  `password` varchar(255) NOT NULL,
+  `email` varchar(100) DEFAULT NULL,
+  `full_name` varchar(100) DEFAULT NULL,
+  `role` varchar(20) DEFAULT 'user',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- INSERT DEFAULT DATA
--- ============================================
+--
+-- Dumping data for table `users`
+--
 
--- Insert default users
--- Passwords: admin123, dentist123, staff123 (respectively)
--- ⚠️ IMPORTANT: Change these default passwords after first login!
-INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES
-('admin', '$2y$10$Z3ipKLm8mXrWeQWQhBKrCeCsa1hFVZjnoGk6nd1W8dW1iKy9K.OWq', 'admin@rfdental.com', 'Administrator', 'admin'),
-('dentist', '$2y$10$qUqDJtBq8DoZ5l/oA0.bgOJHNl4vs9AmWbrTVrDe5ofJ3GXaiKskm', 'dentist@rfdental.com', 'Dentist', 'dentist'),
-('staff', '$2y$10$ECvX1gPI5x8uh2Ny0mSKn.BE6L5I4OZa0eBCGzgrbMmUcXe4BbU6G', 'staff@rfdental.com', 'Staff Member', 'staff');
+INSERT INTO `users` (`id`, `username`, `password`, `email`, `full_name`, `role`, `created_at`) VALUES
+(1, 'admin', '$2y$10$fBqiR.vEHMxmVTuyCB6GrODnHfiaF9fjOORHRlm9KN.iU46V46kJC', 'admin@rfdental.com', 'Administrator', 'admin', '2026-01-02 06:32:17'),
+(4, 'staff', '$2y$10$jRGwuu0MuLLPiNaDV5uz8.SSueIZkw7AwOeyouvIPCGnftm/OcBdK', 'staff@rfdental.com', 'Staff Member', 'staff', '2026-01-09 14:40:00'),
+(6, 'dentist', '$2y$10$J.tCZfkE.TDCaYClTem.GertJO7FDz2dwXDkukVluf0nWfJg1qzW2', 'dentist@rfdental.com', 'Dentist', 'dentist', '2026-01-12 02:44:24');
 
--- Insert default services
-INSERT IGNORE INTO services (service_name, description, default_cost, category) VALUES
-('Dental Cleaning', 'Professional teeth cleaning and polishing', 1500.00, 'Preventive'),
-('Tooth Extraction', 'Simple tooth extraction procedure', 2000.00, 'Surgery'),
-('Root Canal', 'Root canal treatment', 8000.00, 'Endodontics'),
-('Tooth Filling', 'Dental filling for cavities', 2500.00, 'Restorative'),
-('Denture Adjustment', 'Adjustment of dentures', 1000.00, 'Prosthodontics'),
-('Follow-up Checkup', 'Routine follow-up examination', 500.00, 'Preventive'),
-('Teeth Whitening', 'Professional teeth whitening', 5000.00, 'Cosmetic'),
-('Dental X-Ray', 'Dental radiography', 800.00, 'Diagnostic');
+--
+-- Indexes for dumped tables
+--
 
--- ============================================
--- END OF DATABASE SETUP
--- ============================================
+--
+-- Indexes for table `appointments`
+--
+ALTER TABLE `appointments`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `patient_id` (`patient_id`);
+
+--
+-- Indexes for table `billing`
+--
+ALTER TABLE `billing`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `treatment_id` (`treatment_id`),
+  ADD KEY `appointment_id` (`appointment_id`),
+  ADD KEY `idx_patient_id` (`patient_id`),
+  ADD KEY `idx_payment_status` (`payment_status`),
+  ADD KEY `idx_billing_date` (`billing_date`);
+
+--
+-- Indexes for table `dental_history`
+--
+ALTER TABLE `dental_history`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_patient_id` (`patient_id`);
+
+--
+-- Indexes for table `inquiries`
+--
+ALTER TABLE `inquiries`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `medical_history`
+--
+ALTER TABLE `medical_history`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_patient_id` (`patient_id`);
+
+--
+-- Indexes for table `patients`
+--
+ALTER TABLE `patients`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `payments`
+--
+ALTER TABLE `payments`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `billing_id` (`billing_id`),
+  ADD KEY `created_by` (`created_by`),
+  ADD KEY `idx_patient_id` (`patient_id`),
+  ADD KEY `idx_payment_date` (`payment_date`);
+
+--
+-- Indexes for table `services`
+--
+ALTER TABLE `services`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_category` (`category`),
+  ADD KEY `idx_is_active` (`is_active`);
+
+--
+-- Indexes for table `treatments`
+--
+ALTER TABLE `treatments`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `doctor_id` (`doctor_id`),
+  ADD KEY `idx_patient_id` (`patient_id`),
+  ADD KEY `idx_treatment_date` (`treatment_date`),
+  ADD KEY `idx_status` (`status`);
+
+--
+-- Indexes for table `treatment_plans`
+--
+ALTER TABLE `treatment_plans`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `doctor_id` (`doctor_id`),
+  ADD KEY `idx_patient_id` (`patient_id`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `idx_next_session` (`next_session_date`);
+
+--
+-- Indexes for table `users`
+--
+ALTER TABLE `users`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `username` (`username`);
+
+--
+-- AUTO_INCREMENT for dumped tables
+--
+
+--
+-- AUTO_INCREMENT for table `appointments`
+--
+ALTER TABLE `appointments`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT for table `billing`
+--
+ALTER TABLE `billing`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `dental_history`
+--
+ALTER TABLE `dental_history`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `inquiries`
+--
+ALTER TABLE `inquiries`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+
+--
+-- AUTO_INCREMENT for table `medical_history`
+--
+ALTER TABLE `medical_history`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `patients`
+--
+ALTER TABLE `patients`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+
+--
+-- AUTO_INCREMENT for table `payments`
+--
+ALTER TABLE `payments`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `services`
+--
+ALTER TABLE `services`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+
+--
+-- AUTO_INCREMENT for table `treatments`
+--
+ALTER TABLE `treatments`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `treatment_plans`
+--
+ALTER TABLE `treatment_plans`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `users`
+--
+ALTER TABLE `users`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+
+--
+-- Constraints for dumped tables
+--
+
+--
+-- Constraints for table `appointments`
+--
+ALTER TABLE `appointments`
+  ADD CONSTRAINT `appointments_ibfk_1` FOREIGN KEY (`patient_id`) REFERENCES `patients` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `billing`
+--
+ALTER TABLE `billing`
+  ADD CONSTRAINT `billing_ibfk_1` FOREIGN KEY (`patient_id`) REFERENCES `patients` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `billing_ibfk_2` FOREIGN KEY (`treatment_id`) REFERENCES `treatments` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `billing_ibfk_3` FOREIGN KEY (`appointment_id`) REFERENCES `appointments` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `dental_history`
+--
+ALTER TABLE `dental_history`
+  ADD CONSTRAINT `dental_history_ibfk_1` FOREIGN KEY (`patient_id`) REFERENCES `patients` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `medical_history`
+--
+ALTER TABLE `medical_history`
+  ADD CONSTRAINT `medical_history_ibfk_1` FOREIGN KEY (`patient_id`) REFERENCES `patients` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `payments`
+--
+ALTER TABLE `payments`
+  ADD CONSTRAINT `payments_ibfk_1` FOREIGN KEY (`billing_id`) REFERENCES `billing` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `payments_ibfk_2` FOREIGN KEY (`patient_id`) REFERENCES `patients` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `payments_ibfk_3` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `treatments`
+--
+ALTER TABLE `treatments`
+  ADD CONSTRAINT `treatments_ibfk_1` FOREIGN KEY (`patient_id`) REFERENCES `patients` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `treatments_ibfk_2` FOREIGN KEY (`doctor_id`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `treatment_plans`
+--
+ALTER TABLE `treatment_plans`
+  ADD CONSTRAINT `treatment_plans_ibfk_1` FOREIGN KEY (`patient_id`) REFERENCES `patients` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `treatment_plans_ibfk_2` FOREIGN KEY (`doctor_id`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;

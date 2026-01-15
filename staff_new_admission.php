@@ -720,48 +720,59 @@ wrapper.classList.add('selected');
 }
 
 function handleSubmit() {
-const form = document.getElementById('admissionForm');
-const formData = new FormData(form);
-const data = Object.fromEntries(formData.entries());
+    const form = document.getElementById('admissionForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
 
-// Get selected services
-const services = [];
-document.querySelectorAll('input[name="services[]"]:checked').forEach(cb => {
-services.push(cb.value);
-});
-data.services = services;
+    // Get selected services
+    const services = [];
+    document.querySelectorAll('input[name="services[]"]:checked').forEach(cb => {
+        services.push(cb.value);
+    });
+    data.services = services;
 
-// Get selected teeth (Checking both old buttons and new 3D wrappers)
-const selectedTeeth = [];
+    // Get selected teeth (Checking both old buttons and new 3D wrappers)
+    const selectedTeeth = [];
 
-// Check 3D Wrappers
-document.querySelectorAll('.tooth-wrapper.selected, .tooth-wrapper.attention').forEach(wrapper => {
-selectedTeeth.push(wrapper.dataset.tooth);
-});
+    // Check 3D Wrappers
+    document.querySelectorAll('.tooth-wrapper.selected, .tooth-wrapper.attention').forEach(wrapper => {
+        selectedTeeth.push(wrapper.dataset.tooth);
+    });
 
-// Check Old Buttons (if any remain, though fully replaced in step 5 HTML)
-document.querySelectorAll('.tooth-btn.bg-blue-200, .tooth-btn.bg-yellow-200').forEach(btn => {
-selectedTeeth.push(btn.dataset.tooth);
-});
+    // Check Old Buttons (if any remain, though fully replaced in step 5 HTML)
+    document.querySelectorAll('.tooth-btn.bg-blue-200, .tooth-btn.bg-yellow-200').forEach(btn => {
+        selectedTeeth.push(btn.dataset.tooth);
+    });
 
-data.selectedTeeth = selectedTeeth;
+    data.selectedTeeth = selectedTeeth;
 
-// Get medical conditions
-const medicalConditions = [];
-document.querySelectorAll('input[name="medicalConditions"]:checked').forEach(cb => {
-medicalConditions.push(cb.value);
-});
-data.medicalConditions = medicalConditions;
+    // Get medical conditions
+    const medicalConditions = [];
+    document.querySelectorAll('input[name="medicalConditions"]:checked').forEach(cb => {
+        medicalConditions.push(cb.value);
+    });
+    data.medicalConditions = medicalConditions;
 
-console.log('Form Data Submitted:', data);
+    const patientName = data.firstName && data.lastName ? (data.firstName + ' ' + data.lastName) : 'Patient';
 
-const patientName = data.firstName && data.lastName ? (data.firstName + ' ' + data.lastName) : 'Patient';
-
-// Show success message
-if (confirm('Patient admission submitted successfully!\n\nPatient: ' + patientName + '\n\nReturn to Staff Dashboard?')) {
-// Go back to previous page
-window.location.href = 'staff-dashboard.php';
-}
+    // Submit to server
+    fetch('process_staff_admission.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert('Patient admitted and added to queue successfully!\n\nPatient: ' + patientName + '\n\nView in Queue or Dashboard');
+            window.location.href = 'staff_queue.php';
+        } else {
+            alert('Error: ' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while saving. Please try again.');
+    });
 }
 </script></body>
 </html>

@@ -64,7 +64,9 @@ try {
     $pdo->exec("CREATE TABLE IF NOT EXISTS appointments (
         id INT AUTO_INCREMENT PRIMARY KEY,
         patient_id INT,
-        appointment_date DATETIME NOT NULL,
+        appointment_date DATE NOT NULL,
+        appointment_time TIME NOT NULL,
+        treatment VARCHAR(100) DEFAULT 'General Checkup',
         notes TEXT,
         status VARCHAR(20) DEFAULT 'scheduled',
         created_by INT,
@@ -190,6 +192,68 @@ try {
         INDEX idx_payment_date (payment_date)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     echo "✓ Payments table created successfully!\n";
+
+    // Create treatment_plans table
+    $pdo->exec("CREATE TABLE IF NOT EXISTS treatment_plans (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        patient_id INT NOT NULL,
+        treatment_name VARCHAR(200) NOT NULL,
+        treatment_type VARCHAR(100),
+        teeth_numbers VARCHAR(100),
+        total_sessions INT DEFAULT 1,
+        completed_sessions INT DEFAULT 0,
+        status VARCHAR(20) DEFAULT 'active',
+        next_session_date DATE,
+        estimated_cost DECIMAL(10, 2),
+        notes TEXT,
+        doctor_id INT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE,
+        FOREIGN KEY (doctor_id) REFERENCES users(id) ON DELETE SET NULL,
+        INDEX idx_patient_id (patient_id),
+        INDEX idx_status (status),
+        INDEX idx_next_session (next_session_date)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    echo "✓ Treatment plans table created successfully!\n";
+
+    // Create inquiries table
+    $pdo->exec("CREATE TABLE IF NOT EXISTS inquiries (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        contact_info VARCHAR(255),
+        source ENUM('Facebook', 'Phone Call', 'Walk-in', 'Referral', 'Instagram', 'Messenger') NOT NULL DEFAULT 'Facebook',
+        inquiry_message TEXT,
+        topic VARCHAR(100) DEFAULT 'General',
+        status ENUM('Pending', 'Answered', 'Closed', 'Booked') DEFAULT 'Pending',
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_status (status),
+        INDEX idx_source (source),
+        INDEX idx_created_at (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    echo "✓ Inquiries table created successfully!\n";
+    
+    // Create queue table
+    $pdo->exec("CREATE TABLE IF NOT EXISTS queue (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        patient_id INT NOT NULL,
+        treatment_type VARCHAR(200),
+        teeth_numbers VARCHAR(100),
+        status ENUM('waiting', 'in_procedure', 'completed', 'cancelled', 'on_hold') DEFAULT 'waiting',
+        priority INT DEFAULT 5,
+        queue_time TIME,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE,
+        INDEX idx_patient_id (patient_id),
+        INDEX idx_status (status),
+        INDEX idx_priority (priority),
+        INDEX idx_queue_time (queue_time)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    echo "✓ Queue table created successfully!\n";
 
     // Insert default users
     echo "\n--- Creating Default Users ---\n";

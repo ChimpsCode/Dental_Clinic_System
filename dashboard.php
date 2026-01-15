@@ -9,13 +9,6 @@ if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
     exit();
 }
 
-// Redirect non-logged-in users to login
-if (!isset($_SESSION['user_id'])) {
-    ob_end_clean();
-    header('Location: login.php');
-    exit();
-}
-
 // Redirect staff to their dashboard
 if (isset($_SESSION['role']) && $_SESSION['role'] === 'staff') {
     ob_end_clean();
@@ -23,30 +16,61 @@ if (isset($_SESSION['role']) && $_SESSION['role'] === 'staff') {
     exit();
 }
 
+// Redirect non-logged-in users to login
+if (!isset($_SESSION['user_id'])) {
+    ob_end_clean();
+    header('Location: login.php');
+    exit();
+}
 
 $username = $_SESSION['username'] ?? 'User';
 $fullName = $_SESSION['full_name'] ?? 'Dr. Rex';
 
-$waitingCount = 3;
-$completedCount = 1;
-$cancelledCount = 1;
-$totalPatients = 4;
-$totalPercentage = 20;
-
-$todaySchedule = [
-    ['name' => 'Maria Santos', 'status' => 'completed', 'treatment' => 'Follow-up Checkup (Session 2)', 'time' => '09:00 AM'],
-    ['name' => 'Maria Santos', 'status' => 'now-serving', 'in_chair' => true, 'treatment' => 'Root Canal (Session 2)', 'time' => '09:30 AM'],
-    ['name' => 'Roberto Garcia', 'status' => 'waiting', 'treatment' => 'Denture Adjustment', 'time' => '10:30 AM']
-];
-
-$upNext = [
-    ['name' => 'Juan Dela Cruz', 'status' => 'waiting', 'treatment' => 'Root Canal (Session 2)', 'time' => '09:00 AM'],
-    ['name' => 'Juan Dela Cruz', 'status' => 'waiting', 'treatment' => 'Root Canal (Session 2)', 'time' => '09:30 AM']
-];
-
-$cancelled = [
-    ['name' => 'Juan Dela Cruz', 'status' => 'cancelled', 'treatment' => 'Root Canal (Session 2)', 'reason' => 'No money / fled to leave early']
-];
+// Get real queue data from database
+try {
+    require_once 'config/database.php';
+    
+    $stmt = $pdo->query("
+        SELECT q.*, p.full_name, p.phone, p.age
+        FROM queue q 
+        LEFT JOIN patients p ON q.patient_id = p.id 
+        WHERE DATE(q.created_at) = CURDATE()
+        AND q.status IN ('waiting', 'in_procedure', 'completed', 'on_hold', 'cancelled')
+        ORDER BY 
+            CASE q.status 
+                WHEN 'in_procedure' THEN 1 
+                WHEN 'waiting' THEN 2 
+                WHEN 'on_hold' THEN 3 
+                WHEN 'completed' THEN 4 
+                WHEN 'cancelled' THEN 5 
+            END,
+            q.queue_time ASC
+    ");
+    $queueItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    $waitingCount = count(array_filter($queueItems, fn($q) => $q['status'] === 'waiting'));
+    $completedCount = count(array_filter($queueItems, fn($q) => $q['status'] === 'completed'));
+    $cancelledCount = count(array_filter($queueItems, fn($q) => $q['status'] === 'cancelled'));
+    $onHoldCount = count(array_filter($queueItems, fn($q) => $q['status'] === 'on_hold'));
+    
+    $inProcedureItem = array_filter($queueItems, fn($q) => $q['status'] === 'in_procedure');
+    $inProcedureItem = !empty($inProcedureItem) ? reset($inProcedureItem) : null;
+    
+    $waitingItems = array_filter($queueItems, fn($q) => $q['status'] === 'waiting');
+    $onHoldItems = array_filter($queueItems, fn($q) => $q['status'] === 'on_hold');
+    $completedItems = array_filter($queueItems, fn($q) => $q['status'] === 'completed');
+    
+} catch (Exception $e) {
+    $queueItems = [];
+    $waitingCount = 0;
+    $completedCount = 0;
+    $cancelledCount = 0;
+    $onHoldCount = 0;
+    $inProcedureItem = null;
+    $waitingItems = [];
+    $onHoldItems = [];
+    $completedItems = [];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -139,6 +163,130 @@ $cancelled = [
                             <h3><?php echo $waitingCount; ?></h3>
                             <p>Waiting</p>
                         </div>
+                    </div>
+                    
+                    <div class="summary-card">
+                        <div class="summary-icon green">✓</div>
+                        <div class="summary-info">
+                            <h3><?php echo $completedCount; ?></h3>
+                            <p>Completed</p>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-card">
+                        <div class="summary-icon red" style="cursor: pointer;" onclick="openCancelledModal()">⚠️</div>
+                        <div class="summary-info">
+                            <h3><?php echo $cancelledCount; ?></h3>
+                            <p style="cursor: pointer;" onclick="openCancelledModal()">Cancelled</p>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-card">
+                        <div class="summary-icon gray">⏸️</div>
+                        <div class="summary-info">
+                            <h3><?php echo $onHoldCount; ?></h3>
+                            <p>On Hold</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cancelled Modal -->
+                <div id="cancelledModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+                    <div class="modal" style="background: white; border-radius: 12px; padding: 24px; width: 90%; max-width: 700px; max-height: 80vh; overflow-y: auto;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2 style="font-size: 1.25rem; font-weight: 600; margin: 0;">Cancelled / On Hold</h2>
+                            <button onclick="closeCancelledModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">×</button>
+                        </div>
+                        <div id="cancelled-modal-list">
+                            <?php 
+                            $cancelledItems = array_filter($queueItems, fn($q) => $q['status'] === 'cancelled');
+                            if (empty($cancelledItems)): ?>
+                                <p style="text-align: center; color: #6b7280; padding: 20px;">No cancelled patients today</p>
+                            <?php else: ?>
+                                <?php foreach ($cancelledItems as $item): ?>
+                                <div class="patient-item" style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 12px;">
+                                    <div class="patient-name" style="text-decoration: line-through; color: #9ca3af;"><?php echo htmlspecialchars($item['full_name'] ?? 'Unknown'); ?></div>
+                                    <div style="color: #6b7280; font-size: 0.875rem;"><?php echo htmlspecialchars($item['treatment_type'] ?? ''); ?></div>
+                                </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Queue Controller -->
+                <div class="live-queue">
+                    <div class="live-queue-header">
+                        <div class="live-queue-title">Live Queue Controller</div>
+                        <div class="now-serving-badge"><span>👁️</span><span>Now Serving</span></div>
+                    </div>
+                    <div class="live-patient">
+                        <div class="patient-name" id="live-patient-name"><?php echo $inProcedureItem ? htmlspecialchars($inProcedureItem['full_name']) : 'No Patient'; ?></div>
+                        <div class="patient-details" style="margin-top: 10px;">
+                            <span class="status-badge now-serving">In Chair</span>
+                            <span class="patient-time" id="live-patient-time"><?php echo $inProcedureItem ? htmlspecialchars($inProcedureItem['queue_time']) : '--:--'; ?></span>
+                        </div>
+                        <div class="patient-treatment" id="live-patient-treatment" style="margin-top: 8px;"><?php echo $inProcedureItem ? htmlspecialchars($inProcedureItem['treatment_type']) : 'Queue Empty'; ?></div>
+                    </div>
+                    <?php if ($inProcedureItem): ?>
+                    <button class="complete-btn" id="completeTreatmentBtn" onclick="completeCurrentPatient(<?php echo $inProcedureItem['id']; ?>)">
+                        <span>✓</span> <span>Complete Treatment</span>
+                    </button>
+                    <?php else: ?>
+                    <button class="complete-btn" id="completeTreatmentBtn" disabled style="background: #9ca3af;">
+                        <span>✓</span> <span>No Patient in Chair</span>
+                    </button>
+                    <?php endif; ?>
+                    <div class="complete-btn-text">Click when patient treatment is finished</div>
+                </div>
+
+                <!-- Up Next -->
+                <div class="section-card">
+                    <h2 class="section-title">⏭️ Up Next</h2>
+                    <div class="patient-list" id="up-next-list">
+                        <?php if (empty($waitingItems)): ?>
+                            <div style="text-align: center; padding: 40px 20px; color: #6b7280;">
+                                <p>No patients waiting</p>
+                            </div>
+                        <?php else: ?>
+                            <?php foreach (array_slice($waitingItems, 0, 5) as $item): ?>
+                            <div class="patient-item">
+                                <div class="patient-info">
+                                    <div class="patient-name"><?php echo htmlspecialchars($item['full_name'] ?? 'Unknown'); ?></div>
+                                    <div class="patient-details">
+                                        <span class="status-badge waiting">Waiting</span>
+                                        <span class="patient-time"><?php echo htmlspecialchars($item['queue_time'] ?? ''); ?></span>
+                                    </div>
+                                    <div class="patient-treatment"><?php echo htmlspecialchars($item['treatment_type'] ?? ''); ?></div>
+                                </div>
+                                <div class="patient-actions">
+                                    <button class="action-btn text-btn" onclick="viewPatientRecord(<?php echo $item['patient_id']; ?>)">See</button>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <!-- On Hold -->
+                <div class="section-card">
+                    <h2 class="section-title">⏸️ On Hold</h2>
+                    <div class="patient-list">
+                        <?php if (empty($onHoldItems)): ?>
+                            <div style="text-align: center; padding: 40px 20px; color: #6b7280;">
+                                <p>No patients on hold</p>
+                            </div>
+                        <?php else: ?>
+                            <?php foreach ($onHoldItems as $item): ?>
+                            <div class="patient-item" style="opacity: 0.7;">
+                                <div class="patient-name"><?php echo htmlspecialchars($item['full_name'] ?? 'Unknown'); ?></div>
+                                <div style="color: #6b7280; font-size: 0.875rem;"><?php echo htmlspecialchars($item['treatment_type'] ?? ''); ?></div>
+                            </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
                     </div>
                     
                     <div class="summary-card">

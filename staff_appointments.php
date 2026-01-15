@@ -20,6 +20,21 @@ $cancelledCount = count(array_filter($appointments, function($a) {
     return strtolower($a['status'] ?? '') === 'cancelled';
 }));
 
+$inquiryData = null;
+$showModal = false;
+if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM inquiries WHERE id = ?");
+        $stmt->execute([$_GET['inquiry_id']]);
+        $inquiryData = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($inquiryData) {
+            $showModal = true;
+        }
+    } catch (Exception $e) {
+        $inquiryData = null;
+    }
+}
+
 require_once 'includes/staff_layout_start.php';
 ?>
 
@@ -65,6 +80,16 @@ require_once 'includes/staff_layout_start.php';
     </div>
     <input type="text" class="search-input" id="searchAppointment" placeholder="Search appointments...">
 </div>
+
+<?php if ($inquiryData): ?>
+<div style="background: #dbeafe; border: 1px solid #3b82f6; border-radius: 8px; padding: 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+    <span style="color: #1e40af; font-size: 0.9rem;">
+        <strong>Forwarded from Inquiry:</strong> <?php echo htmlspecialchars($inquiryData['name']); ?> (<?php echo htmlspecialchars($inquiryData['source']); ?>)
+    </span>
+    <a href="inquiries.php" style="margin-left: auto; color: #2563eb; font-size: 0.875rem; text-decoration: none;">View Original Inquiry</a>
+</div>
+<?php endif; ?>
 
 <!-- Appointments Table -->
 <div class="section-card">
@@ -158,11 +183,11 @@ require_once 'includes/staff_layout_start.php';
             <div class="form-row">
                 <div class="form-group" style="flex: 1;">
                     <label>Patient Name *</label>
-                    <input type="text" name="patient_name" required class="form-control" placeholder="Enter patient name">
+                    <input type="text" name="patient_name" required class="form-control" placeholder="Enter patient name" value="<?php echo htmlspecialchars($inquiryData['name'] ?? ''); ?>">
                 </div>
                 <div class="form-group" style="flex: 1;">
                     <label>Phone Number</label>
-                    <input type="text" name="phone" class="form-control" placeholder="0912-345-6789">
+                    <input type="text" name="phone" class="form-control" placeholder="0912-345-6789" value="<?php echo htmlspecialchars($inquiryData['contact_info'] ?? ''); ?>">
                 </div>
             </div>
             <div class="form-row">
@@ -216,6 +241,11 @@ require_once 'includes/staff_layout_start.php';
 
         // Search input handler
         document.getElementById('searchAppointment').addEventListener('input', filterAppointments);
+        
+        // Auto-open modal if forwarded from inquiry
+        <?php if ($showModal): ?>
+        openAppointmentModal();
+        <?php endif; ?>
     });
 
     function filterAppointments() {

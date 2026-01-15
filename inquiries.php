@@ -47,6 +47,55 @@ try {
             display: inline-block;
         }
         
+        .dropdown { position: relative; display: inline-block; }
+        
+        .dropdown-btn {
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            line-height: 1;
+        }
+        
+        .dropdown-btn:hover { background: #f3f4f6; }
+        
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            background: white;
+            min-width: 200px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-radius: 6px;
+            z-index: 100;
+            overflow: hidden;
+        }
+        
+        .dropdown-content.show { display: block; }
+        
+        .dropdown-content a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            color: #374151;
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: background-color 0.2s;
+        }
+        
+        .dropdown-content a:hover { background: #f3f4f6; }
+        
+        .dropdown-content a.danger { color: #dc2626; }
+        
+        .dropdown-divider {
+            height: 1px;
+            background: #e5e7eb;
+            margin: 4px 0;
+        }
+        
         .search-filters {
             display: flex;
             gap: 12px;
@@ -239,12 +288,16 @@ try {
                                             <td style="padding: 12px 16px;"><?php echo date('M d, Y', strtotime($inquiry['created_at'])); ?></td>
                                             <td style="padding: 12px 16px;"><span class="status-badge status-<?php echo strtolower($inquiry['status']); ?>"><?php echo htmlspecialchars($inquiry['status']); ?></span></td>
                                             <td style="padding: 12px 16px;">
-                                                <div class="patient-actions" style="display: flex; gap: 8px;">
-                                                    <button onclick="viewInquiry(<?php echo $inquiry['id']; ?>)" class="action-btn icon" title="View" style="padding: 6px; border: 1px solid #d1d5db; border-radius: 4px; background: white; cursor: pointer;">👁️</button>
-                                                    <?php if ($inquiry['status'] !== 'Booked'): ?>
-                                                    <button onclick="convertToAppointment(<?php echo $inquiry['id']; ?>)" class="action-btn icon" title="Convert" style="padding: 6px; border: 1px solid #d1d5db; border-radius: 4px; background: white; cursor: pointer;">📅</button>
-                                                    <?php endif; ?>
-                                                    <button onclick="deleteInquiry(<?php echo $inquiry['id']; ?>)" class="action-btn icon" title="Delete" style="padding: 6px; border: 1px solid #d1d5db; border-radius: 4px; background: white; cursor: pointer;">🗑️</button>
+                                                <div class="dropdown">
+                                                    <button onclick="toggleDropdown(<?php echo $inquiry['id']; ?>)" class="dropdown-btn" title="Actions">⋯</button>
+                                                    <div id="dropdown-<?php echo $inquiry['id']; ?>" class="dropdown-content">
+                                                        <a href="javascript:void(0)" onclick="viewInquiry(<?php echo $inquiry['id']; ?>)">👁️ View Details</a>
+                                                        <a href="NewAdmission.php?inquiry_id=<?php echo $inquiry['id']; ?>">📝 Forward to New Admission</a>
+                                                        <a href="appointments.php?inquiry_id=<?php echo $inquiry['id']; ?>">📅 Forward to Appointment</a>
+                                                        <a href="javascript:void(0)" onclick="addToQueue(<?php echo $inquiry['id']; ?>)">📋 Add to Queue</a>
+                                                        <div class="dropdown-divider"></div>
+                                                        <a href="javascript:void(0)" onclick="deleteInquiry(<?php echo $inquiry['id']; ?>)" class="danger">🗑️ Delete</a>
+                                                    </div>
                                                 </div>
                                             </td>
                                         </tr>
@@ -350,7 +403,18 @@ try {
     <script src="assets/js/dashboard.js"></script>
     <script>
         const inquiries = <?php echo json_encode($inquiries); ?>;
-
+        
+        function toggleDropdown(id) {
+            const dropdown = document.getElementById('dropdown-' + id);
+            const isShown = dropdown.classList.contains('show');
+            
+            document.querySelectorAll('.dropdown-content').forEach(d => d.classList.remove('show'));
+            
+            if (!isShown) {
+                dropdown.classList.add('show');
+            }
+        }
+        
         function openModal() {
             document.getElementById('addModal').classList.add('active');
         }
@@ -369,6 +433,12 @@ try {
 
         document.getElementById('viewModal').addEventListener('click', function(e) {
             if (e.target === this) closeViewModal();
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.dropdown')) {
+                document.querySelectorAll('.dropdown-content').forEach(d => d.classList.remove('show'));
+            }
         });
 
         document.getElementById('addInquiryForm').addEventListener('submit', function(e) {
@@ -440,6 +510,38 @@ try {
                     alert('Error deleting inquiry');
                 });
             }
+        }
+
+        function addToQueue(id) {
+            const inquiry = inquiries.find(i => i.id == id);
+            if (!inquiry) return;
+            
+            document.getElementById('viewModalContent').innerHTML = `
+                <div class="space-y-3">
+                    <div><span style="color: #6b7280;">Name:</span> <span style="font-weight: 500; margin-left: 8px;">${inquiry.name}</span></div>
+                    <div><span style="color: #6b7280;">Contact:</span> <span style="font-weight: 500; margin-left: 8px;">${inquiry.contact_info || 'N/A'}</span></div>
+                    <div><span style="color: #6b7280;">Source:</span> <span style="font-weight: 500; margin-left: 8px;">${inquiry.source}</span></div>
+                    <div><span style="color: #6b7280;">Topic:</span> <span style="font-weight: 500; margin-left: 8px;">${inquiry.topic}</span></div>
+                    <div style="margin-top: 16px; padding: 16px; background: #fef3c7; border-radius: 8px;">
+                        <p style="color: #92400e; font-weight: 500;">Added to Queue Successfully!</p>
+                        <p style="color: #92400e; font-size: 0.875rem; margin-top: 4px;">This inquiry has been added to the queue for follow-up.</p>
+                    </div>
+                </div>
+                <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px;">
+                    <button onclick="closeViewModal()" class="btn-cancel">Close</button>
+                </div>
+            `;
+            
+            document.getElementById('viewModal').classList.add('active');
+            
+            // Update inquiry status to "Pending" if not already
+            fetch('update_inquiry_status.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ id: id, status: 'Pending' })
+            });
         }
 
         document.getElementById('searchInput').addEventListener('input', filterTable);

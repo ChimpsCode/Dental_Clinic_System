@@ -29,6 +29,24 @@ if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
 
 $username = $_SESSION['username'] ?? 'User';
 $fullName = $_SESSION['full_name'] ?? 'Dr. Rex';
+
+$inquiryData = null;
+if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
+    try {
+        require_once 'config/database.php';
+        $stmt = $pdo->prepare("SELECT * FROM inquiries WHERE id = ?");
+        $stmt->execute([$_GET['inquiry_id']]);
+        $inquiryData = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($inquiryData) {
+            $nameParts = explode(' ', trim($inquiryData['name']), 2);
+            $inquiryData['first_name'] = $nameParts[0] ?? '';
+            $inquiryData['last_name'] = $nameParts[1] ?? '';
+        }
+    } catch (Exception $e) {
+        $inquiryData = null;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -72,6 +90,16 @@ $fullName = $_SESSION['full_name'] ?? 'Dr. Rex';
             <span class="text-sm font-medium">Back to Dashboard</span>
         </a>
     </div>
+
+    <?php if ($inquiryData): ?>
+    <div class="max-w-7xl mx-auto w-full px-6">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex items-center gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            <span class="text-sm text-blue-700">Forwarded from Inquiry: <strong><?php echo htmlspecialchars($inquiryData['name']); ?></strong> (<?php echo htmlspecialchars($inquiryData['source']); ?>)</span>
+            <a href="inquiries.php" class="ml-auto text-blue-600 hover:text-blue-800 text-sm font-medium">View Original Inquiry</a>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <div class="flex-1 flex flex-col md:flex-row max-w-7xl mx-auto w-full p-6 gap-8">
         
@@ -152,7 +180,7 @@ $fullName = $_SESSION['full_name'] ?? 'Dr. Rex';
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">First Name</label>
-                                <input type="text" name="firstName" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Juan">
+                                <input type="text" name="firstName" value="<?php echo htmlspecialchars($inquiryData['first_name'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Juan">
                             </div>
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Middle Name</label>
@@ -160,7 +188,7 @@ $fullName = $_SESSION['full_name'] ?? 'Dr. Rex';
                             </div>
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Last Name</label>
-                                <input type="text" name="lastName" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Dela Cruz">
+                                <input type="text" name="lastName" value="<?php echo htmlspecialchars($inquiryData['last_name'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Dela Cruz">
                             </div>
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Suffix</label>
@@ -224,7 +252,7 @@ $fullName = $_SESSION['full_name'] ?? 'Dr. Rex';
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Mobile Number</label>
-                                <input type="tel" name="mobileNumber" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                <input type="tel" name="mobileNumber" value="<?php echo htmlspecialchars($inquiryData['contact_info'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
                             </div>
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Email Address</label>
