@@ -447,59 +447,112 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'staff') {
                     <section>
                         <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Select Services</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- SINGLE Mode Services -->
                             <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
-                                <input type="checkbox" name="services[]" value="extraction" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500">
+                                <input type="checkbox" name="services[]" value="Tooth Restoration(Filling/Pasta)" data-mode="SINGLE" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
                                 <div>
-                                    <span class="block text-sm font-medium text-slate-800">Tooth Extraction</span>
-                                    <span class="block text-xs text-slate-500">₱1,500 - 30 mins</span>
+                                    <span class="block text-sm font-medium text-slate-800">Tooth Restoration(Filling/Pasta)</span>
                                 </div>
                             </label>
                             <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
-                                <input type="checkbox" name="services[]" value="root_canal" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500">
+                                <input type="checkbox" name="services[]" value="Tooth extraction(ibot)" data-mode="SINGLE" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
                                 <div>
-                                    <span class="block text-sm font-medium text-slate-800">Root Canal Treatment</span>
-                                    <span class="block text-xs text-slate-500">₱5,000 - 90 mins</span>
+                                    <span class="block text-sm font-medium text-slate-800">Tooth extraction(ibot)</span>
                                 </div>
                             </label>
                             <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
-                                <input type="checkbox" name="services[]" value="cleaning" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500">
+                                <input type="checkbox" name="services[]" value="Root Canal treatment" data-mode="SINGLE" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
                                 <div>
-                                    <span class="block text-sm font-medium text-slate-800">Oral Prophylaxis</span>
-                                    <span class="block text-xs text-slate-500">₱2,000 - 45 mins</span>
+                                    <span class="block text-sm font-medium text-slate-800">Root Canal treatment</span>
                                 </div>
                             </label>
                             <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
-                                <input type="checkbox" name="services[]" value="denture" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500">
+                                <input type="checkbox" name="services[]" value="Periapical Xray" data-mode="SINGLE" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
                                 <div>
-                                    <span class="block text-sm font-medium text-slate-800">Denture Adjustment</span>
-                                    <span class="block text-xs text-slate-500">₱1,500 - 30 mins</span>
+                                    <span class="block text-sm font-medium text-slate-800">Periapical Xray</span>
                                 </div>
                             </label>
                             <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
-                                <input type="checkbox" name="services[]" value="xray" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500">
+                                <input type="checkbox" name="services[]" value="Crowns(jacket)" data-mode="SINGLE" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
                                 <div>
-                                    <span class="block text-sm font-medium text-slate-800">Dental X-Ray</span>
-                                    <span class="block text-xs text-slate-500">₱800 - 15 mins</span>
+                                    <span class="block text-sm font-medium text-slate-800">Crowns(jacket)</span>
                                 </div>
                             </label>
                             <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
-                                <input type="checkbox" name="services[]" value="braces" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500">
+                                <input type="checkbox" name="services[]" value="Fixed Bridge" data-mode="SINGLE" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
                                 <div>
-                                    <span class="block text-sm font-medium text-slate-800">Braces Consultation</span>
-                                    <span class="block text-xs text-slate-500">₱1,000 - 60 mins</span>
+                                    <span class="block text-sm font-medium text-slate-800">Fixed Bridge</span>
+                                </div>
+                            </label>
+                            
+                            <!-- BULK Mode Services -->
+                            <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
+                                <input type="checkbox" name="services[]" value="Orthodontic Appliance (Braces)" data-mode="BULK" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
+                                <div>
+                                    <span class="block text-sm font-medium text-slate-800">Orthodontic Appliance (Braces)</span>
+                                </div>
+                            </label>
+                            <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
+                                <input type="checkbox" name="services[]" value="Teeth cleaning case to case" data-mode="BULK" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
+                                <div>
+                                    <span class="block text-sm font-medium text-slate-800">Teeth cleaning case to case</span>
+                                </div>
+                            </label>
+                            <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
+                                <input type="checkbox" name="services[]" value="Removable Dentures(Pustiso)" data-mode="BULK" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
+                                <div>
+                                    <span class="block text-sm font-medium text-slate-800">Removable Dentures(Pustiso)</span>
+                                </div>
+                            </label>
+                            <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
+                                <input type="checkbox" name="services[]" value="Teeth Whitening" data-mode="BULK" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
+                                <div>
+                                    <span class="block text-sm font-medium text-slate-800">Teeth Whitening</span>
+                                </div>
+                            </label>
+                            <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
+                                <input type="checkbox" name="services[]" value="Denture adjustment" data-mode="BULK" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
+                                <div>
+                                    <span class="block text-sm font-medium text-slate-800">Denture adjustment</span>
+                                </div>
+                            </label>
+                            
+                            <!-- NONE Mode Services -->
+                            <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
+                                <input type="checkbox" name="services[]" value="Consultation" data-mode="NONE" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
+                                <div>
+                                    <span class="block text-sm font-medium text-slate-800">Consultation</span>
                                 </div>
                             </label>
                         </div>
                     </section>
                 </div>
 
-                <!-- STEP 5: 3D DENTAL CHART (Updated Only) -->
+                <!-- STEP 5: 3D DENTAL CHART -->
                 <div id="step-5" class="hidden space-y-8 flex-1">
                     <section class="dental-stage relative min-h-[400px] flex flex-col justify-center">
                         
+                        <!-- Dynamic Instruction -->
+                        <div id="dentalChartInstruction" class="text-center text-sm text-slate-500 mb-6 font-medium">
+                            Select a service to see instructions
+                        </div>
+                        
+                        <!-- Arch Selection Buttons (Hidden by default) -->
+                        <div id="archSelectionButtons" class="hidden flex justify-center gap-4 mb-6">
+                            <button type="button" onclick="selectArch('upper')" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h20M2 12a4 4 0 0 1 4-4h12a4 4 0 0 1 4 4"/></svg>
+                                Select Upper Arch
+                            </button>
+                            <button type="button" onclick="selectArch('lower')" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h20M2 12a4 4 0 0 0 4 4h12a4 4 0 0 0 4-4"/></svg>
+                                Select Lower Arch
+                            </button>
+                        </div>
+                        
                         <!-- UPPER ARCH (Maxilla) -->
-                        <div class="mb-8 relative">
-                            <div class="arch-container">
+                        <div class="mb-6 relative">
+                            <div id="upperArchLabel" class="text-center text-xs text-slate-400 mb-2 uppercase tracking-wide">Upper Arch (Maxilla)</div>
+                            <div class="arch-container" id="upperArch">
                                 <!-- Upper Right (18-11) -->
                                 <div class="tooth-wrapper" data-tooth="18" onclick="toggleTooth3D(this)"><div class="tooth-face">18</div></div>
                                 <div class="tooth-wrapper" data-tooth="17" onclick="toggleTooth3D(this)"><div class="tooth-face">17</div></div>
@@ -527,7 +580,8 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'staff') {
 
                         <!-- LOWER ARCH (Mandible) -->
                         <div class="relative">
-                            <div class="arch-container">
+                            <div id="lowerArchLabel" class="text-center text-xs text-slate-400 mb-2 uppercase tracking-wide">Lower Arch (Mandible)</div>
+                            <div class="arch-container" id="lowerArch">
                                 <!-- Lower Right (48-41) -->
                                 <div class="tooth-wrapper" data-tooth="48" onclick="toggleTooth3D(this)"><div class="tooth-face">48</div></div>
                                 <div class="tooth-wrapper" data-tooth="47" onclick="toggleTooth3D(this)"><div class="tooth-face">47</div></div>
@@ -684,10 +738,189 @@ if(dot) dot.classList.add('hidden');
 if(!dot) icon.innerHTML = '<span class="text-xs font-medium">' + i + '</span>';
 text.className = 'text-sm font-medium text-slate-400 transition-colors duration-200';
 }
-}
-}
+        }
+        }
 
-// --- OLD FUNCTION (Kept for compatibility, though Step 5 HTML changed) ---
+        /**
+         * Helper function to get the service mode based on service name
+         * 
+         * @param {string} serviceName - The display name of the service
+         * @returns {string} 'BULK' | 'SINGLE' | 'NONE'
+         * 
+         * Mapping Rules:
+         * - BULK: Services where you typically select entire arches
+         * - SINGLE: Services where you select individual specific teeth
+         * - NONE: Services where you don't need to select teeth (like Consultation)
+         */
+        function getServiceMode(serviceName) {
+            // BULK Mode - Show 'Select Upper/Lower Arch' buttons
+            const BULK_SERVICES = [
+                'Orthodontic Appliance (Braces)',
+                'Teeth cleaning case to case',
+                'Removable Dentures(Pustiso)',
+                'Teeth Whitening',
+                'Denture adjustment'
+            ];
+            
+            // SINGLE Mode - Hide Arch buttons, allow individual clicking
+            const SINGLE_SERVICES = [
+                'Tooth Restoration(Filling/Pasta)',
+                'Tooth extraction(ibot)',
+                'Root Canal treatment',
+                'Periapical Xray',
+                'Crowns(jacket)',
+                'Fixed Bridge'
+            ];
+            
+            // NONE Mode - Disable chart interaction
+            const NONE_SERVICES = [
+                'Consultation'
+            ];
+            
+            if (BULK_SERVICES.includes(serviceName)) {
+                return 'BULK';
+            } else if (SINGLE_SERVICES.includes(serviceName)) {
+                return 'SINGLE';
+            } else if (NONE_SERVICES.includes(serviceName)) {
+                return 'NONE';
+            }
+            
+            return 'NONE'; // Default to NONE for unknown services
+        }
+        
+        /**
+         * Get the instruction text for the selected service
+         * @param {string} serviceName - The display name of the service
+         * @returns {string} Instruction text
+         */
+        function getServiceInstruction(serviceName) {
+            const mode = getServiceMode(serviceName);
+            
+            if (mode === 'BULK') {
+                return 'Select teeth for treatment. Use "Select Upper/Lower Arch" buttons for bulk selection.';
+            } else if (mode === 'SINGLE') {
+                return 'Click specific tooth to ' + getActionVerb(serviceName);
+            } else {
+                return 'No tooth selection required for this service.';
+            }
+        }
+        
+        /**
+         * Get the action verb for single mode services
+         * @param {string} serviceName - The display name of the service
+         * @returns {string} Action verb
+         */
+        function getActionVerb(serviceName) {
+            const verbs = {
+                'Tooth Restoration(Filling/Pasta)': 'restore/fill',
+                'Tooth extraction(ibot)': 'extract',
+                'Root Canal treatment': 'treat',
+                'Periapical Xray': 'x-ray',
+                'Crowns(jacket)': 'crown',
+                'Fixed Bridge': 'bridge'
+            };
+            return verbs[serviceName] || 'treat';
+        }
+        
+        /**
+         * Determine the overall mode based on all selected services
+         * Priority: BULK > SINGLE > NONE
+         * @returns {string} 'BULK' | 'SINGLE' | 'NONE'
+         */
+        function getOverallMode() {
+            const checkedBoxes = document.querySelectorAll('input[name="services[]"]:checked');
+            
+            if (checkedBoxes.length === 0) {
+                return 'NONE';
+            }
+            
+            let hasBulk = false;
+            let hasSingle = false;
+            
+            checkedBoxes.forEach(cb => {
+                const mode = getServiceMode(cb.value);
+                if (mode === 'BULK') hasBulk = true;
+                if (mode === 'SINGLE') hasSingle = true;
+            });
+            
+            // BULK takes priority over SINGLE
+            if (hasBulk) return 'BULK';
+            if (hasSingle) return 'SINGLE';
+            return 'NONE';
+        }
+        
+        /**
+         * Update the dental chart mode based on selected services
+         * Shows/hides arch selection buttons and updates instruction text
+         */
+        function updateDentalChartMode() {
+            const mode = getOverallMode();
+            const instruction = document.getElementById('dentalChartInstruction');
+            const archButtons = document.getElementById('archSelectionButtons');
+            const teeth = document.querySelectorAll('.tooth-wrapper');
+            
+            // Get the first selected service for instruction
+            const firstChecked = document.querySelector('input[name="services[]"]:checked');
+            const serviceName = firstChecked ? firstChecked.value : '';
+            
+            // Update instruction text
+            if (serviceName) {
+                instruction.innerText = getServiceInstruction(serviceName);
+            } else {
+                instruction.innerText = 'Select a service to see instructions';
+            }
+            
+            // Show/hide arch selection buttons based on mode
+            if (mode === 'BULK') {
+                archButtons.classList.remove('hidden');
+                // Enable arch buttons
+                teeth.forEach(tooth => {
+                    tooth.style.pointerEvents = 'auto';
+                    tooth.style.opacity = '1';
+                });
+            } else if (mode === 'SINGLE') {
+                archButtons.classList.add('hidden');
+                // Enable individual tooth clicking
+                teeth.forEach(tooth => {
+                    tooth.style.pointerEvents = 'auto';
+                    tooth.style.opacity = '1';
+                });
+            } else {
+                archButtons.classList.add('hidden');
+                // Disable all tooth interaction
+                teeth.forEach(tooth => {
+                    tooth.style.pointerEvents = 'none';
+                    tooth.style.opacity = '0.5';
+                });
+            }
+        }
+        
+        /**
+         * Select or deselect all teeth in an arch
+         * @param {string} arch - 'upper' or 'lower'
+         */
+        function selectArch(arch) {
+            const archElement = document.getElementById(arch + 'Arch');
+            const teeth = archElement.querySelectorAll('.tooth-wrapper');
+            
+            // Check if all teeth are already selected
+            const allSelected = Array.from(teeth).every(tooth => 
+                tooth.classList.contains('selected')
+            );
+            
+            teeth.forEach(tooth => {
+                if (allSelected) {
+                    // Deselect all
+                    tooth.classList.remove('selected', 'attention');
+                } else {
+                    // Select all
+                    tooth.classList.add('selected');
+                    tooth.classList.remove('attention');
+                }
+            });
+        }
+
+        // --- OLD FUNCTION (Kept for compatibility, though Step 5 HTML changed) ---
 function toggleTooth(btn) {
 // Toggle between yellow (needs attention) and blue (selected)
 if (btn.classList.contains('bg-blue-200')) {
@@ -701,79 +934,76 @@ btn.classList.add('bg-blue-200', 'border-blue-400');
 }
 }
 
-// --- NEW FUNCTION FOR 3D TOOTH INTERACTION ---
-function toggleTooth3D(wrapper) {
-// Wrapper is the .tooth-wrapper div
-// Logic: Default -> Selected (Blue) -> Attention (Yellow) -> Default
-
-if (wrapper.classList.contains('selected')) {
-// Currently Selected (Blue) -> Change to Attention (Yellow)
-wrapper.classList.remove('selected');
-wrapper.classList.add('attention');
-} else if (wrapper.classList.contains('attention')) {
-// Currently Attention (Yellow) -> Reset to Default
-wrapper.classList.remove('attention');
-} else {
-// Currently Default -> Change to Selected (Blue)
-wrapper.classList.add('selected');
-}
-}
-
-function handleSubmit() {
-    const form = document.getElementById('admissionForm');
-    const formData = new FormData(form);
-    const data = Object.fromEntries(formData.entries());
-
-    // Get selected services
-    const services = [];
-    document.querySelectorAll('input[name="services[]"]:checked').forEach(cb => {
-        services.push(cb.value);
-    });
-    data.services = services;
-
-    // Get selected teeth (Checking both old buttons and new 3D wrappers)
-    const selectedTeeth = [];
-
-    // Check 3D Wrappers
-    document.querySelectorAll('.tooth-wrapper.selected, .tooth-wrapper.attention').forEach(wrapper => {
-        selectedTeeth.push(wrapper.dataset.tooth);
-    });
-
-    // Check Old Buttons (if any remain, though fully replaced in step 5 HTML)
-    document.querySelectorAll('.tooth-btn.bg-blue-200, .tooth-btn.bg-yellow-200').forEach(btn => {
-        selectedTeeth.push(btn.dataset.tooth);
-    });
-
-    data.selectedTeeth = selectedTeeth;
-
-    // Get medical conditions
-    const medicalConditions = [];
-    document.querySelectorAll('input[name="medicalConditions"]:checked').forEach(cb => {
-        medicalConditions.push(cb.value);
-    });
-    data.medicalConditions = medicalConditions;
-
-    const patientName = data.firstName && data.lastName ? (data.firstName + ' ' + data.lastName) : 'Patient';
-
-    // Submit to server
-    fetch('process_staff_admission.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.success) {
-            alert('Patient admitted and added to queue successfully!\n\nPatient: ' + patientName + '\n\nView in Queue or Dashboard');
-            window.location.href = 'staff_queue.php';
-        } else {
-            alert('Error: ' + result.message);
+        // --- NEW FUNCTION FOR 3D TOOTH INTERACTION ---
+        function toggleTooth3D(wrapper) {
+            const mode = getOverallMode();
+            
+            if (mode === 'NONE') {
+                return; // Don't allow interaction when mode is NONE
+            }
+            
+            if (wrapper.classList.contains('selected')) {
+                wrapper.classList.remove('selected');
+                wrapper.classList.add('attention');
+            } else if (wrapper.classList.contains('attention')) {
+                wrapper.classList.remove('attention');
+            } else {
+                wrapper.classList.add('selected');
+            }
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('An error occurred while saving. Please try again.');
-    });
-}
+
+        function handleSubmit() {
+            const form = document.getElementById('admissionForm');
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+
+            // Get selected services
+            const services = [];
+            document.querySelectorAll('input[name="services[]"]:checked').forEach(cb => {
+                services.push(cb.value);
+            });
+            data.services = services;
+
+            // Get selected teeth
+            const selectedTeeth = [];
+            document.querySelectorAll('.tooth-wrapper.selected, .tooth-wrapper.attention').forEach(wrapper => {
+                selectedTeeth.push(wrapper.dataset.tooth);
+            });
+            data.selectedTeeth = selectedTeeth;
+            
+            // Add selected teeth to form data
+            selectedTeeth.forEach(tooth => {
+                formData.append('selectedTeeth[]', tooth);
+            });
+
+            // Get medical conditions
+            const medicalConditions = [];
+            document.querySelectorAll('input[name="medicalConditions"]:checked').forEach(cb => {
+                medicalConditions.push(cb.value);
+            });
+            data.medicalConditions = medicalConditions;
+
+            const patientName = data.firstName && data.lastName ? (data.firstName + ' ' + data.lastName) : 'Patient';
+
+            // Submit to server
+            fetch('process_staff_admission.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    alert('Patient admitted and added to queue successfully!\n\nPatient: ' + patientName + '\n\nView in Queue or Dashboard');
+                    window.location.href = 'staff_queue.php';
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while saving. Please try again.');
+            });
+        }
 </script></body>
 </html>
 ```
