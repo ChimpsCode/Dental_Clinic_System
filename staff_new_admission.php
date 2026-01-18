@@ -29,6 +29,36 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'staff') {
     exit();
 }
 
+// Fetch services from database for the services selection
+try {
+    require_once 'config/database.php';
+    $stmt = $pdo->query("
+        SELECT id, name, mode, price, duration_minutes
+        FROM services 
+        WHERE is_active = 1 
+        ORDER BY 
+            CASE mode 
+                WHEN 'BULK' THEN 1 
+                WHEN 'SINGLE' THEN 2 
+                WHEN 'NONE' THEN 3 
+            END,
+            name
+    ");
+    $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Group services by mode
+    $servicesByMode = [
+        'SINGLE' => [],
+        'BULK' => [],
+        'NONE' => []
+    ];
+    foreach ($services as $service) {
+        $servicesByMode[$service['mode']][] = $service;
+    }
+} catch (Exception $e) {
+    $servicesByMode = ['SINGLE' => [], 'BULK' => [], 'NONE' => []];
+}
+
  $username = $_SESSION['username'] ?? 'Staff';
  $fullName = $_SESSION['full_name'] ?? 'Staff Member';
 ?>
@@ -445,85 +475,17 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'staff') {
                 <!-- STEP 4: Services -->
                 <div id="step-4" class="hidden space-y-8 flex-1">
                     <section>
-                        <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Select Services</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- SINGLE Mode Services -->
-                            <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
-                                <input type="checkbox" name="services[]" value="Tooth Restoration(Filling/Pasta)" data-mode="SINGLE" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
-                                <div>
-                                    <span class="block text-sm font-medium text-slate-800">Tooth Restoration(Filling/Pasta)</span>
-                                </div>
-                            </label>
-                            <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
-                                <input type="checkbox" name="services[]" value="Tooth extraction(ibot)" data-mode="SINGLE" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
-                                <div>
-                                    <span class="block text-sm font-medium text-slate-800">Tooth extraction(ibot)</span>
-                                </div>
-                            </label>
-                            <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
-                                <input type="checkbox" name="services[]" value="Root Canal treatment" data-mode="SINGLE" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
-                                <div>
-                                    <span class="block text-sm font-medium text-slate-800">Root Canal treatment</span>
-                                </div>
-                            </label>
-                            <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
-                                <input type="checkbox" name="services[]" value="Periapical Xray" data-mode="SINGLE" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
-                                <div>
-                                    <span class="block text-sm font-medium text-slate-800">Periapical Xray</span>
-                                </div>
-                            </label>
-                            <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
-                                <input type="checkbox" name="services[]" value="Crowns(jacket)" data-mode="SINGLE" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
-                                <div>
-                                    <span class="block text-sm font-medium text-slate-800">Crowns(jacket)</span>
-                                </div>
-                            </label>
-                            <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
-                                <input type="checkbox" name="services[]" value="Fixed Bridge" data-mode="SINGLE" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
-                                <div>
-                                    <span class="block text-sm font-medium text-slate-800">Fixed Bridge</span>
-                                </div>
-                            </label>
-                            
-                            <!-- BULK Mode Services -->
-                            <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
-                                <input type="checkbox" name="services[]" value="Orthodontic Appliance (Braces)" data-mode="BULK" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
-                                <div>
-                                    <span class="block text-sm font-medium text-slate-800">Orthodontic Appliance (Braces)</span>
-                                </div>
-                            </label>
-                            <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
-                                <input type="checkbox" name="services[]" value="Teeth cleaning case to case" data-mode="BULK" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
-                                <div>
-                                    <span class="block text-sm font-medium text-slate-800">Teeth cleaning case to case</span>
-                                </div>
-                            </label>
-                            <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
-                                <input type="checkbox" name="services[]" value="Removable Dentures(Pustiso)" data-mode="BULK" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
-                                <div>
-                                    <span class="block text-sm font-medium text-slate-800">Removable Dentures(Pustiso)</span>
-                                </div>
-                            </label>
-                            <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
-                                <input type="checkbox" name="services[]" value="Teeth Whitening" data-mode="BULK" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
-                                <div>
-                                    <span class="block text-sm font-medium text-slate-800">Teeth Whitening</span>
-                                </div>
-                            </label>
-                            <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
-                                <input type="checkbox" name="services[]" value="Denture adjustment" data-mode="BULK" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
-                                <div>
-                                    <span class="block text-sm font-medium text-slate-800">Denture adjustment</span>
-                                </div>
-                            </label>
-                            
-                            <!-- NONE Mode Services -->
-                            <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
-                                <input type="checkbox" name="services[]" value="Consultation" data-mode="NONE" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
-                                <div>
-                                    <span class="block text-sm font-medium text-slate-800">Consultation</span>
-                                </div>
-                            </label>
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">Select Services</h3>
+                            <button type="button" onclick="loadServices()" class="text-sm text-blue-500 hover:text-blue-600 font-medium">
+                                🔄 Refresh Services
+                            </button>
+                        </div>
+                        <div id="servicesContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Services loaded dynamically from database -->
+                            <div style="text-align: center; padding: 40px; color: #6b7280; grid-column: 1 / -1;">
+                                Loading services...
+                            </div>
                         </div>
                     </section>
                 </div>
@@ -741,51 +703,129 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
         }
         }
 
+        // Load services when page loads
+        document.addEventListener('DOMContentLoaded', loadServices);
+
+        // Global services data loaded from database
+        let dbServices = [];
+        
+        /**
+         * Load services from database
+         */
+        function loadServices() {
+            const container = document.getElementById('servicesContainer');
+            if (container) {
+                container.innerHTML = '<div style="text-align: center; padding: 40px; color: #6b7280; grid-column: 1 / -1;">Loading services...</div>';
+            }
+            
+            fetch('api_public_services.php')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('[SERVICES] Loaded:', data);
+                    if (data.success) {
+                        dbServices = data.services;
+                        renderServices();
+                    } else {
+                        console.error('[SERVICES] Error:', data.message);
+                        if (container) {
+                            container.innerHTML = '<div style="text-align: center; padding: 40px; color: #dc2626; grid-column: 1 / -1;">Error loading services: ' + data.message + '</div>';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('[SERVICES] Error loading services:', error);
+                    if (container) {
+                        container.innerHTML = '<div style="text-align: center; padding: 40px; color: #dc2626; grid-column: 1 / -1;">Failed to load services. Please try again.</div>';
+                    }
+                });
+        }
+        
+        /**
+         * Render services from loaded data
+         */
+        function renderServices() {
+            const container = document.getElementById('servicesContainer');
+            if (!container) return;
+            
+            console.log('[SERVICES] Rendering services. Total:', dbServices.length);
+            
+            // Group services by mode
+            const grouped = { 'SINGLE': [], 'BULK': [], 'NONE': [] };
+            dbServices.forEach(service => {
+                if (grouped[service.mode]) {
+                    grouped[service.mode].push(service);
+                }
+            });
+            
+            console.log('[SERVICES] Grouped:', grouped);
+            
+            let html = '';
+            
+            // SINGLE mode services first
+            if (grouped['SINGLE'].length > 0) {
+                grouped['SINGLE'].forEach(service => {
+                    html += createServiceCheckbox(service);
+                });
+            }
+            
+            // BULK mode services
+            if (grouped['BULK'].length > 0) {
+                grouped['BULK'].forEach(service => {
+                    html += createServiceCheckbox(service);
+                });
+            }
+            
+            // NONE mode services
+            if (grouped['NONE'].length > 0) {
+                grouped['NONE'].forEach(service => {
+                    html += createServiceCheckbox(service);
+                });
+            }
+            
+            if (html === '') {
+                html = '<div style="text-align: center; padding: 40px; color: #6b7280; grid-column: 1 / -1;">No services available. Please contact admin to add services.</div>';
+            }
+            
+            container.innerHTML = html;
+            console.log('[SERVICES] Services rendered successfully');
+        }
+        
+        /**
+         * Create service checkbox HTML
+         */
+        function createServiceCheckbox(service) {
+            const price = parseFloat(service.price).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+            const duration = service.duration_minutes ? ` - ${service.duration_minutes} mins` : '';
+            
+            return `
+                <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
+                    <input type="checkbox" name="services[]" value="${escapeHtml(service.name)}" data-mode="${service.mode}" data-id="${service.id}" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
+                    <div>
+                        <span class="block text-sm font-medium text-slate-800">${escapeHtml(service.name)}</span>
+                        <span class="block text-xs text-slate-500">₱${price}${duration}</span>
+                    </div>
+                </label>
+            `;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
         /**
          * Helper function to get the service mode based on service name
          * 
          * @param {string} serviceName - The display name of the service
          * @returns {string} 'BULK' | 'SINGLE' | 'NONE'
-         * 
-         * Mapping Rules:
-         * - BULK: Services where you typically select entire arches
-         * - SINGLE: Services where you select individual specific teeth
-         * - NONE: Services where you don't need to select teeth (like Consultation)
          */
         function getServiceMode(serviceName) {
-            // BULK Mode - Show 'Select Upper/Lower Arch' buttons
-            const BULK_SERVICES = [
-                'Orthodontic Appliance (Braces)',
-                'Teeth cleaning case to case',
-                'Removable Dentures(Pustiso)',
-                'Teeth Whitening',
-                'Denture adjustment'
-            ];
-            
-            // SINGLE Mode - Hide Arch buttons, allow individual clicking
-            const SINGLE_SERVICES = [
-                'Tooth Restoration(Filling/Pasta)',
-                'Tooth extraction(ibot)',
-                'Root Canal treatment',
-                'Periapical Xray',
-                'Crowns(jacket)',
-                'Fixed Bridge'
-            ];
-            
-            // NONE Mode - Disable chart interaction
-            const NONE_SERVICES = [
-                'Consultation'
-            ];
-            
-            if (BULK_SERVICES.includes(serviceName)) {
-                return 'BULK';
-            } else if (SINGLE_SERVICES.includes(serviceName)) {
-                return 'SINGLE';
-            } else if (NONE_SERVICES.includes(serviceName)) {
-                return 'NONE';
+            const service = dbServices.find(s => s.name === serviceName);
+            if (service) {
+                return service.mode;
             }
-            
-            return 'NONE'; // Default to NONE for unknown services
+            return 'NONE';
         }
         
         /**
@@ -811,15 +851,20 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
          * @returns {string} Action verb
          */
         function getActionVerb(serviceName) {
-            const verbs = {
-                'Tooth Restoration(Filling/Pasta)': 'restore/fill',
-                'Tooth extraction(ibot)': 'extract',
-                'Root Canal treatment': 'treat',
-                'Periapical Xray': 'x-ray',
-                'Crowns(jacket)': 'crown',
-                'Fixed Bridge': 'bridge'
-            };
-            return verbs[serviceName] || 'treat';
+            // Try to get verb from database service
+            const service = dbServices.find(s => s.name === serviceName);
+            if (service) {
+                // Generate verb from service name
+                const name = service.name.toLowerCase();
+                if (name.includes('extraction')) return 'extract';
+                if (name.includes('root canal')) return 'treat';
+                if (name.includes('xray') || name.includes('x-ray')) return 'x-ray';
+                if (name.includes('crown')) return 'crown';
+                if (name.includes('bridge')) return 'bridge';
+                if (name.includes('restoration') || name.includes('filling') || name.includes('pasta')) return 'restore/fill';
+                if (name.includes('cleaning')) return 'clean';
+            }
+            return 'treat';
         }
         
         /**
@@ -847,6 +892,49 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
             if (hasBulk) return 'BULK';
             if (hasSingle) return 'SINGLE';
             return 'NONE';
+        }
+        
+        /**
+         * Update the dental chart mode based on selected services
+         * Shows/hides arch selection buttons and updates instruction text
+         */
+        function updateDentalChartMode() {
+            const mode = getOverallMode();
+            const instruction = document.getElementById('dentalChartInstruction');
+            const archButtons = document.getElementById('archSelectionButtons');
+            const teeth = document.querySelectorAll('.tooth-wrapper');
+            
+            // Get the first selected service for instruction
+            const firstChecked = document.querySelector('input[name="services[]"]:checked');
+            const serviceName = firstChecked ? firstChecked.value : '';
+            
+            // Update instruction text
+            if (serviceName) {
+                instruction.innerText = getServiceInstruction(serviceName);
+            } else {
+                instruction.innerText = 'Select a service to see instructions';
+            }
+            
+            // Show/hide arch selection buttons based on mode
+            if (mode === 'BULK') {
+                archButtons.classList.remove('hidden');
+                teeth.forEach(tooth => {
+                    tooth.style.pointerEvents = 'auto';
+                    tooth.style.opacity = '1';
+                });
+            } else if (mode === 'SINGLE') {
+                archButtons.classList.add('hidden');
+                teeth.forEach(tooth => {
+                    tooth.style.pointerEvents = 'auto';
+                    tooth.style.opacity = '1';
+                });
+            } else {
+                archButtons.classList.add('hidden');
+                teeth.forEach(tooth => {
+                    tooth.style.pointerEvents = 'none';
+                    tooth.style.opacity = '0.5';
+                });
+            }
         }
         
         /**

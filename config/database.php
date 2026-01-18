@@ -117,17 +117,18 @@ function initializeDatabase($pdo) {
             INDEX idx_status (status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
         
-        // Create services table
+        // Create services table (with mode for tooth selection handling)
         $pdo->exec("CREATE TABLE IF NOT EXISTS services (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            service_name VARCHAR(200) NOT NULL,
+            name VARCHAR(200) NOT NULL,
+            mode ENUM('BULK', 'SINGLE', 'NONE') DEFAULT 'SINGLE',
+            price DECIMAL(10,2) DEFAULT 0.00,
+            duration_minutes INT DEFAULT 30,
             description TEXT,
-            default_cost DECIMAL(10, 2),
-            category VARCHAR(50),
-            is_active BOOLEAN DEFAULT TRUE,
+            is_active TINYINT(1) DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            INDEX idx_category (category),
+            INDEX idx_mode (mode),
             INDEX idx_is_active (is_active)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
         
@@ -228,18 +229,22 @@ function initializeDatabase($pdo) {
         $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
         $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com', 'Staff Member', 'staff']);
         
-        // Insert default services
+        // Insert default services with proper mode
         $defaultServices = [
-            ['Dental Cleaning', 'Professional teeth cleaning and polishing', 1500.00, 'Preventive'],
-            ['Tooth Extraction', 'Simple tooth extraction procedure', 2000.00, 'Surgery'],
-            ['Root Canal', 'Root canal treatment', 8000.00, 'Endodontics'],
-            ['Tooth Filling', 'Dental filling for cavities', 2500.00, 'Restorative'],
-            ['Denture Adjustment', 'Adjustment of dentures', 1000.00, 'Prosthodontics'],
-            ['Follow-up Checkup', 'Routine follow-up examination', 500.00, 'Preventive'],
-            ['Teeth Whitening', 'Professional teeth whitening', 5000.00, 'Cosmetic'],
-            ['Dental X-Ray', 'Dental radiography', 800.00, 'Diagnostic']
+            ['Tooth Extraction', 'SINGLE', 2000.00, 30, 'Simple tooth extraction procedure'],
+            ['Root Canal Treatment', 'SINGLE', 8000.00, 60, 'Root canal therapy for infected teeth'],
+            ['Oral Prophylaxis (Teeth Cleaning)', 'BULK', 1500.00, 45, 'Professional teeth cleaning and polishing'],
+            ['Denture Adjustment', 'BULK', 1000.00, 30, 'Adjustment and repair of dentures'],
+            ['Dental X-Ray', 'SINGLE', 800.00, 15, 'Periapical or bitewing X-ray'],
+            ['Braces Consultation', 'BULK', 500.00, 30, 'Orthodontic consultation and assessment'],
+            ['Tooth Restoration', 'SINGLE', 2500.00, 30, 'Dental filling for cavities'],
+            ['Crowns', 'SINGLE', 8500.00, 60, 'Dental crown placement'],
+            ['Fixed Bridge', 'SINGLE', 25000.00, 90, 'Fixed dental bridge installation'],
+            ['Teeth Whitening', 'BULK', 5000.00, 60, 'Professional teeth whitening treatment'],
+            ['Consultation', 'NONE', 500.00, 15, 'General dental consultation'],
+            ['Periapical Xray', 'SINGLE', 800.00, 15, 'Periapical radiograph']
         ];
-        $stmt = $pdo->prepare("INSERT IGNORE INTO services (service_name, description, default_cost, category) VALUES (?, ?, ?, ?)");
+        $stmt = $pdo->prepare("INSERT IGNORE INTO services (name, mode, price, duration_minutes, description) VALUES (?, ?, ?, ?, ?)");
         foreach ($defaultServices as $service) {
             $stmt->execute($service);
         }

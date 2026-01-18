@@ -124,19 +124,11 @@ try {
         $stmt->execute([$patientId, $allergies, $medications, implode(', ', $medicalConditions)]);
     }
     
-    // Services/Treatment
+    // Services/Treatment - Services are now stored in database, values sent as service names
     $services = $_POST['services'] ?? [];
     $serviceNames = [];
-    $serviceMap = [
-        'extraction' => 'Tooth Extraction',
-        'root_canal' => 'Root Canal Treatment',
-        'cleaning' => 'Oral Prophylaxis',
-        'denture' => 'Denture Adjustment',
-        'xray' => 'Dental X-Ray',
-        'braces' => 'Braces Consultation'
-    ];
     foreach ($services as $service) {
-        $serviceNames[] = $serviceMap[$service] ?? $service;
+        $serviceNames[] = trim($service);
     }
     $treatmentType = !empty($serviceNames) ? implode(', ', $serviceNames) : 'Consultation';
     
