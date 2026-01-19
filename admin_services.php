@@ -115,29 +115,12 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
 ?>
 
 <style>
-/* Full width for admin services page */
-.content-sidebar {
-    max-width: none !important;
-    margin: 0 !important;
-    width: 100% !important;
-}
-
-.content-main {
-    max-width: none !important;
-}
-
-.content-area {
-    padding-top: 10px;
-}
-
+/* Services page specific styles */
 .services-page {
-    padding-left: 25px;
-    padding-right: 25px;
-    margin: 0px; 
     width: 100%;
     box-sizing: border-box;
-    
 }
+
 
 .page-header {
     display: flex;

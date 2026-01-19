@@ -1,5 +1,8 @@
 /* Admin-specific styles */
 
+/* Content Area - Uniform padding for all admin pages */
+
+
 /* Page Header */
 .page-header {
     display: flex;
@@ -226,6 +229,12 @@
 
 .action-btn.success:hover {
     background: #a7f3d0;
+}
+
+.content-area {
+    padding-left: 25px;
+    padding-right: 25px;
+    padding-top: 10px;
 }
 
 /* Pagination */
