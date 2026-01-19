@@ -308,67 +308,49 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
 .toast.error { 
     background: #dc2626; 
 }
-
-/* Pagination */
-.pagination {
+/* Container to hold the buttons in a row */
+.pagination-buttons {
     display: flex;
-    flex-direction: column;
-    justify-content: center;
+    gap: 8px; /* Space between the buttons */
     align-items: center;
-    gap: 16px;
-    margin-top: 24px;
-    padding: 20px;
-    background: white;
-    border-radius: 12px;
-    border: 1px solid #e5e7eb;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-.pagination-info {
-    font-size: 0.9rem;
-    color: #6b7280;
-    margin-bottom: 16px;
-}
-
-.pagination-nav {
+/* Default Button Style (White bg, gray border) */
+.pagination-btn {
     display: flex;
-    justify-content: center;
     align-items: center;
-    gap: 12px;
-}
-
-.pagination a {
-    display: inline-block;
-    padding: 10px 16px;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
+    justify-content: center;
+    padding: 8px 16px; /* Adjust height/width here */
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0; /* Light gray border */
+    border-radius: 6px; /* Rounded corners */
     text-decoration: none;
-    color: #374151;
-    background: white;
-    cursor: pointer;
-    transition: all 0.2s;
-    min-width: 40px;
-    text-align: center;
+    color: #4a5568; /* Dark gray text */
+    font-size: 14px;
+    transition: all 0.2s ease;
+    min-width: 32px; /* Ensures square-ish shape for numbers */
 }
 
-.pagination a:hover:not(.disabled) {
-    background: #f3f4f6;
-    border-color: #9ca3af;
+/* Hover Effect for normal buttons */
+.pagination-btn:hover:not(.active):not(.disabled) {
+    background-color: #f7fafc;
+    border-color: #cbd5e0;
 }
 
-.pagination a.active {
-    background: #2563eb;
-    color: white;
+/* Active State (The Blue Button) */
+.pagination-btn.active {
+    background-color: #2563eb; /* Bright Blue */
+    color: #ffffff;
     border-color: #2563eb;
 }
 
-.pagination a.disabled {
-    opacity: 0.5;
+/* Disabled State (The faded Previous button) */
+.pagination-btn.disabled {
+    color: #a0aec0; /* Light gray text */
+    background-color: #fff;
     cursor: not-allowed;
-}
-
-.pagination a.disabled:hover {
-    background: white;
-    border-color: #d1d5db;
+    border-color: #edf2f7; /* Very light border */
 }
 </style>
 
@@ -476,6 +458,44 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
         </table>
     </div>
 
+    <!-- Pagination -->
+    <div class="pagination">
+        <span class="pagination-info">
+            Showing <?php echo $totalServices > 0 ? ($offset + 1) : 0; ?>-<?php echo min($offset + $itemsPerPage, $totalServices); ?> of <?php echo $totalServices; ?> services
+        </span>
+        <div class="pagination-buttons">
+            <?php
+            // Build query string for pagination links
+            $queryParams = [];
+            if (!empty($search)) $queryParams['search'] = $search;
+            if (!empty($modeFilter)) $queryParams['mode'] = $modeFilter;
+            if (!empty($statusFilter)) $queryParams['status'] = $statusFilter;
+            $queryString = !empty($queryParams) ? '&' . http_build_query($queryParams) : '';
+            ?>
+            
+            <!-- Previous Button -->
+            <a href="?page=<?php echo max(1, $currentPage - 1) . $queryString; ?>" 
+               class="pagination-btn <?php echo $currentPage <= 1 ? 'disabled' : ''; ?>"
+               <?php echo $currentPage <= 1 ? 'style="opacity: 0.5; cursor: not-allowed;" onclick="return false;"' : ''; ?>>
+                Previous
+            </a>
+            
+            <!-- Page Numbers -->
+            <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                <a href="?page=<?php echo $i . $queryString; ?>" 
+                   class="pagination-btn <?php echo $i === $currentPage ? 'active' : ''; ?>">
+                    <?php echo $i; ?>
+                </a>
+            <?php endfor; ?>
+            
+            <!-- Next Button -->
+            <a href="?page=<?php echo min($totalPages, $currentPage + 1) . $queryString; ?>" 
+               class="pagination-btn <?php echo $currentPage >= $totalPages ? 'disabled' : ''; ?>"
+               <?php echo $currentPage >= $totalPages ? 'style="opacity: 0.5; cursor: not-allowed;" onclick="return false;"' : ''; ?>>
+                Next
+            </a>
+        </div>
+    </div>
 
 </div>
 
