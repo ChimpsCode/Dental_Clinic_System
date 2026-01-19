@@ -1,7 +1,11 @@
 /* Admin-specific styles */
 
 /* Content Area - Uniform padding for all admin pages */
-
+.content-area {
+    padding-left: 25px;
+    padding-right: 25px;
+    padding-top: 10px;
+}
 
 /* Page Header */
 .page-header {

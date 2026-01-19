@@ -337,8 +337,9 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
 }
 </style>
 
-<div class="services-page">
-    <div class="page-header">
+<div class="content-main">
+    <div class="services-page">
+        <div class="page-header">
         <div>
             <h2>Services Management</h2>
             <p style="font-size: 0.875rem; color: #6b7280; margin: 4px 0 0 0;">
@@ -479,7 +480,6 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
             </a>
         </div>
     </div>
-
 </div>
 
 <!-- Add Modal -->

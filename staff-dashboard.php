@@ -2,6 +2,7 @@
 $pageTitle = 'Dashboard';
 require_once 'includes/staff_layout_start.php';
 
+
 try {
     require_once 'config/database.php';
     
@@ -441,4 +442,16 @@ document.getElementById('addReminderBtn')?.addEventListener('click', () => {
 });
 </script>
 
+
+
+<style>
+    .view-section {
+    display: none;
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+    animation: fadeIn 0.3s ease;
+}
+
+</style>
 <?php require_once 'includes/staff_layout_end.php'; ?>
