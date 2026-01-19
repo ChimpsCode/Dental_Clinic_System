@@ -232,7 +232,10 @@ body {
 .content-area {
     flex: 1;
     overflow-y: auto;
-    padding: 25px 15px;
+    padding-top: 15px;
+    padding-bottom: 25px;
+    padding-left: 15px;
+    padding-right: 15px;
     display: flex;
     gap: 25px;
 }

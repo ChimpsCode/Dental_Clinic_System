@@ -126,6 +126,10 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
     max-width: none !important;
 }
 
+.content-area {
+    padding-top: 10px;
+}
+
 .services-page {
     padding-left: 25px;
     padding-right: 25px;
@@ -382,20 +386,20 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
     </div>
 
     <!-- Stats Cards -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
-        <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid #e5e7eb; text-align: center;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 15px;">
+        <div style="background: white; padding: 10px; border-radius: 12px; border: 1px solid #e5e7eb; text-align: center;">
             <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; margin-bottom: 8px;">Total Services</div>
             <div style="font-size: 2rem; font-weight: 700; color: #111827;"><?php echo $totalServices; ?></div>
         </div>
-        <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid #e5e7eb; text-align: center;">
+        <div style="background: white; padding: 10px; border-radius: 12px; border: 1px solid #e5e7eb; text-align: center;">
             <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; margin-bottom: 8px;">Total Bulk</div>
             <div style="font-size: 2rem; font-weight: 700; color: #059669;"><?php echo $totalBulk; ?></div>
         </div>
-        <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid #e5e7eb; text-align: center;">
+        <div style="background: white; padding: 10px; border-radius: 12px; border: 1px solid #e5e7eb; text-align: center;">
             <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; margin-bottom: 8px;">Total Single</div>
             <div style="font-size: 2rem; font-weight: 700; color: #2563eb;"><?php echo $totalSingle; ?></div>
         </div>
-        <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid #e5e7eb; text-align: center;">
+        <div style="background: white; padding: 10px; border-radius: 12px; border: 1px solid #e5e7eb; text-align: center;">
             <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; margin-bottom: 8px;">Total Inactive</div>
             <div style="font-size: 2rem; font-weight: 700; color: #dc2626;"><?php echo $totalInactive; ?></div>
         </div>
@@ -461,8 +465,8 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
                             </td>
                             <td>
                                 <div class="actions">
-                                    <button class="action-btn edit" onclick="editService(<?php echo $service['id']; ?>)">✏️ Edit</button>
-                                    <button class="action-btn delete" onclick="deleteService(<?php echo $service['id']; ?>)">🗑️ Delete</button>
+                                    <button type="button" class="action-btn edit" onclick="editService(<?php echo (int)$service['id']; ?>)">✏️ Edit</button>
+                                    <button type="button" class="action-btn delete" onclick="deleteService(<?php echo (int)$service['id']; ?>)">🗑️ Delete</button>
                                 </div>
                             </td>
                         </tr>
@@ -472,34 +476,7 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
         </table>
     </div>
 
-    <!-- Pagination -->
-    <?php if ($totalPages > 1): ?>
-        <div class="pagination">
-            <div class="pagination-info">
-                Showing <?php echo ($currentPage - 1) * $itemsPerPage + 1; ?>-<?php echo min($currentPage * $itemsPerPage, $totalServices); ?> of <?php echo $totalServices; ?> services
-            </div>
-            <div class="pagination-nav">
-                <a href="?page=<?php echo max(1, $currentPage - 1); ?><?php echo !empty($search) ? '' : '&search=' . urlencode($search); ?><?php echo !empty($modeFilter) ? '' : '&mode=' . urlencode($modeFilter); ?><?php echo !empty($statusFilter) ? '' : '&status=' . urlencode($statusFilter); ?>"
-                       class="<?php echo $currentPage === 1 ? 'disabled' : ''; ?>"
-                       style="<?php echo $currentPage === 1 ? 'opacity: 0.5; cursor: not-allowed;' : ''; ?>">
-                    ← Previous
-                </a>
 
-                <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-                    <a href="?page=<?php echo $i; ?><?php echo !empty($search) ? '' : '&search=' . urlencode($search); ?><?php echo !empty($modeFilter) ? '' : '&mode=' . urlencode($modeFilter); ?><?php echo !empty($statusFilter) ? '' : '&status=' . urlencode($statusFilter); ?>"
-                           class="<?php echo $i === $currentPage ? 'active' : ''; ?>">
-                        <?php echo $i; ?>
-                    </a>
-                <?php endfor; ?>
-
-                <a href="?page=<?php echo min($totalPages, $currentPage + 1); ?><?php echo !empty($search) ? '' : '&search=' . urlencode($search); ?><?php echo !empty($modeFilter) ? '' : '&mode=' . urlencode($modeFilter); ?><?php echo !empty($statusFilter) ? '' : '&status=' . urlencode($statusFilter); ?>"
-                       class="<?php echo $currentPage === $totalPages ? 'disabled' : ''; ?>"
-                       style="<?php echo $currentPage === $totalPages ? 'opacity: 0.5; cursor: not-allowed;' : ''; ?>">
-                    Next →
-                </a>
-            </div>
-        </div>
-    <?php endif; ?>
 </div>
 
 <!-- Add Modal -->
@@ -509,7 +486,7 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
             <h3 style="margin: 0; font-size: 1.25rem; font-weight: 600; color: #111827;">Add New Service</h3>
             <button onclick="document.getElementById('addModal').style.display='none'" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">&times;</button>
         </div>
-        <form method="POST" onsubmit="return false;" style="padding: 24px;">
+        <form method="POST" action="" style="padding: 24px;">
             <input type="hidden" name="action" value="add">
             <div class="form-group" style="margin-bottom: 20px;">
                 <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 6px;">Service Name *</label>
@@ -544,7 +521,7 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
             </div>
             <div style="display: flex; justify-content: flex-end; gap: 12px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
                 <button type="button" onclick="document.getElementById('addModal').style.display='none'" style="background: #f3f4f6; border: none; color: #374151; padding: 10px 20px; border-radius: 8px; font-weight: 500; cursor: pointer;">Cancel</button>
-                <button type="button" onclick="submitAddForm()" style="background: #2563eb; border: none; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 500; cursor: pointer;">Add Service</button>
+                <button type="submit" style="background: #2563eb; border: none; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 500; cursor: pointer;">Add Service</button>
             </div>
         </form>
     </div>
@@ -557,7 +534,7 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
             <h3 style="margin: 0; font-size: 1.25rem; font-weight: 600; color: #111827;">Edit Service</h3>
             <button onclick="document.getElementById('editModal').style.display='none'" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">&times;</button>
         </div>
-        <form method="POST" onsubmit="return false;" style="padding: 24px;">
+        <form method="POST" action="" style="padding: 24px;">
             <input type="hidden" name="action" value="edit">
             <input type="hidden" name="id" id="editId">
             <div class="form-group" style="margin-bottom: 20px;">
@@ -593,7 +570,7 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
             </div>
             <div style="display: flex; justify-content: flex-end; gap: 12px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
                 <button type="button" onclick="document.getElementById('editModal').style.display='none'" style="background: #f3f4f6; border: none; color: #374151; padding: 10px 20px; border-radius: 8px; font-weight: 500; cursor: pointer;">Cancel</button>
-                <button type="button" onclick="submitEditForm()" style="background: #2563eb; border: none; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 500; cursor: pointer;">Update Service</button>
+                <button type="submit" style="background: #2563eb; border: none; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 500; cursor: pointer;">Update Service</button>
             </div>
         </form>
     </div>
@@ -616,9 +593,9 @@ window.serviceData[<?php echo $service['id']; ?>] = {
     name: "<?php echo addslashes($service['name']); ?>",
     mode: "<?php echo $service['mode']; ?>",
     price: <?php echo $service['price']; ?>,
-    duration_minutes: <?php echo $service['duration_minutes'] ? $service['duration_minutes'] : ''; ?>,
-    description: "<?php echo addslashes($service['description']); ?>",
-    is_active: <?php echo $service['is_active']; ?>
+    duration_minutes: <?php echo (int)$service['duration_minutes']; ?>,
+    description: "<?php echo addslashes((string)($service['description'] ?? '')); ?>",
+    is_active: <?php echo (int)$service['is_active']; ?>
 };
 <?php endforeach; ?>
 
@@ -645,42 +622,6 @@ function deleteService(id) {
         document.getElementById('deleteId').value = id;
         document.getElementById('deleteForm').submit();
     }
-}
-
-function submitAddForm() {
-    const form = document.querySelector('#addModal form');
-    const formData = new FormData(form);
-    
-    fetch(window.location.href, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.text())
-    .then(html => {
-        document.documentElement.innerHTML = html;
-        showToast('Service added successfully!', 'success');
-    })
-    .catch(error => {
-        showToast('Error adding service', 'error');
-    });
-}
-
-function submitEditForm() {
-    const form = document.querySelector('#editModal form');
-    const formData = new FormData(form);
-    
-    fetch(window.location.href, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.text())
-    .then(html => {
-        document.documentElement.innerHTML = html;
-        showToast('Service updated successfully!', 'success');
-    })
-    .catch(error => {
-        showToast('Error updating service', 'error');
-    });
 }
 
 function showToast(message, type) {

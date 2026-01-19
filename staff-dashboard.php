@@ -83,7 +83,7 @@ try {
 
     <!-- Cancelled Modal -->
     <div id="cancelledModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
-        <div class="modal" style="background: white; border-radius: 12px; padding: 24px; width: 90%; max-width: 700px; max-height: 80vh; overflow-y: auto;">
+        <div class="modal" style="background: white; border-radius: 12px; padding: 0; width: 90%; max-width: 700px; max-height: 80vh; overflow-y: auto;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2 style="font-size: 1.25rem; font-weight: 600; margin: 0;">Cancelled / On Hold</h2>
                 <button onclick="closeCancelledModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">×</button>
@@ -157,7 +157,7 @@ try {
                 <h2 class="section-title">⏭️ Up Next</h2>
                 <div class="patient-list" id="up-next-list">
                     <?php if (empty($waitingItems)): ?>
-                        <div style="text-align: center; padding: 40px 20px; color: #6b7280;">
+                        <div style="text-align: center; padding: 0; color: #6b7280;">
                             <p>No patients waiting</p>
                             <a href="staff_new_admission.php" class="btn-primary" style="display: inline-block; margin-top: 12px; text-decoration: none;">Add New Patient</a>
                         </div>
@@ -190,7 +190,7 @@ try {
                     <?php 
                     $onHoldItems = array_filter($queueItems, fn($q) => $q['status'] === 'on_hold');
                     if (empty($onHoldItems)): ?>
-                        <div style="text-align: center; padding: 40px 20px; color: #6b7280;">
+                        <div style="text-align: center; padding: 0; color: #6b7280;">
                             <p>No patients on hold</p>
                         </div>
                     <?php else: ?>
