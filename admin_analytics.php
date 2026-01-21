@@ -1,6 +1,8 @@
 <?php
 /**
  * Analytics - Admin page for viewing clinic analytics and statistics
+ * 
+ * sample text
  */
 
 $pageTitle = 'Analytics';
