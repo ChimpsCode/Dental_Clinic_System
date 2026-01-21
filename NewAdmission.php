@@ -37,12 +37,6 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
         $stmt = $pdo->prepare("SELECT * FROM inquiries WHERE id = ?");
         $stmt->execute([$_GET['inquiry_id']]);
         $inquiryData = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($inquiryData) {
-            $nameParts = explode(' ', trim($inquiryData['name']), 2);
-            $inquiryData['first_name'] = $nameParts[0] ?? '';
-            $inquiryData['last_name'] = $nameParts[1] ?? '';
-        }
     } catch (Exception $e) {
         $inquiryData = null;
     }
@@ -95,7 +89,7 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
     <div class="max-w-7xl mx-auto w-full px-6">
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex items-center gap-3">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-            <span class="text-sm text-blue-700">Forwarded from Inquiry: <strong><?php echo htmlspecialchars($inquiryData['name']); ?></strong> (<?php echo htmlspecialchars($inquiryData['source']); ?>)</span>
+            <span class="text-sm text-blue-700">Forwarded from Inquiry: <strong><?php echo htmlspecialchars(trim(($inquiryData['first_name'] ?? '') . ' ' . ($inquiryData['middle_name'] ?? '') . ' ' . ($inquiryData['last_name'] ?? ''))); ?></strong> (<?php echo htmlspecialchars($inquiryData['source'] ?? ''); ?>)</span>
             <a href="inquiries.php" class="ml-auto text-blue-600 hover:text-blue-800 text-sm font-medium">View Original Inquiry</a>
         </div>
     </div>
@@ -184,7 +178,7 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
                             </div>
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Middle Name</label>
-                                <input type="text" name="middleName" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="">
+                                <input type="text" name="middleName" value="<?php echo htmlspecialchars($inquiryData['middle_name'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="">
                             </div>
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Last Name</label>

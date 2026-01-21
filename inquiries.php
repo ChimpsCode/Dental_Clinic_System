@@ -9,7 +9,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $role = $_SESSION['role'] ?? '';
-if (!in_array($role, ['dentist', 'admin'])) {
+if (!in_array($role, ['admin'])) {
     ob_end_clean();
     header('Location: ' . ($role === 'staff' ? 'staff-dashboard.php' : 'login.php'));
     exit();
@@ -36,8 +36,8 @@ try {
     <style>
         .status-pending { background: #fef3c7; color: #92400e; }
         .status-answered { background: #dbeafe; color: #1e40af; }
-        .status-closed { background: #f3f4f6; color: #6b7280; }
         .status-booked { background: #d1fae5; color: #065f46; }
+        .status-new-admission { background: #dcfce7; color: #166534; }
         
         .status-badge {
             padding: 4px 8px;
@@ -235,19 +235,16 @@ try {
                         <input type="text" id="searchInput" placeholder="Search by name..." class="search-input" style="flex: 1; min-width: 200px;">
                         <select id="filterSource" class="filter-select" style="min-width: 120px;">
                             <option value="">All Sources</option>
-                            <option value="Facebook">Facebook</option>
-                            <option value="Phone Call">Phone Call</option>
+                            <option value="Fb messenger">Fb messenger</option>
+                            <option value="Phone call">Phone call</option>
                             <option value="Walk-in">Walk-in</option>
-                            <option value="Referral">Referral</option>
-                            <option value="Instagram">Instagram</option>
-                            <option value="Messenger">Messenger</option>
                         </select>
                         <select id="filterStatus" class="filter-select" style="min-width: 120px;">
                             <option value="">All Status</option>
                             <option value="Pending">Pending</option>
                             <option value="Answered">Answered</option>
-                            <option value="Closed">Closed</option>
                             <option value="Booked">Booked</option>
+                            <option value="New Admission">New Admission</option>
                         </select>
                     </div>
 
@@ -276,13 +273,16 @@ try {
                                     </tr>
                                 <?php else: ?>
                                     <?php foreach ($inquiries as $inquiry): ?>
-                                        <tr class="inquiry-row" data-name="<?php echo strtolower(htmlspecialchars($inquiry['name'])); ?>" data-source="<?php echo htmlspecialchars($inquiry['source']); ?>" data-status="<?php echo htmlspecialchars($inquiry['status']); ?>" style="border-bottom: 1px solid #f3f4f6;">
+                                        <?php 
+                                            $fullName = trim($inquiry['first_name'] . ' ' . $inquiry['middle_name'] . ' ' . $inquiry['last_name']);
+                                        ?>
+                                        <tr class="inquiry-row" data-name="<?php echo strtolower(htmlspecialchars($fullName)); ?>" data-source="<?php echo htmlspecialchars($inquiry['source']); ?>" data-status="<?php echo htmlspecialchars($inquiry['status']); ?>" style="border-bottom: 1px solid #f3f4f6;">
                                             <td style="padding: 12px 16px;">
-                                                <div class="patient-name" style="font-weight: 500; color: #111827;"><?php echo htmlspecialchars($inquiry['name']); ?></div>
+                                                <div class="patient-name" style="font-weight: 500; color: #111827;"><?php echo htmlspecialchars($fullName); ?></div>
                                                 <div style="font-size: 0.875rem; color: #6b7280; margin-top: 4px;"><?php echo htmlspecialchars($inquiry['contact_info'] ?? 'No contact'); ?></div>
                                             </td>
                                             <td style="padding: 12px 16px;">
-                                                <?php $sourceIcons = ['Facebook' => '📘', 'Phone Call' => '📞', 'Walk-in' => '🚶', 'Referral' => '👥', 'Instagram' => '📷', 'Messenger' => '💬']; echo ($sourceIcons[$inquiry['source']] ?? '📝') . ' ' . htmlspecialchars($inquiry['source']); ?>
+                                                <?php $sourceIcons = ['Fb messenger' => '💬', 'Phone call' => '📞', 'Walk-in' => '🚶']; echo ($sourceIcons[$inquiry['source']] ?? '📝') . ' ' . htmlspecialchars($inquiry['source']); ?>
                                             </td>
                                             <td style="padding: 12px 16px;"><?php echo htmlspecialchars($inquiry['topic'] ?? 'General'); ?></td>
                                             <td style="padding: 12px 16px;"><?php echo date('M d, Y', strtotime($inquiry['created_at'])); ?></td>
@@ -331,10 +331,10 @@ try {
                         </div>
                     </div>
                     <div class="summary-card" style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; display: flex; align-items: center; gap: 16px;">
-                        <div class="summary-icon gray" style="font-size: 2rem;">❌</div>
+                        <div class="summary-icon gray" style="font-size: 2rem;">📥</div>
                         <div class="summary-info">
-                            <h3 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0;"><?php echo count(array_filter($inquiries, fn($i) => $i['status'] === 'Closed')); ?></h3>
-                            <p style="color: #6b7280; margin: 4px 0 0; font-size: 0.875rem;">Closed</p>
+                            <h3 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0;"><?php echo count(array_filter($inquiries, fn($i) => $i['status'] === 'New Admission')); ?></h3>
+                            <p style="color: #6b7280; margin: 4px 0 0; font-size: 0.875rem;">New Admission</p>
                         </div>
                     </div>
                 </div>
@@ -353,44 +353,45 @@ try {
         <div class="modal">
             <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Add New Inquiry</h2>
             <form id="addInquiryForm">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px;">
                     <div>
-                        <label style="display: block; font-weight: 500; margin-bottom: 4px;">Name *</label>
-                        <input type="text" name="name" required style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px;">
+                        <label style="display: block; font-weight: 500; margin-bottom: 4px;">First Name *</label>
+                        <input type="text" name="first_name" required style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px;">
                     </div>
                     <div>
-                        <label style="display: block; font-weight: 500; margin-bottom: 4px;">Contact Info</label>
-                        <input type="text" name="contact_info" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px;">
+                        <label style="display: block; font-weight: 500; margin-bottom: 4px;">Middle Name</label>
+                        <input type="text" name="middle_name" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px;">
                     </div>
+                    <div>
+                        <label style="display: block; font-weight: 500; margin-bottom: 4px;">Last Name *</label>
+                        <input type="text" name="last_name" required style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px;">
+                    </div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 4px;">Contact Number *</label>
+                    <input type="text" name="contact_info" required style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px;">
                 </div>
                 <div style="margin-bottom: 16px;">
                     <label style="display: block; font-weight: 500; margin-bottom: 4px;">Source *</label>
                     <select name="source" required style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px;">
                         <option value="">Select Source</option>
-                        <option value="Facebook">Facebook</option>
-                        <option value="Phone Call">Phone Call</option>
+                        <option value="Fb messenger">Fb messenger</option>
+                        <option value="Phone call">Phone call</option>
                         <option value="Walk-in">Walk-in</option>
-                        <option value="Referral">Referral</option>
-                        <option value="Instagram">Instagram</option>
-                        <option value="Messenger">Messenger</option>
                     </select>
                 </div>
                 <div style="margin-bottom: 16px;">
-                    <label style="display: block; font-weight: 500; margin-bottom: 4px;">Topic</label>
-                    <input type="text" name="topic" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px;">
+                    <label style="display: block; font-weight: 500; margin-bottom: 4px;">Topic *</label>
+                    <select name="topic" id="topicSelect" required style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px;" onchange="toggleOtherTopic()">
+                        <option value="">Select Topic</option>
+                        <!-- Services will be loaded here dynamically -->
+                        <option value="Others">Others</option>
+                    </select>
+                    <input type="text" id="otherTopicInput" name="topic_other" placeholder="Please specify topic" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px; margin-top: 8px; display: none;">
                 </div>
                 <div style="margin-bottom: 16px;">
                     <label style="display: block; font-weight: 500; margin-bottom: 4px;">Message</label>
                     <textarea name="inquiry_message" rows="4" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px;"></textarea>
-                </div>
-                <div style="margin-bottom: 16px;">
-                    <label style="display: block; font-weight: 500; margin-bottom: 4px;">Status</label>
-                    <select name="status" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px;">
-                        <option value="Pending">Pending</option>
-                        <option value="Answered">Answered</option>
-                        <option value="Closed">Closed</option>
-                        <option value="Booked">Booked</option>
-                    </select>
                 </div>
                 <div style="display: flex; justify-content: flex-end; gap: 12px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
                     <button type="button" onclick="closeAddModal()" class="btn-cancel">Cancel</button>
@@ -417,6 +418,7 @@ try {
         
         function openModal() {
             document.getElementById('addModal').classList.add('active');
+            loadServices();
         }
 
         function closeAddModal() {
@@ -425,6 +427,46 @@ try {
 
         function closeViewModal() {
             document.getElementById('viewModal').classList.remove('active');
+        }
+
+        function loadServices() {
+            const topicSelect = document.getElementById('topicSelect');
+            // Keep the "Select Topic" and "Others" options
+            const selectOption = topicSelect.querySelector('option[value=""]');
+            const othersOption = topicSelect.querySelector('option[value="Others"]');
+            
+            // Remove any previously loaded service options
+            topicSelect.innerHTML = '';
+            if (selectOption) topicSelect.appendChild(selectOption);
+            
+            fetch('api_public_services.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.services) {
+                        data.services.forEach(service => {
+                            const option = document.createElement('option');
+                            option.value = service.name;
+                            option.textContent = service.name;
+                            topicSelect.appendChild(option);
+                        });
+                    }
+                })
+                .catch(error => console.error('Error loading services:', error))
+                .finally(() => {
+                    if (othersOption) topicSelect.appendChild(othersOption);
+                });
+        }
+
+        function toggleOtherTopic() {
+            const topicSelect = document.getElementById('topicSelect');
+            const otherTopicInput = document.getElementById('otherTopicInput');
+            
+            if (topicSelect.value === 'Others') {
+                otherTopicInput.style.display = 'block';
+            } else {
+                otherTopicInput.style.display = 'none';
+                otherTopicInput.value = '';
+            }
         }
 
         document.getElementById('addModal').addEventListener('click', function(e) {
@@ -444,6 +486,21 @@ try {
         document.getElementById('addInquiryForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const formData = new FormData(this);
+            
+            // Debug: Log form data
+            console.log('Form data being submitted:');
+            for (let [key, value] of formData.entries()) {
+                console.log(key + ': ' + value);
+            }
+            
+            // Handle topic - use other topic if selected
+            const topicSelect = document.getElementById('topicSelect');
+            if (topicSelect.value === 'Others') {
+                const otherTopic = document.getElementById('otherTopicInput').value;
+                formData.set('topic', otherTopic);
+            }
+            
+            formData.delete('topic_other');
             
             fetch('process_inquiry.php', {
                 method: 'POST',
@@ -565,13 +622,15 @@ try {
             const inquiry = inquiries.find(i => i.id == id);
             if (!inquiry) return;
             
+            const fullName = `${inquiry.first_name || ''} ${inquiry.middle_name || ''} ${inquiry.last_name || ''}`.replace(/\s+/g, ' ').trim();
+            
             document.getElementById('viewModalContent').innerHTML = `
                 <div class="space-y-3">
-                    <div><span style="color: #6b7280;">Name:</span> <span style="font-weight: 500; margin-left: 8px;">${inquiry.name}</span></div>
+                    <div><span style="color: #6b7280;">Name:</span> <span style="font-weight: 500; margin-left: 8px;">${fullName}</span></div>
                     <div><span style="color: #6b7280;">Contact:</span> <span style="font-weight: 500; margin-left: 8px;">${inquiry.contact_info || 'N/A'}</span></div>
                     <div><span style="color: #6b7280;">Source:</span> <span style="font-weight: 500; margin-left: 8px;">${inquiry.source}</span></div>
-                    <div><span style="color: #6b7280;">Topic:</span> <span style="font-weight: 500; margin-left: 8px;">${inquiry.topic}</span></div>
-                    <div><span style="color: #6b7280;">Status:</span> <span class="status-badge status-${inquiry.status.toLowerCase()}" style="margin-left: 8px;">${inquiry.status}</span></div>
+                    <div><span style="color: #6b7280;">Topic:</span> <span style="font-weight: 500; margin-left: 8px;">${inquiry.topic || 'General'}</span></div>
+                    <div><span style="color: #6b7280;">Status:</span> <span class="status-badge status-${inquiry.status.toLowerCase().replace(/\s+/g, '-')}" style="margin-left: 8px;">${inquiry.status}</span></div>
                     <div><span style="color: #6b7280;">Date:</span> <span style="font-weight: 500; margin-left: 8px;">${new Date(inquiry.created_at).toLocaleDateString()}</span></div>
                     <div style="margin-top: 8px;"><span style="color: #6b7280;">Message:</span><p style="background: #f9fafb; padding: 14px; border-radius: 8px; margin: 8px 0 0; line-height: 1.5;">${inquiry.inquiry_message || 'No message'}</p></div>
                     ${inquiry.notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #fefce8; padding: 14px; border-radius: 8px; margin: 8px 0 0;">${inquiry.notes}</p></div>` : ''}

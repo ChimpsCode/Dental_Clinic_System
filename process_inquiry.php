@@ -24,23 +24,52 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit();
 }
 
-try {
+    try {
     require_once 'config/database.php';
     
+    // Debug: Log received data (remove in production)
+    error_log("Received POST data: " . print_r($_POST, true));
+    
+    // Check if using new separate fields or old combined name field
+    $first_name = trim($_POST['first_name'] ?? '');
+    $middle_name = trim($_POST['middle_name'] ?? '');
+    $last_name = trim($_POST['last_name'] ?? '');
     $name = trim($_POST['name'] ?? '');
+    
+    error_log("First name: '$first_name', Last name: '$last_name', Name: '$name'");
+    
+    // If name is provided but not split into parts, try to split it
+    if (!empty($name) && (empty($first_name) || empty($last_name))) {
+        $parts = explode(' ', trim($name), 3);
+        $first_name = $parts[0] ?? '';
+        $middle_name = $parts[1] ?? '';
+        $last_name = $parts[2] ?? '';
+        error_log("Split name - First: '$first_name', Middle: '$middle_name', Last: '$last_name'");
+    }
+    
     $contact_info = trim($_POST['contact_info'] ?? '');
     $source = $_POST['source'] ?? '';
     $topic = trim($_POST['topic'] ?? '');
     $inquiry_message = trim($_POST['inquiry_message'] ?? '');
-    $status = $_POST['status'] ?? 'Pending';
+    $status = 'Pending'; // Auto-set to Pending
     
-    if (empty($name) || empty($source)) {
-        echo json_encode(['success' => false, 'message' => 'Name and source are required']);
+    error_log("Final values - First: '$first_name', Last: '$last_name', Source: '$source'");
+    
+    if (empty($first_name) || empty($last_name) || empty($source)) {
+        echo json_encode(['success' => false, 'message' => 'First name, last name, and source are required']);
         exit();
     }
     
-    $stmt = $pdo->prepare("INSERT INTO inquiries (name, contact_info, source, topic, inquiry_message, status, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
-    $stmt->execute([$name, $contact_info, $source, $topic, $inquiry_message, $status]);
+    // Try to insert with new structure first, fallback to old structure
+    try {
+        $stmt = $pdo->prepare("INSERT INTO inquiries (first_name, middle_name, last_name, contact_info, source, topic, inquiry_message, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+        $stmt->execute([$first_name, $middle_name, $last_name, $contact_info, $source, $topic, $inquiry_message, $status]);
+    } catch (Exception $e) {
+        // If new structure fails, try old structure
+        $full_name = trim("$first_name $middle_name $last_name");
+        $stmt = $pdo->prepare("INSERT INTO inquiries (name, contact_info, source, topic, inquiry_message, status, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
+        $stmt->execute([$full_name, $contact_info, $source, $topic, $inquiry_message, $status]);
+    }
     
     echo json_encode(['success' => true, 'message' => 'Inquiry added successfully']);
     

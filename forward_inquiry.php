@@ -41,9 +41,9 @@ try {
     }
     
     if ($action === 'admission') {
-        $stmt = $pdo->prepare("UPDATE inquiries SET status = 'Forwarded to Admission', updated_at = NOW() WHERE id = ?");
+        $stmt = $pdo->prepare("UPDATE inquiries SET status = 'New Admission', updated_at = NOW() WHERE id = ?");
     } elseif ($action === 'appointment') {
-        $stmt = $pdo->prepare("UPDATE inquiries SET status = 'Forwarded to Appointment', updated_at = NOW() WHERE id = ?");
+        $stmt = $pdo->prepare("UPDATE inquiries SET status = 'Booked', updated_at = NOW() WHERE id = ?");
     } else {
         $stmt = $pdo->prepare("UPDATE inquiries SET status = 'Forwarded', updated_at = NOW() WHERE id = ?");
     }

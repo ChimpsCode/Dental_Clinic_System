@@ -97,16 +97,24 @@ CREATE TABLE `dental_history` (
 --
 
 CREATE TABLE `inquiries` (
-  `id` int(11) NOT NULL,
-  `name` varchar(255) NOT NULL,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `first_name` varchar(100) NOT NULL,
+  `middle_name` varchar(100) DEFAULT NULL,
+  `last_name` varchar(100) NOT NULL,
   `contact_info` varchar(255) DEFAULT NULL,
-  `source` enum('Facebook','Phone Call','Walk-in','Referral','Instagram','Messenger') NOT NULL DEFAULT 'Facebook',
+  `source` enum('Fb messenger','Phone call','Walk-in') NOT NULL DEFAULT 'Fb messenger',
   `inquiry_message` text DEFAULT NULL,
-  `topic` varchar(100) DEFAULT 'General',
-  `status` enum('Pending','Answered','Closed','Booked') DEFAULT 'Pending',
+  `topic` varchar(255) DEFAULT 'General',
+  `status` enum('Pending','Answered','Booked','New Admission') DEFAULT 'Pending',
   `notes` text DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_status` (`status`),
+  KEY `idx_source` (`source`),
+  KEY `idx_created_at` (`created_at`),
+  KEY `idx_first_name` (`first_name`),
+  KEY `idx_last_name` (`last_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------

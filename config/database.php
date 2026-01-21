@@ -200,18 +200,22 @@ function initializeDatabase($pdo) {
         // Create inquiries table
         $pdo->exec("CREATE TABLE IF NOT EXISTS inquiries (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
+            first_name VARCHAR(100) NOT NULL,
+            middle_name VARCHAR(100),
+            last_name VARCHAR(100) NOT NULL,
             contact_info VARCHAR(255),
-            source ENUM('Facebook', 'Phone Call', 'Walk-in', 'Referral', 'Instagram', 'Messenger') NOT NULL DEFAULT 'Facebook',
+            source ENUM('Fb messenger', 'Phone call', 'Walk-in') NOT NULL DEFAULT 'Fb messenger',
             inquiry_message TEXT,
-            topic VARCHAR(100) DEFAULT 'General',
-            status ENUM('Pending', 'Answered', 'Closed', 'Booked') DEFAULT 'Pending',
+            topic VARCHAR(255) DEFAULT 'General',
+            status ENUM('Pending', 'Answered', 'Booked', 'New Admission') DEFAULT 'Pending',
             notes TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             INDEX idx_status (status),
             INDEX idx_source (source),
-            INDEX idx_created_at (created_at)
+            INDEX idx_created_at (created_at),
+            INDEX idx_first_name (first_name),
+            INDEX idx_last_name (last_name)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
         
         // Create default admin user (username: admin, password: admin123)
