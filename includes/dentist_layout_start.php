@@ -89,6 +89,14 @@ function isActivePage($page) {
                 <span>Treatment Plan</span>
             </a>
 
+            <a href="dentist_queue.php" class="nav-item <?php echo isActivePage('dentist_queue.php') ? 'active' : ''; ?>">
+                <span class="nav-item-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                        <path fill="currentColor" d="M17 3H7q-.425 0-.712.288T6 4v2h11V4q0-.425-.288-.712T17 3m0 4H7q-.425 0-.712.288T6 8v10q0 .425.288.712T7 19h10q.425 0 .713-.288T18 18V8q0-.425-.288-.712T17 7m0 2v10H7V9h10m2-2H5V5h14v2"/>
+                    </svg>
+                </span>
+                <span>Queue</span>
+            </a>
 
             <a href="dentist_settings.php" class="nav-item <?php echo isActivePage('dentist_settings.php') ? 'active' : ''; ?>">
                 <span class="nav-item-icon">

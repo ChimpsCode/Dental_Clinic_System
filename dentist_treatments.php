@@ -26,9 +26,30 @@ try {
     ");
     $treatmentPlans = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Get all patients for the dropdown
-    $stmtPatients = $pdo->query("SELECT id, full_name, phone FROM patients ORDER BY full_name ASC");
-    $patients = $stmtPatients->fetchAll(PDO::FETCH_ASSOC);
+    // Get patients from queue for the dropdown
+    $stmtPatients = $pdo->query("
+        SELECT DISTINCT p.id, p.full_name, p.phone
+        FROM patients p
+        JOIN queue q ON p.id = q.patient_id
+        WHERE q.status IN ('waiting', 'in_procedure')
+        ORDER BY p.full_name ASC
+    ");
+    $queuePatients = $stmtPatients->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Get patients from treatment plans (patients who already have treatment plans)
+    $stmtTreatmentPatients = $pdo->query("
+        SELECT DISTINCT p.id, p.full_name, p.phone
+        FROM patients p
+        JOIN treatment_plans tp ON p.id = tp.patient_id
+        WHERE p.id NOT IN (
+            SELECT DISTINCT patient_id FROM queue WHERE status IN ('waiting', 'in_procedure')
+        )
+        ORDER BY p.full_name ASC
+    ");
+    $treatmentPatients = $stmtTreatmentPatients->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Combine both lists: queue patients first, then treatment patients
+    $patients = array_merge($queuePatients, $treatmentPatients);
     
     // Get services for dropdown
     $stmtServices = $pdo->query("SELECT id, service_name, default_cost, category FROM services WHERE is_active = 1 ORDER BY category, service_name");
@@ -222,12 +243,22 @@ require_once 'includes/dentist_layout_start.php';
             
             <div class="form-group">
                 <label>Patient *</label>
-                <select name="patient_id" id="patientSelect" required class="form-control">
-                    <option value="">Select Patient</option>
-                    <?php foreach ($patients as $patient): ?>
-                        <option value="<?php echo $patient['id']; ?>"><?php echo htmlspecialchars($patient['full_name']); ?></option>
-                    <?php endforeach; ?>
-                </select>
+                <?php if (empty($patients)): ?>
+                    <div style="padding: 12px 16px; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; color: #92400e; font-size: 0.875rem;">
+                        <strong>⚠️ No patients available</strong><br>
+                        There are no patients in the queue or with existing treatment plans. Please have patients check in at the queue before creating a treatment plan.
+                    </div>
+                <?php else: ?>
+                    <select name="patient_id" id="patientSelect" required class="form-control">
+                        <option value="">-- Select Patient --</option>
+                        <?php foreach ($patients as $patient): ?>
+                            <option value="<?php echo $patient['id']; ?>">
+                                <?php echo htmlspecialchars($patient['full_name']); ?> (<?php echo htmlspecialchars($patient['phone'] ?? 'No phone'); ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <small style="color: #6b7280; display: block; margin-top: 6px;">Select a patient from queue or existing treatment plans</small>
+                <?php endif; ?>
             </div>
             
             <div class="form-row">
@@ -371,7 +402,14 @@ require_once 'includes/dentist_layout_start.php';
         document.getElementById('treatmentPlanModalTitle').textContent = 'New Treatment Plan';
         document.getElementById('treatmentPlanForm').reset();
         document.getElementById('plan_id').value = '';
-        document.getElementById('patientSelect').disabled = false;
+        
+        // Safely handle patient select - it may not exist if no patients are available
+        const patientSelect = document.getElementById('patientSelect');
+        if (patientSelect) {
+            patientSelect.disabled = false;
+            patientSelect.value = '';
+        }
+        
         document.getElementById('treatmentPlanModal').style.display = 'flex';
     }
 

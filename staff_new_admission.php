@@ -218,9 +218,9 @@ try {
     </div>
 
     <div class="flex-1 flex flex-col md:flex-row max-w-7xl mx-auto w-full p-6 gap-8">
-        
+
         <!-- Left Sidebar (Stepper) -->
-        <div class="w-full md:w-1/4 flex flex-col">
+        <div class="w-full md:w-1/4 flex flex-col sticky top-6 h-[calc(100vh-3rem)] overflow-y-auto">
             <!-- Logo -->
             <div class="mb-10 flex items-center gap-2">
                 <img src="assets/images/Logo.png" alt="RF Dental Clinic Logo" class="w-8 h-8 rounded-md">

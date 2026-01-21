@@ -19,9 +19,13 @@ if (!in_array($role, ['staff', 'dentist', 'admin'])) {
 
 header('Content-Type: application/json');
 
-$data = json_decode(file_get_contents('php://input'), true);
+$input = file_get_contents('php://input');
+$data = json_decode($input, true);
+if (!$data) {
+    $data = $_POST;
+}
 $action = $data['action'] ?? '';
-$queueId = $data['queue_id'] ?? null;
+$queueId = $data['queue_id'] ?? ($data['id'] ?? null);
 $patientId = $data['patient_id'] ?? null;
 
 if (!$queueId && !$patientId) {

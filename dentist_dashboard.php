@@ -144,7 +144,7 @@ function startProcedure(queueId) {
     fetch('queue_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'action=start_procedure&id=' + queueId
+        body: 'action=start_procedure&queue_id=' + queueId
     })
     .then(response => response.json())
     .then(data => {
@@ -160,7 +160,7 @@ function completeProcedure(queueId) {
     fetch('queue_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'action=complete&id=' + queueId
+        body: 'action=complete&queue_id=' + queueId
     })
     .then(response => response.json())
     .then(data => {
