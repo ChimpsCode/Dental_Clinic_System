@@ -103,18 +103,170 @@ require_once 'includes/staff_layout_start.php';
     border-radius: 0 0 8px 8px;
 }
 
-.kebab-backdrop {
+/* View Modal Styles */
+.modal-overlay {
     display: none;
     position: fixed;
     top: 0;
     left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 9998;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
 }
 
-.kebab-backdrop.show {
+.modal-overlay.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(6px);
+    animation: backdropFadeIn 0.25s ease;
+}
+
+.modal-overlay.active .modal-backdrop {
     display: block;
+}
+
+@keyframes backdropFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-container {
+    position: relative;
+    z-index: 10001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 20px;
+}
+
+.modal-overlay.active .modal-container {
+    animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.modal {
+    background: white;
+    border-radius: 12px;
+    padding: 28px;
+    max-width: 500px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.modal h2 {
+    margin: 0 0 20px;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #111827;
+}
+
+.modal .space-y-3 {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.modal .space-y-3 > div {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.modal .space-y-3 span:first-child {
+    color: #6b7280;
+    min-width: 70px;
+    font-size: 0.875rem;
+}
+
+.modal .space-y-3 span:nth-child(2) {
+    color: #111827;
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.modal p {
+    background: #f9fafb;
+    padding: 14px;
+    border-radius: 8px;
+    margin: 8px 0 0;
+    line-height: 1.5;
+    font-size: 0.875rem;
+    color: #374151;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.status-pending { background: #fef3c7; color: #92400e; }
+.status-answered { background: #dbeafe; color: #1e40af; }
+.status-booked { background: #d1fae5; color: #065f46; }
+.status-new-admission { background: #dcfce7; color: #166534; }
+
+.modal .btn-primary {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+}
+
+.modal .btn-primary:not([style*="background"]) {
+    background: #0ea5e9;
+    color: white;
+}
+
+.modal .btn-primary:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.modal .btn-cancel {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid #d1d5db;
+    background: white;
+    color: #374151;
+    transition: all 0.2s ease;
+}
+
+.modal .btn-cancel:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
 }
 </style>
 
@@ -231,16 +383,21 @@ require_once 'includes/staff_layout_start.php';
             </div>
 
     <div id="viewModal" class="modal-overlay">
-        <div class="modal">
-            <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Inquiry Details</h2>
-            <div id="viewModalContent"></div>
+        <div class="modal-backdrop"></div>
+        <div class="modal-container">
+            <div class="modal">
+                <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Inquiry Details</h2>
+                <div id="viewModalContent"></div>
+            </div>
         </div>
     </div>
 
     <div id="addModal" class="modal-overlay">
-        <div class="modal">
-            <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Add New Inquiry</h2>
-            <form id="addInquiryForm">
+        <div class="modal-backdrop"></div>
+        <div class="modal-container">
+            <div class="modal" style="max-width: 700px;">
+                <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Add New Inquiry</h2>
+                <form id="addInquiryForm">
                 <div class="form-row">
                     <div class="form-group" style="flex: 1;">
                         <label>First Name *</label>
@@ -293,24 +450,37 @@ require_once 'includes/staff_layout_start.php';
         const inquiries = <?php echo json_encode($inquiries); ?>;
 
         function openModal() {
-            document.getElementById('addModal').style.display = 'flex';
+            const modal = document.getElementById('addModal');
+            if (modal) {
+                modal.classList.add('active');
+            }
             loadServices();
         }
 
         function closeAddModal() {
-            document.getElementById('addModal').style.display = 'none';
+            const modal = document.getElementById('addModal');
+            if (modal) {
+                modal.classList.remove('active');
+            }
         }
 
         function closeViewModal() {
-            document.getElementById('viewModal').style.display = 'none';
+            const modal = document.getElementById('viewModal');
+            if (modal) {
+                modal.classList.remove('active');
+            }
         }
 
         document.getElementById('addModal').addEventListener('click', function(e) {
-            if (e.target === this) closeAddModal();
+            if (e.target === this || e.target.classList.contains('modal-backdrop') || e.target.closest('.modal-container') === e.target) {
+                closeAddModal();
+            }
         });
 
         document.getElementById('viewModal').addEventListener('click', function(e) {
-            if (e.target === this) closeViewModal();
+            if (e.target === this || e.target.classList.contains('modal-backdrop') || e.target.closest('.modal-container') === e.target) {
+                closeViewModal();
+            }
         });
 
         function loadServices() {
@@ -394,7 +564,7 @@ require_once 'includes/staff_layout_start.php';
         });
 
         function convertToAppointment(id) {
-            if (confirm('Convert this inquiry to an appointment? This will mark it as Booked.')) {
+            if (confirm('Convert this inquiry to an appointment? The patient will be added to the appointments list with today\'s date.')) {
                 fetch('convert_inquiry.php', {
                     method: 'POST',
                     headers: {
@@ -405,7 +575,8 @@ require_once 'includes/staff_layout_start.php';
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        location.reload();
+                        alert('Successfully converted to appointment! Patient added to appointments list.');
+                        window.location.href = 'staff_appointments.php';
                     } else {
                         alert(data.message || 'Error converting inquiry');
                     }
@@ -650,8 +821,14 @@ require_once 'includes/staff_layout_start.php';
         });
 
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && kebabDropdown && kebabDropdown.classList.contains('show')) {
-                closeKebabDropdown();
+            if (e.key === 'Escape') {
+                if (kebabDropdown && kebabDropdown.classList.contains('show')) {
+                    closeKebabDropdown();
+                }
+                const viewModal = document.getElementById('viewModal');
+                if (viewModal && viewModal.classList.contains('active')) {
+                    closeViewModal();
+                }
             }
         });
 
@@ -704,3 +881,68 @@ require_once 'includes/staff_layout_start.php';
         }
     </script>
 <?php require_once 'includes/staff_layout_end.php'; ?>
+
+<!-- Full Page Modal Overlays (Outside layout to cover sidebar and header) -->
+<div id="viewModal" class="modal-overlay">
+    <div class="modal-backdrop"></div>
+    <div class="modal-container">
+        <div class="modal">
+            <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Inquiry Details</h2>
+            <div id="viewModalContent"></div>
+        </div>
+    </div>
+</div>
+
+<div id="addModal" class="modal-overlay">
+    <div class="modal-backdrop"></div>
+    <div class="modal-container">
+        <div class="modal" style="max-width: 700px;">
+            <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Add New Inquiry</h2>
+            <form id="addInquiryForm">
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
+                        <label>First Name *</label>
+                        <input type="text" name="first_name" required class="form-control">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Middle Name</label>
+                        <input type="text" name="middle_name" class="form-control">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Last Name *</label>
+                        <input type="text" name="last_name" required class="form-control">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Contact Number *</label>
+                    <input type="text" name="contact_info" required class="form-control" placeholder="Enter contact number">
+                </div>
+                <div class="form-group">
+                    <label>Source *</label>
+                    <select name="source" id="sourceSelect" required class="form-control" onchange="console.log('Source selected:', this.value)">
+                        <option value="">Select Source</option>
+                        <option value="Fb messenger">Fb messenger</option>
+                        <option value="Phone call">Phone call</option>
+                        <option value="Walk-in">Walk-in</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Topic *</label>
+                    <select name="topic" id="topicSelect" required class="form-control" onchange="toggleOtherTopic()">
+                        <option value="">Select Topic</option>
+                        <option value="Others">Others</option>
+                    </select>
+                    <input type="text" id="otherTopicInput" name="topic_other" class="form-control" placeholder="Please specify topic" style="display: none; margin-top: 8px;">
+                </div>
+                <div class="form-group">
+                    <label>Message</label>
+                    <textarea name="inquiry_message" rows="3" class="form-control"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" onclick="closeAddModal()" class="btn-cancel">Cancel</button>
+                    <button type="submit" class="btn-primary">Add Inquiry</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

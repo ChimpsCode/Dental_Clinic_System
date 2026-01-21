@@ -46,37 +46,37 @@ try {
     // Get appointments based on filter
     $appointments = [];
     if ($filter === 'today') {
-        $stmt = $pdo->prepare("SELECT a.*, p.full_name, p.phone FROM appointments a 
+        $stmt = $pdo->prepare("SELECT a.*, CONCAT(p.first_name, ' ', IFNULL(p.middle_name, ''), ' ', p.last_name) as full_name, p.phone FROM appointments a 
                               LEFT JOIN patients p ON a.patient_id = p.id 
                               WHERE DATE(a.appointment_date) = ? 
-                              AND (p.full_name LIKE ? OR p.phone LIKE ?)
+                              AND (CONCAT(p.first_name, ' ', IFNULL(p.middle_name, ''), ' ', p.last_name) LIKE ? OR p.phone LIKE ?)
                               ORDER BY a.appointment_date ASC");
         $searchTerm = "%$search%";
         $stmt->execute([$today, $searchTerm, $searchTerm]);
         $appointments = $stmt->fetchAll();
     } elseif ($filter === 'tomorrow') {
-        $stmt = $pdo->prepare("SELECT a.*, p.full_name, p.phone FROM appointments a 
+        $stmt = $pdo->prepare("SELECT a.*, CONCAT(p.first_name, ' ', IFNULL(p.middle_name, ''), ' ', p.last_name) as full_name, p.phone FROM appointments a 
                               LEFT JOIN patients p ON a.patient_id = p.id 
                               WHERE DATE(a.appointment_date) = ? 
-                              AND (p.full_name LIKE ? OR p.phone LIKE ?)
+                              AND (CONCAT(p.first_name, ' ', IFNULL(p.middle_name, ''), ' ', p.last_name) LIKE ? OR p.phone LIKE ?)
                               ORDER BY a.appointment_date ASC");
         $searchTerm = "%$search%";
         $stmt->execute([$tomorrow, $searchTerm, $searchTerm]);
         $appointments = $stmt->fetchAll();
     } elseif ($filter === 'upcoming') {
-        $stmt = $pdo->prepare("SELECT a.*, p.full_name, p.phone FROM appointments a 
+        $stmt = $pdo->prepare("SELECT a.*, CONCAT(p.first_name, ' ', IFNULL(p.middle_name, ''), ' ', p.last_name) as full_name, p.phone FROM appointments a 
                               LEFT JOIN patients p ON a.patient_id = p.id 
                               WHERE DATE(a.appointment_date) > ? 
-                              AND (p.full_name LIKE ? OR p.phone LIKE ?)
+                              AND (CONCAT(p.first_name, ' ', IFNULL(p.middle_name, ''), ' ', p.last_name) LIKE ? OR p.phone LIKE ?)
                               ORDER BY a.appointment_date ASC");
         $searchTerm = "%$search%";
         $stmt->execute([$tomorrow, $searchTerm, $searchTerm]);
         $appointments = $stmt->fetchAll();
     } else {
         // All appointments
-        $stmt = $pdo->prepare("SELECT a.*, p.full_name, p.phone FROM appointments a 
+        $stmt = $pdo->prepare("SELECT a.*, CONCAT(p.first_name, ' ', IFNULL(p.middle_name, ''), ' ', p.last_name) as full_name, p.phone FROM appointments a 
                               LEFT JOIN patients p ON a.patient_id = p.id 
-                              WHERE p.full_name LIKE ? OR p.phone LIKE ?
+                              WHERE CONCAT(p.first_name, ' ', IFNULL(p.middle_name, ''), ' ', p.last_name) LIKE ? OR p.phone LIKE ?
                               ORDER BY a.appointment_date ASC");
         $searchTerm = "%$search%";
         $stmt->execute([$searchTerm, $searchTerm]);

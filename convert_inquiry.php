@@ -40,16 +40,69 @@ try {
         exit();
     }
     
+    $pdo->beginTransaction();
+    
+    // Build full name from separate fields
+    $fullName = trim(($inquiry['first_name'] ?? '') . ' ' . ($inquiry['middle_name'] ?? '') . ' ' . ($inquiry['last_name'] ?? ''));
+    $contactInfo = $inquiry['contact_info'] ?? '';
+    
+    // Extract phone number from contact_info (assuming format: name, phone or just phone)
+    $phone = '';
+    if (!empty($contactInfo)) {
+        // Try to extract phone number - assume last part or everything with numbers
+        if (preg_match('/[\d]{10,}/', $contactInfo, $matches)) {
+            $phone = $matches[0];
+        } else {
+            $phone = $contactInfo;
+        }
+    }
+    
+    // Find or create patient
+    $stmt = $pdo->prepare("SELECT id FROM patients WHERE full_name = ? LIMIT 1");
+    $stmt->execute([$fullName]);
+    $existing_patient = $stmt->fetch();
+    
+    if ($existing_patient) {
+        $patient_id = $existing_patient['id'];
+    } else {
+        // Create new patient
+        $firstName = $inquiry['first_name'] ?? '';
+        $middleName = $inquiry['middle_name'] ?? '';
+        $lastName = $inquiry['last_name'] ?? '';
+        
+        $stmt = $pdo->prepare("INSERT INTO patients (first_name, middle_name, last_name, full_name, phone, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
+        $stmt->execute([$firstName, $middleName, $lastName, $fullName, $phone]);
+        $patient_id = $pdo->lastInsertId();
+    }
+    
+    // Create appointment with today's date and default time
+    $today = date('Y-m-d');
+    $defaultTime = '09:00:00';
+    $treatment = $inquiry['topic'] ?? 'General Checkup';
+    $notes = 'Created from inquiry. Source: ' . ($inquiry['source'] ?? 'Unknown');
+    
+    $stmt = $pdo->prepare("INSERT INTO appointments (patient_id, appointment_date, appointment_time, treatment, notes, status, created_by, created_at) VALUES (?, ?, ?, ?, ?, 'scheduled', ?, NOW())");
+    $stmt->execute([$patient_id, $today, $defaultTime, $treatment, $notes, $_SESSION['user_id'] ?? 1]);
+    
+    $appointment_id = $pdo->lastInsertId();
+    
     // Update inquiry status to Booked
     $stmt = $pdo->prepare("UPDATE inquiries SET status = 'Booked' WHERE id = ?");
     $stmt->execute([$id]);
     
-    // Optionally create an appointment record (if you have an appointments table)
-    // You can add this logic here if needed
+    $pdo->commit();
     
-    echo json_encode(['success' => true, 'message' => 'Inquiry converted to appointment successfully']);
+    echo json_encode([
+        'success' => true, 
+        'message' => 'Successfully converted to appointment!',
+        'appointment_id' => $appointment_id
+    ]);
     
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
+    if (isset($pdo) && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    error_log("Convert Inquiry Error: " . $e->getMessage());
+    echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
 }
 ?>

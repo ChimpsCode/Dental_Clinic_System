@@ -522,7 +522,7 @@ try {
         });
 
         function convertToAppointment(id) {
-            if (confirm('Convert this inquiry to an appointment?')) {
+            if (confirm('Convert this inquiry to an appointment? The patient will be added to the appointments list with today\'s date.')) {
                 fetch('convert_inquiry.php', {
                     method: 'POST',
                     headers: {
@@ -533,7 +533,8 @@ try {
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        location.reload();
+                        alert('Successfully converted to appointment! Patient added to appointments list.');
+                        window.location.href = 'appointments.php';
                     } else {
                         alert(data.message || 'Error converting inquiry');
                     }

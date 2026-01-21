@@ -3,7 +3,12 @@ $pageTitle = 'Appointments';
 
 try {
     require_once 'config/database.php';
-    $stmt = $pdo->query("SELECT a.*, p.full_name, p.phone FROM appointments a LEFT JOIN patients p ON a.patient_id = p.id ORDER BY a.appointment_date DESC, a.appointment_time DESC");
+    $stmt = $pdo->query("SELECT a.*, 
+                         CONCAT(p.first_name, ' ', IFNULL(p.middle_name, ''), ' ', p.last_name) as full_name, 
+                         p.phone 
+                         FROM appointments a 
+                         LEFT JOIN patients p ON a.patient_id = p.id 
+                         ORDER BY a.created_at DESC");
     $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
     $appointments = [];
@@ -83,11 +88,11 @@ require_once 'includes/staff_layout_start.php';
 
 <?php if ($inquiryData): ?>
 <div style="background: #dbeafe; border: 1px solid #3b82f6; border-radius: 8px; padding: 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600" viewBox="0 0" fill="none" stroke="currentColor" stroke-width="2" stroke 24 24-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
     <span style="color: #1e40af; font-size: 0.9rem;">
-        <strong>Forwarded from Inquiry:</strong> <?php echo htmlspecialchars($inquiryData['name']); ?> (<?php echo htmlspecialchars($inquiryData['source']); ?>)
+        <strong>Forwarded from Inquiry:</strong> <?php echo htmlspecialchars(trim(($inquiryData['first_name'] ?? '') . ' ' . ($inquiryData['middle_name'] ?? '') . ' ' . ($inquiryData['last_name'] ?? ''))); ?> (<?php echo htmlspecialchars($inquiryData['source'] ?? ''); ?>)
     </span>
-    <a href="inquiries.php" style="margin-left: auto; color: #2563eb; font-size: 0.875rem; text-decoration: none;">View Original Inquiry</a>
+    <a href="staff_inquiries.php" style="margin-left: auto; color: #2563eb; font-size: 0.875rem; text-decoration: none;">View Original Inquiry</a>
 </div>
 <?php endif; ?>
 

@@ -29,7 +29,9 @@ SET time_zone = "+00:00";
 
 CREATE TABLE `appointments` (
   `id` int(11) NOT NULL,
-  `first_name` varchar(100) DEFAULT NULL,
+  `first_name` varchar(100) NOT NULL,   -- Required
+  `middle_name` varchar(100) DEFAULT NULL,  -- Required
+  `last_name` varchar(100) NOT NULL,    -- Required
   `patient_id` int(11) DEFAULT NULL,
   `appointment_date` datetime NOT NULL,
   `appointment_time` time NOT NULL DEFAULT '09:00:00',
@@ -38,9 +40,9 @@ CREATE TABLE `appointments` (
   `status` varchar(20) DEFAULT 'scheduled',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  `created_by` int(11) DEFAULT NULL
+  `created_by` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 --
 -- Dumping data for table `appointments`
 --
