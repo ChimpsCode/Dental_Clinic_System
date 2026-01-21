@@ -156,8 +156,14 @@ try {
                                 <span style="font-weight: 500;"><?php echo !empty($patient['created_at']) ? date('M d, Y', strtotime($patient['created_at'])) : 'N/A'; ?></span>
                             </td>
                             <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
-                                <div style="display: flex; gap: 8px;">
-                                    <button onclick="viewPatientRecord(<?php echo $patient['id']; ?>)" class="action-btn icon" title="View Details" style="background: transparent; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">👁️</button>
+                                <div class="patient-kebab-menu">
+                                    <button class="patient-kebab-btn" data-patient-id="<?php echo $patient['id']; ?>">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                            <circle cx="12" cy="6" r="2"/>
+                                            <circle cx="12" cy="12" r="2"/>
+                                            <circle cx="12" cy="18" r="2"/>
+                                        </svg>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -258,17 +264,106 @@ try {
     margin-bottom: 4px;
 }
 .patient-info-value {
-    font-weight: 600;
+    font-size: 0.9rem;
+    color: #111827;
+    font-weight: 500;
+}
+
+/* Patient Kebab Menu Styles */
+.patient-kebab-menu {
+    position: relative;
+    display: inline-block;
+}
+
+.patient-kebab-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.patient-kebab-btn:hover {
+    background-color: #f3f4f6;
+    color: #374151;
+}
+
+.patient-kebab-btn.active {
+    background-color: #e5e7eb;
     color: #111827;
 }
-.medical-alert-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 12px;
+
+.patient-kebab-dropdown-portal {
+    display: none;
+    position: fixed;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    min-width: 200px;
+    max-width: 220px;
+    width: auto;
+    z-index: 99999;
+    overflow: hidden;
 }
-.action-btn:hover {
-    background-color: #f3f4f6;
-    border-color: #9ca3af;
+
+.patient-kebab-dropdown-portal.show {
+    display: block;
+    animation: patientKebabFadeIn 0.15s ease;
+}
+
+@keyframes patientKebabFadeIn {
+    from { opacity: 0; transform: scale(0.95) translateY(-4px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.patient-kebab-dropdown-portal a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    color: #374151;
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: all 0.15s ease;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.patient-kebab-dropdown-portal a:hover {
+    background-color: #f9fafb;
+    color: #111827;
+}
+
+.patient-kebab-dropdown-portal a svg {
+    flex-shrink: 0;
+}
+
+.patient-kebab-dropdown-portal a:first-child {
+    border-radius: 8px 8px 0 0;
+}
+
+.patient-kebab-dropdown-portal a:last-child {
+    border-radius: 0 0 8px 8px;
+}
+
+.patient-kebab-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 99998;
+}
+
+.patient-kebab-backdrop.show {
+    display: block;
 }
 </style>
 
@@ -431,6 +526,178 @@ document.getElementById('patientRecordModal').addEventListener('click', function
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closePatientRecordModal();
+});
+
+// Patient Kebab Menu Functions
+let patientKebabDropdown = null;
+let patientKebabBackdrop = null;
+let patientActiveButton = null;
+
+function createPatientKebabDropdown() {
+    patientKebabDropdown = document.createElement('div');
+    patientKebabDropdown.className = 'patient-kebab-dropdown-portal';
+    patientKebabDropdown.id = 'patientKebabDropdownPortal';
+    document.body.appendChild(patientKebabDropdown);
+
+    patientKebabBackdrop = document.createElement('div');
+    patientKebabBackdrop.className = 'patient-kebab-backdrop';
+    patientKebabBackdrop.id = 'patientKebabBackdrop';
+    document.body.appendChild(patientKebabBackdrop);
+
+    patientKebabBackdrop.addEventListener('click', closePatientKebabDropdown);
+}
+
+function getPatientMenuItems(patientId) {
+    return `
+        <a href="javascript:void(0)" data-action="view" data-id="${patientId}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+            </svg>
+            View
+        </a>
+        <a href="javascript:void(0)" data-action="appointment" data-id="${patientId}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            Add Appointment
+        </a>
+        <a href="javascript:void(0)" data-action="session" data-id="${patientId}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+            </svg>
+            New Session
+        </a>
+    `;
+}
+
+function positionPatientKebabDropdown(button) {
+    if (!patientKebabDropdown || !button) return;
+
+    const rect = button.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    const padding = 15;
+    const dropdownWidth = 200;
+    
+    let left = rect.right + 5;
+    let top = rect.bottom + 8;
+
+    if (left + dropdownWidth > viewportWidth - padding) {
+        left = rect.left - dropdownWidth - 5;
+    }
+    
+    if (left < padding) {
+        left = padding;
+    }
+    
+    if (top + 150 > viewportHeight - padding) {
+        top = rect.top - 150 - 8;
+    }
+    
+    if (top < padding) {
+        top = padding;
+    }
+
+    patientKebabDropdown.style.left = left + 'px';
+    patientKebabDropdown.style.top = top + 'px';
+}
+
+function openPatientKebabDropdown(button) {
+    if (!patientKebabDropdown) {
+        createPatientKebabDropdown();
+    }
+
+    const patientId = button.dataset.patientId;
+
+    patientKebabDropdown.innerHTML = getPatientMenuItems(patientId);
+    positionPatientKebabDropdown(button);
+
+    patientKebabDropdown.classList.add('show');
+    patientKebabBackdrop.classList.add('show');
+    patientActiveButton = button;
+    button.classList.add('active');
+
+    patientKebabDropdown.addEventListener('click', handlePatientKebabClick);
+}
+
+function closePatientKebabDropdown() {
+    if (patientKebabDropdown) {
+        patientKebabDropdown.classList.remove('show');
+        patientKebabDropdown.innerHTML = '';
+    }
+    if (patientKebabBackdrop) {
+        patientKebabBackdrop.classList.remove('show');
+    }
+    if (patientActiveButton) {
+        patientActiveButton.classList.remove('active');
+        patientActiveButton = null;
+    }
+}
+
+function handlePatientKebabClick(e) {
+    const link = e.target.closest('a[data-action]');
+    if (!link) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const action = link.dataset.action;
+    const id = parseInt(link.dataset.id);
+
+    closePatientKebabDropdown();
+
+    switch(action) {
+        case 'view':
+            viewPatientRecord(id);
+            break;
+        case 'appointment':
+            window.location.href = 'staff_appointments.php?patient_id=' + id;
+            break;
+        case 'session':
+            window.location.href = 'staff_queue.php?patient_id=' + id;
+            break;
+    }
+}
+
+document.addEventListener('click', function(e) {
+    const button = e.target.closest('.patient-kebab-btn');
+    if (button) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (patientActiveButton === button && patientKebabDropdown && patientKebabDropdown.classList.contains('show')) {
+            closePatientKebabDropdown();
+        } else {
+            if (patientActiveButton) {
+                patientActiveButton.classList.remove('active');
+            }
+            openPatientKebabDropdown(button);
+        }
+        return;
+    }
+
+    if (!e.target.closest('.patient-kebab-dropdown-portal')) {
+        closePatientKebabDropdown();
+    }
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        if (patientKebabDropdown && patientKebabDropdown.classList.contains('show')) {
+            closePatientKebabDropdown();
+        }
+    }
+});
+
+window.addEventListener('resize', function() {
+    if (patientKebabDropdown && patientKebabDropdown.classList.contains('show') && patientActiveButton) {
+        positionPatientKebabDropdown(patientActiveButton);
+    }
 });
 </script>
 
