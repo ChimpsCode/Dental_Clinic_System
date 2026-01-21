@@ -132,7 +132,8 @@ try {
                                         'in_procedure' => '#dbeafe:#1e40af',
                                         'completed' => '#d1fae5:#065f46',
                                         'on_hold' => '#f3f4f6:#6b7280',
-                                        'cancelled' => '#fee2e2:#dc2626'
+                                        'cancelled' => '#fee2e2:#dc2626',
+                                        'scheduled' => '#e0e7ff:#4338ca'
                                     ];
                                     $bgColor = '#f3f4f6';
                                     $textColor = '#6b7280';
@@ -152,8 +153,14 @@ try {
                                 </div>
                             </td>
                             <td>
-                                <div class="patient-actions">
-                                    <button onclick="viewPatientDetails(<?php echo $patient['id']; ?>)" class="action-btn icon" title="View Details">👁️</button>
+                                <div class="patient-kebab-menu">
+                                    <button class="patient-kebab-btn" data-patient-id="<?php echo $patient['id']; ?>">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                            <circle cx="12" cy="6" r="2"/>
+                                            <circle cx="12" cy="12" r="2"/>
+                                            <circle cx="12" cy="18" r="2"/>
+                                        </svg>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -245,61 +252,171 @@ try {
     padding: 24px;
 }
 
-.patient-info-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-    margin-bottom: 20px;
+/* Patient Kebab Menu Styles */
+.patient-kebab-menu {
+    position: relative;
+    display: inline-block;
 }
 
-.patient-info-item {
-    background: #f9fafb;
-    padding: 12px 16px;
-    border-radius: 8px;
-}
-
-.patient-info-label {
-    font-size: 0.75rem;
+.patient-kebab-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
     color: #6b7280;
-    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
 }
 
-.patient-info-value {
-    font-weight: 600;
+.patient-kebab-btn:hover {
+    background-color: #f3f4f6;
+    color: #374151;
+}
+
+.patient-kebab-btn.active {
+    background-color: #e5e7eb;
     color: #111827;
 }
 
-.medical-alert {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 20px;
+.patient-kebab-dropdown-portal {
+    display: none;
+    position: fixed;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    min-width: 200px;
+    max-width: 220px;
+    width: auto;
+    z-index: 99999;
+    overflow: hidden;
 }
 
-.medical-alert-title {
-    color: #dc2626;
-    font-weight: 600;
-    margin-bottom: 12px;
+.patient-kebab-dropdown-portal.show {
+    display: block;
+    animation: patientKebabFadeIn 0.15s ease;
+}
+
+@keyframes patientKebabFadeIn {
+    from { opacity: 0; transform: scale(0.95) translateY(-4px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.patient-kebab-dropdown-portal a {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    padding: 10px 16px;
+    color: #374151;
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: all 0.15s ease;
+    cursor: pointer;
+    white-space: nowrap;
 }
 
-.medical-alert-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 12px;
+.patient-kebab-dropdown-portal a:hover {
+    background-color: #f9fafb;
+    color: #111827;
 }
 
-.medical-alert-item {
-    background: white;
-    padding: 12px;
+.patient-kebab-dropdown-portal a svg {
+    flex-shrink: 0;
+}
+
+.patient-kebab-dropdown-portal a:first-child {
+    border-radius: 8px 8px 0 0;
+}
+
+.patient-kebab-dropdown-portal a:last-child {
+    border-radius: 0 0 8px 8px;
+}
+
+.patient-kebab-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 99998;
+}
+
+.patient-kebab-backdrop.show {
+    display: block;
+}
+
+/* Form Styles */
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 6px;
+}
+
+.form-group .form-control {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
     border-radius: 8px;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.medical-alert-item-value.danger {
-    color: #dc2626;
+.form-group .form-control:focus {
+    border-color: #0ea5e9;
+    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.btn-primary {
+    padding: 10px 20px;
+    background: #0ea5e9;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover {
+    background: #0284c7;
+}
+
+.btn-cancel {
+    padding: 10px 20px;
+    background: white;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-cancel:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
 }
 </style>
 
@@ -503,6 +620,378 @@ document.getElementById('patientModal').addEventListener('click', function(e) {
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closePatientModal();
 });
+
+// Patient Kebab Menu Functions
+let patientKebabDropdown = null;
+let patientKebabBackdrop = null;
+let patientActiveButton = null;
+
+function createPatientKebabDropdown() {
+    patientKebabDropdown = document.createElement('div');
+    patientKebabDropdown.className = 'patient-kebab-dropdown-portal';
+    patientKebabDropdown.id = 'patientKebabDropdownPortal';
+    document.body.appendChild(patientKebabDropdown);
+
+    patientKebabBackdrop = document.createElement('div');
+    patientKebabBackdrop.className = 'patient-kebab-backdrop';
+    patientKebabBackdrop.id = 'patientKebabBackdrop';
+    document.body.appendChild(patientKebabBackdrop);
+
+    patientKebabBackdrop.addEventListener('click', closePatientKebabDropdown);
+}
+
+function getPatientMenuItems(patientId) {
+    return `
+        <a href="javascript:void(0)" data-action="view" data-id="${patientId}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+            </svg>
+            View
+        </a>
+        <a href="javascript:void(0)" data-action="appointment" data-id="${patientId}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            Add Appointment
+        </a>
+        <a href="javascript:void(0)" data-action="session" data-id="${patientId}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+            </svg>
+            New Session
+        </a>
+    `;
+}
+
+function positionPatientKebabDropdown(button) {
+    if (!patientKebabDropdown || !button) return;
+
+    const rect = button.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    const padding = 15;
+    const dropdownWidth = 200;
+    
+    let left = rect.right + 5;
+    let top = rect.bottom + 8;
+
+    if (left + dropdownWidth > viewportWidth - padding) {
+        left = rect.left - dropdownWidth - 5;
+    }
+    
+    if (left < padding) {
+        left = padding;
+    }
+    
+    if (top + 150 > viewportHeight - padding) {
+        top = rect.top - 150 - 8;
+    }
+    
+    if (top < padding) {
+        top = padding;
+    }
+
+    patientKebabDropdown.style.left = left + 'px';
+    patientKebabDropdown.style.top = top + 'px';
+}
+
+function openPatientKebabDropdown(button) {
+    if (!patientKebabDropdown) {
+        createPatientKebabDropdown();
+    }
+
+    const patientId = button.dataset.patientId;
+
+    patientKebabDropdown.innerHTML = getPatientMenuItems(patientId);
+    positionPatientKebabDropdown(button);
+
+    patientKebabDropdown.classList.add('show');
+    patientKebabBackdrop.classList.add('show');
+    patientActiveButton = button;
+    button.classList.add('active');
+
+    patientKebabDropdown.addEventListener('click', handlePatientKebabClick);
+}
+
+function closePatientKebabDropdown() {
+    if (patientKebabDropdown) {
+        patientKebabDropdown.classList.remove('show');
+        patientKebabDropdown.innerHTML = '';
+    }
+    if (patientKebabBackdrop) {
+        patientKebabBackdrop.classList.remove('show');
+    }
+    if (patientActiveButton) {
+        patientActiveButton.classList.remove('active');
+        patientActiveButton = null;
+    }
+}
+
+function handlePatientKebabClick(e) {
+    const link = e.target.closest('a[data-action]');
+    if (!link) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const action = link.dataset.action;
+    const id = parseInt(link.dataset.id);
+
+    closePatientKebabDropdown();
+
+    switch(action) {
+        case 'view':
+            viewPatientDetails(id);
+            break;
+        case 'appointment':
+            openAddAppointmentModal(id);
+            break;
+        case 'session':
+            window.location.href = 'dentist_queue.php?patient_id=' + id;
+            break;
+    }
+}
+
+document.addEventListener('click', function(e) {
+    const button = e.target.closest('.patient-kebab-btn');
+    if (button) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (patientActiveButton === button && patientKebabDropdown && patientKebabDropdown.classList.contains('show')) {
+            closePatientKebabDropdown();
+        } else {
+            if (patientActiveButton) {
+                patientActiveButton.classList.remove('active');
+            }
+            openPatientKebabDropdown(button);
+        }
+        return;
+    }
+
+    if (!e.target.closest('.patient-kebab-dropdown-portal')) {
+        closePatientKebabDropdown();
+    }
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        if (patientKebabDropdown && patientKebabDropdown.classList.contains('show')) {
+            closePatientKebabDropdown();
+        }
+        closePatientModal();
+    }
+});
+
+window.addEventListener('resize', function() {
+    if (patientKebabDropdown && patientKebabDropdown.classList.contains('show') && patientActiveButton) {
+        positionPatientKebabDropdown(patientActiveButton);
+    }
+});
+
+// Add Appointment Modal Functions
+let selectedPatientId = null;
+
+function openAddAppointmentModal(patientId) {
+    const patient = patients.find(p => p.id == patientId);
+    
+    if (patient) {
+        selectedPatientId = patientId;
+        
+        const fullName = (patient.first_name || '') + ' ' + (patient.middle_name || '' + ' ') + (patient.last_name || '');
+        
+        document.getElementById('appointmentPatientName').textContent = fullName.trim();
+        document.getElementById('appointmentPatientId').value = patientId;
+        document.getElementById('appointmentPatientPhone').value = patient.phone || '';
+        
+        document.getElementById('appointmentModal').classList.add('active');
+    } else {
+        alert('Patient not found');
+    }
+}
+
+function closeAddAppointmentModal() {
+    document.getElementById('appointmentModal').classList.remove('active');
+    selectedPatientId = null;
+    selectedPatientData = null;
+}
+
+document.getElementById('appointmentModal').addEventListener('click', function(e) {
+    if (e.target === this || e.target.classList.contains('modal-backdrop') || e.target.closest('.modal-container') === e.target) {
+        closeAddAppointmentModal();
+    }
+});
+
+document.getElementById('addAppointmentForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    
+    fetch('process_patient_appointment.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Appointment scheduled successfully!');
+            closeAddAppointmentModal();
+            location.reload();
+        } else {
+            alert(data.message || 'Error scheduling appointment');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error scheduling appointment');
+    });
+});
 </script>
+
+<!-- Add Appointment Modal -->
+<div id="appointmentModal" class="modal-overlay">
+    <div class="modal-backdrop"></div>
+    <div class="modal-container">
+        <div class="modal" style="max-width: 480px;">
+            <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Schedule Appointment</h2>
+            
+            <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 14px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #0369a1;">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                </svg>
+                <div>
+                    <div style="font-size: 0.75rem; color: #0369a1; font-weight: 600;">PATIENT</div>
+                    <div id="appointmentPatientName" style="font-weight: 600; color: #0c4a6e;"></div>
+                </div>
+            </div>
+            
+            <form id="addAppointmentForm">
+                <input type="hidden" id="appointmentPatientId" name="patient_id">
+                <input type="hidden" id="appointmentPatientPhone" name="patient_phone">
+                
+                <div style="display: flex; gap: 16px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Date *</label>
+                        <input type="date" name="appointment_date" required class="form-control" min="<?php echo date('Y-m-d'); ?>">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Time *</label>
+                        <input type="time" name="appointment_time" required class="form-control">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Treatment</label>
+                    <select name="treatment" class="form-control">
+                        <option value="General Checkup">General Checkup</option>
+                        <option value="Teeth Cleaning">Teeth Cleaning</option>
+                        <option value="Root Canal">Root Canal</option>
+                        <option value="Tooth Extraction">Tooth Extraction</option>
+                        <option value="Dental Fillings">Dental Fillings</option>
+                        <option value="Braces Adjustment">Braces Adjustment</option>
+                        <option value="Denture Fitting">Denture Fitting</option>
+                        <option value="Oral Prophylaxis">Oral Prophylaxis</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea name="notes" rows="3" class="form-control" placeholder="Additional notes or instructions..."></textarea>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" onclick="closeAddAppointmentModal()" class="btn-cancel">Cancel</button>
+                    <button type="submit" class="btn-primary">Schedule Appointment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 99999;
+}
+
+.modal-overlay.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: backdropFadeIn 0.3s ease;
+}
+
+.modal-overlay.active .modal-backdrop {
+    display: block;
+}
+
+@keyframes backdropFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-container {
+    position: relative;
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 20px;
+    pointer-events: none;
+}
+
+.modal-overlay.active .modal-container {
+    animation: modalSlideIn 0.3s ease;
+    pointer-events: auto;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.modal {
+    background: white;
+    border-radius: 16px;
+    padding: 32px;
+    max-width: 520px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+    pointer-events: auto;
+}
+</style>
 
 <?php require_once 'includes/dentist_layout_end.php'; ?>
