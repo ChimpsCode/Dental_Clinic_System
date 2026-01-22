@@ -12,8 +12,87 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Login button:', loginBtn);
     console.log('Toast element:', toast);
 
-    // Toggle password visibility
+    // Show toast notification function (defined early for use in validation)
+    function showToast(title, message, type = 'success') {
+        if (!toast) return;
+        
+        const toastTitle = toast.querySelector('.toast-title');
+        const toastMessage = toast.querySelector('.toast-message');
+        const toastIcon = toast.querySelector('.toast-icon');
+        const loadingLine = toast.querySelector('.toast-loading-line');
+        
+        if (toastTitle) toastTitle.textContent = title;
+        if (toastMessage) toastMessage.textContent = message;
+        
+        // Update icon based on type
+        if (toastIcon) {
+            if (type === 'error') {
+                toastIcon.textContent = '✕';
+            } else {
+                toastIcon.textContent = '✓';
+            }
+        }
+        
+        // Remove previous type classes
+        toast.classList.remove('error', 'success');
+        
+        // Add type class
+        if (type === 'error') {
+            toast.classList.add('error');
+        } else {
+            toast.classList.add('success');
+        }
+        
+        // Reset loading line animation
+        if (loadingLine) {
+            loadingLine.style.animation = 'none';
+            // Force reflow to reset animation
+            void loadingLine.offsetWidth;
+            loadingLine.style.animation = '';
+        }
+        
+        // Show toast
+        toast.classList.add('show');
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            closeToast();
+        }, 1000);
+    }
+
+    // Close toast function
+    window.closeToast = function() {
+        if (toast) {
+            toast.classList.remove('show');
+        }
+    };
+
+    // Show error message function - now uses toast instead of alert
+    function showError(message) {
+        // Use toast notification instead of alert box
+        showToast('Error', message, 'error');
+    }
+
+    // Toggle password visibility button - show/hide based on input
     if (togglePassword && passwordInput) {
+        // Show/hide toggle button based on password input value
+        function updateToggleVisibility() {
+            if (passwordInput.value.length > 0) {
+                togglePassword.style.display = 'flex';
+            } else {
+                togglePassword.style.display = 'none';
+            }
+        }
+        
+        // Listen to input events
+        passwordInput.addEventListener('input', updateToggleVisibility);
+        passwordInput.addEventListener('paste', updateToggleVisibility);
+        passwordInput.addEventListener('keyup', updateToggleVisibility);
+        
+        // Check initial state
+        updateToggleVisibility();
+        
+        // Toggle password visibility
         togglePassword.addEventListener('click', function() {
             const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
             passwordInput.setAttribute('type', type);
@@ -55,33 +134,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Basic validation
             if (!username) {
-                showError('Please enter your username');
+                showToast('Error', 'Please enter your username', 'error');
                 if (usernameInput) usernameInput.focus();
                 return false;
             }
 
             if (!password) {
-                showError('Please enter your password');
+                showToast('Error', 'Please enter your password', 'error');
                 if (passwordInput) passwordInput.focus();
                 return false;
-            }
-
-            // Show loading state
-            const loginBtnText = document.getElementById('loginBtnText');
-            const loginSpinner = document.getElementById('loginSpinner');
-            
-            if (loginBtnText) {
-                loginBtnText.textContent = 'LOGGING IN...';
-            }
-            if (loginSpinner) {
-                loginSpinner.style.display = 'inline-block';
-            }
-            
-            if (loginBtn) {
-                loginBtn.disabled = true;
-                loginBtn.style.opacity = '0.8';
-                loginBtn.style.cursor = 'wait';
-                loginBtn.style.backgroundColor = '#9ca3af';
             }
 
             // Submit via AJAX
@@ -97,25 +158,59 @@ document.addEventListener('DOMContentLoaded', function() {
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-            .then(response => {
+            .then(async response => {
                 console.log('Response received:', response);
-                return response.json();
+                console.log('Response status:', response.status);
+                console.log('Response ok:', response.ok);
+                
+                // Get response text first
+                const text = await response.text();
+                console.log('Response text:', text);
+                
+                // Check if response is ok
+                if (!response.ok) {
+                    // Try to parse error message if it's JSON
+                    try {
+                        const errorData = JSON.parse(text);
+                        throw { type: 'http_error', status: response.status, data: errorData };
+                    } catch (e) {
+                        if (e.type === 'http_error') throw e;
+                        throw { type: 'http_error', status: response.status, message: 'Server error: ' + response.status };
+                    }
+                }
+                
+                // Try to parse JSON
+                try {
+                    const data = JSON.parse(text);
+                    console.log('Parsed data:', data);
+                    return data;
+                } catch (e) {
+                    console.error('JSON parse error:', e);
+                    console.error('Response text that failed to parse:', text);
+                    // If we can't parse JSON but got a 200 response, it might be HTML (redirect happened)
+                    // Check if we're being redirected
+                    if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+                        // Looks like we got HTML instead of JSON - might be a redirect
+                        // Check if we should redirect
+                        throw { type: 'redirect', message: 'Received HTML response, possible redirect' };
+                    }
+                    throw { type: 'parse_error', message: 'Invalid JSON response from server', originalError: e };
+                }
             })
             .then(data => {
-                console.log('Data:', data);
+                console.log('Processing data:', data);
                 
-                if (data.success) {
+                // Validate data structure
+                if (!data || typeof data !== 'object') {
+                    throw { type: 'invalid_data', message: 'Invalid response format' };
+                }
+                
+                if (data.success === true) {
                     console.log('=== LOGIN SUCCESSFUL ===');
                     console.log('Showing toast...');
                     
-                    // Show success toast with animated border
-                    if (toast) {
-                        toast.classList.add('show');
-                        console.log('Toast show class added');
-                        console.log('Toast current classes:', toast.className);
-                    } else {
-                        console.error('Toast element not found!');
-                    }
+                    // Show success toast
+                    showToast('Success', 'Login successful!', 'success');
                     
                     // Wait 2 seconds for user to see animation
                     console.log('Waiting 2 seconds before redirect...');
@@ -123,67 +218,51 @@ document.addEventListener('DOMContentLoaded', function() {
                         console.log('Redirecting to:', data.redirect || 'admin_dashboard.php');
                         // Redirect based on user role (admin or staff)
                         window.location.href = data.redirect || 'admin_dashboard.php';
-                    }, 2000);
+                    }, 1000);
                 } else {
                     console.log('=== LOGIN FAILED ===');
-                    console.log('Error message:', data.message);
+                    console.log('Error message:', data.message || 'Unknown error');
                     
-                    // Show error
-                    showError(data.message);
-                    
-                    // Reset button state
-                    if (loginBtn) {
-                        loginBtn.disabled = false;
-                        loginBtn.style.opacity = '1';
-                        loginBtn.style.cursor = 'pointer';
-                        loginBtn.style.backgroundColor = '';
-                    }
-                    if (loginBtnText) {
-                        loginBtnText.textContent = 'LOGIN';
-                    }
-                    if (loginSpinner) {
-                        loginSpinner.style.display = 'none';
-                    }
+                    // Show error toast
+                    showToast('Error', data.message || 'An error occurred while logging in', 'error');
                 }
             })
             .catch(error => {
-                console.error('=== NETWORK ERROR ===');
-                console.error('Error:', error);
+                console.error('=== ERROR ===');
+                console.error('Error type:', error.type || error.name);
+                console.error('Error message:', error.message || error);
+                console.error('Full error:', error);
                 
-                showError('Network error. Please try again.');
+                // Don't show error if it's a redirect (login was successful)
+                if (error.type === 'redirect') {
+                    console.log('Redirect detected, login was successful');
+                    return; // Don't show error, just let the redirect happen
+                }
                 
-                // Reset button state
-                if (loginBtn) {
-                    loginBtn.disabled = false;
-                    loginBtn.style.opacity = '1';
-                    loginBtn.style.cursor = 'pointer';
-                    loginBtn.style.backgroundColor = '';
+                // Only show error if we're still on the login page
+                if (!window.location.pathname.includes('login.php')) {
+                    console.log('Not on login page, skipping error display');
+                    return;
                 }
-                if (loginBtnText) {
-                    loginBtnText.textContent = 'LOGIN';
-                }
-                if (loginSpinner) {
-                    loginSpinner.style.display = 'none';
+                
+                // Show appropriate error message
+                if (error.type === 'http_error') {
+                    showToast('Error', error.data?.message || error.message || 'Server error occurred', 'error');
+                } else if (error.type === 'parse_error') {
+                    showToast('Error', 'Server response error. Please try again.', 'error');
+                } else if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
+                    showToast('Error', 'Network error. Please check your connection and try again.', 'error');
+                } else {
+                    showToast('Error', 'An error occurred. Please try again.', 'error');
                 }
             });
         });
     }
 
-    // Show error message function
+    // Show error message function - now uses toast instead of alert
     function showError(message) {
-        if (errorMessage) {
-            errorMessage.textContent = message;
-            errorMessage.style.display = 'block';
-            errorMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        } else {
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'alert alert-error';
-            alertDiv.id = 'errorMessage';
-            alertDiv.textContent = message;
-            if (loginForm) {
-                loginForm.insertBefore(alertDiv, loginForm.firstChild);
-            }
-        }
+        // Use toast notification instead of alert box
+        showToast('Error', message, 'error');
     }
 
     // Input field focus animations
@@ -220,5 +299,16 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(function() {
             usernameInput.focus();
         }, 100);
+    }
+
+    // Show PHP error message as toast on page load if it exists
+    if (errorMessage && errorMessage.textContent.trim()) {
+        const errorText = errorMessage.textContent.trim();
+        if (errorText) {
+            // Hide the alert box
+            errorMessage.style.display = 'none';
+            // Show as toast notification
+            showToast('Error', errorText, 'error');
+        }
     }
 });

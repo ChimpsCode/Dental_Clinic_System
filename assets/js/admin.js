@@ -20,6 +20,9 @@ function initializeAdmin() {
     
     // Initialize form submissions
     initForms();
+    
+    // Initialize user profile dropdown
+    initUserProfileDropdown();
 }
 
 /**
@@ -455,4 +458,33 @@ if (analyticsPeriod) {
         showToast(`Loading ${e.target.options[e.target.selectedIndex].text.toLowerCase()} data...`, 'info');
         // In a real app, this would reload the analytics data
     });
+}
+
+/**
+ * User Profile Dropdown
+ */
+function initUserProfileDropdown() {
+    const userProfile = document.getElementById('userProfileDropdown');
+    
+    if (userProfile) {
+        // Toggle dropdown on click
+        userProfile.addEventListener('click', function(e) {
+            e.stopPropagation();
+            userProfile.classList.toggle('active');
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!userProfile.contains(e.target)) {
+                userProfile.classList.remove('active');
+            }
+        });
+        
+        // Close dropdown on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && userProfile.classList.contains('active')) {
+                userProfile.classList.remove('active');
+            }
+        });
+    }
 }

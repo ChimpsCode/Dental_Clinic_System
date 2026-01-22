@@ -13,7 +13,8 @@ $success = '';
 if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {    
     // Handle AJAX login request
     if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
-        header('Content-Type: application/json');
+        // Set JSON header
+        header('Content-Type: application/json; charset=utf-8');
         
         $username = trim($_POST['username'] ?? '');
         $password = $_POST['password'] ?? '';
@@ -159,7 +160,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
             <h1 class="clinic-name">RF Dental Clinic</h1>
             
             <?php if ($error): ?>
-                <div class="alert alert-error" id="errorMessage"><?php echo htmlspecialchars($error); ?></div>
+                <div class="alert alert-error" id="errorMessage" style="display: none;"><?php echo htmlspecialchars($error); ?></div>
             <?php endif; ?>
             
             <?php if ($success): ?>
@@ -173,7 +174,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 
                 <div class="input-group">
                     <input type="password" id="password" name="password" placeholder="Password" required autocomplete="current-password">
-                    <button type="button" class="toggle-password" id="togglePassword" aria-label="Toggle password visibility">
+                    <button type="button" class="toggle-password" id="togglePassword" aria-label="Toggle password visibility" style="display: none;">
                         <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                             <circle cx="12" cy="12" r="3"></circle>
@@ -193,7 +194,6 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 
                 <button type="submit" class="login-btn" id="loginBtn">
                     <span id="loginBtnText">LOGIN</span>
-                    <span id="loginSpinner" style="display: none; margin-left: 8px;">⏳</span>
                 </button>
             </form>
         </div>
@@ -201,12 +201,21 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
     
     <div id="toast" class="toast">
         <div class="toast-wrapper">
-            <span class="toast-line toast-line-top"></span>
-            <span class="toast-line toast-line-right"></span>
-            <span class="toast-line toast-line-bottom"></span>
-            <span class="toast-line toast-line-left"></span>
-            <span class="toast-icon">✓</span>
-            <span class="toast-message">Login Successful!</span>
+            <div class="toast-left-border"></div>
+            <div class="toast-icon-wrapper">
+                <span class="toast-icon">✓</span>
+            </div>
+            <div class="toast-content">
+                <div class="toast-title">Success</div>
+                <div class="toast-message">Your changes are saved successfully</div>
+            </div>
+            <button class="toast-close" onclick="closeToast()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+            <div class="toast-loading-line"></div>
         </div>
     </div>
     

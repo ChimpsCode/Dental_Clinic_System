@@ -7,6 +7,8 @@
             </div>
         </div>
     </main>
+
+    <script src="assets/js/dashboard.js"></script>
 </body>
 </html>
 <?php

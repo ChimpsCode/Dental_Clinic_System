@@ -106,16 +106,6 @@ function isActivePage($page) {
             </a>
         </nav>
         
-        <div class="sidebar-footer" style="border-top: 1px solid #6b7280; margin-top: 10px; padding-left: 20px;">
-            <a href="logout.php" class="nav-item">
-                <span class="nav-item-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M5 21q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h6q.425 0 .713.288T12 4t-.288.713T11 5H5v14h6q.425 0 .713.288T12 20t-.288.713T11 21zm12.175-8H10q-.425 0-.712-.288T9 12t.288-.712T10 11h7.175L15.3 9.125q-.275-.275-.275-.675t.275-.7t.7-.313t.725.288L20.3 11.3q.3.3.3.7t-.3.7l-3.575 3.575q-.3.3-.712.288t-.713-.313q-.275-.3-.262-.712t.287-.688z"/>
-                    </svg>
-                </span>
-                <span>Logout</span>
-            </a>
-        </div>
     </aside>
 
     <!-- Main Content -->
@@ -130,10 +120,48 @@ function isActivePage($page) {
             </div>
             
             <div class="header-right">
-                <div class="user-profile">
-                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23e5e7eb'/%3E%3Ctext x='16' y='22' font-family='Arial' font-size='18' fill='%236b7280' text-anchor='middle'%3E👨‍⚕️%3C/text%3E%3C/svg%3E" alt="User">
-                    <span class="user-name"><?php echo htmlspecialchars($fullName); ?></span>
-                    <span class="user-role">Dentist</span>
+                <div class="user-profile" id="userProfileDropdown">
+                    <div class="user-profile-info">
+                        <div class="user-avatar">
+                            <?php 
+                            $initials = '';
+                            $nameParts = explode(' ', $fullName);
+                            if (count($nameParts) >= 2) {
+                                $initials = strtoupper(substr($nameParts[0], 0, 1) . substr($nameParts[count($nameParts)-1], 0, 1));
+                            } else {
+                                $initials = strtoupper(substr($fullName, 0, 2));
+                            }
+                            ?>
+                            <span class="avatar-initials"><?php echo $initials; ?></span>
+                        </div>
+                        <div class="user-details">
+                            <span class="user-name"><?php echo htmlspecialchars($fullName); ?></span>
+                            <span class="user-role-badge dentist">Dentist</span>
+                        </div>
+                    </div>
+                    <svg class="dropdown-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                    <div class="user-profile-dropdown">
+                        <div class="dropdown-header">
+                            <div class="user-avatar large">
+                                <span class="avatar-initials"><?php echo $initials; ?></span>
+                            </div>
+                            <div class="dropdown-user-info">
+                                <div class="dropdown-name"><?php echo htmlspecialchars($fullName); ?></div>
+                                <div class="dropdown-email"><?php echo htmlspecialchars($username); ?></div>
+                            </div>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <a href="logout.php" class="dropdown-item logout">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                <polyline points="16 17 21 12 16 7"></polyline>
+                                <line x1="21" y1="12" x2="9" y2="12"></line>
+                            </svg>
+                            <span>Logout</span>
+                        </a>
+                    </div>
                 </div>
             </div>
         </header>

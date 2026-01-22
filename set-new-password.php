@@ -2,32 +2,41 @@
 session_start();
 require_once 'config/database.php';
 
+// Check if user came from forgot password
+if (!isset($_SESSION['reset_email']) || !isset($_SESSION['reset_user_id'])) {
+    header('Location: forgot-password.php');
+    exit();
+}
+
 $error = '';
 $success = '';
+$email = $_SESSION['reset_email'];
+$user_id = $_SESSION['reset_user_id'];
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $email = trim($_POST['email'] ?? '');
+    $password = trim($_POST['password'] ?? '');
+    $confirm_password = trim($_POST['confirm_password'] ?? '');
 
-    if (empty($email)) {
-        $error = 'Please enter your email address';
+    if (empty($password) || empty($confirm_password)) {
+        $error = 'Please fill in all fields';
+    } elseif (strlen($password) < 6) {
+        $error = 'Password must be at least 6 characters';
+    } elseif ($password !== $confirm_password) {
+        $error = 'Passwords do not match';
     } else {
         try {
-            $stmt = $pdo->prepare("SELECT id, username FROM users WHERE email = ?");
-            $stmt->execute([$email]);
-            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+            $stmt = $pdo->prepare("UPDATE users SET password = ? WHERE id = ?");
+            $stmt->execute([$hashed_password, $user_id]);
 
-            if ($user) {
-                // Store email in session for password reset
-                $_SESSION['reset_email'] = $email;
-                $_SESSION['reset_user_id'] = $user['id'];
-                $success = 'Password reset instructions have been sent to your email.';
-                // Redirect to new password page after 2 seconds
-                header("refresh:2;url=set-new-password.php");
-            } else {
-                $error = 'Email not found';
-            }
+            $success = 'Password has been reset successfully!';
+            // Clear session data
+            unset($_SESSION['reset_email']);
+            unset($_SESSION['reset_user_id']);
+            // Redirect to login after 2 seconds
+            header("refresh:2;url=login.php");
         } catch (PDOException $e) {
-            $error = 'Request failed. Please try again.';
+            $error = 'Failed to reset password. Please try again.';
         }
     }
 }
@@ -36,7 +45,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Reset Password - RF Dental Clinic</title>
+    <title>Set New Password - RF Dental Clinic</title>
+    <link rel="stylesheet" href="assets/css/login.css">
     <style>
         * {
             margin: 0;
@@ -90,7 +100,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .logo {
             width: 50px;
             margin-bottom: 20px;
-         
         }
 
         .login-box h2 {
@@ -106,6 +115,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             border-radius: 5px;
             background: #e6e6e6;
             font-size: 14px;
+        }
+
+        .login-box input:focus {
+            outline: none;
+            background: #ddd;
         }
 
         .login-box button {
@@ -144,75 +158,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         .back-link-wrapper a:hover {
             text-decoration: underline;
-        }
-
-        /* Notification Toast */
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 15px 20px;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 14px;
-            z-index: 9999;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-            max-width: 350px;
-            word-wrap: break-word;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            border-left: 5px solid;
-            background: white;
-        }
-
-        .notification.show {
-            opacity: 1;
-        }
-
-        .notification::before {
-            content: '✓';
-            font-size: 20px;
-            font-weight: bold;
-            flex-shrink: 0;
-        }
-
-        .notification::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            height: 3px;
-            background: currentColor;
-            animation: progressBar 2s linear forwards;
-        }
-
-        @keyframes progressBar {
-            0% {
-                width: 0;
-            }
-            100% {
-                width: 100%;
-            }
-        }
-
-        .success-notification {
-            color: #4caf50;
-        }
-
-        .success-notification::before {
-            color: #4caf50;
-        }
-
-        .error-notification {
-            color: #f44336;
-        }
-
-        .error-notification::before {
-            content: '✕';
         }
 
         @media (max-width: 1024px) {
@@ -257,9 +202,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <div class="right">
             <div class="login-box">
                 <img src="assets/images/Logo.png" class="logo" alt="RF Logo">
-                <h2>Reset Password</h2>
+                <h2>Set New Password</h2>
 
-                <p class="description-text">Enter your email address to receive a password reset link.</p>
+                <p class="description-text">Enter your new password to complete the password reset.</p>
 
                 <?php if ($error): ?>
                     <div style="color: #f44336; background: #ffebee; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 13px;">
@@ -273,10 +218,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     </div>
                 <?php endif; ?>
 
-                <form method="POST" action="forgot-password.php">
-                    <input type="email" name="email" placeholder="Enter your email" required autofocus>
+                <form method="POST" action="set-new-password.php">
+                    <input type="password" name="password" placeholder="Enter new password" required>
+                    <input type="password" name="confirm_password" placeholder="Confirm new password" required>
 
-                    <button type="submit">Send Reset Link</button>
+                    <button type="submit">Update Password</button>
 
                     <div class="back-link-wrapper">
                         <a href="login.php">Back to Login</a>
