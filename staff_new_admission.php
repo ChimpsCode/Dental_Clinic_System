@@ -573,11 +573,11 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
                                 <div class="tooth-wrapper" data-tooth="28" onclick="toggleTooth3D(this)"><div class="tooth-face">28</div></div>
 
                                 <!-- Primary Upper Right (51-55) - Hidden by default -->
-                                <div class="tooth-wrapper hidden" data-tooth="51" onclick="toggleTooth3D(this)"><div class="tooth-face">51</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="52" onclick="toggleTooth3D(this)"><div class="tooth-face">52</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="53" onclick="toggleTooth3D(this)"><div class="tooth-face">53</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="54" onclick="toggleTooth3D(this)"><div class="tooth-face">54</div></div>
                                 <div class="tooth-wrapper hidden" data-tooth="55" onclick="toggleTooth3D(this)"><div class="tooth-face">55</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="54" onclick="toggleTooth3D(this)"><div class="tooth-face">54</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="53" onclick="toggleTooth3D(this)"><div class="tooth-face">53</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="52" onclick="toggleTooth3D(this)"><div class="tooth-face">52</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="51" onclick="toggleTooth3D(this)"><div class="tooth-face">51</div></div>
 
                                 <!-- Spacer -->
                                 <div class="w-4"></div>
@@ -619,21 +619,21 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
                                 <div class="tooth-wrapper" data-tooth="38" onclick="toggleTooth3D(this)"><div class="tooth-face">38</div></div>
 
                                 <!-- Primary Lower Right (71-75) - Hidden by default -->
-                                <div class="tooth-wrapper hidden" data-tooth="71" onclick="toggleTooth3D(this)"><div class="tooth-face">71</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="72" onclick="toggleTooth3D(this)"><div class="tooth-face">72</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="73" onclick="toggleTooth3D(this)"><div class="tooth-face">73</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="74" onclick="toggleTooth3D(this)"><div class="tooth-face">74</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="75" onclick="toggleTooth3D(this)"><div class="tooth-face">75</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="85" onclick="toggleTooth3D(this)"><div class="tooth-face">85</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="84" onclick="toggleTooth3D(this)"><div class="tooth-face">84</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="83" onclick="toggleTooth3D(this)"><div class="tooth-face">83</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="82" onclick="toggleTooth3D(this)"><div class="tooth-face">82</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="81" onclick="toggleTooth3D(this)"><div class="tooth-face">81</div></div>
 
                                 <!-- Spacer -->
                                 <div class="w-4"></div>
 
                                 <!-- Primary Lower Left (81-85) - Hidden by default -->
-                                <div class="tooth-wrapper hidden" data-tooth="81" onclick="toggleTooth3D(this)"><div class="tooth-face">81</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="82" onclick="toggleTooth3D(this)"><div class="tooth-face">82</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="83" onclick="toggleTooth3D(this)"><div class="tooth-face">83</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="84" onclick="toggleTooth3D(this)"><div class="tooth-face">84</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="85" onclick="toggleTooth3D(this)"><div class="tooth-face">85</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="71" onclick="toggleTooth3D(this)"><div class="tooth-face">71</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="72" onclick="toggleTooth3D(this)"><div class="tooth-face">72</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="73" onclick="toggleTooth3D(this)"><div class="tooth-face">73</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="74" onclick="toggleTooth3D(this)"><div class="tooth-face">74</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="75" onclick="toggleTooth3D(this)"><div class="tooth-face">75</div></div>
                             </div>
                         </div>
 
