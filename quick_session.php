@@ -27,8 +27,8 @@ $queuePage = ($userRole === 'admin') ? 'admin_queue.php' : 'staff_queue.php';
 try {
     require_once 'config/database.php';
     
-    // Get all services for dropdown
-    $stmt = $pdo->query("SELECT id, name, price, duration_minutes FROM services WHERE is_active = 1 ORDER BY name");
+    // Get all services for dropdown with mode
+    $stmt = $pdo->query("SELECT id, name, price, duration_minutes, mode FROM services WHERE is_active = 1 ORDER BY name");
     $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
     $services = [];
@@ -379,6 +379,31 @@ try {
             color: #64748b;
         }
 
+        .arch-buttons {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .arch-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .arch-btn:hover {
+            background: #2563eb;
+        }
+
         .hidden {
             display: none !important;
         }
@@ -506,14 +531,14 @@ try {
                         
                         <div class="form-group">
                             <label class="form-label">Treatment Type *</label>
-                            <select name="treatment_type" id="treatmentType" class="form-control" required>
+                            <select name="treatment_type" id="treatmentType" class="form-control" required onchange="handleServiceChange()">
                                 <option value="">Select a service...</option>
                                 <?php foreach ($services as $service): ?>
-                                    <option value="<?php echo htmlspecialchars($service['name']); ?>">
+                                    <option value="<?php echo htmlspecialchars($service['name']); ?>" data-mode="<?php echo $service['mode']; ?>">
                                         <?php echo htmlspecialchars($service['name']); ?>
                                     </option>
                                 <?php endforeach; ?>
-                                <option value="Other">Other (Custom)</option>
+                                <option value="Other" data-mode="SINGLE">Other (Custom)</option>
                             </select>
                         </div>
 
@@ -538,13 +563,29 @@ try {
                             </div>
                         </div>
                         
-                        <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 20px;">Click on affected teeth to mark them for treatment. Click again to mark for attention.</p>
+                        <!-- Arch Selection Buttons (Hidden by default, shown for BULK services) -->
+                        <div id="archSelectionButtons" class="arch-buttons" style="display: none; justify-content: center; gap: 16px; margin-bottom: 24px;">
+                            <button type="button" onclick="selectArch('upper')" class="arch-btn">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M2 12h20M2 12a4 4 0 0 1 4-4h12a4 4 0 0 1 4 4"/>
+                                </svg>
+                                Select Upper Arch
+                            </button>
+                            <button type="button" onclick="selectArch('lower')" class="arch-btn">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M2 12h20M2 12a4 4 0 0 0 4 4h12a4 4 0 0 0 4-4"/>
+                                </svg>
+                                Select Lower Arch
+                            </button>
+                        </div>
+                        
+                        <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 20px;" id="chartInstruction">Click on affected teeth to mark them for treatment. Click again to mark for attention.</p>
 
                         <!-- Permanent Teeth (Default) -->
                         <div id="permanentTeethSection">
                             <!-- UPPER ARCH -->
                             <div class="arch-label">Upper Arch (Maxilla)</div>
-                            <div class="arch-container">
+                            <div class="arch-container" id="upperArch">
                                 <?php for ($i = 18; $i >= 11; $i--): ?>
                                     <div class="tooth-wrapper" data-tooth="<?php echo $i; ?>" onclick="toggleTooth3D(this)">
                                         <div class="tooth-face"><?php echo $i; ?></div>
@@ -560,7 +601,7 @@ try {
 
                             <!-- LOWER ARCH -->
                             <div class="arch-label">Lower Arch (Mandible)</div>
-                            <div class="arch-container">
+                            <div class="arch-container" id="lowerArch">
                                 <?php for ($i = 48; $i >= 41; $i--): ?>
                                     <div class="tooth-wrapper" data-tooth="<?php echo $i; ?>" onclick="toggleTooth3D(this)">
                                         <div class="tooth-face"><?php echo $i; ?></div>
@@ -578,7 +619,7 @@ try {
                         <!-- Primary Teeth (Hidden by default) -->
                         <div id="primaryTeethSection" class="hidden">
                             <div class="arch-label">Primary Upper Arch</div>
-                            <div class="arch-container">
+                            <div class="arch-container" id="primaryUpperArch">
                                 <?php for ($i = 55; $i >= 51; $i--): ?>
                                     <div class="tooth-wrapper" data-tooth="<?php echo $i; ?>" onclick="toggleTooth3D(this)">
                                         <div class="tooth-face"><?php echo $i; ?></div>
@@ -593,7 +634,7 @@ try {
                             </div>
 
                             <div class="arch-label">Primary Lower Arch</div>
-                            <div class="arch-container">
+                            <div class="arch-container" id="primaryLowerArch">
                                 <?php for ($i = 85; $i >= 81; $i--): ?>
                                     <div class="tooth-wrapper" data-tooth="<?php echo $i; ?>" onclick="toggleTooth3D(this)">
                                         <div class="tooth-face"><?php echo $i; ?></div>
@@ -711,17 +752,70 @@ try {
             const teeth = Array.from(selected).map(wrapper => wrapper.dataset.tooth);
             document.getElementById('teethNumbers').value = teeth.join(',');
         }
-        
-        // Service selection
-        document.getElementById('treatmentType').addEventListener('change', function() {
+
+        // Handle service change - detect BULK mode and show/hide arch buttons
+        function handleServiceChange() {
+            const select = document.getElementById('treatmentType');
             const customGroup = document.getElementById('customTreatmentGroup');
-            if (this.value === 'Other') {
+            const archButtons = document.getElementById('archSelectionButtons');
+            const instruction = document.getElementById('chartInstruction');
+            const selectedOption = select.options[select.selectedIndex];
+            const mode = selectedOption.dataset.mode || 'SINGLE';
+            const serviceName = select.value;
+
+            // Show/hide custom treatment input
+            if (serviceName === 'Other') {
                 customGroup.style.display = 'block';
             } else {
                 customGroup.style.display = 'none';
             }
-        });
-        
+
+            // Show/hide arch buttons based on mode
+            if (mode === 'BULK') {
+                archButtons.style.display = 'flex';
+                instruction.textContent = 'Click "Select Upper Arch" or "Select Lower Arch" to mark entire arch, or click individual teeth.';
+            } else if (mode === 'SINGLE') {
+                archButtons.style.display = 'none';
+                instruction.textContent = 'Click on affected teeth to mark them for treatment. Click again to mark for attention.';
+            } else {
+                archButtons.style.display = 'none';
+                instruction.textContent = 'Select a service to enable dental chart.';
+            }
+        }
+
+        // Select all teeth in an arch
+        function selectArch(arch) {
+            // Get the appropriate arch element based on current tooth type
+            let archElement;
+            if (toothType === 'primary') {
+                archElement = document.getElementById('primary' + arch.charAt(0).toUpperCase() + arch.slice(1) + 'Arch');
+            } else {
+                archElement = document.getElementById(arch + 'Arch');
+            }
+            
+            if (!archElement) return;
+            
+            const teeth = archElement.querySelectorAll('.tooth-wrapper');
+            
+            // Check if all teeth are already selected
+            const allSelected = Array.from(teeth).every(tooth => 
+                tooth.classList.contains('selected')
+            );
+            
+            teeth.forEach(tooth => {
+                if (allSelected) {
+                    // Deselect all
+                    tooth.classList.remove('selected', 'attention');
+                } else {
+                    // Select all
+                    tooth.classList.add('selected');
+                    tooth.classList.remove('attention');
+                }
+            });
+            
+            updateTeethNumbers();
+        }
+
         // Form submission
         document.getElementById('quickSessionForm').addEventListener('submit', function(e) {
             e.preventDefault();
