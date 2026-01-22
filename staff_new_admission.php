@@ -223,7 +223,7 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
 
     <!-- Top Navigation - Goes back to previous page (Staff Dashboard) -->
     <div class="p-6">
-        <a href="#" onclick="goBack(); return false;" class="inline-flex items-center text-slate-500 hover:text-blue-500 transition-colors">
+        <a href="#" onclick="goBackToDashboard(); return false;" class="inline-flex items-center text-slate-500 hover:text-blue-500 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
             <span class="text-sm font-medium">Back to Dashboard</span>
         </a>
@@ -521,6 +521,18 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
                             Select a service to see instructions
                         </div>
                         
+                        <!-- Tooth Type Toggle Buttons -->
+                        <div class="flex justify-center gap-3 mb-6">
+                            <button type="button" id="btn-primary" onclick="setToothType('primary')" class="px-4 py-2 rounded-lg font-medium transition-colors border-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2Z"/></svg>
+                                Minor
+                            </button>
+                            <button type="button" id="btn-permanent" onclick="setToothType('permanent')" class="px-4 py-2 rounded-lg font-medium transition-colors border-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L18 8L16 6M12 2L10 4L8 2M4 6L2 8L4 10M16 18L18 20L20 22M12 22L10 20L8 22M4 22L2 20L4 18"/></svg>
+                                Adult
+                            </button>
+                        </div>
+                        
                         <!-- Arch Selection Buttons (Hidden by default) -->
                         <div id="archSelectionButtons" class="hidden flex justify-center gap-4 mb-6">
                             <button type="button" onclick="selectArch('upper')" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors flex items-center gap-2">
@@ -537,7 +549,7 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
                         <div class="mb-6 relative">
                             <div id="upperArchLabel" class="text-center text-xs text-slate-400 mb-2 uppercase tracking-wide">Upper Arch (Maxilla)</div>
                             <div class="arch-container" id="upperArch">
-                                <!-- Upper Right (18-11) -->
+                                <!-- Permanent Upper Right (18-11) -->
                                 <div class="tooth-wrapper" data-tooth="18" onclick="toggleTooth3D(this)"><div class="tooth-face">18</div></div>
                                 <div class="tooth-wrapper" data-tooth="17" onclick="toggleTooth3D(this)"><div class="tooth-face">17</div></div>
                                 <div class="tooth-wrapper" data-tooth="16" onclick="toggleTooth3D(this)"><div class="tooth-face">16</div></div>
@@ -550,7 +562,7 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
                                 <!-- Spacer for center -->
                                 <div class="w-4"></div>
 
-                                <!-- Upper Left (21-28) -->
+                                <!-- Permanent Upper Left (21-28) -->
                                 <div class="tooth-wrapper" data-tooth="21" onclick="toggleTooth3D(this)"><div class="tooth-face">21</div></div>
                                 <div class="tooth-wrapper" data-tooth="22" onclick="toggleTooth3D(this)"><div class="tooth-face">22</div></div>
                                 <div class="tooth-wrapper" data-tooth="23" onclick="toggleTooth3D(this)"><div class="tooth-face">23</div></div>
@@ -559,6 +571,23 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
                                 <div class="tooth-wrapper" data-tooth="26" onclick="toggleTooth3D(this)"><div class="tooth-face">26</div></div>
                                 <div class="tooth-wrapper" data-tooth="27" onclick="toggleTooth3D(this)"><div class="tooth-face">27</div></div>
                                 <div class="tooth-wrapper" data-tooth="28" onclick="toggleTooth3D(this)"><div class="tooth-face">28</div></div>
+
+                                <!-- Primary Upper Right (51-55) - Hidden by default -->
+                                <div class="tooth-wrapper hidden" data-tooth="51" onclick="toggleTooth3D(this)"><div class="tooth-face">51</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="52" onclick="toggleTooth3D(this)"><div class="tooth-face">52</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="53" onclick="toggleTooth3D(this)"><div class="tooth-face">53</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="54" onclick="toggleTooth3D(this)"><div class="tooth-face">54</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="55" onclick="toggleTooth3D(this)"><div class="tooth-face">55</div></div>
+
+                                <!-- Spacer -->
+                                <div class="w-4"></div>
+
+                                <!-- Primary Upper Left (61-65) - Hidden by default -->
+                                <div class="tooth-wrapper hidden" data-tooth="61" onclick="toggleTooth3D(this)"><div class="tooth-face">61</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="62" onclick="toggleTooth3D(this)"><div class="tooth-face">62</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="63" onclick="toggleTooth3D(this)"><div class="tooth-face">63</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="64" onclick="toggleTooth3D(this)"><div class="tooth-face">64</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="65" onclick="toggleTooth3D(this)"><div class="tooth-face">65</div></div>
                             </div>
                         </div>
 
@@ -566,7 +595,7 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
                         <div class="relative">
                             <div id="lowerArchLabel" class="text-center text-xs text-slate-400 mb-2 uppercase tracking-wide">Lower Arch (Mandible)</div>
                             <div class="arch-container" id="lowerArch">
-                                <!-- Lower Right (48-41) -->
+                                <!-- Permanent Lower Right (48-41) -->
                                 <div class="tooth-wrapper" data-tooth="48" onclick="toggleTooth3D(this)"><div class="tooth-face">48</div></div>
                                 <div class="tooth-wrapper" data-tooth="47" onclick="toggleTooth3D(this)"><div class="tooth-face">47</div></div>
                                 <div class="tooth-wrapper" data-tooth="46" onclick="toggleTooth3D(this)"><div class="tooth-face">46</div></div>
@@ -579,7 +608,7 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
                                 <!-- Spacer for center -->
                                 <div class="w-4"></div>
 
-                                <!-- Lower Left (31-38) -->
+                                <!-- Permanent Lower Left (31-38) -->
                                 <div class="tooth-wrapper" data-tooth="31" onclick="toggleTooth3D(this)"><div class="tooth-face">31</div></div>
                                 <div class="tooth-wrapper" data-tooth="32" onclick="toggleTooth3D(this)"><div class="tooth-face">32</div></div>
                                 <div class="tooth-wrapper" data-tooth="33" onclick="toggleTooth3D(this)"><div class="tooth-face">33</div></div>
@@ -588,6 +617,23 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
                                 <div class="tooth-wrapper" data-tooth="36" onclick="toggleTooth3D(this)"><div class="tooth-face">36</div></div>
                                 <div class="tooth-wrapper" data-tooth="37" onclick="toggleTooth3D(this)"><div class="tooth-face">37</div></div>
                                 <div class="tooth-wrapper" data-tooth="38" onclick="toggleTooth3D(this)"><div class="tooth-face">38</div></div>
+
+                                <!-- Primary Lower Right (71-75) - Hidden by default -->
+                                <div class="tooth-wrapper hidden" data-tooth="71" onclick="toggleTooth3D(this)"><div class="tooth-face">71</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="72" onclick="toggleTooth3D(this)"><div class="tooth-face">72</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="73" onclick="toggleTooth3D(this)"><div class="tooth-face">73</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="74" onclick="toggleTooth3D(this)"><div class="tooth-face">74</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="75" onclick="toggleTooth3D(this)"><div class="tooth-face">75</div></div>
+
+                                <!-- Spacer -->
+                                <div class="w-4"></div>
+
+                                <!-- Primary Lower Left (81-85) - Hidden by default -->
+                                <div class="tooth-wrapper hidden" data-tooth="81" onclick="toggleTooth3D(this)"><div class="tooth-face">81</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="82" onclick="toggleTooth3D(this)"><div class="tooth-face">82</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="83" onclick="toggleTooth3D(this)"><div class="tooth-face">83</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="84" onclick="toggleTooth3D(this)"><div class="tooth-face">84</div></div>
+                                <div class="tooth-wrapper hidden" data-tooth="85" onclick="toggleTooth3D(this)"><div class="tooth-face">85</div></div>
                             </div>
                         </div>
 
@@ -609,7 +655,7 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
                 <!-- Footer Actions -->
                 <div class="mt-10 flex justify-between">
                     <!-- Back Button (Hidden on Step 1) -->
-                    <button type="button" id="btn-back" onclick="goToStep(1)" class="hidden bg-gray-200 hover:bg-gray-300 text-slate-600 px-8 py-2.5 rounded-md font-medium transition-colors flex items-center gap-2">
+                    <button type="button" id="btn-back" onclick="goBack()" class="hidden bg-gray-200 hover:bg-gray-300 text-slate-600 px-8 py-2.5 rounded-md font-medium transition-colors flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
                         Back
                     </button>
@@ -631,13 +677,20 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
 
     <script>
         // Go back to previous page (Staff Dashboard)
-        function goBack() {
+        function goBackToDashboard() {
             // Try to go back in browser history
             if (document.referrer.includes('staff-dashboard.php')) {
                 window.history.back();
             } else {
                 // If no history, redirect to staff dashboard
                 window.location.href = 'staff-dashboard.php';
+            }
+        }
+
+        // Go back one step in the form
+        function goBack() {
+            if (currentStep > 1) {
+                goToStep(currentStep - 1);
             }
         }
 
@@ -1061,6 +1114,92 @@ btn.classList.add('bg-blue-200', 'border-blue-400');
                 wrapper.classList.add('selected');
             }
         }
+
+        // Tooth Type Toggle Functions
+        let toothType = 'permanent'; // 'primary' or 'permanent'
+        let toothTypeManuallySet = false; // Track if user manually changed
+
+        function setToothType(type) {
+            toothType = type;
+            toothTypeManuallySet = true;
+            updateToothTypeButtons();
+            updateToothVisibility();
+        }
+
+        function updateToothTypeButtons() {
+            const primaryBtn = document.getElementById('btn-primary');
+            const permanentBtn = document.getElementById('btn-permanent');
+            
+            if (toothType === 'primary') {
+                primaryBtn.className = 'px-4 py-2 rounded-lg font-medium transition-colors border-2 border-blue-500 bg-blue-500 text-white';
+                permanentBtn.className = 'px-4 py-2 rounded-lg font-medium transition-colors border-2 border-slate-300 bg-white text-slate-600';
+            } else {
+                primaryBtn.className = 'px-4 py-2 rounded-lg font-medium transition-colors border-2 border-slate-300 bg-white text-slate-600';
+                permanentBtn.className = 'px-4 py-2 rounded-lg font-medium transition-colors border-2 border-blue-500 bg-blue-500 text-white';
+            }
+        }
+
+        function updateToothVisibility() {
+            const primaryTeeth = document.querySelectorAll('[data-tooth="51"], [data-tooth="52"], [data-tooth="53"], [data-tooth="54"], [data-tooth="55"], [data-tooth="61"], [data-tooth="62"], [data-tooth="63"], [data-tooth="64"], [data-tooth="65"], [data-tooth="71"], [data-tooth="72"], [data-tooth="73"], [data-tooth="74"], [data-tooth="75"], [data-tooth="81"], [data-tooth="82"], [data-tooth="83"], [data-tooth="84"], [data-tooth="85"]');
+            const permanentTeeth = document.querySelectorAll('[data-tooth="18"], [data-tooth="17"], [data-tooth="16"], [data-tooth="15"], [data-tooth="14"], [data-tooth="13"], [data-tooth="12"], [data-tooth="11"], [data-tooth="21"], [data-tooth="22"], [data-tooth="23"], [data-tooth="24"], [data-tooth="25"], [data-tooth="26"], [data-tooth="27"], [data-tooth="28"], [data-tooth="48"], [data-tooth="47"], [data-tooth="46"], [data-tooth="45"], [data-tooth="44"], [data-tooth="43"], [data-tooth="42"], [data-tooth="41"], [data-tooth="31"], [data-tooth="32"], [data-tooth="33"], [data-tooth="34"], [data-tooth="35"], [data-tooth="36"], [data-tooth="37"], [data-tooth="38"]');
+            
+            if (toothType === 'primary') {
+                primaryTeeth.forEach(t => {
+                    t.style.display = 'flex';
+                    t.classList.remove('hidden');
+                });
+                permanentTeeth.forEach(t => {
+                    t.style.display = 'none';
+                    t.classList.add('hidden');
+                });
+            } else {
+                primaryTeeth.forEach(t => {
+                    t.style.display = 'none';
+                    t.classList.add('hidden');
+                });
+                permanentTeeth.forEach(t => {
+                    t.style.display = 'flex';
+                    t.classList.remove('hidden');
+                });
+            }
+        }
+
+        function initializeToothTypeFromAge() {
+            const ageInput = document.querySelector('input[name="age"]');
+            if (ageInput && ageInput.value && !toothTypeManuallySet) {
+                const age = parseInt(ageInput.value);
+                // Default to primary teeth for patients under 12, permanent for 12+
+                toothType = age < 12 ? 'primary' : 'permanent';
+                updateToothTypeButtons();
+                updateToothVisibility();
+            }
+        }
+
+        // Listen for age changes to auto-update tooth type
+        document.addEventListener('DOMContentLoaded', function() {
+            const ageInput = document.querySelector('input[name="age"]');
+            if (ageInput) {
+                ageInput.addEventListener('change', function() {
+                    if (!toothTypeManuallySet) {
+                        initializeToothTypeFromAge();
+                    }
+                });
+            }
+            // Also initialize on birthdate change
+            const birthdateInput = document.querySelector('input[name="birthdate"]');
+            if (birthdateInput) {
+                birthdateInput.addEventListener('change', function() {
+                    // Wait for age to be calculated
+                    setTimeout(function() {
+                        if (!toothTypeManuallySet) {
+                            initializeToothTypeFromAge();
+                        }
+                    }, 100);
+                });
+            }
+            // Initial check
+            initializeToothTypeFromAge();
+        });
 
         function handleSubmit() {
             const form = document.getElementById('admissionForm');

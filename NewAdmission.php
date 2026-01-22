@@ -404,36 +404,96 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
                 <!-- STEP 5: Dental Chart -->
                 <div id="step-5" class="hidden space-y-8 flex-1">
                     <section>
-                        <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Dental Chart</h3>
-                        <p class="text-sm text-slate-500 mb-4">Click on teeth to mark them for treatment.</p>
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-1">Dental Chart</h3>
+                                <p class="text-sm text-slate-500">Click on teeth to mark them for treatment.</p>
+                            </div>
+                            
+                            <!-- Tooth Type Toggle Buttons -->
+                            <div class="flex gap-2">
+                                <button type="button" id="btn-primary" onclick="setToothType('primary')" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border-2 border-slate-300 bg-white text-slate-600">
+                                    Primary/Minor
+                                </button>
+                                <button type="button" id="btn-permanent" onclick="setToothType('permanent')" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border-2 border-blue-500 bg-blue-500 text-white">
+                                    Permanent/Adult
+                                </button>
+                            </div>
+                        </div>
                         
-                        <!-- Upper Teeth -->
-                        <div class="mb-4">
-                            <p class="text-xs font-medium text-slate-400 uppercase mb-2">Upper Teeth (18-11)</p>
-                            <div class="flex flex-wrap gap-1 justify-center max-w-md mx-auto">
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="18" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">18</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="17" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">17</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="16" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">16</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="15" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">15</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="14" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">14</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="13" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">13</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="12" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">12</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="11" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">11</button>
+                        <!-- Permanent Teeth (Default) -->
+                        <div id="permanentTeethSection">
+                            <!-- Upper Teeth -->
+                            <div class="mb-4">
+                                <p class="text-xs font-medium text-slate-400 uppercase mb-2">Upper Teeth (18-11)</p>
+                                <div class="flex flex-wrap gap-1 justify-center max-w-md mx-auto">
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="18" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">18</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="17" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">17</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="16" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">16</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="15" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">15</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="14" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">14</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="13" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">13</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="12" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">12</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="11" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">11</button>
+                                </div>
+                            </div>
+
+                            <!-- Lower Teeth -->
+                            <div class="mb-4">
+                                <p class="text-xs font-medium text-slate-400 uppercase mb-2">Lower Teeth (41-48)</p>
+                                <div class="flex flex-wrap gap-1 justify-center max-w-md mx-auto">
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="41" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">41</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="42" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">42</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="43" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">43</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="44" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">44</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="45" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">45</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="46" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">46</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="47" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">47</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="48" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">48</button>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Lower Teeth -->
-                        <div class="mb-4">
-                            <p class="text-xs font-medium text-slate-400 uppercase mb-2">Lower Teeth (41-48)</p>
-                            <div class="flex flex-wrap gap-1 justify-center max-w-md mx-auto">
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="41" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">41</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="42" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">42</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="43" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">43</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="44" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">44</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="45" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">45</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="46" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">46</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="47" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">47</button>
-                                <button type="button" onclick="toggleTooth(this)" data-tooth="48" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">48</button>
+                        <!-- Primary Teeth (Hidden by default) -->
+                        <div id="primaryTeethSection" class="hidden">
+                            <!-- Primary Upper Teeth -->
+                            <div class="mb-4">
+                                <p class="text-xs font-medium text-slate-400 uppercase mb-2">Primary Upper (55-51)</p>
+                                <div class="flex flex-wrap gap-1 justify-center max-w-md mx-auto">
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="55" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">55</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="54" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">54</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="53" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">53</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="52" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">52</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="51" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">51</button>
+                                </div>
+                                <p class="text-xs font-medium text-slate-400 uppercase mb-2 mt-3">Primary Upper (61-65)</p>
+                                <div class="flex flex-wrap gap-1 justify-center max-w-md mx-auto">
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="61" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">61</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="62" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">62</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="63" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">63</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="64" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">64</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="65" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">65</button>
+                                </div>
+                            </div>
+
+                            <!-- Primary Lower Teeth -->
+                            <div class="mb-4">
+                                <p class="text-xs font-medium text-slate-400 uppercase mb-2">Primary Lower (71-75)</p>
+                                <div class="flex flex-wrap gap-1 justify-center max-w-md mx-auto">
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="71" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">71</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="72" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">72</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="73" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">73</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="74" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">74</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="75" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">75</button>
+                                </div>
+                                <p class="text-xs font-medium text-slate-400 uppercase mb-2 mt-3">Primary Lower (81-85)</p>
+                                <div class="flex flex-wrap gap-1 justify-center max-w-md mx-auto">
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="81" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">81</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="82" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">82</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="83" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">83</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="84" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">84</button>
+                                    <button type="button" onclick="toggleTooth(this)" data-tooth="85" class="tooth-btn w-8 h-10 border-2 border-slate-300 rounded bg-white hover:bg-blue-100 text-xs">85</button>
+                                </div>
                             </div>
                         </div>
                     </section>
@@ -441,7 +501,7 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
 
                 <!-- Footer Actions -->
                 <div class="mt-10 flex justify-between">
-                    <button type="button" id="btn-back" onclick="goToStep(1)" class="hidden bg-gray-200 hover:bg-gray-300 text-slate-600 px-8 py-2.5 rounded-md font-medium transition-colors flex items-center gap-2">
+                    <button type="button" id="btn-back" onclick="goBack()" class="hidden bg-gray-200 hover:bg-gray-300 text-slate-600 px-8 py-2.5 rounded-md font-medium transition-colors flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
                         Back
                     </button>
@@ -511,6 +571,13 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
             }
         }
 
+        // Go back one step in the form
+        function goBack() {
+            if (currentStep > 1) {
+                goToStep(currentStep - 1);
+            }
+        }
+
         function updateNav(activeStep) {
             for(let i = 1; i <= 5; i++) {
                 const navItem = document.getElementById('nav-step-' + i);
@@ -552,6 +619,80 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
             }
         }
 
+        // Tooth Type Toggle Functions
+        let toothType = 'permanent'; // 'primary' or 'permanent'
+        let toothTypeManuallySet = false; // Track if user manually changed
+
+        function setToothType(type) {
+            toothType = type;
+            toothTypeManuallySet = true;
+            updateToothTypeButtons();
+            updateToothVisibility();
+        }
+
+        function updateToothTypeButtons() {
+            const primaryBtn = document.getElementById('btn-primary');
+            const permanentBtn = document.getElementById('btn-permanent');
+            
+            if (toothType === 'primary') {
+                primaryBtn.className = 'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border-2 border-blue-500 bg-blue-500 text-white';
+                permanentBtn.className = 'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border-2 border-slate-300 bg-white text-slate-600';
+            } else {
+                primaryBtn.className = 'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border-2 border-slate-300 bg-white text-slate-600';
+                permanentBtn.className = 'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border-2 border-blue-500 bg-blue-500 text-white';
+            }
+        }
+
+        function updateToothVisibility() {
+            const permanentSection = document.getElementById('permanentTeethSection');
+            const primarySection = document.getElementById('primaryTeethSection');
+            
+            if (toothType === 'primary') {
+                permanentSection.classList.add('hidden');
+                primarySection.classList.remove('hidden');
+            } else {
+                permanentSection.classList.remove('hidden');
+                primarySection.classList.add('hidden');
+            }
+        }
+
+        function initializeToothTypeFromAge() {
+            const ageInput = document.querySelector('input[name="age"]');
+            if (ageInput && ageInput.value && !toothTypeManuallySet) {
+                const age = parseInt(ageInput.value);
+                // Default to primary teeth for patients under 12, permanent for 12+
+                toothType = age < 12 ? 'primary' : 'permanent';
+                updateToothTypeButtons();
+                updateToothVisibility();
+            }
+        }
+
+        // Listen for age changes to auto-update tooth type
+        document.addEventListener('DOMContentLoaded', function() {
+            const ageInput = document.querySelector('input[name="age"]');
+            if (ageInput) {
+                ageInput.addEventListener('change', function() {
+                    if (!toothTypeManuallySet) {
+                        initializeToothTypeFromAge();
+                    }
+                });
+            }
+            // Also initialize on birthdate change
+            const birthdateInput = document.querySelector('input[name="birthdate"]');
+            if (birthdateInput) {
+                birthdateInput.addEventListener('change', function() {
+                    // Wait for age to be calculated
+                    setTimeout(function() {
+                        if (!toothTypeManuallySet) {
+                            initializeToothTypeFromAge();
+                        }
+                    }, 100);
+                });
+            }
+            // Initial check
+            initializeToothTypeFromAge();
+        });
+
         function handleSubmit() {
             const form = document.getElementById('admissionForm');
             const formData = new FormData(form);
@@ -583,6 +724,30 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
                 window.location.href = 'dashboard.php';
             }
         }
+
+        // Auto-calculate age from birthdate
+        document.addEventListener('DOMContentLoaded', function() {
+            const birthdateInput = document.querySelector('input[name="birthdate"]');
+            const ageInput = document.querySelector('input[name="age"]');
+            
+            if (birthdateInput && ageInput) {
+                birthdateInput.addEventListener('change', function() {
+                    const birthdate = this.value;
+                    if (birthdate) {
+                        const today = new Date();
+                        const birthDate = new Date(birthdate);
+                        let age = today.getFullYear() - birthDate.getFullYear();
+                        const monthDiff = today.getMonth() - birthDate.getMonth();
+                        
+                        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                            age--;
+                        }
+                        
+                        ageInput.value = age;
+                    }
+                });
+            }
+        });
     </script>
 </body>
 </html>

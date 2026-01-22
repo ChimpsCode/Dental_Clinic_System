@@ -22,14 +22,6 @@ $completedToday = 8;
                 <!-- Summary Cards -->
                 <div class="summary-cards">
                     <div class="summary-card">
-                        <div class="summary-icon yellow">👥</div>
-                        <div class="summary-info">
-                            <h3><?php echo $totalUsers; ?></h3>
-                            <p>Total Users</p>
-                        </div>
-                    </div>
-                    
-                    <div class="summary-card">
                         <div class="summary-icon blue">🏥</div>
                         <div class="summary-info">
                             <h3><?php echo $totalPatients; ?></h3>

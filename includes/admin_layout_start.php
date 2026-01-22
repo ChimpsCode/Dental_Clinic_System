@@ -44,6 +44,59 @@ function isActivePage($page) {
     <link rel="stylesheet" href="assets/css/admin.css">
 </head>
 <body>
+    <!-- Add/Edit User Modal -->
+    <div id="userModal" class="modal-overlay">
+        <div class="modal">
+            <h2 id="modalTitle">Add New User</h2>
+            
+            <form id="userForm">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="username" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="fullName" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="email" class="form-control" required>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group" style="flex:1;">
+                        <label>Role</label>
+                        <select id="role" class="form-control" required>
+                            <option value="staff">Staff</option>
+                            <option value="dentist">Dentist</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Status</label>
+                        <select id="status" class="form-control">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="password" class="form-control">
+                    <small>Leave blank to keep existing password</small>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeUserModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">Save User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Left Sidebar - Admin Navigation -->
     <aside class="sidebar" id="adminSidebar">
         <div class="sidebar-logo">
