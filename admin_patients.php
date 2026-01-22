@@ -199,6 +199,13 @@ function getPatientMenuItems(patientId) {
             </svg>
             View
         </a>
+        <a href="quick_session.php?patient_id=${patientId}" data-action="session" data-id="${patientId}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            New Session
+        </a>
         <a href="javascript:void(0)" data-action="appointment" data-id="${patientId}">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
@@ -291,6 +298,9 @@ function handlePatientKebabClick(e) {
     switch(action) {
         case 'view':
             viewPatientDetails(id);
+            break;
+        case 'session':
+            window.location.href = 'quick_session.php?patient_id=' + id;
             break;
         case 'appointment':
             openAddAppointmentModal(id);

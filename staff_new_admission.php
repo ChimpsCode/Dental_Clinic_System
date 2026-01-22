@@ -525,7 +525,7 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
                         <div class="flex justify-center gap-3 mb-6">
                             <button type="button" id="btn-primary" onclick="setToothType('primary')" class="px-4 py-2 rounded-lg font-medium transition-colors border-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2Z"/></svg>
-                                Minor
+                                Primary
                             </button>
                             <button type="button" id="btn-permanent" onclick="setToothType('permanent')" class="px-4 py-2 rounded-lg font-medium transition-colors border-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L18 8L16 6M12 2L10 4L8 2M4 6L2 8L4 10M16 18L18 20L20 22M12 22L10 20L8 22M4 22L2 20L4 18"/></svg>

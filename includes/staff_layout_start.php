@@ -4,9 +4,12 @@
  * Ensures strict role-based separation: only staff can access staff pages
  * and Staff Sidebar is always displayed regardless of which staff page is loaded.
  */
-//test text*/
 ob_start();
-session_start();
+
+// Start session only if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 // Start session and validate staff access
 if (!isset($_SESSION['user_id'])) {
