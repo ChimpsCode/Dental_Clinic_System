@@ -106,8 +106,8 @@ $lastName = trim(isset($_POST['last_name']) ? $_POST['last_name'] : '');
 
         .login-box {
             background: #f7f7f7;
-            width: 380px;
-            padding: 45px 40px;
+            width: 415px;
+            padding: 11px 40px;
             border-radius: 8px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, .18);
             text-align: center;
@@ -115,12 +115,12 @@ $lastName = trim(isset($_POST['last_name']) ? $_POST['last_name'] : '');
 
         .logo {
             width: 60px;
-            margin-bottom: 15px;
+            margin-bottom: -4px;
         }
 
         .login-box h2 {
             color: #1673ff;
-            margin-bottom: 25px;
+            margin-bottom: 3px;
         }
 
         .login-box input {
@@ -158,7 +158,7 @@ $lastName = trim(isset($_POST['last_name']) ? $_POST['last_name'] : '');
         .description-text {
             color: #666;
             font-size: 14px;
-            margin-bottom: 20px;
+            margin-bottom: 9px;
             line-height: 1.5;
         }
 
