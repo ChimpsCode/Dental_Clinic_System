@@ -128,7 +128,7 @@ require_once 'includes/staff_layout_start.php';
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(6px);
+    backdrop-filter: blur(0px);
     animation: backdropFadeIn 0.25s ease;
 }
 

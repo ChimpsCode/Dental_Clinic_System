@@ -206,16 +206,15 @@ try {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.7);
-    z-index: 10000;
-    align-items: center;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
     justify-content: center;
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(0px);
 }
 .fullscreen-modal-overlay.active {
     display: flex;
+    align-items: center;
 }
 .fullscreen-modal-content {
     background: white;
@@ -377,14 +376,14 @@ try {
     display: block;
 }
 
-/* Appointment Modal Styles */
+/* Modal Styles */
 .modal-overlay {
     display: none;
     position: fixed;
     top: 0;
     left: 0;
-    width: 100vw;
-    height: 100vh;
+    width: 100%;
+    height: 100%;
     z-index: 99999;
 }
 
@@ -399,15 +398,11 @@ try {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100vw;
-    height: 100vh;
+    width: 100%;
+    height: 100%;
     background: rgba(0, 0, 0, 0.7);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-}
-
-.modal-overlay.active .modal-backdrop {
-    display: block;
 }
 
 .modal-container {
