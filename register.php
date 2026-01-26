@@ -41,10 +41,9 @@ $role = isset($_POST['role']) ? trim($_POST['role']) : '';
                 if ($stmt->fetch()) {
                     $error = 'Username already exists';
                 } else {
-                    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-                    $fullName = $firstName . (empty($middleName) ? '' : ' ' . $middleName) . ' ' . $lastName;
-                    $stmt = $pdo->prepare("INSERT INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
-                    $result = $stmt->execute([$username, $hashedPassword, $email, $fullName, $role]);
+$hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+                    $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, middle_name, last_name, role) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                    $result = $stmt->execute([$username, $hashedPassword, $email, $firstName, $middleName, $lastName, $role]);
                     if ($result) {
                         $success = 'Account created successfully! You can now login.';
                     } else {
@@ -136,8 +135,6 @@ $role = isset($_POST['role']) ? trim($_POST['role']) : '';
             background: #e6e6e6;
             font-size: 14px;
         }
-
-        .
 
         .role-selection {
             margin: 20px 0 15px 0;
