@@ -62,7 +62,7 @@ function isActivePage($page) {
             }
         }
 
-        /* Prevent layout shifts during page loads */
+        /* Prevent layout shifts during page loads */d0
         .content-area {
             contain: content;
         }
