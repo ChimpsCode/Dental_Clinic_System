@@ -19,18 +19,8 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
         $username = trim($_POST['username'] ?? '');
         $password = $_POST['password'] ?? '';
         
-        if (empty($username) || empty($password)) {
+if (empty($username) || empty($password)) {
             echo json_encode(['success' => false, 'message' => 'Please fill in all fields']);
-            exit();
-        }
-
-        // Allow quick admin login without DB for development/testing
-        if ($username === 'admin' && $password === 'admin123') {
-            $_SESSION['user_id'] = 0;
-            $_SESSION['username'] = 'admin';
-            $_SESSION['role'] = 'admin';
-            $_SESSION['full_name'] = 'Administrator';
-            echo json_encode(['success' => true, 'message' => 'Logged in successfully', 'redirect' => 'admin_dashboard.php']);
             exit();
         }
 
@@ -41,7 +31,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 throw new Exception('Database connection not available');
             }
             
-            $stmt = $pdo->prepare("SELECT id, username, password, full_name, role FROM users WHERE username = ? LIMIT 1");
+            $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ? LIMIT 1");
             $stmt->execute([$username]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
@@ -49,8 +39,15 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['role'] = $user['role'] ?? 'admin';
-                if (!empty($user['full_name'])) {
+                
+                // Build full_name from available fields
+                if (!empty($user['first_name']) || !empty($user['last_name'])) {
+                    $fullName = trim(($user['first_name'] ?? '') . ' ' . ($user['middle_name'] ?? '') . ' ' . ($user['last_name'] ?? ''));
+                    $_SESSION['full_name'] = $fullName ?: $user['username'];
+                } elseif (!empty($user['full_name'])) {
                     $_SESSION['full_name'] = $user['full_name'];
+                } else {
+                    $_SESSION['full_name'] = $user['username'];
                 }
                 
                 // Redirect based on role
@@ -82,19 +79,9 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
     
-    if (empty($username) || empty($password)) {
+if (empty($username) || empty($password)) {
         $error = 'Please fill in all fields';
     } else {
-        // Allow quick admin login without DB for development/testing
-        if ($username === 'admin' && $password === 'admin123') {
-            $_SESSION['user_id'] = 0;
-            $_SESSION['username'] = 'admin';
-            $_SESSION['role'] = 'admin';
-            $_SESSION['full_name'] = 'Administrator';
-            header('Location: admin_dashboard.php');
-            exit();
-        }
-
         try {
             require_once 'config/database.php';
             
@@ -102,7 +89,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 throw new Exception('Database connection not available');
             }
             
-            $stmt = $pdo->prepare("SELECT id, username, password, full_name, role FROM users WHERE username = ? LIMIT 1");
+            $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ? LIMIT 1");
             $stmt->execute([$username]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
@@ -110,8 +97,15 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['role'] = $user['role'] ?? 'admin';
-                if (!empty($user['full_name'])) {
+                
+                // Build full_name from available fields
+                if (!empty($user['first_name']) || !empty($user['last_name'])) {
+                    $fullName = trim(($user['first_name'] ?? '') . ' ' . ($user['middle_name'] ?? '') . ' ' . ($user['last_name'] ?? ''));
+                    $_SESSION['full_name'] = $fullName ?: $user['username'];
+                } elseif (!empty($user['full_name'])) {
                     $_SESSION['full_name'] = $user['full_name'];
+                } else {
+                    $_SESSION['full_name'] = $user['username'];
                 }
                 
                 // Redirect based on role
