@@ -1,27 +1,64 @@
 <?php
 $pageTitle = 'Appointments';
 
+// Pagination settings
+$itemsPerPage = 10;
+$currentPage = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
+if ($currentPage < 1) $currentPage = 1;
+
 try {
     require_once 'config/database.php';
-    $stmt = $pdo->query("SELECT a.*, 
+    
+    // Get total count for pagination
+    $countStmt = $pdo->query("SELECT COUNT(*) FROM appointments");
+    $totalAppointments = $countStmt->fetchColumn();
+    $totalPages = max(1, ceil($totalAppointments / $itemsPerPage));
+    
+    // Ensure current page is valid
+    if ($currentPage > $totalPages) $currentPage = $totalPages;
+    $offset = ($currentPage - 1) * $itemsPerPage;
+    
+    // Calculate showing range
+    $showingStart = $totalAppointments > 0 ? $offset + 1 : 0;
+    $showingEnd = min($offset + $itemsPerPage, $totalAppointments);
+    
+    // Get all appointments for stats (without pagination)
+    $allStmt = $pdo->query("SELECT a.*, 
+                         CONCAT(p.first_name, ' ', IFNULL(p.middle_name, ''), ' ', p.last_name) as full_name, 
+                         p.phone 
+                         FROM appointments a 
+                         LEFT JOIN patients p ON a.patient_id = p.id");
+    $allAppointments = $allStmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Get paginated appointments
+    $stmt = $pdo->prepare("SELECT a.*, 
                          CONCAT(p.first_name, ' ', IFNULL(p.middle_name, ''), ' ', p.last_name) as full_name, 
                          p.phone 
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id 
-                         ORDER BY a.created_at DESC");
+                         ORDER BY a.created_at DESC
+                         LIMIT :limit OFFSET :offset");
+    $stmt->bindValue(':limit', $itemsPerPage, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
     $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
     $appointments = [];
+    $allAppointments = [];
+    $totalAppointments = 0;
+    $totalPages = 1;
+    $showingStart = 0;
+    $showingEnd = 0;
 }
 
 $today = date('Y-m-d');
-$todayCount = count(array_filter($appointments, function($a) use ($today) {
+$todayCount = count(array_filter($allAppointments, function($a) use ($today) {
     return $a['appointment_date'] === $today;
 }));
-$completedCount = count(array_filter($appointments, function($a) {
+$completedCount = count(array_filter($allAppointments, function($a) {
     return strtolower($a['status'] ?? '') === 'completed';
 }));
-$cancelledCount = count(array_filter($appointments, function($a) {
+$cancelledCount = count(array_filter($allAppointments, function($a) {
     return strtolower($a['status'] ?? '') === 'cancelled';
 }));
 
@@ -48,7 +85,7 @@ require_once 'includes/staff_layout_start.php';
     <div class="summary-card">
         <div class="summary-icon blue" style="background: #e0f2fe; color: #0284c7;">📋</div>
         <div class="summary-info">
-            <h3><?php echo count($appointments); ?></h3>
+            <h3><?php echo $totalAppointments; ?></h3>
             <p>Total Appointments</p>
         </div>
     </div>
@@ -168,7 +205,73 @@ require_once 'includes/staff_layout_start.php';
     </div>
 </div>
 
-<!-- View Appointment Modal -->
+<!-- Pagination -->
+<div class="pagination">
+    <span class="pagination-info">Showing <?php echo $showingStart; ?>-<?php echo $showingEnd; ?> of <?php echo $totalAppointments; ?> appointments</span>
+    <div class="pagination-buttons">
+        <?php if ($currentPage > 1): ?>
+            <a href="?page=<?php echo $currentPage - 1; ?>" class="pagination-btn">Previous</a>
+        <?php else: ?>
+            <button class="pagination-btn" disabled>Previous</button>
+        <?php endif; ?>
+        
+        <?php
+        // Smart page number display
+        $maxVisiblePages = 5;
+        $startPage = max(1, $currentPage - floor($maxVisiblePages / 2));
+        $endPage = min($totalPages, $startPage + $maxVisiblePages - 1);
+        
+        // Adjust start page if we're near the end
+        if ($endPage - $startPage + 1 < $maxVisiblePages) {
+            $startPage = max(1, $endPage - $maxVisiblePages + 1);
+        }
+        
+        // Always show page 1
+        if ($startPage > 1) {
+            ?>
+            <a href="?page=1" class="pagination-btn">1</a>
+            <?php
+            if ($startPage > 2) {
+                ?>
+                <span class="pagination-ellipsis">...</span>
+                <?php
+            }
+        }
+        
+        for ($i = $startPage; $i <= $endPage; $i++) {
+            if ($i == $currentPage) {
+                ?>
+                <button class="pagination-btn active"><?php echo $i; ?></button>
+                <?php
+            } else {
+                ?>
+                <a href="?page=<?php echo $i; ?>" class="pagination-btn"><?php echo $i; ?></a>
+                <?php
+            }
+        }
+        
+        // Always show last page
+        if ($endPage < $totalPages) {
+            if ($endPage < $totalPages - 1) {
+                ?>
+                <span class="pagination-ellipsis">...</span>
+                <?php
+            }
+            ?>
+            <a href="?page=<?php echo $totalPages; ?>" class="pagination-btn"><?php echo $totalPages; ?></a>
+            <?php
+        }
+        ?>
+        
+        <?php if ($currentPage < $totalPages): ?>
+            <a href="?page=<?php echo $currentPage + 1; ?>" class="pagination-btn">Next</a>
+        <?php else: ?>
+            <button class="pagination-btn" disabled>Next</button>
+        <?php endif; ?>
+    </div>
+</div>
+
+ <!-- View Appointment Modal -->
 <div id="viewAppointmentModal" class="modal-overlay">
     <div class="modal" style="width: 500px;">
         <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Appointment Details</h2>
@@ -230,6 +333,68 @@ require_once 'includes/staff_layout_start.php';
         </form>
     </div>
 </div>
+
+<style>
+/* Pagination Styles - Matching Admin Style */
+.pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    margin-top: 12px;
+}
+
+.pagination-info {
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
+.pagination-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.pagination-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    text-decoration: none;
+    color: #4a5568;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    min-width: 32px;
+    cursor: pointer;
+}
+
+.pagination-btn:hover:not(.active):not(:disabled) {
+    background-color: #f7fafc;
+    border-color: #cbd5e0;
+}
+
+.pagination-btn.active {
+    background-color: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+}
+
+.pagination-btn:disabled {
+    color: #a0aec0;
+    background-color: #fff;
+    cursor: not-allowed;
+    border-color: #edf2f7;
+}
+
+.pagination-ellipsis {
+    color: #a0aec0;
+    padding: 0 4px;
+}
+</style>
 
 <script>
     const appointments = <?php echo json_encode($appointments); ?>;

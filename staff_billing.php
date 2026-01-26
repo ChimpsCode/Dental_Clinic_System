@@ -8,7 +8,11 @@
 $pageTitle = 'Billing';
 
 require_once __DIR__ . '/config/database.php';
-require_once __DIR__ . '/includes/staff_layout_start.php';
+
+// Pagination settings
+$itemsPerPage = 10;
+$currentPage = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
+if ($currentPage < 1) $currentPage = 1;
 
 // Get billing records from queue with billing status
 try {
@@ -19,8 +23,65 @@ try {
     $statusFilter = isset($_GET['status']) ? trim($_GET['status']) : '';
     $dateFilter = isset($_GET['date']) ? trim($_GET['date']) : 'today';
     
-    // Build the query - get patients from queue with their billing status
-    // This shows queue entries (especially completed ones) with billing info
+    // Build base WHERE clause for reuse
+    $whereClause = "WHERE q.status IN ('completed', 'in_procedure', 'waiting')";
+    $params = [];
+    
+    // Apply search filter
+    if (!empty($searchQuery)) {
+        $whereClause .= " AND (CONCAT(p.first_name, ' ', p.last_name) LIKE :search 
+                  OR q.treatment_type LIKE :search2)";
+        $params[':search'] = "%$searchQuery%";
+        $params[':search2'] = "%$searchQuery%";
+    }
+    
+    // Apply payment status filter
+    if (!empty($statusFilter)) {
+        if ($statusFilter === 'paid') {
+            $whereClause .= " AND b.payment_status = 'paid'";
+        } elseif ($statusFilter === 'unpaid') {
+            $whereClause .= " AND (b.payment_status IS NULL OR b.payment_status IN ('pending', 'unpaid'))";
+        }
+    }
+    
+    // Apply date filter
+    switch ($dateFilter) {
+        case 'today':
+            $whereClause .= " AND DATE(q.created_at) = CURDATE()";
+            break;
+        case 'week':
+            $whereClause .= " AND q.created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
+            break;
+        case 'month':
+            $whereClause .= " AND q.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
+            break;
+        default:
+            // All time - no filter
+            break;
+    }
+    
+    // Get total count for pagination
+    $countSql = "SELECT COUNT(*) FROM queue q
+                 LEFT JOIN patients p ON q.patient_id = p.id
+                 LEFT JOIN billing b ON b.patient_id = q.patient_id AND DATE(b.billing_date) = DATE(q.created_at)
+                 $whereClause";
+    $countStmt = $conn->prepare($countSql);
+    foreach ($params as $key => $value) {
+        $countStmt->bindValue($key, $value);
+    }
+    $countStmt->execute();
+    $totalRecords = $countStmt->fetchColumn();
+    $totalPages = max(1, ceil($totalRecords / $itemsPerPage));
+    
+    // Ensure current page is valid
+    if ($currentPage > $totalPages) $currentPage = $totalPages;
+    $offset = ($currentPage - 1) * $itemsPerPage;
+    
+    // Calculate showing range
+    $showingStart = $totalRecords > 0 ? $offset + 1 : 0;
+    $showingEnd = min($offset + $itemsPerPage, $totalRecords);
+    
+    // Build the query with pagination
     $sql = "SELECT 
                 q.id as queue_id,
                 q.patient_id,
@@ -41,49 +102,16 @@ try {
             FROM queue q
             LEFT JOIN patients p ON q.patient_id = p.id
             LEFT JOIN billing b ON b.patient_id = q.patient_id AND DATE(b.billing_date) = DATE(q.created_at)
-            WHERE q.status IN ('completed', 'in_procedure', 'waiting')";
-    
-    $params = [];
-    
-    // Apply search filter
-    if (!empty($searchQuery)) {
-        $sql .= " AND (CONCAT(p.first_name, ' ', p.last_name) LIKE :search 
-                  OR q.treatment_type LIKE :search2)";
-        $params[':search'] = "%$searchQuery%";
-        $params[':search2'] = "%$searchQuery%";
-    }
-    
-    // Apply payment status filter
-    if (!empty($statusFilter)) {
-        if ($statusFilter === 'paid') {
-            $sql .= " AND b.payment_status = 'paid'";
-        } elseif ($statusFilter === 'unpaid') {
-            $sql .= " AND (b.payment_status IS NULL OR b.payment_status IN ('pending', 'unpaid'))";
-        }
-    }
-    
-    // Apply date filter
-    switch ($dateFilter) {
-        case 'today':
-            $sql .= " AND DATE(q.created_at) = CURDATE()";
-            break;
-        case 'week':
-            $sql .= " AND q.created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
-            break;
-        case 'month':
-            $sql .= " AND q.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
-            break;
-        default:
-            // All time - no filter
-            break;
-    }
-    
-    $sql .= " ORDER BY q.created_at DESC";
+            $whereClause
+            ORDER BY q.created_at DESC
+            LIMIT :limit OFFSET :offset";
     
     $stmt = $conn->prepare($sql);
     foreach ($params as $key => $value) {
         $stmt->bindValue($key, $value);
     }
+    $stmt->bindValue(':limit', $itemsPerPage, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
     $stmt->execute();
     $billingRecords = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
@@ -115,6 +143,10 @@ try {
         'unpaid_today' => 0
     ];
     $servicesMap = [];
+    $totalRecords = 0;
+    $totalPages = 1;
+    $showingStart = 0;
+    $showingEnd = 0;
 }
 
 // Helper function to calculate amount from treatment type
@@ -131,6 +163,8 @@ function calculateAmount($treatmentType, $servicesMap) {
     }
     return $total > 0 ? $total : 500; // Default amount if service not found
 }
+
+require_once __DIR__ . '/includes/staff_layout_start.php';
 ?>
             <div class="content-main">
                 <!-- Page Header -->
@@ -305,10 +339,78 @@ function calculateAmount($treatmentType, $servicesMap) {
                     </table>
                 </div>
 
-                <?php if (count($billingRecords) > 0): ?>
-                <!-- Pagination Info -->
+                <?php if ($totalRecords > 0): ?>
+                <!-- Pagination -->
                 <div class="pagination">
-                    <span class="pagination-info">Showing <?php echo count($billingRecords); ?> records</span>
+                    <span class="pagination-info">Showing <?php echo $showingStart; ?>-<?php echo $showingEnd; ?> of <?php echo $totalRecords; ?> records</span>
+                    <div class="pagination-buttons">
+                        <?php 
+                        // Build query string for pagination links (preserve filters)
+                        $queryParams = [];
+                        if (!empty($searchQuery)) $queryParams['search'] = $searchQuery;
+                        if (!empty($statusFilter)) $queryParams['status'] = $statusFilter;
+                        if (!empty($dateFilter)) $queryParams['date'] = $dateFilter;
+                        $queryString = http_build_query($queryParams);
+                        $queryString = $queryString ? '&' . $queryString : '';
+                        ?>
+                        
+                        <?php if ($currentPage > 1): ?>
+                            <a href="?page=<?php echo $currentPage - 1 . $queryString; ?>" class="pagination-btn">Previous</a>
+                        <?php else: ?>
+                            <button class="pagination-btn" disabled>Previous</button>
+                        <?php endif; ?>
+                        
+                        <?php
+                        // Smart page number display
+                        $maxVisiblePages = 5;
+                        $startPage = max(1, $currentPage - floor($maxVisiblePages / 2));
+                        $endPage = min($totalPages, $startPage + $maxVisiblePages - 1);
+                        
+                        if ($endPage - $startPage + 1 < $maxVisiblePages) {
+                            $startPage = max(1, $endPage - $maxVisiblePages + 1);
+                        }
+                        
+                        if ($startPage > 1) {
+                            ?>
+                            <a href="?page=1<?php echo $queryString; ?>" class="pagination-btn">1</a>
+                            <?php
+                            if ($startPage > 2) {
+                                ?>
+                                <span class="pagination-ellipsis">...</span>
+                                <?php
+                            }
+                        }
+                        
+                        for ($i = $startPage; $i <= $endPage; $i++) {
+                            if ($i == $currentPage) {
+                                ?>
+                                <button class="pagination-btn active"><?php echo $i; ?></button>
+                                <?php
+                            } else {
+                                ?>
+                                <a href="?page=<?php echo $i . $queryString; ?>" class="pagination-btn"><?php echo $i; ?></a>
+                                <?php
+                            }
+                        }
+                        
+                        if ($endPage < $totalPages) {
+                            if ($endPage < $totalPages - 1) {
+                                ?>
+                                <span class="pagination-ellipsis">...</span>
+                                <?php
+                            }
+                            ?>
+                            <a href="?page=<?php echo $totalPages . $queryString; ?>" class="pagination-btn"><?php echo $totalPages; ?></a>
+                            <?php
+                        }
+                        ?>
+                        
+                        <?php if ($currentPage < $totalPages): ?>
+                            <a href="?page=<?php echo $currentPage + 1 . $queryString; ?>" class="pagination-btn">Next</a>
+                        <?php else: ?>
+                            <button class="pagination-btn" disabled>Next</button>
+                        <?php endif; ?>
+                    </div>
                 </div>
                 <?php endif; ?>
             </div>
@@ -635,15 +737,64 @@ function calculateAmount($treatmentType, $servicesMap) {
                     margin-bottom: 0.5rem;
                 }
 
+                /* Pagination Styles - Matching Admin Style */
                 .pagination {
-                    padding: 1rem;
                     display: flex;
-                    justify-content: center;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 16px 20px;
+                    margin-top: 12px;
                 }
 
                 .pagination-info {
                     color: #6b7280;
                     font-size: 0.875rem;
+                }
+
+                .pagination-buttons {
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                }
+
+                .pagination-btn {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 8px 16px;
+                    background-color: #ffffff;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 6px;
+                    text-decoration: none;
+                    color: #4a5568;
+                    font-size: 14px;
+                    transition: all 0.2s ease;
+                    min-width: 32px;
+                    cursor: pointer;
+                }
+
+                .pagination-btn:hover:not(.active):not(:disabled) {
+                    background-color: #f7fafc;
+                    border-color: #cbd5e0;
+                }
+
+                .pagination-btn.active {
+                    background-color: #2563eb;
+                    color: #ffffff;
+                    border-color: #2563eb;
+                }
+
+                .pagination-btn:disabled {
+                    color: #a0aec0;
+                    background-color: #fff;
+                    cursor: not-allowed;
+                    border-color: #edf2f7;
+                }
+
+                .pagination-ellipsis {
+                    color: #a0aec0;
+                    padding: 0 4px;
                 }
 
                 /* Modal Styles */

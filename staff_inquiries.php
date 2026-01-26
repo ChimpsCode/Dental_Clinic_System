@@ -1,13 +1,47 @@
 <?php
 $pageTitle = 'Inquiries';
 
+// Pagination settings
+$itemsPerPage = 10;
+$currentPage = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+
 try {
     require_once 'config/database.php';
-    $stmt = $pdo->query("SELECT * FROM inquiries ORDER BY created_at DESC");
+    
+    // Get total count for pagination
+    $countStmt = $pdo->query("SELECT COUNT(*) FROM inquiries");
+    $totalInquiries = $countStmt->fetchColumn();
+    $totalPages = ceil($totalInquiries / $itemsPerPage);
+    
+    // Make sure current page is within bounds
+    if ($currentPage > $totalPages && $totalPages > 0) {
+        $currentPage = $totalPages;
+    }
+    
+    // Calculate offset
+    $offset = ($currentPage - 1) * $itemsPerPage;
+    
+    // Get paginated inquiries
+    $stmt = $pdo->prepare("SELECT * FROM inquiries ORDER BY created_at DESC LIMIT :limit OFFSET :offset");
+    $stmt->bindValue(':limit', $itemsPerPage, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
     $inquiries = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Get all inquiries for stats (without pagination)
+    $allInquiriesStmt = $pdo->query("SELECT status FROM inquiries");
+    $allInquiriesForStats = $allInquiriesStmt->fetchAll(PDO::FETCH_ASSOC);
+    
 } catch (Exception $e) {
     $inquiries = [];
+    $allInquiriesForStats = [];
+    $totalInquiries = 0;
+    $totalPages = 0;
 }
+
+// Calculate showing range
+$showingStart = $totalInquiries > 0 ? $offset + 1 : 0;
+$showingEnd = min($offset + $itemsPerPage, $totalInquiries);
 
 require_once 'includes/staff_layout_start.php';
 ?>
@@ -268,34 +302,94 @@ require_once 'includes/staff_layout_start.php';
     background: #f9fafb;
     border-color: #9ca3af;
 }
+
+/* Pagination Styles - Matching Admin Style */
+.pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    margin-top: 12px;
+}
+
+.pagination-info {
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
+.pagination-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.pagination-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    text-decoration: none;
+    color: #4a5568;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    min-width: 32px;
+    cursor: pointer;
+}
+
+.pagination-btn:hover:not(.active):not(:disabled) {
+    background-color: #f7fafc;
+    border-color: #cbd5e0;
+}
+
+.pagination-btn.active {
+    background-color: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+}
+
+.pagination-btn:disabled {
+    color: #a0aec0;
+    background-color: #fff;
+    cursor: not-allowed;
+    border-color: #edf2f7;
+}
+
+.pagination-ellipsis {
+    color: #a0aec0;
+    padding: 0 4px;
+}
 </style>
 
             <div class="summary-cards">
                 <div class="summary-card">
                     <div class="summary-icon blue" style="background: #e0f2fe; color: #0284c7;">📋</div>
                     <div class="summary-info">
-                        <h3><?php echo count($inquiries); ?></h3>
+                        <h3><?php echo $totalInquiries; ?></h3>
                         <p>Total Inquiries</p>
                     </div>
                 </div>
                 <div class="summary-card">
                     <div class="summary-icon yellow">⏳</div>
                     <div class="summary-info">
-                        <h3><?php echo count(array_filter($inquiries, fn($i) => $i['status'] === 'Pending')); ?></h3>
+                        <h3><?php echo count(array_filter($allInquiriesForStats, fn($i) => $i['status'] === 'Pending')); ?></h3>
                         <p>Pending</p>
                     </div>
                 </div>
                 <div class="summary-card">
                     <div class="summary-icon green">✅</div>
                     <div class="summary-info">
-                        <h3><?php echo count(array_filter($inquiries, fn($i) => $i['status'] === 'Booked')); ?></h3>
+                        <h3><?php echo count(array_filter($allInquiriesForStats, fn($i) => $i['status'] === 'Booked')); ?></h3>
                         <p>Booked</p>
                     </div>
                 </div>
                 <div class="summary-card">
                     <div class="summary-icon gray">📥</div>
                     <div class="summary-info">
-                        <h3><?php echo count(array_filter($inquiries, fn($i) => $i['status'] === 'New Admission')); ?></h3>
+                        <h3><?php echo count(array_filter($allInquiriesForStats, fn($i) => $i['status'] === 'New Admission')); ?></h3>
                         <p>New Admission</p>
                     </div>
                 </div>
@@ -381,6 +475,54 @@ require_once 'includes/staff_layout_start.php';
                     </table>
                 </div>
             </div>
+
+            <!-- Pagination (outside section-card) -->
+            <?php if ($totalInquiries > 0): ?>
+                
+            <div class="pagination">
+                <span class="pagination-info">Showing <?php echo $showingStart; ?>-<?php echo $showingEnd; ?> of <?php echo $totalInquiries; ?> inquiries</span>
+                <div class="pagination-buttons">
+                    <?php if ($currentPage > 1): ?>
+                        <a href="?page=<?php echo $currentPage - 1; ?>" class="pagination-btn">Previous</a>
+                    <?php else: ?>
+                        <button class="pagination-btn" disabled>Previous</button>
+                    <?php endif; ?>
+                    
+                    <?php
+                    // Show page numbers
+                    $startPage = max(1, $currentPage - 2);
+                    $endPage = min($totalPages, $currentPage + 2);
+                    
+                    if ($startPage > 1): ?>
+                        <a href="?page=1" class="pagination-btn">1</a>
+                        <?php if ($startPage > 2): ?>
+                            <span class="pagination-ellipsis">...</span>
+                        <?php endif; ?>
+                    <?php endif; ?>
+                    
+                    <?php for ($i = $startPage; $i <= $endPage; $i++): ?>
+                        <?php if ($i == $currentPage): ?>
+                            <button class="pagination-btn active"><?php echo $i; ?></button>
+                        <?php else: ?>
+                            <a href="?page=<?php echo $i; ?>" class="pagination-btn"><?php echo $i; ?></a>
+                        <?php endif; ?>
+                    <?php endfor; ?>
+                    
+                    <?php if ($endPage < $totalPages): ?>
+                        <?php if ($endPage < $totalPages - 1): ?>
+                            <span class="pagination-ellipsis">...</span>
+                        <?php endif; ?>
+                        <a href="?page=<?php echo $totalPages; ?>" class="pagination-btn"><?php echo $totalPages; ?></a>
+                    <?php endif; ?>
+                    
+                    <?php if ($currentPage < $totalPages): ?>
+                        <a href="?page=<?php echo $currentPage + 1; ?>" class="pagination-btn">Next</a>
+                    <?php else: ?>
+                        <button class="pagination-btn" disabled>Next</button>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endif; ?>
 
     <div id="viewModal" class="modal-overlay">
         <div class="modal-backdrop"></div>

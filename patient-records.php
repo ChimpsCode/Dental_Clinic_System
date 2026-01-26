@@ -2,28 +2,62 @@
 $pageTitle = 'Patient Records';
 require_once 'includes/staff_layout_start.php';
 
+// Pagination settings
+$itemsPerPage = 10;
+$currentPage = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
+if ($currentPage < 1) $currentPage = 1;
+
 try {
     require_once 'config/database.php';
     
-    // Get all patients with queue status
-    $stmt = $pdo->query("
+    // Get total count for pagination
+    $countStmt = $pdo->query("SELECT COUNT(*) FROM patients");
+    $totalPatients = $countStmt->fetchColumn();
+    $totalPages = max(1, ceil($totalPatients / $itemsPerPage));
+    
+    // Ensure current page is valid
+    if ($currentPage > $totalPages) $currentPage = $totalPages;
+    $offset = ($currentPage - 1) * $itemsPerPage;
+    
+    // Calculate showing range
+    $showingStart = $totalPatients > 0 ? $offset + 1 : 0;
+    $showingEnd = min($offset + $itemsPerPage, $totalPatients);
+    
+    // Get all patients for stats (without pagination)
+    $allStmt = $pdo->query("
+        SELECT p.*,
+               (SELECT status FROM queue WHERE patient_id = p.id ORDER BY created_at DESC LIMIT 1) as queue_status,
+               (SELECT treatment_type FROM queue WHERE patient_id = p.id ORDER BY created_at DESC LIMIT 1) as current_treatment
+        FROM patients p
+    ");
+    $allPatients = $allStmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Get paginated patients
+    $stmt = $pdo->prepare("
         SELECT p.*,
                (SELECT status FROM queue WHERE patient_id = p.id ORDER BY created_at DESC LIMIT 1) as queue_status,
                (SELECT treatment_type FROM queue WHERE patient_id = p.id ORDER BY created_at DESC LIMIT 1) as current_treatment
         FROM patients p 
         ORDER BY p.created_at DESC
+        LIMIT :limit OFFSET :offset
     ");
+    $stmt->bindValue(':limit', $itemsPerPage, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
     $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Calculate stats
-    $totalPatients = count($patients);
-    $inQueue = count(array_filter($patients, fn($p) => in_array($p['queue_status'] ?? '', ['waiting', 'in_procedure'])));
-    $scheduledCount = count(array_filter($patients, fn($p) => ($p['queue_status'] ?? '') === 'scheduled'));
-    $newThisMonth = count(array_filter($patients, fn($p) => !empty($p['created_at']) && strtotime($p['created_at']) > strtotime('-30 days')));
+    // Calculate stats from all patients
+    $inQueue = count(array_filter($allPatients, fn($p) => in_array($p['queue_status'] ?? '', ['waiting', 'in_procedure'])));
+    $scheduledCount = count(array_filter($allPatients, fn($p) => ($p['queue_status'] ?? '') === 'scheduled'));
+    $newThisMonth = count(array_filter($allPatients, fn($p) => !empty($p['created_at']) && strtotime($p['created_at']) > strtotime('-30 days')));
     
 } catch (Exception $e) {
     $patients = [];
+    $allPatients = [];
     $totalPatients = 0;
+    $totalPages = 1;
+    $showingStart = 0;
+    $showingEnd = 0;
     $inQueue = 0;
     $scheduledCount = 0;
     $newThisMonth = 0;
@@ -184,6 +218,71 @@ try {
         </table>
     </div>
 </div>
+
+<!-- Pagination -->
+<?php if ($totalPatients > 0): ?>
+<div class="pagination">
+    <span class="pagination-info">Showing <?php echo $showingStart; ?>-<?php echo $showingEnd; ?> of <?php echo $totalPatients; ?> patients</span>
+    <div class="pagination-buttons">
+        <?php if ($currentPage > 1): ?>
+            <a href="?page=<?php echo $currentPage - 1; ?>" class="pagination-btn">Previous</a>
+        <?php else: ?>
+            <button class="pagination-btn" disabled>Previous</button>
+        <?php endif; ?>
+        
+        <?php
+        // Smart page number display
+        $maxVisiblePages = 5;
+        $startPage = max(1, $currentPage - floor($maxVisiblePages / 2));
+        $endPage = min($totalPages, $startPage + $maxVisiblePages - 1);
+        
+        if ($endPage - $startPage + 1 < $maxVisiblePages) {
+            $startPage = max(1, $endPage - $maxVisiblePages + 1);
+        }
+        
+        if ($startPage > 1) {
+            ?>
+            <a href="?page=1" class="pagination-btn">1</a>
+            <?php
+            if ($startPage > 2) {
+                ?>
+                <span class="pagination-ellipsis">...</span>
+                <?php
+            }
+        }
+        
+        for ($i = $startPage; $i <= $endPage; $i++) {
+            if ($i == $currentPage) {
+                ?>
+                <button class="pagination-btn active"><?php echo $i; ?></button>
+                <?php
+            } else {
+                ?>
+                <a href="?page=<?php echo $i; ?>" class="pagination-btn"><?php echo $i; ?></a>
+                <?php
+            }
+        }
+        
+        if ($endPage < $totalPages) {
+            if ($endPage < $totalPages - 1) {
+                ?>
+                <span class="pagination-ellipsis">...</span>
+                <?php
+            }
+            ?>
+            <a href="?page=<?php echo $totalPages; ?>" class="pagination-btn"><?php echo $totalPages; ?></a>
+            <?php
+        }
+        ?>
+        
+        <?php if ($currentPage < $totalPages): ?>
+            <a href="?page=<?php echo $currentPage + 1; ?>" class="pagination-btn">Next</a>
+        <?php else: ?>
+            <button class="pagination-btn" disabled>Next</button>
+        <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
 
 <!-- Full Screen Patient Record Modal -->
 <div id="patientRecordModal" class="fullscreen-modal-overlay">
@@ -494,6 +593,66 @@ try {
 .btn-cancel:hover {
     background: #f9fafb;
     border-color: #9ca3af;
+}
+
+/* Pagination Styles - Matching Admin Style */
+.pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    margin-top: 12px;
+}
+
+.pagination-info {
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
+.pagination-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.pagination-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    text-decoration: none;
+    color: #4a5568;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    min-width: 32px;
+    cursor: pointer;
+}
+
+.pagination-btn:hover:not(.active):not(:disabled) {
+    background-color: #f7fafc;
+    border-color: #cbd5e0;
+}
+
+.pagination-btn.active {
+    background-color: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+}
+
+.pagination-btn:disabled {
+    color: #a0aec0;
+    background-color: #fff;
+    cursor: not-allowed;
+    border-color: #edf2f7;
+}
+
+.pagination-ellipsis {
+    color: #a0aec0;
+    padding: 0 4px;
 }
 </style>
 
