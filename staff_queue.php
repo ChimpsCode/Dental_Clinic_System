@@ -11,7 +11,7 @@ try {
                p.dental_insurance, p.email, p.medical_conditions, p.middle_name, p.suffix,
                p.city, p.province, p.religion
         FROM queue q 
-        LEFT JOIN patients p ON q.patient_id = p.id 
+        LEFT JOIN patients p ON q.patien        WHERE DATE(q.queue_time) = CURDATE()
         ORDER BY 
             CASE q.status 
                 WHEN 'in_procedure' THEN 1 
@@ -28,6 +28,8 @@ try {
     $procedureCount = count(array_filter($queueItems, fn($q) => $q['status'] === 'in_procedure'));
     $completedToday = count(array_filter($queueItems, fn($q) => $q['status'] === 'completed'));
     $onHoldCount = count(array_filter($queueItems, fn($q) => $q['status'] === 'on_hold'));
+    $cancelledCount = count(array_filter($queueItems, fn($q) => $q['status'] === 'cancelled'));
+    $totalInQueue = $waitingCount + $procedureCount + $onHoldCount;
     
 } catch (Exception $e) {
     $queueItems = [];
@@ -35,856 +37,758 @@ try {
     $procedureCount = 0;
     $completedToday = 0;
     $onHoldCount = 0;
+    $cancelledCount = 0;
+    $totalInQueue = 0;
 }
 ?>
 
 <style>
-/* Full Screen Modal Overlay */
-.fullscreen-modal-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.7);
-    z-index: 10000;
-    align-items: center;
-    justify-content: center;
-    backdrop-filter: blur(4px);
+/* Ensure consistent background */
+.content-area {
+    background-color: #f3f4f6;
 }
 
-.fullscreen-modal-overlay.active {
-    display: flex;
-}
-
-.fullscreen-modal-content {
-    background: white;
-    border-radius: 16px;
-    width: 95%;
-    max-width: 900px;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-}
-
-.fullscreen-modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 24px;
-    border-bottom: 1px solid #e5e7eb;
-    position: sticky;
-    top: 0;
-    background: white;
-    z-index: 10;
-}
-
-.fullscreen-modal-close {
-    background: none;
-    border: none;
-    font-size: 2rem;
-    cursor: pointer;
-    color: #6b7280;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    transition: all 0.2s;
-}
-
-.fullscreen-modal-close:hover {
-    background: #f3f4f6;
-    color: #111827;
-}
-
-.fullscreen-modal-body {
-    padding: 24px;
-}
-
-/* 3D Dental Chart Styles for Modal */
-.dental-chart-modal {
-    perspective: 1000px;
-    padding: 20px;
-}
-
-.dental-arch-modal {
-    display: flex;
-    justify-content: center;
-    gap: 4px;
-    margin-bottom: 20px;
-    transform-style: preserve-3d;
-}
-
-.tooth-modal {
-    width: 36px;
-    height: 48px;
-    position: relative;
-    transform-style: preserve-3d;
-    transform: rotateX(-15deg);
-    transition: transform 0.3s ease;
-    cursor: default;
-}
-
-.tooth-modal.selected {
-    transform: rotateX(0deg) scale(1.15);
-    z-index: 10;
-}
-
-.tooth-modal .tooth-face-modal {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    background: white;
-    border: 2px solid #d1d5db;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: #6b7280;
-    transition: all 0.2s;
-}
-
-.tooth-modal.selected .tooth-face-modal {
-    background: #3b82f6;
-    border-color: #1d4ed8;
-    color: white;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-}
-
-.tooth-label {
-    position: absolute;
-    bottom: -24px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 0.65rem;
-    color: #9ca3af;
-    white-space: nowrap;
-}
-
-/* Patient Info Grid */
-.patient-info-grid {
+/* Top Summary Widgets */
+.summary-widgets {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-    margin-bottom: 20px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 24px;
 }
 
-.patient-info-item {
-    background: #f9fafb;
-    padding: 12px 16px;
-    border-radius: 8px;
-}
-
-.patient-info-label {
-    font-size: 0.75rem;
-    color: #6b7280;
-    margin-bottom: 4px;
-}
-
-.patient-info-value {
-    font-weight: 600;
-    color: #111827;
-}
-
-/* Medical Alert Box */
-.medical-alert {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
+.summary-widget {
+    background: white;
     border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 20px;
+    padding: 24px;
+    border: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: all 0.2s;
 }
 
-.medical-alert-title {
-    color: #dc2626;
-    font-weight: 600;
-    margin-bottom: 12px;
+.summary-widget:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.summary-widget-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
     display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+}
+
+.summary-widget-icon.yellow {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.summary-widget-icon.green {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.summary-widget-icon.red {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.summary-widget-icon.gray {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.summary-widget-info h3 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+    line-height: 1;
+}
+
+.summary-widget-info p {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin: 4px 0 0 0;
+}
+
+/* Control Bar */
+.control-bar {
+    background: white;
+    border-radius: 12px;
+    padding: 20px 24px;
+    border: 1px solid #e5e7eb;
+    margin-bottom: 24px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
+.control-bar .search-input {
+    flex: 1;
+    padding: 12px 16px 12px 44px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    outline: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='%236b7280'%3E%3Cpath d='m19.6 21l-6.3-6.3q-.75.6-1.725.95T9.5 16q-2.725 0-4.612-1.888T3 9.5t1.888-4.612T9.5 3t4.613 1.888T16 9.5q0 1.1-.35 2.075T14.7 13.3l6.3 6.3zM9.5 14q1.875 0 3.188-1.312T14 9.5t-1.312-3.187T9.5 5T6.313 6.313T5 9.5t1.313 3.188T9.5 14'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 14px center;
+    transition: border-color 0.2s;
+}
+
+.control-bar .search-input:focus {
+    border-color: #2563eb;
+}
+
+.control-bar .filter-select {
+    padding: 12px 16px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: white;
+    cursor: pointer;
+    min-width: 150px;
+}
+
+.control-bar .btn-add-patient {
+    padding: 12px 24px;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
     align-items: center;
     gap: 8px;
+    transition: background 0.2s;
 }
 
-.medical-alert-grid {
+.control-bar .btn-add-patient:hover {
+    background: #1d4ed8;
+}
+
+/* Two Column Layout */
+.two-column-layout {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 12px;
+    grid-template-columns: 100% 20%;
+    gap: 24px;
+    align-items: start;
 }
 
-.medical-alert-item {
+/* Main Content (Left Column) */
+div.main-content {
+margin-left: 0px;
+}
+
+.main-content {
     background: white;
-    padding: 12px;
-    border-radius: 8px;
+    border-radius: 12px;
+    border: -1px solid #e5e7eb;
+    overflow: hidden;
+    
+
 }
 
-.medical-alert-item-label {
-    font-size: 0.75rem;
+/* Tabbed Navigation */
+.tabs-navigation {
+    display: flex;
+    border-bottom: 2px solid #f3f4f6;
+    background: #fafbfc;
+    padding: 0 24px;
+}
+
+.tab-item {
+    padding: 16px 24px;
+    cursor: pointer;
+    font-weight: 500;
     color: #6b7280;
-    margin-bottom: 4px;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+    position: relative;
 }
 
-.medical-alert-item-value {
+.tab-item:hover {
+    color: #374151;
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.tab-item.active {
+    color: #2563eb;
+    border-bottom-color: #2563eb;
+    background: white;
+}
+
+.tab-count {
+    display: inline-block;
+    background: #e5e7eb;
+    color: #6b7280;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    margin-left: 6px;
     font-weight: 600;
 }
 
-.medical-alert-item-value.danger {
-    color: #dc2626;
+.tab-item.active .tab-count {
+    background: #dbeafe;
+    color: #2563eb;
 }
 
-/* Action Buttons */
-.action-buttons-row {
-    display: flex;
-    gap: 12px;
-    justify-content: flex-end;
-    padding-top: 20px;
-    border-top: 1px solid #e5e7eb;
+/* Data Table */
+.queue-table-container {
+    overflow-x: auto;
 }
 
-.btn-action {
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-weight: 500;
-    cursor: pointer;
-    border: none;
-    transition: all 0.2s;
+.queue-table {
+    width: 100%;
+    border-collapse: collapse;
 }
 
-.btn-action-primary {
-    background: #3b82f6;
-    color: white;
+.queue-table thead {
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
 }
 
-.btn-action-primary:hover {
+.queue-table th {
+    padding: 14px 20px;
+    text-align: left;
+    font-weight: 600;
+    color: #6b7280;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.queue-table td {
+    padding: 16px 20px;
+    border-bottom: 1px solid #f3f4f6;
+    color: #374151;
+    font-size: 0.9rem;
+}
+
+.queue-table tbody tr {
+    transition: background 0.15s;
+}
+
+.queue-table tbody tr:hover {
+    background: #f9fafb;
+}
+
+.patient-name {
+    font-weight: 600;
+    color: #111827;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 12px;
+    border-radius: 16px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    gap: 6px;
+}
+
+.status-badge.waiting {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-badge.in-procedure {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.status-badge.on-hold {
+    background: #fed7aa;
+    color: #9a3412;
+}
+
+.status-badge.completed {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.status-badge.cancelled {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.status-badge.waiting .status-dot {
+    background: #d97706;
+}
+
+.status-badge.in-procedure .status-dot {
     background: #2563eb;
 }
 
-.btn-action-success {
-    background: #22c55e;
-    color: white;
+.status-badge.on-hold .status-dot {
+    background: #ea580c;
 }
 
-.btn-action-success:hover {
+.status-badge.completed .status-dot {
     background: #16a34a;
 }
 
-.btn-action-danger {
-    background: #ef4444;
-    color: white;
-}
-
-.btn-action-danger:hover {
+.status-badge.cancelled .status-dot {
     background: #dc2626;
 }
 
-.btn-action-secondary {
-    background: #f3f4f6;
-    color: #374151;
+.action-buttons {
+    display: flex;
+    gap: 8px;
 }
 
-.btn-action-secondary:hover {
-    background: #e5e7eb;
+.action-btn {
+    padding: 6px 12px;
+    border: 1px solid #d1d5db;
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: #374151;
+    transition: all 0.2s;
 }
+
+.action-btn:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.action-btn.primary {
+    background: #2563eb;
+    color: white;
+    border-color: #2563eb;
+}
+
+.action-btn.primary:hover {
+    background: #1d4ed8;
+}
+
+.more-dropdown {
+    position: relative;
+}
+
+.more-btn {
+    padding: 6px 10px;
+    border: 1px solid #d1d5db;
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.more-btn:hover {
+    background: #f3f4f6;
+}
+
+.time-display {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.time-12hr {
+    font-weight: 600;
+    color: #111827;
+}
+
+.time-24hr {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+
+
+.widget-card {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    padding: 20px;
+}
+
+.widget-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 16px 0;
+}
+
+.widget-card .btn-primary,
+.widget-card .btn-secondary {
+    width: 100%;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+    display: block;
+    transition: all 0.2s;
+    margin-bottom: 12px;
+}
+
+.widget-card .btn-primary:last-child,
+.widget-card .btn-secondary:last-child {
+    margin-bottom: 0;
+}
+
+.widget-card .btn-primary {
+    background: #2563eb;
+    color: white;
+    border: none;
+}
+
+.widget-card .btn-primary:hover {
+    background: #1d4ed8;
+}
+
+.widget-card .btn-secondary {
+    background: white;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+.widget-card .btn-secondary:hover {
+    background: #f3f4f6;
+}
+
+.queue-summary-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.queue-summary-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.queue-summary-item:last-child {
+    border-bottom: none;
+}
+
+.queue-summary-label {
+    color: #6b7280;
+    font-size: 0.9rem;
+}
+
+.queue-summary-value {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #111827;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6b7280;
+}
+
+.empty-state svg {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 16px;
+    opacity: 0.5;
+}
+
+.empty-state h3 {
+    font-size: 1.1rem;
+    color: #374151;
+    margin: 0 0 8px 0;
+}
+
+.empty-state p {
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+
 </style>
 
-<!-- Queue Stats -->
-<div class="summary-cards">
-    <div class="summary-card">
-        <div class="summary-icon yellow">⏰</div>
-        <div class="summary-info">
+<!-- Top Summary Widgets -->
+<div class="summary-widgets">
+    <div class="summary-widget">
+        <div class="summary-widget-icon yellow">⏰</div>
+        <div class="summary-widget-info">
             <h3><?php echo $waitingCount; ?></h3>
-            <p>Currently Waiting</p>
+            <p>Waiting</p>
         </div>
     </div>
-    <div class="summary-card">
-        <div class="summary-icon blue" style="background: #dbeafe; color: #2563eb;">⚕️</div>
-        <div class="summary-info">
-            <h3><?php echo $procedureCount; ?></h3>
-            <p>In Procedure</p>
-        </div>
-    </div>
-    <div class="summary-card">
-        <div class="summary-icon green">✓</div>
-        <div class="summary-info">
+    <div class="summary-widget">
+        <div class="summary-widget-icon green">✓</div>
+        <div class="summary-widget-info">
             <h3><?php echo $completedToday; ?></h3>
-            <p>Completed Today</p>
+            <p>Completed</p>
         </div>
     </div>
-    <div class="summary-card">
-        <div class="summary-icon gray">⏸️</div>
-        <div class="summary-info">
+    <div class="summary-widget">
+        <div class="summary-widget-icon red">✕</div>
+        <div class="summary-widget-info">
+            <h3><?php echo $cancelledCount; ?></h3>
+            <p>Cancelled</p>
+        </div>
+    </div>
+    <div class="summary-widget">
+        <div class="summary-widget-icon gray">⏸</div>
+        <div class="summary-widget-info">
             <h3><?php echo $onHoldCount; ?></h3>
             <p>On Hold</p>
         </div>
     </div>
 </div>
 
-<!-- Search & Filters -->
-<div class="search-filters">
-    <input type="text" id="searchInput" placeholder="Search by name, treatment..." class="search-input" style="flex: 1;">
-    <select id="statusFilter" class="filter-select">
+<!-- Control Bar -->
+<div class="control-bar">
+    <input type="text" class="search-input" id="queueSearch" placeholder="Search by name, treatment...">
+    <select class="filter-select" id="statusFilter">
         <option value="">All Status</option>
         <option value="waiting">Waiting</option>
         <option value="in_procedure">In Procedure</option>
-        <option value="completed">Completed</option>
         <option value="on_hold">On Hold</option>
+        <option value="completed">Completed</option>
         <option value="cancelled">Cancelled</option>
     </select>
-    <a href="staff_new_admission.php" class="btn-primary" style="text-decoration: none;">+ Add New Patient</a>
+    <a href="staff_new_admission.php" class="btn-add-patient">
+        <span>+</span> Add New Patient
+    </a>
 </div>
 
-<!-- Queue Sections -->
-<div class="two-column">
-    <div class="left-column">
-        <!-- Waiting Queue -->
-        <div class="section-card">
-            <h2 class="section-title">⏳ Waiting Queue</h2>
-            <div class="patient-list" id="waitingList">
-                <?php 
-                $waitingItems = array_filter($queueItems, fn($q) => $q['status'] === 'waiting');
-                if (empty($waitingItems)): ?>
-                    <div style="text-align: center; padding: 40px 20px; color: #6b7280;">
-                        <p>No patients waiting</p>
-                        <a href="staff_new_admission.php" class="btn-primary" style="display: inline-block; margin-top: 12px; text-decoration: none;">Add New Patient</a>
-                    </div>
-                <?php else: 
-                    foreach ($waitingItems as $item): ?>
-                    <div class="patient-item" 
-                         data-name="<?php echo strtolower($item['full_name'] ?? ''); ?>" 
-                         data-status="waiting"
-                         data-treatment="<?php echo strtolower($item['treatment_type'] ?? ''); ?>">
-                        <div class="patient-info">
-                            <div class="patient-name"><?php echo htmlspecialchars($item['full_name'] ?? 'Unknown'); ?></div>
-                            <div class="patient-details">
-                                <span class="status-badge" style="background: #fef3c7; color: #d97706; font-size: 0.75rem;">Waiting</span>
-                                <span style="color: #6b7280; margin-left: 8px;">
-                                    <?php echo htmlspecialchars($item['treatment_type'] ?? 'Consultation'); ?>
-                                </span>
-                            </div>
-                            <?php if (!empty($item['teeth_numbers'])): ?>
-                                <div class="patient-treatment" style="font-size: 0.85rem; color: #6b7280;">
-                                    Teeth: <?php echo htmlspecialchars($item['teeth_numbers']); ?>
+<!-- Two Column Layout -->
+<div class="two-column-layout">
+    <!-- Left Column: Main Content -->
+    <div class="main-content">
+        <!-- Tabbed Navigation -->
+        <div class="tabs-navigation">
+            <div class="tab-item active" data-tab="all">
+                All <span class="tab-count"><?php echo count($queueItems); ?></span>
+            </div>
+            <div class="tab-item" data-tab="waiting">
+                Waiting <span class="tab-count"><?php echo $waitingCount; ?></span>
+            </div>
+            <div class="tab-item" data-tab="in_procedure">
+                In Procedure <span class="tab-count"><?php echo $procedureCount; ?></span>
+            </div>
+            <div class="tab-item" data-tab="on_hold">
+                On Hold <span class="tab-count"><?php echo $onHoldCount; ?></span>
+            </div>
+            <div class="tab-item" data-tab="completed">
+                Completed <span class="tab-count"><?php echo $completedToday; ?></span>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="queue-table-container">
+            <table class="queue-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Patient Name</th>
+                        <th>Status</th>
+                        <th>Treatment</th>
+                        <th>Assigned Doctor</th>
+                        <th>Time In</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="queueTableBody">
+                    <?php if (empty($queueItems)): ?>
+                        <tr>
+                            <td colspan="7">
+                                <div class="empty-state">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                                    </svg>
+                                    <h3>No patients in queue</h3>
+                                    <p>Add new patients to get started with queue management</p>
                                 </div>
-                            <?php endif; ?>
-                        </div>
-                        <div class="patient-actions">
-                            <button onclick="callPatient(<?php echo $item['id']; ?>)" class="action-btn icon" title="Call">📞</button>
-                            <button onclick="startProcedure(<?php echo $item['id']; ?>)" class="action-btn icon" title="Start Procedure">▶️</button>
-                            <button onclick="viewFullPatientRecord(<?php echo $item['patient_id']; ?>, <?php echo $item['id']; ?>)" class="action-btn icon" title="See Details">👁️</button>
-                            <button onclick="moveToOnHold(<?php echo $item['id']; ?>)" class="action-btn icon" title="On Hold">⏸️</button>
-                            <button onclick="cancelPatient(<?php echo $item['id']; ?>)" class="action-btn icon" title="Cancel">✕</button>
-                        </div>
-                    </div>
-                    <?php endforeach; 
-                endif; ?>
-            </div>
-        </div>
-
-        <!-- In Procedure -->
-        <div class="section-card">
-            <h2 class="section-title">⚕️ In Procedure</h2>
-            <div class="patient-list" id="procedureList">
-                <?php 
-                $procedureItems = array_filter($queueItems, fn($q) => $q['status'] === 'in_procedure');
-                if (empty($procedureItems)): ?>
-                    <div style="text-align: center; padding: 40px 20px; color: #6b7280;">
-                        <p>No patients in procedure</p>
-                    </div>
-                <?php else: 
-                    foreach ($procedureItems as $item): ?>
-                    <div class="patient-item" 
-                         data-name="<?php echo strtolower($item['full_name'] ?? ''); ?>" 
-                         data-status="in_procedure"
-                         style="border-left: 4px solid #0ea5e9;">
-                        <div class="patient-info">
-                            <div class="patient-name"><?php echo htmlspecialchars($item['full_name'] ?? 'Unknown'); ?></div>
-                            <div class="patient-details">
-                                <span class="status-badge" style="background: #dcfce7; color: #15803d; font-size: 0.75rem;">In Chair</span>
-                                <span style="color: #6b7280; margin-left: 8px;">
-                                    <?php echo htmlspecialchars($item['treatment_type'] ?? ''); ?>
-                                </span>
-                            </div>
-                            <?php if (!empty($item['teeth_numbers'])): ?>
-                                <div class="patient-treatment" style="font-size: 0.85rem; color: #6b7280;">
-                                    Teeth: <?php echo htmlspecialchars($item['teeth_numbers']); ?>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                        <div class="patient-actions">
-                            <button onclick="completeTreatment(<?php echo $item['id']; ?>)" class="action-btn" style="background: #22c55e; color: white; padding: 6px 12px;" title="Complete">✓ Done</button>
-                            <button onclick="viewFullPatientRecord(<?php echo $item['patient_id']; ?>, <?php echo $item['id']; ?>)" class="action-btn icon" title="See Details">👁️</button>
-                        </div>
-                    </div>
-                    <?php endforeach; 
-                endif; ?>
-            </div>
-        </div>
-
-        <!-- On Hold -->
-        <div class="section-card">
-            <h2 class="section-title">⏸️ On Hold</h2>
-            <div class="patient-list" id="onholdList">
-                <?php 
-                $onholdItems = array_filter($queueItems, fn($q) => $q['status'] === 'on_hold');
-                if (empty($onholdItems)): ?>
-                    <div style="text-align: center; padding: 40px 20px; color: #6b7280;">
-                        <p>No patients on hold</p>
-                    </div>
-                <?php else: 
-                    foreach ($onholdItems as $item): ?>
-                    <div class="patient-item" 
-                         data-name="<?php echo strtolower($item['full_name'] ?? ''); ?>" 
-                         data-status="on_hold"
-                         style="opacity: 0.7;">
-                        <div class="patient-info">
-                            <div class="patient-name"><?php echo htmlspecialchars($item['full_name'] ?? 'Unknown'); ?></div>
-                            <div class="patient-details">
-                                <span class="status-badge" style="background: #f3f4f6; color: #6b7280; font-size: 0.75rem;">On Hold</span>
-                                <span style="color: #6b7280; margin-left: 8px;">
-                                    <?php echo htmlspecialchars($item['treatment_type'] ?? ''); ?>
-                                </span>
-                            </div>
-                        </div>
-                        <div class="patient-actions">
-                            <button onclick="requeuePatient(<?php echo $item['id']; ?>)" class="action-btn" style="background: #84cc16; color: white; padding: 6px 12px; border: none; border-radius: 4px; font-size: 0.8rem;">Re-queue</button>
-                            <button onclick="viewFullPatientRecord(<?php echo $item['patient_id']; ?>, <?php echo $item['id']; ?>)" class="action-btn icon" title="See Details">👁️</button>
-                        </div>
-                    </div>
-                    <?php endforeach; 
-                endif; ?>
-            </div>
-        </div>
-
-        <!-- Completed Today -->
-        <div class="section-card">
-            <h2 class="section-title">✅ Completed Today</h2>
-            <div class="patient-list" id="completedList">
-                <?php 
-                $completedItems = array_filter($queueItems, fn($q) => $q['status'] === 'completed');
-                if (empty($completedItems)): ?>
-                    <div style="text-align: center; padding: 40px 20px; color: #6b7280;">
-                        <p>No patients completed today</p>
-                    </div>
-                <?php else: 
-                    foreach ($completedItems as $item): ?>
-                    <div class="patient-item" style="opacity: 0.7;">
-                        <div class="patient-info">
-                            <div class="patient-name"><?php echo htmlspecialchars($item['full_name'] ?? 'Unknown'); ?></div>
-                            <div class="patient-details">
-                                <span class="status-badge" style="background: #e5e7eb; color: #6b7280; font-size: 0.75rem;">Completed</span>
-                                <span style="color: #6b7280; margin-left: 8px;">
-                                    <?php echo htmlspecialchars($item['treatment_type'] ?? ''); ?>
-                                </span>
-                            </div>
-                        </div>
-                        <div class="patient-actions">
-                            <button onclick="viewFullPatientRecord(<?php echo $item['patient_id']; ?>, <?php echo $item['id']; ?>)" class="action-btn icon" title="See Details">👁️</button>
-                        </div>
-                    </div>
-                    <?php endforeach; 
-                endif; ?>
-            </div>
+                            </td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($queueItems as $index => $item): 
+                            $queueTime = new DateTime($item['queue_time']);
+                            $time12hr = $queueTime->format('g:i A');
+                            $time24hr = $queueTime->format('H:i');
+                            $statusClass = strtolower(str_replace('_', '-', $item['status']));
+                            $statusLabel = ucwords(str_replace('_', ' ', $item['status']));
+                        ?>
+                            <tr class="queue-row" data-status="<?php echo $item['status']; ?>" data-name="<?php echo strtolower($item['full_name'] ?? ''); ?>">
+                                <td><?php echo str_pad($item['id'], 3, '0', STR_PAD_LEFT); ?></td>
+                                <td>
+                                    <div class="patient-name"><?php echo htmlspecialchars($item['full_name'] ?? 'Unknown'); ?></div>
+                                    <div style="font-size: 0.75rem; color: #6b7280; margin-top: 2px;">
+                                        <?php echo htmlspecialchars($item['phone'] ?? 'N/A'); ?>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="status-badge <?php echo $statusClass; ?>">
+                                        <span class="status-dot"></span>
+                                        <?php echo $statusLabel; ?>
+                                    </span>
+                                </td>
+                                <td><?php echo htmlspecialchars($item['treatment_type'] ?? 'General Checkup'); ?></td>
+                                <td>Dr. Rex</td>
+                                <td>
+                                    <div class="time-display">
+                                        <span class="time-12hr"><?php echo $time12hr; ?></span>
+                                        <span class="time-24hr"><?php echo $time24hr; ?></span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="action-btn" onclick="callPatient(<?php echo $item['id']; ?>)" title="Call Patient">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+                                            </svg>
+                                            Call
+                                        </button>
+                                        <button class="action-btn" onclick="editPatient(<?php echo $item['id']; ?>)" title="Edit">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                                            </svg>
+                                            Edit
+                                        </button>
+                                        <div class="more-dropdown">
+                                            <button class="more-btn" onclick="toggleMoreMenu(this)">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                                    <circle cx="12" cy="6" r="2"/>
+                                                    <circle cx="12" cy="12" r="2"/>
+                                                    <circle cx="12" cy="18" r="2"/>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <!-- Right Column -->
-    <div class="right-column">
-        <div class="notification-box">
-            <h3>📋 Quick Actions</h3>
-            <div style="display: flex; flex-direction: column; gap: 12px;">
-                <a href="staff_new_admission.php" class="btn-primary" style="width: 100%; text-align: center; text-decoration: none;">+ Add New Patient</a>
-                <a href="patient-records.php" class="btn-primary" style="width: 100%; text-align: center; text-decoration: none; background: #6b7280;">View All Records</a>
-            </div>
-        </div>
-        
-        <div class="notification-box">
-            <h3>📊 Queue Summary</h3>
-            <div style="display: flex; flex-direction: column; gap: 12px;">
-                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f3f4f6;">
-                    <span style="color: #6b7280;">Total in Queue</span>
-                    <span style="font-weight: 600;"><?php echo count($queueItems); ?></span>
-                </div>
-                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f3f4f6;">
-                    <span style="color: #6b7280;">Waiting</span>
-                    <span style="font-weight: 600;"><?php echo $waitingCount; ?></span>
-                </div>
-                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f3f4f6;">
-                    <span style="color: #6b7280;">In Procedure</span>
-                    <span style="font-weight: 600;"><?php echo $procedureCount; ?></span>
-                </div>
-                <div style="display: flex; justify-content: space-between; padding: 8px 0;">
-                    <span style="color: #6b7280;">Completed</span>
-                    <span style="font-weight: 600;"><?php echo $completedToday; ?></span>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Full Screen Patient Record Modal -->
-<div id="fullScreenPatientModal" class="fullscreen-modal-overlay">
-    <div class="fullscreen-modal-content">
-        <div class="fullscreen-modal-header">
-            <div>
-                <h2 style="font-size: 1.5rem; font-weight: 600; margin: 0;">Patient Record Details</h2>
-                <p id="modalPatientName" style="color: #6b7280; margin: 4px 0 0 0; font-size: 0.9rem;"></p>
-            </div>
-            <button onclick="closeFullScreenModal()" class="fullscreen-modal-close">&times;</button>
-        </div>
-        <div class="fullscreen-modal-body" id="fullScreenModalContent">
-            <!-- Content will be loaded dynamically -->
-        </div>
-    </div>
-</div>
-
-<!-- Calling Modal -->
-<div id="callingModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
-    <div class="modal" style="background: white; border-radius: 12px; padding: 40px; width: 90%; max-width: 400px; text-align: center;">
-        <div style="font-size: 4rem; margin-bottom: 20px;">📢</div>
-        <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 10px;">Calling Patient</h2>
-        <p id="callingPatientName" style="font-size: 1.25rem; color: #374151; margin-bottom: 20px;"></p>
-        <p style="color: #6b7280; margin-bottom: 20px;">Please proceed to the dental chair</p>
-        <button onclick="closeCallingModal()" class="btn-cancel" style="padding: 10px 24px;">Close</button>
-    </div>
+    <!-- Right Column: Sidebar -->
+    
 </div>
 
 <script>
-const queueItems = <?php echo json_encode($queueItems); ?>;
-let currentQueueItem = null;
+// Tab switching functionality
+document.querySelectorAll('.tab-item').forEach(tab => {
+    tab.addEventListener('click', function() {
+        // Remove active class from all tabs
+        document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+        
+        // Add active class to clicked tab
+        this.classList.add('active');
+        
+        // Filter table rows
+        const filterStatus = this.dataset.tab;
+        filterQueueTable(filterStatus);
+    });
+});
 
-// Search and filter functionality
-document.getElementById('searchInput').addEventListener('input', filterQueue);
-document.getElementById('statusFilter').addEventListener('change', filterQueue);
+// Search functionality
+document.getElementById('queueSearch').addEventListener('input', function() {
+    filterQueueTable();
+});
 
-function filterQueue() {
-    const search = document.getElementById('searchInput').value.toLowerCase();
-    const status = document.getElementById('statusFilter').value;
+// Status filter functionality
+document.getElementById('statusFilter').addEventListener('change', function() {
+    filterQueueTable();
+});
+
+function filterQueueTable(tabStatus = null) {
+    const searchTerm = document.getElementById('queueSearch').value.toLowerCase();
+    const statusFilter = document.getElementById('statusFilter').value;
+    const rows = document.querySelectorAll('.queue-row');
     
-    document.querySelectorAll('.patient-item').forEach(item => {
-        const nameMatch = !search || item.dataset.name.includes(search);
-        const statusMatch = !status || item.dataset.status === status;
-        item.style.display = (nameMatch && statusMatch) ? 'flex' : 'none';
+    // Get active tab if not provided
+    if (!tabStatus) {
+        const activeTab = document.querySelector('.tab-item.active');
+        tabStatus = activeTab ? activeTab.dataset.tab : 'all';
+    }
+    
+    rows.forEach(row => {
+        const name = row.dataset.name;
+        const status = row.dataset.status;
+        
+        // Check search match
+        const searchMatch = !searchTerm || name.includes(searchTerm);
+        
+        // Check tab filter
+        const tabMatch = tabStatus === 'all' || status === tabStatus;
+        
+        // Check status dropdown filter
+        const statusMatch = !statusFilter || status === statusFilter;
+        
+        // Show/hide row
+        row.style.display = (searchMatch && tabMatch && statusMatch) ? '' : 'none';
     });
 }
 
-// Queue Actions
 function callPatient(queueId) {
-    const item = queueItems.find(q => q.id == queueId);
-    if (!item) return;
-    
-    document.getElementById('callingPatientName').innerText = item.full_name;
-    document.getElementById('callingModal').style.display = 'flex';
-    
-    fetch('queue_actions.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'call', queue_id: queueId })
-    });
+    alert('Calling patient #' + queueId);
+    // Add your call patient logic here
 }
 
-function closeCallingModal() {
-    document.getElementById('callingModal').style.display = 'none';
+function editPatient(queueId) {
+    alert('Editing patient #' + queueId);
+    // Add your edit patient logic here
 }
 
-function startProcedure(queueId) {
-    if (!confirm('Move patient to In Procedure?')) return;
-    
-    fetch('queue_actions.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'start_procedure', queue_id: queueId })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert(data.message);
+function toggleMoreMenu(button) {
+    alert('More options for this patient');
+    // Add dropdown menu logic here
+}
+pleteTreatment(${q.id}); closeFullScreenModal();" class="btn-action btn-action-success">Mark Complete</button>` : ''}
+                </div>
+            `;
+            
+            document.getElementById('fullScreenPatientModal').classList.add('active');
         }
     });
 }
 
-function completeTreatment(queueId) {
-    if (!confirm('Mark treatment as complete?\n\nPatient will be moved to Completed.')) return;
-    
-    fetch('queue_actions.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'complete', queue_id: queueId })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert(data.message);
-        }
-    });
+function closeFullScreenModal() {
+    document.getElementById('fullScreenPatientModal').classList.remove('active');
 }
 
-function moveToOnHold(queueId) {
-    if (!confirm('Put patient on hold?\n\nThey can be re-queued later.')) return;
-    
-    fetch('queue_actions.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'on_hold', queue_id: queueId })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert(data.message);
-        }
-    });
-}
+// Close modal on outside click
+document.getElementById('fullScreenPatientModal').addEventListener('click', function(e) {
+    if (e.target === this) closeFullScreenModal();
+});
 
-function cancelPatient(queueId) {
-    if (!confirm('Cancel this patient?\n\nThis cannot be undone.')) return;
-    
-    fetch('queue_actions.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'cancel', queue_id: queueId })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert(data.message);
-        }
-    });
-}
+document.getElementById('callingModal').addEventListener('click', function(e) {
+    if (e.target === this) closeCallingModal();
+});
 
-function requeuePatient(queueId) {
-    fetch('queue_actions.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'requeue', queue_id: queueId })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert(data.message);
-        }
-    });
-}
-
-// Full Screen Patient Record Modal with 3D Teeth Chart
-function viewFullPatientRecord(patientId, queueId) {
-    currentQueueItem = queueItems.find(q => q.id == queueId);
-    
-    fetch('queue_actions.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'get_patient_record', patient_id: patientId })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const p = data.patient;
-            const m = data.medical_history || {};
-            const d = data.dental_history || {};
-            const q = currentQueueItem || {};
-            
-            const allergies = m.allergies || 'None';
-            const medications = m.current_medications || 'None';
-            const medicalConditions = m.medical_conditions || 'None';
-            
-            // Parse teeth numbers for 3D chart
-            const teethNumbers = q.teeth_numbers ? q.teeth_numbers.split(',').map(t => t.trim()) : [];
-            
-            document.getElementById('modalPatientName').innerText = p.full_name || 'Unknown';
-            
-            // Generate 3D Dental Chart HTML
-            const upperTeeth = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28];
-            const lowerTeeth = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38];
-            
-            let upperChartHTML = '<div class="dental-arch-modal">';
-            upperTeeth.forEach(tooth => {
-                const isSelected = teethNumbers.includes(tooth.toString());
-                upperChartHTML += `
-                    <div class="tooth-modal ${isSelected ? 'selected' : ''}">
-                        <div class="tooth-face-modal">${tooth}</div>
-                    </div>
-                `;
-            });
-            upperChartHTML += '</div>';
-            
-            let lowerChartHTML = '<div class="dental-arch-modal">';
-            lowerTeeth.forEach(tooth => {
-                const isSelected = teethNumbers.includes(tooth.toString());
-                lowerChartHTML += `
-                    <div class="tooth-modal ${isSelected ? 'selected' : ''}">
-                        <div class="tooth-face-modal">${tooth}</div>
-                    </div>
-                `;
-            });
-            lowerChartHTML += '</div>';
-            
-            // Check for medical alerts
-            const hasMedicalAlert = allergies === 'Yes' || 
-                                   medicalConditions.toLowerCase().includes('diabetes') ||
-                                   medicalConditions.toLowerCase().includes('heart') ||
-                                   medicalConditions.toLowerCase().includes('blood pressure') ||
-                                   medicalConditions.toLowerCase().includes('asthma');
-            
-            document.getElementById('fullScreenModalContent').innerHTML = `
-                <!-- Patient Basic Info -->
-                <div class="patient-info-grid">
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Full Name</div>
-                        <div class="patient-info-value">${p.full_name || 'N/A'}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Age</div>
-                        <div class="patient-info-value">${p.age || 'N/A'} years</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Gender</div>
-                        <div class="patient-info-value">${p.gender || 'N/A'}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Phone</div>
-                        <div class="patient-info-value">${p.phone || 'N/A'}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Email</div>
-                        <div class="patient-info-value">${p.email || 'N/A'}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Queue Status</div>
-                        <div class="patient-info-value">
-                            <span class="status-badge" style="background: ${q.status === 'in_procedure' ? '#dcfce7' : q.status === 'waiting' ? '#fef3c7' : '#f3f4f6'}; color: ${q.status === 'in_procedure' ? '#15803d' : q.status === 'waiting' ? '#d97706' : '#6b7280'}; padding: 4px 12px; border-radius: 9999px; font-size: 0.85rem;">
-                                ${q.status ? q.status.replace('_', ' ').toUpperCase() : 'N/A'}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Medical Alert (If applicable) -->
-                ${hasMedicalAlert ? `
-                <div class="medical-alert">
-                    <div class="medical-alert-title">⚠️ Medical Alert - Important for Treatment</div>
-                    <div class="medical-alert-grid">
-                        <div class="medical-alert-item">
-                            <div class="medical-alert-item-label">Allergies</div>
-                            <div class="medical-alert-item-value ${allergies === 'Yes' ? 'danger' : ''}">${allergies}</div>
-                        </div>
-                        <div class="medical-alert-item">
-                            <div class="medical-alert-item-label">Diabetes</div>
-                            <div class="medical-alert-item-value ${medicalConditions.toLowerCase().includes('diabetes') ? 'danger' : ''}">${medicalConditions.toLowerCase().includes('diabetes') ? 'Yes' : 'No'}</div>
-                        </div>
-                        <div class="medical-alert-item">
-                            <div class="medical-alert-item-label">Heart Disease</div>
-                            <div class="medical-alert-item-value ${medicalConditions.toLowerCase().includes('heart') ? 'danger' : ''}">${medicalConditions.toLowerCase().includes('heart') ? 'Yes' : 'No'}</div>
-                        </div>
-                        <div class="medical-alert-item">
-                            <div class="medical-alert-item-label">High Blood Pressure</div>
-                            <div class="medical-alert-item-value ${medicalConditions.toLowerCase().includes('blood pressure') ? 'danger' : ''}">${medicalConditions.toLowerCase().includes('blood pressure') ? 'Yes' : 'No'}</div>
-                        </div>
-                        <div class="medical-alert-item">
-                            <div class="medical-alert-item-label">Asthma</div>
-                            <div class="medical-alert-item-value ${medicalConditions.toLowerCase().includes('asthma') ? 'danger' : ''}">${medicalConditions.toLowerCase().includes('asthma') ? 'Yes' : 'No'}</div>
-                        </div>
-                        <div class="medical-alert-item">
-                            <div class="medical-alert-item-label">Current Medications</div>
-                            <div class="medical-alert-item-value">${medications}</div>
-                        </div>
-                    </div>
-                </div>
-                ` : ''}
-
-                <!-- Service Requested -->
-                <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-                    <h3 style="font-size: 1rem; font-weight: 600; color: #1e40af; margin-bottom: 16px;">📋 Service Requested</h3>
-                    <div class="patient-info-grid">
-                        <div class="patient-info-item">
-                            <div class="patient-info-label">Treatment Type</div>
-                            <div class="patient-info-value">${q.treatment_type || 'Consultation'}</div>
-                        </div>
-                        <div class="patient-info-item">
-                            <div class="patient-info-label">Selected Teeth</div>
-                            <div class="patient-info-value">${q.teeth_numbers || 'None specified'}</div>
-                        </div>
-                        <div class="patient-info-item">
-                            <div class="patient-info-label">Queue Time</div>
-                            <div class="patient-info-value">${q.queue_time ? new Date(q.queue_time).toLocaleTimeString() : 'N/A'}</div>
-                        </div>
-                        <div class="patient-info-item">
-                            <div class="patient-info-label">Notes</div>
-                            <div class="patient-info-value">${q.notes || 'None'}</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 3D Dental Chart -->
-                <div style="background: #f9fafb; border-radius: 12px; padding: 24px; margin-bottom: 20px;">
-                    <h3 style="font-size: 1rem; font-weight: 600; color: #374151; margin-bottom: 20px; text-align: center;">🦷 Dental Chart - Selected Teeth Highlighted</h3>
-                    
-                    <div style="text-align: center; margin-bottom: 8px; color: #6b7280; font-size: 0.85rem;">Upper Arch (Maxilla)</div>
-                    <div class="dental-chart-modal">
-                        ${upperChartHTML}
-                    </div>
-                    
-                    <div style="text-align: center; margin: 20px 0 8px 0; color: #6b7280; font-size: 0.85rem;">Lower Arch (Mandible)</div>
-                    <div class="dental-chart-modal">
-                        ${lowerChartHTML}
-                    </div>
-                    
-                    <div style="display: flex; justify-content: center; gap: 24px; margin-top: 20px; font-size: 0.85rem;">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <div style="width: 20px; height: 20px; background: white; border: 2px solid #d1d5db; border-radius: 4px;"></div>
-                            <span style="color: #6b7280;">Healthy</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <div style="width: 20px; height: 20px; background: #3b82f6; border: 2px solid #1d4ed8; border-radius: 4px;"></div>
-                            <span style="color: #374151; font-weight: 500;">Selected for Treatment</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Dental History -->
-                <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-                    <h3 style="font-size: 1rem; font-weight: 600; color: #374151; margin-bottom: 16px;">📜 Dental History</h3>
-                    <div class="patient-info-grid">
-                        <div class="patient-info-item">
-                            <div class="patient-info-label">Previous Dentist</div>
-                            <div class="patient-info-value">${d.previous_dentist || 'N/A'}</div>
-                        </div>
-                        <div class="patient-info-item">
-                            <div class="patient-info-label">Last Visit</div>
-                            <div class="patient-info-value">${d.last_visit_date || 'N/A'}</div>
-                        </div>
-                        <div class="patient-info-item" style="grid-column: 1 / -1;">
-                            <div class="patient-info-label">Current Complaints</div>
-                            <div class="patient-info-value">${d.current_complaints || 'None'}</div>
-                        </div>
-                        <div class="patient-info-item" style="grid-column: 1 / -1;">
-                            <div class="patient-info-label">Previous Treatments</div>
-                            <div class="patient-info-value">${d.previous_treatments || 'None'}</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Address -->
-                <div style="background: #f9fafb; border-radius: 12px; padding: 20px;">
-                    <h3 style="font-size: 1rem; font-weight: 600; color: #374151; margin-bottom: 16px;">📍 Address</h3>
-                    <p style="color: #374151;">${p.address || 'N/A'} ${p.city ? ', ' + p.city : ''} ${p.province ? ', ' + p.province : ''}</p>
-                </div>
-
-                <!-- Action Buttons -->
-                <div class="action-buttons-row">
-                    <button onclick="closeFullScreenModal()" class="btn-action btn-action-secondary">Close</button>
-                    ${q.status === 'waiting' ? `<button onclick="startProcedure(${q.id}); closeFullScreenModal();" class="btn-action btn-action-primary">Start Procedure</button>` : ''}
-                    ${q.status === 'in_procedure' ? `<button onclick="completeTreatment(${q.id}); closeFullScreenModal();" class="btn-action btn-action-success">Mark Complete</button>` : ''}
+// ESC key to close modal
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeFullScreenModal();
+        closeCallingModal();
+    }
+});
+nt(${q.id}); closeFullScreenModal();" class="btn-action btn-action-success">Mark Complete</button>` : ''}
                 </div>
             `;
             
