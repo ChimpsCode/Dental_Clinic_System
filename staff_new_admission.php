@@ -340,8 +340,8 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
                                 <input type="date" name="birthdate" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-slate-600">
                             </div>
                             <div class="md:col-span-1">
-                                <label class="block text-sm font-medium text-slate-600 mb-1">Age</label>
-                                <input type="number" name="age" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="30">
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Age <span class="text-xs text-slate-400">(auto-calculated)</span></label>
+                                <input type="number" name="age" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm bg-gray-50" placeholder="Auto" readonly>
                             </div>
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Gender</label>
@@ -1175,6 +1175,48 @@ btn.classList.add('bg-blue-200', 'border-blue-400');
             }
         }
 
+        /**
+         * Calculate age from birthdate and update the age field
+         * @param {string} birthdate - Date string in YYYY-MM-DD format
+         * @returns {number} Age in years
+         */
+        function calculateAgeFromBirthdate(birthdate) {
+            if (!birthdate) return null;
+            
+            const today = new Date();
+            const birthDate = new Date(birthdate);
+            
+            // Check if valid date
+            if (isNaN(birthDate.getTime())) return null;
+            
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+            
+            // Adjust age if birthday hasn't occurred yet this year
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
+            }
+            
+            return age >= 0 ? age : 0;
+        }
+
+        /**
+         * Handle birthdate change - auto-calculate and fill age
+         */
+        function handleBirthdateChange() {
+            const birthdateInput = document.querySelector('input[name="birthdate"]');
+            const ageInput = document.querySelector('input[name="age"]');
+            
+            if (birthdateInput && ageInput && birthdateInput.value) {
+                const age = calculateAgeFromBirthdate(birthdateInput.value);
+                if (age !== null) {
+                    ageInput.value = age;
+                    // Trigger change event to update tooth type
+                    ageInput.dispatchEvent(new Event('change'));
+                }
+            }
+        }
+
         // Listen for age changes to auto-update tooth type
         document.addEventListener('DOMContentLoaded', function() {
             const ageInput = document.querySelector('input[name="age"]');
@@ -1185,18 +1227,21 @@ btn.classList.add('bg-blue-200', 'border-blue-400');
                     }
                 });
             }
-            // Also initialize on birthdate change
+            
+            // Listen for birthdate change to auto-calculate age
             const birthdateInput = document.querySelector('input[name="birthdate"]');
             if (birthdateInput) {
                 birthdateInput.addEventListener('change', function() {
-                    // Wait for age to be calculated
-                    setTimeout(function() {
-                        if (!toothTypeManuallySet) {
-                            initializeToothTypeFromAge();
-                        }
-                    }, 100);
+                    // Calculate and fill age from birthdate
+                    handleBirthdateChange();
+                    
+                    // Update tooth type based on new age
+                    if (!toothTypeManuallySet) {
+                        initializeToothTypeFromAge();
+                    }
                 });
             }
+            
             // Initial check
             initializeToothTypeFromAge();
         });
