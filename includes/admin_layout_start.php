@@ -230,7 +230,7 @@ function isActivePage($page) {
                                 <span class="avatar-initials"><?php echo $initials; ?></span>
                             </div>
                             <div class="dropdown-user-info">
-                                <div class="dropdown-name"><?php echo htmlspecialchars($fullName); ?></div>
+                                <div class="dropdown-name"><?php echo htmlspecialchars($username); ?></div>
                             </div>
                         </div>
                         <div class="dropdown-divider"></div>

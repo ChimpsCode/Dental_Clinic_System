@@ -19,13 +19,16 @@ $email = trim(isset($_POST['email']) ? $_POST['email'] : '');
 $firstName = trim(isset($_POST['first_name']) ? $_POST['first_name'] : '');
 $middleName = trim(isset($_POST['middle_name']) ? $_POST['middle_name'] : '');
 $lastName = trim(isset($_POST['last_name']) ? $_POST['last_name'] : '');
+$role = isset($_POST['role']) ? trim($_POST['role']) : '';
     
-    if (empty($username) || empty($password) || empty($confirmPassword) || empty($firstName) || empty($lastName)) {
+    if (empty($username) || empty($password) || empty($confirmPassword) || empty($firstName) || empty($lastName) || empty($role)) {
         $error = 'Please fill in all required fields';
     } elseif ($password !== $confirmPassword) {
         $error = 'Passwords do not match';
     } elseif (strlen($password) < 6) {
         $error = 'Password must be at least 6 characters long';
+    } elseif (!in_array($role, ['dentist', 'staff'])) {
+        $error = 'Please select a valid role';
     } else {
         try {
             // Check if PDO connection exists
@@ -39,8 +42,9 @@ $lastName = trim(isset($_POST['last_name']) ? $_POST['last_name'] : '');
                     $error = 'Username already exists';
                 } else {
                     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-                    $stmt = $pdo->prepare("INSERT INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, 'user')");
-                    $result = $stmt->execute([$username, $hashedPassword, $email, $fullName]);
+                    $fullName = $firstName . (empty($middleName) ? '' : ' ' . $middleName) . ' ' . $lastName;
+                    $stmt = $pdo->prepare("INSERT INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
+                    $result = $stmt->execute([$username, $hashedPassword, $email, $fullName, $role]);
                     if ($result) {
                         $success = 'Account created successfully! You can now login.';
                     } else {
@@ -133,7 +137,63 @@ $lastName = trim(isset($_POST['last_name']) ? $_POST['last_name'] : '');
             font-size: 14px;
         }
 
-        .login-box input:focus {
+        .
+
+        .role-selection {
+            margin: 20px 0 15px 0;
+            text-align: left;
+        }
+
+        .role-selection label {
+            display: block;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .role-options {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 10px;
+        }
+
+        .role-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+        }
+
+        .role-option input[type="radio"] {
+            width: auto;
+            margin: 0;
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+
+        .role-option label {
+            margin: 0;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .login-box select {
+            width: 100%;
+            padding: 13px;
+            margin: 12px 0;
+            border: none;
+            border-radius: 5px;
+            background: #e6e6e6;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .login-box select:focus {
+            outline: none;
+            background: #ddd;
+        }login-box input:focus {
             outline: none;
             background: #ddd;
         }
@@ -294,6 +354,12 @@ $lastName = trim(isset($_POST['last_name']) ? $_POST['last_name'] : '');
                     <input type="email" name="email" id="email" placeholder="Email" value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
                     <input type="password" name="password" id="password" placeholder="Password" required>
                     <input type="password" name="confirm_password" id="confirm_password" placeholder="Confirm Password" required>
+
+                    <select name="role" id="role" required>
+                        <option value="">-- Select Account Type --</option>
+                        <option value="dentist" <?php echo (isset($_POST['role']) && $_POST['role'] === 'dentist') ? 'selected' : ''; ?>>Dentist</option>
+                        <option value="staff" <?php echo (isset($_POST['role']) && $_POST['role'] === 'staff') ? 'selected' : ''; ?>>Staff</option>
+                    </select>
 
                     <button type="submit">Create Account</button>
                 </form>
