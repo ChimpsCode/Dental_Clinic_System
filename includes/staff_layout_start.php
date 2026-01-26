@@ -208,25 +208,23 @@ function isActivePage($page) {
                             ?>
                             <span class="avatar-initials"><?php echo $initials; ?></span>
                         </div>
-                        <div class="user-details">
-                            <span class="user-name">Staff</span>
-                            <span class="user-role-badge staff">Staff</span>
-                        </div>
                     </div>
-                    <svg class="dropdown-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
                     <div class="user-profile-dropdown">
                         <div class="dropdown-header">
                             <div class="user-avatar large">
                                 <span class="avatar-initials"><?php echo $initials; ?></span>
                             </div>
                             <div class="dropdown-user-info">
-                                <div class="dropdown-name"><?php echo htmlspecialchars($fullName); ?></div>
-                                <div class="dropdown-email"><?php echo htmlspecialchars($username); ?></div>
+                                <div class="dropdown-name">Staff</div>
                             </div>
                         </div>
                         <div class="dropdown-divider"></div>
+                        <a href="settings.php" class="dropdown-item settings">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.64l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.49-.41h-3.84c-.25 0-.45.17-.49.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.09-.47 0-.59.22L2.74 8.87c-.12.22-.07.5.12.64l2.03 1.58c-.05.3-.07.62-.07.94 0 .33.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.64l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.49.41h3.84c.25 0 .45-.17.49-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.09.47 0 .59-.22l1.92-3.32c.12-.22.07-.5-.12-.64l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+                            </svg>
+                            <span>Settings</span>
+                        </a>
                         <a href="logout.php" class="dropdown-item logout">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>

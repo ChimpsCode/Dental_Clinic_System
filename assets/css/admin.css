@@ -1062,6 +1062,35 @@ body.modal-open {
 /* Enhanced User Profile Styles for Admin */
 .user-profile {
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    background: #f9fafb;
+    border-radius: 50%;
+    border: 1px solid var(--border-color, #e5e7eb);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 40px;
+    height: 40px;
+}
+
+.user-profile:hover {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.user-profile.active {
+    background: #ffffff;
+    border-color: #0ea5e9;
+    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+}
+
+.user-profile-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .user-profile-dropdown {
@@ -1071,7 +1100,7 @@ body.modal-open {
     background: #ffffff;
     border-radius: 12px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15), 0 4px 10px rgba(0, 0, 0, 0.1);
-    min-width: 260px;
+    min-width: 280px;
     opacity: 0;
     visibility: hidden;
     transform: translateY(-10px);
@@ -1089,11 +1118,11 @@ body.modal-open {
 
 .dropdown-header {
     padding: 16px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     display: flex;
     align-items: center;
     gap: 12px;
-    color: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f9fafb;
 }
 
 .dropdown-user-info {
@@ -1104,7 +1133,7 @@ body.modal-open {
 .dropdown-name {
     font-weight: 600;
     font-size: 15px;
-    margin-bottom: 4px;
+    color: #1f2937;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1112,16 +1141,21 @@ body.modal-open {
 
 .dropdown-email {
     font-size: 13px;
-    opacity: 0.9;
+    color: #6b7280;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    margin-top: 2px;
+}
+
+.dropdown-menu {
+    padding: 8px 0;
 }
 
 .dropdown-divider {
     height: 1px;
     background: #e5e7eb;
-    margin: 8px 0;
+    margin: 0;
 }
 
 .dropdown-item {
@@ -1134,6 +1168,12 @@ body.modal-open {
     transition: all 0.2s ease;
     font-size: 14px;
     font-weight: 500;
+    position: relative;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
 }
 
 .dropdown-item:hover {
@@ -1141,24 +1181,45 @@ body.modal-open {
     color: #1f2937;
 }
 
-.dropdown-item svg {
+.dropdown-item svg:first-child {
     color: #6b7280;
     flex-shrink: 0;
+    width: 18px;
+    height: 18px;
 }
 
 .dropdown-item:hover svg {
     color: #374151;
 }
 
+.dropdown-item span {
+    flex: 1;
+    text-align: left;
+}
+
 .dropdown-item.logout {
     color: #dc2626;
-    border-top: 1px solid #e5e7eb;
-    margin-top: 4px;
 }
 
 .dropdown-item.logout:hover {
     background: #fef2f2;
     color: #991b1b;
+}
+
+.dropdown-item.logout svg {
+    color: #dc2626;
+}
+
+.dropdown-item.logout:hover svg {
+    color: #991b1b;
+}
+
+.dropdown-item.logout svg:first-child {
+    color: #6b7280;
+}
+
+.dropdown-item.logout:hover svg:first-child {
+    color: #374151;
 }
 
 .dropdown-item.logout svg {

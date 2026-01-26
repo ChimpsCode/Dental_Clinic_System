@@ -155,7 +155,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                                 <span class="staff-metric">45 patients treated</span>
                             </div>
                             <div class="staff-stat">
-                                <span class="staff-name">Staff Member</span>
+                                <span class="staff-name">Staff</span>
                                 <span class="staff-metric">89 appointments managed</span>
                             </div>
                         </div>

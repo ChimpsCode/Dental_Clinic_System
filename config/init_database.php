@@ -273,7 +273,7 @@ try {
     // Create staff user (username: staff, password: staff123)
     $staffPassword = password_hash('staff123', PASSWORD_DEFAULT);
     $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
-    $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com', 'Staff Member', 'staff']);
+    $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com', 'Staff', 'staff']);
     echo "✓ Staff user created (username: staff, password: staff123)\n";
 
     // Insert default services

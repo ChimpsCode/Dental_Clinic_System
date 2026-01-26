@@ -8,7 +8,7 @@ $pageTitle = 'User Management';
 $users = [
     ['id' => 1, 'username' => 'admin', 'fullName' => 'Administrator', 'email' => 'admin@rfclinic.com', 'role' => 'admin', 'status' => 'active'],
     ['id' => 2, 'username' => 'dentist', 'fullName' => 'Dr. Rex', 'email' => 'dentist@rfclinic.com', 'role' => 'dentist', 'status' => 'active'],
-    ['id' => 3, 'username' => 'staff', 'fullName' => 'Staff Member', 'email' => 'staff@rfclinic.com', 'role' => 'staff', 'status' => 'active'],
+    ['id' => 3, 'username' => 'staff', 'fullName' => 'Staff', 'email' => 'staff@rfclinic.com', 'role' => 'staff', 'status' => 'active'],
     ['id' => 4, 'username' => 'juan_dela', 'fullName' => 'Juan Dela Cruz', 'email' => 'juan@email.com', 'role' => 'staff', 'status' => 'inactive'],
 ];
 $totalUsers = count($users);

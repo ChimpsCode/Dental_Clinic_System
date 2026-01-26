@@ -4,6 +4,55 @@ require_once 'includes/admin_layout_start.php';
 
 require_once 'config/database.php';
 
+// Check and migrate services table schema if needed
+// This ensures your local database matches the expected schema
+try {
+    // Check if table exists first
+    $tableExists = $pdo->query("SHOW TABLES LIKE 'services'")->rowCount() > 0;
+    
+    if ($tableExists) {
+        $columns = $pdo->query("SHOW COLUMNS FROM services")->fetchAll(PDO::FETCH_COLUMN);
+        $columnMap = array_flip($columns);
+        
+        // Migrate from old schema to new schema if needed
+        if (isset($columnMap['service_name']) && !isset($columnMap['name'])) {
+            // Rename service_name to name
+            $pdo->exec("ALTER TABLE services CHANGE COLUMN service_name name VARCHAR(200) NOT NULL");
+            $columns = $pdo->query("SHOW COLUMNS FROM services")->fetchAll(PDO::FETCH_COLUMN);
+            $columnMap = array_flip($columns);
+        }
+        
+        if (isset($columnMap['default_cost']) && !isset($columnMap['price'])) {
+            // Rename default_cost to price
+            $pdo->exec("ALTER TABLE services CHANGE COLUMN default_cost price DECIMAL(10,2) DEFAULT 0.00");
+            $columns = $pdo->query("SHOW COLUMNS FROM services")->fetchAll(PDO::FETCH_COLUMN);
+            $columnMap = array_flip($columns);
+        }
+        
+        // Add missing columns (check if name exists first to determine position)
+        if (!isset($columnMap['mode'])) {
+            $afterColumn = isset($columnMap['name']) ? 'name' : 'id';
+            $pdo->exec("ALTER TABLE services ADD COLUMN mode ENUM('BULK', 'SINGLE', 'NONE') DEFAULT 'SINGLE' AFTER $afterColumn");
+            $columns = $pdo->query("SHOW COLUMNS FROM services")->fetchAll(PDO::FETCH_COLUMN);
+            $columnMap = array_flip($columns);
+        }
+        if (!isset($columnMap['price'])) {
+            $afterColumn = isset($columnMap['mode']) ? 'mode' : (isset($columnMap['name']) ? 'name' : 'id');
+            $pdo->exec("ALTER TABLE services ADD COLUMN price DECIMAL(10,2) DEFAULT 0.00 AFTER $afterColumn");
+            $columns = $pdo->query("SHOW COLUMNS FROM services")->fetchAll(PDO::FETCH_COLUMN);
+            $columnMap = array_flip($columns);
+        }
+        if (!isset($columnMap['duration_minutes'])) {
+            $afterColumn = isset($columnMap['price']) ? 'price' : (isset($columnMap['mode']) ? 'mode' : 'id');
+            $pdo->exec("ALTER TABLE services ADD COLUMN duration_minutes INT DEFAULT 30 AFTER $afterColumn");
+        }
+    }
+} catch (PDOException $e) {
+    // Table might not exist yet, database.php will create it with correct schema
+    // Or there might be a permission issue - log it but don't break the page
+    error_log("Services table migration check failed: " . $e->getMessage());
+}
+
 $message = '';
 $messageType = '';
 
@@ -76,12 +125,22 @@ $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $modeFilter = isset($_GET['mode']) ? trim($_GET['mode']) : '';
 $statusFilter = isset($_GET['status']) ? trim($_GET['status']) : '';
 
+// Determine which column name to use (after migration should be 'name')
+$nameColumnCheck = false;
+try {
+    $nameColumnCheck = $pdo->query("SHOW COLUMNS FROM services LIKE 'name'")->fetch();
+    $nameColumnForQuery = $nameColumnCheck ? 'name' : 'service_name';
+} catch (PDOException $e) {
+    $nameColumnForQuery = 'service_name';
+    $nameColumnCheck = false;
+}
+
 // Build WHERE clause for filtering
 $whereClauses = [];
 $params = [];
 
 if (!empty($search)) {
-    $whereClauses[] = "(name LIKE ? OR description LIKE ?)";
+    $whereClauses[] = "($nameColumnForQuery LIKE ? OR description LIKE ?)";
     $params[] = "%$search%";
     $params[] = "%$search%";
 }
@@ -98,11 +157,33 @@ if (!empty($statusFilter) && $statusFilter !== '') {
 
 $whereSQL = !empty($whereClauses) ? 'WHERE ' . implode(' AND ', $whereClauses) : '';
 
-// Get services for current page
-$sql = "SELECT * FROM services $whereSQL ORDER BY name ASC LIMIT $itemsPerPage OFFSET $offset";
+// Get services for current page (use the column name we determined earlier)
+$sql = "SELECT * FROM services $whereSQL ORDER BY $nameColumnForQuery ASC LIMIT $itemsPerPage OFFSET $offset";
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Normalize column names - if old schema (service_name), map to 'name' for compatibility
+// This ensures the rest of the code works regardless of which column name exists
+// Only normalize if we're using the old column name
+if (!$nameColumnCheck && !empty($services)) {
+    foreach ($services as &$service) {
+        if (isset($service['service_name']) && !isset($service['name'])) {
+            $service['name'] = $service['service_name'];
+        }
+        if (isset($service['default_cost']) && !isset($service['price'])) {
+            $service['price'] = $service['default_cost'];
+        }
+        // Set defaults for missing columns
+        if (!isset($service['mode'])) {
+            $service['mode'] = 'SINGLE';
+        }
+        if (!isset($service['duration_minutes'])) {
+            $service['duration_minutes'] = 30;
+        }
+    }
+    unset($service);
+}
 
 // Get all services for stats
 $stmtAll = $pdo->query("SELECT * FROM services");

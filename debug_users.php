@@ -29,7 +29,7 @@ try {
         // Add staff user
         $staffPassword = password_hash('staff123', PASSWORD_DEFAULT);
         $stmt = $pdo->prepare("INSERT INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
-        $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com', 'Staff Member', 'staff']);
+        $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com', 'Staff', 'staff']);
         
         echo "<h3>✓ Staff user created successfully!</h3>";
         echo "<p><strong>Username:</strong> staff</p>";

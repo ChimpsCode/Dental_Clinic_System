@@ -231,7 +231,7 @@ function initializeDatabase($pdo) {
         // Create staff user (username: staff, password: staff123)
         $staffPassword = password_hash('staff123', PASSWORD_DEFAULT);
         $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
-        $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com', 'Staff Member', 'staff']);
+        $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com', 'Staff', 'staff']);
         
         // Insert default services with proper mode
         $defaultServices = [
@@ -346,7 +346,7 @@ if (!isset($pdo)) {
                 if ($stmt->rowCount() == 0) {
                     $staffPassword = password_hash('staff123', PASSWORD_DEFAULT);
                     $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
-                    $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com', 'Staff Member', 'staff']);
+                    $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com', 'Staff', 'staff']);
                 }
             }
         } catch (PDOException $e) {

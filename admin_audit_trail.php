@@ -67,7 +67,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                             </tr>
                             <tr>
                                 <td>2024-01-12 14:40:45</td>
-                                <td>Staff Member</td>
+                                <td>Staff</td>
                                 <td><span class="role-badge staff">Staff</span></td>
                                 <td><span class="action-badge update">Update</span></td>
                                 <td>Updated appointment status: #A001 to Completed</td>
@@ -91,7 +91,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                             </tr>
                             <tr>
                                 <td>2024-01-12 15:00:00</td>
-                                <td>Staff Member</td>
+                                <td>Staff</td>
                                 <td><span class="role-badge staff">Staff</span></td>
                                 <td><span class="action-badge delete">Delete</span></td>
                                 <td>Deleted reminder item #12</td>

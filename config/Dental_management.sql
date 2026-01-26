@@ -145,7 +145,7 @@ CREATE TABLE `medical_history` (
 --
 
 CREATE TABLE `patients` (
-  `id` int(11) NOT NULL,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
   `last_name` varchar(100) DEFAULT NULL,
   `first_name` varchar(100) DEFAULT NULL,
   `full_name` varchar(100) NOT NULL,
@@ -156,7 +156,8 @@ CREATE TABLE `patients` (
   `gender` varchar(10) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  `created_by` int(11) DEFAULT NULL
+  `created_by` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -308,7 +309,7 @@ CREATE TABLE `users` (
 
 INSERT INTO `users` (`id`, `username`, `password`, `email`, `full_name`, `role`, `created_at`) VALUES
 (1, 'admin', '$2y$10$fBqiR.vEHMxmVTuyCB6GrODnHfiaF9fjOORHRlm9KN.iU46V46kJC', 'admin@rfdental.com', 'Administrator', 'admin', '2026-01-02 06:32:17'),
-(4, 'staff', '$2y$10$jRGwuu0MuLLPiNaDV5uz8.SSueIZkw7AwOeyouvIPCGnftm/OcBdK', 'staff@rfdental.com', 'Staff Member', 'staff', '2026-01-09 14:40:00'),
+(4, 'staff', '$2y$10$jRGwuu0MuLLPiNaDV5uz8.SSueIZkw7AwOeyouvIPCGnftm/OcBdK', 'staff@rfdental.com', 'Staff', 'staff', '2026-01-09 14:40:00'),
 (6, 'dentist', '$2y$10$J.tCZfkE.TDCaYClTem.GertJO7FDz2dwXDkukVluf0nWfJg1qzW2', 'dentist@rfdental.com', 'Dentist', 'dentist', '2026-01-12 02:44:24');
 
 --
@@ -320,8 +321,8 @@ INSERT INTO `users` (`id`, `username`, `password`, `email`, `full_name`, `role`,
 --
 -- Indexes for table `appointments`
 --
+-- PRIMARY KEY is already defined in CREATE TABLE statement above
 ALTER TABLE `appointments`
-  ADD PRIMARY KEY (`id`),
   ADD KEY `patient_id` (`patient_id`);
 
 --
@@ -345,8 +346,7 @@ ALTER TABLE `dental_history`
 --
 -- Indexes for table `inquiries`
 --
-ALTER TABLE `inquiries`
-  ADD PRIMARY KEY (`id`);
+-- PRIMARY KEY is already defined in CREATE TABLE statement above
 
 --
 -- Indexes for table `medical_history`
@@ -358,8 +358,7 @@ ALTER TABLE `medical_history`
 --
 -- Indexes for table `patients`
 --
-ALTER TABLE `patients`
-  ADD PRIMARY KEY (`id`);
+-- PRIMARY KEY is already defined in CREATE TABLE statement above
 
 --
 -- Indexes for table `payments`

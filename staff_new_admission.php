@@ -60,7 +60,7 @@ try {
 }
 
  $username = $_SESSION['username'] ?? 'Staff';
- $fullName = $_SESSION['full_name'] ?? 'Staff Member';
+ $fullName = $_SESSION['full_name'] ?? 'Staff';
 
  $inquiryData = null;
 if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
