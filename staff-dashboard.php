@@ -1,14 +1,12 @@
 <?php
 $pageTitle = 'Dashboard';
+require_once 'config/database.php';
 require_once 'includes/staff_layout_start.php';
 
-
 try {
-    require_once 'config/database.php';
-    
-    // Get queue data
+    // Get queue data - same query as queue management
     $stmt = $pdo->query("
-        SELECT q.*, p.full_name, p.phone, p.age
+        SELECT q.*, p.full_name, p.phone
         FROM queue q 
         LEFT JOIN patients p ON q.patient_id = p.id 
         WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'on_hold', 'cancelled')

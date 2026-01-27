@@ -1,17 +1,16 @@
 <?php
 $pageTitle = 'Queue Management';
+require_once 'config/database.php';
 require_once 'includes/staff_layout_start.php';
 
 try {
-    require_once 'config/database.php';
-    
-    // Get queue data with patient info
+    // Get queue data with patient info - EXACT same query as dashboard
     $stmt = $pdo->query("
-        SELECT q.*, p.full_name, p.phone, p.age, p.gender, p.address, p.date_of_birth,
-               p.dental_insurance, p.email, p.medical_conditions, p.middle_name, p.suffix,
-               p.city, p.province, p.religion
+        SELECT q.*, p.full_name, p.phone
         FROM queue q 
-        LEFT JOIN patients p ON q.patien        WHERE DATE(q.queue_time) = CURDATE()
+        LEFT JOIN patients p ON q.patient_id = p.id 
+        WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'on_hold', 'cancelled')
+        AND DATE(q.created_at) = CURDATE()
         ORDER BY 
             CASE q.status 
                 WHEN 'in_procedure' THEN 1 
@@ -759,13 +758,10 @@ function toggleMoreMenu(button) {
     alert('More options for this patient');
     // Add dropdown menu logic here
 }
-pleteTreatment(${q.id}); closeFullScreenModal();" class="btn-action btn-action-success">Mark Complete</button>` : ''}
-                </div>
-            `;
-            
-            document.getElementById('fullScreenPatientModal').classList.add('active');
-        }
-    });
+
+function openFullScreenPatientModal(queueId) {
+    // Placeholder function for opening full screen patient modal
+    alert('Opening patient details for queue ID: ' + queueId);
 }
 
 function closeFullScreenModal() {
@@ -773,40 +769,11 @@ function closeFullScreenModal() {
 }
 
 // Close modal on outside click
-document.getElementById('fullScreenPatientModal').addEventListener('click', function(e) {
+document.getElementById('fullScreenPatientModal')?.addEventListener('click', function(e) {
     if (e.target === this) closeFullScreenModal();
 });
 
-document.getElementById('callingModal').addEventListener('click', function(e) {
-    if (e.target === this) closeCallingModal();
-});
-
-// ESC key to close modal
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeFullScreenModal();
-        closeCallingModal();
-    }
-});
-nt(${q.id}); closeFullScreenModal();" class="btn-action btn-action-success">Mark Complete</button>` : ''}
-                </div>
-            `;
-            
-            document.getElementById('fullScreenPatientModal').classList.add('active');
-        }
-    });
-}
-
-function closeFullScreenModal() {
-    document.getElementById('fullScreenPatientModal').classList.remove('active');
-}
-
-// Close modal on outside click
-document.getElementById('fullScreenPatientModal').addEventListener('click', function(e) {
-    if (e.target === this) closeFullScreenModal();
-});
-
-document.getElementById('callingModal').addEventListener('click', function(e) {
+document.getElementById('callingModal')?.addEventListener('click', function(e) {
     if (e.target === this) closeCallingModal();
 });
 

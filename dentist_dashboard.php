@@ -18,12 +18,13 @@ try {
     $stmt = $pdo->query("SELECT COUNT(*) FROM queue WHERE status = 'completed' AND DATE(updated_at) = CURDATE()");
     $completedToday = $stmt->fetchColumn();
     
-    // Get patients currently in queue
+// Get patients currently in queue - same query logic as queue management
     $stmt = $pdo->query("
         SELECT q.*, p.full_name, p.phone, p.gender, p.age
         FROM queue q
         JOIN patients p ON q.patient_id = p.id
         WHERE q.status IN ('waiting', 'in_procedure')
+        AND DATE(q.created_at) = CURDATE()
         ORDER BY q.priority ASC, q.queue_time ASC
         LIMIT 10
     ");
