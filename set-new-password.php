@@ -8,10 +8,10 @@ if (!isset($_SESSION['reset_email']) || !isset($_SESSION['reset_user_id'])) {
     exit();
 }
 
-$error = '';
-$success = '';
-$email = $_SESSION['reset_email'];
-$user_id = $_SESSION['reset_user_id'];
+ $error = '';
+ $success = '';
+ $email = $_SESSION['reset_email'];
+ $user_id = $_SESSION['reset_user_id'];
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $password = trim($_POST['password'] ?? '');
@@ -66,26 +66,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             display: flex;
             height: 100vh;
             align-items: center;
-            justify-content: space-between;
+            justify-content: center;
             padding: 0 90px;
-        }
-
-        .left {
-            width: 55%;
-            display: flex;
-            align-items: flex-end;
-        }
-
-        .dentist-img {
-            height: 100vh;
-            object-fit: contain;
         }
 
         .right {
             width: 45%;
             display: flex;
             align-items: center;
-            justify-content: flex-end;
+            justify-content: center;
         }
 
         .login-box {
@@ -98,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
 
         .logo {
-            width: 50px;
+            width: 70px;
             margin-bottom: 20px;
         }
 
@@ -115,6 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             border-radius: 5px;
             background: #e6e6e6;
             font-size: 14px;
+            transition: background 0.3s ease;
         }
 
         .login-box input:focus {
@@ -133,6 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             letter-spacing: 1px;
             cursor: pointer;
             margin-top: 15px;
+            transition: background 0.3s ease;
         }
 
         .login-box button:hover {
@@ -154,6 +145,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             color: #0d5bd7;
             text-decoration: none;
             font-weight: 500;
+            transition: text-decoration 0.2s ease;
         }
 
         .back-link-wrapper a:hover {
@@ -163,10 +155,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         @media (max-width: 1024px) {
             .container {
                 padding: 0 50px;
-            }
-
-            .left {
-                width: 40%;
             }
 
             .right {
@@ -180,11 +168,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 flex-direction: column;
             }
 
-            .left {
-                width: 100%;
-                display: none;
-            }
-
             .right {
                 width: 100%;
                 justify-content: center;
@@ -195,10 +178,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <body>
 
     <div class="container">
-        <div class="left">
-            <img src="assets/images/Dentists.png" class="dentist-img" alt="Dentist">
-        </div>
-
         <div class="right">
             <div class="login-box">
                 <img src="assets/images/Logo.png" class="logo" alt="RF Logo">

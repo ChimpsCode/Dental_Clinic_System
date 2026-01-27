@@ -15,6 +15,31 @@ body {
     background-position: center;
     background-repeat: no-repeat;
     z-index: 0;
+    animation: pageEnter 0.6s ease-out;
+}
+
+@keyframes pageEnter {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes pageExit {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+}
+
+body.exit-animation {
+    animation: pageExit 0.5s ease-in forwards;
 }
 
 body::before {
@@ -201,13 +226,106 @@ body::before {
 .form-links .link {
     color: #2563eb;
     text-decoration: none;
-    transition: color 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     font-weight: 500;
+    position: relative;
+    display: inline-block;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+.form-links .link::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background-color: #2563eb;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateX(-50%);
+    border-radius: 1px;
 }
 
 .form-links .link:hover {
     color: #1d4ed8;
-    text-decoration: underline;
+    transform: translateY(-1px);
+    background-color: rgba(37, 99, 235, 0.05);
+}
+
+.form-links .link:hover::before {
+    width: 100%;
+}
+
+.form-links .link:active {
+    transform: translateY(0);
+    transition: all 0.1s ease;
+}
+
+/* Specific styles for forgot password link */
+.form-links a[href="forgot-password.php"] {
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    position: relative;
+    overflow: hidden;
+}
+
+.form-links a[href="forgot-password.php"]:hover {
+    color: #1e40af;
+    transform: translateY(-2px) scale(1.02);
+    text-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(37, 99, 235, 0.03) 100%);
+    box-shadow: 0 4px 8px rgba(37, 99, 235, 0.15);
+}
+
+.form-links a[href="forgot-password.php"]::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(37, 99, 235, 0.1);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s ease, height 0.6s ease;
+}
+
+.form-links a[href="forgot-password.php"]:hover::after {
+    width: 100px;
+    height: 100px;
+}
+
+/* Specific styles for create an account link */
+.form-links a[href="register.php"] {
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    position: relative;
+    overflow: hidden;
+}
+
+.form-links a[href="register.php"]:hover {
+    color: #1e40af;
+    transform: translateY(-2px) scale(1.02);
+    text-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(37, 99, 235, 0.03) 100%);
+    box-shadow: 0 4px 8px rgba(37, 99, 235, 0.15);
+}
+
+.form-links a[href="register.php"]::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(37, 99, 235, 0.1);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s ease, height 0.6s ease;
+}
+
+.form-links a[href="register.php"]:hover::after {
+    width: 100px;
+    height: 100px;
 }
 
 .separator {
@@ -478,4 +596,3 @@ body::before {
         display: none;
     }
 }
-

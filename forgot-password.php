@@ -2,8 +2,8 @@
 session_start();
 require_once 'config/database.php';
 
-$error = '';
-$success = '';
+ $error = '';
+ $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $email = trim($_POST['email'] ?? '');
@@ -56,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             display: flex;
             height: 100vh;
             align-items: center;
-            justify-content: space-between;
+            justify-content: center;
             padding: 0 90px;
         }
 
@@ -75,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             width: 45%;
             display: flex;
             align-items: center;
-            justify-content: flex-end;
+            justify-content: center;
         }
 
         .login-box {
@@ -88,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
 
         .logo {
-            width: 50px;
+            width: 70px;
             margin-bottom: 20px;
          
         }
@@ -106,6 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             border-radius: 5px;
             background: #e6e6e6;
             font-size: 14px;
+            transition: background 0.3s ease;
         }
 
         .login-box button {
@@ -119,6 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             letter-spacing: 1px;
             cursor: pointer;
             margin-top: 15px;
+            transition: background 0.3s ease;
         }
 
         .login-box button:hover {
@@ -140,6 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             color: #0d5bd7;
             text-decoration: none;
             font-weight: 500;
+            transition: text-decoration 0.2s ease;
         }
 
         .back-link-wrapper a:hover {
@@ -250,10 +253,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <body>
 
     <div class="container">
-        <div class="left">
-            <img src="assets/images/Dentists.png" class="dentist-img" alt="Dentist">
-        </div>
-
         <div class="right">
             <div class="login-box">
                 <img src="assets/images/Logo.png" class="logo" alt="RF Logo">

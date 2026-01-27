@@ -311,4 +311,21 @@ document.addEventListener('DOMContentLoaded', function() {
             showToast('Error', errorText, 'error');
         }
     }
+
+    // Page transition effect for navigation links
+    const pageTransitionLinks = document.querySelectorAll('.page-transition');
+    pageTransitionLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const url = this.href;
+            
+            // Add exit animation
+            document.body.classList.add('exit-animation');
+            
+            // Navigate after animation completes
+            setTimeout(() => {
+                window.location.href = url;
+            }, 500);
+        });
+    });
 });

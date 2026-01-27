@@ -183,7 +183,7 @@ if (empty($username) || empty($password)) {
                 <div class="form-links">
                     <a href="forgot-password.php" class="link">Forgot password ?</a>
                     <span class="separator">or</span>
-                    <a href="register.php" class="link">Create an account</a>
+                    <a href="register.php" class="link page-transition">Create an account</a>
                 </div>
                 
                 <button type="submit" class="login-btn" id="loginBtn">
