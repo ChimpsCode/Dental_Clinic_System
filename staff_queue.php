@@ -3,9 +3,14 @@ $pageTitle = 'Queue Management';
 require_once 'config/database.php';
 require_once 'includes/staff_layout_start.php';
 
+// Pagination settings
+$itemsPerPage = 7;
+$currentPage = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
+if ($currentPage < 1) $currentPage = 1;
+
 try {
-    // Get queue data with patient info - EXACT same query as dashboard
-    $stmt = $pdo->query("
+    // Get ALL queue data for counts (without pagination)
+    $allStmt = $pdo->query("
         SELECT q.*, p.full_name, p.phone
         FROM queue q 
         LEFT JOIN patients p ON q.patient_id = p.id 
@@ -21,23 +26,43 @@ try {
             END,
             q.queue_time ASC
     ");
-    $queueItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $allQueueItems = $allStmt->fetchAll(PDO::FETCH_ASSOC);
     
-    $waitingCount = count(array_filter($queueItems, fn($q) => $q['status'] === 'waiting'));
-    $procedureCount = count(array_filter($queueItems, fn($q) => $q['status'] === 'in_procedure'));
-    $completedToday = count(array_filter($queueItems, fn($q) => $q['status'] === 'completed'));
-    $onHoldCount = count(array_filter($queueItems, fn($q) => $q['status'] === 'on_hold'));
-    $cancelledCount = count(array_filter($queueItems, fn($q) => $q['status'] === 'cancelled'));
+    // Calculate counts from all items
+    $waitingCount = count(array_filter($allQueueItems, fn($q) => $q['status'] === 'waiting'));
+    $procedureCount = count(array_filter($allQueueItems, fn($q) => $q['status'] === 'in_procedure'));
+    $completedToday = count(array_filter($allQueueItems, fn($q) => $q['status'] === 'completed'));
+    $onHoldCount = count(array_filter($allQueueItems, fn($q) => $q['status'] === 'on_hold'));
+    $cancelledCount = count(array_filter($allQueueItems, fn($q) => $q['status'] === 'cancelled'));
     $totalInQueue = $waitingCount + $procedureCount + $onHoldCount;
+    
+    // Pagination calculations
+    $totalQueueItems = count($allQueueItems);
+    $totalPages = max(1, ceil($totalQueueItems / $itemsPerPage));
+    
+    if ($currentPage > $totalPages) $currentPage = $totalPages;
+    $offset = ($currentPage - 1) * $itemsPerPage;
+    
+    // Calculate showing range
+    $showingStart = $totalQueueItems > 0 ? $offset + 1 : 0;
+    $showingEnd = min($offset + $itemsPerPage, $totalQueueItems);
+    
+    // Get paginated queue items
+    $queueItems = array_slice($allQueueItems, $offset, $itemsPerPage);
     
 } catch (Exception $e) {
     $queueItems = [];
+    $allQueueItems = [];
     $waitingCount = 0;
     $procedureCount = 0;
     $completedToday = 0;
     $onHoldCount = 0;
     $cancelledCount = 0;
     $totalInQueue = 0;
+    $totalQueueItems = 0;
+    $totalPages = 1;
+    $showingStart = 0;
+    $showingEnd = 0;
 }
 ?>
 
@@ -47,10 +72,175 @@ try {
     background-color: #f3f4f6;
 }
 
+/* Queue Kebab Menu Styles - Portal Based */
+.queue-kebab-menu {
+    position: relative;
+    display: inline-block;
+}
+
+.queue-kebab-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.queue-kebab-btn:hover {
+    background-color: #f3f4f6;
+    color: #374151;
+}
+
+.queue-kebab-btn.active {
+    background-color: #e5e7eb;
+    color: #111827;
+}
+
+.queue-kebab-dropdown-portal {
+    display: none;
+    position: fixed;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    min-width: 160px;
+    max-width: 200px;
+    width: auto;
+    z-index: 99999;
+    overflow: hidden;
+}
+
+.queue-kebab-dropdown-portal.show {
+    display: block;
+    animation: queueKebabFadeIn 0.15s ease;
+}
+
+@keyframes queueKebabFadeIn {
+    from { opacity: 0; transform: scale(0.95) translateY(-4px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.queue-kebab-dropdown-portal a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    color: #374151;
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: all 0.15s ease;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.queue-kebab-dropdown-portal a:hover {
+    background-color: #f9fafb;
+    color: #111827;
+}
+
+.queue-kebab-dropdown-portal a svg {
+    flex-shrink: 0;
+}
+
+.queue-kebab-dropdown-portal a:first-child {
+    border-radius: 8px 8px 0 0;
+}
+
+.queue-kebab-dropdown-portal a:last-child {
+    border-radius: 0 0 8px 8px;
+}
+
+.queue-kebab-dropdown-portal a.danger {
+    color: #dc2626;
+}
+
+.queue-kebab-dropdown-portal a.danger:hover {
+    background-color: #fef2f2;
+}
+
+.queue-kebab-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 99998;
+}
+
+.queue-kebab-backdrop.show {
+    display: block;
+}
+
+/* Pagination Styles */
+.pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    margin-top: 12px;
+}
+
+.pagination-info {
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
+.pagination-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.pagination-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    text-decoration: none;
+    color: #4a5568;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    min-width: 32px;
+    cursor: pointer;
+}
+
+.pagination-btn:hover:not(.active):not(:disabled) {
+    background-color: #f7fafc;
+    border-color: #cbd5e0;
+}
+
+.pagination-btn.active {
+    background-color: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+}
+
+.pagination-btn:disabled {
+    color: #a0aec0;
+    background-color: #fff;
+    cursor: not-allowed;
+    border-color: #edf2f7;
+}
+
+.pagination-ellipsis {
+    color: #a0aec0;
+    padding: 0 4px;
+}
+
 /* Top Summary Widgets */
 .summary-widgets {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 20px;
     margin-bottom: 24px;
 }
@@ -88,6 +278,11 @@ try {
 .summary-widget-icon.green {
     background: #dcfce7;
     color: #16a34a;
+}
+
+.summary-widget-icon.blue {
+    background: #dbeafe;
+    color: #2563eb;
 }
 
 .summary-widget-icon.red {
@@ -182,16 +377,23 @@ try {
 
 /* Main Content (Left Column) */
 div.main-content {
-margin-left: 0px;
+    margin-left: 0px;
 }
 
 .main-content {
     background: white;
     border-radius: 12px;
-    border: -1px solid #e5e7eb;
+    border: 1px solid #e5e7eb;
     overflow: hidden;
-    
+    height: auto;
+    min-height: auto;
+}
 
+/* Data Table Container - auto height */
+.queue-table-container {
+    overflow-x: auto;
+    height: auto;
+    max-height: none;
 }
 
 /* Tabbed Navigation */
@@ -241,10 +443,6 @@ margin-left: 0px;
 }
 
 /* Data Table */
-.queue-table-container {
-    overflow-x: auto;
-}
-
 .queue-table {
     width: 100%;
     border-collapse: collapse;
@@ -534,6 +732,13 @@ margin-left: 0px;
         </div>
     </div>
     <div class="summary-widget">
+        <div class="summary-widget-icon blue">⚙</div>
+        <div class="summary-widget-info">
+            <h3><?php echo $procedureCount; ?></h3>
+            <p>In Procedure</p>
+        </div>
+    </div>
+    <div class="summary-widget">
         <div class="summary-widget-icon green">✓</div>
         <div class="summary-widget-info">
             <h3><?php echo $completedToday; ?></h3>
@@ -541,17 +746,17 @@ margin-left: 0px;
         </div>
     </div>
     <div class="summary-widget">
-        <div class="summary-widget-icon red">✕</div>
-        <div class="summary-widget-info">
-            <h3><?php echo $cancelledCount; ?></h3>
-            <p>Cancelled</p>
-        </div>
-    </div>
-    <div class="summary-widget">
         <div class="summary-widget-icon gray">⏸</div>
         <div class="summary-widget-info">
             <h3><?php echo $onHoldCount; ?></h3>
             <p>On Hold</p>
+        </div>
+    </div>
+    <div class="summary-widget">
+        <div class="summary-widget-icon red">✕</div>
+        <div class="summary-widget-info">
+            <h3><?php echo $cancelledCount; ?></h3>
+            <p>Cancelled</p>
         </div>
     </div>
 </div>
@@ -652,35 +857,22 @@ margin-left: 0px;
                                         <span class="time-24hr"><?php echo $time24hr; ?></span>
                                     </div>
                                 </td>
-                                <td>
-                                    <div class="action-buttons">
-                                        <button class="action-btn" onclick="callPatient(<?php echo $item['id']; ?>)" title="Call Patient">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                                <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+<td>
+                                    <div class="queue-kebab-menu">
+                                        <button class="queue-kebab-btn" data-queue-id="<?php echo $item['id']; ?>" data-patient-id="<?php echo $item['patient_id']; ?>">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                                <circle cx="12" cy="6" r="2"/>
+                                                <circle cx="12" cy="12" r="2"/>
+                                                <circle cx="12" cy="18" r="2"/>
                                             </svg>
-                                            Call
                                         </button>
-                                        <button class="action-btn" onclick="editPatient(<?php echo $item['id']; ?>)" title="Edit">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-                                            </svg>
-                                            Edit
-                                        </button>
-                                        <div class="more-dropdown">
-                                            <button class="more-btn" onclick="toggleMoreMenu(this)">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                                    <circle cx="12" cy="6" r="2"/>
-                                                    <circle cx="12" cy="12" r="2"/>
-                                                    <circle cx="12" cy="18" r="2"/>
-                                                </svg>
-                                            </button>
-                                        </div>
                                     </div>
+                                </td>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
-                </tbody>
+</tbody>
             </table>
         </div>
     </div>
@@ -689,7 +881,292 @@ margin-left: 0px;
     
 </div>
 
+<!-- Pagination - Outside the box -->
+<?php if ($totalQueueItems > 0): ?>
+<div class="pagination">
+    <span class="pagination-info">Showing <?php echo $showingStart; ?>-<?php echo $showingEnd; ?> of <?php echo $totalQueueItems; ?> patients</span>
+    <div class="pagination-buttons">
+        <?php if ($currentPage > 1): ?>
+            <a href="?page=<?php echo $currentPage - 1; ?>" class="pagination-btn">Previous</a>
+        <?php else: ?>
+            <button class="pagination-btn" disabled>Previous</button>
+        <?php endif; ?>
+        
+        <?php
+        // Smart page number display
+        $maxVisiblePages = 5;
+        $startPage = max(1, $currentPage - floor($maxVisiblePages / 2));
+        $endPage = min($totalPages, $startPage + $maxVisiblePages - 1);
+        
+        if ($endPage - $startPage + 1 < $maxVisiblePages) {
+            $startPage = max(1, $endPage - $maxVisiblePages + 1);
+        }
+        
+        if ($startPage > 1) {
+            ?>
+            <a href="?page=1" class="pagination-btn">1</a>
+            <?php
+            if ($startPage > 2) {
+                ?>
+                <span class="pagination-ellipsis">...</span>
+                <?php
+            }
+        }
+        
+        for ($i = $startPage; $i <= $endPage; $i++) {
+            if ($i == $currentPage) {
+                ?>
+                <button class="pagination-btn active"><?php echo $i; ?></button>
+                <?php
+            } else {
+                ?>
+                <a href="?page=<?php echo $i; ?>" class="pagination-btn"><?php echo $i; ?></a>
+                <?php
+            }
+        }
+        
+        if ($endPage < $totalPages) {
+            if ($endPage < $totalPages - 1) {
+                ?>
+                <span class="pagination-ellipsis">...</span>
+                <?php
+            }
+            ?>
+            <a href="?page=<?php echo $totalPages; ?>" class="pagination-btn"><?php echo $totalPages; ?></a>
+            <?php
+        }
+        ?>
+        
+        <?php if ($currentPage < $totalPages): ?>
+            <a href="?page=<?php echo $currentPage + 1; ?>" class="pagination-btn">Next</a>
+        <?php else: ?>
+            <button class="pagination-btn" disabled>Next</button>
+        <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
+
 <script>
+// Queue Kebab Menu - Portal Based (same as patient-records)
+let queueKebabDropdown = null;
+let queueKebabBackdrop = null;
+let queueActiveButton = null;
+
+function createQueueKebabDropdown() {
+    queueKebabDropdown = document.createElement('div');
+    queueKebabDropdown.className = 'queue-kebab-dropdown-portal';
+    queueKebabDropdown.id = 'queueKebabDropdownPortal';
+    document.body.appendChild(queueKebabDropdown);
+
+    queueKebabBackdrop = document.createElement('div');
+    queueKebabBackdrop.className = 'queue-kebab-backdrop';
+    queueKebabBackdrop.id = 'queueKebabBackdrop';
+    document.body.appendChild(queueKebabBackdrop);
+
+    queueKebabBackdrop.addEventListener('click', closeQueueKebabDropdown);
+}
+
+function getQueueMenuItems(queueId, patientId) {
+    return `
+        <a href="javascript:void(0)" data-action="view" data-queue-id="${queueId}" data-patient-id="${patientId}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+            </svg>
+            View
+        </a>
+        <a href="javascript:void(0)" data-action="hold" data-queue-id="${queueId}" data-patient-id="${patientId}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="6" y="4" width="4" height="16"></rect>
+                <rect x="14" y="4" width="4" height="16"></rect>
+            </svg>
+            Hold
+        </a>
+        <a href="javascript:void(0)" class="danger" data-action="cancel" data-queue-id="${queueId}" data-patient-id="${patientId}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+            </svg>
+            Cancel
+        </a>
+    `;
+}
+
+function positionQueueKebabDropdown(button) {
+    if (!queueKebabDropdown || !button) return;
+
+    const rect = button.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    const padding = 15;
+    const dropdownWidth = 160;
+    const dropdownHeight = 130;
+    
+    let left = rect.right + 5;
+    let top = rect.top;
+
+    // Position to the left if not enough space on right
+    if (left + dropdownWidth > viewportWidth - padding) {
+        left = rect.left - dropdownWidth - 5;
+    }
+    
+    if (left < padding) {
+        left = padding;
+    }
+    
+    // Position above if not enough space below
+    if (top + dropdownHeight > viewportHeight - padding) {
+        top = rect.bottom - dropdownHeight;
+    }
+    
+    if (top < padding) {
+        top = padding;
+    }
+
+    queueKebabDropdown.style.left = left + 'px';
+    queueKebabDropdown.style.top = top + 'px';
+}
+
+function openQueueKebabDropdown(button) {
+    if (!queueKebabDropdown) {
+        createQueueKebabDropdown();
+    }
+
+    const queueId = button.dataset.queueId;
+    const patientId = button.dataset.patientId;
+
+    queueKebabDropdown.innerHTML = getQueueMenuItems(queueId, patientId);
+    positionQueueKebabDropdown(button);
+
+    queueKebabDropdown.classList.add('show');
+    queueKebabBackdrop.classList.add('show');
+    queueActiveButton = button;
+    button.classList.add('active');
+
+    queueKebabDropdown.addEventListener('click', handleQueueKebabClick);
+}
+
+function closeQueueKebabDropdown() {
+    if (queueKebabDropdown) {
+        queueKebabDropdown.classList.remove('show');
+        queueKebabDropdown.innerHTML = '';
+    }
+    if (queueKebabBackdrop) {
+        queueKebabBackdrop.classList.remove('show');
+    }
+    if (queueActiveButton) {
+        queueActiveButton.classList.remove('active');
+        queueActiveButton = null;
+    }
+}
+
+function handleQueueKebabClick(e) {
+    const link = e.target.closest('a[data-action]');
+    if (!link) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const action = link.dataset.action;
+    const queueId = parseInt(link.dataset.queueId);
+    const patientId = parseInt(link.dataset.patientId);
+
+    closeQueueKebabDropdown();
+
+    switch(action) {
+        case 'view':
+            viewPatientQueue(patientId);
+            break;
+        case 'hold':
+            holdPatientQueue(queueId);
+            break;
+        case 'cancel':
+            cancelPatientQueue(queueId);
+            break;
+    }
+}
+
+// Click handler for kebab buttons
+document.addEventListener('click', function(e) {
+    const button = e.target.closest('.queue-kebab-btn');
+    if (button) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (queueActiveButton === button && queueKebabDropdown && queueKebabDropdown.classList.contains('show')) {
+            closeQueueKebabDropdown();
+        } else {
+            if (queueActiveButton) {
+                queueActiveButton.classList.remove('active');
+            }
+            openQueueKebabDropdown(button);
+        }
+        return;
+    }
+});
+
+// View Patient
+function viewPatientQueue(patientId) {
+    fetch('get_patient.php?id=' + patientId)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Patient: ' + (data.patient.full_name || 'Unknown') + '\nPhone: ' + (data.patient.phone || 'N/A'));
+            } else {
+                alert('Patient details not found');
+            }
+        })
+        .catch(() => {
+            alert('Viewing patient ID: ' + patientId);
+        });
+}
+
+// Hold Patient
+function holdPatientQueue(queueId) {
+    if (!confirm('Put this patient on hold?')) return;
+    
+    fetch('queue_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'on_hold', queue_id: queueId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message || 'Failed to put patient on hold');
+        }
+    })
+    .catch(() => {
+        alert('Error putting patient on hold');
+    });
+}
+
+// Cancel Patient
+function cancelPatientQueue(queueId) {
+    if (!confirm('Cancel this patient from the queue?')) return;
+    
+    fetch('queue_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel', queue_id: queueId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message || 'Failed to cancel patient');
+        }
+    })
+    .catch(() => {
+        alert('Error cancelling patient');
+    });
+}
+
 // Tab switching functionality
 document.querySelectorAll('.tab-item').forEach(tab => {
     tab.addEventListener('click', function() {

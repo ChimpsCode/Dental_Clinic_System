@@ -100,6 +100,7 @@ try {
                                 <div class="patient-treatment"><?php echo htmlspecialchars($patient['teeth_numbers'] ? 'Teeth: ' . $patient['teeth_numbers'] : 'All teeth'); ?></div>
                             </div>
                             <div class="patient-actions">
+                                <button onclick="viewPatientDetails(<?php echo $patient['patient_id']; ?>)" class="action-btn" style="background: #6b7280; color: white;">View</button>
                                 <?php if ($patient['status'] === 'waiting'): ?>
                                     <button onclick="startProcedure(<?php echo $patient['id']; ?>)" class="action-btn" style="background: #22c55e; color: white;">Start</button>
                                 <?php else: ?>
@@ -172,6 +173,295 @@ function completeProcedure(queueId) {
         }
     });
 }
+
+// View patient details - Same modal as dentist_patients.php
+function viewPatientDetails(patientId) {
+    fetch('patient_record_details.php?id=' + patientId)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const p = data.patient;
+            const m = data.medical_history || {};
+            const d = data.dental_history || {};
+            const q = data.queue_item || {};
+            
+            const allergies = m.allergies || 'None';
+            const medications = m.current_medications || 'None';
+            const medicalConditions = m.medical_conditions || 'None';
+            
+            document.getElementById('dentistModalPatientName').innerText = p.full_name || 'Unknown';
+            
+            // Check for medical alerts
+            const hasMedicalAlert = allergies === 'Yes' || 
+                                   medicalConditions.toLowerCase().includes('diabetes') ||
+                                   medicalConditions.toLowerCase().includes('heart') ||
+                                   medicalConditions.toLowerCase().includes('blood pressure') ||
+                                   medicalConditions.toLowerCase().includes('asthma');
+            
+            document.getElementById('patientModalContent').innerHTML = `
+                <!-- Patient Basic Info -->
+                <div class="patient-info-grid">
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Full Name</div>
+                        <div class="patient-info-value">${p.full_name || 'N/A'}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Age</div>
+                        <div class="patient-info-value">${p.age || 'N/A'} years</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Gender</div>
+                        <div class="patient-info-value">${p.gender || 'N/A'}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Date of Birth</div>
+                        <div class="patient-info-value">${p.date_of_birth || 'N/A'}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Phone</div>
+                        <div class="patient-info-value">${p.phone || 'N/A'}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Email</div>
+                        <div class="patient-info-value">${p.email || 'N/A'}</div>
+                    </div>
+                    <div class="patient-info-item" style="grid-column: 1 / -1;">
+                        <div class="patient-info-label">Address</div>
+                        <div class="patient-info-value">${p.address || 'N/A'} ${p.city ? ', ' + p.city : ''} ${p.province ? ', ' + p.province : ''}</div>
+                    </div>
+                </div>
+
+                <!-- Medical Alert -->
+                ${hasMedicalAlert ? `
+                <div class="medical-alert">
+                    <div class="medical-alert-title">⚠️ Medical Alert - Important for Treatment</div>
+                    <div class="medical-alert-grid">
+                        <div class="medical-alert-item">
+                            <div class="patient-info-label">Allergies</div>
+                            <div class="patient-info-value ${allergies === 'Yes' ? 'danger' : ''}">${allergies}</div>
+                        </div>
+                        <div class="medical-alert-item">
+                            <div class="patient-info-label">Diabetes</div>
+                            <div class="patient-info-value ${medicalConditions.toLowerCase().includes('diabetes') ? 'danger' : ''}">${medicalConditions.toLowerCase().includes('diabetes') ? 'Yes' : 'No'}</div>
+                        </div>
+                        <div class="medical-alert-item">
+                            <div class="patient-info-label">Heart Disease</div>
+                            <div class="patient-info-value ${medicalConditions.toLowerCase().includes('heart') ? 'danger' : ''}">${medicalConditions.toLowerCase().includes('heart') ? 'Yes' : 'No'}</div>
+                        </div>
+                        <div class="medical-alert-item">
+                            <div class="patient-info-label">High Blood Pressure</div>
+                            <div class="patient-info-value ${medicalConditions.toLowerCase().includes('blood pressure') ? 'danger' : ''}">${medicalConditions.toLowerCase().includes('blood pressure') ? 'Yes' : 'No'}</div>
+                        </div>
+                        <div class="medical-alert-item">
+                            <div class="patient-info-label">Asthma</div>
+                            <div class="patient-info-value ${medicalConditions.toLowerCase().includes('asthma') ? 'danger' : ''}">${medicalConditions.toLowerCase().includes('asthma') ? 'Yes' : 'No'}</div>
+                        </div>
+                        <div class="medical-alert-item" style="grid-column: 1 / -1;">
+                            <div class="patient-info-label">Current Medications</div>
+                            <div class="patient-info-value">${medications}</div>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Current Queue Status -->
+                ${q ? `
+                <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                    <h3 style="font-size: 1rem; font-weight: 600; color: #1e40af; margin-bottom: 16px;">📋 Current Queue Status</h3>
+                    <div class="patient-info-grid">
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Treatment Type</div>
+                            <div class="patient-info-value">${q.treatment_type || 'Consultation'}</div>
+                        </div>
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Selected Teeth</div>
+                            <div class="patient-info-value">${q.teeth_numbers || 'None'}</div>
+                        </div>
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Status</div>
+                            <div class="patient-info-value">
+                                <span style="background: ${q.status === 'in_procedure' ? '#dcfce7' : q.status === 'waiting' ? '#fef3c7' : '#f3f4f6'}; color: ${q.status === 'in_procedure' ? '#15803d' : q.status === 'waiting' ? '#d97706' : '#6b7280'}; padding: 4px 12px; border-radius: 9999px; font-size: 0.85rem;">
+                                    ${q.status ? q.status.replace('_', ' ').toUpperCase() : 'N/A'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Dental History -->
+                <div style="background: #f9fafb; border-radius: 12px; padding: 20px;">
+                    <h3 style="font-size: 1rem; font-weight: 600; color: #374151; margin-bottom: 16px;">📜 Dental History</h3>
+                    <div class="patient-info-grid">
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Previous Dentist</div>
+                            <div class="patient-info-value">${d.previous_dentist || 'N/A'}</div>
+                        </div>
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Last Visit</div>
+                            <div class="patient-info-value">${d.last_visit_date || 'N/A'}</div>
+                        </div>
+                        <div class="patient-info-item" style="grid-column: 1 / -1;">
+                            <div class="patient-info-label">Current Complaints</div>
+                            <div class="patient-info-value">${d.current_complaints || 'None'}</div>
+                        </div>
+                        <div class="patient-info-item" style="grid-column: 1 / -1;">
+                            <div class="patient-info-label">Previous Treatments</div>
+                            <div class="patient-info-value">${d.previous_treatments || 'None'}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px;">
+                    <button onclick="closePatientModal()" class="btn-cancel">Close</button>
+                </div>
+            `;
+            
+            document.getElementById('patientModal').classList.add('active');
+        } else {
+            alert('Error loading patient details: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to load patient details');
+    });
+}
+
+function closePatientModal() {
+    document.getElementById('patientModal').classList.remove('active');
+}
+
+// Close modal when clicking outside
+document.getElementById('patientModal').addEventListener('click', function(e) {
+    if (e.target.id === 'patientModal') {
+        closePatientModal();
+    }
+});
 </script>
+
+<!-- Patient Details Modal -->
+<div id="patientModal" class="fullscreen-modal-overlay">
+    <div class="fullscreen-modal">
+        <div class="fullscreen-modal-header">
+            <h3 id="dentistModalPatientName" style="margin: 0; font-size: 1.25rem; font-weight: 600;">Patient Details</h3>
+            <button onclick="closePatientModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">×</button>
+        </div>
+        <div class="fullscreen-modal-body" id="patientModalContent">
+            <!-- Content loaded dynamically -->
+        </div>
+    </div>
+</div>
+
+<!-- Modal Styles -->
+<style>
+.fullscreen-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.fullscreen-modal-overlay.active {
+    display: flex;
+}
+
+.fullscreen-modal {
+    background: white;
+    border-radius: 16px;
+    max-width: 800px;
+    max-height: 90vh;
+    width: 90%;
+    overflow-y: auto;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.fullscreen-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.fullscreen-modal-body {
+    padding: 24px;
+}
+
+.patient-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.patient-info-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.patient-info-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 4px;
+}
+
+.patient-info-value {
+    font-size: 0.875rem;
+    color: #111827;
+}
+
+.medical-alert {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.medical-alert-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #dc2626;
+    margin-bottom: 16px;
+}
+
+.medical-alert-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.medical-alert-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.danger {
+    color: #dc2626 !important;
+    font-weight: 600;
+}
+
+.btn-cancel {
+    background: #6b7280;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+.btn-cancel:hover {
+    background: #4b5563;
+}
+</style>
 
 <?php require_once 'includes/dentist_layout_end.php'; ?>

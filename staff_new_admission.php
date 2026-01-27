@@ -415,11 +415,21 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
                     </section>
                 </div>
 
-                <!-- STEP 2: Dental History -->
+<!-- STEP 2: Dental History -->
                 <div id="step-2" class="hidden space-y-8 flex-1">
                     <section>
                         <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Dental History</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        
+                        <!-- New Patient / No Dental History Option -->
+                        <div class="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" id="newPatientNoDentalHistory" name="newPatientNoDentalHistory" value="new_patient" class="w-5 h-5 text-green-500 rounded focus:ring-green-500" onchange="toggleDentalHistory()">
+                                <span class="text-sm font-medium text-slate-700">New patient / No previous dental history</span>
+                            </label>
+                        </div>
+                        
+<div id="dentalHistorySection">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Previous Dentist</label>
                                 <input type="text" name="prevDentist" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Dr. Name">
@@ -447,49 +457,68 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
                                 <textarea name="complaints" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="e.g., Sensitivity, Pain"></textarea>
                             </div>
                         </div>
+                        </div>
+                        
+                        <!-- Validation message -->
+                        <div id="dentalHistoryValidation" class="hidden mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                            Please check "New patient / No previous dental history" or fill in at least one dental history field to proceed.
+                        </div>
                     </section>
                 </div>
 
-                <!-- STEP 3: Medical History -->
+<!-- STEP 3: Medical History -->
                 <div id="step-3" class="hidden space-y-8 flex-1">
                     <section>
                         <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Medical History</h3>
                         
-                        <div class="mb-6">
+                        <!-- No Medical Conditions Option -->
+                        <div class="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" id="noMedicalConditions" name="noMedicalConditions" value="none" class="w-5 h-5 text-green-500 rounded focus:ring-green-500" onchange="toggleMedicalConditions()">
+                                <span class="text-sm font-medium text-slate-700">No medical conditions / None of the below apply</span>
+                            </label>
+                        </div>
+                        
+                        <div id="medicalConditionsSection" class="mb-6">
                             <label class="block text-sm font-medium text-slate-600 mb-3">Do you have any of the following?</label>
                             <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                                <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
                                     <input type="checkbox" name="medicalConditions" value="diabetes" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
                                     <span class="text-sm text-slate-600">Diabetes</span>
                                 </label>
-                                <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                                <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
                                     <input type="checkbox" name="medicalConditions" value="heart_disease" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
                                     <span class="text-sm text-slate-600">Heart Disease</span>
                                 </label>
-                                <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                                <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
                                     <input type="checkbox" name="medicalConditions" value="high_bp" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
                                     <span class="text-sm text-slate-600">High Blood Pressure</span>
                                 </label>
-                                <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                                <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
                                     <input type="checkbox" name="medicalConditions" value="asthma" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
                                     <span class="text-sm text-slate-600">Asthma</span>
                                 </label>
-                                <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                                <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
                                     <input type="checkbox" name="medicalConditions" value="allergies" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
                                     <span class="text-sm text-slate-600">Allergies</span>
                                 </label>
-                                <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                                <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
                                     <input type="checkbox" name="medicalConditions" value="surgery" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
                                     <span class="text-sm text-slate-600">Previous Surgery</span>
                                 </label>
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 gap-4">
+                        <div id="medicationsSection" class="grid grid-cols-1 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Current Medications</label>
                                 <textarea name="medications" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="List any medications you are currently taking"></textarea>
                             </div>
+                        </div>
+                        
+                        <!-- Validation message -->
+                        <div id="medicalHistoryValidation" class="hidden mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                            Please select at least one medical condition or check "No medical conditions" to proceed.
                         </div>
                     </section>
                 </div>
@@ -706,6 +735,20 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
         };
 
         function goToStep(step) {
+            // Validate dental history when moving from step 2 to step 3
+            if (currentStep === 2 && step === 3) {
+                if (!validateDentalHistory()) {
+                    return; // Don't proceed if validation fails
+                }
+            }
+            
+            // Validate medical history when moving from step 3 to step 4
+            if (currentStep === 3 && step === 4) {
+                if (!validateMedicalHistory()) {
+                    return; // Don't proceed if validation fails
+                }
+            }
+            
             currentStep = step;
             
             // Hide all steps
@@ -777,6 +820,173 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
 }
         }
         }
+
+        /**
+         * Toggle medical conditions section when "No medical conditions" is checked
+         */
+        function toggleMedicalConditions() {
+            const noConditionsCheckbox = document.getElementById('noMedicalConditions');
+            const conditionsSection = document.getElementById('medicalConditionsSection');
+            const medicationsSection = document.getElementById('medicationsSection');
+            const conditionCheckboxes = document.querySelectorAll('input[name="medicalConditions"]');
+            const validationMessage = document.getElementById('medicalHistoryValidation');
+            
+            // Hide validation message when user takes action
+            if (validationMessage) {
+                validationMessage.classList.add('hidden');
+            }
+            
+            if (noConditionsCheckbox.checked) {
+                // Disable and gray out medical conditions
+                conditionsSection.style.opacity = '0.5';
+                conditionsSection.style.pointerEvents = 'none';
+                medicationsSection.style.opacity = '0.5';
+                medicationsSection.style.pointerEvents = 'none';
+                
+                // Uncheck all medical condition checkboxes
+                conditionCheckboxes.forEach(cb => {
+                    cb.checked = false;
+                });
+                
+                // Clear medications textarea
+                const medicationsTextarea = document.querySelector('textarea[name="medications"]');
+                if (medicationsTextarea) {
+                    medicationsTextarea.value = '';
+                }
+            } else {
+                // Re-enable medical conditions
+                conditionsSection.style.opacity = '1';
+                conditionsSection.style.pointerEvents = 'auto';
+                medicationsSection.style.opacity = '1';
+                medicationsSection.style.pointerEvents = 'auto';
+            }
+        }
+
+        /**
+         * Validate medical history step
+         * @returns {boolean} True if valid, false otherwise
+         */
+        function validateMedicalHistory() {
+            const noConditionsCheckbox = document.getElementById('noMedicalConditions');
+            const conditionCheckboxes = document.querySelectorAll('input[name="medicalConditions"]:checked');
+            const validationMessage = document.getElementById('medicalHistoryValidation');
+            
+            // Valid if "No medical conditions" is checked OR at least one condition is selected
+            const isValid = noConditionsCheckbox.checked || conditionCheckboxes.length > 0;
+            
+            if (!isValid) {
+                // Show validation message
+                if (validationMessage) {
+                    validationMessage.classList.remove('hidden');
+                }
+                return false;
+            }
+            
+            // Hide validation message
+            if (validationMessage) {
+                validationMessage.classList.add('hidden');
+            }
+            return true;
+        }
+
+        /**
+         * Validate dental history step
+         * @returns {boolean} True if valid, false otherwise
+         */
+        function validateDentalHistory() {
+            const newPatientCheckbox = document.getElementById('newPatientNoDentalHistory');
+            const prevDentist = document.querySelector('input[name="prevDentist"]').value.trim();
+            const lastVisitDate = document.querySelector('input[name="lastVisitDate"]').value.trim();
+            const reasonLastVisit = document.querySelector('textarea[name="reasonLastVisit"]').value.trim();
+            const prevTreatments = document.querySelector('textarea[name="prevTreatments"]').value.trim();
+            const complaints = document.querySelector('textarea[name="complaints"]').value.trim();
+            const validationMessage = document.getElementById('dentalHistoryValidation');
+            
+            // Valid if "New patient" is checked OR at least one field is filled
+            const hasAnyData = prevDentist || lastVisitDate || reasonLastVisit || prevTreatments || complaints;
+            const isValid = newPatientCheckbox.checked || hasAnyData;
+            
+            if (!isValid) {
+                // Show validation message
+                if (validationMessage) {
+                    validationMessage.classList.remove('hidden');
+                }
+                return false;
+            }
+            
+            // Hide validation message
+            if (validationMessage) {
+                validationMessage.classList.add('hidden');
+            }
+            return true;
+        }
+
+        /**
+         * Toggle dental history section when "New patient / No dental history" is checked
+         */
+        function toggleDentalHistory() {
+            const newPatientCheckbox = document.getElementById('newPatientNoDentalHistory');
+            const dentalHistorySection = document.getElementById('dentalHistorySection');
+            
+            if (newPatientCheckbox.checked) {
+                // Disable and gray out dental history fields
+                dentalHistorySection.style.opacity = '0.5';
+                dentalHistorySection.style.pointerEvents = 'none';
+                
+                // Clear all dental history fields
+                const prevDentist = document.querySelector('input[name="prevDentist"]');
+                const lastVisitDate = document.querySelector('input[name="lastVisitDate"]');
+                const reasonLastVisit = document.querySelector('textarea[name="reasonLastVisit"]');
+                const prevTreatments = document.querySelector('textarea[name="prevTreatments"]');
+                const complaints = document.querySelector('textarea[name="complaints"]');
+                
+                if (prevDentist) prevDentist.value = '';
+                if (lastVisitDate) lastVisitDate.value = '';
+                if (reasonLastVisit) reasonLastVisit.value = '';
+                if (prevTreatments) prevTreatments.value = '';
+                if (complaints) complaints.value = '';
+            } else {
+                // Re-enable dental history fields
+                dentalHistorySection.style.opacity = '1';
+                dentalHistorySection.style.pointerEvents = 'auto';
+            }
+        }
+
+// Add event listeners to hide validation messages
+        document.addEventListener('DOMContentLoaded', function() {
+            // Medical history validation
+            const conditionCheckboxes = document.querySelectorAll('input[name="medicalConditions"]');
+            const medicalValidationMessage = document.getElementById('medicalHistoryValidation');
+            
+            conditionCheckboxes.forEach(cb => {
+                cb.addEventListener('change', function() {
+                    if (medicalValidationMessage) {
+                        medicalValidationMessage.classList.add('hidden');
+                    }
+                });
+            });
+            
+            // Dental history validation
+            const dentalFields = [
+                'input[name="prevDentist"]',
+                'input[name="lastVisitDate"]',
+                'textarea[name="reasonLastVisit"]',
+                'textarea[name="prevTreatments"]',
+                'textarea[name="complaints"]'
+            ];
+            const dentalValidationMessage = document.getElementById('dentalHistoryValidation');
+            
+            dentalFields.forEach(selector => {
+                const field = document.querySelector(selector);
+                if (field) {
+                    field.addEventListener('input', function() {
+                        if (dentalValidationMessage) {
+                            dentalValidationMessage.classList.add('hidden');
+                        }
+                    });
+                }
+            });
+        });
 
         // Load services when page loads
         document.addEventListener('DOMContentLoaded', loadServices);
