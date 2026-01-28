@@ -1,14 +1,12 @@
 <?php
 $pageTitle = 'Dashboard';
+require_once 'config/database.php';
 require_once 'includes/staff_layout_start.php';
 
-
 try {
-    require_once 'config/database.php';
-    
-    // Get queue data
+    // Get queue data - same query as queue management
     $stmt = $pdo->query("
-        SELECT q.*, p.full_name, p.phone, p.age
+        SELECT q.*, p.full_name, p.phone
         FROM queue q 
         LEFT JOIN patients p ON q.patient_id = p.id 
         WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'on_hold', 'cancelled')
@@ -174,7 +172,7 @@ try {
                                 <div class="patient-treatment"><?php echo htmlspecialchars($item['treatment_type'] ?? ''); ?></div>
                             </div>
                             <div class="patient-actions">
-                                <button class="action-btn text-btn" onclick="viewPatientDashboard(<?php echo $item['patient_id']; ?>)">See</button>
+                                <button class="action-btn text-btn" onclick="viewPatientDashboard(<?php echo $item['patient_id']; ?>)">View</button>
                                 <button class="action-btn text-btn" onclick="moveToOnHoldDashboard(<?php echo $item['id']; ?>)">On Hold</button>
                                 <button class="action-btn text-btn" onclick="cancelPatientDashboard(<?php echo $item['id']; ?>)">Cancel</button>
                             </div>

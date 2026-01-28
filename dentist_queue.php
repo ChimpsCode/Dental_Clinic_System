@@ -4,13 +4,15 @@ $pageTitle = 'Queue Management';
 try {
     require_once 'config/database.php';
     
-    // Get queue data with patient info
+    // Get queue data with patient info - same query as dashboard
     $stmt = $pdo->query("
         SELECT q.*, p.full_name, p.phone, p.age, p.gender, p.address, p.date_of_birth,
                p.dental_insurance, p.email, p.medical_conditions, p.middle_name, p.suffix,
                p.city, p.province, p.religion
         FROM queue q 
         LEFT JOIN patients p ON q.patient_id = p.id 
+        WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'on_hold', 'cancelled')
+        AND DATE(q.created_at) = CURDATE()
         ORDER BY 
             CASE q.status 
                 WHEN 'in_procedure' THEN 1 
