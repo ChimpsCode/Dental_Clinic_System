@@ -565,7 +565,7 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
 
 <!-- Add Modal -->
 <div id="addModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 99999; align-items: center; justify-content: center;">
-    <div class="modal" style="background: white; border-radius: 16px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto;">
+    <div class="modal" style="background: white; border-radius: 16px; width: 90%; max-width: 500px; max-height: 90vh;">
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid #e5e7eb;">
             <h3 style="margin: 0; font-size: 1.25rem; font-weight: 600; color: #111827;">Add New Service</h3>
             <button onclick="document.getElementById('addModal').style.display='none'" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">&times;</button>
@@ -613,7 +613,7 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
 
 <!-- Edit Modal -->
 <div id="editModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 99999; align-items: center; justify-content: center;">
-    <div class="modal" style="background: white; border-radius: 16px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto;">
+    <div class="modal" style="background: white; border-radius: 16px; width: 90%; max-width: 500px; max-height: 90vh;">
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid #e5e7eb;">
             <h3 style="margin: 0; font-size: 1.25rem; font-weight: 600; color: #111827;">Edit Service</h3>
             <button onclick="document.getElementById('editModal').style.display='none'" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">&times;</button>
