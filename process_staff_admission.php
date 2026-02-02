@@ -109,6 +109,10 @@ try {
     // Medical History
     $medications = trim($_POST['medications'] ?? '');
     $medicalConditions = $_POST['medicalConditions'] ?? [];
+    // Ensure medicalConditions is always an array
+    if (!is_array($medicalConditions)) {
+        $medicalConditions = !empty($medicalConditions) ? [$medicalConditions] : [];
+    }
     $allergies = in_array('allergies', $medicalConditions) ? 'Yes' : 'No';
     $diabetes = in_array('diabetes', $medicalConditions) ? 'Yes' : 'No';
     $heartDisease = in_array('heart_disease', $medicalConditions) ? 'Yes' : 'No';

@@ -1,6 +1,44 @@
 <?php
 $pageTitle = 'Appointments';
 require_once 'includes/dentist_layout_start.php';
+require_once 'config/database.php';
+
+// Debug: Check database connection
+error_log("Checking appointments table...");
+
+// Fetch appointment statistics
+try {
+    $stmt = $pdo->query("SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as today,
+        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+        SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled
+    FROM appointments");
+    $stats = $stmt->fetch(PDO::FETCH_ASSOC);
+    error_log("Stats: " . json_encode($stats));
+    
+    $totalAppointments = $stats['total'] ?? 0;
+    $todayAppointments = $stats['today'] ?? 0;
+    $completedAppointments = $stats['completed'] ?? 0;
+    $cancelledAppointments = $stats['cancelled'] ?? 0;
+} catch (Exception $e) {
+    error_log("Error fetching stats: " . $e->getMessage());
+    $totalAppointments = $todayAppointments = $completedAppointments = $cancelledAppointments = 0;
+}
+
+// Fetch all appointments
+try {
+    $stmt = $pdo->query("SELECT a.*, 
+        CONCAT(COALESCE(a.first_name, ''), ' ', COALESCE(a.middle_name, ''), ' ', COALESCE(a.last_name, '')) as full_name,
+        p.phone, p.email FROM appointments a 
+        LEFT JOIN patients p ON a.patient_id = p.id 
+        ORDER BY a.appointment_date DESC");
+    $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    error_log("Appointments found: " . count($appointments));
+} catch (Exception $e) {
+    error_log("Error fetching appointments: " . $e->getMessage());
+    $appointments = [];
+}
 ?>
 
 <!-- Appointment Stats -->
@@ -8,28 +46,28 @@ require_once 'includes/dentist_layout_start.php';
     <div class="summary-card">
         <div class="summary-icon blue" style="background: #e0f2fe; color: #0284c7;">📋</div>
         <div class="summary-info">
-            <h3>24</h3>
+            <h3><?php echo $totalAppointments; ?></h3>
             <p>Total Appointments</p>
         </div>
     </div>
     <div class="summary-card">
         <div class="summary-icon yellow">⏰</div>
         <div class="summary-info">
-            <h3>8</h3>
+            <h3><?php echo $todayAppointments; ?></h3>
             <p>Today</p>
         </div>
     </div>
     <div class="summary-card">
         <div class="summary-icon green">✓</div>
         <div class="summary-info">
-            <h3>12</h3>
+            <h3><?php echo $completedAppointments; ?></h3>
             <p>Completed</p>
         </div>
     </div>
     <div class="summary-card">
         <div class="summary-icon red" style="background: #fee2e2; color: #dc2626;">⚠️</div>
         <div class="summary-info">
-            <h3>4</h3>
+            <h3><?php echo $cancelledAppointments; ?></h3>
             <p>Cancelled</p>
         </div>
     </div>
@@ -64,78 +102,48 @@ require_once 'includes/dentist_layout_start.php';
             </tr>
         </thead>
         <tbody>
-            <tr>
-                <td>
-                    <div class="patient-name">Maria Santos</div>
-                    <div style="font-size: 0.85rem; color: #6b7280;">Phone: 0912-345-6789</div>
-                </td>
-                <td>
-                    <div>Jan 13, 2026</div>
-                    <div style="font-size: 0.85rem; color: #6b7280;">09:00 AM</div>
-                </td>
-                <td>Root Canal (Session 2)</td>
-                <td><span class="status-badge" style="background: #dcfce7; color: #15803d;">Completed</span></td>
-                <td>
-                    <div class="patient-actions">
-                        <button class="action-btn icon view-btn">👁️</button>
-                        <button class="action-btn icon">📝</button>
-                    </div>
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <div class="patient-name">Juan Dela Cruz</div>
-                    <div style="font-size: 0.85rem; color: #6b7280;">Phone: 0918-765-4321</div>
-                </td>
-                <td>
-                    <div>Jan 13, 2026</div>
-                    <div style="font-size: 0.85rem; color: #6b7280;">10:00 AM</div>
-                </td>
-                <td>Oral Prophylaxis</td>
-                <td><span class="status-badge" style="background: #e0f2fe; color: #0369a1;">Upcoming</span></td>
-                <td>
-                    <div class="patient-actions">
-                        <button class="action-btn icon view-btn">👁️</button>
-                        <button class="action-btn icon">📝</button>
-                    </div>
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <div class="patient-name">Ana Reyes</div>
-                    <div style="font-size: 0.85rem; color: #6b7280;">Phone: 0917-654-3210</div>
-                </td>
-                <td>
-                    <div>Jan 13, 2026</div>
-                    <div style="font-size: 0.85rem; color: #6b7280;">11:00 AM</div>
-                </td>
-                <td>Denture Adjustment</td>
-                <td><span class="status-badge" style="background: #e0f2fe; color: #0369a1;">Upcoming</span></td>
-                <td>
-                    <div class="patient-actions">
-                        <button class="action-btn icon view-btn">👁️</button>
-                        <button class="action-btn icon">📝</button>
-                    </div>
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <div class="patient-name">Roberto Garcia</div>
-                    <div style="font-size: 0.85rem; color: #6b7280;">Phone: 0923-456-7890</div>
-                </td>
-                <td>
-                    <div>Jan 13, 2026</div>
-                    <div style="font-size: 0.85rem; color: #6b7280;">02:00 PM</div>
-                </td>
-                <td>Braces Adjustment</td>
-                <td><span class="status-badge" style="background: #e0f2fe; color: #0369a1;">Upcoming</span></td>
-                <td>
-                    <div class="patient-actions">
-                        <button class="action-btn icon view-btn">👁️</button>
-                        <button class="action-btn icon">📝</button>
-                    </div>
-                </td>
-            </tr>
+            <?php if (!empty($appointments)): ?>
+                <?php foreach ($appointments as $apt): ?>
+                    <?php
+                        $patientName = trim(($apt['full_name'] ?? '') ?: trim(($apt['first_name'] ?? '') . ' ' . ($apt['middle_name'] ?? '') . ' ' . ($apt['last_name'] ?? '')));
+                        $patientName = preg_replace('/\s+/', ' ', $patientName) ?: 'Unknown';
+                        $appointmentDate = new DateTime($apt['appointment_date']);
+                        $appointmentTime = $appointmentDate->format('h:i A');
+                        $appointmentDateStr = $appointmentDate->format('M d, Y');
+                        $status = $apt['status'] ?? 'scheduled';
+                        
+                        // Determine status badge color
+                        $statusColor = match($status) {
+                            'completed' => 'background: #dcfce7; color: #15803d;',
+                            'cancelled' => 'background: #fee2e2; color: #dc2626;',
+                            default => 'background: #e0f2fe; color: #0369a1;'
+                        };
+                        $statusText = ucfirst($status);
+                    ?>
+                    <tr>
+                        <td>
+                            <div class="patient-name"><?php echo htmlspecialchars($patientName); ?></div>
+                            <div style="font-size: 0.85rem; color: #6b7280;">Phone: <?php echo htmlspecialchars($apt['phone'] ?? 'N/A'); ?></div>
+                        </td>
+                        <td>
+                            <div><?php echo $appointmentDateStr; ?></div>
+                            <div style="font-size: 0.85rem; color: #6b7280;"><?php echo $appointmentTime; ?></div>
+                        </td>
+                        <td><?php echo htmlspecialchars($apt['treatment'] ?? 'General Checkup'); ?></td>
+                        <td><span class="status-badge" style="<?php echo $statusColor; ?>"><?php echo $statusText; ?></span></td>
+                        <td>
+                            <div class="patient-actions">
+                                <button class="action-btn icon view-btn">👁️</button>
+                                <button class="action-btn icon">📝</button>
+                            </div>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 2rem; color: #6b7280;">No appointments found</td>
+                </tr>
+            <?php endif; ?>
         </tbody>
     </table>
 </div>

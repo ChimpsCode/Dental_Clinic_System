@@ -40,15 +40,8 @@ if (empty($username) || empty($password)) {
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['role'] = $user['role'] ?? 'admin';
                 
-                // Build full_name from available fields
-                if (!empty($user['first_name']) || !empty($user['last_name'])) {
-                    $fullName = trim(($user['first_name'] ?? '') . ' ' . ($user['middle_name'] ?? '') . ' ' . ($user['last_name'] ?? ''));
-                    $_SESSION['full_name'] = $fullName ?: $user['username'];
-                } elseif (!empty($user['full_name'])) {
-                    $_SESSION['full_name'] = $user['full_name'];
-                } else {
-                    $_SESSION['full_name'] = $user['username'];
-                }
+                // Get full_name from database
+                $_SESSION['full_name'] = !empty($user['full_name']) ? $user['full_name'] : $user['username'];
                 
                 // Redirect based on role
                 if ($user['role'] === 'admin') {
@@ -98,15 +91,8 @@ if (empty($username) || empty($password)) {
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['role'] = $user['role'] ?? 'admin';
                 
-                // Build full_name from available fields
-                if (!empty($user['first_name']) || !empty($user['last_name'])) {
-                    $fullName = trim(($user['first_name'] ?? '') . ' ' . ($user['middle_name'] ?? '') . ' ' . ($user['last_name'] ?? ''));
-                    $_SESSION['full_name'] = $fullName ?: $user['username'];
-                } elseif (!empty($user['full_name'])) {
-                    $_SESSION['full_name'] = $user['full_name'];
-                } else {
-                    $_SESSION['full_name'] = $user['username'];
-                }
+                // Get full_name from database
+                $_SESSION['full_name'] = !empty($user['full_name']) ? $user['full_name'] : $user['username'];
                 
                 // Redirect based on role
                 if ($user['role'] === 'admin') {

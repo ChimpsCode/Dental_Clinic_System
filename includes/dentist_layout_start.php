@@ -116,25 +116,21 @@ function isActivePage($page) {
                 <div class="user-profile" id="userProfileDropdown">
                     <div class="user-profile-info">
                         <div class="user-avatar">
-                            <?php 
-                            $initials = '';
-                            $nameParts = explode(' ', $fullName);
-                            if (count($nameParts) >= 2) {
-                                $initials = strtoupper(substr($nameParts[0], 0, 1) . substr($nameParts[count($nameParts)-1], 0, 1));
-                            } else {
-                                $initials = strtoupper(substr($fullName, 0, 2));
-                            }
-                            ?>
-                            <span class="avatar-initials"><?php echo $initials; ?></span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                            </svg>
                         </div>
                     </div>
                     <div class="user-profile-dropdown">
                         <div class="dropdown-header">
                             <div class="user-avatar large">
-                                <span class="avatar-initials"><?php echo $initials; ?></span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                                </svg>
                             </div>
                             <div class="dropdown-user-info">
-                                <div class="dropdown-name"><?php echo htmlspecialchars($username); ?></div>
+                                <div class="dropdown-name"><?php echo htmlspecialchars(explode(' ', $fullName)[0]); ?></div>
+                                <div class="dropdown-role"><?php echo htmlspecialchars(ucfirst($_SESSION['role'])); ?></div>
                             </div>
                         </div>
                         <div class="dropdown-divider"></div>

@@ -315,6 +315,16 @@ header.top-header {
     text-overflow: ellipsis;
 }
 
+.dropdown-role {
+    font-size: 12px;
+    color: #9ca3af;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+    text-transform: capitalize;
+}
+
 .dropdown-email {
     font-size: 13px;
     color: #6b7280;

@@ -47,10 +47,32 @@ CREATE TABLE `appointments` (
 -- Dumping data for table `appointments`
 --
 
-INSERT INTO `appointments` (`id`, `first_name`, `patient_id`, `appointment_date`, `appointment_time`, `treatment`, `notes`, `status`, `created_at`, `updated_at`, `created_by`) VALUES
-(1, NULL, 4, '2025-12-31 00:00:00', '19:04:00', 'General Checkup', 'sadsad', 'scheduled', '2026-01-14 11:02:30', '2026-01-14 11:02:30', 4),
-(2, NULL, 5, '2026-01-15 00:00:00', '19:08:00', 'Teeth Cleaning', 'he needs cleaning later', 'scheduled', '2026-01-14 11:04:47', '2026-01-14 11:04:47', 4),
-(3, NULL, 6, '2026-01-07 00:00:00', '12:06:00', 'Tooth Extraction', 'adwadwadags aweqawdwad', 'scheduled', '2026-01-14 13:06:49', '2026-01-14 13:06:49', 4);
+INSERT INTO `appointments` (`id`, `first_name`, `middle_name`, `last_name`, `patient_id`, `appointment_date`, `appointment_time`, `treatment`, `notes`, `status`, `created_at`, `updated_at`, `created_by`) VALUES
+(1, NULL, NULL, NULL, 4, '2025-12-31 00:00:00', '19:04:00', 'General Checkup', 'sadsad', 'scheduled', '2026-01-14 11:02:30', '2026-01-14 11:02:30', 4),
+(2, NULL, NULL, NULL, 5, '2026-01-15 00:00:00', '19:08:00', 'Teeth Cleaning', 'he needs cleaning later', 'scheduled', '2026-01-14 11:04:47', '2026-01-14 11:04:47', 4),
+(3, NULL, NULL, NULL, 6, '2026-01-07 00:00:00', '12:06:00', 'Tooth Extraction', 'adwadwadags aweqawdwad', 'scheduled', '2026-01-14 13:06:49', '2026-01-14 13:06:49', 4),
+(4, NULL, NULL, NULL, NULL, '2026-02-03 00:00:00', '09:30:00', 'General Checkup', 'Follow-up', 'scheduled', '2026-02-02 22:10:26', '2026-02-02 22:10:26', 4),
+(5, 'David', NULL, 'Lim', 5, '2026-02-05 00:00:00', '10:00:00', 'Teeth Cleaning', 'Regular cleaning', 'scheduled', '2026-02-02 22:10:26', '2026-02-02 22:10:26', 4),
+(6, 'watawaw', NULL, 'mali', NULL, '2026-02-07 00:00:00', '14:00:00', 'Tooth Extraction', 'Extraction needed', 'scheduled', '2026-02-02 22:10:26', '2026-02-02 22:10:26', 4),
+(7, 'Joy', NULL, 'Mamski', 7, '2026-02-04 00:00:00', '11:00:00', 'Root Canal', 'Session 1', 'scheduled', '2026-02-02 22:10:26', '2026-02-02 22:10:26', 4),
+(8, 'Juan', NULL, 'Dela Cruz', 8, '2026-02-06 00:00:00', '15:00:00', 'Filling', 'Cavity filling', 'scheduled', '2026-02-02 22:10:26', '2026-02-02 22:10:26', 4),
+(9, 'Michael', 'James', 'Lopez', 11, '2026-02-08 00:00:00', '09:30:00', 'Denture Adjustment', 'Adjustment needed', 'scheduled', '2026-02-02 22:10:26', '2026-02-02 22:10:26', 4),
+(10, 'Sarah', NULL, 'Miller', 12, '2026-02-09 00:00:00', '13:00:00', 'Teeth Whitening', 'Cosmetic procedure', 'scheduled', '2026-02-02 22:10:26', '2026-02-02 22:10:26', 4),
+(11, 'Daniel', NULL, 'Santos', 13, '2026-02-10 00:00:00', '10:30:00', 'Consultation', 'Initial consultation', 'completed', '2026-02-02 22:10:26', '2026-02-02 22:10:26', 4),
+(12, 'Emily', 'Grace', 'Nguyen', 16, '2026-02-01 00:00:00', '11:00:00', 'Cleaning', 'Post-treatment', 'completed', '2026-02-02 22:10:26', '2026-02-02 22:10:26', 4),
+(13, 'John', NULL, 'Reyes', 19, '2026-02-02 00:00:00', '14:00:00', 'Orthodontic Checkup', 'Braces checkup', 'completed', '2026-02-02 22:10:26', '2026-02-02 22:10:26', 4),
+(14, 'Maria', 'Isabel', 'Dela Cruz', 20, '2026-01-31 00:00:00', '09:00:00', 'Filling Repair', 'Repair needed', 'cancelled', '2026-02-02 22:10:26', '2026-02-02 22:10:26', 4),
+(15, 'Patrick', NULL, 'Lim', 5, '2026-02-05 00:00:00', '10:00:00', 'Teeth Cleaning', 'Regular cleaning', 'scheduled', '2026-02-02 22:12:39', '2026-02-02 22:12:39', 4),
+(16, NULL, NULL, 'Mamski', 7, '2026-02-04 00:00:00', '11:00:00', 'Root Canal', 'Session 1', 'scheduled', '2026-02-02 22:12:39', '2026-02-02 22:12:39', 4),
+(17, 'Juan', NULL, 'Dela Cruz', 8, '2026-02-06 00:00:00', '15:00:00', 'Filling', 'Cavity filling', 'scheduled', '2026-02-02 22:12:39', '2026-02-02 22:12:39', 4),
+(18, NULL, NULL, 'Mamski', 7, '2026-02-04 00:00:00', '11:00:00', 'Root Canal', 'Session 1', 'scheduled', '2026-02-02 22:12:39', '2026-02-02 22:12:39', 4),
+(19, 'Juan', NULL, 'Dela Cruz', 8, '2026-02-06 00:00:00', '15:00:00', 'Filling', 'Cavity filling', 'scheduled', '2026-02-02 22:12:39', '2026-02-02 22:12:39', 4),
+(20, 'Michael', 'James', 'Lopez', 11, '2026-02-08 00:00:00', '09:30:00', 'Denture Adjustment', 'Adjustment needed', 'scheduled', '2026-02-02 22:12:39', '2026-02-02 22:12:39', 4),
+(21, 'Sandra', NULL, 'Miller', 12, '2026-02-09 00:00:00', '13:00:00', 'Teeth Whitening', 'Cosmetic procedure', 'scheduled', '2026-02-02 22:12:39', '2026-02-02 22:12:39', 4),
+(22, 'Daniel', NULL, 'Santos', 13, '2026-02-10 00:00:00', '10:30:00', 'Consultation', 'Initial consultation', 'completed', '2026-02-02 22:12:39', '2026-02-02 22:12:39', 4),
+(23, 'Grace', NULL, 'Nguyen', 16, '2026-02-01 00:00:00', '11:00:00', 'Cleaning', 'Post-treatment', 'completed', '2026-02-02 22:12:39', '2026-02-02 22:12:39', 4),
+(24, 'John', NULL, 'Reyes', 19, '2026-02-02 00:00:00', '14:00:00', 'Orthodontic Checkup', 'Braces checkup', 'completed', '2026-02-02 22:12:39', '2026-02-02 22:12:39', 4),
+(25, 'Maria', 'Isabel', 'Dela Cruz', 20, '2026-01-31 00:00:00', '09:00:00', 'Filling Repair', 'Repair needed', 'cancelled', '2026-02-02 22:12:39', '2026-02-02 22:12:39', 4);
 
 -- --------------------------------------------------------
 
@@ -81,7 +103,7 @@ CREATE TABLE `billing` (
 --
 
 CREATE TABLE `dental_history` (
-  `id` int(11) NOT NULL,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
   `patient_id` int(11) NOT NULL,
   `previous_dentist` varchar(100) DEFAULT NULL,
   `last_visit_date` date DEFAULT NULL,
@@ -89,7 +111,9 @@ CREATE TABLE `dental_history` (
   `previous_treatments` text DEFAULT NULL,
   `current_complaints` text DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_patient_id` (`patient_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -126,7 +150,7 @@ CREATE TABLE `inquiries` (
 --
 
 CREATE TABLE `medical_history` (
-  `id` int(11) NOT NULL,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
   `patient_id` int(11) NOT NULL,
   `allergies` text DEFAULT NULL,
   `current_medications` text DEFAULT NULL,
@@ -135,7 +159,9 @@ CREATE TABLE `medical_history` (
   `heart_rate` varchar(20) DEFAULT NULL,
   `other_notes` text DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_patient_id` (`patient_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -148,12 +174,22 @@ CREATE TABLE `patients` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `last_name` varchar(100) DEFAULT NULL,
   `first_name` varchar(100) DEFAULT NULL,
+  `middle_name` varchar(100) DEFAULT NULL,
+  `suffix` varchar(50) DEFAULT NULL,
   `full_name` varchar(100) NOT NULL,
   `phone` varchar(20) DEFAULT NULL,
   `email` varchar(100) DEFAULT NULL,
   `address` text DEFAULT NULL,
+  `city` varchar(100) DEFAULT NULL,
+  `province` varchar(100) DEFAULT NULL,
+  `zip_code` varchar(20) DEFAULT NULL,
   `date_of_birth` date DEFAULT NULL,
+  `age` int(3) DEFAULT NULL,
   `gender` varchar(10) DEFAULT NULL,
+  `religion` varchar(50) DEFAULT NULL,
+  `dental_insurance` varchar(255) DEFAULT NULL,
+  `insurance_effective_date` date DEFAULT NULL,
+  `status` varchar(20) DEFAULT 'active',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   `created_by` int(11) DEFAULT NULL,
@@ -168,6 +204,11 @@ INSERT INTO `patients` (`id`, `last_name`, `first_name`, `full_name`, `phone`, `
 (4, '', 'sdasd', 'sdasd', '09525231006', NULL, NULL, NULL, NULL, '2026-01-14 11:02:30', '2026-01-14 11:02:30', NULL),
 (5, 'Lim', 'David', 'David Lim', '09525231006', NULL, NULL, NULL, NULL, '2026-01-14 11:04:47', '2026-01-14 11:04:47', NULL),
 (6, 'mali', 'watawaw', 'watawaw mali', '09525231001', NULL, NULL, NULL, NULL, '2026-01-14 13:06:49', '2026-01-14 13:06:49', NULL);
+
+INSERT INTO `patients` (`id`, `last_name`, `first_name`, `full_name`, `phone`, `email`, `address`, `date_of_birth`, `gender`, `created_at`, `updated_at`, `created_by`) VALUES
+(7, 'Mamski', 'Joy', 'Joy Mamski Jr.', '09687889421', 'joy@gmail.com', 'st.francis123, Cagayan De Oro City, Misamis Oriental 9000', '1989-04-23', 'Male', '2026-02-02 12:00:00', '2026-02-02 12:00:00', NULL),
+(8, 'Dela Cruz', 'Juan', 'Juan Dela Cruz Jr.', NULL, NULL, '123 Main St, Barangay', NULL, NULL, '2026-02-02 12:10:00', '2026-02-02 12:10:00', NULL);
+
 
 -- --------------------------------------------------------
 
@@ -313,9 +354,10 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `username`, `password`, `email`, `full_name`, `role`, `created_at`) VALUES
-(1, 'admin', '$2y$10$fBqiR.vEHMxmVTuyCB6GrODnHfiaF9fjOORHRlm9KN.iU46V46kJC', 'admin@rfdental.com', 'Administrator', 'admin', '2026-01-02 06:32:17'),
-(4, 'staff', '$2y$10$jRGwuu0MuLLPiNaDV5uz8.SSueIZkw7AwOeyouvIPCGnftm/OcBdK', 'staff@rfdental.com', 'Staff', 'staff', '2026-01-09 14:40:00'),
-(6, 'dentist', '$2y$10$J.tCZfkE.TDCaYClTem.GertJO7FDz2dwXDkukVluf0nWfJg1qzW2', 'dentist@rfdental.com', 'Dentist', 'dentist', '2026-01-12 02:44:24');
+(1, 'admin', '$2y$10$fBqiR.vEHMxmVTuyCB6GrODnHfiaF9fjOORHRlm9KN.iU46V46kJC', 'admin@rfdental.com', 'Administrator', 'admin', '2026-01-02 14:32:17'),
+(4, 'staff', '$2y$10$S2yS105JRGwuu0MuLLPiNaDV5uz8.SSueIZkw7AwOeyouvIPCGnftm/OcBdK', 'staff@rfdental.com', 'Staff', 'staff', '2026-01-09 22:40:00'),
+(6, 'dentist', '$2y$10$S2yS105J.iCZIKE.TDCaYClTem.GertJO7FDz2dwXDkukVluf0nWfJg1qzW2', 'dentist@rfdental.com', 'Rex Gabz', 'dentist', '2026-01-12 10:44:24'),
+(9, 'Fiors', '$2y$10$S2yS105S3y7eEV5UFbDTFSlvUD2v0RPKD.RRIP.fhMxDpBsV9..', 'floralyn@gmail.com', 'Floralyn Gabz', 'dentist', '2026-02-02 23:22:11');
 
 --
 -- Indexes for dumped tables
