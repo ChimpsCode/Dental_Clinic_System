@@ -859,7 +859,7 @@ div.main-content {
                                 </td>
 <td>
                                     <div class="queue-kebab-menu">
-                                        <button class="queue-kebab-btn" data-queue-id="<?php echo $item['id']; ?>" data-patient-id="<?php echo $item['patient_id']; ?>">
+                                        <button class="queue-kebab-btn" data-queue-id="<?php echo $item['id']; ?>" data-patient-id="<?php echo $item['patient_id']; ?>" data-status="<?php echo $item['status']; ?>">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                                                 <circle cx="12" cy="6" r="2"/>
                                                 <circle cx="12" cy="12" r="2"/>
@@ -966,7 +966,7 @@ function createQueueKebabDropdown() {
     queueKebabBackdrop.addEventListener('click', closeQueueKebabDropdown);
 }
 
-function getQueueMenuItems(queueId, patientId) {
+function getQueueMenuItems(queueId, patientId, status) {
     return `
         <a href="javascript:void(0)" data-action="view" data-queue-id="${queueId}" data-patient-id="${patientId}">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -982,6 +982,16 @@ function getQueueMenuItems(queueId, patientId) {
             </svg>
             Hold
         </a>
+        ${status === 'on_hold' ? `
+        <a href="javascript:void(0)" data-action="requeue" data-queue-id="${queueId}" data-patient-id="${patientId}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36M20.49 15a9 9 0 0 1-14.85 3.36"></path>
+            </svg>
+            Re-queue
+        </a>
+        ` : ''}
         <a href="javascript:void(0)" class="danger" data-action="cancel" data-queue-id="${queueId}" data-patient-id="${patientId}">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10"></circle>
@@ -1036,8 +1046,9 @@ function openQueueKebabDropdown(button) {
 
     const queueId = button.dataset.queueId;
     const patientId = button.dataset.patientId;
+    const status = button.dataset.status;
 
-    queueKebabDropdown.innerHTML = getQueueMenuItems(queueId, patientId);
+    queueKebabDropdown.innerHTML = getQueueMenuItems(queueId, patientId, status);
     positionQueueKebabDropdown(button);
 
     queueKebabDropdown.classList.add('show');
@@ -1081,6 +1092,9 @@ function handleQueueKebabClick(e) {
             break;
         case 'hold':
             holdPatientQueue(queueId);
+            break;
+        case 'requeue':
+            requeuePatientQueue(queueId);
             break;
         case 'cancel':
             cancelPatientQueue(queueId);
@@ -1142,6 +1156,28 @@ function holdPatientQueue(queueId) {
     })
     .catch(() => {
         alert('Error putting patient on hold');
+    });
+}
+
+// Re-queue Patient
+function requeuePatientQueue(queueId) {
+    if (!confirm('Re-queue this patient?')) return;
+    
+    fetch('queue_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'requeue', queue_id: queueId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message || 'Failed to re-queue patient');
+        }
+    })
+    .catch(() => {
+        alert('Error re-queuing patient');
     });
 }
 
