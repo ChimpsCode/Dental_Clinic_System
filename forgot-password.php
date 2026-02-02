@@ -46,36 +46,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
 
         body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
             background: url("assets/images/Background.jpg");
             background-size: cover;
+            background-position: center;
             background-attachment: fixed;
             background-repeat: no-repeat;
+            position: fixed;
         }
 
         .container {
             display: flex;
             height: 100vh;
             align-items: center;
-            justify-content: space-between;
-            padding: 0 90px;
+            justify-content: center;
+            padding: 20px;
         }
 
-        .left {
-            width: 55%;
-            display: flex;
-            align-items: flex-end;
-        }
-
-        .dentist-img {
-            height: 100vh;
-            object-fit: contain;
-        }
-
-        .right {
-            width: 45%;
+        .centered {
             display: flex;
             align-items: center;
-            justify-content: flex-end;
+            justify-content: center;
         }
 
         .login-box {
@@ -215,6 +209,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             content: '✕';
         }
 
+        /* Page Exit Animation */
+        @keyframes pageExit {
+            from {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+        }
+
+        body.exit-animation {
+            animation: pageExit 0.5s ease-in forwards;
+        }
+
         @media (max-width: 1024px) {
             .container {
                 padding: 0 50px;
@@ -250,11 +260,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <body>
 
     <div class="container">
-        <div class="left">
-            <img src="assets/images/Dentists.png" class="dentist-img" alt="Dentist">
-        </div>
-
-        <div class="right">
+        <div class="centered">
             <div class="login-box">
                 <img src="assets/images/Logo.png" class="logo" alt="RF Logo">
                 <h2>Reset Password</h2>
@@ -279,12 +285,32 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <button type="submit">Send Reset Link</button>
 
                     <div class="back-link-wrapper">
-                        <a href="login.php">Back to Login</a>
+                        <a href="login.php" class="page-transition">Back to Login</a>
                     </div>
                 </form>
             </div>
-        </div>
     </div>
+
+    <script>
+        // Page transition effect for navigation links
+        document.addEventListener('DOMContentLoaded', function() {
+            const pageTransitionLinks = document.querySelectorAll('.page-transition');
+            pageTransitionLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const url = this.href;
+                    
+                    // Add exit animation
+                    document.body.classList.add('exit-animation');
+                    
+                    // Navigate after animation completes
+                    setTimeout(() => {
+                        window.location.href = url;
+                    }, 500);
+                });
+            });
+        });
+    </script>
 
 </body>
 </html>

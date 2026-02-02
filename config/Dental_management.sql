@@ -196,10 +196,11 @@ CREATE TABLE `payments` (
 
 CREATE TABLE `services` (
   `id` int(11) NOT NULL,
-  `service_name` varchar(200) NOT NULL,
+  `name` varchar(200) NOT NULL,
   `description` text DEFAULT NULL,
-  `default_cost` decimal(10,2) DEFAULT NULL,
-  `category` varchar(50) DEFAULT NULL,
+  `price` decimal(10,2) DEFAULT NULL,
+  `mode` varchar(50) DEFAULT NULL,
+  `duration_minutes` int(11) DEFAULT NULL,
   `is_active` tinyint(1) DEFAULT 1,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
@@ -209,15 +210,19 @@ CREATE TABLE `services` (
 -- Dumping data for table `services`
 --
 
-INSERT INTO `services` (`id`, `service_name`, `description`, `default_cost`, `category`, `is_active`, `created_at`, `updated_at`) VALUES
-(1, 'Dental Cleaning', 'Professional teeth cleaning and polishing', 1500.00, 'Preventive', 1, '2026-01-12 02:44:24', '2026-01-12 02:44:24'),
-(2, 'Tooth Extraction', 'Simple tooth extraction procedure', 2000.00, 'Surgery', 1, '2026-01-12 02:44:24', '2026-01-12 02:44:24'),
-(3, 'Root Canal', 'Root canal treatment', 8000.00, 'Endodontics', 1, '2026-01-12 02:44:24', '2026-01-12 02:44:24'),
-(4, 'Tooth Filling', 'Dental filling for cavities', 2500.00, 'Restorative', 1, '2026-01-12 02:44:24', '2026-01-12 02:44:24'),
-(5, 'Denture Adjustment', 'Adjustment of dentures', 1000.00, 'Prosthodontics', 1, '2026-01-12 02:44:24', '2026-01-12 02:44:24'),
-(6, 'Follow-up Checkup', 'Routine follow-up examination', 500.00, 'Preventive', 1, '2026-01-12 02:44:24', '2026-01-12 02:44:24'),
-(7, 'Teeth Whitening', 'Professional teeth whitening', 5000.00, 'Cosmetic', 1, '2026-01-12 02:44:25', '2026-01-12 02:44:25'),
-(8, 'Dental X-Ray', 'Dental radiography', 800.00, 'Diagnostic', 1, '2026-01-12 02:44:25', '2026-01-12 02:44:25');
+INSERT INTO `services` (`id`, `name`, `description`, `price`, `mode`, `duration_minutes`, `is_active`, `created_at`, `updated_at`) VALUES
+(59, 'Case Cleaning', 'Case to case cleaning', 800.00, 'BULK', 60, 1, '2026-01-21 22:48:42', '2026-01-21 22:48:42'),
+(60, 'Tooth Restoration (Pasta)', 'Restores decayed teeth using composite filling.', 800.00, 'SINGLE', 45, 1, '2026-01-21 22:55:10', '2026-01-21 22:55:10'),
+(61, 'Tooth Extraction (Ibot)', 'Safe removal of a damaged or non-restorable tooth.', 800.00, 'SINGLE', 45, 1, '2026-01-21 22:55:46', '2026-01-21 23:10:32'),
+(62, 'Root Canal Treatment', 'Saves an infected tooth by removing the pulp.', 5000.00, 'SINGLE', 90, 1, '2026-01-21 22:57:32', '2026-01-21 22:57:32'),
+(63, 'Consultation', 'Professional oral health assessment and planning.', 500.00, 'NONE', 30, 1, '2026-01-21 22:58:21', '2026-01-21 22:58:21'),
+(64, 'Periapical Xray', 'Single-tooth X-ray showing the root and surrounding...', 500.00, 'SINGLE', 15, 1, '2026-01-21 23:00:34', '2026-01-21 23:00:34'),
+(65, 'Denture Adjustment', 'Reshaping of dentures to improve fit and comfort.', 500.00, 'NONE', 30, 1, '2026-01-21 23:02:13', '2026-01-21 23:02:13'),
+(66, 'Removable Dentures', 'Custom-made removable replacement for missing teeth', 5000.00, 'NONE', 30, 1, '2026-01-21 23:03:22', '2026-01-21 23:03:22'),
+(67, 'Crowns (Jacket)', 'Protective cap to restore tooth shape and strength...', 2000.00, 'SINGLE', 90, 1, '2026-01-21 23:04:22', '2026-01-21 23:04:22'),
+(68, 'Fixed Bridge', 'Permanent replacement for missing teeth anchored t...', 5000.00, 'BULK', 90, 1, '2026-01-21 23:05:07', '2026-01-21 23:05:07'),
+(69, 'Teeth Whitening', 'Cosmetic procedure to lighten teeth and remove sta...', 5000.00, 'NONE', 90, 1, '2026-01-21 23:05:58', '2026-01-21 23:05:58'),
+(70, 'Orthodontic Appliance', 'Devices like braces or retainers to align teeth.', 35000.00, 'BULK', 120, 1, '2026-01-21 23:08:06', '2026-01-21 23:08:06');
 
 -- --------------------------------------------------------
 
