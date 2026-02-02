@@ -9,15 +9,21 @@ try {
         throw new Exception('Invalid request method');
     }
 
-    $patient_name = trim($_POST['patient_name'] ?? '');
+    $first_name = trim($_POST['first_name'] ?? '');
+    $middle_name = trim($_POST['middle_name'] ?? '');
+    $last_name = trim($_POST['last_name'] ?? '');
     $phone = trim($_POST['phone'] ?? '');
     $appointment_date = $_POST['appointment_date'] ?? '';
     $appointment_time = $_POST['appointment_time'] ?? '';
     $treatment = $_POST['treatment'] ?? 'General Checkup';
     $notes = trim($_POST['notes'] ?? '');
 
-    if (empty($patient_name)) {
-        throw new Exception('Patient name is required');
+    if (empty($first_name)) {
+        throw new Exception('First name is required');
+    }
+
+    if (empty($last_name)) {
+        throw new Exception('Last name is required');
     }
 
     if (empty($appointment_date)) {
@@ -32,24 +38,25 @@ try {
 
     $patient_id = null;
 
-    $stmt = $pdo->prepare("SELECT id FROM patients WHERE full_name = ? LIMIT 1");
-    $stmt->execute([$patient_name]);
+    // Search for existing patient by first name and last name
+    $stmt = $pdo->prepare("SELECT id FROM patients WHERE first_name = ? AND last_name = ? LIMIT 1");
+    $stmt->execute([$first_name, $last_name]);
     $existing_patient = $stmt->fetch();
 
     if ($existing_patient) {
         $patient_id = $existing_patient['id'];
     } else {
-        $parts = explode(' ', $patient_name, 2);
-        $first_name = $parts[0];
-        $last_name = $parts[1] ?? '';
-
-        $stmt = $pdo->prepare("INSERT INTO patients (first_name, last_name, full_name, phone, created_at) VALUES (?, ?, ?, ?, NOW())");
-        $stmt->execute([$first_name, $last_name, $patient_name, $phone]);
+        // Build full_name from first, middle, last name
+        $full_name = trim($first_name . ' ' . $middle_name . ' ' . $last_name);
+        $full_name = preg_replace('/\s+/', ' ', $full_name); // Remove extra spaces
+        
+        $stmt = $pdo->prepare("INSERT INTO patients (first_name, middle_name, last_name, full_name, phone, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
+        $stmt->execute([$first_name, $middle_name, $last_name, $full_name, $phone]);
         $patient_id = $pdo->lastInsertId();
     }
 
-    $stmt = $pdo->prepare("INSERT INTO appointments (patient_id, appointment_date, appointment_time, treatment, notes, status, created_by, created_at) VALUES (?, ?, ?, ?, ?, 'scheduled', ?, NOW())");
-    $stmt->execute([$patient_id, $appointment_date, $appointment_time, $treatment, $notes, $_SESSION['user_id'] ?? 1]);
+    $stmt = $pdo->prepare("INSERT INTO appointments (first_name, middle_name, last_name, patient_id, appointment_date, appointment_time, treatment, notes, status, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, NOW())");
+    $stmt->execute([$first_name, $middle_name, $last_name, $patient_id, $appointment_date, $appointment_time, $treatment, $notes, $_SESSION['user_id'] ?? 1]);
 
     $pdo->commit();
 

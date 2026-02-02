@@ -290,9 +290,19 @@ require_once 'includes/staff_layout_start.php';
         <form id="appointmentForm">
             <div class="form-row">
                 <div class="form-group" style="flex: 1;">
-                    <label>Patient Name *</label>
-                    <input type="text" name="patient_name" required class="form-control" placeholder="Enter patient name" value="<?php echo htmlspecialchars($inquiryData['name'] ?? ''); ?>">
+                    <label>First Name *</label>
+                    <input type="text" name="first_name" required class="form-control" placeholder="Enter first name" value="<?php echo htmlspecialchars($inquiryData['first_name'] ?? ''); ?>">
                 </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Middle Name</label>
+                    <input type="text" name="middle_name" class="form-control" placeholder="Enter middle name" value="<?php echo htmlspecialchars($inquiryData['middle_name'] ?? ''); ?>">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Last Name *</label>
+                    <input type="text" name="last_name" required class="form-control" placeholder="Enter last name" value="<?php echo htmlspecialchars($inquiryData['last_name'] ?? ''); ?>">
+                </div>
+            </div>
+            <div class="form-row">
                 <div class="form-group" style="flex: 1;">
                     <label>Phone Number</label>
                     <input type="text" name="phone" class="form-control" placeholder="0912-345-6789" value="<?php echo htmlspecialchars($inquiryData['contact_info'] ?? ''); ?>">
