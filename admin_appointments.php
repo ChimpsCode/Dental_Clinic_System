@@ -27,8 +27,9 @@ try {
     $showingEnd = min($offset + $itemsPerPage, $totalAppointments);
     
     // Get all appointments for stats (without pagination)
+    // Use appointment's own name fields since they store first_name, middle_name, last_name
     $allStmt = $pdo->query("SELECT a.*, 
-                         CONCAT(p.first_name, ' ', IFNULL(p.middle_name, ''), ' ', p.last_name) as full_name, 
+                         CONCAT(a.first_name, ' ', IFNULL(a.middle_name, ''), ' ', a.last_name) as full_name, 
                          p.phone 
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id");
@@ -36,7 +37,7 @@ try {
     
     // Get paginated appointments
     $stmt = $pdo->prepare("SELECT a.*, 
-                         CONCAT(p.first_name, ' ', IFNULL(p.middle_name, ''), ' ', p.last_name) as full_name, 
+                         CONCAT(a.first_name, ' ', IFNULL(a.middle_name, ''), ' ', a.last_name) as full_name, 
                          p.phone 
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id 
@@ -166,12 +167,14 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                                             <span class="status-badge <?php echo $statusClass; ?>"><?php echo htmlspecialchars($status); ?></span>
                                         </td>
                                         <td>
-                                            <div class="action-buttons">
-                                                <button class="action-btn icon view-btn" title="View" onclick="viewAppointment(<?php echo $appt['id']; ?>)">👁️</button>
-                                                <button class="action-btn icon" title="Edit">📝</button>
-                                                <?php if (strtolower($status) !== 'completed' && strtolower($status) !== 'cancelled'): ?>
-                                                <button class="action-btn icon" title="Cancel" onclick="cancelAppointment(<?php echo $appt['id']; ?>)">❌</button>
-                                                <?php endif; ?>
+                                            <div class="appt-kebab-menu">
+                                                <button class="appt-kebab-btn" data-appt-id="<?php echo $appt['id']; ?>">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                                        <circle cx="12" cy="6" r="2"/>
+                                                        <circle cx="12" cy="12" r="2"/>
+                                                        <circle cx="12" cy="18" r="2"/>
+                                                    </svg>
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -423,6 +426,111 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
     display: flex;
     gap: 8px;
 }
+
+/* Appointment Kebab Menu Styles - Portal Based */
+.appt-kebab-menu {
+    position: relative;
+    display: inline-block;
+}
+
+.appt-kebab-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.appt-kebab-btn:hover {
+    background-color: #f3f4f6;
+    color: #374151;
+}
+
+.appt-kebab-btn.active {
+    background-color: #e5e7eb;
+    color: #111827;
+}
+
+.appt-kebab-dropdown-portal {
+    display: none;
+    position: fixed;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    min-width: 200px;
+    max-width: 220px;
+    width: auto;
+    z-index: 99999;
+    overflow: hidden;
+}
+
+.appt-kebab-dropdown-portal.show {
+    display: block;
+    animation: apptKebabFadeIn 0.15s ease;
+}
+
+@keyframes apptKebabFadeIn {
+    from { opacity: 0; transform: scale(0.95) translateY(-4px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.appt-kebab-dropdown-portal a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    color: #374151;
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: all 0.15s ease;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.appt-kebab-dropdown-portal a:hover {
+    background-color: #f9fafb;
+    color: #111827;
+}
+
+.appt-kebab-dropdown-portal a svg {
+    flex-shrink: 0;
+}
+
+.appt-kebab-dropdown-portal a:first-child {
+    border-radius: 8px 8px 0 0;
+}
+
+.appt-kebab-dropdown-portal a:last-child {
+    border-radius: 0 0 8px 8px;
+}
+
+.appt-kebab-dropdown-portal a.danger {
+    color: #dc2626;
+}
+
+.appt-kebab-dropdown-portal a.danger:hover {
+    background-color: #fef2f2;
+}
+
+.appt-kebab-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 99998;
+}
+
+.appt-kebab-backdrop.show {
+    display: block;
+}
 </style>
 
 <script>
@@ -557,6 +665,207 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
 
     function exportAppointments() {
         alert('Export functionality - This would generate a report of all appointments');
+    }
+
+    // Appointment Kebab Menu Functions - Portal Based
+    let apptKebabDropdown = null;
+    let apptKebabBackdrop = null;
+    let apptActiveButton = null;
+
+    function createApptKebabDropdown() {
+        apptKebabDropdown = document.createElement('div');
+        apptKebabDropdown.className = 'appt-kebab-dropdown-portal';
+        apptKebabDropdown.id = 'apptKebabDropdownPortal';
+        document.body.appendChild(apptKebabDropdown);
+
+        apptKebabBackdrop = document.createElement('div');
+        apptKebabBackdrop.className = 'appt-kebab-backdrop';
+        apptKebabBackdrop.id = 'apptKebabBackdrop';
+        document.body.appendChild(apptKebabBackdrop);
+
+        apptKebabBackdrop.addEventListener('click', closeApptKebabDropdown);
+    }
+
+    function getApptMenuItems(apptId) {
+        return `
+            <a href="javascript:void(0)" data-action="view" data-id="${apptId}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+                View
+            </a>
+            <a href="javascript:void(0)" data-action="edit" data-id="${apptId}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                Edit
+            </a>
+            <a href="javascript:void(0)" data-action="forward" data-id="${apptId}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 12h-16"/>
+                    <path d="M12 5l7 7-7 7"/>
+                    <path d="M3 5v14"/>
+                </svg>
+                Forward to Admission
+            </a>
+            <a href="javascript:void(0)" data-action="delete" data-id="${apptId}" class="danger">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+                Delete Permanently
+            </a>
+        `;
+    }
+
+    function positionApptKebabDropdown(button) {
+        if (!apptKebabDropdown || !button) return;
+
+        const rect = button.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        
+        const padding = 15;
+        const dropdownWidth = 200;
+        
+        let left = rect.right + 5;
+        let top = rect.bottom + 8;
+
+        if (left + dropdownWidth > viewportWidth - padding) {
+            left = rect.left - dropdownWidth - 5;
+        }
+        
+        if (left < padding) {
+            left = padding;
+        }
+        
+        if (top + 180 > viewportHeight - padding) {
+            top = rect.top - 180 - 8;
+        }
+        
+        if (top < padding) {
+            top = padding;
+        }
+
+        apptKebabDropdown.style.left = left + 'px';
+        apptKebabDropdown.style.top = top + 'px';
+    }
+
+    function openApptKebabDropdown(button) {
+        if (!apptKebabDropdown) {
+            createApptKebabDropdown();
+        }
+
+        const apptId = button.dataset.apptId;
+
+        apptKebabDropdown.innerHTML = getApptMenuItems(apptId);
+        positionApptKebabDropdown(button);
+
+        apptKebabDropdown.classList.add('show');
+        apptKebabBackdrop.classList.add('show');
+        apptActiveButton = button;
+        button.classList.add('active');
+
+        apptKebabDropdown.addEventListener('click', handleApptKebabClick);
+    }
+
+    function closeApptKebabDropdown() {
+        if (apptKebabDropdown) {
+            apptKebabDropdown.classList.remove('show');
+        }
+        if (apptKebabBackdrop) {
+            apptKebabBackdrop.classList.remove('show');
+        }
+        if (apptActiveButton) {
+            apptActiveButton.classList.remove('active');
+            apptActiveButton = null;
+        }
+    }
+
+    function handleApptKebabClick(e) {
+        const link = e.target.closest('a');
+        if (!link) return;
+
+        e.preventDefault();
+        const action = link.dataset.action;
+        const id = link.dataset.id;
+
+        closeApptKebabDropdown();
+
+        switch (action) {
+            case 'view':
+                viewAppointment(id);
+                break;
+            case 'edit':
+                editAppointment(id);
+                break;
+            case 'forward':
+                forwardToAdmission(id);
+                break;
+            case 'delete':
+                deleteAppointment(id);
+                break;
+        }
+    }
+
+    // Click handler for kebab buttons
+    document.addEventListener('click', function(e) {
+        const button = e.target.closest('.appt-kebab-btn');
+        if (button) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (apptActiveButton === button) {
+                closeApptKebabDropdown();
+            } else {
+                closeApptKebabDropdown();
+                openApptKebabDropdown(button);
+            }
+        } else if (!e.target.closest('.appt-kebab-dropdown-portal')) {
+            closeApptKebabDropdown();
+        }
+    });
+
+    function editAppointment(id) {
+        const appt = appointments.find(a => a.id == id);
+        if (!appt) return;
+        
+        // For now, show alert - you can implement edit modal later
+        alert('Edit functionality for appointment #' + id + ' - Coming soon!');
+    }
+
+    function forwardToAdmission(id) {
+        const appt = appointments.find(a => a.id == id);
+        if (!appt) return;
+        
+        if (confirm('Forward this appointment to admission?')) {
+            // Redirect to new admission form with appointment data
+            window.location.href = 'new_admission.php?appointment_id=' + id;
+        }
+    }
+
+    function deleteAppointment(id) {
+        if (confirm('Are you sure you want to PERMANENTLY delete this appointment?\n\nThis action cannot be undone!')) {
+            fetch('delete_appointment.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: id, permanent: true })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Error deleting appointment');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error deleting appointment');
+            });
+        }
     }
 </script>
 
