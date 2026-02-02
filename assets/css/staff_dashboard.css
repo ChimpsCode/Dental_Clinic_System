@@ -91,8 +91,6 @@ aside.sidebar {
     text-decoration: none;
     transition: all 0.2s;
     cursor: pointer;
-    border-radius: 0 8px 8px 0;
-    margin-right: 12px;
 }
 
 .nav-item:hover {
@@ -103,6 +101,7 @@ aside.sidebar {
 .nav-item.active {
     background: var(--sidebar-active-bg);
     color: white;
+    border-left: 4px solid #60a5fa;
 }
 
 .nav-item svg {
