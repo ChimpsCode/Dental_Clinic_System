@@ -129,6 +129,21 @@ try {
             ]);
             break;
             
+        case 'delete':
+            $stmt = $pdo->prepare("SELECT q.*, p.full_name FROM queue q 
+                                   LEFT JOIN patients p ON q.patient_id = p.id WHERE q.id = ?");
+            $stmt->execute([$queueId]);
+            $queueItem = $stmt->fetch();
+            
+            $stmt = $pdo->prepare("DELETE FROM queue WHERE id = ?");
+            $stmt->execute([$queueId]);
+            
+            echo json_encode([
+                'success' => true, 
+                'message' => 'Patient record deleted: ' . ($queueItem['full_name'] ?? 'Unknown')
+            ]);
+            break;
+            
         case 'get_patient_record':
             // Get patient details
             $stmt = $pdo->prepare("SELECT * FROM patients WHERE id = ?");

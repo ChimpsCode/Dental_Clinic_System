@@ -126,6 +126,15 @@ function isActivePage($page) {
                 </span>
                 <span>User Management</span>
             </a>
+
+            <a href="admin_queue.php" class="nav-item <?php echo isActivePage('admin_queue.php') ? 'active' : ''; ?>">
+                <span class="nav-item-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                        <path fill="currentColor" d="M4 6H2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm6 12v-2H8v2h2zm2-2h2v2h-2v-2zm0-3a1 1 0 0 0 1-1H7a1 1 0 0 0-1 1v3h10V7a1 1 0 0 0-1-1h-5a1 1 0 0 0-1 1z"/>
+                    </svg>
+                </span>
+                <span>Queue Management</span>
+            </a>
             
             <a href="admin_patients.php" class="nav-item <?php echo isActivePage('admin_patients.php') ? 'active' : ''; ?>">
                 <span class="nav-item-icon">

@@ -1,7 +1,7 @@
 <?php
 $pageTitle = 'Queue Management';
 require_once 'config/database.php';
-require_once 'includes/staff_layout_start.php';
+require_once 'includes/admin_layout_start.php';
 
 // Pagination settings
 $itemsPerPage = 7;
@@ -67,9 +67,17 @@ try {
 ?>
 
 <style>
-/* Ensure consistent background */
+/* Ensure consistent background and full width layout */
 .content-area {
     background-color: #f3f4f6;
+    display: block !important;
+    width: 100%;
+}
+
+/* Override main-content styles for queue page */
+div.main-content {
+    width: 100% !important;
+    max-width: 100% !important;
 }
 
 /* Queue Kebab Menu Styles - Portal Based */
@@ -243,6 +251,7 @@ try {
     grid-template-columns: repeat(5, 1fr);
     gap: 20px;
     margin-bottom: 24px;
+    width: 100%;
 }
 
 .summary-widget {
@@ -319,6 +328,8 @@ try {
     display: flex;
     gap: 16px;
     align-items: center;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .control-bar .search-input {
@@ -369,15 +380,15 @@ try {
 
 /* Two Column Layout */
 .two-column-layout {
-    display: grid;
-    grid-template-columns: 100% 20%;
-    gap: 24px;
-    align-items: start;
+    display: block;
+    width: 100%;
 }
 
 /* Main Content (Left Column) */
 div.main-content {
     margin-left: 0px;
+    width: 100% !important;
+    max-width: 100% !important;
 }
 
 .main-content {
@@ -387,6 +398,7 @@ div.main-content {
     overflow: hidden;
     height: auto;
     min-height: auto;
+    width: 100%;
 }
 
 /* Data Table Container - auto height */
@@ -611,8 +623,6 @@ div.main-content {
     color: #6b7280;
 }
 
-
-
 .widget-card {
     background: white;
     border-radius: 12px;
@@ -719,8 +729,13 @@ div.main-content {
     margin: 0;
 }
 
-
 </style>
+
+
+
+<div>
+
+
 
 <!-- Top Summary Widgets -->
 <div class="summary-widgets">
@@ -760,6 +775,9 @@ div.main-content {
         </div>
     </div>
 </div>
+
+
+
 
 <!-- Control Bar -->
 <div class="control-bar">
@@ -881,6 +899,7 @@ div.main-content {
     
 </div>
 
+
 <!-- Pagination - Outside the box -->
 <?php if ($totalQueueItems > 0): ?>
 <div class="pagination">
@@ -945,6 +964,13 @@ div.main-content {
     </div>
 </div>
 <?php endif; ?>
+
+
+</div>
+
+
+
+
 
 <script>
 // Queue Kebab Menu - Portal Based (same as patient-records)
@@ -1390,4 +1416,4 @@ document.addEventListener('keydown', function(e) {
 });
 </script>
 
-<?php require_once 'includes/staff_layout_end.php'; ?>
+<?php require_once 'includes/admin_layout_end.php'; ?>
