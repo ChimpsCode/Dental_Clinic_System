@@ -2,7 +2,7 @@
 $pageTitle = 'Appointments';
 
 // Pagination settings
-$itemsPerPage = 10;
+$itemsPerPage = 5;
 $currentPage = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
 if ($currentPage < 1) $currentPage = 1;
 
