@@ -329,13 +329,21 @@ function viewPatientDetails(patientId) {
 }
 
 function closePatientModal() {
-    document.getElementById('patientModal').classList.remove('active');
+    const modal = document.getElementById('patientModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
 }
 
 // Close modal when clicking outside
-document.getElementById('patientModal').addEventListener('click', function(e) {
-    if (e.target.id === 'patientModal') {
-        closePatientModal();
+document.addEventListener('DOMContentLoaded', function() {
+    const patientModal = document.getElementById('patientModal');
+    if (patientModal) {
+        patientModal.addEventListener('click', function(e) {
+            if (e.target.id === 'patientModal') {
+                closePatientModal();
+            }
+        });
     }
 });
 </script>

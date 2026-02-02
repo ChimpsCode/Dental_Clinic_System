@@ -60,6 +60,34 @@ try {
     $onHoldItems = array_filter($queueItems, fn($q) => $q['status'] === 'on_hold');
     $completedItems = array_filter($queueItems, fn($q) => $q['status'] === 'completed');
     
+    // Get total patients count and today's schedule
+    $patientStmt = $pdo->query("SELECT COUNT(*) as total FROM patients WHERE status = 'active'");
+    $patientData = $patientStmt->fetch(PDO::FETCH_ASSOC);
+    $totalPatients = $patientData['total'] ?? 0;
+    
+    // Calculate percentage based on appointments today
+    $appointmentStmt = $pdo->query("SELECT COUNT(*) as total FROM appointments WHERE DATE(appointment_date) = CURDATE()");
+    $appointmentData = $appointmentStmt->fetch(PDO::FETCH_ASSOC);
+    $appointmentCount = $appointmentData['total'] ?? 0;
+    $totalPercentage = $totalPatients > 0 ? round(($appointmentCount / $totalPatients) * 100) : 0;
+    
+    // Get today's schedule
+    $todayScheduleStmt = $pdo->query("
+        SELECT 
+            CONCAT(p.first_name, ' ', p.last_name) as name,
+            a.appointment_time as time,
+            a.treatment as treatment,
+            CASE WHEN q.status = 'in_procedure' THEN 'in-chair' ELSE 'waiting' END as status,
+            CASE WHEN q.status = 'in_procedure' THEN 1 ELSE 0 END as in_chair
+        FROM appointments a
+        LEFT JOIN patients p ON a.patient_id = p.id
+        LEFT JOIN queue q ON q.patient_id = p.id AND DATE(q.created_at) = CURDATE()
+        WHERE DATE(a.appointment_date) = CURDATE()
+        ORDER BY a.appointment_time ASC
+        LIMIT 10
+    ");
+    $todaySchedule = $todayScheduleStmt->fetchAll(PDO::FETCH_ASSOC);
+    
 } catch (Exception $e) {
     $queueItems = [];
     $waitingCount = 0;
@@ -70,6 +98,9 @@ try {
     $waitingItems = [];
     $onHoldItems = [];
     $completedItems = [];
+    $totalPatients = 0;
+    $totalPercentage = 0;
+    $todaySchedule = [];
 }
 ?>
 <!DOCTYPE html>

@@ -217,6 +217,129 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
         .q-lr { bottom: 0; left: 0; }
         .q-ll { bottom: 0; right: 0; }
 
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 500px;
+            animation: slideUp 0.4s ease;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+            animation: bounce 0.6s ease;
+        }
+
+        .modal-icon.success { color: #10b981; }
+        .modal-icon.error { color: #ef4444; }
+        .modal-icon.loading { color: #3b82f6; }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 15px;
+        }
+
+        .modal-message {
+            color: #6b7280;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .modal-btn {
+            padding: 10px 30px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .modal-btn-primary {
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        .modal-btn-primary:hover {
+            background-color: #2563eb;
+            transform: translateY(-2px);
+        }
+
+        .modal-btn-secondary {
+            background-color: #e5e7eb;
+            color: #374151;
+        }
+
+        .modal-btn-secondary:hover {
+            background-color: #d1d5db;
+            transform: translateY(-2px);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .spinner {
+            border: 4px solid #e5e7eb;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
     </style>
 </head>
 <body class="bg-gray-50 text-slate-800 min-h-screen flex flex-col">
@@ -1489,6 +1612,9 @@ btn.classList.add('bg-blue-200', 'border-blue-400');
 
             const patientName = data.firstName && data.lastName ? (data.firstName + ' ' + data.lastName) : 'Patient';
 
+            // Show loading modal
+            showModal('loading', 'Submitting...', 'Processing patient admission...');
+
             // Submit to server
             fetch('process_staff_admission.php', {
                 method: 'POST',
@@ -1497,17 +1623,79 @@ btn.classList.add('bg-blue-200', 'border-blue-400');
             .then(response => response.json())
             .then(result => {
                 if (result.success) {
-                    alert('Patient admitted and added to queue successfully!\n\nPatient: ' + patientName + '\n\nView in Queue or Dashboard');
-                    window.location.href = 'staff_queue.php';
+                    showModal('success', 'Success!', 'Patient <strong>' + patientName + '</strong> has been admitted successfully and added to the queue.', [
+                        { text: 'View Queue', onclick: () => { window.location.href = 'staff_queue.php'; } },
+                        { text: 'Go to Dashboard', onclick: () => { window.location.href = 'staff-dashboard.php'; } }
+                    ]);
                 } else {
-                    alert('Error: ' + result.message);
+                    showModal('error', 'Error', result.message || 'Failed to save patient. Please try again.', [
+                        { text: 'Okay', onclick: closeModal }
+                    ]);
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('An error occurred while saving. Please try again.');
+                showModal('error', 'Error', 'An error occurred while saving. Please try again.', [
+                    { text: 'Okay', onclick: closeModal }
+                ]);
             });
         }
-</script></body>
+
+        function showModal(type, title, message, buttons = []) {
+            const modal = document.getElementById('resultModal');
+            const icon = document.getElementById('modalIcon');
+            const titleEl = document.getElementById('modalTitle');
+            const messageEl = document.getElementById('modalMessage');
+            const buttonsContainer = document.getElementById('modalButtons');
+
+            // Set icon based on type
+            if (type === 'success') {
+                icon.innerHTML = '✓';
+                icon.className = 'modal-icon success';
+            } else if (type === 'error') {
+                icon.innerHTML = '✕';
+                icon.className = 'modal-icon error';
+            } else if (type === 'loading') {
+                icon.innerHTML = '<div class="spinner"></div>';
+                icon.className = 'modal-icon loading';
+            }
+
+            titleEl.textContent = title;
+            messageEl.innerHTML = message;
+
+            // Clear and add buttons
+            buttonsContainer.innerHTML = '';
+            if (buttons.length > 0) {
+                buttons.forEach(btn => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'modal-btn ' + (btn.primary ? 'modal-btn-primary' : 'modal-btn-primary');
+                    button.textContent = btn.text;
+                    button.onclick = btn.onclick;
+                    buttonsContainer.appendChild(button);
+                });
+            }
+
+            modal.classList.add('show');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('resultModal');
+            modal.classList.remove('show');
+        }
+
+</script>
+
+    <!-- Result Modal -->
+    <div id="resultModal" class="modal">
+        <div class="modal-content">
+            <div id="modalIcon" class="modal-icon"></div>
+            <div id="modalTitle" class="modal-title"></div>
+            <div id="modalMessage" class="modal-message"></div>
+            <div id="modalButtons" class="modal-buttons"></div>
+        </div>
+    </div>
+
+</body>
 </html>
 ```
