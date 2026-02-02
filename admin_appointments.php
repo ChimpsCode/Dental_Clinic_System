@@ -352,7 +352,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
     right: 0;
     bottom: 0;
     background: rgba(0, 0, 0, 0.5);
-    z-index: 1000;
+    z-index: 99999;
     justify-content: center;
     align-items: center;
 }
@@ -361,8 +361,12 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
     background: white;
     border-radius: 12px;
     padding: 24px;
-    max-height: 90vh;
+    max-height: 85vh;
+    max-width: 95vw;
     overflow-y: auto;
+    position: relative;
+    z-index: 100000;
+    margin: 20px;
 }
 
 .form-row {
