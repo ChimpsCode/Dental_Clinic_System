@@ -53,6 +53,7 @@ if (empty($username) || empty($password)) {
                 } else {
                     $redirect = 'dashboard.php';
                 }
+                $_SESSION['login_redirect'] = $redirect;
                 echo json_encode(['success' => true, 'message' => 'Logged in successfully', 'redirect' => $redirect]);
                 exit();
             } else {
