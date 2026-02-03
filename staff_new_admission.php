@@ -473,7 +473,6 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
                                         <option value="" disabled selected>Select</option>
                                         <option value="male">Male</option>
                                         <option value="female">Female</option>
-                                        <option value="other">Other</option>
                                     </select>
                                     <svg xmlns="http://www.w3.org/2000/svg" class="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                                 </div>
@@ -506,18 +505,20 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Zip Code</label>
-                                <input type="text" name="zipCode" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                <input type="text" name="zipCode" pattern="[0-9]*" inputmode="numeric" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
                             </div>
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Mobile Number</label>
-                                <input type="tel" name="mobileNumber" value="<?php echo htmlspecialchars($inquiryData['contact_info'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                <input type="tel" name="mobileNumber" value="<?php echo htmlspecialchars($inquiryData['contact_info'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" inputmode="numeric" maxlength="11">
+                                <div class="text-xs text-red-500 mt-1 hidden" id="mobileError">Mobile number must be exactly 11 digits</div>
                             </div>
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Email Address</label>
-                                <input type="email" name="emailAddress" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                <input type="text" name="emailAddress" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="example@email.com">
+                                <div class="text-xs text-red-500 mt-1 hidden" id="emailError">Email must contain @ symbol</div>
                             </div>
                         </div>
                     </section>
@@ -1109,6 +1110,88 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
                     });
                 }
             });
+
+            // ============ ZIP CODE - ONLY NUMBERS ============
+            const zipInput = document.querySelector('input[name="zipCode"]');
+            if (zipInput) {
+                zipInput.addEventListener('keypress', function(e) {
+                    // Block non-numeric characters
+                    if (!/[0-9]/.test(e.key)) {
+                        e.preventDefault();
+                    }
+                });
+                zipInput.addEventListener('input', function() {
+                    // Remove any non-numeric characters that slip through
+                    this.value = this.value.replace(/[^0-9]/g, '');
+                });
+                // Prevent paste of non-numeric content
+                zipInput.addEventListener('paste', function(e) {
+                    const pasteText = (e.clipboardData || window.clipboardData).getData('text');
+                    if (!/^[0-9]*$/.test(pasteText)) {
+                        e.preventDefault();
+                    }
+                });
+            }
+
+            // ============ MOBILE NUMBER VALIDATION ============
+            const mobileInput = document.querySelector('input[name="mobileNumber"]');
+            const mobileError = document.getElementById('mobileError');
+            if (mobileInput) {
+                mobileInput.addEventListener('input', function() {
+                    // Allow only numbers
+                    this.value = this.value.replace(/\D/g, '');
+                    // Validate 11 digits
+                    if (this.value.length === 11) {
+                        mobileError.classList.add('hidden');
+                        this.classList.remove('border-red-500');
+                    } else if (this.value.length > 0) {
+                        mobileError.classList.remove('hidden');
+                        this.classList.add('border-red-500');
+                    } else {
+                        mobileError.classList.add('hidden');
+                        this.classList.remove('border-red-500');
+                    }
+                });
+                mobileInput.addEventListener('blur', function() {
+                    const mobile = this.value.trim();
+                    if (mobile.length > 0 && mobile.length !== 11) {
+                        mobileError.classList.remove('hidden');
+                        this.classList.add('border-red-500');
+                    } else if (mobile.length === 11) {
+                        mobileError.classList.add('hidden');
+                        this.classList.remove('border-red-500');
+                    }
+                });
+                mobileInput.addEventListener('keypress', function(e) {
+                    if (!/[0-9]/.test(e.key)) {
+                        e.preventDefault();
+                    }
+                });
+            }
+
+            // ============ EMAIL VALIDATION ============
+            const emailInput = document.querySelector('input[name="emailAddress"]');
+            const emailError = document.getElementById('emailError');
+            if (emailInput) {
+                emailInput.addEventListener('input', function() {
+                    if (this.value.trim() && !this.value.includes('@')) {
+                        emailError.classList.remove('hidden');
+                        this.classList.add('border-red-500');
+                    } else {
+                        emailError.classList.add('hidden');
+                        this.classList.remove('border-red-500');
+                    }
+                });
+                emailInput.addEventListener('blur', function() {
+                    if (this.value.trim() && !this.value.includes('@')) {
+                        emailError.classList.remove('hidden');
+                        this.classList.add('border-red-500');
+                    } else {
+                        emailError.classList.add('hidden');
+                        this.classList.remove('border-red-500');
+                    }
+                });
+            }
         });
 
         // Load services when page loads
