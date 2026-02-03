@@ -21,7 +21,7 @@ $userRole = $_SESSION['role'] ?? 'staff';
 $pageTitle = 'New Session';
 
 // Determine the patient list page to redirect back to
-$patientListPage = ($userRole === 'admin') ? 'admin_patients.php' : 'patient-records.php';
+$patientListPage = ($userRole === 'admin') ? 'admin_patients.php' : 'staff_patient_records.php';
 $queuePage = ($userRole === 'admin') ? 'admin_queue.php' : 'staff_queue.php';
 
 try {

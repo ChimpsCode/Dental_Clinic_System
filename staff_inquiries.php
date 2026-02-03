@@ -145,7 +145,8 @@ require_once 'includes/staff_layout_start.php';
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 10000;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 99999;
 }
 
 .modal-overlay.active {
@@ -156,38 +157,23 @@ require_once 'includes/staff_layout_start.php';
 
 .modal-backdrop {
     display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(0px);
-    animation: backdropFadeIn 0.25s ease;
-}
-
-.modal-overlay.active .modal-backdrop {
-    display: block;
-}
-
-@keyframes backdropFadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
 }
 
 .modal-container {
     position: relative;
-    z-index: 10001;
+    z-index: 100000;
     display: flex;
     align-items: center;
     justify-content: center;
     width: 100%;
     height: 100%;
     padding: 20px;
+    pointer-events: none;
 }
 
 .modal-overlay.active .modal-container {
     animation: modalSlideIn 0.3s ease;
+    pointer-events: auto;
 }
 
 @keyframes modalSlideIn {
@@ -590,6 +576,20 @@ require_once 'includes/staff_layout_start.php';
 
     <script>
         const inquiries = <?php echo json_encode($inquiries); ?>;
+
+        // Portal Pattern: Move modals to body level to escape stacking context
+        // This ensures modals appear above sidebar and all other elements
+        (function() {
+            const viewModal = document.getElementById('viewModal');
+            const addModal = document.getElementById('addModal');
+            
+            if (viewModal) {
+                document.body.appendChild(viewModal);
+            }
+            if (addModal) {
+                document.body.appendChild(addModal);
+            }
+        })();
 
         function openModal() {
             const modal = document.getElementById('addModal');
