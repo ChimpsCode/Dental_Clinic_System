@@ -26,23 +26,26 @@ try {
     ");
     $treatmentPlans = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Get patients from queue for the dropdown
+    // Get patients from queue for the dropdown (today's queue with active statuses)
     $stmtPatients = $pdo->query("
         SELECT DISTINCT p.id, p.full_name, p.phone
         FROM patients p
         JOIN queue q ON p.id = q.patient_id
-        WHERE q.status IN ('waiting', 'in_procedure')
+        WHERE q.status IN ('waiting', 'in_procedure', 'on_hold')
+        AND DATE(q.created_at) = CURDATE()
         ORDER BY p.full_name ASC
     ");
     $queuePatients = $stmtPatients->fetchAll(PDO::FETCH_ASSOC);
     
-    // Get patients from treatment plans (patients who already have treatment plans)
+    // Get patients from treatment plans (patients who already have treatment plans but not in today's queue)
     $stmtTreatmentPatients = $pdo->query("
         SELECT DISTINCT p.id, p.full_name, p.phone
         FROM patients p
         JOIN treatment_plans tp ON p.id = tp.patient_id
         WHERE p.id NOT IN (
-            SELECT DISTINCT patient_id FROM queue WHERE status IN ('waiting', 'in_procedure')
+            SELECT DISTINCT patient_id FROM queue 
+            WHERE status IN ('waiting', 'in_procedure', 'on_hold')
+            AND DATE(created_at) = CURDATE()
         )
         ORDER BY p.full_name ASC
     ");
@@ -52,7 +55,7 @@ try {
     $patients = array_merge($queuePatients, $treatmentPatients);
     
     // Get services for dropdown
-    $stmtServices = $pdo->query("SELECT id, service_name, default_cost, category FROM services WHERE is_active = 1 ORDER BY category, service_name");
+    $stmtServices = $pdo->query("SELECT id, name, price, mode FROM services WHERE is_active = 1 ORDER BY name");
     $services = $stmtServices->fetchAll(PDO::FETCH_ASSOC);
     
 } catch (Exception $e) {
