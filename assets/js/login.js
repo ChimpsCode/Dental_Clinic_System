@@ -12,6 +12,12 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Login button:', loginBtn);
     console.log('Toast element:', toast);
 
+    // Clear error message on page load (fresh login page)
+    if (errorMessage) {
+        errorMessage.style.display = 'none';
+        errorMessage.textContent = '';
+    }
+
     // Show toast notification function (defined early for use in validation)
     function showToast(title, message, type = 'success') {
         if (!toast) return;
@@ -71,6 +77,21 @@ document.addEventListener('DOMContentLoaded', function() {
     function showError(message) {
         // Use toast notification instead of alert box
         showToast('Error', message, 'error');
+    }
+
+    // Clear error message when user starts typing
+    if (usernameInput && errorMessage) {
+        usernameInput.addEventListener('input', function() {
+            errorMessage.style.display = 'none';
+            errorMessage.textContent = '';
+        });
+    }
+
+    if (passwordInput && errorMessage) {
+        passwordInput.addEventListener('input', function() {
+            errorMessage.style.display = 'none';
+            errorMessage.textContent = '';
+        });
     }
 
     // Toggle password visibility button - show/hide based on input

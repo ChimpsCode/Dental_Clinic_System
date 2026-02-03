@@ -139,13 +139,7 @@ if (empty($username) || empty($password)) {
             
             <h1 class="clinic-name">RF Dental Clinic</h1>
             
-            <?php if ($error): ?>
-                <div class="alert alert-error" id="errorMessage" style="display: none;"><?php echo htmlspecialchars($error); ?></div>
-            <?php endif; ?>
-            
-            <?php if ($success): ?>
-                <div class="alert alert-success"><?php echo htmlspecialchars($success); ?></div>
-            <?php endif; ?>
+            <div class="alert alert-error" id="errorMessage" style="display: none;"></div>
             
             <form id="loginForm" method="POST">
                 <div class="input-group">
