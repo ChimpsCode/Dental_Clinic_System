@@ -376,7 +376,7 @@ header.top-header {
 .dropdown-item:hover {
     background: linear-gradient(90deg, #f3f4f6 0%, #ffffff 100%);
     color: #1f2937;
-    border-left-color: #0ea5e9;
+    border-left-color: #f59e0b;
     padding-left: 13px;
 }
 
@@ -389,7 +389,7 @@ header.top-header {
 }
 
 .dropdown-item:hover svg {
-    color: #0ea5e9;
+    color: #f59e0b;
     transform: translateX(2px);
 }
 
