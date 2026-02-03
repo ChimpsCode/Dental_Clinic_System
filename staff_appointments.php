@@ -526,10 +526,53 @@ require_once 'includes/staff_layout_start.php';
 .appt-kebab-backdrop.show {
     display: block;
 }
+
+/* Modal Styles - Portal Pattern */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 99999;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay[style*="display: flex"] {
+    display: flex !important;
+}
+
+.modal {
+    background: white;
+    border-radius: 12px;
+    padding: 28px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    position: relative;
+    z-index: 100000;
+}
 </style>
 
 <script>
     const appointments = <?php echo json_encode($appointments); ?>;
+
+    // Portal Pattern: Move modals to body level to escape stacking context
+    // This ensures modals appear above sidebar and all other elements
+    (function() {
+        const viewAppointmentModal = document.getElementById('viewAppointmentModal');
+        const appointmentModal = document.getElementById('appointmentModal');
+        
+        if (viewAppointmentModal) {
+            document.body.appendChild(viewAppointmentModal);
+        }
+        if (appointmentModal) {
+            document.body.appendChild(appointmentModal);
+        }
+    })();
 
     document.addEventListener('DOMContentLoaded', function() {
         // Filter tabs click handler

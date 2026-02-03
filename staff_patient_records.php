@@ -310,6 +310,7 @@ try {
     background: rgba(0, 0, 0, 0.5);
     justify-content: center;
     backdrop-filter: blur(0px);
+    z-index: 99999;
 }
 .fullscreen-modal-overlay.active {
     display: flex;
@@ -323,6 +324,8 @@ try {
     max-height: 90vh;
     overflow-y: auto;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    position: relative;
+    z-index: 100000;
 }
 .fullscreen-modal-header {
     display: flex;
@@ -483,6 +486,7 @@ try {
     left: 0;
     width: 100%;
     height: 100%;
+    background: rgba(0, 0, 0, 0.5);
     z-index: 99999;
 }
 
@@ -494,14 +498,6 @@ try {
 
 .modal-backdrop {
     display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
 }
 
 .modal-container {
@@ -513,6 +509,11 @@ try {
     width: 100%;
     height: 100%;
     padding: 20px;
+    pointer-events: none;
+}
+
+.modal-overlay.active .modal-container {
+    pointer-events: auto;
 }
 
 .modal {
@@ -658,6 +659,20 @@ try {
 
 <script>
 const patients = <?php echo json_encode($patients); ?>;
+
+// Portal Pattern: Move modals to body level to escape stacking context
+// This ensures modals appear above sidebar and all other elements
+(function() {
+    const patientRecordModal = document.getElementById('patientRecordModal');
+    const appointmentModal = document.getElementById('appointmentModal');
+    
+    if (patientRecordModal) {
+        document.body.appendChild(patientRecordModal);
+    }
+    if (appointmentModal) {
+        document.body.appendChild(appointmentModal);
+    }
+})();
 
 document.getElementById('searchInput').addEventListener('input', filterPatients);
 document.getElementById('statusFilter').addEventListener('change', filterPatients);

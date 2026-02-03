@@ -797,29 +797,35 @@ require_once __DIR__ . '/includes/staff_layout_start.php';
                     padding: 0 4px;
                 }
 
-                /* Modal Styles */
-                .modal-overlay {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: rgba(0,0,0,0.5);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    z-index: 1000;
-                }
+               
+/* Modal Styles - Portal Pattern */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 99999;
+    align-items: center;
+    justify-content: center;
+}
 
-                .modal {
-                    background: white;
-                    border-radius: 12px;
-                    width: 90%;
-                    max-width: 450px;
-                    max-height: 90vh;
-                    overflow-y: auto;
-                }
+.modal-overlay[style*="display: flex"] {
+    display: flex !important;
+}
 
+.modal {
+    background: white;
+    border-radius: 12px;
+    padding: 28px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    position: relative;
+    z-index: 100000;
+}
                 .modal-header {
                     display: flex;
                     justify-content: space-between;
@@ -923,6 +929,20 @@ require_once __DIR__ . '/includes/staff_layout_start.php';
             </style>
 
             <script>
+                // Portal Pattern: Move modals to body level to escape stacking context
+                // This ensures modals appear above sidebar and all other elements
+                (function() {
+                    const paymentModal = document.getElementById('paymentModal');
+                    const confirmPaymentModal = document.getElementById('confirmPaymentModal');
+                    
+                    if (paymentModal) {
+                        document.body.appendChild(paymentModal);
+                    }
+                    if (confirmPaymentModal) {
+                        document.body.appendChild(confirmPaymentModal);
+                    }
+                })();
+
                 // Close all kebab menus when clicking outside
                 document.addEventListener('click', function(e) {
                     if (!e.target.closest('.kebab-menu')) {

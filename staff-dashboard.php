@@ -81,8 +81,8 @@ try {
     </div>
 
     <!-- Cancelled Modal -->
-    <div id="cancelledModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
-        <div class="modal" style="background: white; border-radius: 12px; padding: 0; width: 90%; max-width: 700px; max-height: 80vh; overflow-y: auto;">
+    <div id="cancelledModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
+        <div class="modal" style="background: white; border-radius: 12px; padding: 0; width: 90%; max-width: 700px; max-height: 80vh; overflow-y: auto; position: relative; z-index: 100000;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2 style="font-size: 1.25rem; font-weight: 600; margin: 0;">Cancelled / On Hold</h2>
                 <button onclick="closeCancelledModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">×</button>
@@ -238,8 +238,8 @@ try {
 </div>
 
 <!-- Patient Record Modal -->
-<div id="patientRecordModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
-    <div class="modal" style="background: white; border-radius: 12px; padding: 24px; width: 90%; max-width: 700px; max-height: 85vh; overflow-y: auto;">
+<div id="patientRecordModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
+    <div class="modal" style="background: white; border-radius: 12px; padding: 24px; width: 90%; max-width: 700px; max-height: 85vh; overflow-y: auto; position: relative; z-index: 100000;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h2 style="font-size: 1.25rem; font-weight: 600; margin: 0;">Patient Record</h2>
             <button onclick="closePatientRecordModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">×</button>
@@ -250,6 +250,20 @@ try {
 
 <script>
 const queueItems = <?php echo json_encode($queueItems); ?>;
+
+// Portal Pattern: Move modals to body level to escape stacking context
+// This ensures modals appear above sidebar and all other elements
+(function() {
+    const cancelledModal = document.getElementById('cancelledModal');
+    const patientRecordModal = document.getElementById('patientRecordModal');
+    
+    if (cancelledModal) {
+        document.body.appendChild(cancelledModal);
+    }
+    if (patientRecordModal) {
+        document.body.appendChild(patientRecordModal);
+    }
+})();
 
 // Dashboard Queue Actions
 function completeCurrentPatient(queueId) {
