@@ -537,6 +537,10 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
                             </div>
                         </div>
                     </section>
+                    <!-- Patient Info Validation Message -->
+                    <div id="patientInfoValidation" class="hidden mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                        Please complete required patient information: First Name, Last Name, Birthdate, Gender, and Mobile Number.
+                    </div>
                 </div>
 
 <!-- STEP 2: Dental History -->
@@ -859,6 +863,12 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
         };
 
         function goToStep(step) {
+            // Validate patient info when moving from step 1 to step 2
+            if (currentStep === 1 && step === 2) {
+                if (!validatePatientInfo()) {
+                    return; // Don't proceed if validation fails
+                }
+            }
             // Validate dental history when moving from step 2 to step 3
             if (currentStep === 2 && step === 3) {
                 if (!validateDentalHistory()) {
@@ -1046,6 +1056,29 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
         }
 
         /**
+         * Validate patient information (Step 1)
+         * Required: firstName, lastName, birthdate, gender, mobileNumber
+         */
+        function validatePatientInfo() {
+            const firstName = document.querySelector('input[name="firstName"]').value.trim();
+            const lastName = document.querySelector('input[name="lastName"]').value.trim();
+            const birthdate = document.querySelector('input[name="birthdate"]').value.trim();
+            const gender = document.querySelector('select[name="gender"]').value;
+            const mobile = document.querySelector('input[name="mobileNumber"]').value.trim();
+            const validationMessage = document.getElementById('patientInfoValidation');
+
+            const isValid = firstName && lastName && birthdate && gender && mobile && mobile.length === 11;
+
+            if (!isValid) {
+                if (validationMessage) validationMessage.classList.remove('hidden');
+                return false;
+            }
+
+            if (validationMessage) validationMessage.classList.add('hidden');
+            return true;
+        }
+
+        /**
          * Toggle dental history section when "New patient / No dental history" is checked
          */
         function toggleDentalHistory() {
@@ -1194,6 +1227,56 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
             }
         });
 
+
+            // ============ PATIENT INFO - ENABLE/DISABLE NEXT ============
+            const nextBtn = document.getElementById('btn-next');
+            function updateNextButtonState() {
+                // Only apply during step 1
+                if (currentStep !== 1) {
+                    // Ensure button enabled for other steps
+                    if (nextBtn) {
+                        nextBtn.disabled = false;
+                        nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    }
+                    return;
+                }
+
+                const firstName = document.querySelector('input[name="firstName"]').value.trim();
+                const lastName = document.querySelector('input[name="lastName"]').value.trim();
+                const birthdate = document.querySelector('input[name="birthdate"]').value.trim();
+                const gender = document.querySelector('select[name="gender"]').value;
+                const mobile = document.querySelector('input[name="mobileNumber"]').value.trim();
+
+                const canProceed = firstName && lastName && birthdate && gender && mobile && mobile.length === 11;
+
+                if (nextBtn) {
+                    nextBtn.disabled = !canProceed;
+                    if (!canProceed) {
+                        nextBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    } else {
+                        nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    }
+                }
+            }
+
+            // Wire up event listeners on required fields
+            const requiredSelectors = [
+                'input[name="firstName"]',
+                'input[name="lastName"]',
+                'input[name="birthdate"]',
+                'select[name="gender"]',
+                'input[name="mobileNumber"]'
+            ];
+            requiredSelectors.forEach(sel => {
+                const el = document.querySelector(sel);
+                if (el) {
+                    el.addEventListener('input', updateNextButtonState);
+                    el.addEventListener('change', updateNextButtonState);
+                }
+            });
+
+            // Initial check
+            updateNextButtonState();
         // Load services when page loads
         document.addEventListener('DOMContentLoaded', loadServices);
 
