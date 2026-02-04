@@ -1,7 +1,7 @@
 <?php
 /**
  * Patient Actions API
- * Handles delete operations for patients (admin only)
+ * Handles archive and delete operations for patients (admin only)
  */
 
 ob_start();
@@ -36,8 +36,30 @@ try {
     require_once 'config/database.php';
     
     switch ($action) {
+        case 'archive':
+            // Check if archive column exists
+            $checkColumn = $pdo->query("SHOW COLUMNS FROM patients LIKE 'is_archived'");
+            if ($checkColumn->rowCount() == 0) {
+                echo json_encode([
+                    'success' => false, 
+                    'message' => 'Archive system not enabled. Please run database migration.'
+                ]);
+                break;
+            }
+            
+            // Soft delete - archive the patient
+            $stmt = $pdo->prepare("UPDATE patients SET is_archived = 1, deleted_at = NOW() WHERE id = ?");
+            $result = $stmt->execute([$patientId]);
+            
+            if ($result) {
+                echo json_encode(['success' => true, 'message' => 'Patient archived successfully']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to archive patient']);
+            }
+            break;
+            
         case 'delete':
-            // Begin transaction for safe deletion
+            // Hard delete - permanently remove from database
             $pdo->beginTransaction();
             
             try {
@@ -60,7 +82,7 @@ try {
                 $pdo->commit();
                 
                 if ($result) {
-                    echo json_encode(['success' => true, 'message' => 'Patient deleted successfully']);
+                    echo json_encode(['success' => true, 'message' => 'Patient deleted permanently']);
                 } else {
                     echo json_encode(['success' => false, 'message' => 'Failed to delete patient']);
                 }

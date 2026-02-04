@@ -8,17 +8,26 @@ $pageTitle = 'Patient Records';
 try {
     require_once 'config/database.php';
     
+    // Check if archive columns exist (backward compatibility)
+    $checkColumn = $pdo->query("SHOW COLUMNS FROM patients LIKE 'is_archived'");
+    $hasArchiveColumn = $checkColumn->rowCount() > 0;
+    
     // Pagination
     $currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
     $patientsPerPage = 7;
     $offset = ($currentPage - 1) * $patientsPerPage;
     
-    // Get total count for pagination
-    $stmt = $pdo->query("SELECT COUNT(*) FROM patients");
+    // Build WHERE clause
+    $whereClause = $hasArchiveColumn ? "WHERE is_archived = 0" : "";
+    
+    // Get total count for pagination (exclude archived)
+    $countQuery = "SELECT COUNT(*) FROM patients $whereClause";
+    $stmt = $pdo->query($countQuery);
     $totalPatients = $stmt->fetchColumn();
     $totalPages = ceil($totalPatients / $patientsPerPage);
     
-    // Get patients with queue status and pagination
+    // Get patients with queue status and pagination (exclude archived)
+    $whereClause = $hasArchiveColumn ? "WHERE p.is_archived = 0" : "";
     $stmt = $pdo->query("
         SELECT p.*, 
                TIMESTAMPDIFF(YEAR, p.date_of_birth, CURDATE()) as age,
@@ -33,16 +42,19 @@ try {
                 WHERE patient_id = p.id 
                 AND DATE(q.created_at) = CURDATE()
             )
+        $whereClause
         ORDER BY p.created_at DESC
         LIMIT $offset, $patientsPerPage
     ");
     $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Calculate stats from ALL patients (not just current page)
+    // Calculate stats from ALL patients (not just current page, exclude archived)
+    $statsWhere = $hasArchiveColumn ? "WHERE p.is_archived = 0 AND" : "WHERE";
+    
     $inQueueStmt = $pdo->query("
         SELECT COUNT(DISTINCT p.id) FROM patients p
         LEFT JOIN queue q ON p.id = q.patient_id 
-        WHERE q.status IN ('waiting', 'in_procedure')
+        $statsWhere q.status IN ('waiting', 'in_procedure')
         AND (q.id IS NULL OR q.id = (
             SELECT MAX(id) FROM queue WHERE patient_id = p.id AND DATE(created_at) = CURDATE()
         ))
@@ -52,16 +64,16 @@ try {
     $scheduledStmt = $pdo->query("
         SELECT COUNT(DISTINCT p.id) FROM patients p
         LEFT JOIN queue q ON p.id = q.patient_id 
-        WHERE q.status = 'scheduled'
+        $statsWhere q.status = 'scheduled'
         AND (q.id IS NULL OR q.id = (
             SELECT MAX(id) FROM queue WHERE patient_id = p.id AND DATE(created_at) = CURDATE()
         ))
     ");
     $scheduledCount = $scheduledStmt->fetchColumn();
     
+    $newThisMonthWhere = $hasArchiveColumn ? "WHERE is_archived = 0 AND created_at" : "WHERE created_at";
     $newThisMonthStmt = $pdo->query("
-        SELECT COUNT(*) FROM patients 
-        WHERE created_at > DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        SELECT COUNT(*) FROM patients $newThisMonthWhere
     ");
     $newThisMonth = $newThisMonthStmt->fetchColumn();
     
@@ -379,12 +391,9 @@ function getPatientMenuItems(patientId) {
         </a>
         <a href="javascript:void(0)" data-action="delete" data-id="${patientId}" style="color: #dc2626;">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                <line x1="10" y1="11" x2="10" y2="17"></line>
-                <line x1="14" y1="11" x2="14" y2="17"></line>
+                <path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5z"/>
             </svg>
-            Delete
+            Archive
         </a>
     `;
 }
@@ -526,21 +535,21 @@ function viewPatientDetails(patientId) {
     alert('Patient: ' + (patient.full_name || 'Unknown') + '\nPhone: ' + (patient.phone || 'N/A') + '\nEmail: ' + (patient.email || 'N/A'));
 }
 
-// Delete Patient
+// Archive Patient (Soft Delete)
 function deletePatient(patientId) {
     const patient = patients.find(p => p.id == patientId);
     if (!patient) return;
     
-    if (confirm(`Are you sure you want to delete this patient?\n\nPatient: ${patient.full_name || 'Unknown'}\nPhone: ${patient.phone || 'N/A'}\n\nThis action cannot be undone.`)) {
+    if (confirm(`Are you sure you want to archive this patient?\n\nPatient: ${patient.full_name || 'Unknown'}\nPhone: ${patient.phone || 'N/A'}\n\nYou can restore archived patients from the Archive page.`)) {
         fetch('patient_actions.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'action=delete&patient_id=' + patientId
+            body: 'action=archive&patient_id=' + patientId
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert('Patient deleted successfully');
+                alert('Patient archived successfully');
                 location.reload();
             } else {
                 alert('Error: ' + data.message);
@@ -548,7 +557,7 @@ function deletePatient(patientId) {
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Failed to delete patient');
+            alert('Failed to archive patient');
         });
     }
 }
