@@ -78,15 +78,8 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
     </header>
 
     <!-- Top Navigation - Goes back to Dentist Dashboard -->
-    <div class="p-6">
-        <a href="dashboard.php" class="inline-flex items-center text-slate-500 hover:text-blue-500 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-            <span class="text-sm font-medium">Back to Dashboard</span>
-        </a>
-    </div>
-
     <?php if ($inquiryData): ?>
-    <div class="max-w-7xl mx-auto w-full px-6">
+    <div class="max-w-7xl mx-auto w-full px-6 pt-6">
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex items-center gap-3">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
             <span class="text-sm text-blue-700">Forwarded from Inquiry: <strong><?php echo htmlspecialchars(trim(($inquiryData['first_name'] ?? '') . ' ' . ($inquiryData['middle_name'] ?? '') . ' ' . ($inquiryData['last_name'] ?? ''))); ?></strong> (<?php echo htmlspecialchars($inquiryData['source'] ?? ''); ?>)</span>
@@ -97,8 +90,16 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
 
     <div class="flex-1 flex flex-col md:flex-row max-w-7xl mx-auto w-full p-6 gap-8">
         
-        <!-- Left Sidebar (Stepper) -->
-        <div class="w-full md:w-1/4 flex flex-col">
+        <!-- Left Sidebar (Stepper) - Sticky with Back to Dashboard -->
+        <div class="w-full md:w-1/4 flex flex-col sticky top-6 h-[calc(100vh-3rem)] overflow-y-auto">
+            
+            <!-- Back to Dashboard Button -->
+            <div class="mb-6">
+                <a href="dashboard.php" class="inline-flex items-center text-slate-500 hover:text-blue-500 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                    <span class="text-sm font-medium">Back to Dashboard</span>
+                </a>
+            </div>
             <!-- Logo -->
             <div class="mb-10 flex items-center gap-2">
                 <img src="assets/images/Logo.png" alt="RF Dental Clinic Logo" class="w-8 h-8 rounded-md">
