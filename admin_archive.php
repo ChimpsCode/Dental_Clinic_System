@@ -292,6 +292,46 @@ require_once 'includes/admin_layout_start.php';
     border-radius: 4px;
     font-family: monospace;
 }
+
+/* Status Badges */
+.status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.status-scheduled {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.status-completed {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-cancelled {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.status-waiting {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-in_procedure {
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
+.status-on_hold {
+    background: #f3e8ff;
+    color: #6b21a8;
+}
 </style>
 
 <div class="content-main">
@@ -437,12 +477,65 @@ require_once 'includes/admin_layout_start.php';
         <?php endif; ?>
     </div>
 
-    <!-- APPOINTMENTS TAB (Placeholder) -->
+    <!-- APPOINTMENTS TAB -->
     <div id="appointments-content" class="tab-content">
+        <?php if (!$archiveReady): ?>
         <div style="text-align: center; padding: 60px; color: #6b7280;">
-            <h3>Appointments Archive</h3>
-            <p>This feature will be implemented in Phase 2.</p>
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 20px; opacity: 0.5;">
+                <path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5z"/>
+            </svg>
+            <h3 style="margin-bottom: 10px;">Archive Not Configured</h3>
+            <p>Please run the database migration to enable archive functionality.</p>
         </div>
+        <?php else: ?>
+        <!-- Search & Filters -->
+        <div class="search-filters" style="margin-bottom: 16px;">
+            <input type="text" id="appointments-search" placeholder="Search by patient name..." class="search-input" style="min-width: 300px;">
+            <input type="date" id="appointments-dateFrom" class="filter-select" title="Appointment Date From">
+            <input type="date" id="appointments-dateTo" class="filter-select" title="Appointment Date To">
+            <button class="btn-filter" onclick="loadArchivedAppointments(1)">Filter</button>
+            <button class="btn-reset" onclick="resetFilters('appointments')">Reset</button>
+        </div>
+
+        <!-- Bulk Actions -->
+        <div class="bulk-actions">
+            <button id="bulk-restore-appointments" class="btn-restore" onclick="bulkAction('appointments', 'restore')" disabled>
+                Restore Selected
+            </button>
+            <button id="bulk-delete-appointments" class="btn-delete-forever" onclick="bulkAction('appointments', 'delete_forever')" disabled>
+                Delete Forever
+            </button>
+        </div>
+
+        <!-- Table -->
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px; text-align: center;">
+                            <input type="checkbox" id="select-all-appointments" onchange="toggleSelectAll('appointments', this.checked)">
+                        </th>
+                        <th>Patient</th>
+                        <th>Appointment Date & Time</th>
+                        <th>Service</th>
+                        <th>Status</th>
+                        <th>Archived Date</th>
+                        <th style="width: 200px; text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="appointments-table-body">
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 60px; color: #6b7280;">
+                            Loading archived appointments...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination" id="appointments-pagination"></div>
+        <?php endif; ?>
     </div>
 
     <!-- QUEUE TAB (Placeholder) -->

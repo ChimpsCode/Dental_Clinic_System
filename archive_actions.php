@@ -70,28 +70,34 @@ function handleGetArchived($pdo, $module) {
     $dateFrom = isset($_POST['dateFrom']) ? trim($_POST['dateFrom']) : '';
     $dateTo = isset($_POST['dateTo']) ? trim($_POST['dateTo']) : '';
     
-    // Build WHERE clause
-    $where = "is_archived = 1";
-    $params = [];
-    
-    // Search by patient name (for patients module)
-    if (!empty($search) && $module === 'patients') {
-        $where .= " AND full_name LIKE ?";
-        $params[] = "%$search%";
-    }
-    
-    // Date filters
-    if (!empty($dateFrom)) {
-        $where .= " AND DATE(deleted_at) >= ?";
-        $params[] = $dateFrom;
-    }
-    
-    if (!empty($dateTo)) {
-        $where .= " AND DATE(deleted_at) <= ?";
-        $params[] = $dateTo;
-    }
-    
     try {
+        // Handle different modules
+        if ($module === 'appointments') {
+            handleGetArchivedAppointments($pdo, $page, $limit, $offset, $search, $dateFrom, $dateTo);
+            return;
+        }
+        
+        // Build WHERE clause for other modules
+        $where = "is_archived = 1";
+        $params = [];
+        
+        // Search by patient name (for patients module)
+        if (!empty($search) && $module === 'patients') {
+            $where .= " AND full_name LIKE ?";
+            $params[] = "%$search%";
+        }
+        
+        // Date filters
+        if (!empty($dateFrom)) {
+            $where .= " AND DATE(deleted_at) >= ?";
+            $params[] = $dateFrom;
+        }
+        
+        if (!empty($dateTo)) {
+            $where .= " AND DATE(deleted_at) <= ?";
+            $params[] = $dateTo;
+        }
+        
         // Get total count
         $countStmt = $pdo->prepare("SELECT COUNT(*) FROM $module WHERE $where");
         $countStmt->execute($params);
@@ -117,6 +123,68 @@ function handleGetArchived($pdo, $module) {
             'message' => 'Failed to fetch records: ' . $e->getMessage()
         ]);
     }
+}
+
+/**
+ * Get archived appointments with patient details
+ */
+function handleGetArchivedAppointments($pdo, $page, $limit, $offset, $search, $dateFrom, $dateTo) {
+    // Build WHERE clause
+    $where = "a.is_archived = 1";
+    $params = [];
+    
+    // Search by patient name
+    if (!empty($search)) {
+        $where .= " AND (a.first_name LIKE ? OR a.last_name LIKE ? OR CONCAT(a.first_name, ' ', a.last_name) LIKE ?)";
+        $searchParam = "%$search%";
+        $params[] = $searchParam;
+        $params[] = $searchParam;
+        $params[] = $searchParam;
+    }
+    
+    // Date filter (appointment date, not deleted_at)
+    if (!empty($dateFrom)) {
+        $where .= " AND a.appointment_date >= ?";
+        $params[] = $dateFrom;
+    }
+    
+    if (!empty($dateTo)) {
+        $where .= " AND a.appointment_date <= ?";
+        $params[] = $dateTo;
+    }
+    
+    // Get total count
+    $countSql = "SELECT COUNT(*) FROM appointments a WHERE $where";
+    $countStmt = $pdo->prepare($countSql);
+    $countStmt->execute($params);
+    $total = $countStmt->fetchColumn();
+    
+    // Get records with patient info
+    $sql = "SELECT a.*, 
+            CONCAT(a.first_name, ' ', IFNULL(a.middle_name, ''), ' ', a.last_name) as patient_name,
+            a.appointment_date,
+            a.appointment_time,
+            a.treatment,
+            a.status,
+            a.deleted_at,
+            p.phone as patient_phone
+            FROM appointments a
+            LEFT JOIN patients p ON a.patient_id = p.id
+            WHERE $where
+            ORDER BY a.deleted_at DESC
+            LIMIT $limit OFFSET $offset";
+    
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    echo json_encode([
+        'success' => true,
+        'records' => $records,
+        'total' => (int)$total,
+        'pages' => (int)ceil($total / $limit),
+        'current_page' => $page
+    ]);
 }
 
 /**

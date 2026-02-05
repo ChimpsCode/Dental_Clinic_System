@@ -69,9 +69,11 @@ function switchTab(tab) {
     });
     document.getElementById(`${tab}-content`).classList.add('active');
     
-    // Load data if patients tab
+    // Load data for active tab
     if (tab === 'patients') {
         loadArchivedPatients(currentPage.patients);
+    } else if (tab === 'appointments') {
+        loadArchivedAppointments(currentPage.appointments);
     }
 }
 
@@ -222,6 +224,222 @@ function renderPatientTable(records) {
     }
     selectedRecords.patients = [];
     updateBulkButtons('patients');
+}
+
+/**
+ * Load archived appointments
+ */
+function loadArchivedAppointments(page) {
+    currentPage.appointments = page;
+    
+    const search = document.getElementById('appointments-search')?.value || '';
+    const dateFrom = document.getElementById('appointments-dateFrom')?.value || '';
+    const dateTo = document.getElementById('appointments-dateTo')?.value || '';
+    
+    // Show loading state
+    const tbody = document.getElementById('appointments-table-body');
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="7" style="text-align: center; padding: 60px; color: #6b7280;">
+                <div style="display: inline-block; animation: spin 1s linear infinite;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                    </svg>
+                </div>
+                <p style="margin-top: 10px;">Loading archived appointments...</p>
+            </td>
+        </tr>
+    `;
+    
+    // Fetch data
+    fetch('archive_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            action: 'get_archived',
+            module: 'appointments',
+            page: page,
+            search: search,
+            dateFrom: dateFrom,
+            dateTo: dateTo
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            renderAppointmentsTable(data.records);
+            renderAppointmentsPagination(data.current_page, data.pages, data.total);
+        } else {
+            showError(data.message);
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 60px; color: #ef4444;">
+                        <p>Error: ${escapeHtml(data.message)}</p>
+                    </td>
+                </tr>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showError('Failed to load archived appointments');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 60px; color: #ef4444;">
+                    <p>Failed to load data. Please try again.</p>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+/**
+ * Render appointments table
+ */
+function renderAppointmentsTable(records) {
+    const tbody = document.getElementById('appointments-table-body');
+    
+    if (!records || records.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 60px; color: #6b7280;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 20px; opacity: 0.3;">
+                        <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10z"/>
+                    </svg>
+                    <h3 style="margin-bottom: 10px;">No Archived Appointments</h3>
+                    <p>No appointments have been archived yet.</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = records.map(apt => `
+        <tr>
+            <td style="text-align: center;">
+                <input type="checkbox" class="record-checkbox appointments-checkbox" 
+                       value="${apt.id}" 
+                       onchange="updateSelection('appointments', ${apt.id}, this.checked)">
+            </td>
+            <td>
+                <div style="font-weight: 500; color: #111827;">${escapeHtml(apt.patient_name || 'Unknown')}</div>
+                ${apt.patient_phone ? `<div style="font-size: 0.8rem; color: #6b7280;">📞 ${escapeHtml(apt.patient_phone)}</div>` : ''}
+            </td>
+            <td>
+                <div style="font-weight: 500; color: #374151;">${formatDateShort(apt.appointment_date)}</div>
+                <div style="font-size: 0.85rem; color: #6b7280;">${apt.appointment_time || 'N/A'}</div>
+            </td>
+            <td>
+                <div style="color: #374151;">${escapeHtml(apt.treatment || 'General Checkup')}</div>
+            </td>
+            <td>
+                <span class="status-badge status-${apt.status}">${escapeHtml(apt.status || 'scheduled')}</span>
+            </td>
+            <td>
+                <div style="font-size: 0.85rem; color: #374151;">${formatDate(apt.deleted_at)}</div>
+            </td>
+            <td style="text-align: center;">
+                <button class="btn-restore btn-sm" onclick="singleAction('appointments', ${apt.id}, 'restore')">
+                    Restore
+                </button>
+                <button class="btn-delete-forever btn-sm" onclick="singleAction('appointments', ${apt.id}, 'delete_forever')">
+                    Delete Forever
+                </button>
+            </td>
+        </tr>
+    `).join('');
+    
+    // Update select all checkbox
+    const selectAll = document.getElementById('select-all-appointments');
+    if (selectAll) {
+        selectAll.checked = false;
+    }
+    selectedRecords.appointments = [];
+    updateBulkButtons('appointments');
+}
+
+/**
+ * Render appointments pagination
+ */
+function renderAppointmentsPagination(currentPage, totalPages, totalRecords) {
+    const container = document.getElementById('appointments-pagination');
+    
+    if (!container || totalPages <= 1) {
+        if (container) container.innerHTML = '';
+        return;
+    }
+    
+    const limit = 7;
+    const showingStart = ((currentPage - 1) * limit) + 1;
+    const showingEnd = Math.min(currentPage * limit, totalRecords);
+    
+    let html = `
+        <span class="pagination-info">
+            Showing ${showingStart}-${showingEnd} of ${totalRecords} archived appointments
+        </span>
+        <div class="pagination-buttons">
+    `;
+    
+    // Previous button
+    if (currentPage > 1) {
+        html += `<a href="#" onclick="loadArchivedAppointments(${currentPage - 1}); return false;" class="pagination-btn">Previous</a>`;
+    } else {
+        html += `<button class="pagination-btn" disabled>Previous</button>`;
+    }
+    
+    // Page numbers (smart display)
+    const maxVisible = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+    
+    if (endPage - startPage + 1 < maxVisible) {
+        startPage = Math.max(1, endPage - maxVisible + 1);
+    }
+    
+    if (startPage > 1) {
+        html += `<a href="#" onclick="loadArchivedAppointments(1); return false;" class="pagination-btn">1</a>`;
+        if (startPage > 2) {
+            html += `<span class="pagination-ellipsis">...</span>`;
+        }
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        if (i === currentPage) {
+            html += `<button class="pagination-btn active">${i}</button>`;
+        } else {
+            html += `<a href="#" onclick="loadArchivedAppointments(${i}); return false;" class="pagination-btn">${i}</a>`;
+        }
+    }
+    
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            html += `<span class="pagination-ellipsis">...</span>`;
+        }
+        html += `<a href="#" onclick="loadArchivedAppointments(${totalPages}); return false;" class="pagination-btn">${totalPages}</a>`;
+    }
+    
+    // Next button
+    if (currentPage < totalPages) {
+        html += `<a href="#" onclick="loadArchivedAppointments(${currentPage + 1}); return false;" class="pagination-btn">Next</a>`;
+    } else {
+        html += `<button class="pagination-btn" disabled>Next</button>`;
+    }
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+/**
+ * Format date (short version for appointments)
+ */
+function formatDateShort(dateString) {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
 }
 
 /**

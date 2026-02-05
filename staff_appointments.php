@@ -9,18 +9,18 @@ if ($currentPage < 1) $currentPage = 1;
 try {
     require_once 'config/database.php';
     
-    // Check if deleted_by_staff column exists
+    // Check if is_archived column exists (archive system)
     $columnExists = false;
     try {
-        $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'deleted_by_staff'");
+        $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'is_archived'");
         $columnExists = $checkCol->rowCount() > 0;
     } catch (Exception $e) {
         $columnExists = false;
     }
     
     // Build WHERE clause based on column existence
-    $whereClause = $columnExists ? "WHERE (a.deleted_by_staff = 0 OR a.deleted_by_staff IS NULL)" : "";
-    $countWhereClause = $columnExists ? "WHERE deleted_by_staff = 0 OR deleted_by_staff IS NULL" : "";
+    $whereClause = $columnExists ? "WHERE (a.is_archived = 0 OR a.is_archived IS NULL)" : "";
+    $countWhereClause = $columnExists ? "WHERE is_archived = 0 OR is_archived IS NULL" : "";
     
     // Get total count for pagination
     $countStmt = $pdo->query("SELECT COUNT(*) FROM appointments " . $countWhereClause);
@@ -885,11 +885,11 @@ require_once 'includes/staff_layout_start.php';
     }
 
     function deleteAppointment(id) {
-        if (confirm('Are you sure you want to delete this appointment?\n\nNote: This will hide the appointment from your view. Admin can still see and permanently delete it.')) {
+        if (confirm('Are you sure you want to archive this appointment?\n\nIt will be moved to the Archive page where admin can restore or permanently delete it.')) {
             fetch('delete_appointment.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: id, soft_delete: true })
+                body: JSON.stringify({ id: id, action: 'archive' })
             })
             .then(response => response.json())
             .then(data => {

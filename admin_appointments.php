@@ -13,8 +13,16 @@ if ($currentPage < 1) $currentPage = 1;
 try {
     require_once 'config/database.php';
     
-    // Get total count for pagination
-    $countStmt = $pdo->query("SELECT COUNT(*) FROM appointments");
+    // Check if is_archived column exists
+    $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'is_archived'");
+    $hasArchiveColumn = $checkCol->rowCount() > 0;
+    
+    // Build WHERE clause
+    $whereClause = $hasArchiveColumn ? "WHERE (a.is_archived = 0 OR a.is_archived IS NULL)" : "";
+    $countWhereClause = $hasArchiveColumn ? "WHERE is_archived = 0 OR is_archived IS NULL" : "";
+    
+    // Get total count for pagination (exclude archived)
+    $countStmt = $pdo->query("SELECT COUNT(*) FROM appointments $countWhereClause");
     $totalAppointments = $countStmt->fetchColumn();
     $totalPages = max(1, ceil($totalAppointments / $itemsPerPage));
     
@@ -26,21 +34,22 @@ try {
     $showingStart = $totalAppointments > 0 ? $offset + 1 : 0;
     $showingEnd = min($offset + $itemsPerPage, $totalAppointments);
     
-    // Get all appointments for stats (without pagination)
-    // Use appointment's own name fields since they store first_name, middle_name, last_name
+    // Get all appointments for stats (without pagination, exclude archived)
     $allStmt = $pdo->query("SELECT a.*, 
                          CONCAT(a.first_name, ' ', IFNULL(a.middle_name, ''), ' ', a.last_name) as full_name, 
                          p.phone 
                          FROM appointments a 
-                         LEFT JOIN patients p ON a.patient_id = p.id");
+                         LEFT JOIN patients p ON a.patient_id = p.id
+                         $whereClause");
     $allAppointments = $allStmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Get paginated appointments
+    // Get paginated appointments (exclude archived)
     $stmt = $pdo->prepare("SELECT a.*, 
                          CONCAT(a.first_name, ' ', IFNULL(a.middle_name, ''), ' ', a.last_name) as full_name, 
                          p.phone 
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id 
+                         $whereClause
                          ORDER BY a.created_at DESC
                          LIMIT :limit OFFSET :offset");
     $stmt->bindValue(':limit', $itemsPerPage, PDO::PARAM_INT);
@@ -851,11 +860,11 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
     }
 
     function deleteAppointment(id) {
-        if (confirm('Are you sure you want to PERMANENTLY delete this appointment?\n\nThis action cannot be undone!')) {
+        if (confirm('Are you sure you want to archive this appointment?\n\nIt will be moved to the Archive page where you can restore or permanently delete it.')) {
             fetch('delete_appointment.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: id, permanent: true })
+                body: JSON.stringify({ id: id, action: 'archive' })
             })
             .then(response => response.json())
             .then(data => {

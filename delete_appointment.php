@@ -1,8 +1,8 @@
 <?php
 /**
  * Delete Appointment Handler
- * - Staff: Soft delete (marks as hidden from staff view)
- * - Admin: Permanent delete (removes from database)
+ * - All roles (Admin, Dentist, Staff): Archive appointment (soft delete)
+ * - Admin only: Permanent delete from Archive page
  */
 
 header('Content-Type: application/json');
@@ -18,7 +18,7 @@ try {
     $data = json_decode(file_get_contents('php://input'), true);
     $id = $data['id'] ?? null;
     $permanent = $data['permanent'] ?? false;
-    $soft_delete = $data['soft_delete'] ?? false;
+    $action = $data['action'] ?? 'archive'; // 'archive' or 'permanent'
 
     if (!$id) {
         throw new Exception('Appointment ID is required');
@@ -31,47 +31,45 @@ try {
         throw new Exception('Appointment not found');
     }
 
-    if ($permanent) {
-        // Admin permanent delete - actually remove from database
-        $stmt = $pdo->prepare("DELETE FROM appointments WHERE id = ?");
+    // Check if is_archived column exists
+    $columnExists = false;
+    try {
+        $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'is_archived'");
+        $columnExists = $checkCol->rowCount() > 0;
+    } catch (Exception $e) {
+        $columnExists = false;
+    }
+
+    if ($action === 'permanent' || $permanent) {
+        // Permanent delete - only admin can do this from Archive page
+        if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+            throw new Exception('Only admin can permanently delete appointments');
+        }
+        
+        $stmt = $pdo->prepare("DELETE FROM appointments WHERE id = ? AND is_archived = 1");
         $stmt->execute([$id]);
         
         echo json_encode([
             'success' => true,
             'message' => 'Appointment permanently deleted'
         ]);
-    } else if ($soft_delete) {
-        // Staff soft delete - check if column exists first
-        $columnExists = false;
-        try {
-            $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'deleted_by_staff'");
-            $columnExists = $checkCol->rowCount() > 0;
-        } catch (Exception $e) {
-            $columnExists = false;
-        }
-        
+    } else {
+        // Archive appointment (soft delete) - all roles can do this
         if ($columnExists) {
-            // Column exists, do soft delete
-            $stmt = $pdo->prepare("UPDATE appointments SET deleted_by_staff = 1, deleted_at = NOW() WHERE id = ?");
+            $stmt = $pdo->prepare("UPDATE appointments SET is_archived = 1, deleted_at = NOW() WHERE id = ?");
             $stmt->execute([$id]);
             
             echo json_encode([
                 'success' => true,
-                'message' => 'Appointment removed from your view'
+                'message' => 'Appointment archived successfully. You can restore it from the Archive page.'
             ]);
         } else {
-            // Column doesn't exist, inform user to add it or do permanent delete
-            // For now, we'll just delete it permanently with a different message
-            $stmt = $pdo->prepare("DELETE FROM appointments WHERE id = ?");
-            $stmt->execute([$id]);
-            
+            // Column doesn't exist - inform user to run migration
             echo json_encode([
-                'success' => true,
-                'message' => 'Appointment deleted successfully'
+                'success' => false,
+                'message' => 'Archive system not configured. Please run database migration: config/add_archive_columns.sql'
             ]);
         }
-    } else {
-        throw new Exception('Delete type not specified');
     }
 
 } catch (Exception $e) {
