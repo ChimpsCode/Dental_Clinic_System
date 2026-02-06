@@ -70,25 +70,29 @@ require_once 'includes/admin_layout_start.php';
 /* Tab Navigation */
 .tab-navigation {
     display: flex;
-    gap: 8px;
+    gap: 4px;
     border-bottom: 2px solid #e5e7eb;
-    margin-bottom: 24px;
-    overflow-x: auto;
+    margin-bottom: 0px;
+    overflow-x: visible;
     padding-bottom: 2px;
+    flex-wrap: wrap;
+    min-height: 50px;
+    align-items: flex-end;
 }
 
 .tab-btn {
-    padding: 12px 20px;
+    padding: 8px 14px;
     background: none;
     border: none;
     border-bottom: 3px solid transparent;
     cursor: pointer;
-    font-size: 0.875rem;
+    font-size: 0.75rem;
     font-weight: 500;
     color: #6b7280;
     transition: all 0.3s ease;
     white-space: nowrap;
     margin-bottom: -2px;
+    flex-shrink: 0;
 }
 
 .tab-btn:hover {
@@ -203,7 +207,7 @@ require_once 'includes/admin_layout_start.php';
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     gap: 12px;
-    margin-bottom: 24px;
+    margin-bottom: 0px;
 }
 
 .summary-card.archive-card {
@@ -259,11 +263,12 @@ require_once 'includes/admin_layout_start.php';
     
     .tab-navigation {
         flex-wrap: wrap;
+        gap: 4px;
     }
     
     .tab-btn {
-        padding: 10px 16px;
-        font-size: 0.8rem;
+        padding: 8px 12px;
+        font-size: 0.75rem;
     }
 }
 
@@ -336,7 +341,7 @@ require_once 'includes/admin_layout_start.php';
 
 <div class="content-main">
     <!-- Page Header -->
-    <div class="page-header" style="margin-bottom: 24px;">
+    <div class="page-header" style="margin-bottom: 0px;">
         <h2 style="margin: 0;">Archive Management</h2>
         <p style="color: #6b7280; font-size: 0.875rem; margin: 8px 0 0 0;">
             Manage archived records - restore or permanently delete
@@ -562,12 +567,65 @@ require_once 'includes/admin_layout_start.php';
         </div>
     </div>
 
-    <!-- INQUIRIES TAB (Placeholder) -->
+    <!-- INQUIRIES TAB -->
     <div id="inquiries-content" class="tab-content">
+        <?php if (!$archiveReady): ?>
         <div style="text-align: center; padding: 60px; color: #6b7280;">
-            <h3>Inquiries Archive</h3>
-            <p>This feature will be implemented in Phase 6.</p>
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 20px; opacity: 0.5;">
+                <path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5z"/>
+            </svg>
+            <h3 style="margin-bottom: 10px;">Archive Not Configured</h3>
+            <p>Please run the database migration to enable archive functionality.</p>
         </div>
+        <?php else: ?>
+        <!-- Search & Filters -->
+        <div class="search-filters" style="margin-bottom: 16px;">
+            <input type="text" id="inquiries-search" placeholder="Search by name..." class="search-input" style="min-width: 300px;">
+            <input type="date" id="inquiries-dateFrom" class="filter-select" title="Submission Date From">
+            <input type="date" id="inquiries-dateTo" class="filter-select" title="Submission Date To">
+            <button class="btn-filter" onclick="loadArchivedInquiries(1)">Filter</button>
+            <button class="btn-reset" onclick="resetFilters('inquiries')">Reset</button>
+        </div>
+
+        <!-- Bulk Actions -->
+        <div class="bulk-actions">
+            <button id="bulk-restore-inquiries" class="btn-restore" onclick="bulkAction('inquiries', 'restore')" disabled>
+                Restore Selected
+            </button>
+            <button id="bulk-delete-inquiries" class="btn-delete-forever" onclick="bulkAction('inquiries', 'delete_forever')" disabled>
+                Delete Forever
+            </button>
+        </div>
+
+        <!-- Table -->
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px; text-align: center;">
+                            <input type="checkbox" id="select-all-inquiries" onchange="toggleSelectAll('inquiries', this.checked)">
+                        </th>
+                        <th>Name</th>
+                        <th>Contact</th>
+                        <th>Subject</th>
+                        <th>Submission Date</th>
+                        <th>Archived Date</th>
+                        <th style="width: 200px; text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="inquiries-table-body">
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 60px; color: #6b7280;">
+                            Loading archived inquiries...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination" id="inquiries-pagination"></div>
+        <?php endif; ?>
     </div>
 
     <!-- USERS TAB (Placeholder) -->

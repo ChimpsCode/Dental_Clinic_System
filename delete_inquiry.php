@@ -30,13 +30,30 @@ if (!$id) {
 try {
     require_once 'config/database.php';
     
-    $stmt = $pdo->prepare("DELETE FROM inquiries WHERE id = ?");
-    $stmt->execute([$id]);
+    // Check if is_archived column exists
+    $checkCol = $pdo->query("SHOW COLUMNS FROM inquiries LIKE 'is_archived'");
+    $hasArchiveColumn = $checkCol->rowCount() > 0;
     
-    if ($stmt->rowCount() > 0) {
-        echo json_encode(['success' => true, 'message' => 'Inquiry deleted successfully']);
+    if ($hasArchiveColumn) {
+        // Archive the inquiry (soft delete)
+        $stmt = $pdo->prepare("UPDATE inquiries SET is_archived = 1, deleted_at = NOW() WHERE id = ?");
+        $stmt->execute([$id]);
+        
+        if ($stmt->rowCount() > 0) {
+            echo json_encode(['success' => true, 'message' => 'Inquiry archived successfully. You can restore it from the Archive page.']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Inquiry not found']);
+        }
     } else {
-        echo json_encode(['success' => false, 'message' => 'Inquiry not found']);
+        // Fallback to hard delete if archive columns don't exist
+        $stmt = $pdo->prepare("DELETE FROM inquiries WHERE id = ?");
+        $stmt->execute([$id]);
+        
+        if ($stmt->rowCount() > 0) {
+            echo json_encode(['success' => true, 'message' => 'Inquiry deleted successfully']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Inquiry not found']);
+        }
     }
     
 } catch (Exception $e) {

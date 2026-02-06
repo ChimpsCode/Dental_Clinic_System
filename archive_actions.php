@@ -77,6 +77,11 @@ function handleGetArchived($pdo, $module) {
             return;
         }
         
+        if ($module === 'inquiries') {
+            handleGetArchivedInquiries($pdo, $page, $limit, $offset, $search, $dateFrom, $dateTo);
+            return;
+        }
+        
         // Build WHERE clause for other modules
         $where = "is_archived = 1";
         $params = [];
@@ -172,6 +177,57 @@ function handleGetArchivedAppointments($pdo, $page, $limit, $offset, $search, $d
             LEFT JOIN patients p ON a.patient_id = p.id
             WHERE $where
             ORDER BY a.deleted_at DESC
+            LIMIT $limit OFFSET $offset";
+    
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    echo json_encode([
+        'success' => true,
+        'records' => $records,
+        'total' => (int)$total,
+        'pages' => (int)ceil($total / $limit),
+        'current_page' => $page
+    ]);
+}
+
+/**
+ * Get archived inquiries
+ */
+function handleGetArchivedInquiries($pdo, $page, $limit, $offset, $search, $dateFrom, $dateTo) {
+    // Build WHERE clause
+    $where = "is_archived = 1";
+    $params = [];
+    
+    // Search by name
+    if (!empty($search)) {
+        $where .= " AND full_name LIKE ?";
+        $params[] = "%$search%";
+    }
+    
+    // Date filter (submitted_at, not deleted_at)
+    if (!empty($dateFrom)) {
+        $where .= " AND DATE(submitted_at) >= ?";
+        $params[] = $dateFrom;
+    }
+    
+    if (!empty($dateTo)) {
+        $where .= " AND DATE(submitted_at) <= ?";
+        $params[] = $dateTo;
+    }
+    
+    // Get total count
+    $countSql = "SELECT COUNT(*) FROM inquiries WHERE $where";
+    $countStmt = $pdo->prepare($countSql);
+    $countStmt->execute($params);
+    $total = $countStmt->fetchColumn();
+    
+    // Get records
+    $sql = "SELECT id, full_name, email, phone, subject, message, submitted_at, deleted_at
+            FROM inquiries
+            WHERE $where
+            ORDER BY deleted_at DESC
             LIMIT $limit OFFSET $offset";
     
     $stmt = $pdo->prepare($sql);

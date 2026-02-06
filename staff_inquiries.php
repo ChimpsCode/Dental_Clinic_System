@@ -8,8 +8,16 @@ $currentPage = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 try {
     require_once 'config/database.php';
     
-    // Get total count for pagination
-    $countStmt = $pdo->query("SELECT COUNT(*) FROM inquiries");
+    // Check if is_archived column exists
+    $checkCol = $pdo->query("SHOW COLUMNS FROM inquiries LIKE 'is_archived'");
+    $hasArchiveColumn = $checkCol->rowCount() > 0;
+    
+    // Build WHERE clause to exclude archived inquiries
+    $whereClause = $hasArchiveColumn ? "WHERE is_archived = 0 OR is_archived IS NULL" : "";
+    
+    // Get total count for pagination (exclude archived)
+    $countQuery = "SELECT COUNT(*) FROM inquiries $whereClause";
+    $countStmt = $pdo->query($countQuery);
     $totalInquiries = $countStmt->fetchColumn();
     $totalPages = ceil($totalInquiries / $itemsPerPage);
     
@@ -21,15 +29,17 @@ try {
     // Calculate offset
     $offset = ($currentPage - 1) * $itemsPerPage;
     
-    // Get paginated inquiries
-    $stmt = $pdo->prepare("SELECT * FROM inquiries ORDER BY created_at DESC LIMIT :limit OFFSET :offset");
+    // Get paginated inquiries (exclude archived)
+    $query = "SELECT * FROM inquiries $whereClause ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
+    $stmt = $pdo->prepare($query);
     $stmt->bindValue(':limit', $itemsPerPage, PDO::PARAM_INT);
     $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
     $stmt->execute();
     $inquiries = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Get all inquiries for stats (without pagination)
-    $allInquiriesStmt = $pdo->query("SELECT status FROM inquiries");
+    // Get all inquiries for stats (without pagination, exclude archived)
+    $statsQuery = "SELECT status FROM inquiries $whereClause";
+    $allInquiriesStmt = $pdo->query($statsQuery);
     $allInquiriesForStats = $allInquiriesStmt->fetchAll(PDO::FETCH_ASSOC);
     
 } catch (Exception $e) {

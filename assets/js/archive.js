@@ -45,6 +45,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const module = this.id.replace('-search', '');
                 if (module === 'patients') {
                     loadArchivedPatients(1);
+                } else if (module === 'appointments') {
+                    loadArchivedAppointments(1);
+                } else if (module === 'inquiries') {
+                    loadArchivedInquiries(1);
                 }
             }
         });
@@ -74,6 +78,8 @@ function switchTab(tab) {
         loadArchivedPatients(currentPage.patients);
     } else if (tab === 'appointments') {
         loadArchivedAppointments(currentPage.appointments);
+    } else if (tab === 'inquiries') {
+        loadArchivedInquiries(currentPage.inquiries);
     }
 }
 
@@ -430,6 +436,213 @@ function renderAppointmentsPagination(currentPage, totalPages, totalRecords) {
 }
 
 /**
+ * Load archived inquiries
+ */
+function loadArchivedInquiries(page) {
+    currentPage.inquiries = page;
+
+    const search = document.getElementById('inquiries-search')?.value || '';
+    const dateFrom = document.getElementById('inquiries-dateFrom')?.value || '';
+    const dateTo = document.getElementById('inquiries-dateTo')?.value || '';
+
+    // Show loading state
+    const tbody = document.getElementById('inquiries-table-body');
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="7" style="text-align: center; padding: 60px; color: #6b7280;">
+                <div style="display: inline-block; animation: spin 1s linear infinite;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                    </svg>
+                </div>
+                <p style="margin-top: 10px;">Loading archived inquiries...</p>
+            </td>
+        </tr>
+    `;
+
+    // Fetch data
+    fetch('archive_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            action: 'get_archived',
+            module: 'inquiries',
+            page: page,
+            search: search,
+            dateFrom: dateFrom,
+            dateTo: dateTo
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            renderInquiriesTable(data.records);
+            renderInquiriesPagination(data.current_page, data.pages, data.total);
+        } else {
+            showError(data.message);
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 60px; color: #ef4444;">
+                        <p>Error: ${escapeHtml(data.message)}</p>
+                    </td>
+                </tr>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showError('Failed to load archived inquiries');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 60px; color: #ef4444;">
+                    <p>Failed to load data. Please try again.</p>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+/**
+ * Render inquiries table
+ */
+function renderInquiriesTable(records) {
+    const tbody = document.getElementById('inquiries-table-body');
+
+    if (!records || records.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 60px; color: #6b7280;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 20px; opacity: 0.3;">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <h3 style="margin-bottom: 10px;">No Archived Inquiries</h3>
+                    <p>No inquiries have been archived yet.</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = records.map(inquiry => `
+        <tr>
+            <td style="text-align: center;">
+                <input type="checkbox" class="record-checkbox inquiries-checkbox"
+                       value="${inquiry.id}"
+                       onchange="updateSelection('inquiries', ${inquiry.id}, this.checked)">
+            </td>
+            <td>
+                <div style="font-weight: 500; color: #111827;">${escapeHtml(inquiry.full_name || 'Unknown')}</div>
+            </td>
+            <td>
+                <div style="font-size: 0.85rem; color: #374151;">
+                    ${inquiry.email ? `<div>✉️ ${escapeHtml(inquiry.email)}</div>` : ''}
+                    ${inquiry.phone ? `<div style="color: #6b7280;">📞 ${escapeHtml(inquiry.phone)}</div>` : ''}
+                </div>
+            </td>
+            <td>
+                <div style="color: #374151;">${escapeHtml(inquiry.subject || 'N/A')}</div>
+                <div style="font-size: 0.8rem; color: #6b7280; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(inquiry.message || '')}">
+                    ${escapeHtml((inquiry.message || '').substring(0, 50))}${(inquiry.message || '').length > 50 ? '...' : ''}
+                </div>
+            </td>
+            <td>
+                <div style="font-size: 0.85rem; color: #374151;">${formatDateShort(inquiry.submitted_at)}</div>
+            </td>
+            <td>
+                <div style="font-size: 0.85rem; color: #374151;">${formatDate(inquiry.deleted_at)}</div>
+            </td>
+            <td style="text-align: center;">
+                <button class="btn-restore btn-sm" onclick="singleAction('inquiries', ${inquiry.id}, 'restore')">
+                    Restore
+                </button>
+                <button class="btn-delete-forever btn-sm" onclick="singleAction('inquiries', ${inquiry.id}, 'delete_forever')">
+                    Delete Forever
+                </button>
+            </td>
+        </tr>
+    `).join('');
+
+    // Update select all checkbox
+    const selectAll = document.getElementById('select-all-inquiries');
+    if (selectAll) {
+        selectAll.checked = false;
+    }
+    selectedRecords.inquiries = [];
+    updateBulkButtons('inquiries');
+}
+
+/**
+ * Render inquiries pagination
+ */
+function renderInquiriesPagination(currentPage, totalPages, totalRecords) {
+    const container = document.getElementById('inquiries-pagination');
+
+    if (!container || totalPages <= 1) {
+        if (container) container.innerHTML = '';
+        return;
+    }
+
+    const limit = 7;
+    const showingStart = ((currentPage - 1) * limit) + 1;
+    const showingEnd = Math.min(currentPage * limit, totalRecords);
+
+    let html = `
+        <span class="pagination-info">
+            Showing ${showingStart}-${showingEnd} of ${totalRecords} archived inquiries
+        </span>
+        <div class="pagination-buttons">
+    `;
+
+    // Previous button
+    if (currentPage > 1) {
+        html += `<a href="#" onclick="loadArchivedInquiries(${currentPage - 1}); return false;" class="pagination-btn">Previous</a>`;
+    } else {
+        html += `<button class="pagination-btn" disabled>Previous</button>`;
+    }
+
+    // Page numbers (smart display)
+    const maxVisible = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+
+    if (endPage - startPage + 1 < maxVisible) {
+        startPage = Math.max(1, endPage - maxVisible + 1);
+    }
+
+    if (startPage > 1) {
+        html += `<a href="#" onclick="loadArchivedInquiries(1); return false;" class="pagination-btn">1</a>`;
+        if (startPage > 2) {
+            html += `<span class="pagination-ellipsis">...</span>`;
+        }
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+        if (i === currentPage) {
+            html += `<button class="pagination-btn active">${i}</button>`;
+        } else {
+            html += `<a href="#" onclick="loadArchivedInquiries(${i}); return false;" class="pagination-btn">${i}</a>`;
+        }
+    }
+
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            html += `<span class="pagination-ellipsis">...</span>`;
+        }
+        html += `<a href="#" onclick="loadArchivedInquiries(${totalPages}); return false;" class="pagination-btn">${totalPages}</a>`;
+    }
+
+    // Next button
+    if (currentPage < totalPages) {
+        html += `<a href="#" onclick="loadArchivedInquiries(${currentPage + 1}); return false;" class="pagination-btn">Next</a>`;
+    } else {
+        html += `<button class="pagination-btn" disabled>Next</button>`;
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+/**
  * Format date (short version for appointments)
  */
 function formatDateShort(dateString) {
@@ -636,6 +849,8 @@ function performAction(module, action, ids) {
                 loadArchivedPatients(currentPage.patients);
             } else if (module === 'appointments') {
                 loadArchivedAppointments(currentPage.appointments);
+            } else if (module === 'inquiries') {
+                loadArchivedInquiries(currentPage.inquiries);
             }
             // Clear selection
             selectedRecords[module] = [];
@@ -666,6 +881,10 @@ function resetFilters(module) {
     
     if (module === 'patients') {
         loadArchivedPatients(1);
+    } else if (module === 'appointments') {
+        loadArchivedAppointments(1);
+    } else if (module === 'inquiries') {
+        loadArchivedInquiries(1);
     }
 }
 
