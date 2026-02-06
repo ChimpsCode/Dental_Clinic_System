@@ -63,6 +63,10 @@ try {
  $fullName = $_SESSION['full_name'] ?? 'Staff';
 
  $inquiryData = null;
+ $appointmentData = null;
+ $appointmentId = null;
+ 
+ // Check for inquiry_id
 if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
     try {
         require_once 'config/database.php';
@@ -71,6 +75,21 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
         $inquiryData = $stmt->fetch(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
         $inquiryData = null;
+    }
+}
+
+// Check for appointment_id
+if (isset($_GET['appointment_id']) && is_numeric($_GET['appointment_id'])) {
+    try {
+        require_once 'config/database.php';
+        $stmt = $pdo->prepare("SELECT * FROM appointments WHERE id = ?");
+        $stmt->execute([$_GET['appointment_id']]);
+        $appointmentData = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($appointmentData) {
+            $appointmentId = $_GET['appointment_id'];
+        }
+    } catch (Exception $e) {
+        $appointmentData = null;
     }
 }
 ?>
@@ -354,6 +373,16 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
     </div>
     <?php endif; ?>
 
+    <?php if ($appointmentData): ?>
+    <div class="max-w-7xl mx-auto w-full px-6 pt-6">
+        <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4 flex items-center gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            <span class="text-sm text-green-700">Forwarded from Appointment: <strong><?php echo htmlspecialchars(trim(($appointmentData['first_name'] ?? '') . ' ' . ($appointmentData['last_name'] ?? ''))); ?></strong> (<?php echo htmlspecialchars($appointmentData['appointment_date'] ?? ''); ?>)</span>
+            <a href="staff_appointments.php" class="ml-auto text-green-600 hover:text-green-800 text-sm font-medium">View Original Appointment</a>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <div class="flex-1 flex flex-col md:flex-row max-w-7xl mx-auto w-full p-6 gap-8">
 
         <!-- Left Sidebar (Stepper) - Sticky with Back to Dashboard -->
@@ -431,6 +460,14 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
             </div>
 
             <form id="admissionForm" class="flex flex-col flex-1">
+                <!-- Hidden Fields for Source Tracking -->
+                <?php if ($appointmentId): ?>
+                <input type="hidden" name="appointment_id" value="<?php echo $appointmentId; ?>">
+                <input type="hidden" name="source" value="appointment">
+                <?php endif; ?>
+                <?php if (isset($_GET['inquiry_id'])): ?>
+                <input type="hidden" name="inquiry_id" value="<?php echo htmlspecialchars($_GET['inquiry_id']); ?>">
+                <?php endif; ?>
                 
                 <!-- STEP 1: Patient Information -->
                 <div id="step-1" class="space-y-8 flex-1">
@@ -441,19 +478,19 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">First Name</label>
-                                <input type="text" name="firstName" value="<?php echo htmlspecialchars($inquiryData['first_name'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Juan">
+                                <input type="text" name="firstName" value="<?php echo htmlspecialchars($inquiryData['first_name'] ?? $appointmentData['first_name'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Juan">
                             </div>
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Middle Name</label>
-                                <input type="text" name="middleName" value="<?php echo htmlspecialchars($inquiryData['middle_name'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="">
+                                <input type="text" name="middleName" value="<?php echo htmlspecialchars($inquiryData['middle_name'] ?? $appointmentData['middle_name'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="">
                             </div>
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Last Name</label>
-                                <input type="text" name="lastName" value="<?php echo htmlspecialchars($inquiryData['last_name'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Dela Cruz">
+                                <input type="text" name="lastName" value="<?php echo htmlspecialchars($inquiryData['last_name'] ?? $appointmentData['last_name'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Dela Cruz">
                             </div>
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Suffix</label>
-                                <input type="text" name="suffix" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Jr.">
+                                <input type="text" name="suffix" value="<?php echo htmlspecialchars($appointmentData['suffix'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Jr.">
                             </div>
                         </div>
 

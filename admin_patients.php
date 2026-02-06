@@ -12,22 +12,48 @@ try {
     $checkColumn = $pdo->query("SHOW COLUMNS FROM patients LIKE 'is_archived'");
     $hasArchiveColumn = $checkColumn->rowCount() > 0;
     
+    // Check if registration_source column exists
+    $checkSourceCol = $pdo->query("SHOW COLUMNS FROM patients LIKE 'registration_source'");
+    $hasSourceColumn = $checkSourceCol->rowCount() > 0;
+    
     // Pagination
     $currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
     $patientsPerPage = 7;
     $offset = ($currentPage - 1) * $patientsPerPage;
     
-    // Build WHERE clause
-    $whereClause = $hasArchiveColumn ? "WHERE is_archived = 0" : "";
+    // Build WHERE clause - exclude archived and appointment-only patients
+    $whereConditions = [];
+    if ($hasArchiveColumn) {
+        $whereConditions[] = "is_archived = 0";
+    }
+    // Only show patients who are fully registered
+    // 'direct' = registered directly
+    // 'appointment_converted' = came from appointment and completed new admission
+    // 'appointment' = only booked appointment, not yet processed (HIDDEN)
+    if ($hasSourceColumn) {
+        $whereConditions[] = "(registration_source IS NULL OR registration_source = 'direct' OR registration_source = 'appointment_converted')";
+    }
     
-    // Get total count for pagination (exclude archived)
+    $whereClause = !empty($whereConditions) ? "WHERE " . implode(" AND ", $whereConditions) : "";
+    
+    // Get total count for pagination
     $countQuery = "SELECT COUNT(*) FROM patients $whereClause";
     $stmt = $pdo->query($countQuery);
     $totalPatients = $stmt->fetchColumn();
     $totalPages = ceil($totalPatients / $patientsPerPage);
     
-    // Get patients with queue status and pagination (exclude archived)
-    $whereClause = $hasArchiveColumn ? "WHERE p.is_archived = 0" : "";
+    // Get patients with queue status and pagination
+    // Exclude archived and appointment-only patients
+    $whereConditions = [];
+    if ($hasArchiveColumn) {
+        $whereConditions[] = "p.is_archived = 0";
+    }
+    if ($hasSourceColumn) {
+        $whereConditions[] = "(p.registration_source IS NULL OR p.registration_source = 'direct' OR p.registration_source = 'appointment_converted')";
+    }
+    
+    $whereClause = !empty($whereConditions) ? "WHERE " . implode(" AND ", $whereConditions) : "";
+    
     $stmt = $pdo->query("
         SELECT p.*, 
                TIMESTAMPDIFF(YEAR, p.date_of_birth, CURDATE()) as age,
@@ -48,8 +74,17 @@ try {
     ");
     $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Calculate stats from ALL patients (not just current page, exclude archived)
-    $statsWhere = $hasArchiveColumn ? "WHERE p.is_archived = 0 AND" : "WHERE";
+    // Calculate stats from ALL patients (not just current page)
+    // Exclude archived and appointment-only patients
+    $statsConditions = [];
+    if ($hasArchiveColumn) {
+        $statsConditions[] = "p.is_archived = 0";
+    }
+    if ($hasSourceColumn) {
+        $statsConditions[] = "(p.registration_source IS NULL OR p.registration_source = 'direct' OR p.registration_source = 'appointment_converted')";
+    }
+    
+    $statsWhere = !empty($statsConditions) ? "WHERE " . implode(" AND ", $statsConditions) . " AND" : "WHERE";
     
     $inQueueStmt = $pdo->query("
         SELECT COUNT(DISTINCT p.id) FROM patients p
@@ -71,7 +106,17 @@ try {
     ");
     $scheduledCount = $scheduledStmt->fetchColumn();
     
-    $newThisMonthWhere = $hasArchiveColumn ? "WHERE is_archived = 0 AND created_at" : "WHERE created_at";
+    // Stats for new patients this month
+    $monthConditions = [];
+    if ($hasArchiveColumn) {
+        $monthConditions[] = "is_archived = 0";
+    }
+    if ($hasSourceColumn) {
+        $monthConditions[] = "(registration_source IS NULL OR registration_source = 'direct' OR registration_source = 'appointment_converted')";
+    }
+    $monthConditions[] = "created_at > DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
+    
+    $newThisMonthWhere = "WHERE " . implode(" AND ", $monthConditions);
     $newThisMonthStmt = $pdo->query("
         SELECT COUNT(*) FROM patients $newThisMonthWhere
     ");

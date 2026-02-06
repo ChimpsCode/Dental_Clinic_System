@@ -10,17 +10,12 @@ try {
     require_once 'config/database.php';
     
     // Check if is_archived column exists (archive system)
-    $columnExists = false;
-    try {
-        $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'is_archived'");
-        $columnExists = $checkCol->rowCount() > 0;
-    } catch (Exception $e) {
-        $columnExists = false;
-    }
+    $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'is_archived'");
+    $hasArchiveColumn = $checkCol->rowCount() > 0;
     
     // Build WHERE clause based on column existence
-    $whereClause = $columnExists ? "WHERE (a.is_archived = 0 OR a.is_archived IS NULL)" : "";
-    $countWhereClause = $columnExists ? "WHERE is_archived = 0 OR is_archived IS NULL" : "";
+    $whereClause = $hasArchiveColumn ? "WHERE (a.is_archived = 0 OR a.is_archived IS NULL)" : "";
+    $countWhereClause = $hasArchiveColumn ? "WHERE is_archived = 0 OR is_archived IS NULL" : "";
     
     // Get total count for pagination
     $countStmt = $pdo->query("SELECT COUNT(*) FROM appointments " . $countWhereClause);
@@ -73,6 +68,9 @@ $todayCount = count(array_filter($allAppointments, function($a) use ($today) {
 $completedCount = count(array_filter($allAppointments, function($a) {
     return strtolower($a['status'] ?? '') === 'completed';
 }));
+$pendingCount = count(array_filter($allAppointments, function($a) {
+    return strtolower($a['status'] ?? '') === 'scheduled' || strtolower($a['status'] ?? '') === 'pending';
+}));
 $cancelledCount = count(array_filter($allAppointments, function($a) {
     return strtolower($a['status'] ?? '') === 'cancelled';
 }));
@@ -96,29 +94,36 @@ require_once 'includes/staff_layout_start.php';
 ?>
 
 <!-- Appointment Stats -->
-<div class="summary-cards">
-    <div class="summary-card">
+<div class="summary-cards" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 24px;">
+    <div class="summary-card" style="width: 100%;">
         <div class="summary-icon blue" style="background: #e0f2fe; color: #0284c7;">📋</div>
         <div class="summary-info">
             <h3><?php echo $totalAppointments; ?></h3>
             <p>Total Appointments</p>
         </div>
     </div>
-    <div class="summary-card">
+    <div class="summary-card" style="width: 100%;">
         <div class="summary-icon yellow">⏰</div>
         <div class="summary-info">
             <h3><?php echo $todayCount; ?></h3>
             <p>Today</p>
         </div>
     </div>
-    <div class="summary-card">
+    <div class="summary-card" style="width: 100%;">
+        <div class="summary-icon yellow" style="background: #fef3c7; color: #d97706;">⏳</div>
+        <div class="summary-info">
+            <h3><?php echo $pendingCount; ?></h3>
+            <p>Pending</p>
+        </div>
+    </div>
+    <div class="summary-card" style="width: 100%;">
         <div class="summary-icon green">✓</div>
         <div class="summary-info">
             <h3><?php echo $completedCount; ?></h3>
             <p>Completed</p>
         </div>
     </div>
-    <div class="summary-card">
+    <div class="summary-card" style="width: 100%;">
         <div class="summary-icon red" style="background: #fee2e2; color: #dc2626;">⚠️</div>
         <div class="summary-info">
             <h3><?php echo $cancelledCount; ?></h3>
@@ -126,6 +131,27 @@ require_once 'includes/staff_layout_start.php';
         </div>
     </div>
 </div>
+
+<style>
+/* Responsive grid for summary cards */
+@media (max-width: 1200px) {
+    .summary-cards {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .summary-cards {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .summary-cards {
+        grid-template-columns: 1fr !important;
+    }
+}
+</style>
 
 <!-- Search & Filters -->
 <div class="search-filters">
@@ -555,6 +581,8 @@ require_once 'includes/staff_layout_start.php';
     position: relative;
     z-index: 100000;
 }
+
+
 </style>
 
 <script>
@@ -879,8 +907,8 @@ require_once 'includes/staff_layout_start.php';
         if (!appt) return;
         
         if (confirm('Forward this appointment to admission?')) {
-            // Redirect to new admission form with appointment data
-            window.location.href = 'new_admission.php?appointment_id=' + id;
+            // Redirect to staff new admission form with appointment data
+            window.location.href = 'staff_new_admission.php?appointment_id=' + id;
         }
     }
 

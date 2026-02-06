@@ -631,9 +631,11 @@ function performAction(module, action, ids) {
     .then(data => {
         if (data.success) {
             showSuccess(data.message);
-            // Reload current page
+            // Reload current page based on module
             if (module === 'patients') {
                 loadArchivedPatients(currentPage.patients);
+            } else if (module === 'appointments') {
+                loadArchivedAppointments(currentPage.appointments);
             }
             // Clear selection
             selectedRecords[module] = [];

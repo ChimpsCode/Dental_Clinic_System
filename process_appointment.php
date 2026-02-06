@@ -44,16 +44,11 @@ try {
     $existing_patient = $stmt->fetch();
 
     if ($existing_patient) {
+        // Existing patient - link the appointment
         $patient_id = $existing_patient['id'];
-    } else {
-        // Build full_name from first, middle, last name
-        $full_name = trim($first_name . ' ' . $middle_name . ' ' . $last_name);
-        $full_name = preg_replace('/\s+/', ' ', $full_name); // Remove extra spaces
-        
-        $stmt = $pdo->prepare("INSERT INTO patients (first_name, middle_name, last_name, full_name, phone, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
-        $stmt->execute([$first_name, $middle_name, $last_name, $full_name, $phone]);
-        $patient_id = $pdo->lastInsertId();
     }
+    // Note: For NEW patients, patient_id remains NULL
+    // They will only be added to patients table after completing New Admission
 
     $stmt = $pdo->prepare("INSERT INTO appointments (first_name, middle_name, last_name, patient_id, appointment_date, appointment_time, treatment, notes, status, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, NOW())");
     $stmt->execute([$first_name, $middle_name, $last_name, $patient_id, $appointment_date, $appointment_time, $treatment, $notes, $_SESSION['user_id'] ?? 1]);

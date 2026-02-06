@@ -77,18 +77,65 @@ try {
         $stmt->execute([$firstName, $middleName, $lastName, $suffix, $birthdate, $age, $gender, $religion,
             $address, $city, $province, $zipCode, $phone, $email, $dentalInsurance, $insuranceEffectiveDate, $patientId]);
     } else {
-        // Insert new patient
-        $stmt = $pdo->prepare("INSERT INTO patients (
-            first_name, middle_name, last_name, suffix, full_name,
-            date_of_birth, age, gender, religion,
-            address, city, province, zip_code, phone, email,
-            dental_insurance, insurance_effective_date, status, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())");
-        $stmt->execute([$firstName, $middleName, $lastName, $suffix, $fullName,
-            $birthdate, $age, $gender, $religion,
-            $address, $city, $province, $zipCode, $phone, $email,
-            $dentalInsurance, $insuranceEffectiveDate]);
+        // Check if registration_source column exists
+        $checkCol = $pdo->query("SHOW COLUMNS FROM patients LIKE 'registration_source'");
+        $hasSourceColumn = $checkCol->rowCount() > 0;
+        
+        // Check if this came from an appointment
+        $appointmentId = $_POST['appointment_id'] ?? null;
+        $inquiryId = $_POST['inquiry_id'] ?? null;
+        $source = 'direct';
+        
+        if ($appointmentId || (isset($_POST['source']) && $_POST['source'] === 'appointment')) {
+            $source = 'appointment_converted';
+        }
+        
+        // Insert new patient with source tracking
+        if ($hasSourceColumn) {
+            $stmt = $pdo->prepare("INSERT INTO patients (
+                first_name, middle_name, last_name, suffix, full_name,
+                date_of_birth, age, gender, religion,
+                address, city, province, zip_code, phone, email,
+                dental_insurance, insurance_effective_date, status, registration_source, source_appointment_id, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, NOW())");
+            $stmt->execute([$firstName, $middleName, $lastName, $suffix, $fullName,
+                $birthdate, $age, $gender, $religion,
+                $address, $city, $province, $zipCode, $phone, $email,
+                $dentalInsurance, $insuranceEffectiveDate, $source, $appointmentId]);
+        } else {
+            // Fallback for older database without source column
+            $stmt = $pdo->prepare("INSERT INTO patients (
+                first_name, middle_name, last_name, suffix, full_name,
+                date_of_birth, age, gender, religion,
+                address, city, province, zip_code, phone, email,
+                dental_insurance, insurance_effective_date, status, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())");
+            $stmt->execute([$firstName, $middleName, $lastName, $suffix, $fullName,
+                $birthdate, $age, $gender, $religion,
+                $address, $city, $province, $zipCode, $phone, $email,
+                $dentalInsurance, $insuranceEffectiveDate]);
+        }
         $patientId = $pdo->lastInsertId();
+        
+        // If this came from an appointment, link it to the new patient
+        if ($appointmentId) {
+            // Update appointment with the new patient_id
+            $stmt = $pdo->prepare("UPDATE appointments SET 
+                patient_id = ?,
+                updated_at = NOW()
+                WHERE id = ?");
+            $stmt->execute([$patientId, $appointmentId]);
+            
+            // Check if appointment tracking columns exist
+            $checkApptCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'is_converted_to_patient'");
+            if ($checkApptCol->rowCount() > 0) {
+                $stmt = $pdo->prepare("UPDATE appointments SET 
+                    is_converted_to_patient = 1, 
+                    converted_patient_id = ?
+                    WHERE id = ?");
+                $stmt->execute([$patientId, $appointmentId]);
+            }
+        }
     }
     
     // Dental History

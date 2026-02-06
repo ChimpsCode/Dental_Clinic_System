@@ -10,8 +10,17 @@ if ($currentPage < 1) $currentPage = 1;
 try {
     require_once 'config/database.php';
     
-    // Get total count for pagination
-    $countStmt = $pdo->query("SELECT COUNT(*) FROM patients");
+    // Check if is_archived column exists
+    $checkColumn = $pdo->query("SHOW COLUMNS FROM patients LIKE 'is_archived'");
+    $hasArchiveColumn = $checkColumn->rowCount() > 0;
+    
+    // Build WHERE clause to exclude archived patients
+    $whereClause = $hasArchiveColumn ? "WHERE is_archived = 0" : "";
+    $whereClauseP = $hasArchiveColumn ? "WHERE p.is_archived = 0" : "";
+    
+    // Get total count for pagination (exclude archived)
+    $countQuery = "SELECT COUNT(*) FROM patients $whereClause";
+    $countStmt = $pdo->query($countQuery);
     $totalPatients = $countStmt->fetchColumn();
     $totalPages = max(1, ceil($totalPatients / $itemsPerPage));
     
@@ -23,21 +32,23 @@ try {
     $showingStart = $totalPatients > 0 ? $offset + 1 : 0;
     $showingEnd = min($offset + $itemsPerPage, $totalPatients);
     
-    // Get all patients for stats (without pagination)
+    // Get all patients for stats (without pagination, exclude archived)
     $allStmt = $pdo->query("
         SELECT p.*,
                (SELECT status FROM queue WHERE patient_id = p.id ORDER BY created_at DESC LIMIT 1) as queue_status,
                (SELECT treatment_type FROM queue WHERE patient_id = p.id ORDER BY created_at DESC LIMIT 1) as current_treatment
         FROM patients p
+        $whereClauseP
     ");
     $allPatients = $allStmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Get paginated patients
+    // Get paginated patients (exclude archived)
     $stmt = $pdo->prepare("
         SELECT p.*,
                (SELECT status FROM queue WHERE patient_id = p.id ORDER BY created_at DESC LIMIT 1) as queue_status,
                (SELECT treatment_type FROM queue WHERE patient_id = p.id ORDER BY created_at DESC LIMIT 1) as current_treatment
         FROM patients p 
+        $whereClauseP
         ORDER BY p.created_at DESC
         LIMIT :limit OFFSET :offset
     ");
@@ -46,7 +57,7 @@ try {
     $stmt->execute();
     $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Calculate stats from all patients
+    // Calculate stats from all patients (exclude archived)
     $inQueue = count(array_filter($allPatients, fn($p) => in_array($p['queue_status'] ?? '', ['waiting', 'in_procedure'])));
     $scheduledCount = count(array_filter($allPatients, fn($p) => ($p['queue_status'] ?? '') === 'scheduled'));
     $newThisMonth = count(array_filter($allPatients, fn($p) => !empty($p['created_at']) && strtotime($p['created_at']) > strtotime('-30 days')));
