@@ -489,16 +489,21 @@ try {
             Back to Patients
         </a>
 
+        <?php
+        // Build full name from separate fields
+        $patientFullName = trim(($patient['first_name'] ?? '') . ' ' . ($patient['middle_name'] ?? '') . ' ' . ($patient['last_name'] ?? '') . ' ' . ($patient['suffix'] ?? ''));
+        ?>
+
         <!-- Page Header -->
         <div class="page-header">
-            <h2>New Session - <?php echo htmlspecialchars($patient['full_name'] ?? 'Patient'); ?></h2>
+            <h2>New Session - <?php echo htmlspecialchars($patientFullName ?: 'Patient'); ?></h2>
             <p class="page-subtitle">Quick queue entry for returning patient</p>
         </div>
 
         <!-- Form -->
         <form id="quickSessionForm">
             <input type="hidden" name="patient_id" value="<?php echo $patientId; ?>">
-            
+
             <div class="form-container">
                 <!-- Left Column: Patient Info & Service -->
                 <div>
@@ -508,7 +513,7 @@ try {
                         <div class="info-grid">
                             <div class="info-item">
                                 <label>Full Name</label>
-                                <p><?php echo htmlspecialchars($patient['full_name'] ?? 'N/A'); ?></p>
+                                <p><?php echo htmlspecialchars($patientFullName ?: 'N/A'); ?></p>
                             </div>
                             <div class="info-item">
                                 <label>Age</label>

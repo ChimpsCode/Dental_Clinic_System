@@ -130,7 +130,7 @@ function loadArchivedPatients(page) {
             showError(data.message);
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="6" style="text-align: center; padding: 60px; color: #ef4444;">
+                    <td colspan="9" style="text-align: center; padding: 60px; color: #ef4444;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 10px;">
                             <circle cx="12" cy="12" r="10"/>
                             <line x1="12" y1="8" x2="12" y2="12"/>
@@ -147,7 +147,7 @@ function loadArchivedPatients(page) {
         showError('Failed to load archived patients');
         tbody.innerHTML = `
             <tr>
-                <td colspan="6" style="text-align: center; padding: 60px; color: #ef4444;">
+                <td colspan="9" style="text-align: center; padding: 60px; color: #ef4444;">
                     <p>Failed to load data. Please try again.</p>
                 </td>
             </tr>
@@ -164,7 +164,7 @@ function renderPatientTable(records) {
     if (!records || records.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="6" style="text-align: center; padding: 60px; color: #6b7280;">
+                <td colspan="9" style="text-align: center; padding: 60px; color: #6b7280;">
                     <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 20px; opacity: 0.3;">
                         <path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5z"/>
                     </svg>
@@ -175,28 +175,25 @@ function renderPatientTable(records) {
         `;
         return;
     }
-    
+
     tbody.innerHTML = records.map(patient => `
         <tr>
             <td style="text-align: center;">
-                <input type="checkbox" class="record-checkbox patients-checkbox" 
-                       value="${patient.id}" 
+                <input type="checkbox" class="record-checkbox patients-checkbox"
+                       value="${patient.id}"
                        onchange="updateSelection('patients', ${patient.id}, this.checked)">
             </td>
             <td>
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 40px; height: 40px; background: #e5e7eb; border-radius: 50%; 
-                                display: flex; align-items: center; justify-content: center; 
-                                font-weight: 600; color: #6b7280; font-size: 1rem;">
-                        ${(patient.full_name || 'U').charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                        <div style="font-weight: 500; color: #111827;">${escapeHtml(patient.full_name || 'Unknown')}</div>
-                        <div style="font-size: 0.8rem; color: #6b7280;">
-                            ${calculateAge(patient.date_of_birth)} yrs, ${patient.gender || 'N/A'}
-                        </div>
-                    </div>
-                </div>
+                <div style="font-weight: 500; color: #111827;">${escapeHtml(patient.first_name || 'N/A')}</div>
+            </td>
+            <td>
+                <div style="color: #374151;">${escapeHtml(patient.middle_name || '')}</div>
+            </td>
+            <td>
+                <div style="font-weight: 500; color: #111827;">${escapeHtml(patient.last_name || 'N/A')}</div>
+            </td>
+            <td>
+                <div style="color: #6b7280; font-size: 0.875rem;">${escapeHtml(patient.suffix || '')}</div>
             </td>
             <td>
                 <div style="font-size: 0.85rem; color: #374151;">
@@ -206,6 +203,7 @@ function renderPatientTable(records) {
             </td>
             <td style="color: #374151;">
                 ${patient.date_of_birth || 'N/A'}
+                <div style="font-size: 0.75rem; color: #6b7280;">${calculateAge(patient.date_of_birth)} yrs, ${patient.gender || 'N/A'}</div>
             </td>
             <td>
                 <div style="font-size: 0.85rem; color: #374151;">

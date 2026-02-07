@@ -89,7 +89,10 @@ try {
             <table class="data-table" id="patientsTable">
                 <thead>
                     <tr>
-                        <th>Patient Name</th>
+                        <th>First Name</th>
+                        <th>Middle Name</th>
+                        <th>Last Name</th>
+                        <th>Suffix</th>
                         <th>Age/Gender</th>
                         <th>Contact</th>
                         <th>Current Treatment</th>
@@ -101,12 +104,17 @@ try {
                 <tbody>
                     <?php foreach ($patients as $patient): ?>
                         <tr class="patient-row" 
-                            data-name="<?php echo strtolower(htmlspecialchars($patient['full_name'] ?? '')); ?>" 
+                            data-name="<?php echo strtolower(htmlspecialchars($patient['first_name'] ?? '')); ?>" 
                             data-phone="<?php echo strtolower(htmlspecialchars($patient['phone'] ?? '')); ?>" 
                             data-status="<?php echo $patient['queue_status'] ?? ''; ?>">
                             <td>
-                                <div class="patient-name" style="font-weight: 600;"><?php echo htmlspecialchars($patient['full_name'] ?? 'Unknown'); ?></div>
+                                <div class="patient-name" style="font-weight: 600;"><?php echo htmlspecialchars($patient['first_name'] ?? 'Unknown'); ?></div>
                             </td>
+                            <td><?php echo htmlspecialchars($patient['middle_name'] ?? ''); ?></td>
+                            <td>
+                                <div class="patient-name" style="font-weight: 600;"><?php echo htmlspecialchars($patient['last_name'] ?? 'Unknown'); ?></div>
+                            </td>
+                            <td><?php echo htmlspecialchars($patient['suffix'] ?? ''); ?></td>
                             <td>
                                 <div style="font-size: 0.9rem;">
                                     <span style="font-weight: 500;"><?php echo $patient['age'] ?? 'N/A'; ?> yrs</span>

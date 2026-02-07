@@ -82,15 +82,14 @@ function handleGetArchived($pdo, $module) {
             return;
         }
         
+        if ($module === 'patients') {
+            handleGetArchivedPatients($pdo, $page, $limit, $offset, $search, $dateFrom, $dateTo);
+            return;
+        }
+        
         // Build WHERE clause for other modules
         $where = "is_archived = 1";
         $params = [];
-        
-        // Search by patient name (for patients module)
-        if (!empty($search) && $module === 'patients') {
-            $where .= " AND full_name LIKE ?";
-            $params[] = "%$search%";
-        }
         
         // Date filters
         if (!empty($dateFrom)) {
@@ -177,6 +176,69 @@ function handleGetArchivedAppointments($pdo, $page, $limit, $offset, $search, $d
             LEFT JOIN patients p ON a.patient_id = p.id
             WHERE $where
             ORDER BY a.deleted_at DESC
+            LIMIT $limit OFFSET $offset";
+    
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    echo json_encode([
+        'success' => true,
+        'records' => $records,
+        'total' => (int)$total,
+        'pages' => (int)ceil($total / $limit),
+        'current_page' => $page
+    ]);
+}
+
+/**
+ * Get archived patients with separate name fields
+ */
+function handleGetArchivedPatients($pdo, $page, $limit, $offset, $search, $dateFrom, $dateTo) {
+    // Build WHERE clause
+    $where = "is_archived = 1";
+    $params = [];
+    
+    // Search by name (any name field)
+    if (!empty($search)) {
+        $where .= " AND (first_name LIKE ? OR middle_name LIKE ? OR last_name LIKE ?)";
+        $searchParam = "%$search%";
+        $params[] = $searchParam;
+        $params[] = $searchParam;
+        $params[] = $searchParam;
+    }
+    
+    // Date filter
+    if (!empty($dateFrom)) {
+        $where .= " AND DATE(deleted_at) >= ?";
+        $params[] = $dateFrom;
+    }
+    
+    if (!empty($dateTo)) {
+        $where .= " AND DATE(deleted_at) <= ?";
+        $params[] = $dateTo;
+    }
+    
+    // Get total count
+    $countSql = "SELECT COUNT(*) FROM patients WHERE $where";
+    $countStmt = $pdo->prepare($countSql);
+    $countStmt->execute($params);
+    $total = $countStmt->fetchColumn();
+    
+    // Get records with separate name fields
+    $sql = "SELECT id, 
+            first_name,
+            middle_name,
+            last_name,
+            suffix,
+            date_of_birth,
+            gender,
+            phone,
+            email,
+            deleted_at
+            FROM patients
+            WHERE $where
+            ORDER BY deleted_at DESC
             LIMIT $limit OFFSET $offset";
     
     $stmt = $pdo->prepare($sql);

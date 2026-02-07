@@ -9,7 +9,10 @@ try {
         SELECT 
             tp.id,
             tp.patient_id,
-            p.full_name,
+            p.first_name,
+            p.middle_name,
+            p.last_name,
+            p.suffix,
             p.phone,
             tp.treatment_name,
             tp.treatment_type,
@@ -26,20 +29,44 @@ try {
     ");
     $treatmentPlans = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
+    // Build full_name for each treatment plan
+    foreach ($treatmentPlans as &$plan) {
+        $parts = array_filter([
+            $plan['first_name'] ?? '',
+            $plan['middle_name'] ?? '',
+            $plan['last_name'] ?? '',
+            $plan['suffix'] ?? ''
+        ]);
+        $plan['full_name'] = implode(' ', $parts);
+    }
+    unset($plan);
+    
     // Get patients from queue for the dropdown (today's queue with active statuses)
     $stmtPatients = $pdo->query("
-        SELECT DISTINCT p.id, p.full_name, p.phone
+        SELECT DISTINCT p.id, p.first_name, p.middle_name, p.last_name, p.suffix, p.phone
         FROM patients p
         JOIN queue q ON p.id = q.patient_id
         WHERE q.status IN ('waiting', 'in_procedure', 'on_hold')
         AND DATE(q.created_at) = CURDATE()
-        ORDER BY p.full_name ASC
+        ORDER BY p.last_name ASC, p.first_name ASC
     ");
     $queuePatients = $stmtPatients->fetchAll(PDO::FETCH_ASSOC);
     
+    // Build full_name for queue patients
+    foreach ($queuePatients as &$patient) {
+        $parts = array_filter([
+            $patient['first_name'] ?? '',
+            $patient['middle_name'] ?? '',
+            $patient['last_name'] ?? '',
+            $patient['suffix'] ?? ''
+        ]);
+        $patient['full_name'] = implode(' ', $parts);
+    }
+    unset($patient);
+    
     // Get patients from treatment plans (patients who already have treatment plans but not in today's queue)
     $stmtTreatmentPatients = $pdo->query("
-        SELECT DISTINCT p.id, p.full_name, p.phone
+        SELECT DISTINCT p.id, p.first_name, p.middle_name, p.last_name, p.suffix, p.phone
         FROM patients p
         JOIN treatment_plans tp ON p.id = tp.patient_id
         WHERE p.id NOT IN (
@@ -47,9 +74,21 @@ try {
             WHERE status IN ('waiting', 'in_procedure', 'on_hold')
             AND DATE(created_at) = CURDATE()
         )
-        ORDER BY p.full_name ASC
+        ORDER BY p.last_name ASC, p.first_name ASC
     ");
     $treatmentPatients = $stmtTreatmentPatients->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Build full_name for treatment patients
+    foreach ($treatmentPatients as &$patient) {
+        $parts = array_filter([
+            $patient['first_name'] ?? '',
+            $patient['middle_name'] ?? '',
+            $patient['last_name'] ?? '',
+            $patient['suffix'] ?? ''
+        ]);
+        $patient['full_name'] = implode(' ', $parts);
+    }
+    unset($patient);
     
     // Combine both lists: queue patients first, then treatment patients
     $patients = array_merge($queuePatients, $treatmentPatients);

@@ -141,7 +141,10 @@ try {
         <table class="data-table" style="width: 100%; border-collapse: collapse;">
             <thead>
                 <tr>
-                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Patient Name</th>
+                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">First Name</th>
+                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Middle Name</th>
+                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Last Name</th>
+                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Suffix</th>
                     <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Age/Gender</th>
                     <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Contact</th>
                     <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Current Treatment</th>
@@ -153,7 +156,7 @@ try {
             <tbody id="patientsTableBody">
                 <?php if (empty($patients)): ?>
                     <tr>
-                        <td colspan="7" style="text-align: center; padding: 60px; color: #6b7280;">
+                        <td colspan="10" style="text-align: center; padding: 60px; color: #6b7280;">
                             <p style="font-size: 1.1rem; margin-bottom: 8px;">No patient records found</p>
                         </td>
                     </tr>
@@ -177,16 +180,20 @@ try {
                         }
                     ?>
                         <tr class="patient-row" 
-                            data-name="<?php echo strtolower(htmlspecialchars($patient['full_name'] ?? 'Unknown')); ?>" 
+                            data-name="<?php echo strtolower(htmlspecialchars($patient['first_name'] ?? 'Unknown')); ?>"
                             data-phone="<?php echo strtolower(htmlspecialchars($patient['phone'] ?? '')); ?>"
                             data-status="<?php echo $status; ?>">
                             <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
-                                <div style="display: flex; align-items: center; gap: 12px;">
-                                    <div style="width: 40px; height: 40px; background: #e5e7eb; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #6b7280; font-weight: 600;">
-                                        <?php echo strtoupper(substr($patient['full_name'] ?? 'U', 0, 1)); ?>
-                                    </div>
-                                    <span style="font-weight: 500; color: #111827;"><?php echo htmlspecialchars($patient['full_name'] ?? 'Unknown'); ?></span>
-                                </div>
+                                <span style="font-weight: 500; color: #111827;"><?php echo htmlspecialchars($patient['first_name'] ?? 'Unknown'); ?></span>
+                            </td>
+                            <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
+                                <?php echo htmlspecialchars($patient['middle_name'] ?? ''); ?>
+                            </td>
+                            <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
+                                <span style="font-weight: 500; color: #111827;"><?php echo htmlspecialchars($patient['last_name'] ?? 'Unknown'); ?></span>
+                            </td>
+                            <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
+                                <?php echo htmlspecialchars($patient['suffix'] ?? ''); ?>
                             </td>
                             <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
                                 <div style="font-size: 0.9rem;">
@@ -716,7 +723,8 @@ function viewPatientRecord(patientId) {
             const medications = m.current_medications || 'None';
             const conditions = m.medical_conditions || 'None';
             
-            document.getElementById('staffModalPatientName').innerText = p.full_name || 'Unknown';
+            const fullName = `${p.first_name || ''} ${p.middle_name || ''} ${p.last_name || ''} ${p.suffix || ''}`.trim();
+            document.getElementById('staffModalPatientName').innerText = fullName || 'Unknown';
             
             const hasMedicalAlert = allergies === 'Yes' || 
                                    conditions.toLowerCase().includes('diabetes') ||
@@ -727,8 +735,20 @@ function viewPatientRecord(patientId) {
             document.getElementById('patientRecordContent').innerHTML = `
                 <div class="patient-info-grid">
                     <div class="patient-info-item">
-                        <div class="patient-info-label">Full Name</div>
-                        <div class="patient-info-value">${p.full_name || 'N/A'}</div>
+                        <div class="patient-info-label">First Name</div>
+                        <div class="patient-info-value">${p.first_name || 'N/A'}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Middle Name</div>
+                        <div class="patient-info-value">${p.middle_name || ''}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Last Name</div>
+                        <div class="patient-info-value">${p.last_name || 'N/A'}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Suffix</div>
+                        <div class="patient-info-value">${p.suffix || ''}</div>
                     </div>
                     <div class="patient-info-item">
                         <div class="patient-info-label">Age</div>

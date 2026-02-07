@@ -36,18 +36,24 @@ if (!$queueId && !$patientId) {
 try {
     require_once 'config/database.php';
     
+    // Helper function to build full name
+    function buildFullName($item) {
+        return trim(($item['first_name'] ?? '') . ' ' . ($item['middle_name'] ?? '') . ' ' . ($item['last_name'] ?? '') . ' ' . ($item['suffix'] ?? ''));
+    }
+
     switch ($action) {
         case 'call':
             // Get queue item
-            $stmt = $pdo->prepare("SELECT q.*, p.full_name, p.phone FROM queue q 
+            $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix, p.phone FROM queue q 
                                    LEFT JOIN patients p ON q.patient_id = p.id WHERE q.id = ?");
             $stmt->execute([$queueId]);
             $queueItem = $stmt->fetch();
-            
+            $patientName = buildFullName($queueItem);
+
             echo json_encode([
                 'success' => true, 
-                'message' => 'Calling patient: ' . $queueItem['full_name'],
-                'patient_name' => $queueItem['full_name'],
+                'message' => 'Calling patient: ' . $patientName,
+                'patient_name' => $patientName,
                 'phone' => $queueItem['phone']
             ]);
             break;
@@ -56,15 +62,16 @@ try {
             $stmt = $pdo->prepare("UPDATE queue SET status = 'in_procedure', updated_at = NOW() WHERE id = ?");
             $stmt->execute([$queueId]);
             
-            $stmt = $pdo->prepare("SELECT q.*, p.full_name FROM queue q 
+            $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix FROM queue q 
                                    LEFT JOIN patients p ON q.patient_id = p.id WHERE q.id = ?");
             $stmt->execute([$queueId]);
             $queueItem = $stmt->fetch();
+            $patientName = buildFullName($queueItem);
             
             echo json_encode([
                 'success' => true, 
                 'message' => 'Patient moved to procedure',
-                'patient_name' => $queueItem['full_name']
+                'patient_name' => $patientName
             ]);
             break;
             
@@ -72,15 +79,16 @@ try {
             $stmt = $pdo->prepare("UPDATE queue SET status = 'completed', updated_at = NOW() WHERE id = ?");
             $stmt->execute([$queueId]);
             
-            $stmt = $pdo->prepare("SELECT q.*, p.full_name FROM queue q 
+            $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix FROM queue q 
                                    LEFT JOIN patients p ON q.patient_id = p.id WHERE q.id = ?");
             $stmt->execute([$queueId]);
             $queueItem = $stmt->fetch();
+            $patientName = buildFullName($queueItem);
             
             echo json_encode([
                 'success' => true, 
-                'message' => 'Treatment completed for ' . $queueItem['full_name'],
-                'patient_name' => $queueItem['full_name']
+                'message' => 'Treatment completed for ' . $patientName,
+                'patient_name' => $patientName
             ]);
             break;
             
@@ -88,14 +96,15 @@ try {
             $stmt = $pdo->prepare("UPDATE queue SET status = 'on_hold', updated_at = NOW() WHERE id = ?");
             $stmt->execute([$queueId]);
             
-            $stmt = $pdo->prepare("SELECT q.*, p.full_name FROM queue q 
+            $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix FROM queue q 
                                    LEFT JOIN patients p ON q.patient_id = p.id WHERE q.id = ?");
             $stmt->execute([$queueId]);
             $queueItem = $stmt->fetch();
+            $patientName = buildFullName($queueItem);
             
             echo json_encode([
                 'success' => true, 
-                'message' => 'Patient put on hold: ' . $queueItem['full_name']
+                'message' => 'Patient put on hold: ' . $patientName
             ]);
             break;
             
@@ -103,14 +112,15 @@ try {
             $stmt = $pdo->prepare("UPDATE queue SET status = 'cancelled', updated_at = NOW() WHERE id = ?");
             $stmt->execute([$queueId]);
             
-            $stmt = $pdo->prepare("SELECT q.*, p.full_name FROM queue q 
+            $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix FROM queue q 
                                    LEFT JOIN patients p ON q.patient_id = p.id WHERE q.id = ?");
             $stmt->execute([$queueId]);
             $queueItem = $stmt->fetch();
+            $patientName = buildFullName($queueItem);
             
             echo json_encode([
                 'success' => true, 
-                'message' => 'Patient cancelled: ' . $queueItem['full_name']
+                'message' => 'Patient cancelled: ' . $patientName
             ]);
             break;
             
@@ -118,29 +128,31 @@ try {
             $stmt = $pdo->prepare("UPDATE queue SET status = 'waiting', queue_time = NOW(), updated_at = NOW() WHERE id = ?");
             $stmt->execute([$queueId]);
             
-            $stmt = $pdo->prepare("SELECT q.*, p.full_name FROM queue q 
+            $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix FROM queue q 
                                    LEFT JOIN patients p ON q.patient_id = p.id WHERE q.id = ?");
             $stmt->execute([$queueId]);
             $queueItem = $stmt->fetch();
+            $patientName = buildFullName($queueItem);
             
             echo json_encode([
                 'success' => true, 
-                'message' => 'Patient re-queued: ' . $queueItem['full_name']
+                'message' => 'Patient re-queued: ' . $patientName
             ]);
             break;
             
         case 'delete':
-            $stmt = $pdo->prepare("SELECT q.*, p.full_name FROM queue q 
+            $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix FROM queue q 
                                    LEFT JOIN patients p ON q.patient_id = p.id WHERE q.id = ?");
             $stmt->execute([$queueId]);
             $queueItem = $stmt->fetch();
+            $patientName = buildFullName($queueItem);
             
             $stmt = $pdo->prepare("DELETE FROM queue WHERE id = ?");
             $stmt->execute([$queueId]);
             
             echo json_encode([
                 'success' => true, 
-                'message' => 'Patient record deleted: ' . ($queueItem['full_name'] ?? 'Unknown')
+                'message' => 'Patient record deleted: ' . ($patientName ?: 'Unknown')
             ]);
             break;
             

@@ -59,9 +59,9 @@ try {
         throw new Exception('Patient name is required');
     }
     
-    // Check if patient already exists
-    $stmt = $pdo->prepare("SELECT id FROM patients WHERE full_name = ? AND phone = ? LIMIT 1");
-    $stmt->execute([$fullName, $phone]);
+    // Check if patient already exists (by first_name, last_name, and phone)
+    $stmt = $pdo->prepare("SELECT id FROM patients WHERE first_name = ? AND last_name = ? AND phone = ? LIMIT 1");
+    $stmt->execute([$firstName, $lastName, $phone]);
     $existingPatient = $stmt->fetch();
     
     if ($existingPatient) {
@@ -93,24 +93,24 @@ try {
         // Insert new patient with source tracking
         if ($hasSourceColumn) {
             $stmt = $pdo->prepare("INSERT INTO patients (
-                first_name, middle_name, last_name, suffix, full_name,
+                first_name, middle_name, last_name, suffix,
                 date_of_birth, age, gender, religion,
                 address, city, province, zip_code, phone, email,
                 dental_insurance, insurance_effective_date, status, registration_source, source_appointment_id, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, NOW())");
-            $stmt->execute([$firstName, $middleName, $lastName, $suffix, $fullName,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, NOW())");
+            $stmt->execute([$firstName, $middleName, $lastName, $suffix,
                 $birthdate, $age, $gender, $religion,
                 $address, $city, $province, $zipCode, $phone, $email,
                 $dentalInsurance, $insuranceEffectiveDate, $source, $appointmentId]);
         } else {
             // Fallback for older database without source column
             $stmt = $pdo->prepare("INSERT INTO patients (
-                first_name, middle_name, last_name, suffix, full_name,
+                first_name, middle_name, last_name, suffix,
                 date_of_birth, age, gender, religion,
                 address, city, province, zip_code, phone, email,
                 dental_insurance, insurance_effective_date, status, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())");
-            $stmt->execute([$firstName, $middleName, $lastName, $suffix, $fullName,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())");
+            $stmt->execute([$firstName, $middleName, $lastName, $suffix,
                 $birthdate, $age, $gender, $religion,
                 $address, $city, $province, $zipCode, $phone, $email,
                 $dentalInsurance, $insuranceEffectiveDate]);
@@ -134,6 +134,20 @@ try {
                     converted_patient_id = ?
                     WHERE id = ?");
                 $stmt->execute([$patientId, $appointmentId]);
+            }
+        }
+        
+        // If this came from an inquiry, link it to the new patient
+        if ($inquiryId) {
+            // Check if converted_patient_id column exists in inquiries
+            $checkInquiryCol = $pdo->query("SHOW COLUMNS FROM inquiries LIKE 'converted_patient_id'");
+            if ($checkInquiryCol->rowCount() > 0) {
+                $stmt = $pdo->prepare("UPDATE inquiries SET 
+                    converted_patient_id = ?,
+                    status = 'New Admission',
+                    updated_at = NOW()
+                    WHERE id = ?");
+                $stmt->execute([$patientId, $inquiryId]);
             }
         }
     }

@@ -11,7 +11,7 @@ if ($currentPage < 1) $currentPage = 1;
 try {
     // Get ALL queue data for counts (without pagination)
     $allStmt = $pdo->query("
-        SELECT q.*, p.full_name, p.phone
+        SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix, p.phone
         FROM queue q 
         LEFT JOIN patients p ON q.patient_id = p.id 
         WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'on_hold', 'cancelled')
@@ -806,7 +806,10 @@ div.main-content {
                 <thead>
                     <tr>
                         <th>#</th>
-                        <th>Patient Name</th>
+                        <th>First Name</th>
+                        <th>Middle Name</th>
+                        <th>Last Name</th>
+                        <th>Contact</th>
                         <th>Status</th>
                         <th>Treatment</th>
                         <th>Assigned Doctor</th>
@@ -817,7 +820,7 @@ div.main-content {
                 <tbody id="queueTableBody">
                     <?php if (empty($queueItems)): ?>
                         <tr>
-                            <td colspan="7">
+                            <td colspan="10">
                                 <div class="empty-state">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                                         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
@@ -828,18 +831,24 @@ div.main-content {
                             </td>
                         </tr>
                     <?php else: ?>
-                        <?php foreach ($queueItems as $index => $item): 
+                        <?php foreach ($queueItems as $index => $item):
                             $queueTime = new DateTime($item['queue_time']);
                             $time12hr = $queueTime->format('g:i A');
                             $time24hr = $queueTime->format('H:i');
                             $statusClass = strtolower(str_replace('_', '-', $item['status']));
                             $statusLabel = ucwords(str_replace('_', ' ', $item['status']));
                         ?>
-                            <tr class="queue-row" data-status="<?php echo $item['status']; ?>" data-name="<?php echo strtolower($item['full_name'] ?? ''); ?>">
+                            <tr class="queue-row" data-status="<?php echo $item['status']; ?>" data-name="<?php echo strtolower(($item['first_name'] ?? '')); ?>">
                                 <td><?php echo str_pad($item['id'], 3, '0', STR_PAD_LEFT); ?></td>
                                 <td>
-                                    <div class="patient-name"><?php echo htmlspecialchars($item['full_name'] ?? 'Unknown'); ?></div>
-                                    <div style="font-size: 0.75rem; color: #6b7280; margin-top: 2px;">
+                                    <div class="patient-name"><?php echo htmlspecialchars($item['first_name'] ?: 'Unknown'); ?></div>
+                                </td>
+                                <td><?php echo htmlspecialchars($item['middle_name'] ?? ''); ?></td>
+                                <td>
+                                    <div class="patient-name"><?php echo htmlspecialchars($item['last_name'] ?: 'Unknown'); ?></div>
+                                </td>
+                                <td>
+                                    <div style="font-size: 0.75rem; color: #6b7280;">
                                         <?php echo htmlspecialchars($item['phone'] ?? 'N/A'); ?>
                                     </div>
                                 </td>
@@ -1196,7 +1205,9 @@ function viewPatientQueue(patientId) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert('Patient: ' + (data.patient.full_name || 'Unknown') + '\nPhone: ' + (data.patient.phone || 'N/A'));
+                const p = data.patient;
+                const fullName = `${p.first_name || ''} ${p.middle_name || ''} ${p.last_name || ''} ${p.suffix || ''}`.trim();
+                alert('Patient: ' + (fullName || 'Unknown') + '\nPhone: ' + (data.patient.phone || 'N/A'));
             } else {
                 alert('Patient details not found');
             }

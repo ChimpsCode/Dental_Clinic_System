@@ -6,7 +6,7 @@ require_once 'includes/staff_layout_start.php';
 try {
     // Get queue data - same query as queue management
     $stmt = $pdo->query("
-        SELECT q.*, p.full_name, p.phone
+        SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix, p.phone
         FROM queue q 
         LEFT JOIN patients p ON q.patient_id = p.id 
         WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'on_hold', 'cancelled')
@@ -31,8 +31,13 @@ try {
     
     $inProcedureItem = array_filter($queueItems, fn($q) => $q['status'] === 'in_procedure');
     $inProcedureItem = !empty($inProcedureItem) ? reset($inProcedureItem) : null;
-    
+
     $waitingItems = array_filter($queueItems, fn($q) => $q['status'] === 'waiting');
+
+    // Helper function to build full name
+    function buildPatientName($item) {
+        return trim(($item['first_name'] ?? '') . ' ' . ($item['middle_name'] ?? '') . ' ' . ($item['last_name'] ?? '') . ' ' . ($item['suffix'] ?? ''));
+    }
     
 } catch (Exception $e) {
     $queueItems = [];
@@ -98,10 +103,12 @@ try {
                     if (empty($cancelledItems)): ?>
                         <p style="text-align: center; color: #6b7280; padding: 20px;">No cancelled patients today</p>
                     <?php else: ?>
-                        <?php foreach ($cancelledItems as $item): ?>
+                <?php foreach ($cancelledItems as $item):
+                                $cancelledPatientName = buildPatientName($item);
+                        ?>
                         <div class="patient-item" id="cancelled-<?php echo $item['id']; ?>">
                             <div class="patient-info">
-                                <div class="patient-name" style="text-decoration: line-through; color: #9ca3af;"><?php echo htmlspecialchars($item['full_name'] ?? 'Unknown'); ?></div>
+                                <div class="patient-name" style="text-decoration: line-through; color: #9ca3af;"><?php echo htmlspecialchars($cancelledPatientName ?: 'Unknown'); ?></div>
                                 <div class="patient-details">
                                     <span class="status-badge cancelled">Cancelled</span>
                                 </div>
@@ -132,7 +139,8 @@ try {
                     <div class="now-serving-badge"><span>👁️</span><span>Now Serving</span></div>
                 </div>
                 <div class="live-patient">
-                    <div class="patient-name" id="live-patient-name"><?php echo $inProcedureItem ? htmlspecialchars($inProcedureItem['full_name']) : 'No Patient'; ?></div>
+                    <?php $inProcedureName = $inProcedureItem ? buildPatientName($inProcedureItem) : ''; ?>
+                    <div class="patient-name" id="live-patient-name"><?php echo $inProcedureItem ? htmlspecialchars($inProcedureName) : 'No Patient'; ?></div>
                     <div class="patient-details" style="margin-top: 10px;">
                         <span class="status-badge now-serving">In Chair</span>
                         <span class="patient-time" id="live-patient-time"><?php echo $inProcedureItem ? htmlspecialchars($inProcedureItem['queue_time']) : '--:--'; ?></span>
@@ -160,11 +168,13 @@ try {
                             <p>No patients waiting</p>
                             <a href="staff_new_admission.php" class="btn-primary" style="display: inline-block; margin-top: 12px; text-decoration: none;">Add New Patient</a>
                         </div>
-                    <?php else: ?>
-                        <?php foreach (array_slice($waitingItems, 0, 5) as $index => $item): ?>
+                <?php else: ?>
+                        <?php foreach (array_slice($waitingItems, 0, 5) as $index => $item):
+                            $waitingPatientName = buildPatientName($item);
+                        ?>
                         <div class="patient-item" id="next-<?php echo $item['id']; ?>">
                             <div class="patient-info">
-                                <div class="patient-name"><?php echo htmlspecialchars($item['full_name'] ?? 'Unknown'); ?></div>
+                                <div class="patient-name"><?php echo htmlspecialchars($waitingPatientName ?: 'Unknown'); ?></div>
                                 <div class="patient-details">
                                     <span class="status-badge waiting">Waiting</span>
                                     <span class="patient-time"><?php echo htmlspecialchars($item['queue_time'] ?? ''); ?></span>
@@ -193,10 +203,12 @@ try {
                             <p>No patients on hold</p>
                         </div>
                     <?php else: ?>
-                        <?php foreach ($onHoldItems as $item): ?>
+                        <?php foreach ($onHoldItems as $item):
+                            $onHoldPatientName = buildPatientName($item);
+                        ?>
                         <div class="patient-item" id="onhold-<?php echo $item['id']; ?>">
                             <div class="patient-info">
-                                <div class="patient-name"><?php echo htmlspecialchars($item['full_name'] ?? 'Unknown'); ?></div>
+                                <div class="patient-name"><?php echo htmlspecialchars($onHoldPatientName ?: 'Unknown'); ?></div>
                                 <div class="patient-details">
                                     <span class="status-badge cancelled">On Hold</span>
                                 </div>
@@ -382,17 +394,19 @@ function viewPatientDashboard(patientId) {
             const m = data.medical_history || {};
             const d = data.dental_history || {};
             const q = data.queue_item || {};
-            
+
             const allergies = m.allergies || 'None';
             const medications = m.current_medications || 'None';
             const medicalConditions = m.medical_conditions || 'None';
-            
+
+            const patientFullName = `${p.first_name || ''} ${p.middle_name || ''} ${p.last_name || ''} ${p.suffix || ''}`.trim() || 'N/A';
+
             document.getElementById('patientRecordContent').innerHTML = `
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                     <div>
                         <h3 style="font-size: 0.875rem; font-weight: 600; color: #6b7280; margin-bottom: 12px;">Personal Information</h3>
                         <div style="display: flex; flex-direction: column; gap: 10px;">
-                            <div><span style="color: #6b7280; font-size: 0.875rem;">Full Name:</span> <span style="font-weight: 500;">${p.full_name || 'N/A'}</span></div>
+                            <div><span style="color: #6b7280; font-size: 0.875rem;">Full Name:</span> <span style="font-weight: 500;">${patientFullName}</span></div>
                             <div><span style="color: #6b7280; font-size: 0.875rem;">Age:</span> <span style="font-weight: 500;">${p.age || 'N/A'} years</span></div>
                             <div><span style="color: #6b7280; font-size: 0.875rem;">Phone:</span> <span style="font-weight: 500;">${p.phone || 'N/A'}</span></div>
                         </div>

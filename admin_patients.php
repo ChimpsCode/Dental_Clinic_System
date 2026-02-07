@@ -203,7 +203,10 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Patient</th>
+                                <th>First Name</th>
+                                <th>Middle Name</th>
+                                <th>Last Name</th>
+                                <th>Suffix</th>
                                 <th>Contact</th>
                                 <th>Services</th>
                                 <th>Dentist</th>
@@ -215,7 +218,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                         <tbody id="patientsTableBody">
                             <?php if (empty($patients)): ?>
                                 <tr>
-                                    <td colspan="6" style="text-align: center; padding: 60px; color: #6b7280;">
+                                    <td colspan="10" style="text-align: center; padding: 60px; color: #6b7280;">
                                         No patients found
                                     </td>
                                 </tr>
@@ -233,21 +236,16 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                                     }
                                     ?>
                                     <tr class="patient-row" 
-                                        data-name="<?php echo strtolower(htmlspecialchars($patient['full_name'] ?? 'Unknown')); ?>"
+                                        data-name="<?php echo strtolower(htmlspecialchars($patient['first_name'] ?? 'Unknown')); ?>"
                                         data-phone="<?php echo strtolower(htmlspecialchars($patient['phone'] ?? '')); ?>">
                                         <td>
-                                            <div class="patient-info-cell">
-                                                <div class="patient-avatar">
-                                                    <?php echo strtoupper(substr($patient['full_name'] ?? 'U', 0, 1)); ?>
-                                                </div>
-                                                <div>
-                                                    <div class="patient-name"><?php echo htmlspecialchars($patient['full_name'] ?? 'Unknown'); ?></div>
-                                                    <div class="patient-age-gender">
-                                                        <?php echo $patient['age'] ?? 'N/A'; ?> yrs, <?php echo ucfirst($patient['gender'] ?? 'N/A'); ?>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                            <div class="patient-name"><?php echo htmlspecialchars($patient['first_name'] ?? 'Unknown'); ?></div>
                                         </td>
+                                        <td><?php echo htmlspecialchars($patient['middle_name'] ?? ''); ?></td>
+                                        <td>
+                                            <div class="patient-name"><?php echo htmlspecialchars($patient['last_name'] ?? 'Unknown'); ?></div>
+                                        </td>
+                                        <td><?php echo htmlspecialchars($patient['suffix'] ?? ''); ?></td>
                                         <td>
                                             <div class="patient-contact">
                                                 <div><?php echo htmlspecialchars($patient['phone'] ?: 'N/A'); ?></div>
@@ -577,7 +575,8 @@ function viewPatientDetails(patientId) {
     const patient = patients.find(p => p.id == patientId);
     if (!patient) return;
     
-    alert('Patient: ' + (patient.full_name || 'Unknown') + '\nPhone: ' + (patient.phone || 'N/A') + '\nEmail: ' + (patient.email || 'N/A'));
+    const fullName = `${patient.first_name || ''} ${patient.middle_name || ''} ${patient.last_name || ''} ${patient.suffix || ''}`.trim();
+    alert('Patient: ' + (fullName || 'Unknown') + '\nPhone: ' + (patient.phone || 'N/A') + '\nEmail: ' + (patient.email || 'N/A'));
 }
 
 // Archive Patient (Soft Delete)
@@ -585,7 +584,8 @@ function deletePatient(patientId) {
     const patient = patients.find(p => p.id == patientId);
     if (!patient) return;
     
-    if (confirm(`Are you sure you want to archive this patient?\n\nPatient: ${patient.full_name || 'Unknown'}\nPhone: ${patient.phone || 'N/A'}\n\nYou can restore archived patients from the Archive page.`)) {
+    const fullName = `${patient.first_name || ''} ${patient.middle_name || ''} ${patient.last_name || ''} ${patient.suffix || ''}`.trim();
+    if (confirm(`Are you sure you want to archive this patient?\n\nPatient: ${fullName || 'Unknown'}\nPhone: ${patient.phone || 'N/A'}\n\nYou can restore archived patients from the Archive page.`)) {
         fetch('patient_actions.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

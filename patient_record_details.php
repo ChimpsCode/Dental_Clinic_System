@@ -44,6 +44,15 @@ try {
         exit();
     }
     
+    // Build full_name from separate name fields
+    $nameParts = array_filter([
+        $patient['first_name'] ?? '',
+        $patient['middle_name'] ?? '',
+        $patient['last_name'] ?? '',
+        $patient['suffix'] ?? ''
+    ]);
+    $patient['full_name'] = implode(' ', $nameParts);
+    
     // Get medical history (most recent)
     $stmt = $pdo->prepare("SELECT * FROM medical_history WHERE patient_id = ? ORDER BY created_at DESC LIMIT 1");
     $stmt->execute([$patientId]);

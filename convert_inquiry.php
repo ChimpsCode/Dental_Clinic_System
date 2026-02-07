@@ -57,9 +57,9 @@ try {
         }
     }
     
-    // Find or create patient
-    $stmt = $pdo->prepare("SELECT id FROM patients WHERE full_name = ? LIMIT 1");
-    $stmt->execute([$fullName]);
+    // Find or create patient (check by first_name + last_name + phone)
+    $stmt = $pdo->prepare("SELECT id FROM patients WHERE first_name = ? AND last_name = ? AND phone = ? LIMIT 1");
+    $stmt->execute([$firstName, $lastName, $phone]);
     $existing_patient = $stmt->fetch();
     
     if ($existing_patient) {
@@ -70,8 +70,8 @@ try {
         $middleName = $inquiry['middle_name'] ?? '';
         $lastName = $inquiry['last_name'] ?? '';
         
-        $stmt = $pdo->prepare("INSERT INTO patients (first_name, middle_name, last_name, full_name, phone, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
-        $stmt->execute([$firstName, $middleName, $lastName, $fullName, $phone]);
+        $stmt = $pdo->prepare("INSERT INTO patients (first_name, middle_name, last_name, phone, created_at) VALUES (?, ?, ?, ?, NOW())");
+        $stmt->execute([$firstName, $middleName, $lastName, $phone]);
         $patient_id = $pdo->lastInsertId();
     }
     

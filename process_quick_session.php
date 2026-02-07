@@ -36,11 +36,11 @@ try {
 
     $pdo->beginTransaction();
 
-    // Get patient's full name for queue display
-    $stmt = $pdo->prepare("SELECT full_name FROM patients WHERE id = ?");
+    // Get patient's name for queue display
+    $stmt = $pdo->prepare("SELECT first_name, middle_name, last_name, suffix FROM patients WHERE id = ?");
     $stmt->execute([$patient_id]);
     $patient = $stmt->fetch();
-    $patient_name = $patient['full_name'] ?? 'Patient';
+    $patient_name = trim(($patient['first_name'] ?? '') . ' ' . ($patient['middle_name'] ?? '') . ' ' . ($patient['last_name'] ?? '') . ' ' . ($patient['suffix'] ?? '')) ?: 'Patient';
 
     // Generate queue number (simple increment)
     $stmt = $pdo->query("SELECT COUNT(*) + 1 as next_num FROM queue WHERE DATE(created_at) = CURDATE()");

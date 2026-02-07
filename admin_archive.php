@@ -460,7 +460,10 @@ require_once 'includes/admin_layout_start.php';
                         <th style="width: 40px; text-align: center;">
                             <input type="checkbox" id="select-all-patients" onchange="toggleSelectAll('patients', this.checked)">
                         </th>
-                        <th>Patient</th>
+                        <th>First Name</th>
+                        <th>Middle Name</th>
+                        <th>Last Name</th>
+                        <th>Suffix</th>
                         <th>Contact</th>
                         <th>Date of Birth</th>
                         <th>Archived Date</th>
@@ -469,7 +472,7 @@ require_once 'includes/admin_layout_start.php';
                 </thead>
                 <tbody id="patients-table-body">
                     <tr>
-                        <td colspan="6" style="text-align: center; padding: 60px; color: #6b7280;">
+                        <td colspan="9" style="text-align: center; padding: 60px; color: #6b7280;">
                             Loading archived patients...
                         </td>
                     </tr>

@@ -92,10 +92,10 @@ function isActivePage($page) {
             <a href="dentist_queue.php" class="nav-item <?php echo isActivePage('dentist_queue.php') ? 'active' : ''; ?>">
                 <span class="nav-item-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M17 3H7q-.425 0-.712.288T6 4v2h11V4q0-.425-.288-.712T17 3m0 4H7q-.425 0-.712.288T6 8v10q0 .425.288.712T7 19h10q.425 0 .713-.288T18 18V8q0-.425-.288-.712T17 7m0 2v10H7V9h10m2-2H5V5h14v2"/>
+                        <path fill="currentColor" d="M4 6H2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm6 12v-2H8v2h2zm2-2h2v2h-2v-2zm0-3a1 1 0 0 0 1-1H7a1 1 0 0 0-1 1v3h10V7a1 1 0 0 0-1-1h-5a1 1 0 0 0-1 1z"/>
                     </svg>
                 </span>
-                <span>Queue</span>
+                <span>Queue Management</span>
             </a>
         </nav>
         

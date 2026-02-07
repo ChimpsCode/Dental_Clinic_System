@@ -20,7 +20,7 @@ try {
     
 // Get patients currently in queue - same query logic as queue management
     $stmt = $pdo->query("
-        SELECT q.*, p.full_name, p.phone, p.gender, p.age
+        SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix, p.phone, p.gender, p.age
         FROM queue q
         JOIN patients p ON q.patient_id = p.id
         WHERE q.status IN ('waiting', 'in_procedure')
@@ -29,6 +29,18 @@ try {
         LIMIT 10
     ");
     $queuePatients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Build full_name for each patient from separate fields
+    foreach ($queuePatients as &$patient) {
+        $parts = array_filter([
+            $patient['first_name'] ?? '',
+            $patient['middle_name'] ?? '',
+            $patient['last_name'] ?? '',
+            $patient['suffix'] ?? ''
+        ]);
+        $patient['full_name'] = implode(' ', $parts);
+    }
+    unset($patient); // Break reference
     
     // Get recent patients (last 30 days)
     $stmt = $pdo->query("SELECT COUNT(*) FROM patients WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)");
@@ -78,40 +90,232 @@ try {
 
 <div class="two-column">
     <div class="left-column">
-        <!-- Treatment Queue -->
-        <div class="section-card">
-            <h2 class="section-title">⚕️ Treatment Queue</h2>
-            <?php if (empty($queuePatients)): ?>
-                <div style="text-align: center; padding: 40px 20px; color: #6b7280;">
-                    <p>No patients in queue</p>
+        <?php 
+        // Find patient currently in procedure
+        $inProcedurePatient = null;
+        $nextPatient = null;
+        $upcomingPatients = [];
+        foreach ($queuePatients as $index => $patient) {
+            if ($patient['status'] === 'in_procedure') {
+                $inProcedurePatient = $patient;
+            } elseif ($patient['status'] === 'waiting' && !$nextPatient) {
+                $nextPatient = $patient;
+            } elseif ($patient['status'] === 'waiting') {
+                $upcomingPatients[] = $patient;
+            }
+        }
+        ?>
+        
+        <?php if ($inProcedurePatient): ?>
+        <!-- IN PROCEDURE PATIENT - Priority Display -->
+        <div class="section-card" style="border: 2px solid #3b82f6; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 class="section-title" style="margin: 0; color: #1e40af;">
+                    <span style="font-size: 1.5rem;">⚕️</span> IN PROCEDURE
+                </h2>
+                <span style="background: #3b82f6; color: white; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 0.9rem; animation: pulse 2s infinite;">
+                    ACTIVE NOW
+                </span>
+            </div>
+            
+            <div style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+                    <div>
+                        <div style="font-size: 1.75rem; font-weight: 700; color: #111827; margin-bottom: 8px;">
+                            <?php echo htmlspecialchars($inProcedurePatient['full_name']); ?>
+                        </div>
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <span style="background: #dbeafe; color: #1e40af; padding: 4px 12px; border-radius: 16px; font-size: 0.85rem; font-weight: 600;">
+                                <?php echo htmlspecialchars($inProcedurePatient['gender'] ?? 'Unknown'); ?>
+                            </span>
+                            <span style="color: #6b7280; font-size: 0.9rem;">
+                                <?php echo htmlspecialchars($inProcedurePatient['age'] ?? '--'); ?> years old
+                            </span>
+                            <span style="color: #6b7280; font-size: 0.9rem;">
+                                📞 <?php echo htmlspecialchars($inProcedurePatient['phone'] ?? 'No phone'); ?>
+                            </span>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 2rem; font-weight: 700; color: #3b82f6;">NOW</div>
+                        <div style="font-size: 0.85rem; color: #6b7280;">in progress</div>
+                    </div>
                 </div>
-            <?php else: ?>
-                <div class="patient-list">
-                    <?php foreach ($queuePatients as $patient): ?>
-                        <div class="patient-item">
-                            <div class="patient-info">
+                
+                <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                        <div>
+                            <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Treatment</div>
+                            <div style="font-weight: 600; color: #111827;"><?php echo htmlspecialchars($inProcedurePatient['treatment_type'] ?? 'General Checkup'); ?></div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Teeth</div>
+                            <div style="font-weight: 600; color: #111827;"><?php echo htmlspecialchars($inProcedurePatient['teeth_numbers'] ? $inProcedurePatient['teeth_numbers'] : 'All teeth / Not specified'); ?></div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Started At</div>
+                            <div style="font-weight: 600; color: #111827;"><?php echo date('g:i A', strtotime($inProcedurePatient['updated_at'] ?? $inProcedurePatient['queue_time'])); ?></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 12px;">
+                    <button onclick="viewPatientDetails(<?php echo $inProcedurePatient['patient_id']; ?>)" class="action-btn" style="background: #6b7280; color: white; flex: 1; padding: 12px; font-size: 1rem;">
+                        <span style="margin-right: 6px;">👁</span> View Details
+                    </button>
+                    <button onclick="completeProcedure(<?php echo $inProcedurePatient['id']; ?>)" class="action-btn" style="background: #2563eb; color: white; flex: 2; padding: 12px; font-size: 1.1rem; font-weight: 600;">
+                        <span style="margin-right: 6px;">✓</span> COMPLETE PROCEDURE
+                    </button>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+        
+        <?php if ($nextPatient): ?>
+        <!-- NEXT PATIENT CARD -->
+        <div class="section-card" style="border: 2px solid #22c55e; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 class="section-title" style="margin: 0; color: #15803d;">
+                    <span style="font-size: 1.5rem;">🎯</span> NEXT PATIENT
+                </h2>
+                <span style="background: #22c55e; color: white; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 0.9rem;">
+                    UP NOW
+                </span>
+            </div>
+            
+            <div style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+                    <div>
+                        <div style="font-size: 1.75rem; font-weight: 700; color: #111827; margin-bottom: 8px;">
+                            <?php echo htmlspecialchars($nextPatient['full_name']); ?>
+                        </div>
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <span style="background: #dbeafe; color: #1e40af; padding: 4px 12px; border-radius: 16px; font-size: 0.85rem; font-weight: 600;">
+                                <?php echo htmlspecialchars($nextPatient['gender'] ?? 'Unknown'); ?>
+                            </span>
+                            <span style="color: #6b7280; font-size: 0.9rem;">
+                                <?php echo htmlspecialchars($nextPatient['age'] ?? '--'); ?> years old
+                            </span>
+                            <span style="color: #6b7280; font-size: 0.9rem;">
+                                📞 <?php echo htmlspecialchars($nextPatient['phone'] ?? 'No phone'); ?>
+                            </span>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 2rem; font-weight: 700; color: #22c55e;">#1</div>
+                        <div style="font-size: 0.85rem; color: #6b7280;">in queue</div>
+                    </div>
+                </div>
+                
+                <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                        <div>
+                            <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Treatment</div>
+                            <div style="font-weight: 600; color: #111827;"><?php echo htmlspecialchars($nextPatient['treatment_type'] ?? 'General Checkup'); ?></div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Teeth</div>
+                            <div style="font-weight: 600; color: #111827;"><?php echo htmlspecialchars($nextPatient['teeth_numbers'] ? $nextPatient['teeth_numbers'] : 'All teeth / Not specified'); ?></div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Queued At</div>
+                            <div style="font-weight: 600; color: #111827;"><?php echo date('g:i A', strtotime($nextPatient['queue_time'])); ?></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 12px;">
+                    <button onclick="viewPatientDetails(<?php echo $nextPatient['patient_id']; ?>)" class="action-btn" style="background: #6b7280; color: white; flex: 1; padding: 12px; font-size: 1rem;">
+                        <span style="margin-right: 6px;">👁</span> View Details
+                    </button>
+                    <button onclick="startProcedure(<?php echo $nextPatient['id']; ?>)" class="action-btn" style="background: #22c55e; color: white; flex: 2; padding: 12px; font-size: 1.1rem; font-weight: 600;">
+                        <span style="margin-right: 6px;">▶</span> START PROCEDURE
+                    </button>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+        
+        <!-- UPCOMING PATIENTS -->
+        <?php if (!empty($upcomingPatients) || (!empty($queuePatients) && !$nextPatient)): ?>
+        <div class="section-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 class="section-title" style="margin: 0;">
+                    ⏰ Upcoming Patients
+                    <?php if (count($upcomingPatients) > 0): ?>
+                        <span style="background: #f3f4f6; color: #6b7280; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; margin-left: 10px;">
+                            <?php echo count($upcomingPatients); ?> waiting
+                        </span>
+                    <?php endif; ?>
+                </h2>
+                <a href="dentist_queue.php" style="color: #2563eb; font-size: 0.9rem; text-decoration: none; font-weight: 500;">
+                    View Full Queue →
+                </a>
+            </div>
+            
+            <?php if (empty($upcomingPatients) && !empty($queuePatients)): ?>
+                <!-- Show in-procedure patient if no waiting patients -->
+                <?php foreach ($queuePatients as $patient): ?>
+                    <?php if ($patient['status'] === 'in_procedure'): ?>
+                    <div class="patient-item" style="border: 2px solid #3b82f6; background: #eff6ff;">
+                        <div class="patient-info" style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                <span style="background: #3b82f6; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600;">IN PROGRESS</span>
                                 <div class="patient-name"><?php echo htmlspecialchars($patient['full_name']); ?></div>
-                                <div class="patient-details">
-                                    <span class="status-badge" style="background: <?php echo $patient['status'] === 'in_procedure' ? '#dbeafe' : '#fef3c7'; ?>; color: <?php echo $patient['status'] === 'in_procedure' ? '#1d4ed8' : '#92400e'; ?>;">
-                                        <?php echo $patient['status'] === 'in_procedure' ? 'In Progress' : 'Waiting'; ?>
-                                    </span>
-                                    <span class="patient-time"><?php echo htmlspecialchars($patient['treatment_type'] ?? 'General'); ?></span>
+                            </div>
+                            <div class="patient-details">
+                                <span class="patient-time"><?php echo htmlspecialchars($patient['treatment_type'] ?? 'General'); ?></span>
+                                <span style="color: #6b7280;">• Teeth: <?php echo htmlspecialchars($patient['teeth_numbers'] ?? 'All'); ?></span>
+                            </div>
+                        </div>
+                        <div class="patient-actions">
+                            <button onclick="completeProcedure(<?php echo $patient['id']; ?>)" class="action-btn" style="background: #2563eb; color: white;">Complete</button>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <!-- Show upcoming waiting patients -->
+                <div class="patient-list">
+                    <?php foreach (array_slice($upcomingPatients, 0, 5) as $index => $patient): ?>
+                        <div class="patient-item">
+                            <div style="display: flex; align-items: center; gap: 16px; flex: 1;">
+                                <div style="width: 36px; height: 36px; background: #f3f4f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #6b7280;">
+                                    <?php echo $index + 2; ?>
                                 </div>
-                                <div class="patient-treatment"><?php echo htmlspecialchars($patient['teeth_numbers'] ? 'Teeth: ' . $patient['teeth_numbers'] : 'All teeth'); ?></div>
+                                <div class="patient-info" style="flex: 1;">
+                                    <div class="patient-name"><?php echo htmlspecialchars($patient['full_name']); ?></div>
+                                    <div class="patient-details">
+                                        <span class="patient-time"><?php echo htmlspecialchars($patient['treatment_type'] ?? 'General'); ?></span>
+                                        <span style="color: #6b7280;">• <?php echo htmlspecialchars($patient['teeth_numbers'] ? 'Teeth: ' . $patient['teeth_numbers'] : 'All teeth'); ?></span>
+                                    </div>
+                                </div>
                             </div>
                             <div class="patient-actions">
                                 <button onclick="viewPatientDetails(<?php echo $patient['patient_id']; ?>)" class="action-btn" style="background: #6b7280; color: white;">View</button>
-                                <?php if ($patient['status'] === 'waiting'): ?>
-                                    <button onclick="startProcedure(<?php echo $patient['id']; ?>)" class="action-btn" style="background: #22c55e; color: white;">Start</button>
-                                <?php else: ?>
-                                    <button onclick="completeProcedure(<?php echo $patient['id']; ?>)" class="action-btn" style="background: #2563eb; color: white;">Complete</button>
-                                <?php endif; ?>
                             </div>
                         </div>
                     <?php endforeach; ?>
+                    
+                    <?php if (count($upcomingPatients) > 5): ?>
+                        <div style="text-align: center; padding: 16px; color: #6b7280; font-size: 0.9rem; border-top: 1px solid #e5e7eb;">
+                            +<?php echo count($upcomingPatients) - 5; ?> more patients in queue
+                        </div>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
         </div>
+        <?php elseif (empty($queuePatients)): ?>
+            <!-- Treatment Queue (Empty) -->
+            <div class="section-card">
+                <h2 class="section-title">⚕️ Treatment Queue</h2>
+                <div style="text-align: center; padding: 60px 20px; color: #6b7280;">
+                    <div style="font-size: 4rem; margin-bottom: 16px;">😊</div>
+                    <h3 style="font-size: 1.25rem; font-weight: 600; color: #374151; margin-bottom: 8px;">No patients in queue</h3>
+                    <p style="color: #9ca3af;">The queue is empty. Time for a break!</p>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
 
     <!-- Right Column: Notifications & Quick Actions -->
@@ -469,6 +673,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .btn-cancel:hover {
     background: #4b5563;
+}
+
+/* Pulse animation for ACTIVE NOW badge */
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+    }
+    70% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    }
 }
 </style>
 
