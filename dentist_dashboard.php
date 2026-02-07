@@ -562,6 +562,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // Portal Pattern: Move modal to body level to escape stacking context
+    // This ensures modal appears above sidebar and all other elements
+    const modal = document.getElementById('patientModal');
+    if (modal) {
+        document.body.appendChild(modal);
+    }
 });
 </script>
 
@@ -581,20 +588,21 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- Modal Styles -->
 <style>
 .fullscreen-modal-overlay {
+    display: none;
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.5);
-    z-index: 9999;
-    display: none;
+    z-index: 99999;
     align-items: center;
     justify-content: center;
 }
 
+.fullscreen-overlay[style*="display: flex"],
 .fullscreen-modal-overlay.active {
-    display: flex;
+    display: flex !important;
 }
 
 .fullscreen-modal {
@@ -604,7 +612,9 @@ document.addEventListener('DOMContentLoaded', function() {
     max-height: 90vh;
     width: 90%;
     overflow-y: auto;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    position: relative;
+    z-index: 100000;
 }
 
 .fullscreen-modal-header {

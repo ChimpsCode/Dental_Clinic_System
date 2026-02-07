@@ -193,17 +193,17 @@ try {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.7);
-    z-index: 10000;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 99999;
     align-items: center;
     justify-content: center;
-    backdrop-filter: blur(4px);
 }
 
-.fullscreen-modal-overlay.active {
-    display: flex;
+.fullscreen-modal-overlay.active,
+.fullscreen-modal-overlay[style*="display: flex"] {
+    display: flex !important;
 }
 
 .fullscreen-modal-content {
@@ -214,6 +214,8 @@ try {
     max-height: 90vh;
     overflow-y: auto;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    position: relative;
+    z-index: 100000;
 }
 
 .fullscreen-modal-header {
@@ -422,6 +424,15 @@ try {
 
 <script>
 const patients = <?php echo json_encode($patients); ?>;
+
+// Portal Pattern: Move modal to body level to escape stacking context
+// This ensures modal appears above sidebar and all other elements
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('patientModal');
+    if (modal) {
+        document.body.appendChild(modal);
+    }
+});
 
 // Search and filter functionality
 document.getElementById('searchInput').addEventListener('input', filterPatients);

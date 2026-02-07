@@ -88,7 +88,7 @@ try {
 <div class="section-card">
     <div class="section-title">
         <span>Appointments List</span>
-        <button class="btn-primary">+ New Appointment</button>
+        <button class="btn-primary" onclick="openNewAppointmentModal()">+ New Appointment</button>
     </div>
     
     <table class="data-table">
@@ -156,5 +156,233 @@ try {
         </tbody>
     </table>
 </div>
+
+<!-- New Appointment Modal -->
+<div id="newAppointmentModal" class="modal-overlay">
+    <div class="modal" style="width: 550px; max-height: 90vh; overflow-y: auto;">
+        <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Schedule New Appointment</h2>
+        <form id="newAppointmentForm">
+            <div class="form-row">
+                <div class="form-group" style="flex: 1;">
+                    <label>First Name *</label>
+                    <input type="text" name="first_name" required class="form-control" placeholder="Enter first name">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Middle Name</label>
+                    <input type="text" name="middle_name" class="form-control" placeholder="Enter middle name">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Last Name *</label>
+                <input type="text" name="last_name" required class="form-control" placeholder="Enter last name">
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group" style="flex: 1;">
+                    <label>Phone *</label>
+                    <input type="tel" name="phone" required class="form-control" placeholder="e.g., 09123456789">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Email</label>
+                    <input type="email" name="email" class="form-control" placeholder="patient@email.com">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group" style="flex: 1;">
+                    <label>Appointment Date *</label>
+                    <input type="date" name="appointment_date" required class="form-control">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Appointment Time *</label>
+                    <input type="time" name="appointment_time" required class="form-control">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Treatment</label>
+                <select name="treatment" class="form-control">
+                    <option value="General Checkup">General Checkup</option>
+                    <option value="Teeth Cleaning">Teeth Cleaning</option>
+                    <option value="Root Canal">Root Canal</option>
+                    <option value="Extraction">Extraction</option>
+                    <option value="Filling">Filling</option>
+                    <option value="Braces">Braces/Orthodontics</option>
+                    <option value="Denture">Denture</option>
+                    <option value="Crown & Bridge">Crown & Bridge</option>
+                    <option value="Whitening">Whitening</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Notes</label>
+                <textarea name="notes" rows="3" class="form-control" placeholder="Additional notes about the appointment..."></textarea>
+            </div>
+            
+            <div class="modal-actions">
+                <button type="button" onclick="closeNewAppointmentModal()" class="btn-cancel">Cancel</button>
+                <button type="submit" class="btn-primary">Schedule Appointment</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+/* Modal Styles */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 99999;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay[style*="display: flex"] {
+    display: flex !important;
+}
+
+.modal {
+    background: white;
+    border-radius: 12px;
+    padding: 28px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    position: relative;
+    z-index: 100000;
+}
+
+.form-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 6px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.form-control:focus {
+    border-color: #3b82f6;
+    ring: 2px solid rgba(59, 130, 246, 0.2);
+}
+
+.modal-actions {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.btn-cancel {
+    background: #f3f4f6;
+    color: #374151;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-cancel:hover {
+    background: #e5e7eb;
+}
+</style>
+
+<script>
+// Portal Pattern: Move modal to body level
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('newAppointmentModal');
+    if (modal) {
+        document.body.appendChild(modal);
+    }
+    
+    // Close modal when clicking outside
+    modal.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeNewAppointmentModal();
+        }
+    });
+});
+
+function openNewAppointmentModal() {
+    document.getElementById('newAppointmentForm').reset();
+    
+    // Set default date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.querySelector('input[name="appointment_date"]').value = today;
+    
+    // Set default time
+    document.querySelector('input[name="appointment_time"]').value = '09:00';
+    
+    document.getElementById('newAppointmentModal').style.display = 'flex';
+}
+
+function closeNewAppointmentModal() {
+    document.getElementById('newAppointmentModal').style.display = 'none';
+}
+
+// Handle form submission
+document.getElementById('newAppointmentForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch('process_dentist_appointment.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Appointment scheduled successfully!');
+            closeNewAppointmentModal();
+            location.reload();
+        } else {
+            alert(data.message || 'Error scheduling appointment');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error scheduling appointment. Please try again.');
+    });
+});
+
+// ESC key to close modal
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeNewAppointmentModal();
+    }
+});
+</script>
 
 <?php require_once 'includes/dentist_layout_end.php'; ?>

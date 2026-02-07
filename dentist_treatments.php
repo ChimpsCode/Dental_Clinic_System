@@ -632,6 +632,73 @@ require_once 'includes/dentist_layout_start.php';
             alert('Error updating progress');
         });
     }
+    
+    // Portal Pattern: Move modals to body level to escape stacking context
+    // This ensures modals appear above sidebar and all other elements
+    document.addEventListener('DOMContentLoaded', function() {
+        const viewPlanModal = document.getElementById('viewPlanModal');
+        const treatmentPlanModal = document.getElementById('treatmentPlanModal');
+        const progressModal = document.getElementById('progressModal');
+        
+        if (viewPlanModal) {
+            document.body.appendChild(viewPlanModal);
+        }
+        if (treatmentPlanModal) {
+            document.body.appendChild(treatmentPlanModal);
+        }
+        if (progressModal) {
+            document.body.appendChild(progressModal);
+        }
+        
+        // Close modals when clicking outside
+        document.querySelectorAll('.modal-overlay').forEach(modal => {
+            modal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.style.display = 'none';
+                }
+            });
+        });
+    });
 </script>
+
+<style>
+/* Modal Styles - Portal Pattern */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 99999;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay[style*="display: flex"] {
+    display: flex !important;
+}
+
+.modal {
+    background: white;
+    border-radius: 12px;
+    padding: 28px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    position: relative;
+    z-index: 100000;
+}
+
+.modal-actions {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+</style>
 
 <?php require_once 'includes/dentist_layout_end.php'; ?>
