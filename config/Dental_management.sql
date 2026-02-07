@@ -321,6 +321,7 @@ CREATE TABLE IF NOT EXISTS queue (
     patient_id INT NOT NULL,
     treatment_type VARCHAR(200),
     teeth_numbers VARCHAR(100),
+    procedure_notes TEXT,
     status ENUM('waiting', 'in_procedure', 'completed', 'cancelled', 'on_hold') DEFAULT 'waiting',
     priority INT DEFAULT 5,
     queue_time TIME,

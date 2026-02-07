@@ -491,10 +491,6 @@ function viewPatientDetails(patientId) {
                             <div class="patient-info-value">${q.treatment_type || 'Consultation'}</div>
                         </div>
                         <div class="patient-info-item">
-                            <div class="patient-info-label">Selected Teeth</div>
-                            <div class="patient-info-value">${q.teeth_numbers || 'None'}</div>
-                        </div>
-                        <div class="patient-info-item">
                             <div class="patient-info-label">Status</div>
                             <div class="patient-info-value">
                                 <span style="background: ${q.status === 'in_procedure' ? '#dcfce7' : q.status === 'waiting' ? '#fef3c7' : '#f3f4f6'}; color: ${q.status === 'in_procedure' ? '#15803d' : q.status === 'waiting' ? '#d97706' : '#6b7280'}; padding: 4px 12px; border-radius: 9999px; font-size: 0.85rem;">
@@ -502,6 +498,34 @@ function viewPatientDetails(patientId) {
                                 </span>
                             </div>
                         </div>
+                    </div>
+                </div>
+                
+                <!-- 3D Tooth Chart Section -->
+                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h3 style="font-size: 1rem; font-weight: 600; color: #15803d; margin: 0;">🦷 Selected Teeth</h3>
+                        <button onclick="toggleTeethEditMode(${q.id})" id="editTeethBtn" class="btn-primary" style="padding: 6px 12px; font-size: 0.875rem;">Edit Teeth</button>
+                    </div>
+                    <div id="toothChartContainer" style="margin-bottom: 12px;">
+                        ${generateToothChartHTML(q.teeth_numbers || '')}
+                    </div>
+                    <div id="selectedTeethDisplay" style="font-size: 0.9rem; color: #374151; font-weight: 500;">
+                        Selected: ${q.teeth_numbers || 'None'}
+                    </div>
+                    <div id="teethEditActions" style="display: none; margin-top: 12px; gap: 8px;">
+                        <button onclick="saveTeethChanges(${q.id})" class="btn-primary" style="padding: 8px 16px;">Save Changes</button>
+                        <button onclick="cancelTeethEdit()" class="btn-cancel" style="padding: 8px 16px;">Cancel</button>
+                    </div>
+                </div>
+                
+                <!-- Procedure Notes Section -->
+                <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                    <h3 style="font-size: 1rem; font-weight: 600; color: #d97706; margin-bottom: 16px;">📝 Procedure Notes</h3>
+                    <textarea id="procedureNotes" rows="4" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 0.9rem; resize: vertical;" placeholder="Add notes about the procedure (e.g., 'Check if #12 needs crown', 'Patient has sensitivity on #18')...">${q.procedure_notes || ''}</textarea>
+                    <div style="margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <span id="notesSaveStatus" style="font-size: 0.8rem; color: #6b7280;"></span>
+                        <button onclick="saveProcedureNotes(${q.id})" class="btn-primary" style="padding: 8px 16px; font-size: 0.875rem;">Save Notes</button>
                     </div>
                 </div>
                 ` : ''}
@@ -713,6 +737,365 @@ document.addEventListener('DOMContentLoaded', function() {
         box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
     }
 }
+
+/* 3D Tooth Chart Styles */
+.tooth-chart-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.tooth-arch {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+    max-width: 400px;
+}
+
+.tooth-arch-row {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    width: 100%;
+}
+
+/* Upper Arch Layout */
+.tooth-arch-row:first-child .tooth-arch {
+    justify-content: flex-end;
+    padding-right: 20px;
+}
+
+.tooth-arch-row:first-child .tooth-arch:last-child {
+    justify-content: flex-start;
+    padding-left: 20px;
+}
+
+/* Lower Arch Layout */
+.tooth-arch-row:last-child .tooth-arch {
+    justify-content: flex-end;
+    padding-right: 20px;
+}
+
+.tooth-arch-row:last-child .tooth-arch:last-child {
+    justify-content: flex-start;
+    padding-left: 20px;
+}
+
+.tooth-arch-label {
+    text-align: center;
+    font-size: 0.75rem;
+    color: #9ca3af;
+    font-weight: 600;
+    margin-bottom: 8px;
+    min-width: 80px;
+}
+
+.tooth-wrapper {
+    width: 32px;
+    height: 40px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.tooth-wrapper:hover {
+    transform: translateY(-2px);
+}
+
+.tooth-face {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(145deg, #f3f4f6 0%, #e5e7eb 100%);
+    border-radius: 8px 8px 4px 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: #6b7280;
+    box-shadow: 
+        inset 0 -3px 6px rgba(0,0,0,0.1),
+        0 2px 4px rgba(0,0,0,0.15),
+        0 4px 8px rgba(0,0,0,0.1);
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.tooth-face::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 50%);
+    border-radius: 8px 8px 4px 4px;
+    pointer-events: none;
+}
+
+.tooth-wrapper.selected .tooth-face {
+    background: linear-gradient(145deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    box-shadow: 
+        inset 0 -3px 6px rgba(0,0,0,0.2),
+        0 2px 4px rgba(37,99,235,0.3),
+        0 4px 12px rgba(37,99,235,0.4);
+    transform: translateY(-3px);
+}
+
+.tooth-wrapper.selected .tooth-face::after {
+    background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 50%);
+}
+
+.tooth-wrapper.editing .tooth-face {
+    cursor: pointer;
+    animation: toothPulse 1.5s infinite;
+}
+
+@keyframes toothPulse {
+    0%, 100% { box-shadow: 0 2px 4px rgba(0,0,0,0.15), 0 4px 8px rgba(0,0,0,0.1); }
+    50% { box-shadow: 0 2px 8px rgba(59,130,246,0.4), 0 4px 16px rgba(59,130,246,0.3); }
+}
+
+.tooth-arch-label {
+    text-align: center;
+    font-size: 0.75rem;
+    color: #9ca3af;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+}
 </style>
+
+<script>
+// Global variables for teeth editing
+let currentTeethSelection = [];
+let isEditingTeeth = false;
+let currentQueueId = null;
+
+// Generate 3D Tooth Chart HTML
+function generateToothChartHTML(selectedTeeth) {
+    currentTeethSelection = selectedTeeth ? selectedTeeth.split(',').map(t => t.trim()).filter(t => t) : [];
+    
+    const upperRight = [18, 17, 16, 15, 14, 13, 12, 11];
+    const upperLeft = [21, 22, 23, 24, 25, 26, 27, 28];
+    const lowerLeft = [31, 32, 33, 34, 35, 36, 37, 38];
+    const lowerRight = [48, 47, 46, 45, 44, 43, 42, 41];
+    
+    function generateTeethHTML(teethArray) {
+        return teethArray.map(num => {
+            const isSelected = currentTeethSelection.includes(num.toString());
+            return `
+                <div class="tooth-wrapper ${isSelected ? 'selected' : ''}" data-tooth="${num}" onclick="toggleToothSelection(this)">
+                    <div class="tooth-face">${num}</div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    return `
+        <div class="tooth-chart-container">
+            <div class="tooth-arch-row">
+                <div style="width: 50%;">
+                    <div class="tooth-arch-label">Upper Right</div>
+                    <div class="tooth-arch">${generateTeethHTML(upperRight)}</div>
+                </div>
+                <div style="width: 50%;">
+                    <div class="tooth-arch-label">Upper Left</div>
+                    <div class="tooth-arch">${generateTeethHTML(upperLeft)}</div>
+                </div>
+            </div>
+            <div class="tooth-arch-row">
+                <div style="width: 50%;">
+                    <div class="tooth-arch-label">Lower Right</div>
+                    <div class="tooth-arch">${generateTeethHTML(lowerRight)}</div>
+                </div>
+                <div style="width: 50%;">
+                    <div class="tooth-arch-label">Lower Left</div>
+                    <div class="tooth-arch">${generateTeethHTML(lowerLeft)}</div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Toggle tooth selection (for editing mode)
+function toggleToothSelection(element) {
+    if (!isEditingTeeth) return;
+    
+    const toothNum = element.getAttribute('data-tooth');
+    const index = currentTeethSelection.indexOf(toothNum);
+    
+    if (index > -1) {
+        currentTeethSelection.splice(index, 1);
+        element.classList.remove('selected');
+    } else {
+        currentTeethSelection.push(toothNum);
+        element.classList.add('selected');
+    }
+    
+    // Sort numerically
+    currentTeethSelection.sort((a, b) => parseInt(a) - parseInt(b));
+    
+    // Update display
+    document.getElementById('selectedTeethDisplay').textContent = 
+        'Selected: ' + (currentTeethSelection.length > 0 ? currentTeethSelection.join(', ') : 'None');
+}
+
+// Toggle edit mode for teeth
+function toggleTeethEditMode(queueId) {
+    isEditingTeeth = !isEditingTeeth;
+    currentQueueId = queueId;
+    
+    const btn = document.getElementById('editTeethBtn');
+    const actions = document.getElementById('teethEditActions');
+    const wrappers = document.querySelectorAll('.tooth-wrapper');
+    
+    if (isEditingTeeth) {
+        btn.textContent = 'Cancel Edit';
+        btn.style.background = '#6b7280';
+        actions.style.display = 'flex';
+        wrappers.forEach(w => w.classList.add('editing'));
+    } else {
+        cancelTeethEdit();
+    }
+}
+
+// Save teeth changes
+function saveTeethChanges(queueId) {
+    const teethString = currentTeethSelection.join(', ');
+    
+    fetch('update_queue_teeth.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            queue_id: queueId,
+            teeth_numbers: teethString
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update the chart display
+            document.getElementById('toothChartContainer').innerHTML = generateToothChartHTML(teethString);
+            document.getElementById('selectedTeethDisplay').textContent = 'Selected: ' + (teethString || 'None');
+            
+            // Reset edit mode
+            isEditingTeeth = false;
+            document.getElementById('editTeethBtn').textContent = 'Edit Teeth';
+            document.getElementById('editTeethBtn').style.background = '';
+            document.getElementById('teethEditActions').style.display = 'none';
+            document.querySelectorAll('.tooth-wrapper').forEach(w => w.classList.remove('editing'));
+            
+            alert('Teeth updated successfully!');
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error saving teeth changes');
+    });
+}
+
+// Cancel teeth editing
+function cancelTeethEdit() {
+    isEditingTeeth = false;
+    
+    const btn = document.getElementById('editTeethBtn');
+    if (btn) {
+        btn.textContent = 'Edit Teeth';
+        btn.style.background = '';
+    }
+    
+    const actions = document.getElementById('teethEditActions');
+    if (actions) actions.style.display = 'none';
+    
+    // Refresh the chart to original state
+    const originalTeeth = document.getElementById('selectedTeethDisplay').textContent.replace('Selected: ', '');
+    if (originalTeeth !== 'None') {
+        document.getElementById('toothChartContainer').innerHTML = generateToothChartHTML(originalTeeth);
+        currentTeethSelection = originalTeeth.split(',').map(t => t.trim()).filter(t => t);
+    } else {
+        document.getElementById('toothChartContainer').innerHTML = generateToothChartHTML('');
+        currentTeethSelection = [];
+    }
+    
+    document.querySelectorAll('.tooth-wrapper').forEach(w => w.classList.remove('editing'));
+}
+
+// Save procedure notes
+let notesSaveTimeout;
+function saveProcedureNotes(queueId) {
+    const notes = document.getElementById('procedureNotes').value;
+    const statusEl = document.getElementById('notesSaveStatus');
+    
+    statusEl.textContent = 'Saving...';
+    
+    fetch('save_procedure_notes.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            queue_id: queueId,
+            procedure_notes: notes
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            statusEl.textContent = 'Saved!';
+            statusEl.style.color = '#10b981';
+            setTimeout(() => {
+                statusEl.textContent = '';
+                statusEl.style.color = '#6b7280';
+            }, 2000);
+        } else {
+            statusEl.textContent = 'Error saving';
+            statusEl.style.color = '#ef4444';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        statusEl.textContent = 'Error saving';
+        statusEl.style.color = '#ef4444';
+    });
+}
+
+// Auto-save notes after typing stops
+function setupNotesAutoSave(queueId) {
+    const notesTextarea = document.getElementById('procedureNotes');
+    if (!notesTextarea) return;
+    
+    notesTextarea.addEventListener('input', function() {
+        clearTimeout(notesSaveTimeout);
+        document.getElementById('notesSaveStatus').textContent = 'Typing...';
+        
+        notesSaveTimeout = setTimeout(() => {
+            saveProcedureNotes(queueId);
+        }, 2000); // Auto-save after 2 seconds of no typing
+    });
+}
+
+// Override viewPatientDetails to include auto-save setup
+const originalViewPatientDetails = viewPatientDetails;
+viewPatientDetails = function(patientId) {
+    originalViewPatientDetails(patientId);
+    
+    // Setup auto-save after modal content is loaded
+    setTimeout(() => {
+        const queueId = document.querySelector('[data-queue-id]')?.getAttribute('data-queue-id');
+        if (queueId) {
+            setupNotesAutoSave(queueId);
+        }
+    }, 500);
+};
+</script>
 
 <?php require_once 'includes/dentist_layout_end.php'; ?>
