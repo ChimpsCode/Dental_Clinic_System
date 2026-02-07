@@ -144,19 +144,17 @@ try {
                     <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">First Name</th>
                     <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Middle Name</th>
                     <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Last Name</th>
-                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Suffix</th>
                     <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Age/Gender</th>
                     <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Contact</th>
                     <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Current Treatment</th>
                     <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Queue Status</th>
-                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Date Added</th>
                     <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Actions</th>
                 </tr>
             </thead>
             <tbody id="patientsTableBody">
                 <?php if (empty($patients)): ?>
                     <tr>
-                        <td colspan="10" style="text-align: center; padding: 60px; color: #6b7280;">
+                        <td colspan="8" style="text-align: center; padding: 60px; color: #6b7280;">
                             <p style="font-size: 1.1rem; margin-bottom: 8px;">No patient records found</p>
                         </td>
                     </tr>
@@ -193,9 +191,6 @@ try {
                                 <span style="font-weight: 500; color: #111827;"><?php echo htmlspecialchars($patient['last_name'] ?? 'Unknown'); ?></span>
                             </td>
                             <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
-                                <?php echo htmlspecialchars($patient['suffix'] ?? ''); ?>
-                            </td>
-                            <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
                                 <div style="font-size: 0.9rem;">
                                     <span style="font-weight: 500;"><?php echo $patient['age'] ?? 'N/A'; ?> yrs</span>
                                     <span style="color: #6b7280; margin-left: 8px;"><?php echo ucfirst($patient['gender'] ?? 'N/A'); ?></span>
@@ -214,9 +209,6 @@ try {
                                 <span style="background: <?php echo $bgColor; ?>; color: <?php echo $textColor; ?>; padding: 4px 12px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600;">
                                     <?php echo ucfirst(str_replace('_', ' ', $status ?: 'None')); ?>
                                 </span>
-                            </td>
-                            <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
-                                <span style="font-weight: 500;"><?php echo !empty($patient['created_at']) ? date('M d, Y', strtotime($patient['created_at'])) : 'N/A'; ?></span>
                             </td>
                             <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
                                 <div class="patient-kebab-menu">

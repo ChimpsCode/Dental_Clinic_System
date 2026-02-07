@@ -60,16 +60,34 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         exit();
     }
     
-    // Try to insert with new structure first, fallback to old structure
-    try {
-        $stmt = $pdo->prepare("INSERT INTO inquiries (first_name, middle_name, last_name, contact_info, source, topic, inquiry_message, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
-        $stmt->execute([$first_name, $middle_name, $last_name, $contact_info, $source, $topic, $inquiry_message, $status]);
-    } catch (Exception $e) {
-        // If new structure fails, try old structure
-        $full_name = trim("$first_name $middle_name $last_name");
-        $stmt = $pdo->prepare("INSERT INTO inquiries (name, contact_info, source, topic, inquiry_message, status, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
-        $stmt->execute([$full_name, $contact_info, $source, $topic, $inquiry_message, $status]);
+    // Convert topic to service_id if it's text (topic is now a foreign key to services.id)
+    $service_id = null;
+    if (!empty($topic)) {
+        if (is_numeric($topic)) {
+            // Already an ID
+            $service_id = (int)$topic;
+        } else {
+            // It's a service name, look up the ID
+            $stmt = $pdo->prepare("SELECT id FROM services WHERE name = ? LIMIT 1");
+            $stmt->execute([$topic]);
+            $result = $stmt->fetch();
+            if ($result) {
+                $service_id = $result['id'];
+            } else {
+                // Service not found, try to find partial match
+                $stmt = $pdo->prepare("SELECT id FROM services WHERE name LIKE ? LIMIT 1");
+                $stmt->execute(['%' . $topic . '%']);
+                $result = $stmt->fetch();
+                if ($result) {
+                    $service_id = $result['id'];
+                }
+            }
+        }
     }
+    
+    // Insert inquiry with service_id as topic
+    $stmt = $pdo->prepare("INSERT INTO inquiries (first_name, middle_name, last_name, contact_info, source, topic, inquiry_message, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+    $stmt->execute([$first_name, $middle_name, $last_name, $contact_info, $source, $service_id, $inquiry_message, $status]);
     
     echo json_encode(['success' => true, 'message' => 'Inquiry added successfully']);
     

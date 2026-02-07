@@ -29,7 +29,7 @@ try {
 // Fetch all appointments
 try {
     $stmt = $pdo->query("SELECT a.*, 
-        CONCAT(COALESCE(a.first_name, ''), ' ', COALESCE(a.middle_name, ''), ' ', COALESCE(a.last_name, '')) as full_name,
+        a.first_name, a.middle_name, a.last_name,
         p.phone, p.email FROM appointments a 
         LEFT JOIN patients p ON a.patient_id = p.id 
         ORDER BY a.appointment_date DESC");
@@ -94,7 +94,9 @@ try {
     <table class="data-table">
         <thead>
             <tr>
-                <th>Patient Name</th>
+                <th>First Name</th>
+                <th>Middle Name</th>
+                <th>Last Name</th>
                 <th>Date & Time</th>
                 <th>Treatment</th>
                 <th>Status</th>
@@ -105,8 +107,9 @@ try {
             <?php if (!empty($appointments)): ?>
                 <?php foreach ($appointments as $apt): ?>
                     <?php
-                        $patientName = trim(($apt['full_name'] ?? '') ?: trim(($apt['first_name'] ?? '') . ' ' . ($apt['middle_name'] ?? '') . ' ' . ($apt['last_name'] ?? '')));
-                        $patientName = preg_replace('/\s+/', ' ', $patientName) ?: 'Unknown';
+                        $firstName = htmlspecialchars($apt['first_name'] ?? '');
+                        $middleName = htmlspecialchars($apt['middle_name'] ?? '');
+                        $lastName = htmlspecialchars($apt['last_name'] ?? '');
                         $appointmentDate = new DateTime($apt['appointment_date']);
                         $appointmentTime = $appointmentDate->format('h:i A');
                         $appointmentDateStr = $appointmentDate->format('M d, Y');
@@ -122,7 +125,13 @@ try {
                     ?>
                     <tr>
                         <td>
-                            <div class="patient-name"><?php echo htmlspecialchars($patientName); ?></div>
+                            <div style="font-weight: 600;"><?php echo $firstName ?: '-'; ?></div>
+                        </td>
+                        <td>
+                            <div style="color: #6b7280;"><?php echo $middleName ?: '-'; ?></div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 600;"><?php echo $lastName ?: '-'; ?></div>
                             <div style="font-size: 0.85rem; color: #6b7280;">Phone: <?php echo htmlspecialchars($apt['phone'] ?? 'N/A'); ?></div>
                         </td>
                         <td>
@@ -141,7 +150,7 @@ try {
                 <?php endforeach; ?>
             <?php else: ?>
                 <tr>
-                    <td colspan="5" style="text-align: center; padding: 2rem; color: #6b7280;">No appointments found</td>
+                    <td colspan="7" style="text-align: center; padding: 2rem; color: #6b7280;">No appointments found</td>
                 </tr>
             <?php endif; ?>
         </tbody>

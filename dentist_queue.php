@@ -50,6 +50,15 @@ try {
     // Get paginated queue items
     $queueItems = array_slice($allQueueItems, $offset, $itemsPerPage);
     
+    // Check if there's a procedure currently in progress
+    $inProcedurePatient = null;
+    foreach ($allQueueItems as $item) {
+        if ($item['status'] === 'in_procedure') {
+            $inProcedurePatient = $item;
+            break;
+        }
+    }
+    
 } catch (Exception $e) {
     $queueItems = [];
     $allQueueItems = [];
@@ -799,6 +808,9 @@ let queueKebabDropdown = null;
 let queueKebabBackdrop = null;
 let queueActiveButton = null;
 
+// Track if there's a procedure currently in progress
+const inProcedurePatient = <?php echo $inProcedurePatient ? json_encode(['id' => $inProcedurePatient['id'], 'name' => trim(($inProcedurePatient['first_name'] ?? '') . ' ' . ($inProcedurePatient['last_name'] ?? ''))]) : 'null'; ?>;
+
 function createQueueKebabDropdown() {
     queueKebabDropdown = document.createElement('div');
     queueKebabDropdown.className = 'queue-kebab-dropdown-portal';
@@ -817,11 +829,22 @@ function getQueueMenuItems(queueId, status) {
     let menuHTML = '';
     
     if (status === 'waiting') {
+        if (inProcedurePatient) {
+            menuHTML += `
+                <a href="javascript:void(0)" onclick="alert('Cannot start: ${inProcedurePatient.name} is currently in procedure. Please complete their procedure first.')" style="opacity: 0.5; cursor: not-allowed;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15v-3m0 0v-3m0 3h-3m3 0h3M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18z"/></svg>
+                    Start Procedure (Locked)
+                </a>
+            `;
+        } else {
+            menuHTML += `
+                <a href="javascript:void(0)" onclick="updateQueueStatus(${queueId}, 'in_procedure')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    Start Procedure
+                </a>
+            `;
+        }
         menuHTML += `
-            <a href="javascript:void(0)" onclick="updateQueueStatus(${queueId}, 'in_procedure')">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                Start Procedure
-            </a>
             <a href="javascript:void(0)" onclick="updateQueueStatus(${queueId}, 'on_hold')">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
                 Put On Hold

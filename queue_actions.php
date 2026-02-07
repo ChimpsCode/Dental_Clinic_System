@@ -59,6 +59,25 @@ try {
             break;
             
         case 'start_procedure':
+            // Check if there's already a procedure in progress
+            $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix 
+                                   FROM queue q 
+                                   LEFT JOIN patients p ON q.patient_id = p.id 
+                                   WHERE q.status = 'in_procedure' 
+                                   AND DATE(q.created_at) = CURDATE() 
+                                   LIMIT 1");
+            $stmt->execute();
+            $existingProcedure = $stmt->fetch();
+            
+            if ($existingProcedure) {
+                $existingPatientName = buildFullName($existingProcedure);
+                echo json_encode([
+                    'success' => false, 
+                    'message' => 'Cannot start procedure: ' . $existingPatientName . ' is currently in procedure. Please complete their procedure first.'
+                ]);
+                break;
+            }
+            
             $stmt = $pdo->prepare("UPDATE queue SET status = 'in_procedure', updated_at = NOW() WHERE id = ?");
             $stmt->execute([$queueId]);
             

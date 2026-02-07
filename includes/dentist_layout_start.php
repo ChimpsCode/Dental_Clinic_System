@@ -111,6 +111,16 @@ function isActivePage($page) {
                     <p>Dentist Panel - RF Dental Clinic</p>
                 </div>
             </div>
+            <div class="role_name">
+                <p>dentist</p>
+            </div>
+
+            <style>
+
+                .role_name{
+                    padding-left: 900px;
+                }
+            </style>
             
             <div class="header-right">
                 <div class="user-profile" id="userProfileDropdown">

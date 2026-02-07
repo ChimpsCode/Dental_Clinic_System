@@ -32,7 +32,7 @@ try {
     
     // Get all appointments for stats (without pagination)
     $allStmt = $pdo->query("SELECT a.*, 
-                         CONCAT(a.first_name, ' ', IFNULL(a.middle_name, ''), ' ', a.last_name) as full_name, 
+                         a.first_name, a.middle_name, a.last_name, 
                          p.phone 
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id
@@ -41,7 +41,7 @@ try {
     
     // Get paginated appointments
     $stmt = $pdo->prepare("SELECT a.*, 
-                         CONCAT(a.first_name, ' ', IFNULL(a.middle_name, ''), ' ', a.last_name) as full_name, 
+                         a.first_name, a.middle_name, a.last_name, 
                          p.phone 
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id 
@@ -185,7 +185,9 @@ require_once 'includes/staff_layout_start.php';
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>Patient Name</th>
+                    <th>First Name</th>
+                    <th>Middle Name</th>
+                    <th>Last Name</th>
                     <th>Date & Time</th>
                     <th>Treatment</th>
                     <th>Status</th>
@@ -195,18 +197,29 @@ require_once 'includes/staff_layout_start.php';
             <tbody id="appointmentsTableBody">
                 <?php if (empty($appointments)): ?>
                     <tr>
-                        <td colspan="5" style="text-align: center; padding: 60px; color: #6b7280;">
+                        <td colspan="7" style="text-align: center; padding: 60px; color: #6b7280;">
                             <p style="font-size: 1.1rem; margin-bottom: 8px;">No appointments found</p>
                         </td>
                     </tr>
                 <?php else: ?>
-                    <?php foreach ($appointments as $appt): ?>
+                    <?php foreach ($appointments as $appt): 
+                        $firstName = htmlspecialchars($appt['first_name'] ?? '');
+                        $middleName = htmlspecialchars($appt['middle_name'] ?? '');
+                        $lastName = htmlspecialchars($appt['last_name'] ?? '');
+                        $displayName = trim("$firstName $middleName $lastName") ?: 'Unknown';
+                    ?>
                         <tr class="appointment-row" 
-                            data-name="<?php echo strtolower(htmlspecialchars($appt['full_name'] ?? 'Unknown')); ?>"
+                            data-name="<?php echo strtolower($displayName); ?>"
                             data-date="<?php echo htmlspecialchars($appt['appointment_date']); ?>"
                             data-status="<?php echo strtolower($appt['status'] ?? ''); ?>">
                             <td>
-                                <div class="patient-name"><?php echo htmlspecialchars($appt['full_name'] ?? 'Unknown'); ?></div>
+                                <div style="font-weight: 600;"><?php echo $firstName ?: '-'; ?></div>
+                            </td>
+                            <td>
+                                <div style="color: #6b7280;"><?php echo $middleName ?: '-'; ?></div>
+                            </td>
+                            <td>
+                                <div style="font-weight: 600;"><?php echo $lastName ?: '-'; ?></div>
                                 <div style="font-size: 0.85rem; color: #6b7280;">Phone: <?php echo htmlspecialchars($appt['phone'] ?? 'N/A'); ?></div>
                             </td>
                             <td>
@@ -691,9 +704,19 @@ require_once 'includes/staff_layout_start.php';
         const appt = appointments.find(a => a.id == id);
         if (!appt) return;
         
+        const firstName = appt.first_name || '';
+        const middleName = appt.middle_name || '';
+        const lastName = appt.last_name || '';
+        const displayName = [firstName, middleName, lastName].filter(n => n).join(' ') || 'Unknown';
+        
         document.getElementById('viewAppointmentContent').innerHTML = `
             <div style="display: flex; flex-direction: column; gap: 16px;">
-                <div><span style="color: #6b7280;">Patient:</span> <span style="font-weight: 600; margin-left: 8px;">${appt.full_name || 'Unknown'}</span></div>
+                <div>
+                    <span style="color: #6b7280;">Patient:</span> 
+                    <span style="font-weight: 600; margin-left: 8px;">${firstName}</span>
+                    ${middleName ? `<span style="color: #6b7280; margin-left: 4px;">${middleName}</span>` : ''}
+                    <span style="font-weight: 600; margin-left: 4px;">${lastName}</span>
+                </div>
                 <div><span style="color: #6b7280;">Phone:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.phone || 'N/A'}</span></div>
                 <div><span style="color: #6b7280;">Date:</span> <span style="font-weight: 500; margin-left: 8px;">${new Date(appt.appointment_date).toLocaleDateString()}</span></div>
                 <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.appointment_time || 'N/A'}</span></div>

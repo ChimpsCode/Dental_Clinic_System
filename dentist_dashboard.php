@@ -228,10 +228,23 @@ try {
                     <button onclick="viewPatientDetails(<?php echo $nextPatient['patient_id']; ?>)" class="action-btn" style="background: #6b7280; color: white; flex: 1; padding: 12px; font-size: 1rem;">
                         <span style="margin-right: 6px;">👁</span> View Details
                     </button>
-                    <button onclick="startProcedure(<?php echo $nextPatient['id']; ?>)" class="action-btn" style="background: #22c55e; color: white; flex: 2; padding: 12px; font-size: 1.1rem; font-weight: 600;">
-                        <span style="margin-right: 6px;">▶</span> START PROCEDURE
-                    </button>
+                    <?php if ($inProcedurePatient): ?>
+                        <button disabled class="action-btn" style="background: #9ca3af; color: white; flex: 2; padding: 12px; font-size: 1.1rem; font-weight: 600; cursor: not-allowed; opacity: 0.6;" title="Complete current procedure first">
+                            <span style="margin-right: 6px;">🔒</span> WAITING - COMPLETE CURRENT FIRST
+                        </button>
+                    <?php else: ?>
+                        <button onclick="startProcedure(<?php echo $nextPatient['id']; ?>)" class="action-btn" style="background: #22c55e; color: white; flex: 2; padding: 12px; font-size: 1.1rem; font-weight: 600;">
+                            <span style="margin-right: 6px;">▶</span> START PROCEDURE
+                        </button>
+                    <?php endif; ?>
                 </div>
+                <?php if ($inProcedurePatient): ?>
+                <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px; padding: 12px; margin-top: 12px; text-align: center;">
+                    <span style="color: #92400e; font-size: 0.9rem; font-weight: 500;">
+                        ⚠️ You must complete <?php echo htmlspecialchars($inProcedurePatient['full_name']); ?>'s procedure before starting the next patient.
+                    </span>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
         <?php endif; ?>

@@ -43,7 +43,10 @@ try {
     $pdo->beginTransaction();
     
     // Build full name from separate fields
-    $fullName = trim(($inquiry['first_name'] ?? '') . ' ' . ($inquiry['middle_name'] ?? '') . ' ' . ($inquiry['last_name'] ?? ''));
+    $firstName = $inquiry['first_name'] ?? '';
+    $middleName = $inquiry['middle_name'] ?? '';
+    $lastName = $inquiry['last_name'] ?? '';
+    $fullName = trim($firstName . ' ' . $middleName . ' ' . $lastName);
     $contactInfo = $inquiry['contact_info'] ?? '';
     
     // Extract phone number from contact_info (assuming format: name, phone or just phone)
@@ -66,23 +69,31 @@ try {
         $patient_id = $existing_patient['id'];
     } else {
         // Create new patient
-        $firstName = $inquiry['first_name'] ?? '';
-        $middleName = $inquiry['middle_name'] ?? '';
-        $lastName = $inquiry['last_name'] ?? '';
-        
         $stmt = $pdo->prepare("INSERT INTO patients (first_name, middle_name, last_name, phone, created_at) VALUES (?, ?, ?, ?, NOW())");
         $stmt->execute([$firstName, $middleName, $lastName, $phone]);
         $patient_id = $pdo->lastInsertId();
     }
     
+    // Get service name from topic (which is now a service_id foreign key)
+    $serviceName = 'General Checkup';
+    if (!empty($inquiry['topic'])) {
+        $stmt = $pdo->prepare("SELECT name FROM services WHERE id = ? LIMIT 1");
+        $stmt->execute([$inquiry['topic']]);
+        $service = $stmt->fetch();
+        if ($service) {
+            $serviceName = $service['name'];
+        }
+    }
+    
     // Create appointment with today's date and default time
     $today = date('Y-m-d');
     $defaultTime = '09:00:00';
-    $treatment = $inquiry['topic'] ?? 'General Checkup';
+    $treatment = $serviceName;
     $notes = 'Created from inquiry. Source: ' . ($inquiry['source'] ?? 'Unknown');
     
-    $stmt = $pdo->prepare("INSERT INTO appointments (patient_id, appointment_date, appointment_time, treatment, notes, status, created_by, created_at) VALUES (?, ?, ?, ?, ?, 'scheduled', ?, NOW())");
-    $stmt->execute([$patient_id, $today, $defaultTime, $treatment, $notes, $_SESSION['user_id'] ?? 1]);
+    // Include patient name fields in the appointment
+    $stmt = $pdo->prepare("INSERT INTO appointments (patient_id, first_name, middle_name, last_name, appointment_date, appointment_time, treatment, notes, status, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, NOW())");
+    $stmt->execute([$patient_id, $firstName, $middleName, $lastName, $today, $defaultTime, $treatment, $notes, $_SESSION['user_id'] ?? 1]);
     
     $appointment_id = $pdo->lastInsertId();
     

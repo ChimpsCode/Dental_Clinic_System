@@ -13,10 +13,11 @@ try {
     $hasArchiveColumn = $checkCol->rowCount() > 0;
     
     // Build WHERE clause to exclude archived inquiries
-    $whereClause = $hasArchiveColumn ? "WHERE is_archived = 0 OR is_archived IS NULL" : "";
+    $whereClause = $hasArchiveColumn ? "WHERE i.is_archived = 0 OR i.is_archived IS NULL" : "";
     
     // Get total count for pagination (exclude archived)
-    $countQuery = "SELECT COUNT(*) FROM inquiries $whereClause";
+    $countWhereClause = $hasArchiveColumn ? "WHERE is_archived = 0 OR is_archived IS NULL" : "";
+    $countQuery = "SELECT COUNT(*) FROM inquiries $countWhereClause";
     $countStmt = $pdo->query($countQuery);
     $totalInquiries = $countStmt->fetchColumn();
     $totalPages = ceil($totalInquiries / $itemsPerPage);
@@ -29,8 +30,13 @@ try {
     // Calculate offset
     $offset = ($currentPage - 1) * $itemsPerPage;
     
-    // Get paginated inquiries (exclude archived)
-    $query = "SELECT * FROM inquiries $whereClause ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
+    // Get paginated inquiries with service names (exclude archived)
+    $query = "SELECT i.*, s.name as service_name 
+              FROM inquiries i 
+              LEFT JOIN services s ON i.topic = s.id 
+              $whereClause 
+              ORDER BY i.created_at DESC 
+              LIMIT :limit OFFSET :offset";
     $stmt = $pdo->prepare($query);
     $stmt->bindValue(':limit', $itemsPerPage, PDO::PARAM_INT);
     $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
@@ -38,11 +44,13 @@ try {
     $inquiries = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Get all inquiries for stats (without pagination, exclude archived)
-    $statsQuery = "SELECT status FROM inquiries $whereClause";
+    $statsWhereClause = $hasArchiveColumn ? "WHERE is_archived = 0 OR is_archived IS NULL" : "";
+    $statsQuery = "SELECT status FROM inquiries $statsWhereClause";
     $allInquiriesStmt = $pdo->query($statsQuery);
     $allInquiriesForStats = $allInquiriesStmt->fetchAll(PDO::FETCH_ASSOC);
     
 } catch (Exception $e) {
+    error_log("Inquiries Error: " . $e->getMessage());
     $inquiries = [];
     $allInquiriesForStats = [];
     $totalInquiries = 0;
@@ -420,7 +428,7 @@ require_once 'includes/staff_layout_start.php';
                             <tr>
                                 <th>Name</th>
                                 <th>Source</th>
-                                <th>Topic</th>
+                                <th>Service</th>
                                 <th>Date</th>
                                 <th>Status</th>
                                 <th>Actions</th>
@@ -450,7 +458,7 @@ require_once 'includes/staff_layout_start.php';
                                         <td>
                                             <?php $sourceIcons = ['Fb messenger' => '💬', 'Phone call' => '📞', 'Walk-in' => '🚶']; echo ($sourceIcons[$inquiry['source']] ?? '📝') . ' ' . htmlspecialchars($inquiry['source']); ?>
                                         </td>
-                                        <td><?php echo htmlspecialchars($inquiry['topic'] ?? 'General'); ?></td>
+                                        <td><?php echo htmlspecialchars($inquiry['service_name'] ?? 'General'); ?></td>
                                         <td><?php echo date('M d, Y', strtotime($inquiry['created_at'])); ?></td>
                                         <td><span class="status-badge status-<?php echo strtolower($inquiry['status']); ?>"><?php echo htmlspecialchars($inquiry['status']); ?></span></td>
                                         <td>
@@ -1020,7 +1028,7 @@ require_once 'includes/staff_layout_start.php';
                     <div><span style="color: #6b7280;">Name:</span> <span style="font-weight: 500; margin-left: 8px;">${fullName}</span></div>
                     <div><span style="color: #6b7280;">Contact:</span> <span style="font-weight: 500; margin-left: 8px;">${inquiry.contact_info || 'N/A'}</span></div>
                     <div><span style="color: #6b7280;">Source:</span> <span style="font-weight: 500; margin-left: 8px;">${inquiry.source}</span></div>
-                    <div><span style="color: #6b7280;">Topic:</span> <span style="font-weight: 500; margin-left: 8px;">${inquiry.topic || 'General'}</span></div>
+                    <div><span style="color: #6b7280;">Topic:</span> <span style="font-weight: 500; margin-left: 8px;">${inquiry.service_name || 'General'}</span></div>
                     <div><span style="color: #6b7280;">Status:</span> <span class="status-badge status-${inquiry.status.toLowerCase().replace(/\s+/g, '-')}" style="margin-left: 8px;">${inquiry.status}</span></div>
                     <div><span style="color: #6b7280;">Date:</span> <span style="font-weight: 500; margin-left: 8px;">${new Date(inquiry.created_at).toLocaleDateString()}</span></div>
                     <div style="margin-top: 8px;"><span style="color: #6b7280;">Message:</span><p style="background: #f9fafb; padding: 14px; border-radius: 8px; margin: 8px 0 0; line-height: 1.5;">${inquiry.inquiry_message || 'No message'}</p></div>

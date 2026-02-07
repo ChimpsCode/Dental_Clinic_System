@@ -92,12 +92,10 @@ try {
                         <th>First Name</th>
                         <th>Middle Name</th>
                         <th>Last Name</th>
-                        <th>Suffix</th>
                         <th>Age/Gender</th>
                         <th>Contact</th>
                         <th>Current Treatment</th>
                         <th>Queue Status</th>
-                        <th>Date Added</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -114,7 +112,6 @@ try {
                             <td>
                                 <div class="patient-name" style="font-weight: 600;"><?php echo htmlspecialchars($patient['last_name'] ?? 'Unknown'); ?></div>
                             </td>
-                            <td><?php echo htmlspecialchars($patient['suffix'] ?? ''); ?></td>
                             <td>
                                 <div style="font-size: 0.9rem;">
                                     <span style="font-weight: 500;"><?php echo $patient['age'] ?? 'N/A'; ?> yrs</span>
@@ -154,11 +151,6 @@ try {
                                 <span class="status-badge" style="background: <?php echo $bgColor; ?>; color: <?php echo $textColor; ?>;">
                                     <?php echo ucfirst(str_replace('_', ' ', $status ?: 'None')); ?>
                                 </span>
-                            </td>
-                            <td>
-                                <div style="font-size: 0.9rem; font-weight: 500;">
-                                    <?php echo !empty($patient['created_at']) ? date('M d, Y', strtotime($patient['created_at'])) : 'N/A'; ?>
-                                </div>
                             </td>
                             <td>
                                 <div class="patient-kebab-menu">
