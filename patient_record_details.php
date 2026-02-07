@@ -68,12 +68,18 @@ try {
     $stmt->execute([$patientId]);
     $queueItem = $stmt->fetch(PDO::FETCH_ASSOC);
     
+    // Get treatment history (all completed treatments)
+    $stmt = $pdo->prepare("SELECT * FROM treatments WHERE patient_id = ? ORDER BY created_at DESC");
+    $stmt->execute([$patientId]);
+    $treatmentHistory = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
     echo json_encode([
         'success' => true,
         'patient' => $patient,
         'medical_history' => $medicalHistory,
         'dental_history' => $dentalHistory,
-        'queue_item' => $queueItem
+        'queue_item' => $queueItem,
+        'treatment_history' => $treatmentHistory
     ]);
     
 } catch (Exception $e) {

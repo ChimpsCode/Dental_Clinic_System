@@ -553,6 +553,38 @@ function viewPatientDetails(patientId) {
                     </div>
                 </div>
                 
+                <!-- Treatment History -->
+                ${data.treatment_history && data.treatment_history.length > 0 ? `
+                <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 20px; margin-top: 20px;">
+                    <h3 style="font-size: 1rem; font-weight: 600; color: #059669; margin-bottom: 16px;">🏥 Treatment History</h3>
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        ${data.treatment_history.map(t => `
+                            <div style="background: white; border-radius: 8px; padding: 16px; border: 1px solid #e5e7eb;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                                    <div>
+                                        <div style="font-weight: 600; color: #111827; font-size: 0.95rem;">${t.procedure_name || 'Treatment'}</div>
+                                        <div style="font-size: 0.85rem; color: #6b7280;">${new Date(t.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                                    </div>
+                                    <div style="background: #d1fae5; color: #059669; padding: 4px 12px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600;">
+                                        ${t.status || 'Completed'}
+                                    </div>
+                                </div>
+                                ${t.tooth_number ? `<div style="font-size: 0.9rem; color: #374151; margin-bottom: 8px;">🦷 Teeth: ${t.tooth_number}</div>` : ''}
+                                ${t.description || t.notes ? `<div style="font-size: 0.85rem; color: #6b7280; font-style: italic;">${t.description || t.notes}</div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : `
+                <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-top: 20px;">
+                    <div style="text-align: center; color: #9ca3af; padding: 20px;">
+                        <div style="font-size: 2rem; margin-bottom: 8px;">📋</div>
+                        <div style="font-weight: 500; color: #6b7280;">No treatment history yet</div>
+                        <div style="font-size: 0.85rem;">Completed treatments will appear here</div>
+                    </div>
+                </div>
+                `}
+                
                 <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px;">
                     <button onclick="closePatientModal()" class="btn-cancel">Close</button>
                 </div>

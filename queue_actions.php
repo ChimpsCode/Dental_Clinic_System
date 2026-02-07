@@ -95,20 +95,76 @@ try {
             break;
             
         case 'complete':
-            $stmt = $pdo->prepare("UPDATE queue SET status = 'completed', updated_at = NOW() WHERE id = ?");
-            $stmt->execute([$queueId]);
-            
-            $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix FROM queue q 
-                                   LEFT JOIN patients p ON q.patient_id = p.id WHERE q.id = ?");
+            // First, get the queue item details BEFORE updating
+            $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix 
+                                   FROM queue q 
+                                   LEFT JOIN patients p ON q.patient_id = p.id 
+                                   WHERE q.id = ?");
             $stmt->execute([$queueId]);
             $queueItem = $stmt->fetch();
-            $patientName = buildFullName($queueItem);
             
-            echo json_encode([
-                'success' => true, 
-                'message' => 'Treatment completed for ' . $patientName,
-                'patient_name' => $patientName
-            ]);
+            if (!$queueItem) {
+                echo json_encode(['success' => false, 'message' => 'Queue item not found']);
+                break;
+            }
+            
+            // Check if already processed
+            $isProcessed = $queueItem['is_processed'] ?? 0;
+            
+            // Auto-create treatment record if not already processed
+            if (!$isProcessed) {
+                // Get user info for doctor_id
+                $doctorId = $_SESSION['user_id'] ?? 1;
+                
+                // Insert into treatments table (matching actual column names)
+                $insertStmt = $pdo->prepare("INSERT INTO treatments (
+                    patient_id, 
+                    treatment_date, 
+                    procedure_name, 
+                    tooth_number, 
+                    description, 
+                    status, 
+                    doctor_id,
+                    notes,
+                    created_at
+                ) VALUES (?, CURDATE(), ?, ?, ?, 'completed', ?, ?, NOW())");
+                
+                $insertStmt->execute([
+                    $queueItem['patient_id'],
+                    $queueItem['treatment_type'],
+                    $queueItem['teeth_numbers'],
+                    $queueItem['procedure_notes'] ?? 'Treatment completed from queue',
+                    $doctorId,
+                    $queueItem['procedure_notes'] ?? ''
+                ]);
+                
+                $treatmentId = $pdo->lastInsertId();
+                
+                // Mark queue item as processed
+                $stmt = $pdo->prepare("UPDATE queue SET status = 'completed', completed_at = NOW(), is_processed = 1, updated_at = NOW() WHERE id = ?");
+                $stmt->execute([$queueId]);
+                
+                $patientName = buildFullName($queueItem);
+                
+                echo json_encode([
+                    'success' => true, 
+                    'message' => 'Treatment completed and recorded for ' . $patientName,
+                    'patient_name' => $patientName,
+                    'treatment_id' => $treatmentId
+                ]);
+            } else {
+                // Already processed, just update status
+                $stmt = $pdo->prepare("UPDATE queue SET status = 'completed', updated_at = NOW() WHERE id = ?");
+                $stmt->execute([$queueId]);
+                
+                $patientName = buildFullName($queueItem);
+                
+                echo json_encode([
+                    'success' => true, 
+                    'message' => 'Treatment completed for ' . $patientName,
+                    'patient_name' => $patientName
+                ]);
+            }
             break;
             
         case 'on_hold':
