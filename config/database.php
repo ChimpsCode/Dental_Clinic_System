@@ -180,7 +180,7 @@ function initializeDatabase($pdo) {
             patient_id INT NOT NULL,
             treatment_name VARCHAR(200) NOT NULL,
             treatment_type VARCHAR(100),
-            teeth_numbers VARCHAR(100),
+            teeth_numbers VARCHAR(500),
             total_sessions INT DEFAULT 1,
             completed_sessions INT DEFAULT 0,
             status VARCHAR(20) DEFAULT 'active',

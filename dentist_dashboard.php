@@ -150,7 +150,44 @@ try {
                         </div>
                         <div>
                             <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Teeth</div>
-                            <div style="font-weight: 600; color: #111827;"><?php echo htmlspecialchars($inProcedurePatient['teeth_numbers'] ? $inProcedurePatient['teeth_numbers'] : 'All teeth / Not specified'); ?></div>
+                            <div style="font-weight: 600; color: #111827;"><?php 
+                                $teethDisplay = '';
+                                $teethStr = $inProcedurePatient['teeth_numbers'] ?? '';
+                                if (!empty($teethStr)) {
+                                    $teeth = array_map('trim', explode(',', $teethStr));
+                                    $teeth = array_filter($teeth, function($t) { return !empty($t); });
+                                    $teeth = array_map('intval', $teeth);
+                                    
+                                    // Staff's arch definitions match
+                                    $upperArch = [11, 12, 13, 14, 15, 16, 17, 18, 21, 22, 23, 24, 25, 26, 27, 28]; // 16 teeth
+                                    $lowerArch = [31, 32, 33, 34, 35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 47, 48]; // 16 teeth
+                                    
+                                    // Check for exact arch matches
+                                    $hasUpperArch = count($teeth) === 16 && empty(array_diff($upperArch, $teeth)) && empty(array_diff($teeth, $upperArch));
+                                    $hasLowerArch = count($teeth) === 16 && empty(array_diff($lowerArch, $teeth)) && empty(array_diff($teeth, $lowerArch));
+                                    
+                                    $parts = [];
+                                    
+                                    if ($hasUpperArch) {
+                                        $parts[] = 'Upper Arch';
+                                    }
+                                    
+                                    if ($hasLowerArch) {
+                                        $parts[] = 'Lower Arch';
+                                    }
+                                    
+                                    // If no full arch matches, show individual teeth
+                                    if (empty($parts)) {
+                                        sort($teeth);
+                                        $teethDisplay = implode(', ', $teeth);
+                                    } else {
+                                        $teethDisplay = implode(' + ', $parts);
+                                    }
+                                } else {
+                                    $teethDisplay = 'Not specified';
+                                }
+                                echo htmlspecialchars($teethDisplay);
+                            ?></div>
                         </div>
                         <div>
                             <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Started At</div>
@@ -215,7 +252,44 @@ try {
                         </div>
                         <div>
                             <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Teeth</div>
-                            <div style="font-weight: 600; color: #111827;"><?php echo htmlspecialchars($nextPatient['teeth_numbers'] ? $nextPatient['teeth_numbers'] : 'All teeth / Not specified'); ?></div>
+                            <div style="font-weight: 600; color: #111827;"><?php 
+                                $teethDisplay = '';
+                                $teethStr = $nextPatient['teeth_numbers'] ?? '';
+                                if (!empty($teethStr)) {
+                                    $teeth = array_map('trim', explode(',', $teethStr));
+                                    $teeth = array_filter($teeth, function($t) { return !empty($t); });
+                                    $teeth = array_map('intval', $teeth);
+                                    
+                                    // Staff's arch definitions match
+                                    $upperArch = [11, 12, 13, 14, 15, 16, 17, 18, 21, 22, 23, 24, 25, 26, 27, 28]; // 16 teeth
+                                    $lowerArch = [31, 32, 33, 34, 35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 47, 48]; // 16 teeth
+                                    
+                                    // Check for exact arch matches
+                                    $hasUpperArch = count($teeth) === 16 && empty(array_diff($upperArch, $teeth)) && empty(array_diff($teeth, $upperArch));
+                                    $hasLowerArch = count($teeth) === 16 && empty(array_diff($lowerArch, $teeth)) && empty(array_diff($teeth, $lowerArch));
+                                    
+                                    $parts = [];
+                                    
+                                    if ($hasUpperArch) {
+                                        $parts[] = 'Upper Arch';
+                                    }
+                                    
+                                    if ($hasLowerArch) {
+                                        $parts[] = 'Lower Arch';
+                                    }
+                                    
+                                    // If no full arch matches, show individual teeth
+                                    if (empty($parts)) {
+                                        sort($teeth);
+                                        $teethDisplay = implode(', ', $teeth);
+                                    } else {
+                                        $teethDisplay = implode(' + ', $parts);
+                                    }
+                                } else {
+                                    $teethDisplay = 'Not specified';
+                                }
+                                echo htmlspecialchars($teethDisplay);
+                            ?></div>
                         </div>
                         <div>
                             <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Queued At</div>
@@ -300,7 +374,33 @@ try {
                                     <div class="patient-name"><?php echo htmlspecialchars($patient['full_name']); ?></div>
                                     <div class="patient-details">
                                         <span class="patient-time"><?php echo htmlspecialchars($patient['treatment_type'] ?? 'General'); ?></span>
-                                        <span style="color: #6b7280;">• <?php echo htmlspecialchars($patient['teeth_numbers'] ? 'Teeth: ' . $patient['teeth_numbers'] : 'All teeth'); ?></span>
+                                        <span style="color: #6b7280;">• <?php 
+                                            $teethStr = $patient['teeth_numbers'] ?? '';
+                                            if (!empty($teethStr)) {
+                                                $teeth = array_map('trim', explode(',', $teethStr));
+                                                $teeth = array_filter($teeth, function($t) { return !empty($t); });
+                                                $teeth = array_map('intval', $teeth);
+                                                
+                                                $upperArch = [11, 12, 13, 14, 15, 16, 17, 18, 21, 22, 23, 24, 25, 26, 27, 28];
+                                                $lowerArch = [31, 32, 33, 34, 35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 47, 48];
+                                                
+                                                $hasUpperArch = count($teeth) === 16 && empty(array_diff($upperArch, $teeth)) && empty(array_diff($teeth, $upperArch));
+                                                $hasLowerArch = count($teeth) === 16 && empty(array_diff($lowerArch, $teeth)) && empty(array_diff($teeth, $lowerArch));
+                                                
+                                                $parts = [];
+                                                if ($hasUpperArch) $parts[] = 'Upper';
+                                                if ($hasLowerArch) $parts[] = 'Lower';
+                                                
+                                                if (!empty($parts)) {
+                                                    echo 'Teeth: ' . implode(' + ', $parts) . ' Arch';
+                                                } else {
+                                                    sort($teeth);
+                                                    echo 'Teeth: ' . implode(', ', $teeth);
+                                                }
+                                            } else {
+                                                echo 'All teeth';
+                                            }
+                                        ?></span>
                                     </div>
                                 </div>
                             </div>
@@ -511,7 +611,7 @@ function viewPatientDetails(patientId) {
                         ${generateToothChartHTML(q.teeth_numbers || '')}
                     </div>
                     <div id="selectedTeethDisplay" style="font-size: 0.9rem; color: #374151; font-weight: 500;">
-                        Selected: ${q.teeth_numbers || 'None'}
+                        Selected: ${getTeethDisplayText(q.teeth_numbers || '')}
                     </div>
                     <div id="teethEditActions" style="display: none; margin-top: 12px; gap: 8px;">
                         <button onclick="saveTeethChanges(${q.id})" class="btn-primary" style="padding: 8px 16px;">Save Changes</button>
@@ -911,6 +1011,43 @@ document.addEventListener('DOMContentLoaded', function() {
 let currentTeethSelection = [];
 let isEditingTeeth = false;
 let currentQueueId = null;
+
+// Convert teeth numbers to arch labels (matches staff terminology)
+function getTeethDisplayText(teethString) {
+    if (!teethString || teethString.trim() === '') {
+        return 'Not specified';
+    }
+    
+    const teeth = teethString.split(',').map(t => parseInt(t.trim())).filter(t => !isNaN(t));
+    if (teeth.length === 0) {
+        return 'Not specified';
+    }
+    
+    // Staff's arch definitions - exactly 16 teeth per arch
+    const upperArch = [11, 12, 13, 14, 15, 16, 17, 18, 21, 22, 23, 24, 25, 26, 27, 28];
+    const lowerArch = [31, 32, 33, 34, 35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 47, 48];
+    
+    // Check for exact arch matches
+    const hasUpperArch = teeth.length === 16 && upperArch.every(t => teeth.includes(t));
+    const hasLowerArch = teeth.length === 16 && lowerArch.every(t => teeth.includes(t));
+    
+    const parts = [];
+    
+    if (hasUpperArch) {
+        parts.push('Upper Arch');
+    }
+    
+    if (hasLowerArch) {
+        parts.push('Lower Arch');
+    }
+    
+    // If no full arch matches, show individual teeth
+    if (parts.length === 0) {
+        return teeth.sort((a, b) => a - b).join(', ');
+    }
+    
+    return parts.join(' + ');
+}
 
 // Generate 3D Tooth Chart HTML
 function generateToothChartHTML(selectedTeeth) {

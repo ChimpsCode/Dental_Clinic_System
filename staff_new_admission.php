@@ -765,23 +765,26 @@ if (isset($_GET['appointment_id']) && is_numeric($_GET['appointment_id'])) {
                                 <div class="tooth-wrapper" data-tooth="26" onclick="toggleTooth3D(this)"><div class="tooth-face">26</div></div>
                                 <div class="tooth-wrapper" data-tooth="27" onclick="toggleTooth3D(this)"><div class="tooth-face">27</div></div>
                                 <div class="tooth-wrapper" data-tooth="28" onclick="toggleTooth3D(this)"><div class="tooth-face">28</div></div>
+                            </div>
 
-                                <!-- Primary Upper Right (51-55) - Hidden by default -->
-                                <div class="tooth-wrapper hidden" data-tooth="55" onclick="toggleTooth3D(this)"><div class="tooth-face">55</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="54" onclick="toggleTooth3D(this)"><div class="tooth-face">54</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="53" onclick="toggleTooth3D(this)"><div class="tooth-face">53</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="52" onclick="toggleTooth3D(this)"><div class="tooth-face">52</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="51" onclick="toggleTooth3D(this)"><div class="tooth-face">51</div></div>
-
+                            <!-- Primary Upper Arch (Separate container, hidden by default) -->
+                            <div class="arch-container hidden" id="primaryUpperArch">
+                                <!-- Primary Upper Right (55-51) -->
+                                <div class="tooth-wrapper" data-tooth="55" onclick="toggleTooth3D(this)"><div class="tooth-face">55</div></div>
+                                <div class="tooth-wrapper" data-tooth="54" onclick="toggleTooth3D(this)"><div class="tooth-face">54</div></div>
+                                <div class="tooth-wrapper" data-tooth="53" onclick="toggleTooth3D(this)"><div class="tooth-face">53</div></div>
+                                <div class="tooth-wrapper" data-tooth="52" onclick="toggleTooth3D(this)"><div class="tooth-face">52</div></div>
+                                <div class="tooth-wrapper" data-tooth="51" onclick="toggleTooth3D(this)"><div class="tooth-face">51</div></div>
+                                
                                 <!-- Spacer -->
                                 <div class="w-4"></div>
 
-                                <!-- Primary Upper Left (61-65) - Hidden by default -->
-                                <div class="tooth-wrapper hidden" data-tooth="61" onclick="toggleTooth3D(this)"><div class="tooth-face">61</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="62" onclick="toggleTooth3D(this)"><div class="tooth-face">62</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="63" onclick="toggleTooth3D(this)"><div class="tooth-face">63</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="64" onclick="toggleTooth3D(this)"><div class="tooth-face">64</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="65" onclick="toggleTooth3D(this)"><div class="tooth-face">65</div></div>
+                                <!-- Primary Upper Left (61-65) -->
+                                <div class="tooth-wrapper" data-tooth="61" onclick="toggleTooth3D(this)"><div class="tooth-face">61</div></div>
+                                <div class="tooth-wrapper" data-tooth="62" onclick="toggleTooth3D(this)"><div class="tooth-face">62</div></div>
+                                <div class="tooth-wrapper" data-tooth="63" onclick="toggleTooth3D(this)"><div class="tooth-face">63</div></div>
+                                <div class="tooth-wrapper" data-tooth="64" onclick="toggleTooth3D(this)"><div class="tooth-face">64</div></div>
+                                <div class="tooth-wrapper" data-tooth="65" onclick="toggleTooth3D(this)"><div class="tooth-face">65</div></div>
                             </div>
                         </div>
 
@@ -811,23 +814,26 @@ if (isset($_GET['appointment_id']) && is_numeric($_GET['appointment_id'])) {
                                 <div class="tooth-wrapper" data-tooth="36" onclick="toggleTooth3D(this)"><div class="tooth-face">36</div></div>
                                 <div class="tooth-wrapper" data-tooth="37" onclick="toggleTooth3D(this)"><div class="tooth-face">37</div></div>
                                 <div class="tooth-wrapper" data-tooth="38" onclick="toggleTooth3D(this)"><div class="tooth-face">38</div></div>
+                            </div>
 
-                                <!-- Primary Lower Right (71-75) - Hidden by default -->
-                                <div class="tooth-wrapper hidden" data-tooth="85" onclick="toggleTooth3D(this)"><div class="tooth-face">85</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="84" onclick="toggleTooth3D(this)"><div class="tooth-face">84</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="83" onclick="toggleTooth3D(this)"><div class="tooth-face">83</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="82" onclick="toggleTooth3D(this)"><div class="tooth-face">82</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="81" onclick="toggleTooth3D(this)"><div class="tooth-face">81</div></div>
-
+                            <!-- Primary Lower Arch (Separate container, hidden by default) -->
+                            <div class="arch-container hidden" id="primaryLowerArch">
+                                <!-- Primary Lower Right (85-81) -->
+                                <div class="tooth-wrapper" data-tooth="85" onclick="toggleTooth3D(this)"><div class="tooth-face">85</div></div>
+                                <div class="tooth-wrapper" data-tooth="84" onclick="toggleTooth3D(this)"><div class="tooth-face">84</div></div>
+                                <div class="tooth-wrapper" data-tooth="83" onclick="toggleTooth3D(this)"><div class="tooth-face">83</div></div>
+                                <div class="tooth-wrapper" data-tooth="82" onclick="toggleTooth3D(this)"><div class="tooth-face">82</div></div>
+                                <div class="tooth-wrapper" data-tooth="81" onclick="toggleTooth3D(this)"><div class="tooth-face">81</div></div>
+                                
                                 <!-- Spacer -->
                                 <div class="w-4"></div>
 
-                                <!-- Primary Lower Left (81-85) - Hidden by default -->
-                                <div class="tooth-wrapper hidden" data-tooth="71" onclick="toggleTooth3D(this)"><div class="tooth-face">71</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="72" onclick="toggleTooth3D(this)"><div class="tooth-face">72</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="73" onclick="toggleTooth3D(this)"><div class="tooth-face">73</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="74" onclick="toggleTooth3D(this)"><div class="tooth-face">74</div></div>
-                                <div class="tooth-wrapper hidden" data-tooth="75" onclick="toggleTooth3D(this)"><div class="tooth-face">75</div></div>
+                                <!-- Primary Lower Left (71-75) -->
+                                <div class="tooth-wrapper" data-tooth="71" onclick="toggleTooth3D(this)"><div class="tooth-face">71</div></div>
+                                <div class="tooth-wrapper" data-tooth="72" onclick="toggleTooth3D(this)"><div class="tooth-face">72</div></div>
+                                <div class="tooth-wrapper" data-tooth="73" onclick="toggleTooth3D(this)"><div class="tooth-face">73</div></div>
+                                <div class="tooth-wrapper" data-tooth="74" onclick="toggleTooth3D(this)"><div class="tooth-face">74</div></div>
+                                <div class="tooth-wrapper" data-tooth="75" onclick="toggleTooth3D(this)"><div class="tooth-face">75</div></div>
                             </div>
                         </div>
 
@@ -1513,7 +1519,18 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
             const mode = getOverallMode();
             const instruction = document.getElementById('dentalChartInstruction');
             const archButtons = document.getElementById('archSelectionButtons');
-            const teeth = document.querySelectorAll('.tooth-wrapper');
+            
+            // Get teeth based on current tooth type
+            let teeth = [];
+            if (toothType === 'primary') {
+                const primaryUpper = document.querySelectorAll('#primaryUpperArch .tooth-wrapper');
+                const primaryLower = document.querySelectorAll('#primaryLowerArch .tooth-wrapper');
+                teeth = [...primaryUpper, ...primaryLower];
+            } else {
+                const permanentUpper = document.querySelectorAll('#upperArch .tooth-wrapper');
+                const permanentLower = document.querySelectorAll('#lowerArch .tooth-wrapper');
+                teeth = [...permanentUpper, ...permanentLower];
+            }
             
             // Get the first selected service for instruction
             const firstChecked = document.querySelector('input[name="services[]"]:checked');
@@ -1541,52 +1558,6 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
                 });
             } else {
                 archButtons.classList.add('hidden');
-                teeth.forEach(tooth => {
-                    tooth.style.pointerEvents = 'none';
-                    tooth.style.opacity = '0.5';
-                });
-            }
-        }
-        
-        /**
-         * Update the dental chart mode based on selected services
-         * Shows/hides arch selection buttons and updates instruction text
-         */
-        function updateDentalChartMode() {
-            const mode = getOverallMode();
-            const instruction = document.getElementById('dentalChartInstruction');
-            const archButtons = document.getElementById('archSelectionButtons');
-            const teeth = document.querySelectorAll('.tooth-wrapper');
-            
-            // Get the first selected service for instruction
-            const firstChecked = document.querySelector('input[name="services[]"]:checked');
-            const serviceName = firstChecked ? firstChecked.value : '';
-            
-            // Update instruction text
-            if (serviceName) {
-                instruction.innerText = getServiceInstruction(serviceName);
-            } else {
-                instruction.innerText = 'Select a service to see instructions';
-            }
-            
-            // Show/hide arch selection buttons based on mode
-            if (mode === 'BULK') {
-                archButtons.classList.remove('hidden');
-                // Enable arch buttons
-                teeth.forEach(tooth => {
-                    tooth.style.pointerEvents = 'auto';
-                    tooth.style.opacity = '1';
-                });
-            } else if (mode === 'SINGLE') {
-                archButtons.classList.add('hidden');
-                // Enable individual tooth clicking
-                teeth.forEach(tooth => {
-                    tooth.style.pointerEvents = 'auto';
-                    tooth.style.opacity = '1';
-                });
-            } else {
-                archButtons.classList.add('hidden');
-                // Disable all tooth interaction
                 teeth.forEach(tooth => {
                     tooth.style.pointerEvents = 'none';
                     tooth.style.opacity = '0.5';
@@ -1599,7 +1570,15 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
          * @param {string} arch - 'upper' or 'lower'
          */
         function selectArch(arch) {
-            const archElement = document.getElementById(arch + 'Arch');
+            let archElement;
+            if (toothType === 'primary') {
+                archElement = document.getElementById('primary' + arch.charAt(0).toUpperCase() + arch.slice(1) + 'Arch');
+            } else {
+                archElement = document.getElementById(arch + 'Arch');
+            }
+            
+            if (!archElement) return;
+            
             const teeth = archElement.querySelectorAll('.tooth-wrapper');
             
             // Check if all teeth are already selected
@@ -1676,27 +1655,27 @@ btn.classList.add('bg-blue-200', 'border-blue-400');
         }
 
         function updateToothVisibility() {
-            const primaryTeeth = document.querySelectorAll('[data-tooth="51"], [data-tooth="52"], [data-tooth="53"], [data-tooth="54"], [data-tooth="55"], [data-tooth="61"], [data-tooth="62"], [data-tooth="63"], [data-tooth="64"], [data-tooth="65"], [data-tooth="71"], [data-tooth="72"], [data-tooth="73"], [data-tooth="74"], [data-tooth="75"], [data-tooth="81"], [data-tooth="82"], [data-tooth="83"], [data-tooth="84"], [data-tooth="85"]');
-            const permanentTeeth = document.querySelectorAll('[data-tooth="18"], [data-tooth="17"], [data-tooth="16"], [data-tooth="15"], [data-tooth="14"], [data-tooth="13"], [data-tooth="12"], [data-tooth="11"], [data-tooth="21"], [data-tooth="22"], [data-tooth="23"], [data-tooth="24"], [data-tooth="25"], [data-tooth="26"], [data-tooth="27"], [data-tooth="28"], [data-tooth="48"], [data-tooth="47"], [data-tooth="46"], [data-tooth="45"], [data-tooth="44"], [data-tooth="43"], [data-tooth="42"], [data-tooth="41"], [data-tooth="31"], [data-tooth="32"], [data-tooth="33"], [data-tooth="34"], [data-tooth="35"], [data-tooth="36"], [data-tooth="37"], [data-tooth="38"]');
+            const permanentUpperArch = document.getElementById('upperArch');
+            const permanentLowerArch = document.getElementById('lowerArch');
+            const primaryUpperArch = document.getElementById('primaryUpperArch');
+            const primaryLowerArch = document.getElementById('primaryLowerArch');
+            const upperLabel = document.getElementById('upperArchLabel');
+            const lowerLabel = document.getElementById('lowerArchLabel');
             
             if (toothType === 'primary') {
-                primaryTeeth.forEach(t => {
-                    t.style.display = 'flex';
-                    t.classList.remove('hidden');
-                });
-                permanentTeeth.forEach(t => {
-                    t.style.display = 'none';
-                    t.classList.add('hidden');
-                });
+                permanentUpperArch.classList.add('hidden');
+                permanentLowerArch.classList.add('hidden');
+                primaryUpperArch.classList.remove('hidden');
+                primaryLowerArch.classList.remove('hidden');
+                upperLabel.innerText = 'Primary Upper Arch';
+                lowerLabel.innerText = 'Primary Lower Arch';
             } else {
-                primaryTeeth.forEach(t => {
-                    t.style.display = 'none';
-                    t.classList.add('hidden');
-                });
-                permanentTeeth.forEach(t => {
-                    t.style.display = 'flex';
-                    t.classList.remove('hidden');
-                });
+                permanentUpperArch.classList.remove('hidden');
+                permanentLowerArch.classList.remove('hidden');
+                primaryUpperArch.classList.add('hidden');
+                primaryLowerArch.classList.add('hidden');
+                upperLabel.innerText = 'Upper Arch (Maxilla)';
+                lowerLabel.innerText = 'Lower Arch (Mandible)';
             }
         }
 

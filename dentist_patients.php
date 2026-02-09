@@ -571,7 +571,7 @@ function viewPatientDetails(patientId) {
                         </div>
                         <div class="patient-info-item">
                             <div class="patient-info-label">Selected Teeth</div>
-                            <div class="patient-info-value">${q.teeth_numbers || 'None'}</div>
+                            <div class="patient-info-value">${q.teeth_numbers ? getDentistTeethDisplayText(q.teeth_numbers) : 'None'}</div>
                         </div>
                         <div class="patient-info-item">
                             <div class="patient-info-label">Status</div>
@@ -862,6 +862,42 @@ document.getElementById('addAppointmentForm').addEventListener('submit', functio
         alert('Error scheduling appointment');
     });
 });
+
+// Convert teeth numbers to arch labels (matches staff terminology)
+function getDentistTeethDisplayText(teethString) {
+    if (!teethString || teethString.trim() === '') {
+        return 'None';
+    }
+    
+    const teeth = teethString.split(',').map(t => parseInt(t.trim())).filter(t => !isNaN(t));
+    if (teeth.length === 0) {
+        return 'None';
+    }
+    
+    // Staff's arch definitions - exactly 16 teeth per arch
+    const upperArch = [11, 12, 13, 14, 15, 16, 17, 18, 21, 22, 23, 24, 25, 26, 27, 28];
+    const lowerArch = [31, 32, 33, 34, 35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 47, 48];
+    
+    // Check for exact arch matches
+    const hasUpperArch = teeth.length === 16 && upperArch.every(t => teeth.includes(t));
+    const hasLowerArch = teeth.length === 16 && lowerArch.every(t => teeth.includes(t));
+    
+    const parts = [];
+    
+    if (hasUpperArch) {
+        parts.push('Upper Arch');
+    }
+    
+    if (hasLowerArch) {
+        parts.push('Lower Arch');
+    }
+    
+    if (parts.length === 0) {
+        return teeth.sort((a, b) => a - b).join(', ');
+    }
+    
+    return parts.join(' + ');
+}
 </script>
 
 <!-- Add Appointment Modal -->

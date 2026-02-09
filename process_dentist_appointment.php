@@ -19,6 +19,8 @@ if (!in_array($role, ['dentist', 'admin'])) {
 
 header('Content-Type: application/json');
 
+$action = $_POST['action'] ?? 'create';
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'message' => 'Invalid request method']);
     exit();
@@ -27,6 +29,70 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 try {
     require_once 'config/database.php';
     
+    if ($action === 'edit') {
+        // EDIT EXISTING APPOINTMENT
+        $appointment_id = $_POST['id'] ?? $_POST['appointment_id'] ?? null;
+        
+        if (!$appointment_id) {
+            echo json_encode(['success' => false, 'message' => 'Appointment ID is required']);
+            exit();
+        }
+        
+        // Get form data
+        $first_name = trim($_POST['first_name'] ?? '');
+        $middle_name = trim($_POST['middle_name'] ?? '');
+        $last_name = trim($_POST['last_name'] ?? '');
+        $phone = trim($_POST['phone'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $appointment_date = $_POST['appointment_date'] ?? '';
+        $appointment_time = $_POST['appointment_time'] ?? '';
+        $treatment = $_POST['treatment'] ?? 'General Checkup';
+        $notes = trim($_POST['notes'] ?? '');
+        $status = $_POST['status'] ?? 'scheduled';
+        
+        // Validate required fields
+        if (empty($first_name) || empty($last_name) || empty($phone) || empty($appointment_date) || empty($appointment_time)) {
+            echo json_encode(['success' => false, 'message' => 'Please fill in all required fields']);
+            exit();
+        }
+        
+        // Update appointment
+        $stmt = $pdo->prepare("UPDATE appointments SET 
+            first_name = ?, 
+            middle_name = ?, 
+            last_name = ?, 
+            phone = ?,
+            email = COALESCE(NULLIF(?, ''), email),
+            appointment_date = ?, 
+            appointment_time = ?, 
+            treatment = ?, 
+            notes = ?, 
+            status = ?,
+            updated_at = NOW() 
+            WHERE id = ?");
+        $stmt->execute([
+            $first_name,
+            $middle_name,
+            $last_name,
+            $phone,
+            $email,
+            $appointment_date,
+            $appointment_time,
+            $treatment,
+            $notes,
+            $status,
+            $appointment_id
+        ]);
+        
+        echo json_encode([
+            'success' => true, 
+            'message' => 'Appointment updated successfully',
+            'appointment_id' => $appointment_id
+        ]);
+        exit();
+    }
+    
+    // CREATE NEW APPOINTMENT (existing code)
     // Get form data
     $first_name = trim($_POST['first_name'] ?? '');
     $middle_name = trim($_POST['middle_name'] ?? '');

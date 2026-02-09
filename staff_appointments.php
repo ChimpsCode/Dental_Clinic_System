@@ -220,11 +220,20 @@ require_once 'includes/staff_layout_start.php';
                             </td>
                             <td>
                                 <div style="font-weight: 600;"><?php echo $lastName ?: '-'; ?></div>
-                                <div style="font-size: 0.85rem; color: #6b7280;">Phone: <?php echo htmlspecialchars($appt['phone'] ?? 'N/A'); ?></div>
                             </td>
                             <td>
                                 <div><?php echo date('M d, Y', strtotime($appt['appointment_date'])); ?></div>
-                                <div style="font-size: 0.85rem; color: #6b7280;"><?php echo htmlspecialchars($appt['appointment_time'] ?? 'N/A'); ?></div>
+                                <div style="font-size: 0.85rem; color: #6b7280;">
+                                    <?php 
+                                    $time = $appt['appointment_time'] ?? '';
+                                    if ($time) {
+                                        // Convert 24-hour format to 12-hour format with AM/PM
+                                        echo date('h:i A', strtotime($time));
+                                    } else {
+                                        echo 'N/A';
+                                    }
+                                    ?>
+                                </div>
                             </td>
                             <td><?php echo htmlspecialchars($appt['treatment'] ?? 'General'); ?></td>
                             <td>
@@ -719,7 +728,7 @@ require_once 'includes/staff_layout_start.php';
                 </div>
                 <div><span style="color: #6b7280;">Phone:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.phone || 'N/A'}</span></div>
                 <div><span style="color: #6b7280;">Date:</span> <span style="font-weight: 500; margin-left: 8px;">${new Date(appt.appointment_date).toLocaleDateString()}</span></div>
-                <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.appointment_time || 'N/A'}</span></div>
+                <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.appointment_time ? new Date('1970-01-01 ' + appt.appointment_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'N/A'}</span></div>
                 <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.treatment || 'General'}</span></div>
                 <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${appt.status === 'Completed' ? '#dcfce7' : appt.status === 'Cancelled' ? '#fee2e2' : '#e0f2fe'}; color: ${appt.status === 'Completed' ? '#15803d' : appt.status === 'Cancelled' ? '#dc2626' : '#0369a1'};">${appt.status || 'Pending'}</span></div>
                 ${appt.notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${appt.notes}</p></div>` : ''}

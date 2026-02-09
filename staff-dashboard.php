@@ -415,7 +415,7 @@ function viewPatientDashboard(patientId) {
                         <h3 style="font-size: 0.875rem; font-weight: 600; color: #6b7280; margin-bottom: 12px;">Service Requested</h3>
                         <div style="display: flex; flex-direction: column; gap: 10px;">
                             <div><span style="color: #6b7280; font-size: 0.875rem;">Treatment:</span> <span style="font-weight: 500;">${q.treatment_type || 'N/A'}</span></div>
-                            <div><span style="color: #6b7280; font-size: 0.875rem;">Teeth:</span> <span style="font-weight: 500;">${q.teeth_numbers || 'N/A'}</span></div>
+                            <div><span style="color: #6b7280; font-size: 0.875rem;">Teeth:</span> <span style="font-weight: 500;">${getStaffTeethDisplayText(q.teeth_numbers || '')}</span></div>
                         </div>
                     </div>
                 </div>
@@ -466,6 +466,42 @@ document.getElementById('addReminderBtn')?.addEventListener('click', () => {
     li.innerText = randomReminder;
     document.getElementById('reminder-list').appendChild(li);
 });
+
+// Convert teeth numbers to arch labels (matches staff terminology)
+function getStaffTeethDisplayText(teethString) {
+    if (!teethString || teethString.trim() === '') {
+        return 'N/A';
+    }
+    
+    const teeth = teethString.split(',').map(t => parseInt(t.trim())).filter(t => !isNaN(t));
+    if (teeth.length === 0) {
+        return 'N/A';
+    }
+    
+    // Staff's arch definitions - exactly 16 teeth per arch
+    const upperArch = [11, 12, 13, 14, 15, 16, 17, 18, 21, 22, 23, 24, 25, 26, 27, 28];
+    const lowerArch = [31, 32, 33, 34, 35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 47, 48];
+    
+    // Check for exact arch matches
+    const hasUpperArch = teeth.length === 16 && upperArch.every(t => teeth.includes(t));
+    const hasLowerArch = teeth.length === 16 && lowerArch.every(t => teeth.includes(t));
+    
+    const parts = [];
+    
+    if (hasUpperArch) {
+        parts.push('Upper Arch');
+    }
+    
+    if (hasLowerArch) {
+        parts.push('Lower Arch');
+    }
+    
+    if (parts.length === 0) {
+        return teeth.sort((a, b) => a - b).join(', ');
+    }
+    
+    return parts.join(' + ');
+}
 </script>
 
 
