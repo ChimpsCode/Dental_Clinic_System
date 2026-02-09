@@ -10,7 +10,6 @@ try {
         FROM queue q 
         LEFT JOIN patients p ON q.patient_id = p.id 
         WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'on_hold', 'cancelled')
-        AND DATE(q.created_at) = CURDATE()
         ORDER BY 
             CASE q.status 
                 WHEN 'in_procedure' THEN 1 
@@ -19,7 +18,7 @@ try {
                 WHEN 'completed' THEN 4 
                 WHEN 'cancelled' THEN 5 
             END,
-            q.queue_time ASC
+            q.queue_time DESC
     ");
     $queueItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
     

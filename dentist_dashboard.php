@@ -18,14 +18,13 @@ try {
     $stmt = $pdo->query("SELECT COUNT(*) FROM queue WHERE status = 'completed' AND DATE(updated_at) = CURDATE()");
     $completedToday = $stmt->fetchColumn();
     
-// Get patients currently in queue - same query logic as queue management
+    // Get patients currently in queue - same query logic as queue management
     $stmt = $pdo->query("
         SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix, p.phone, p.gender, p.age
         FROM queue q
         JOIN patients p ON q.patient_id = p.id
         WHERE q.status IN ('waiting', 'in_procedure')
-        AND DATE(q.created_at) = CURDATE()
-        ORDER BY q.priority ASC, q.queue_time ASC
+        ORDER BY q.priority ASC, q.queue_time DESC
         LIMIT 10
     ");
     $queuePatients = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -515,194 +514,162 @@ function viewPatientDetails(patientId) {
                                    medicalConditions.toLowerCase().includes('blood pressure') ||
                                    medicalConditions.toLowerCase().includes('asthma');
             
-            document.getElementById('patientModalContent').innerHTML = `
-                <!-- Patient Basic Info -->
-                <div class="patient-info-grid">
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Full Name</div>
-                        <div class="patient-info-value">${p.full_name || 'N/A'}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Age</div>
-                        <div class="patient-info-value">${p.age || 'N/A'} years</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Gender</div>
-                        <div class="patient-info-value">${p.gender || 'N/A'}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Date of Birth</div>
-                        <div class="patient-info-value">${p.date_of_birth || 'N/A'}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Phone</div>
-                        <div class="patient-info-value">${p.phone || 'N/A'}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Email</div>
-                        <div class="patient-info-value">${p.email || 'N/A'}</div>
-                    </div>
-                    <div class="patient-info-item" style="grid-column: 1 / -1;">
-                        <div class="patient-info-label">Address</div>
-                        <div class="patient-info-value">${p.address || 'N/A'} ${p.city ? ', ' + p.city : ''} ${p.province ? ', ' + p.province : ''}</div>
-                    </div>
-                </div>
-
-                <!-- Medical Alert -->
-                ${hasMedicalAlert ? `
-                <div class="medical-alert">
-                    <div class="medical-alert-title">⚠️ Medical Alert - Important for Treatment</div>
-                    <div class="medical-alert-grid">
-                        <div class="medical-alert-item">
-                            <div class="patient-info-label">Allergies</div>
-                            <div class="patient-info-value ${allergies === 'Yes' ? 'danger' : ''}">${allergies}</div>
-                        </div>
-                        <div class="medical-alert-item">
-                            <div class="patient-info-label">Diabetes</div>
-                            <div class="patient-info-value ${medicalConditions.toLowerCase().includes('diabetes') ? 'danger' : ''}">${medicalConditions.toLowerCase().includes('diabetes') ? 'Yes' : 'No'}</div>
-                        </div>
-                        <div class="medical-alert-item">
-                            <div class="patient-info-label">Heart Disease</div>
-                            <div class="patient-info-value ${medicalConditions.toLowerCase().includes('heart') ? 'danger' : ''}">${medicalConditions.toLowerCase().includes('heart') ? 'Yes' : 'No'}</div>
-                        </div>
-                        <div class="medical-alert-item">
-                            <div class="patient-info-label">High Blood Pressure</div>
-                            <div class="patient-info-value ${medicalConditions.toLowerCase().includes('blood pressure') ? 'danger' : ''}">${medicalConditions.toLowerCase().includes('blood pressure') ? 'Yes' : 'No'}</div>
-                        </div>
-                        <div class="medical-alert-item">
-                            <div class="patient-info-label">Asthma</div>
-                            <div class="patient-info-value ${medicalConditions.toLowerCase().includes('asthma') ? 'danger' : ''}">${medicalConditions.toLowerCase().includes('asthma') ? 'Yes' : 'No'}</div>
-                        </div>
-                        <div class="medical-alert-item" style="grid-column: 1 / -1;">
-                            <div class="patient-info-label">Current Medications</div>
-                            <div class="patient-info-value">${medications}</div>
-                        </div>
-                    </div>
-                </div>
-                ` : ''}
-
-                <!-- Current Queue Status -->
-                ${q ? `
-                <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-                    <h3 style="font-size: 1rem; font-weight: 600; color: #1e40af; margin-bottom: 16px;">📋 Current Queue Status</h3>
-                    <div class="patient-info-grid">
-                        <div class="patient-info-item">
-                            <div class="patient-info-label">Treatment Type</div>
-                            <div class="patient-info-value">${q.treatment_type || 'Consultation'}</div>
-                        </div>
-                        <div class="patient-info-item">
-                            <div class="patient-info-label">Status</div>
-                            <div class="patient-info-value">
-                                <span style="background: ${q.status === 'in_procedure' ? '#dcfce7' : q.status === 'waiting' ? '#fef3c7' : '#f3f4f6'}; color: ${q.status === 'in_procedure' ? '#15803d' : q.status === 'waiting' ? '#d97706' : '#6b7280'}; padding: 4px 12px; border-radius: 9999px; font-size: 0.85rem;">
-                                    ${q.status ? q.status.replace('_', ' ').toUpperCase() : 'N/A'}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 3D Tooth Chart Section -->
-                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                        <h3 style="font-size: 1rem; font-weight: 600; color: #15803d; margin: 0;">🦷 Selected Teeth</h3>
-                        <button onclick="toggleTeethEditMode(${q.id})" id="editTeethBtn" class="btn-primary" style="padding: 6px 12px; font-size: 0.875rem;">Edit Teeth</button>
-                    </div>
-                    <div id="toothChartContainer" style="margin-bottom: 12px;">
-                        ${generateToothChartHTML(q.teeth_numbers || '')}
-                    </div>
-                    <div id="selectedTeethDisplay" style="font-size: 0.9rem; color: #374151; font-weight: 500;">
-                        Selected: ${getTeethDisplayText(q.teeth_numbers || '')}
-                    </div>
-                    <div id="teethEditActions" style="display: none; margin-top: 12px; gap: 8px;">
-                        <button onclick="saveTeethChanges(${q.id})" class="btn-primary" style="padding: 8px 16px;">Save Changes</button>
-                        <button onclick="cancelTeethEdit()" class="btn-cancel" style="padding: 8px 16px;">Cancel</button>
-                    </div>
-                </div>
-                
-                <!-- Procedure Notes Section -->
-                <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-                    <h3 style="font-size: 1rem; font-weight: 600; color: #d97706; margin-bottom: 16px;">📝 Procedure Notes</h3>
-                    <textarea id="procedureNotes" rows="4" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 0.9rem; resize: vertical;" placeholder="Add notes about the procedure (e.g., 'Check if #12 needs crown', 'Patient has sensitivity on #18')...">${q.procedure_notes || ''}</textarea>
-                    <div style="margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">
-                        <span id="notesSaveStatus" style="font-size: 0.8rem; color: #6b7280;"></span>
-                        <button onclick="saveProcedureNotes(${q.id})" class="btn-primary" style="padding: 8px 16px; font-size: 0.875rem;">Save Notes</button>
-                    </div>
-                </div>
-                ` : ''}
-
-                <!-- Dental History -->
-                <div style="background: #f9fafb; border-radius: 12px; padding: 20px;">
-                    <h3 style="font-size: 1rem; font-weight: 600; color: #374151; margin-bottom: 16px;">📜 Dental History</h3>
-                    <div class="patient-info-grid">
-                        <div class="patient-info-item">
-                            <div class="patient-info-label">Previous Dentist</div>
-                            <div class="patient-info-value">${d.previous_dentist || 'N/A'}</div>
-                        </div>
-                        <div class="patient-info-item">
-                            <div class="patient-info-label">Last Visit</div>
-                            <div class="patient-info-value">${d.last_visit_date || 'N/A'}</div>
-                        </div>
-                        <div class="patient-info-item" style="grid-column: 1 / -1;">
-                            <div class="patient-info-label">Current Complaints</div>
-                            <div class="patient-info-value">${d.current_complaints || 'None'}</div>
-                        </div>
-                        <div class="patient-info-item" style="grid-column: 1 / -1;">
-                            <div class="patient-info-label">Previous Treatments</div>
-                            <div class="patient-info-value">${d.previous_treatments || 'None'}</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Treatment History -->
-                ${data.treatment_history && data.treatment_history.length > 0 ? `
-                <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 20px; margin-top: 20px;">
-                    <h3 style="font-size: 1rem; font-weight: 600; color: #059669; margin-bottom: 16px;">🏥 Treatment History</h3>
-                    <div style="display: flex; flex-direction: column; gap: 12px;">
-                        ${data.treatment_history.map(t => `
-                            <div style="background: white; border-radius: 8px; padding: 16px; border: 1px solid #e5e7eb;">
-                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                                    <div>
-                                        <div style="font-weight: 600; color: #111827; font-size: 0.95rem;">${t.procedure_name || 'Treatment'}</div>
-                                        <div style="font-size: 0.85rem; color: #6b7280;">${new Date(t.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-                                    </div>
-                                    <div style="background: #d1fae5; color: #059669; padding: 4px 12px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600;">
-                                        ${t.status || 'Completed'}
-                                    </div>
-                                </div>
-                                ${t.tooth_number ? `<div style="font-size: 0.9rem; color: #374151; margin-bottom: 8px;">🦷 Teeth: ${t.tooth_number}</div>` : ''}
-                                ${t.description || t.notes ? `<div style="font-size: 0.85rem; color: #6b7280; font-style: italic;">${t.description || t.notes}</div>` : ''}
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-                ` : `
-                <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-top: 20px;">
-                    <div style="text-align: center; color: #9ca3af; padding: 20px;">
-                        <div style="font-size: 2rem; margin-bottom: 8px;">📋</div>
-                        <div style="font-weight: 500; color: #6b7280;">No treatment history yet</div>
-                        <div style="font-size: 0.85rem;">Completed treatments will appear here</div>
-                    </div>
-                </div>
-                `}
-                
-                <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px;">
-                    <button onclick="closePatientModal()" class="btn-cancel">Close</button>
-                </div>
-            `;
+            // Build medical alerts HTML
+            let medicalAlertsHtml = '';
+            if (hasMedicalAlert) {
+                medicalAlertsHtml = '<div class="medical-alert">' +
+                    '<div class="medical-alert-title">⚠️ Medical Alert - Important for Treatment</div>' +
+                    '<div class="medical-alert-grid">' +
+                    '<div class="medical-alert-item"><div class="patient-info-label">Allergies</div><div class="patient-info-value ' + (allergies === 'Yes' ? 'danger' : '') + '">' + allergies + '</div></div>' +
+                    '<div class="medical-alert-item"><div class="patient-info-label">Diabetes</div><div class="patient-info-value ' + (medicalConditions.toLowerCase().includes('diabetes') ? 'danger' : '') + '">' + (medicalConditions.toLowerCase().includes('diabetes') ? 'Yes' : 'No') + '</div></div>' +
+                    '<div class="medical-alert-item"><div class="patient-info-label">Heart Disease</div><div class="patient-info-value ' + (medicalConditions.toLowerCase().includes('heart') ? 'danger' : '') + '">' + (medicalConditions.toLowerCase().includes('heart') ? 'Yes' : 'No') + '</div></div>' +
+                    '<div class="medical-alert-item"><div class="patient-info-label">High Blood Pressure</div><div class="patient-info-value ' + (medicalConditions.toLowerCase().includes('blood pressure') ? 'danger' : '') + '">' + (medicalConditions.toLowerCase().includes('blood pressure') ? 'Yes' : 'No') + '</div></div>' +
+                    '<div class="medical-alert-item"><div class="patient-info-label">Asthma</div><div class="patient-info-value ' + (medicalConditions.toLowerCase().includes('asthma') ? 'danger' : '') + '">' + (medicalConditions.toLowerCase().includes('asthma') ? 'Yes' : 'No') + '</div></div>' +
+                    '<div class="medical-alert-item" style="grid-column: 1 / -1;"><div class="patient-info-label">Current Medications</div><div class="patient-info-value">' + medications + '</div></div>' +
+                    '</div></div>';
+            }
             
+            // Build status badge
+            let statusBadge = '<span style="background: #f3f4f6; color: #6b7280; padding: 4px 12px; border-radius: 9999px; font-size: 0.85rem;">N/A</span>';
+            if (q.status === 'in_procedure') {
+                statusBadge = '<span style="background: #dcfce7; color: #15803d; padding: 4px 12px; border-radius: 9999px; font-size: 0.85rem;">IN PROCEDURE</span>';
+            } else if (q.status === 'waiting') {
+                statusBadge = '<span style="background: #fef3c7; color: #d97706; padding: 4px 12px; border-radius: 9999px; font-size: 0.85rem;">WAITING</span>';
+            }
+            
+            // Generate teeth display
+            let teethDisplay = 'None';
+            if (q.teeth_numbers) {
+                const teeth = q.teeth_numbers.split(',').map(t => parseInt(t.trim())).filter(t => !isNaN(t));
+                if (teeth.length === 16) {
+                    const upperArch = [11,12,13,14,15,16,17,18,21,22,23,24,25,26,27,28];
+                    const lowerArch = [31,32,33,34,35,36,37,38,41,42,43,44,45,46,47,48];
+                    const hasUpper = upperArch.every(t => teeth.includes(t));
+                    const hasLower = lowerArch.every(t => teeth.includes(t));
+                    const parts = [];
+                    if (hasUpper) parts.push('Upper Arch');
+                    if (hasLower) parts.push('Lower Arch');
+                    teethDisplay = parts.length > 0 ? parts.join(' + ') : teeth.sort((a,b) => a-b).join(', ');
+                } else {
+                    teethDisplay = teeth.sort((a,b) => a-b).join(', ');
+                }
+            }
+            
+            // Build dental history
+            const dentalHistoryHtml = '<div style="background: #f9fafb; border-radius: 12px; padding: 20px;">' +
+                '<h3 style="font-size: 1rem; font-weight: 600; color: #374151; margin-bottom: 16px;">📜 Dental History</h3>' +
+                '<div class="patient-info-grid">' +
+                '<div class="patient-info-item"><div class="patient-info-label">Previous Dentist</div><div class="patient-info-value">' + (d.previous_dentist || 'N/A') + '</div></div>' +
+                '<div class="patient-info-item"><div class="patient-info-label">Last Visit</div><div class="patient-info-value">' + (d.last_visit_date || 'N/A') + '</div></div>' +
+                '<div class="patient-info-item" style="grid-column: 1 / -1;"><div class="patient-info-label">Current Complaints</div><div class="patient-info-value">' + (d.current_complaints || 'None') + '</div></div>' +
+                '<div class="patient-info-item" style="grid-column: 1 / -1;"><div class="patient-info-label">Previous Treatments</div><div class="patient-info-value">' + (d.previous_treatments || 'None') + '</div></div>' +
+                '</div></div>';
+            
+            // Build treatment history
+            let treatmentHistoryHtml = '';
+            if (data.treatment_history && data.treatment_history.length > 0) {
+                treatmentHistoryHtml = '<div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 20px; margin-top: 20px;">' +
+                    '<h3 style="font-size: 1rem; font-weight: 600; color: #059669; margin-bottom: 16px;">🏥 Treatment History</h3>';
+                data.treatment_history.forEach(function(t) {
+                    treatmentHistoryHtml += '<div style="background: white; border-radius: 8px; padding: 16px; border: 1px solid #e5e7eb; margin-bottom: 12px;">' +
+                        '<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">' +
+                        '<div><div style="font-weight: 600; color: #111827; font-size: 0.95rem;">' + (t.procedure_name || 'Treatment') + '</div>' +
+                        '<div style="font-size: 0.85rem; color: #6b7280;">' + new Date(t.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + '</div></div>' +
+                        '<div style="background: #d1fae5; color: #059669; padding: 4px 12px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600;">' + (t.status || 'Completed') + '</div></div>' +
+                        (t.tooth_number ? '<div style="font-size: 0.9rem; color: #374151; margin-bottom: 8px;">🦷 Teeth: ' + t.tooth_number + '</div>' : '') +
+                        (t.description || t.notes ? '<div style="font-size: 0.85rem; color: #6b7280; font-style: italic;">' + (t.description || t.notes) + '</div>' : '') +
+                        '</div>';
+                });
+                treatmentHistoryHtml += '</div>';
+            } else {
+                treatmentHistoryHtml = '<div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-top: 20px;">' +
+                    '<div style="text-align: center; color: #9ca3af; padding: 20px;">' +
+                    '<div style="font-size: 2rem; margin-bottom: 8px;">📋</div>' +
+                    '<div style="font-weight: 500; color: #6b7280;">No treatment history yet</div>' +
+                    '<div style="font-size: 0.85rem;">Completed treatments will appear here</div>' +
+                    '</div></div>';
+            }
+            
+            // Build modal content
+            const modalContent = 
+                '<div class="patient-info-grid">' +
+                '<div class="patient-info-item"><div class="patient-info-label">Full Name</div><div class="patient-info-value">' + (p.full_name || 'N/A') + '</div></div>' +
+                '<div class="patient-info-item"><div class="patient-info-label">Age</div><div class="patient-info-value">' + (p.age || 'N/A') + ' years</div></div>' +
+                '<div class="patient-info-item"><div class="patient-info-label">Gender</div><div class="patient-info-value">' + (p.gender || 'N/A') + '</div></div>' +
+                '<div class="patient-info-item"><div class="patient-info-label">Date of Birth</div><div class="patient-info-value">' + (p.date_of_birth || 'N/A') + '</div></div>' +
+                '<div class="patient-info-item"><div class="patient-info-label">Phone</div><div class="patient-info-value">' + (p.phone || 'N/A') + '</div></div>' +
+                '<div class="patient-info-item"><div class="patient-info-label">Email</div><div class="patient-info-value">' + (p.email || 'N/A') + '</div></div>' +
+                '<div class="patient-info-item" style="grid-column: 1 / -1;"><div class="patient-info-label">Address</div><div class="patient-info-value">' + (p.address || 'N/A') + (p.city ? ', ' + p.city : '') + (p.province ? ', ' + p.province : '') + '</div></div>' +
+                '</div>' +
+                
+                (hasMedicalAlert ? medicalAlertsHtml : '') +
+                
+                (q ? '<div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px; margin-bottom: 20px;">' +
+                '<h3 style="font-size: 1rem; font-weight: 600; color: #1e40af; margin-bottom: 16px;">📋 Current Queue Status</h3>' +
+                '<div class="patient-info-grid">' +
+                '<div class="patient-info-item"><div class="patient-info-label">Treatment Type</div><div class="patient-info-value">' + (q.treatment_type || 'Consultation') + '</div></div>' +
+                '<div class="patient-info-item"><div class="patient-info-label">Status</div><div class="patient-info-value">' + statusBadge + '</div></div>' +
+                '</div></div>' : '') +
+                
+                '<div style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 12px; padding: 20px; margin-bottom: 20px;">' +
+                '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">' +
+                '<h3 style="font-size: 1rem; font-weight: 600; color: #92400e; margin: 0;">💰 Billing</h3>' +
+                '<button onclick="openBillingFromDetails(' + p.id + ')" style="background: #f59e0b; color: white; border: none; border-radius: 6px; padding: 6px 12px; font-size: 0.8rem; cursor: pointer;">Edit Amount</button>' +
+                '</div>' +
+                '<div class="patient-info-grid">' +
+                '<div class="patient-info-item"><div class="patient-info-label">Default Price (Services)</div><div class="patient-info-value" id="detailsEstimatedAmount" style="color: #6b7280;">Loading...</div></div>' +
+                '<div class="patient-info-item"><div class="patient-info-label">Total Amount</div><div class="patient-info-value" id="detailsTotalAmount" style="font-weight: 700; font-size: 1.1rem;">Loading...</div></div>' +
+                '<div class="patient-info-item"><div class="patient-info-label">Balance</div><div class="patient-info-value" id="detailsBalance" style="color: #dc2626; font-weight: 600;">Loading...</div></div>' +
+                '<div class="patient-info-item"><div class="patient-info-label">Status</div><div class="patient-info-value" id="detailsStatus">Loading...</div></div>' +
+                '</div></div>' +
+                
+                (q ? '<div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; margin-bottom: 20px;">' +
+                '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">' +
+                '<h3 style="font-size: 1rem; font-weight: 600; color: #15803d; margin: 0;">🦷 Selected Teeth</h3>' +
+                '<button onclick="toggleTeethEditMode(' + (q.id || 0) + ')" id="editTeethBtn" class="btn-primary" style="padding: 6px 12px; font-size: 0.875rem;">Edit Teeth</button>' +
+                '</div><div id="toothChartContainer" style="margin-bottom: 12px;">' + generateToothChartHTML(q.teeth_numbers || '') + '</div>' +
+                '<div id="selectedTeethDisplay" style="font-size: 0.9rem; color: #374151; font-weight: 500;">Selected: ' + teethDisplay + '</div>' +
+                '<div id="teethEditActions" style="display: none; margin-top: 12px; gap: 8px;">' +
+                '<button onclick="saveTeethChanges(' + (q.id || 0) + ')" class="btn-primary" style="padding: 8px 16px;">Save Changes</button>' +
+                '<button onclick="cancelTeethEdit()" class="btn-cancel" style="padding: 8px 16px;">Cancel</button>' +
+                '</div></div>' : '') +
+                
+                (q ? '<div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 12px; padding: 20px; margin-bottom: 20px;">' +
+                '<h3 style="font-size: 1rem; font-weight: 600; color: #d97706; margin-bottom: 16px;">📝 Procedure Notes</h3>' +
+                '<textarea id="procedureNotes" rows="4" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 0.9rem; resize: vertical;" placeholder="Add notes about the procedure...">' + (q.procedure_notes || '') + '</textarea>' +
+                '<div style="margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">' +
+                '<span id="notesSaveStatus" style="font-size: 0.8rem; color: #6b7280;"></span>' +
+                '<button onclick="saveProcedureNotes(' + (q.id || 0) + ')" class="btn-primary" style="padding: 8px 16px; font-size: 0.875rem;">Save Notes</button>' +
+                '</div></div>' : '') +
+                
+                dentalHistoryHtml + treatmentHistoryHtml +
+                
+                '<div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px;">' +
+                '<button onclick="closePatientModal()" class="btn-cancel">Close</button>' +
+                '</div>';
+            
+            document.getElementById('patientModalContent').innerHTML = modalContent;
             document.getElementById('patientModal').classList.add('active');
+            
+            // Setup auto-save for notes
+            if (q && q.id) {
+                setupNotesAutoSave(q.id);
+            }
+            
+            // Load billing info
+            loadBillingInfo(patientId);
         } else {
             alert('Error loading patient details: ' + data.message);
         }
     })
-    .catch(error => {
+    .catch(function(error) {
         console.error('Error:', error);
         alert('Failed to load patient details');
     });
 }
 
 function closePatientModal() {
-    const modal = document.getElementById('patientModal');
+    var modal = document.getElementById('patientModal');
     if (modal) {
         modal.classList.remove('active');
     }
@@ -710,7 +677,7 @@ function closePatientModal() {
 
 // Close modal when clicking outside
 document.addEventListener('DOMContentLoaded', function() {
-    const patientModal = document.getElementById('patientModal');
+    var patientModal = document.getElementById('patientModal');
     if (patientModal) {
         patientModal.addEventListener('click', function(e) {
             if (e.target.id === 'patientModal') {
@@ -719,13 +686,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Portal Pattern: Move modal to body level to escape stacking context
-    // This ensures modal appears above sidebar and all other elements
-    const modal = document.getElementById('patientModal');
+    // Portal Pattern: Move modal to body level
+    var modal = document.getElementById('patientModal');
     if (modal) {
         document.body.appendChild(modal);
     }
 });
+
 </script>
 
 <!-- Patient Details Modal -->
@@ -1252,19 +1219,318 @@ function setupNotesAutoSave(queueId) {
     });
 }
 
-// Override viewPatientDetails to include auto-save setup
-const originalViewPatientDetails = viewPatientDetails;
-viewPatientDetails = function(patientId) {
-    originalViewPatientDetails(patientId);
+// Billing functions
+var servicesData = {};
+
+// Load services data for billing calculations
+fetch('patient_record_details.php?id=0')
+.catch(function() {})
+.then(function() {})
+.then(function() {
+    // Services will be loaded on demand
+});
+
+function loadBillingInfo(patientId) {
+    billingPatientId = patientId;
     
-    // Setup auto-save after modal content is loaded
-    setTimeout(() => {
-        const queueId = document.querySelector('[data-queue-id]')?.getAttribute('data-queue-id');
-        if (queueId) {
-            setupNotesAutoSave(queueId);
+    // Initialize with loading state
+    updateBillingDisplay({
+        estimated_amount: null,
+        total_amount: 0,
+        paid_amount: 0,
+        balance: 0,
+        payment_status: 'unpaid'
+    });
+    
+    // Add timeout to handle slow responses
+    const timeoutMs = 15000; // 15 seconds
+    
+    const fetchPromise = fetch('dentist_billing_actions.php?action=get_billing&patient_id=' + patientId);
+    const timeoutPromise = new Promise(function(_, reject) {
+        setTimeout(function() {
+            reject(new Error('Request timeout'));
+        }, timeoutMs);
+    });
+    
+    Promise.race([fetchPromise, timeoutPromise])
+    .then(function(response) {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
         }
-    }, 500);
-};
+        return response.json();
+    })
+    .then(function(data) {
+        if (data.success && data.billing) {
+            updateBillingDisplay(data.billing);
+        } else {
+            // No billing found, try to calculate from services
+            calculateBillingFromServices(patientId);
+        }
+    })
+    .catch(function(error) {
+        console.error('Error loading billing:', error);
+        calculateBillingFromServices(patientId);
+    });
+}
+
+function calculateBillingFromServices(patientId) {
+    // Get services from the queue for this patient
+    fetch('patient_record_details.php?id=' + patientId)
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        if (data.success && data.queue_item) {
+            const treatmentType = data.queue_item.treatment_type || '';
+            let estimatedAmount = 0;
+            
+            // Parse services from treatment_type
+            if (treatmentType) {
+                // Fetch services list
+                fetch('patient_record_details.php?id=0')
+                .then(function(r) { return r.json(); })
+                .then(function() {})
+                .catch(function() {});
+                
+                // Get services from PHP - use a simple approach
+                var treatments = treatmentType.split(',');
+                treatments.forEach(function(treatment) {
+                    treatment = treatment.trim();
+                    // Try to match with common services
+                    var commonServices = {
+                        'Teeth Cleaning': 800,
+                        'Tooth Extraction': 800,
+                        'Root Canal': 5000,
+                        'Tooth Filling': 800,
+                        'Dental X-Ray': 500,
+                        'Consultation': 500,
+                        'Teeth Whitening': 5000,
+                        'Dental Crown': 2000,
+                        'Braces': 35000,
+                        'Denture': 5000
+                    };
+                    
+                    for (var name in commonServices) {
+                        if (treatment.toLowerCase().includes(name.toLowerCase())) {
+                            estimatedAmount += commonServices[name];
+                            break;
+                        }
+                    }
+                });
+            }
+            
+            updateBillingDisplay({
+                estimated_amount: estimatedAmount,
+                total_amount: estimatedAmount,
+                paid_amount: 0,
+                balance: estimatedAmount,
+                payment_status: 'unpaid'
+            });
+        } else {
+            updateBillingDisplay({
+                estimated_amount: 0,
+                total_amount: 0,
+                paid_amount: 0,
+                balance: 0,
+                payment_status: 'unpaid'
+            });
+        }
+    })
+    .catch(function(error) {
+        console.error('Error calculating billing:', error);
+        updateBillingDisplay({
+            estimated_amount: 0,
+            total_amount: 0,
+            paid_amount: 0,
+            balance: 0,
+            payment_status: 'unpaid'
+        });
+    });
+}
+
+function updateBillingDisplay(billing) {
+    var estimatedEl = document.getElementById('detailsEstimatedAmount');
+    var totalEl = document.getElementById('detailsTotalAmount');
+    var balanceEl = document.getElementById('detailsBalance');
+    var statusEl = document.getElementById('detailsStatus');
+    
+    if (!estimatedEl || !totalEl || !balanceEl || !statusEl) {
+        return; // Modal not open
+    }
+    
+    var estimatedAmount = billing.estimated_amount || 0;
+    var totalAmount = billing.total_amount || 0;
+    var paidAmount = billing.paid_amount || 0;
+    var balance = billing.balance || 0;
+    
+    // Format as Philippine Pesos
+    var formatter = new Intl.NumberFormat('en-PH', {
+        style: 'currency',
+        currency: 'PHP',
+        minimumFractionDigits: 2
+    });
+    
+    if (estimatedAmount > 0) {
+        estimatedEl.textContent = formatter.format(estimatedAmount);
+    } else {
+        estimatedEl.textContent = '₱0';
+    }
+    
+    totalEl.textContent = formatter.format(totalAmount);
+    balanceEl.textContent = formatter.format(balance);
+    
+    var statusHtml = '';
+    if (billing.payment_status === 'paid') {
+        statusHtml = '<span style="background:#d1fae5;color:#065f46;padding:4px 12px;border-radius:9999px;font-size:0.85rem;">PAID</span>';
+    } else if (billing.payment_status === 'partial') {
+        statusHtml = '<span style="background:#fef3c7;color:#92400e;padding:4px 12px;border-radius:9999px;font-size:0.85rem;">PARTIAL</span>';
+    } else {
+        statusHtml = '<span style="background:#fee2e2;color:#991b1b;padding:4px 12px;border-radius:9999px;font-size:0.85rem;">UNPAID</span>';
+    }
+    statusEl.innerHTML = statusHtml;
+}
+
+function openBillingFromDetails(patientId) {
+    billingPatientId = patientId;
+    
+    fetch('dentist_billing_actions.php?action=get_billing&patient_id=' + patientId)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.billing) {
+            showBillingEditModal(data.billing);
+        } else {
+            // Create a new billing record
+            showBillingEditModal({
+                billing_id: null,
+                patient_id: patientId,
+                patient_name: document.querySelector('.patient-name')?.textContent || 'Patient',
+                treatment_type: document.querySelector('[data-queue-id]')?.textContent || 'Treatment',
+                total_amount: 0,
+                estimated_amount: 0,
+                paid_amount: 0,
+                balance: 0,
+                payment_status: 'unpaid'
+            });
+        }
+    });
+}
+
+function showBillingEditModal(billing) {
+    // Create modal if doesn't exist
+    let modal = document.getElementById('billingEditModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'billingEditModal';
+        modal.style.cssText = 'display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999;align-items:center;justify-content:center;';
+        modal.innerHTML = `
+            <div style="background:white;border-radius:16px;padding:24px;max-width:480px;width:90%;position:relative;z-index:100000;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                    <h2 style="margin:0;font-size:1.25rem;font-weight:600;">💰 Edit Billing Amount</h2>
+                    <button onclick="closeBillingEditModal()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#6b7280;">×</button>
+                </div>
+                <div id="billingEditForm">
+                    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:14px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0369a1" stroke-width="2" style="color:#0369a1;">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                        </svg>
+                        <div>
+                            <div style="font-size:0.75rem;color:#0369a1;font-weight:600;">PATIENT</div>
+                            <div id="billingEditPatientName" style="font-weight:600;color:#0c4a6e;"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Price Comparison -->
+                    <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:14px;margin-bottom:16px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                            <span style="font-size:0.875rem;color:#92400e;font-weight:500;">Default Price (from Services)</span>
+                            <span id="billingEditDefaultPrice" style="font-size:1rem;font-weight:600;color:#92400e;">₱0</span>
+                        </div>
+                        <div style="border-top:1px dashed #d97706;margin:8px 0;"></div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <span style="font-size:0.875rem;color:#111827;font-weight:600;">Final Amount to Charge</span>
+                            <input type="number" id="billingEditAmount" style="width:140px;padding:8px;border:2px solid #0ea5e9;border-radius:6px;font-size:1rem;text-align:right;font-weight:700;" min="0" step="0.01">
+                        </div>
+                        <div id="billingEditEstimated" style="font-size:0.75rem;color:#6b7280;margin-top:8px;text-align:right;"></div>
+                    </div>
+                    
+                    <div style="margin-bottom:16px;">
+                        <label style="display:block;font-size:0.875rem;font-weight:500;color:#374151;margin-bottom:8px;">Reason for Adjustment (Optional)</label>
+                        <input type="text" id="billingEditNotes" style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-size:0.9rem;" placeholder="e.g., Additional procedure, discount, complex case...">
+                    </div>
+                    <div style="display:flex;justify-content:flex-end;gap:12px;">
+                        <button onclick="closeBillingEditModal()" style="padding:10px 20px;background:white;border:1px solid #d1d5db;border-radius:8px;cursor:pointer;">Cancel</button>
+                        <button onclick="saveBillingEdit()" style="padding:10px 20px;background:#0ea5e9;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:500;">Save Changes</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // Close on backdrop click
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) closeBillingEditModal();
+        });
+    }
+    
+    billingQueueId = billing.queue_id;
+    
+    document.getElementById('billingEditPatientName').textContent = billing.patient_name || 'Unknown';
+    document.getElementById('billingEditDefaultPrice').textContent = '₱' + (billing.estimated_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2});
+    document.getElementById('billingEditAmount').value = billing.total_amount || billing.estimated_amount || 0;
+    document.getElementById('billingEditNotes').value = '';
+    
+    if (billing.total_amount !== billing.estimated_amount) {
+        const difference = (billing.total_amount - billing.estimated_amount);
+        const sign = difference > 0 ? '+' : '';
+        document.getElementById('billingEditEstimated').textContent = '(Modified from default: ' + sign + '₱' + Math.abs(difference).toLocaleString('en-PH') + ')';
+    } else {
+        document.getElementById('billingEditEstimated').textContent = '(Same as default price)';
+    }
+    
+    modal.style.display = 'flex';
+}
+
+function closeBillingEditModal() {
+    const modal = document.getElementById('billingEditModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+function saveBillingEdit() {
+    const newAmount = parseFloat(document.getElementById('billingEditAmount').value);
+    const notes = document.getElementById('billingEditNotes').value;
+    
+    if (isNaN(newAmount) || newAmount < 0) {
+        alert('Please enter a valid amount');
+        return;
+    }
+    
+    fetch('dentist_billing_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'update_amount',
+            queue_id: billingQueueId,
+            patient_id: billingPatientId,
+            total_amount: newAmount,
+            notes: notes
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeBillingEditModal();
+            // Refresh billing info
+            loadBillingInfo(billingPatientId);
+            alert('Billing amount updated successfully!');
+        } else {
+            alert(data.message || 'Error updating billing');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating billing amount');
+    });
+}
 </script>
 
 <?php require_once 'includes/dentist_layout_end.php'; ?>

@@ -658,7 +658,15 @@ function getPatientMenuItems(patientId) {
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                 <circle cx="12" cy="12" r="3"/>
             </svg>
-            View
+            View Details
+        </a>
+        <a href="javascript:void(0)" data-action="billing" data-id="${patientId}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="4" width="20" height="16" rx="2"/>
+                <line x1="2" y1="10" x2="22" y2="10"/>
+                <line x1="12" y1="4" x2="12" y2="10"/>
+            </svg>
+            Billing
         </a>
         <a href="quick_session.php?patient_id=${patientId}" data-action="session" data-id="${patientId}">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -759,6 +767,9 @@ function handlePatientKebabClick(e) {
     switch(action) {
         case 'view':
             viewPatientDetails(id);
+            break;
+        case 'billing':
+            openBillingModal(id);
             break;
         case 'appointment':
             openAddAppointmentModal(id);
@@ -1040,6 +1051,433 @@ function getDentistTeethDisplayText(teethString) {
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
     pointer-events: auto;
 }
+
+/* Billing Modal Styles */
+.billing-section {
+    margin-bottom: 20px;
+}
+
+.billing-section h4 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.billing-amount-display {
+    background: #f9fafb;
+    border: 2px dashed #d1d5db;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+.billing-amount-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-bottom: 4px;
+}
+
+.billing-amount-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #111827;
+}
+
+.billing-amount-value.editable {
+    cursor: pointer;
+    color: #0ea5e9;
+    transition: color 0.2s;
+}
+
+.billing-amount-value.editable:hover {
+    color: #0284c7;
+}
+
+.billing-status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.billing-status-paid { background: #d1fae5; color: #065f46; }
+.billing-status-partial { background: #fef3c7; color: #92400e; }
+.billing-status-unpaid { background: #fee2e2; color: #991b1b; }
+
+.billing-details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.billing-detail-item {
+    background: #f9fafb;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.billing-detail-label {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-bottom: 4px;
+}
+
+.billing-detail-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #111827;
+}
+
+.edit-amount-form {
+    display: none;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+}
+
+.edit-amount-form.active {
+    display: block;
+}
+
+.edit-amount-form .form-group {
+    margin-bottom: 12px;
+}
+
+.edit-amount-form .form-control {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 1.25rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+.edit-amount-form .form-control:focus {
+    outline: none;
+    border-color: #0ea5e9;
+    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+}
+
+.btn-save {
+    background: #0ea5e9;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-save:hover {
+    background: #0284c7;
+}
+
+.btn-cancel-edit {
+    background: white;
+    color: #6b7280;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-cancel-edit:hover {
+    background: #f3f4f6;
+}
+
+.btn-edit {
+    background: white;
+    color: #0ea5e9;
+    border: 1px solid #0ea5e9;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-edit:hover {
+    background: #eff6ff;
+}
+
+.billing-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+}
 </style>
+
+<!-- Billing Modal -->
+<div id="billingModal" class="modal-overlay">
+    <div class="modal-backdrop"></div>
+    <div class="modal-container">
+        <div class="modal" style="max-width: 560px;">
+            <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">💰 Billing Details</h2>
+            
+            <div id="billingLoading" style="text-align: center; padding: 40px; color: #6b7280;">
+                Loading billing information...
+            </div>
+            
+            <div id="billingContent" style="display: none;">
+                <!-- Patient Info -->
+                <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 14px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0369a1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #0369a1; font-weight: 600;">PATIENT</div>
+                        <div id="billingPatientName" style="font-weight: 600; color: #0c4a6e;"></div>
+                    </div>
+                </div>
+                
+                <!-- Treatment Info -->
+                <div style="background: #f9fafb; border-radius: 8px; padding: 14px 16px; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-size: 0.75rem; color: #6b7280; font-weight: 600;">TREATMENT</div>
+                            <div id="billingTreatment" style="font-weight: 600; color: #111827; margin-top: 4px;"></div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 0.75rem; color: #6b7280; font-weight: 600;">DATE</div>
+                            <div id="billingDate" style="font-weight: 600; color: #111827; margin-top: 4px;"></div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
+                        <div style="font-size: 0.75rem; color: #6b7280; font-weight: 600;">TEETH</div>
+                        <div id="billingTeeth" style="font-weight: 600; color: #111827; margin-top: 4px;"></div>
+                    </div>
+                </div>
+                
+                <!-- Amount Display -->
+                <div id="billingAmountDisplay" class="billing-amount-display">
+                    <div class="billing-amount-label">Total Amount</div>
+                    <div class="billing-amount-value editable" id="billingTotalAmount" onclick="showEditAmountForm()">₱0</div>
+                    <div id="billingEstimatedNote" style="font-size: 0.75rem; color: #6b7280; margin-top: 8px;"></div>
+                </div>
+                
+                <!-- Edit Amount Form -->
+                <div id="editAmountForm" class="edit-amount-form">
+                    <div class="form-group">
+                        <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 8px;">Enter New Amount (₱)</label>
+                        <input type="number" id="newBillingAmount" class="form-control" placeholder="0.00" min="0" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 8px;">Notes (Optional)</label>
+                        <input type="text" id="billingNotes" class="form-control" style="font-size: 0.9rem; font-weight: 400; text-align: left;" placeholder="Reason for adjustment...">
+                    </div>
+                    <div class="billing-actions" style="margin-top: 12px; padding-top: 12px;">
+                        <button type="button" onclick="cancelEditAmount()" class="btn-cancel-edit">Cancel</button>
+                        <button type="button" onclick="saveNewAmount()" class="btn-save">Save Changes</button>
+                    </div>
+                </div>
+                
+                <!-- Payment Details -->
+                <div class="billing-section">
+                    <h4>Payment Summary</h4>
+                    <div class="billing-details-grid">
+                        <div class="billing-detail-item">
+                            <div class="billing-detail-label">Total Amount</div>
+                            <div class="billing-detail-value" id="billingTotal">₱0</div>
+                        </div>
+                        <div class="billing-detail-item">
+                            <div class="billing-detail-label">Paid</div>
+                            <div class="billing-detail-value" id="billingPaid" style="color: #059669;">₱0</div>
+                        </div>
+                        <div class="billing-detail-item">
+                            <div class="billing-detail-label">Balance</div>
+                            <div class="billing-detail-value" id="billingBalance" style="color: #dc2626;">₱0</div>
+                        </div>
+                        <div class="billing-detail-item">
+                            <div class="billing-detail-label">Status</div>
+                            <div class="billing-detail-value"><span id="billingStatus" class="billing-status-badge billing-status-unpaid">Unpaid</span></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="billing-actions">
+                    <button type="button" onclick="closeBillingModal()" class="btn-cancel">Close</button>
+                    <button type="button" onclick="showEditAmountForm()" class="btn-edit">✏️ Edit Amount</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Billing Modal Functions
+let billingQueueId = null;
+let billingPatientId = null;
+
+function openBillingModal(patientId) {
+    // Find the patient's queue record
+    const patient = patients.find(p => p.id == patientId);
+    if (!patient) {
+        alert('Patient not found');
+        return;
+    }
+    
+    // Get the latest queue for this patient
+    fetch('dentist_billing_actions.php?action=get_billing&patient_id=' + patientId)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showBillingModal(data.billing);
+        } else {
+            alert(data.message || 'Error loading billing');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error loading billing information');
+    });
+}
+
+function showBillingModal(billing) {
+    billingQueueId = billing.queue_id;
+    billingPatientId = billing.patient_id;
+    
+    document.getElementById('billingPatientName').textContent = billing.patient_name || 'Unknown';
+    document.getElementById('billingTreatment').textContent = billing.treatment_type || 'Consultation';
+    document.getElementById('billingDate').textContent = billing.queue_date || 'N/A';
+    document.getElementById('billingTeeth').textContent = billing.teeth_numbers ? getDentistTeethDisplayText(billing.teeth_numbers) : 'None';
+    
+    // Amount display
+    const amountDisplay = document.getElementById('billingTotalAmount');
+    const estimatedNote = document.getElementById('billingEstimatedNote');
+    const billingTotal = document.getElementById('billingTotal');
+    const billingPaid = document.getElementById('billingPaid');
+    const billingBalance = document.getElementById('billingBalance');
+    const billingStatus = document.getElementById('billingStatus');
+    
+    const totalAmount = billing.total_amount || 0;
+    const paidAmount = billing.paid_amount || 0;
+    const balance = billing.balance || 0;
+    
+    amountDisplay.textContent = '₱' + totalAmount.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    billingTotal.textContent = '₱' + totalAmount.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    billingPaid.textContent = '₱' + paidAmount.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    billingBalance.textContent = '₱' + balance.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    
+    // Estimated note
+    if (billing.estimated_amount && billing.estimated_amount > 0 && billing.total_amount === 0) {
+        estimatedNote.textContent = '(Estimated from services: ₱' + billing.estimated_amount.toLocaleString('en-PH') + ')';
+    } else if (billing.estimated_amount && billing.estimated_amount !== billing.total_amount) {
+        estimatedNote.textContent = '(Default price: ₱' + billing.estimated_amount.toLocaleString('en-PH') + ')';
+    } else {
+        estimatedNote.textContent = '';
+    }
+    
+    // Status badge
+    let statusClass = 'billing-status-unpaid';
+    let statusText = 'Unpaid';
+    if (billing.payment_status === 'paid') {
+        statusClass = 'billing-status-paid';
+        statusText = 'Paid';
+    } else if (billing.payment_status === 'partial') {
+        statusClass = 'billing-status-partial';
+        statusText = 'Partial';
+    }
+    billingStatus.className = 'billing-status-badge ' + statusClass;
+    billingStatus.textContent = statusText;
+    
+    // Reset form
+    document.getElementById('newBillingAmount').value = totalAmount > 0 ? totalAmount : '';
+    document.getElementById('billingNotes').value = '';
+    
+    // Show content, hide loading
+    document.getElementById('billingLoading').style.display = 'none';
+    document.getElementById('billingContent').style.display = 'block';
+    document.getElementById('billingAmountDisplay').style.display = 'block';
+    document.getElementById('editAmountForm').classList.remove('active');
+    
+    // Show modal
+    document.getElementById('billingModal').classList.add('active');
+}
+
+function closeBillingModal() {
+    document.getElementById('billingModal').classList.remove('active');
+    billingQueueId = null;
+    billingPatientId = null;
+}
+
+function showEditAmountForm() {
+    const currentAmount = parseFloat(document.getElementById('billingTotalAmount').textContent.replace(/[^0-9.-]+/g, '')) || 0;
+    document.getElementById('newBillingAmount').value = currentAmount;
+    document.getElementById('billingAmountDisplay').style.display = 'none';
+    document.getElementById('editAmountForm').classList.add('active');
+}
+
+function cancelEditAmount() {
+    document.getElementById('editAmountForm').classList.remove('active');
+    document.getElementById('billingAmountDisplay').style.display = 'block';
+}
+
+function saveNewAmount() {
+    const newAmount = parseFloat(document.getElementById('newBillingAmount').value);
+    const notes = document.getElementById('billingNotes').value;
+    
+    if (isNaN(newAmount) || newAmount < 0) {
+        alert('Please enter a valid amount');
+        return;
+    }
+    
+    fetch('dentist_billing_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'update_amount',
+            queue_id: billingQueueId,
+            patient_id: billingPatientId,
+            total_amount: newAmount,
+            notes: notes
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Refresh the modal with new data
+            openBillingModal(billingPatientId);
+        } else {
+            alert(data.message || 'Error updating billing');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating billing amount');
+    });
+}
+
+// Close modal on outside click
+document.getElementById('billingModal').addEventListener('click', function(e) {
+    if (e.target === this || e.target.classList.contains('modal-backdrop')) {
+        closeBillingModal();
+    }
+});
+
+// ESC key to close modal
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeBillingModal();
+    }
+});
+</script>
 
 <?php require_once 'includes/dentist_layout_end.php'; ?>

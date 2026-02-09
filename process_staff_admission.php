@@ -208,13 +208,43 @@ try {
     $stmt->execute([$patientId, $treatmentType, $teethNumbers]);
     $queueId = $pdo->lastInsertId();
     
+    // Create Billing Record - Calculate total from services
+    $totalAmount = 0;
+    $billingNotes = '';
+    
+    if (!empty($serviceNames)) {
+        // Get service prices from database
+        $servicesStmt = $pdo->query("SELECT name, price FROM services WHERE is_active = 1");
+        $servicesData = $servicesStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+        
+        foreach ($serviceNames as $serviceName) {
+            foreach ($servicesData as $name => $price) {
+                if (strcasecmp(trim($name), trim($serviceName)) === 0) {
+                    $totalAmount += floatval($price);
+                    break;
+                }
+            }
+        }
+    }
+    
+    // Insert billing record with calculated total
+    $billingStmt = $pdo->prepare("INSERT INTO billing (
+        patient_id, total_amount, paid_amount, balance, payment_status, 
+        billing_date, due_date, notes, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, 'unpaid', CURDATE(), CURDATE(), ?, NOW(), NOW())");
+    $billingNotes = 'Initial billing from admission - Services: ' . $treatmentType;
+    $billingStmt->execute([$patientId, $totalAmount, 0, $totalAmount, $billingNotes]);
+    $billingId = $pdo->lastInsertId();
+    
     $pdo->commit();
     
     echo json_encode([
         'success' => true, 
         'message' => 'Patient admitted and added to queue successfully!',
         'patient_id' => $patientId,
-        'queue_id' => $queueId
+        'queue_id' => $queueId,
+        'billing_id' => $billingId,
+        'total_amount' => $totalAmount
     ]);
     
 } catch (Exception $e) {
