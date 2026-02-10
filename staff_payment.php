@@ -21,7 +21,7 @@ try {
     // Get filter parameters
     $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : '';
     $statusFilter = isset($_GET['status']) ? trim($_GET['status']) : '';
-    $dateFilter = isset($_GET['date']) ? trim($_GET['date']) : 'today';
+    $dateFilter = isset($_GET['date']) ? trim($_GET['date']) : 'all';
     
     // Build base WHERE clause for reuse
     $whereClause = "WHERE q.status IN ('completed', 'in_procedure', 'waiting')";
@@ -232,10 +232,10 @@ require_once __DIR__ . '/includes/staff_layout_start.php';
                             <option value="unpaid" <?php echo $statusFilter === 'unpaid' ? 'selected' : ''; ?>>Unpaid</option>
                         </select>
                         <select class="filter-select" name="date" id="dateRange" onchange="document.getElementById('filterForm').submit()">
+                            <option value="all" <?php echo $dateFilter === 'all' ? 'selected' : ''; ?>>All Time</option>
                             <option value="today" <?php echo $dateFilter === 'today' ? 'selected' : ''; ?>>Today</option>
                             <option value="week" <?php echo $dateFilter === 'week' ? 'selected' : ''; ?>>This Week</option>
                             <option value="month" <?php echo $dateFilter === 'month' ? 'selected' : ''; ?>>This Month</option>
-                            <option value="all" <?php echo $dateFilter === 'all' ? 'selected' : ''; ?>>All Time</option>
                         </select>
                         <button type="submit" class="btn-filter">Search</button>
                     </form>

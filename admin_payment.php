@@ -78,26 +78,48 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                             </tr>
                         </thead>
                         <tbody id="paymentTableBody">
-                            <?php 
-                            $sampleData = [
-                                ['id' => 'INV-001', 'patient' => 'Maria Santos', 'services' => 'Root Canal, X-Ray', 'amount' => 5000, 'date' => '2024-01-10', 'dueDate' => '2024-01-17', 'status' => 'paid'],
-                                ['id' => 'INV-002', 'patient' => 'Roberto Garcia', 'services' => 'Denture Adjustment', 'amount' => 1500, 'date' => '2024-01-11', 'dueDate' => '2024-01-18', 'status' => 'unpaid'],
-                                ['id' => 'INV-003', 'patient' => 'Ana Reyes', 'services' => 'Oral Prophylaxis', 'amount' => 2000, 'date' => '2024-01-08', 'dueDate' => '2024-01-15', 'status' => 'unpaid'],
-                                ['id' => 'INV-004', 'patient' => 'Juan Dela Cruz', 'services' => 'Tooth Extraction', 'amount' => 3000, 'date' => '2024-01-12', 'dueDate' => '2024-01-19', 'status' => 'paid'],
-                            ];
-                            foreach ($sampleData as $index => $row): 
-                                $statusClass = $row['status'] === 'paid' ? 'paid' : 'unpaid';
-                            ?>
+                            <?php if (empty($billingRecords)): ?>
                             <tr>
-                                <td><?php echo $row['id']; ?></td>
-                                <td><?php echo htmlspecialchars($row['patient']); ?></td>
-                                <td><?php echo htmlspecialchars($row['services']); ?></td>
-                                <td>₱<?php echo number_format($row['amount'], 0); ?></td>
-                                <td><?php echo $row['date']; ?></td>
-                                <td><?php echo $row['dueDate']; ?></td>
-                                <td><span class="status-badge <?php echo $statusClass; ?>"><?php echo ucfirst($row['status']); ?></span></td>
+                                <td colspan="8" style="text-align: center; padding: 40px; color: #6b7280;">
+                                    No payment records found. Add patients and create billing to see payments here.
+                                </td>
+                            </tr>
+                            <?php else: ?>
+                            <?php foreach ($billingRecords as $record): 
+                                $invoiceNum = 'INV-' . str_pad($record['billing_id'], 3, '0', STR_PAD_LEFT);
+                                $fullName = trim($record['first_name'] . ' ' . $record['middle_name'] . ' ' . $record['last_name'] . ' ' . $record['suffix']);
+                                $fullName = preg_replace('/\s+/', ' ', $fullName);
+                                $services = $billingServices[$record['billing_id']] ?? 'General Service';
+                                $status = $record['payment_status'] === 'paid' ? 'paid' : 'unpaid';
+                                $isOverdue = $record['due_date'] < date('Y-m-d') && $record['balance'] > 0;
+                                $displayStatus = $isOverdue ? 'overdue' : $status;
+                            ?>
+                            <tr data-invoice-id="<?php echo $invoiceNum; ?>" data-status="<?php echo $status; ?>" data-name="<?php echo strtolower($fullName); ?>" data-billing-id="<?php echo $record['billing_id']; ?>" data-patient-id="<?php echo $record['patient_id']; ?>">
+                                <td><?php echo $invoiceNum; ?></td>
                                 <td>
-                                    <button class="queue-kebab-btn" data-invoice-id="<?php echo $row['id']; ?>" data-status="<?php echo $row['status']; ?>">
+                                    <?php if ($record['patient_id']): ?>
+                                    <a href="patient_records.php?id=<?php echo $record['patient_id']; ?>" style="color: #2563eb; text-decoration: none; font-weight: 500;">
+                                        <?php echo htmlspecialchars($fullName); ?>
+                                    </a>
+                                    <?php else: ?>
+                                    <span style="color: #6b7280;">Unknown Patient</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?php echo htmlspecialchars($services); ?></td>
+                                <td>₱<?php echo number_format($record['total_amount'], 0); ?></td>
+                                <td><?php echo date('Y-m-d', strtotime($record['billing_date'])); ?></td>
+                                <td><?php echo date('Y-m-d', strtotime($record['due_date'])); ?></td>
+                                <td>
+                                    <span class="status-badge <?php echo $displayStatus; ?>">
+                                        <?php if ($isOverdue): ?>
+                                        Overdue
+                                        <?php else: ?>
+                                        <?php echo ucfirst($status); ?>
+                                        <?php endif; ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <button class="queue-kebab-btn" data-invoice-id="<?php echo $invoiceNum; ?>" data-billing-id="<?php echo $record['billing_id']; ?>" data-status="<?php echo $status; ?>" data-patient-id="<?php echo $record['patient_id']; ?>">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                                             <circle cx="12" cy="5" r="2"/>
                                             <circle cx="12" cy="12" r="2"/>
@@ -107,6 +129,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                                 </td>
                             </tr>
                             <?php endforeach; ?>
+                            <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
@@ -354,13 +377,28 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
             </style>
 
             <script>
-                // Payment data storage (in real app, this comes from database)
-                var paymentData = {
-                    'INV-001': { id: 'INV-001', patient: 'Maria Santos', services: 'Root Canal, X-Ray', amount: 5000, date: '2024-01-10', dueDate: '2024-01-17', status: 'paid', phone: '09123456789', address: '123 Main St, City' },
-                    'INV-002': { id: 'INV-002', patient: 'Roberto Garcia', services: 'Denture Adjustment', amount: 1500, date: '2024-01-11', dueDate: '2024-01-18', status: 'unpaid', phone: '09123456790', address: '456 Oak Ave, Town' },
-                    'INV-003': { id: 'INV-003', patient: 'Ana Reyes', services: 'Oral Prophylaxis', amount: 2000, date: '2024-01-08', dueDate: '2024-01-15', status: 'unpaid', phone: '09123456791', address: '789 Pine Rd, Village' },
-                    'INV-004': { id: 'INV-004', patient: 'Juan Dela Cruz', services: 'Tooth Extraction', amount: 3000, date: '2024-01-12', dueDate: '2024-01-19', status: 'paid', phone: '09123456792', address: '321 Elm St, District' }
+                // Payment data storage - loaded from PHP
+                var paymentData = {};
+
+                <?php foreach ($billingRecords as $record): ?>
+                <?php $invoiceNum = 'INV-' . str_pad($record['billing_id'], 3, '0', STR_PAD_LEFT); ?>
+                <?php $fullName = trim($record['first_name'] . ' ' . $record['middle_name'] . ' ' . $record['last_name'] . ' ' . $record['suffix']); ?>
+                <?php $fullName = preg_replace('/\s+/', ' ', $fullName); ?>
+                <?php $services = $billingServices[$record['billing_id']] ?? 'General Service'; ?>
+                paymentData['<?php echo $invoiceNum; ?>'] = {
+                    id: '<?php echo $invoiceNum; ?>',
+                    billing_id: '<?php echo $record['billing_id']; ?>',
+                    patient: '<?php echo addslashes($fullName); ?>',
+                    services: '<?php echo addslashes($services); ?>',
+                    amount: '<?php echo $record['total_amount']; ?>',
+                    paid_amount: '<?php echo $record['paid_amount']; ?>',
+                    balance: '<?php echo $record['balance']; ?>',
+                    date: '<?php echo date('Y-m-d', strtotime($record['billing_date'])); ?>',
+                    dueDate: '<?php echo date('Y-m-d', strtotime($record['due_date'])); ?>',
+                    status: '<?php echo $record['payment_status']; ?>',
+                    phone: '<?php echo addslashes($record['phone'] ?? ''); ?>'
                 };
+                <?php endforeach; ?>
 
                 var currentPrintId = null;
                 var currentInvoiceId = null;
@@ -607,24 +645,55 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
 
                 // Mark as Paid
                 function markAsPaid(invoiceId) {
-                    if (confirm('Mark invoice ' + invoiceId + ' as paid?')) {
-                        if (paymentData[invoiceId]) {
+                    var payment = paymentData[invoiceId];
+                    if (!payment) return;
+                    
+                    if (!confirm('Mark invoice ' + invoiceId + ' as paid?')) return;
+                    
+                    // Send AJAX request
+                    fetch('billing_actions.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'mark_paid',
+                            billing_id: payment.billing_id,
+                            patient_id: payment.patient_id,
+                            amount: payment.amount,
+                            treatment: payment.services
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Update local data
                             paymentData[invoiceId].status = 'paid';
+                            
+                            // Update UI
+                            var rows = document.querySelectorAll('#paymentTableBody tr');
+                            rows.forEach(function(row) {
+                                if (row.dataset.invoiceId === invoiceId) {
+                                    var statusCell = row.querySelector('td:nth-child(7)');
+                                    statusCell.innerHTML = '<span class="status-badge paid">Paid</span>';
+                                    
+                                    var kebabBtn = row.querySelector('.queue-kebab-btn');
+                                    kebabBtn.setAttribute('data-status', 'paid');
+                                    
+                                    // Update data attribute
+                                    row.dataset.status = 'paid';
+                                }
+                            });
+                            
+                            // Refresh page to show updated data
+                            setTimeout(function() {
+                                location.reload();
+                            }, 500);
+                        } else {
+                            alert('Error: ' + data.message);
                         }
-                        
-                        var rows = document.querySelectorAll('#paymentTableBody tr');
-                        rows.forEach(function(row) {
-                            if (row.querySelector('td').textContent === invoiceId) {
-                                var statusCell = row.querySelector('td:nth-child(7)');
-                                statusCell.innerHTML = '<span class="status-badge paid">Paid</span>';
-                                
-                                var kebabBtn = row.querySelector('.queue-kebab-btn');
-                                kebabBtn.setAttribute('data-status', 'paid');
-                            }
-                        });
-                        
-                        alert('Invoice marked as paid!');
-                    }
+                    })
+                    .catch(error => {
+                        alert('Error marking payment as paid. Please try again.');
+                    });
                 }
 
                 // Edit Payment
@@ -644,6 +713,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                 // Save Payment Edit
                 function savePaymentEdit() {
                     var invoiceId = document.getElementById('editPaymentId').value;
+                    var billingId = document.getElementById('editBillingId').value;
                     var newAmount = parseFloat(document.getElementById('editPaymentAmount').value);
                     var reason = document.getElementById('editPaymentReason').value;
                     
@@ -652,19 +722,52 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                         return;
                     }
                     
-                    if (paymentData[invoiceId]) {
-                        paymentData[invoiceId].amount = newAmount;
+                    if (!billingId) {
+                        alert('Billing ID is missing');
+                        return;
                     }
                     
-                    var rows = document.querySelectorAll('#paymentTableBody tr');
-                    rows.forEach(function(row) {
-                        if (row.querySelector('td').textContent === invoiceId) {
-                            row.querySelector('td:nth-child(4)').textContent = '₱' + newAmount.toLocaleString();
+                    // Send AJAX request
+                    fetch('billing_actions.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'update_amount',
+                            billing_id: billingId,
+                            new_amount: newAmount,
+                            reason: reason
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Update local data
+                            if (paymentData[invoiceId]) {
+                                paymentData[invoiceId].amount = newAmount;
+                            }
+                            
+                            // Update UI
+                            var rows = document.querySelectorAll('#paymentTableBody tr');
+                            rows.forEach(function(row) {
+                                if (row.dataset.invoiceId === invoiceId) {
+                                    row.querySelector('td:nth-child(4)').textContent = '₱' + newAmount.toLocaleString();
+                                }
+                            });
+                            
+                            closePaymentModal('editPaymentModal');
+                            alert('Payment amount updated successfully!');
+                            
+                            // Refresh page
+                            setTimeout(function() {
+                                location.reload();
+                            }, 500);
+                        } else {
+                            alert('Error: ' + data.message);
                         }
+                    })
+                    .catch(error => {
+                        alert('Error updating payment. Please try again.');
                     });
-                    
-                    alert('Payment amount updated successfully!');
-                    closePaymentModal('editPaymentModal');
                 }
 
                 // Print Payment
