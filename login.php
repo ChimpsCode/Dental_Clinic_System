@@ -43,6 +43,10 @@ if (empty($username) || empty($password)) {
                 // Get full_name from database
                 $_SESSION['full_name'] = !empty($user['full_name']) ? $user['full_name'] : $user['username'];
                 
+                // Log successful login
+                require_once 'includes/audit_helper.php';
+                logAudit($pdo, $user['id'], $user['username'], $user['role'], 'login', 'users', 'Successful login from ' . ($_SERVER['HTTP_USER_AGENT'] ? 'web browser' : 'unknown device'));
+                
                 // Redirect based on role
                 if ($user['role'] === 'admin') {
                     $redirect = 'admin_dashboard.php';
@@ -57,6 +61,16 @@ if (empty($username) || empty($password)) {
                 echo json_encode(['success' => true, 'message' => 'Logged in successfully', 'redirect' => $redirect]);
                 exit();
             } else {
+                // Log failed login attempt
+                require_once 'includes/audit_helper.php';
+                if ($user) {
+                    // User exists but wrong password
+                    logFailedLogin($pdo, $username, 'invalid_password');
+                } else {
+                    // User not found
+                    logFailedLogin($pdo, $username, 'user_not_found');
+                }
+                
                 echo json_encode(['success' => false, 'message' => 'Invalid username or password']);
                 exit();
             }
@@ -95,6 +109,10 @@ if (empty($username) || empty($password)) {
                 // Get full_name from database
                 $_SESSION['full_name'] = !empty($user['full_name']) ? $user['full_name'] : $user['username'];
                 
+                // Log successful login
+                require_once 'includes/audit_helper.php';
+                logAudit($pdo, $user['id'], $user['username'], $user['role'], 'login', 'users', 'Successful login');
+                
                 // Redirect based on role
                 if ($user['role'] === 'admin') {
                     header('Location: admin_dashboard.php');
@@ -107,6 +125,14 @@ if (empty($username) || empty($password)) {
                 }
                 exit();
             } else {
+                // Log failed login attempt
+                require_once 'includes/audit_helper.php';
+                if ($user) {
+                    logFailedLogin($pdo, $username, 'invalid_password');
+                } else {
+                    logFailedLogin($pdo, $username, 'user_not_found');
+                }
+                
                 $error = 'Invalid username or password';
             }
         } catch (PDOException $e) {

@@ -241,7 +241,7 @@ try {
         patient_id INT NOT NULL,
         treatment_type VARCHAR(200),
         teeth_numbers VARCHAR(500),
-        status ENUM('waiting', 'in_procedure', 'completed', 'cancelled', 'on_hold') DEFAULT 'waiting',
+        status ENUM('waiting', 'in_procedure', 'pending_payment', 'completed', 'cancelled', 'on_hold') DEFAULT 'waiting',
         priority INT DEFAULT 5,
         queue_time TIME,
         notes TEXT,
@@ -254,6 +254,35 @@ try {
         INDEX idx_queue_time (queue_time)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     echo "✓ Queue table created successfully!\n";
+
+    // Create audit_logs table
+    $pdo->exec("CREATE TABLE IF NOT EXISTS audit_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NULL COMMENT 'NULL for failed logins',
+        username VARCHAR(100) NULL COMMENT 'NULL if user does not exist',
+        user_role ENUM('admin', 'dentist', 'staff') NULL,
+        action_type ENUM('login', 'logout', 'create', 'read', 'update', 'delete', 'payment', 'status_change', 'failed_login') NOT NULL,
+        module VARCHAR(50) NOT NULL COMMENT 'Which section: users, patients, appointments, queue, treatments, billing, payments, inquiries, treatment_plans',
+        record_id INT NULL COMMENT 'ID of the affected record',
+        record_type VARCHAR(50) NULL COMMENT 'Table name affected',
+        description TEXT NOT NULL COMMENT 'Human-readable description of the action',
+        old_value TEXT NULL COMMENT 'Previous value (for updates)',
+        new_value TEXT NULL COMMENT 'New value (for updates)',
+        affected_table VARCHAR(50) NULL COMMENT 'Table that was affected',
+        affected_id INT NULL COMMENT 'Primary key of affected record',
+        ip_address VARCHAR(45),
+        user_agent TEXT,
+        status ENUM('success', 'failed') DEFAULT 'success' COMMENT 'For login attempts',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        
+        INDEX idx_user_id (user_id),
+        INDEX idx_action_type (action_type),
+        INDEX idx_module (module),
+        INDEX idx_status (status),
+        INDEX idx_created_at (created_at),
+        INDEX idx_ip (ip_address)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    echo "✓ Audit logs table created successfully!\n";
 
     // Insert default users
     echo "\n--- Creating Default Users ---\n";

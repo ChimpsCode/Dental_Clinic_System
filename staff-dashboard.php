@@ -9,14 +9,15 @@ try {
         SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix, p.phone
         FROM queue q 
         LEFT JOIN patients p ON q.patient_id = p.id 
-        WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'on_hold', 'cancelled')
+        WHERE q.status IN ('waiting', 'in_procedure', 'pending_payment', 'completed', 'on_hold', 'cancelled')
         ORDER BY 
             CASE q.status 
                 WHEN 'in_procedure' THEN 1 
                 WHEN 'waiting' THEN 2 
-                WHEN 'on_hold' THEN 3 
-                WHEN 'completed' THEN 4 
-                WHEN 'cancelled' THEN 5 
+                WHEN 'pending_payment' THEN 3 
+                WHEN 'on_hold' THEN 4 
+                WHEN 'completed' THEN 5 
+                WHEN 'cancelled' THEN 6 
             END,
             q.queue_time DESC
     ");

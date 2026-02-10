@@ -28,6 +28,11 @@ $action = $data['action'] ?? '';
 $queueId = $data['queue_id'] ?? ($data['id'] ?? null);
 $patientId = $data['patient_id'] ?? null;
 
+// Get user info for audit logging
+$user_id = $_SESSION['user_id'] ?? null;
+$username = $_SESSION['username'] ?? 'unknown';
+$user_role = $_SESSION['role'] ?? 'unknown';
+
 if (!$queueId && !$patientId) {
     echo json_encode(['success' => false, 'message' => 'Queue ID or Patient ID is required']);
     exit();
@@ -35,6 +40,7 @@ if (!$queueId && !$patientId) {
 
 try {
     require_once 'config/database.php';
+    require_once 'includes/audit_helper.php';
     
     // Helper function to build full name
     function buildFullName($item) {
@@ -49,6 +55,9 @@ try {
             $stmt->execute([$queueId]);
             $queueItem = $stmt->fetch();
             $patientName = buildFullName($queueItem);
+
+            // Log audit
+            logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Called patient: ' . $patientName . ' (Q-' . str_pad($queueId, 4, '0', STR_PAD_LEFT) . ')', $queueId, 'queue', 'waiting', 'called');
 
             echo json_encode([
                 'success' => true, 
@@ -78,6 +87,11 @@ try {
                 break;
             }
             
+            // Get current status before update
+            $stmt = $pdo->prepare("SELECT status FROM queue WHERE id = ?");
+            $stmt->execute([$queueId]);
+            $oldStatus = $stmt->fetchColumn();
+            
             $stmt = $pdo->prepare("UPDATE queue SET status = 'in_procedure', updated_at = NOW() WHERE id = ?");
             $stmt->execute([$queueId]);
             
@@ -86,6 +100,9 @@ try {
             $stmt->execute([$queueId]);
             $queueItem = $stmt->fetch();
             $patientName = buildFullName($queueItem);
+            
+            // Log audit
+            logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Started procedure for patient: ' . $patientName . ' (Q-' . str_pad($queueId, 4, '0', STR_PAD_LEFT) . ')', $queueId, 'queue', $oldStatus, 'in_procedure');
             
             echo json_encode([
                 'success' => true, 
@@ -107,6 +124,10 @@ try {
                 echo json_encode(['success' => false, 'message' => 'Queue item not found']);
                 break;
             }
+            
+            // Get current status before update
+            $oldStatus = $queueItem['status'];
+            $patientName = buildFullName($queueItem);
             
             // Check if already processed
             $isProcessed = $queueItem['is_processed'] ?? 0;
@@ -140,34 +161,44 @@ try {
                 
                 $treatmentId = $pdo->lastInsertId();
                 
-                // Mark queue item as processed
-                $stmt = $pdo->prepare("UPDATE queue SET status = 'completed', completed_at = NOW(), is_processed = 1, updated_at = NOW() WHERE id = ?");
+                // Mark queue item as treatment finished, pending payment
+                $stmt = $pdo->prepare("UPDATE queue SET status = 'pending_payment', completed_at = NOW(), is_processed = 1, updated_at = NOW() WHERE id = ?");
                 $stmt->execute([$queueId]);
                 
-                $patientName = buildFullName($queueItem);
+                // Log audit for treatment creation
+                logAudit($pdo, $user_id, $username, $user_role, 'create', 'treatments', 'Created treatment record for patient: ' . $patientName . ' - ' . ($queueItem['treatment_type'] ?? 'General Checkup'), $treatmentId, 'treatments', null, $queueItem['treatment_type']);
+                
+                // Log audit for queue completion - pending payment
+                logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Treatment finished, pending payment for patient: ' . $patientName . ' (Q-' . str_pad($queueId, 4, '0', STR_PAD_LEFT) . ')', $queueId, 'queue', $oldStatus, 'pending_payment');
                 
                 echo json_encode([
                     'success' => true, 
-                    'message' => 'Treatment completed and recorded for ' . $patientName,
+                    'message' => 'Treatment finished and recorded for ' . $patientName . '. Please proceed to payment.',
                     'patient_name' => $patientName,
                     'treatment_id' => $treatmentId
                 ]);
             } else {
                 // Already processed, just update status
-                $stmt = $pdo->prepare("UPDATE queue SET status = 'completed', updated_at = NOW() WHERE id = ?");
+                $stmt = $pdo->prepare("UPDATE queue SET status = 'pending_payment', updated_at = NOW() WHERE id = ?");
                 $stmt->execute([$queueId]);
                 
-                $patientName = buildFullName($queueItem);
+                // Log audit
+                logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Marked treatment as pending payment for patient: ' . $patientName . ' (Q-' . str_pad($queueId, 4, '0', STR_PAD_LEFT) . ')', $queueId, 'queue', $oldStatus, 'pending_payment');
                 
                 echo json_encode([
                     'success' => true, 
-                    'message' => 'Treatment completed for ' . $patientName,
+                    'message' => 'Treatment finished for ' . $patientName . '. Please proceed to payment.',
                     'patient_name' => $patientName
                 ]);
             }
             break;
             
         case 'on_hold':
+            // Get current status before update
+            $stmt = $pdo->prepare("SELECT status FROM queue WHERE id = ?");
+            $stmt->execute([$queueId]);
+            $oldStatus = $stmt->fetchColumn();
+            
             $stmt = $pdo->prepare("UPDATE queue SET status = 'on_hold', updated_at = NOW() WHERE id = ?");
             $stmt->execute([$queueId]);
             
@@ -177,6 +208,9 @@ try {
             $queueItem = $stmt->fetch();
             $patientName = buildFullName($queueItem);
             
+            // Log audit
+            logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Put patient on hold: ' . $patientName . ' (Q-' . str_pad($queueId, 4, '0', STR_PAD_LEFT) . ')', $queueId, 'queue', $oldStatus, 'on_hold');
+            
             echo json_encode([
                 'success' => true, 
                 'message' => 'Patient put on hold: ' . $patientName
@@ -184,6 +218,11 @@ try {
             break;
             
         case 'cancel':
+            // Get current status before update
+            $stmt = $pdo->prepare("SELECT status FROM queue WHERE id = ?");
+            $stmt->execute([$queueId]);
+            $oldStatus = $stmt->fetchColumn();
+            
             $stmt = $pdo->prepare("UPDATE queue SET status = 'cancelled', updated_at = NOW() WHERE id = ?");
             $stmt->execute([$queueId]);
             
@@ -193,6 +232,9 @@ try {
             $queueItem = $stmt->fetch();
             $patientName = buildFullName($queueItem);
             
+            // Log audit
+            logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Cancelled patient: ' . $patientName + ' (Q-' . str_pad($queueId, 4, '0', STR_PAD_LEFT) . ')', $queueId, 'queue', $oldStatus, 'cancelled');
+            
             echo json_encode([
                 'success' => true, 
                 'message' => 'Patient cancelled: ' . $patientName
@@ -200,6 +242,11 @@ try {
             break;
             
         case 'requeue':
+            // Get current status before update
+            $stmt = $pdo->prepare("SELECT status FROM queue WHERE id = ?");
+            $stmt->execute([$queueId]);
+            $oldStatus = $stmt->fetchColumn();
+            
             $stmt = $pdo->prepare("UPDATE queue SET status = 'waiting', queue_time = NOW(), updated_at = NOW() WHERE id = ?");
             $stmt->execute([$queueId]);
             
@@ -208,6 +255,9 @@ try {
             $stmt->execute([$queueId]);
             $queueItem = $stmt->fetch();
             $patientName = buildFullName($queueItem);
+            
+            // Log audit
+            logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Re-queued patient: ' . $patientName . ' (Q-' . str_pad($queueId, 4, '0', STR_PAD_LEFT) . ')', $queueId, 'queue', $oldStatus, 'waiting');
             
             echo json_encode([
                 'success' => true, 
@@ -221,6 +271,9 @@ try {
             $stmt->execute([$queueId]);
             $queueItem = $stmt->fetch();
             $patientName = buildFullName($queueItem);
+            
+            // Log before delete
+            logAudit($pdo, $user_id, $username, $user_role, 'delete', 'queue', 'Deleted queue entry for patient: ' . ($patientName ?: 'Unknown') . ' (Q-' . str_pad($queueId, 4, '0', STR_PAD_LEFT) . ')', $queueId, 'queue', null, null);
             
             $stmt = $pdo->prepare("DELETE FROM queue WHERE id = ?");
             $stmt->execute([$queueId]);
@@ -251,6 +304,12 @@ try {
             $stmt = $pdo->prepare("SELECT * FROM queue WHERE patient_id = ? AND status IN ('waiting', 'in_procedure') ORDER BY created_at DESC LIMIT 1");
             $stmt->execute([$patientId]);
             $queueItem = $stmt->fetch();
+            
+            // Log audit for viewing patient record
+            if ($patient) {
+                $patientFullName = buildFullName($patient);
+                logAudit($pdo, $user_id, $username, $user_role, 'read', 'patients', 'Viewed patient record: ' . $patientFullName, $patientId, 'patients', null, null);
+            }
             
             echo json_encode([
                 'success' => true,

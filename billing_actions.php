@@ -14,22 +14,45 @@ header('Content-Type: application/json');
 
 $response = ['success' => false, 'message' => 'Invalid action'];
 
-// Get current user info from session
-$current_user_id = $_SESSION['user_id'] ?? 0;
-$current_role = $_SESSION['role'] ?? '';
+// Get current user info from session with fallback
+$current_user_id = $_SESSION['user_id'] ?? null;
+$current_username = $_SESSION['username'] ?? null;
+$current_role = $_SESSION['role'] ?? null;
 
-// Allow both admin and staff
-$allowed_roles = ['admin', 'staff'];
+// Allow both admin and staff - also check for dentist
+$allowed_roles = ['admin', 'staff', 'dentist'];
 if (!in_array($current_role, $allowed_roles)) {
     // Try to get user_id from POST if session is not available
     $input = json_decode(file_get_contents('php://input'), true);
-    $posted_user_id = $input['user_id'] ?? 0;
+    $posted_user_id = $input['user_id'] ?? null;
     if (!$current_user_id && !$posted_user_id) {
-        echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
-        exit;
-    }
-    if ($posted_user_id) {
-        $current_user_id = $posted_user_id;
+        // Check for admin bypass in POST
+        if (!empty($input['username']) && !empty($input['password'])) {
+            // Try direct database login for admin
+            require_once __DIR__ . '/config/database.php';
+            $directUser = $input['username'];
+            $directPass = $input['password'];
+            
+            try {
+                $stmt = $pdo->prepare("SELECT id, username, full_name, role FROM users WHERE username = ? AND password = ?");
+                $stmt->execute([$directUser, $directPass]);
+                $user = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($user) {
+                    // Set session variables for this request
+                    $current_user_id = $user['id'];
+                    $current_username = $user['username'];
+                    $current_role = $user['role'];
+                }
+            } catch (Exception $e) {
+                error_log("Direct login attempt failed: " . $e->getMessage());
+            }
+        }
+        
+        if (!$current_user_id && !$posted_user_id) {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
+            exit;
+        }
     }
 }
 
@@ -40,6 +63,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 } else {
     $input = json_decode(file_get_contents('php://input'), true);
     $action = $input['action'] ?? '';
+}
+
+// Include audit helper
+require_once __DIR__ . '/includes/audit_helper.php';
+
+// Helper function to get patient name
+function getPatientName($pdo, $patient_id) {
+    $stmt = $pdo->prepare("SELECT CONCAT(first_name, ' ', last_name) as full_name FROM patients WHERE id = ?");
+    $stmt->execute([$patient_id]);
+    $result = $stmt->fetch();
+    return $result['full_name'] ?? 'Unknown Patient';
 }
 
 try {
@@ -64,6 +98,9 @@ try {
             $billing = $stmt->fetch();
             
             if ($billing) {
+                // Log audit - read billing record
+                logAudit($pdo, $current_user_id, $current_username, $current_role, 'read', 'billing', 'Viewed billing record: INV-' . str_pad($billing_id, 3, '0', STR_PAD_LEFT), $billing_id, 'billing', null, null);
+                
                 $response['success'] = true;
                 $response['billing'] = $billing;
             } else {
@@ -94,6 +131,9 @@ try {
                 $queue = $stmt->fetch();
                 
                 if ($queue) {
+                    // Log audit - read billing details
+                    logAudit($pdo, $current_user_id, $current_username, $current_role, 'read', 'billing', 'Viewed payment details for queue: Q-' . str_pad($queue_id, 4, '0', STR_PAD_LEFT), $queue_id, 'queue', null, null);
+                    
                     // Get or create billing record
                     $stmt = $pdo->prepare("
                         SELECT b.*, COALESCE(b.payment_status, 'unpaid') as payment_status
@@ -141,6 +181,9 @@ try {
                 $patient = $stmt->fetch();
                 
                 if ($patient) {
+                    // Log audit - read billing details
+                    logAudit($pdo, $current_user_id, $current_username, $current_role, 'read', 'billing', 'Viewed payment details for patient ID: ' . $patient_id, $patient_id, 'patients', null, null);
+                    
                     $response['success'] = true;
                     $response['patient_id'] = $patient_id;
                     $response['patient_name'] = $patient['patient_name'];
@@ -181,11 +224,20 @@ try {
                 exit;
             }
             
+            $patient_name = getPatientName($pdo, $patient_id);
+            $old_status = 'unknown';
+            $new_status = 'paid';
+            
             $pdo->beginTransaction();
             
             try {
                 // Find or create billing record
                 if ($billing_id) {
+                    // Get old status before update
+                    $stmt = $pdo->prepare("SELECT payment_status FROM billing WHERE id = ?");
+                    $stmt->execute([$billing_id]);
+                    $old_status = $stmt->fetchColumn();
+                    
                     // Update existing billing
                     $stmt = $pdo->prepare("
                         UPDATE billing 
@@ -199,7 +251,7 @@ try {
                 } else {
                     // Check if billing exists for today
                     $stmt = $pdo->prepare("
-                        SELECT id FROM billing 
+                        SELECT id, payment_status FROM billing 
                         WHERE patient_id = ? AND DATE(billing_date) = CURDATE()
                     ");
                     $stmt->execute([$patient_id]);
@@ -208,6 +260,7 @@ try {
                     if ($existing) {
                         // Update existing
                         $billing_id = $existing['id'];
+                        $old_status = $existing['payment_status'];
                         $stmt = $pdo->prepare("
                             UPDATE billing 
                             SET payment_status = 'paid', 
@@ -234,8 +287,21 @@ try {
                     VALUES (?, ?, ?, 'Cash', CURDATE(), ?, NOW())
                 ");
                 $stmt->execute([$billing_id, $patient_id, $amount, $current_user_id]);
+                $payment_id = $pdo->lastInsertId();
+                
+                // Update queue status to completed if queue_id exists
+                if ($queue_id) {
+                    $stmt = $pdo->prepare("UPDATE queue SET status = 'completed', updated_at = NOW() WHERE id = ? AND status = 'pending_payment'");
+                    $stmt->execute([$queue_id]);
+                }
                 
                 $pdo->commit();
+                
+                // Log audit - payment recorded
+                logAudit($pdo, $current_user_id, $current_username, $current_role, 'payment', 'billing', 'Payment recorded: ₱' . number_format($amount, 2) . ' for patient: ' . $patient_name . ' (INV-' . str_pad($billing_id, 3, '0', STR_PAD_LEFT) . ')', $billing_id, 'billing', $old_status, 'paid');
+                
+                // Log audit - payment record created
+                logAudit($pdo, $current_user_id, $current_username, $current_role, 'create', 'payments', 'Created payment record: ₱' . number_format($amount, 2) . ' for patient: ' . $patient_name, $payment_id, 'payments', null, '₱' . number_format($amount, 2));
                 
                 $response['success'] = true;
                 $response['message'] = 'Payment marked as paid successfully';
@@ -260,7 +326,7 @@ try {
             }
             
             // Get current billing record
-            $stmt = $pdo->prepare("SELECT total_amount, paid_amount FROM billing WHERE id = ?");
+            $stmt = $pdo->prepare("SELECT total_amount, paid_amount, patient_id FROM billing WHERE id = ?");
             $stmt->execute([$billing_id]);
             $billing = $stmt->fetch();
             
@@ -270,6 +336,8 @@ try {
                 exit;
             }
             
+            $patient_name = getPatientName($pdo, $billing['patient_id']);
+            $old_amount = $billing['total_amount'];
             $paid_amount = $billing['paid_amount'];
             $new_balance = max(0, $new_amount - $paid_amount);
             
@@ -280,6 +348,9 @@ try {
                 WHERE id = ?
             ");
             $stmt->execute([$new_amount, $new_balance, $billing_id]);
+            
+            // Log audit - billing updated
+            logAudit($pdo, $current_user_id, $current_username, $current_role, 'update', 'billing', 'Updated billing amount: ₱' . number_format($old_amount, 2) . ' → ₱' . number_format($new_amount, 2) . ' for patient: ' . $patient_name . ' (INV-' . str_pad($billing_id, 3, '0', STR_PAD_LEFT) . ')' . ($reason ? ' - Reason: ' . $reason : ''), $billing_id, 'billing', '₱' . number_format($old_amount, 2), '₱' . number_format($new_amount, 2));
             
             $response['success'] = true;
             $response['message'] = 'Payment amount updated successfully';

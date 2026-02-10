@@ -24,7 +24,7 @@ try {
     $dateFilter = isset($_GET['date']) ? trim($_GET['date']) : 'all';
     
     // Build base WHERE clause for reuse
-    $whereClause = "WHERE q.status IN ('completed', 'in_procedure', 'waiting')";
+    $whereClause = "WHERE q.status IN ('completed', 'pending_payment', 'in_procedure', 'waiting')";
     $params = [];
     
     // Apply search filter
@@ -294,6 +294,8 @@ require_once __DIR__ . '/includes/staff_layout_start.php';
                                 <td>
                                     <?php if ($record['queue_status'] === 'completed'): ?>
                                         <span class="status-badge queue-completed">Completed</span>
+                                    <?php elseif ($record['queue_status'] === 'pending_payment'): ?>
+                                        <span class="status-badge queue-pending-payment">Pending Payment</span>
                                     <?php elseif ($record['queue_status'] === 'in_procedure'): ?>
                                         <span class="status-badge queue-in-procedure">In Procedure</span>
                                     <?php else: ?>
@@ -640,6 +642,11 @@ require_once __DIR__ . '/includes/staff_layout_start.php';
                 .status-badge.queue-completed {
                     background: #dbeafe;
                     color: #2563eb;
+                }
+
+                .status-badge.queue-pending-payment {
+                    background: #fef3c7;
+                    color: #d97706;
                 }
 
                 .status-badge.queue-in-procedure {
