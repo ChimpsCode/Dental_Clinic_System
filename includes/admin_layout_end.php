@@ -9,6 +9,7 @@
 
     <script src="assets/js/dashboard.js"></script>
     <script src="assets/js/admin.js"></script>
+    <?php if (isset($pageScript)) { echo $pageScript; } ?>
     <script>
         // Ensure user profile dropdown works
         document.addEventListener('DOMContentLoaded', function() {

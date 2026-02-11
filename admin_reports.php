@@ -5,7 +5,110 @@
 
 $pageTitle = 'Reports';
 
+require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/admin_layout_start.php';
+
+$patientsReport = [];
+$appointmentsReport = [];
+$billingReport = [];
+$revenueReport = [];
+$servicesReport = [];
+$dailySummaryReport = [];
+
+try {
+    $patientsReport = $pdo->query("
+        SELECT id, full_name, phone, email, created_at
+        FROM patients
+        ORDER BY created_at DESC
+        LIMIT 200
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    $appointmentsReport = $pdo->query("
+        SELECT a.id, CONCAT(p.first_name, ' ', p.last_name) AS patient,
+               a.appointment_date, a.appointment_time, a.treatment, a.status
+        FROM appointments a
+        LEFT JOIN patients p ON p.id = a.patient_id
+        ORDER BY a.appointment_date DESC, a.appointment_time DESC
+        LIMIT 200
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    $billingReport = $pdo->query("
+        SELECT b.id, CONCAT(p.first_name, ' ', p.last_name) AS patient,
+               b.total_amount, b.paid_amount, b.balance, b.payment_status,
+               b.billing_date, b.due_date
+        FROM billing b
+        LEFT JOIN patients p ON p.id = b.patient_id
+        ORDER BY b.billing_date DESC
+        LIMIT 200
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    $revenueReport = $pdo->query("
+        SELECT COALESCE(t.procedure_name, a.treatment, 'General Service') AS service,
+               COALESCE(SUM(b.total_amount), 0) AS total
+        FROM billing b
+        LEFT JOIN treatments t ON t.id = b.treatment_id
+        LEFT JOIN appointments a ON a.id = b.appointment_id
+        GROUP BY service
+        ORDER BY total DESC
+        LIMIT 20
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    $servicesReport = $pdo->query("
+        SELECT procedure_name AS service, COUNT(*) AS total
+        FROM treatments
+        GROUP BY procedure_name
+        ORDER BY total DESC
+        LIMIT 20
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    if (empty($servicesReport)) {
+        $servicesReport = $pdo->query("
+            SELECT treatment AS service, COUNT(*) AS total
+            FROM appointments
+            GROUP BY treatment
+            ORDER BY total DESC
+            LIMIT 20
+        ")->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    $dailySummaryReport = $pdo->query("
+        SELECT
+            DATE(d.day) AS day,
+            COALESCE(p.new_patients, 0) AS new_patients,
+            COALESCE(a.total_appointments, 0) AS appointments,
+            COALESCE(r.total_revenue, 0) AS revenue
+        FROM (
+            SELECT CURDATE() - INTERVAL (a.a) DAY AS day
+            FROM (SELECT 0 a UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6) a
+        ) d
+        LEFT JOIN (
+            SELECT DATE(created_at) AS day, COUNT(*) AS new_patients
+            FROM patients
+            WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+            GROUP BY DATE(created_at)
+        ) p ON p.day = DATE(d.day)
+        LEFT JOIN (
+            SELECT appointment_date AS day, COUNT(*) AS total_appointments
+            FROM appointments
+            WHERE appointment_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+            GROUP BY appointment_date
+        ) a ON a.day = DATE(d.day)
+        LEFT JOIN (
+            SELECT payment_date AS day, COALESCE(SUM(amount), 0) AS total_revenue
+            FROM payments
+            WHERE payment_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+            GROUP BY payment_date
+        ) r ON r.day = DATE(d.day)
+        ORDER BY day ASC
+    ")->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    $patientsReport = [];
+    $appointmentsReport = [];
+    $billingReport = [];
+    $revenueReport = [];
+    $servicesReport = [];
+    $dailySummaryReport = [];
+}
 ?>
             <div class="content-main">
                 <!-- Page Header -->
@@ -16,76 +119,65 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
 
                 <!-- Report Types Grid -->
                 <div class="reports-grid">
-                    <!-- Patient Report -->
                     <div class="report-card">
-                        <div class="report-icon">👥</div>
+                        <div class="report-icon">&#128101;</div>
                         <h3>Patient Report</h3>
                         <p>Complete list of all registered patients with contact information and visit history.</p>
                         <div class="report-actions">
                             <button class="btn-secondary" onclick="previewReport('patients')">Preview</button>
-                            <button class="btn-primary" onclick="printReport('patients')">🖨️ Print</button>
+                            <button class="btn-primary" onclick="printReport('patients')">&#128424; Print</button>
                         </div>
                     </div>
-
-                    <!-- Appointments Report -->
                     <div class="report-card">
-                        <div class="report-icon">📅</div>
+                        <div class="report-icon">&#128197;</div>
                         <h3>Appointments Report</h3>
                         <p>Detailed appointments log including completed, pending, and cancelled appointments.</p>
                         <div class="report-actions">
                             <button class="btn-secondary" onclick="previewReport('appointments')">Preview</button>
-                            <button class="btn-primary" onclick="printReport('appointments')">🖨️ Print</button>
+                            <button class="btn-primary" onclick="printReport('appointments')">&#128424; Print</button>
                         </div>
                     </div>
-
-                    <!-- Billing Report -->
                     <div class="report-card">
-                        <div class="report-icon">💰</div>
+                        <div class="report-icon">&#128176;</div>
                         <h3>Billing Report</h3>
                         <p>Financial summary including all transactions, payments received, and pending amounts.</p>
                         <div class="report-actions">
                             <button class="btn-secondary" onclick="previewReport('billing')">Preview</button>
-                            <button class="btn-primary" onclick="printReport('billing')">🖨️ Print</button>
+                            <button class="btn-primary" onclick="printReport('billing')">&#128424; Print</button>
                         </div>
                     </div>
-
-                    <!-- Revenue Report -->
                     <div class="report-card">
-                        <div class="report-icon">📈</div>
+                        <div class="report-icon">&#128200;</div>
                         <h3>Revenue Report</h3>
                         <p>Revenue breakdown by service type, time period, and payment status.</p>
                         <div class="report-actions">
                             <button class="btn-secondary" onclick="previewReport('revenue')">Preview</button>
-                            <button class="btn-primary" onclick="printReport('revenue')">🖨️ Print</button>
+                            <button class="btn-primary" onclick="printReport('revenue')">&#128424; Print</button>
                         </div>
                     </div>
-
-                    <!-- Services Report -->
                     <div class="report-card">
-                        <div class="report-icon">🦷</div>
+                        <div class="report-icon">&#129405;</div>
                         <h3>Services Report</h3>
                         <p>Summary of services rendered, frequency, and revenue by service type.</p>
                         <div class="report-actions">
                             <button class="btn-secondary" onclick="previewReport('services')">Preview</button>
-                            <button class="btn-primary" onclick="printReport('services')">🖨️ Print</button>
+                            <button class="btn-primary" onclick="printReport('services')">&#128424; Print</button>
                         </div>
                     </div>
-
-                    <!-- Daily Summary -->
                     <div class="report-card">
-                        <div class="report-icon">📊</div>
+                        <div class="report-icon">&#128202;</div>
                         <h3>Daily Summary</h3>
                         <p>Day-by-day summary of patients, appointments, and revenue.</p>
                         <div class="report-actions">
                             <button class="btn-secondary" onclick="previewReport('daily')">Preview</button>
-                            <button class="btn-primary" onclick="printReport('daily')">🖨️ Print</button>
+                            <button class="btn-primary" onclick="printReport('daily')">&#128424; Print</button>
                         </div>
                     </div>
                 </div>
 
                 <!-- Report Generator -->
                 <div class="section-card">
-                    <h2 class="section-title">📋 Custom Report Generator</h2>
+                    <h2 class="section-title">&#128203; Custom Report Generator</h2>
                     <div class="report-form">
                         <div class="form-row">
                             <div class="form-group" style="flex:1;">
@@ -95,6 +187,8 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                                     <option value="appointments">Appointments Report</option>
                                     <option value="billing">Billing Report</option>
                                     <option value="revenue">Revenue Report</option>
+                                    <option value="services">Services Report</option>
+                                    <option value="daily">Daily Summary</option>
                                 </select>
                             </div>
                             <div class="form-group" style="flex:1;">
@@ -109,8 +203,8 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                         </div>
                         <div class="form-actions">
                             <button class="btn-secondary" onclick="generateCustomReport()">Generate Report</button>
-                            <button class="btn-primary" onclick="printCustomReport()">🖨️ Print Report</button>
-                            <button class="btn-secondary" onclick="exportToPDF()">📄 Export PDF</button>
+                            <button class="btn-primary" onclick="printCustomReport()">&#128424; Print Report</button>
+                            <button class="btn-secondary" onclick="exportToPDF()">&#128196; Export PDF</button>
                         </div>
                     </div>
                 </div>
@@ -118,19 +212,204 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
 
             <!-- Print Preview Modal -->
             <div id="printPreviewModal" class="modal-overlay">
-                <div class="modal" style="max-width: 800px;">
+                <div class="modal" style="max-width: 900px;">
                     <div class="modal-header">
                         <h2>Report Preview</h2>
                         <div class="modal-actions">
                             <button class="btn-secondary" onclick="closePreviewModal()">Close</button>
-                            <button class="btn-primary" onclick="printCurrentReport()">🖨️ Print</button>
+                            <button class="btn-primary" onclick="printCurrentReport()">&#128424; Print</button>
                         </div>
                     </div>
-                    <div class="print-preview-content" id="printPreviewContent">
-                        <!-- Report content will be loaded here -->
-                    </div>
+                    <div class="print-preview-content" id="printPreviewContent"></div>
                 </div>
             </div>
+
+<?php
+$jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
+$reportPayload = [
+    'patients' => $patientsReport,
+    'appointments' => $appointmentsReport,
+    'billing' => $billingReport,
+    'revenue' => $revenueReport,
+    'services' => $servicesReport,
+    'daily' => $dailySummaryReport
+];
+$reportJson = json_encode($reportPayload, $jsonFlags);
+?>
+<script id="reportData" type="application/json"><?php echo $reportJson; ?></script>
+<?php
+$pageScript = <<<'SCRIPT'
+<script>
+const reportData = JSON.parse(document.getElementById('reportData')?.textContent || '{}');
+const reportTitles = {
+    patients: 'Patient Report',
+    appointments: 'Appointments Report',
+    billing: 'Billing Report',
+    revenue: 'Revenue Report',
+    services: 'Services Report',
+    daily: 'Daily Summary'
+};
+
+let lastPreviewType = 'patients';
+
+function buildTable(headers, rows) {
+    const thead = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`;
+    let tbody = rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('');
+    if (!tbody) {
+        tbody = `<tr><td colspan="${headers.length}" style="text-align:center;color:#6b7280;">No records found</td></tr>`;
+    }
+    return `<table class="print-table"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
+}
+
+function renderReport(type) {
+    const data = reportData[type] || [];
+    let headers = [];
+    let rows = [];
+
+    if (type === 'patients') {
+        headers = ['ID', 'Full Name', 'Phone', 'Email', 'Registered'];
+        rows = data.map(p => [
+            p.id ?? '',
+            p.full_name ?? '',
+            p.phone ?? '',
+            p.email ?? '',
+            p.created_at ? new Date(p.created_at).toLocaleDateString() : ''
+        ]);
+    } else if (type === 'appointments') {
+        headers = ['ID', 'Patient', 'Date', 'Time', 'Treatment', 'Status'];
+        rows = data.map(a => [
+            a.id ?? '',
+            a.patient ?? '',
+            a.appointment_date ?? '',
+            a.appointment_time ?? '',
+            a.treatment ?? '',
+            a.status ?? ''
+        ]);
+    } else if (type === 'billing') {
+        headers = ['Invoice', 'Patient', 'Total', 'Paid', 'Balance', 'Status', 'Date', 'Due'];
+        rows = data.map(b => [
+            `INV-${String(b.id).padStart(4, '0')}`,
+            b.patient ?? '',
+            `₱${Number(b.total_amount || 0).toLocaleString()}`,
+            `₱${Number(b.paid_amount || 0).toLocaleString()}`,
+            `₱${Number(b.balance || 0).toLocaleString()}`,
+            b.payment_status ?? '',
+            b.billing_date ?? '',
+            b.due_date ?? ''
+        ]);
+    } else if (type === 'revenue') {
+        headers = ['Service', 'Total Revenue'];
+        rows = data.map(r => [
+            r.service ?? 'General Service',
+            `₱${Number(r.total || 0).toLocaleString()}`
+        ]);
+    } else if (type === 'services') {
+        headers = ['Service', 'Frequency'];
+        rows = data.map(s => [
+            s.service ?? 'Service',
+            s.total ?? 0
+        ]);
+    } else if (type === 'daily') {
+        headers = ['Date', 'New Patients', 'Appointments', 'Revenue'];
+        rows = data.map(d => [
+            d.day ?? '',
+            d.new_patients ?? 0,
+            d.appointments ?? 0,
+            `₱${Number(d.revenue || 0).toLocaleString()}`
+        ]);
+    }
+
+    const table = buildTable(headers, rows);
+    return `
+        <div class="print-report">
+            <div class="print-header">
+                <div class="print-brand">
+                    <div class="print-logo">RF</div>
+                    <div>
+                        <div class="print-title">RF Dental Clinic</div>
+                        <div class="print-subtitle">${reportTitles[type]}</div>
+                    </div>
+                </div>
+                <div class="print-meta">
+                    <div>Generated: ${new Date().toLocaleString()}</div>
+                </div>
+            </div>
+            <div class="print-body">
+                ${table}
+            </div>
+            <div class="print-footer">
+                <div>Confidential - For internal use only</div>
+                <div>RF Dental Clinic</div>
+            </div>
+        </div>
+    `;
+}
+
+window.previewReport = function(type) {
+    lastPreviewType = type;
+    const content = renderReport(type);
+    document.getElementById('printPreviewContent').innerHTML = content;
+    document.getElementById('printPreviewModal').classList.add('active');
+};
+
+window.printReport = function(type) {
+    const html = renderReport(type);
+    const win = window.open('', '_blank');
+    const doc = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>${reportTitles[type]}</title>
+    <style>
+        body { font-family: "Segoe UI", Arial, sans-serif; color:#111; margin: 24px; }
+        .print-report { max-width: 980px; margin: 0 auto; }
+        .print-header { display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e5e7eb; padding-bottom:12px; margin-bottom:16px; }
+        .print-brand { display:flex; gap:12px; align-items:center; }
+        .print-logo { width:44px; height:44px; border-radius:10px; background:#2563eb; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; }
+        .print-title { font-size:18px; font-weight:700; }
+        .print-subtitle { font-size:13px; color:#6b7280; }
+        .print-meta { font-size:12px; color:#6b7280; text-align:right; }
+        .print-table { width:100%; border-collapse:collapse; }
+        .print-table th, .print-table td { border:1px solid #e5e7eb; padding:8px 10px; font-size:12px; text-align:left; }
+        .print-table th { background:#f9fafb; text-transform:uppercase; letter-spacing:.04em; font-size:11px; }
+        .print-footer { margin-top:18px; font-size:11px; color:#9ca3af; display:flex; justify-content:space-between; }
+        @media print { body { margin: 0.5in; } }
+    </style>
+</head>
+<body>${html}</body>
+</html>`;
+    win.document.open();
+    win.document.write(doc);
+    win.document.close();
+    win.focus();
+    win.print();
+};
+
+window.printCurrentReport = function() {
+    window.printReport(lastPreviewType);
+};
+
+window.closePreviewModal = function() {
+    document.getElementById('printPreviewModal').classList.remove('active');
+};
+
+window.generateCustomReport = function() {
+    const type = document.getElementById('customReportType').value;
+    window.previewReport(type);
+};
+
+window.printCustomReport = function() {
+    const type = document.getElementById('customReportType').value;
+    window.printReport(type);
+};
+
+window.exportToPDF = function() {
+    const type = document.getElementById('customReportType').value;
+    window.printReport(type);
+};
+</script>
+SCRIPT;
+?>
 
 <?php
 require_once __DIR__ . '/includes/admin_layout_end.php';

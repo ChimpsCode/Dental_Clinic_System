@@ -40,6 +40,11 @@ $totalPatients = 0;
 $appointmentsCount = 0;
 $revenueTotal = 0;
 $avgWaitMinutes = 0;
+$monthlyRevenue = 0;
+$totalCollected = 0;
+$pendingPayments = 0;
+$todaysPatients = 0;
+$monthlyRevenueData = [];
 $newPatients = 0;
 $returningPatients = 0;
 $ageGroupLabel = 'N/A';
@@ -60,6 +65,44 @@ try {
     $stmt = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) FROM payments WHERE payment_date BETWEEN ? AND ?");
     $stmt->execute([$startStr, $endStr]);
     $revenueTotal = (float)($stmt->fetchColumn() ?? 0);
+
+    $monthlyRevenue = (float)($pdo->query("
+        SELECT COALESCE(SUM(amount), 0)
+        FROM payments
+        WHERE YEAR(payment_date) = YEAR(CURDATE())
+          AND MONTH(payment_date) = MONTH(CURDATE())
+    ")->fetchColumn() ?? 0);
+
+    $totalCollected = (float)($pdo->query("
+        SELECT COALESCE(SUM(paid_amount), 0)
+        FROM billing
+        WHERE payment_status = 'paid'
+    ")->fetchColumn() ?? 0);
+
+    $pendingPayments = (float)($pdo->query("
+        SELECT COALESCE(SUM(balance), 0)
+        FROM billing
+        WHERE payment_status IN ('pending', 'unpaid', 'partial')
+           OR (balance IS NOT NULL AND balance > 0)
+    ")->fetchColumn() ?? 0);
+
+    $todaysPatients = (int)($pdo->query("
+        SELECT COUNT(*)
+        FROM patients
+        WHERE DATE(created_at) = CURDATE()
+    ")->fetchColumn() ?? 0);
+
+    $stmt = $pdo->query("
+        SELECT
+            DATE_FORMAT(payment_date, '%b') AS month_label,
+            DATE_FORMAT(payment_date, '%Y-%m') AS ym,
+            COALESCE(SUM(amount), 0) AS total
+        FROM payments
+        WHERE payment_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+        GROUP BY ym, month_label
+        ORDER BY ym ASC
+    ");
+    $monthlyRevenueData = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $stmt = $pdo->prepare("
         SELECT COALESCE(AVG(TIMESTAMPDIFF(MINUTE, created_at, completed_at)), 0)
@@ -198,31 +241,31 @@ try {
                 <!-- Key Metrics -->
                 <div class="summary-cards">
                     <div class="summary-card">
-                        <div class="summary-icon blue">&#128101;</div>
-                        <div class="summary-info">
-                            <h3><?php echo number_format($totalPatients); ?></h3>
-                            <p>Total Patients</p>
-                        </div>
-                    </div>
-                    <div class="summary-card">
-                        <div class="summary-icon green">&#128197;</div>
-                        <div class="summary-info">
-                            <h3><?php echo number_format($appointmentsCount); ?></h3>
-                            <p>Appointments</p>
-                        </div>
-                    </div>
-                    <div class="summary-card">
                         <div class="summary-icon green">&#128176;</div>
                         <div class="summary-info">
-                            <h3>&#8369;<?php echo number_format($revenueTotal, 2); ?></h3>
-                            <p>Revenue</p>
+                            <h3>&#8369;<?php echo number_format($monthlyRevenue, 2); ?></h3>
+                            <p>Monthly Revenue</p>
                         </div>
                     </div>
                     <div class="summary-card">
-                        <div class="summary-icon yellow">&#9201;</div>
+                        <div class="summary-icon blue">&#128203;</div>
                         <div class="summary-info">
-                            <h3><?php echo number_format($avgWaitMinutes); ?> min</h3>
-                            <p>Avg. Wait Time</p>
+                            <h3>&#8369;<?php echo number_format($totalCollected, 2); ?></h3>
+                            <p>Total Collected</p>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-icon yellow">&#9203;</div>
+                        <div class="summary-info">
+                            <h3>&#8369;<?php echo number_format($pendingPayments, 2); ?></h3>
+                            <p>Pending Payment</p>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-icon blue">&#128101;</div>
+                        <div class="summary-info">
+                            <h3><?php echo number_format($todaysPatients); ?></h3>
+                            <p>Today's Patients</p>
                         </div>
                     </div>
                 </div>
@@ -233,14 +276,7 @@ try {
                     <div class="chart-card">
                         <h3 class="chart-title">Revenue Overview</h3>
                         <div class="chart-placeholder">
-                            <div class="bar-chart">
-                                <div class="bar" style="--bar-height: 60%;" data-label="Jan"></div>
-                                <div class="bar" style="--bar-height: 75%;" data-label="Feb"></div>
-                                <div class="bar" style="--bar-height: 65%;" data-label="Mar"></div>
-                                <div class="bar" style="--bar-height: 85%;" data-label="Apr"></div>
-                                <div class="bar" style="--bar-height: 70%;" data-label="May"></div>
-                                <div class="bar" style="--bar-height: 90%;" data-label="Jun"></div>
-                            </div>
+                            <div class="bar-chart" id="revenueBars"></div>
                         </div>
                     </div>
 
@@ -329,6 +365,24 @@ try {
             </div>
 
 <script>
+    const revenueData = <?php echo json_encode($monthlyRevenueData); ?>;
+    const barContainer = document.getElementById('revenueBars');
+    if (barContainer) {
+        if (revenueData.length === 0) {
+            barContainer.innerHTML = '<div style="color:#6b7280;font-size:13px;">No revenue data</div>';
+        } else {
+            const maxVal = Math.max(...revenueData.map(r => Number(r.total)));
+            revenueData.forEach((item) => {
+                const heightPct = maxVal > 0 ? Math.round((Number(item.total) / maxVal) * 100) : 0;
+                const bar = document.createElement('div');
+                bar.className = 'bar';
+                bar.style.setProperty('--bar-height', heightPct + '%');
+                bar.setAttribute('data-label', item.month_label);
+                barContainer.appendChild(bar);
+            });
+        }
+    }
+
     document.getElementById('analyticsPeriod')?.addEventListener('change', function () {
         const params = new URLSearchParams(window.location.search);
         params.set('period', this.value);

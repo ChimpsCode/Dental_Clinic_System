@@ -5,42 +5,143 @@
 
 $pageTitle = 'Payment';
 
+require_once __DIR__ . '/config/database.php';
+
+$billingRecords = [];
+$totalCollected = 0;
+$pendingPayments = 0;
+$totalTransactions = 0;
+$overdueCount = 0;
+$showingStart = 0;
+$showingEnd = 0;
+$filteredTotal = 0;
+
+try {
+    $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : '';
+    $statusFilter = isset($_GET['status']) ? trim($_GET['status']) : '';
+    $dateFilter = isset($_GET['date']) ? trim($_GET['date']) : 'all';
+
+    $whereClause = "WHERE 1=1";
+    $params = [];
+
+    if ($searchQuery !== '') {
+        $whereClause .= " AND (
+            CONCAT(COALESCE(p.first_name,''), ' ', COALESCE(p.middle_name,''), ' ', COALESCE(p.last_name,''), ' ', COALESCE(p.suffix,'')) LIKE :search
+            OR b.id LIKE :searchId
+        )";
+        $params[':search'] = '%' . $searchQuery . '%';
+        $params[':searchId'] = '%' . $searchQuery . '%';
+    }
+
+    if ($statusFilter === 'paid') {
+        $whereClause .= " AND b.payment_status = 'paid'";
+    } elseif ($statusFilter === 'unpaid') {
+        $whereClause .= " AND (b.payment_status IS NULL OR b.payment_status IN ('pending', 'unpaid', 'partial'))";
+    }
+
+    switch ($dateFilter) {
+        case 'today':
+            $whereClause .= " AND DATE(b.billing_date) = CURDATE()";
+            break;
+        case 'week':
+            $whereClause .= " AND b.billing_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
+            break;
+        case 'month':
+            $whereClause .= " AND b.billing_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
+            break;
+        default:
+            break;
+    }
+
+    $statsStmt = $pdo->query("
+        SELECT
+            COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN paid_amount ELSE 0 END), 0) AS total_collected,
+            COALESCE(SUM(CASE WHEN payment_status IN ('pending', 'unpaid', 'partial') THEN balance ELSE 0 END), 0) AS pending_payments,
+            COUNT(*) AS total_transactions,
+            SUM(CASE WHEN due_date < CURDATE() AND (balance IS NOT NULL AND balance > 0) THEN 1 ELSE 0 END) AS overdue_count
+        FROM billing
+    ");
+    $stats = $statsStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    $totalCollected = (float)($stats['total_collected'] ?? 0);
+    $pendingPayments = (float)($stats['pending_payments'] ?? 0);
+    $totalTransactions = (int)($stats['total_transactions'] ?? 0);
+    $overdueCount = (int)($stats['overdue_count'] ?? 0);
+
+    $sql = "
+        SELECT
+            b.id AS billing_id,
+            b.patient_id,
+            b.treatment_id,
+            b.appointment_id,
+            b.total_amount,
+            b.paid_amount,
+            b.balance,
+            b.payment_status,
+            b.billing_date,
+            b.due_date,
+            p.first_name,
+            p.middle_name,
+            p.last_name,
+            p.suffix,
+            p.phone,
+            p.address,
+            COALESCE(t.procedure_name, a.treatment, 'General Service') AS service_name
+        FROM billing b
+        LEFT JOIN patients p ON p.id = b.patient_id
+        LEFT JOIN treatments t ON t.id = b.treatment_id
+        LEFT JOIN appointments a ON a.id = b.appointment_id
+        $whereClause
+        ORDER BY b.billing_date DESC
+    ";
+    $stmt = $pdo->prepare($sql);
+    foreach ($params as $key => $value) {
+        $stmt->bindValue($key, $value);
+    }
+    $stmt->execute();
+    $billingRecords = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $filteredTotal = count($billingRecords);
+    $showingStart = $filteredTotal ? 1 : 0;
+    $showingEnd = $filteredTotal;
+} catch (Exception $e) {
+    $billingRecords = [];
+}
+
 require_once __DIR__ . '/includes/admin_layout_start.php';
 ?>
             <div class="content-main">
                 <!-- Page Header -->
                 <div class="page-header">
                     <h2>Payment Overview</h2>
-                    <button class="btn-primary" onclick="exportPayment()">📥 Export Report</button>
+                    <button class="btn-primary" onclick="exportPayment()">&#128229; Export Report</button>
                 </div>
 
                 <!-- Stats Cards -->
                 <div class="summary-cards">
                     <div class="summary-card">
-                        <div class="summary-icon green">💰</div>
+                        <div class="summary-icon green">&#128176;</div>
                         <div class="summary-info">
-                            <h3>₱45,000</h3>
+                            <h3>&#8369;<?php echo number_format($totalCollected, 2); ?></h3>
                             <p>Total Collected</p>
                         </div>
                     </div>
                     <div class="summary-card">
-                        <div class="summary-icon yellow">⏳</div>
+                        <div class="summary-icon yellow">&#9203;</div>
                         <div class="summary-info">
-                            <h3>₱8,500</h3>
+                            <h3>&#8369;<?php echo number_format($pendingPayments, 2); ?></h3>
                             <p>Pending Payments</p>
                         </div>
                     </div>
                     <div class="summary-card">
-                        <div class="summary-icon blue">📋</div>
+                        <div class="summary-icon blue">&#128203;</div>
                         <div class="summary-info">
-                            <h3>25</h3>
+                            <h3><?php echo number_format($totalTransactions); ?></h3>
                             <p>Total Transactions</p>
                         </div>
                     </div>
                     <div class="summary-card">
-                        <div class="summary-icon red">❌</div>
+                        <div class="summary-icon red">&#10060;</div>
                         <div class="summary-info">
-                            <h3>2</h3>
+                            <h3><?php echo number_format($overdueCount); ?></h3>
                             <p>Overdue</p>
                         </div>
                     </div>
@@ -89,9 +190,9 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                                 $invoiceNum = 'INV-' . str_pad($record['billing_id'], 3, '0', STR_PAD_LEFT);
                                 $fullName = trim($record['first_name'] . ' ' . $record['middle_name'] . ' ' . $record['last_name'] . ' ' . $record['suffix']);
                                 $fullName = preg_replace('/\s+/', ' ', $fullName);
-                                $services = $billingServices[$record['billing_id']] ?? 'General Service';
+                                $services = $record['service_name'] ?? 'General Service';
                                 $status = $record['payment_status'] === 'paid' ? 'paid' : 'unpaid';
-                                $isOverdue = $record['due_date'] < date('Y-m-d') && $record['balance'] > 0;
+                                $isOverdue = !empty($record['due_date']) && $record['due_date'] < date('Y-m-d') && $record['balance'] > 0;
                                 $displayStatus = $isOverdue ? 'overdue' : $status;
                             ?>
                             <tr data-invoice-id="<?php echo $invoiceNum; ?>" data-status="<?php echo $status; ?>" data-name="<?php echo strtolower($fullName); ?>" data-billing-id="<?php echo $record['billing_id']; ?>" data-patient-id="<?php echo $record['patient_id']; ?>">
@@ -106,7 +207,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                                     <?php endif; ?>
                                 </td>
                                 <td><?php echo htmlspecialchars($services); ?></td>
-                                <td>₱<?php echo number_format($record['total_amount'], 0); ?></td>
+                                <td>&#8369;<?php echo number_format($record['total_amount'], 2); ?></td>
                                 <td><?php echo date('Y-m-d', strtotime($record['billing_date'])); ?></td>
                                 <td><?php echo date('Y-m-d', strtotime($record['due_date'])); ?></td>
                                 <td>
@@ -136,7 +237,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
 
                 <!-- Pagination -->
                 <div class="pagination">
-                    <span class="pagination-info">Showing 1-4 of 25 transactions</span>
+                    <span class="pagination-info">Showing <?php echo $showingStart; ?>-<?php echo $showingEnd; ?> of <?php echo $filteredTotal; ?> transactions</span>
                     <div class="pagination-buttons">
                         <button class="pagination-btn" disabled>Previous</button>
                         <button class="pagination-btn active">1</button>
@@ -384,7 +485,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                 <?php $invoiceNum = 'INV-' . str_pad($record['billing_id'], 3, '0', STR_PAD_LEFT); ?>
                 <?php $fullName = trim($record['first_name'] . ' ' . $record['middle_name'] . ' ' . $record['last_name'] . ' ' . $record['suffix']); ?>
                 <?php $fullName = preg_replace('/\s+/', ' ', $fullName); ?>
-                <?php $services = $billingServices[$record['billing_id']] ?? 'General Service'; ?>
+                <?php $services = $record['service_name'] ?? 'General Service'; ?>
                 paymentData['<?php echo $invoiceNum; ?>'] = {
                     id: '<?php echo $invoiceNum; ?>',
                     billing_id: '<?php echo $record['billing_id']; ?>',
