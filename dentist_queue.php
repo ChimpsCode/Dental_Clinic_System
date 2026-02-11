@@ -577,9 +577,196 @@ div.main-content {
 }
 
 @media (max-width: 768px) {
-    .summary-widgets {
-        grid-template-columns: repeat(2, 1fr);
+    .queue-table th,
+    .queue-table td {
+        padding: 8px;
+        font-size: 0.8rem;
     }
+    
+    .status-badge {
+        font-size: 0.75rem;
+        padding: 2px 6px;
+    }
+    
+    .treatment-type,
+    .time-display {
+        font-size: 0.8rem;
+    }
+    
+    .time-display {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+    }
+    
+    .queue-kebab-btn {
+        width: 24px;
+        height: 24px;
+    }
+}
+
+/* Prescription Modal Styles */
+.safety-info {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.safety-info h3 {
+    margin: 0 0 15px 0;
+    color: #15803d;
+    font-size: 1rem;
+}
+
+.safety-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 12px;
+}
+
+.safety-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.safety-item strong {
+    font-size: 0.85rem;
+    color: #374151;
+}
+
+.warning-text {
+    color: #dc2626;
+    font-weight: 600;
+    background: #fee2e2;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.info-text {
+    color: #059669;
+    background: #ecfdf5;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.form-group input,
+.form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #0284c7;
+}
+
+.form-group small {
+    display: block;
+    margin-top: 5px;
+    color: #6b7280;
+    font-size: 0.8rem;
+}
+
+.modal {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 20px 0;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: #1f2937;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #6b7280;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+}
+
+.modal-close:hover {
+    color: #374151;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-footer {
+    padding: 0 20px 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    border-top: 1px solid #e5e7eb;
+    margin-top: 20px;
+    padding-top: 20px;
+}
+
+.btn-cancel {
+    background: #f3f4f6;
+    color: #374151;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.btn-cancel:hover {
+    background: #e5e7eb;
+}
+
+.btn-primary {
+    background: #0284c7;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.btn-primary:hover {
+    background: #0369a1;
+}
     
     .control-bar {
         flex-direction: column;
@@ -609,7 +796,169 @@ div.main-content {
     .queue-table td {
         padding: 12px 16px;
     }
-}
+    
+    /* Prescription Modal Styles */
+    .safety-info {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+
+    .safety-info h3 {
+        margin: 0 0 15px 0;
+        color: #15803d;
+        font-size: 1rem;
+    }
+
+    .safety-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 12px;
+    }
+
+    .safety-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .safety-item strong {
+        font-size: 0.85rem;
+        color: #374151;
+    }
+
+    .warning-text {
+        color: #dc2626;
+        font-weight: 600;
+        background: #fee2e2;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+    }
+
+    .info-text {
+        color: #059669;
+        background: #ecfdf5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .form-group input,
+    .form-group textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        transition: border-color 0.2s;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #0284c7;
+    }
+
+    .form-group small {
+        display: block;
+        margin-top: 5px;
+        color: #6b7280;
+        font-size: 0.8rem;
+    }
+
+    .modal {
+        background: white;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 600px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 20px 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .modal-header h2 {
+        margin: 0;
+        color: #1f2937;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #6b7280;
+        padding: 0;
+        width: 30px;
+        height: 30px;
+    }
+
+    .modal-close:hover {
+        color: #374151;
+    }
+
+    .modal-body {
+        padding: 20px;
+    }
+
+    .modal-footer {
+        padding: 0 20px 20px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        border-top: 1px solid #e5e7eb;
+        margin-top: 20px;
+        padding-top: 20px;
+    }
+
+    .btn-cancel {
+        background: #f3f4f6;
+        color: #374151;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+    }
+
+    .btn-cancel:hover {
+        background: #e5e7eb;
+    }
+
+    .btn-primary {
+        background: #0284c7;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+    }
+
+    .btn-primary:hover {
+        background: #0369a1;
+    }
 </style>
 
 <!-- Summary Widgets -->
@@ -861,6 +1210,10 @@ function getQueueMenuItems(queueId, status) {
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
                 Complete
             </a>
+            <a href="javascript:void(0)" onclick="openQuickPrescriptionModal(${patientId}, ${queueId})">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14h-5v5h5v-5z M5 14h5v5H5v-5z M14 14h-5v5h5v-5z"/></svg>
+                💊 Prescription
+            </a>
             <a href="javascript:void(0)" onclick="updateQueueStatus(${queueId}, 'waiting')">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
                 Back to Waiting
@@ -1009,6 +1362,130 @@ window.addEventListener('resize', function() {
         positionQueueKebabDropdown(queueActiveButton);
     }
 });
+
+// Open Quick Prescription Modal
+function openQuickPrescriptionModal(patientId, queueId) {
+    // Create and show prescription modal for specific patient
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+        <div class="fullscreen-modal-content" style="max-width: 800px;">
+            <div class="fullscreen-modal-header">
+                <div>
+                    <h2 style="font-size: 1.5rem; font-weight: 600; margin: 0;">💊 Quick Prescription</h2>
+                </div>
+                <button class="fullscreen-modal-close" onclick="closeQuickPrescriptionModal()">&times;</button>
+            </div>
+            <div class="fullscreen-modal-body">
+                <div id="quickPatientSafetyInfo" class="safety-info" style="display: none;">
+                    <h3>👤 Patient Information</h3>
+                    <div class="safety-grid">
+                        <div class="safety-item">
+                            <strong>Name:</strong>
+                            <span id="quickPatientName"></span>
+                        </div>
+                        <div class="safety-item">
+                            <strong>Age:</strong>
+                            <span id="quickPatientAge"></span>
+                        </div>
+                        <div class="safety-item">
+                            <strong>Allergies:</strong>
+                            <span id="quickPatientAllergies" class="warning-text"></span>
+                        </div>
+                        <div class="safety-item">
+                            <strong>Current Medications:</strong>
+                            <span id="quickPatientMeds" class="info-text"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <form id="quickPrescriptionForm">
+                    <input type="hidden" id="quickPatientId" name="patient_id" value="${patientId}">
+                    
+                    <div class="form-group">
+                        <label>Issue Date:</label>
+                        <input type="date" name="issue_date" value="${new Date().toISOString().split('T')[0]}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Diagnosis:</label>
+                        <textarea name="diagnosis" rows="3" required placeholder="Reason for prescription..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Medications:</label>
+                        <textarea name="medications" rows="4" required placeholder="e.g., Amoxicillin 500mg - 3 times daily for 7 days"></textarea>
+                        <small>Enter medication details including dosage, frequency, and duration</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Instructions:</label>
+                        <textarea name="instructions" rows="3" placeholder="Additional patient instructions..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeQuickPrescriptionModal()">Cancel</button>
+                <button type="button" class="btn-primary" onclick="saveQuickPrescription()">Save Prescription</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Load patient safety info
+    fetch('prescription_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get_patient_info', patient_id: patientId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const patient = data.patient;
+            
+            document.getElementById('quickPatientName').textContent = patient.patient_name || 'N/A';
+            document.getElementById('quickPatientAge').textContent = patient.age || 'N/A';
+            document.getElementById('quickPatientAllergies').textContent = patient.allergies || 'None recorded';
+            document.getElementById('quickPatientMeds').textContent = patient.current_medications || 'None recorded';
+            
+            document.getElementById('quickPatientSafetyInfo').style.display = 'block';
+        }
+    });
+}
+
+function closeQuickPrescriptionModal() {
+    const modal = document.querySelector('.modal-overlay');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+function saveQuickPrescription() {
+    const formData = new FormData(document.getElementById('quickPrescriptionForm'));
+    const data = Object.fromEntries(formData);
+    
+    if (!data.medications || !data.diagnosis) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    fetch('prescription_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create_prescription', ...data })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            closeQuickPrescriptionModal();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    });
+}
 
 // Update Queue Status
 function updateQueueStatus(queueId, status) {

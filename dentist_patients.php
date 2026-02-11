@@ -655,10 +655,17 @@ function getPatientMenuItems(patientId) {
     return `
         <a href="javascript:void(0)" data-action="view" data-id="${patientId}">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11 8-11-8-11-8z"/>
                 <circle cx="12" cy="12" r="3"/>
             </svg>
             View Details
+        </a>
+        <a href="javascript:void(0)" data-action="prescriptions" data-id="${patientId}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="6" y="4" width="4" height="16"/>
+                <rect x="14" y="4" width="4" height="16"/>
+            </svg>
+            💊 Prescriptions
         </a>
         <a href="javascript:void(0)" data-action="billing" data-id="${patientId}">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -768,6 +775,9 @@ function handlePatientKebabClick(e) {
         case 'view':
             viewPatientDetails(id);
             break;
+        case 'prescriptions':
+            openPatientPrescriptionModal(id);
+            break;
         case 'billing':
             openBillingModal(id);
             break;
@@ -778,6 +788,128 @@ function handlePatientKebabClick(e) {
             window.location.href = 'quick_session.php?patient_id=' + id;
             break;
     }
+}
+
+// Open prescription modal for patient
+function openPatientPrescriptionModal(patientId) {
+    // Create prescription modal
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+        <div class="modal" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>💊 New Prescription</h2>
+                <button class="modal-close" onclick="closePatientPrescriptionModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="patientPrescriptionSafetyInfo" class="safety-info" style="display: none;">
+                    <h3>👤 Patient Information</h3>
+                    <div class="safety-grid">
+                        <div class="safety-item">
+                            <strong>Name:</strong>
+                            <span id="patientPrescriptionName"></span>
+                        </div>
+                        <div class="safety-item">
+                            <strong>Age:</strong>
+                            <span id="patientPrescriptionAge"></span>
+                        </div>
+                        <div class="safety-item">
+                            <strong>Allergies:</strong>
+                            <span id="patientPrescriptionAllergies" class="warning-text"></span>
+                        </div>
+                        <div class="safety-item">
+                            <strong>Current Medications:</strong>
+                            <span id="patientPrescriptionMeds" class="info-text"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <form id="patientPrescriptionForm">
+                    <input type="hidden" id="patientPrescriptionPatientId" name="patient_id" value="${patientId}">
+                    
+                    <div class="form-group">
+                        <label>Issue Date:</label>
+                        <input type="date" name="issue_date" value="${new Date().toISOString().split('T')[0]}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Diagnosis:</label>
+                        <textarea name="diagnosis" rows="3" required placeholder="Reason for prescription..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Medications:</label>
+                        <textarea name="medications" rows="4" required placeholder="e.g., Amoxicillin 500mg - 3 times daily for 7 days"></textarea>
+                        <small>Enter medication details including dosage, frequency, and duration</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Instructions:</label>
+                        <textarea name="instructions" rows="3" placeholder="Additional patient instructions..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closePatientPrescriptionModal()">Cancel</button>
+                <button type="button" class="btn-primary" onclick="savePatientPrescription()">Save Prescription</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Load patient safety info
+    fetch('prescription_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get_patient_info', patient_id: patientId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const patient = data.patient;
+            
+            document.getElementById('patientPrescriptionName').textContent = patient.patient_name || 'N/A';
+            document.getElementById('patientPrescriptionAge').textContent = patient.age || 'N/A';
+            document.getElementById('patientPrescriptionAllergies').textContent = patient.allergies || 'None recorded';
+            document.getElementById('patientPrescriptionMeds').textContent = patient.current_medications || 'None recorded';
+            
+            document.getElementById('patientPrescriptionSafetyInfo').style.display = 'block';
+        }
+    });
+}
+
+function closePatientPrescriptionModal() {
+    const modal = document.querySelector('.modal-overlay');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+function savePatientPrescription() {
+    const formData = new FormData(document.getElementById('patientPrescriptionForm'));
+    const data = Object.fromEntries(formData);
+    
+    if (!data.medications || !data.diagnosis) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    fetch('prescription_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create_prescription', ...data })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            closePatientPrescriptionModal();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    });
 }
 
 document.addEventListener('click', function(e) {

@@ -188,7 +188,8 @@ try {
                 echo json_encode([
                     'success' => true, 
                     'message' => 'Treatment finished for ' . $patientName . '. Please proceed to payment.',
-                    'patient_name' => $patientName
+                    'patient_name' => $patientName,
+                    'show_prescription_prompt' => true
                 ]);
             }
             break;
