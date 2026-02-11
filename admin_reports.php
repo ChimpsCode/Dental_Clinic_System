@@ -20,7 +20,6 @@ try {
         SELECT id, full_name, phone, email, created_at
         FROM patients
         ORDER BY created_at DESC
-        LIMIT 200
     ")->fetchAll(PDO::FETCH_ASSOC);
 
     $appointmentsReport = $pdo->query("
@@ -29,7 +28,6 @@ try {
         FROM appointments a
         LEFT JOIN patients p ON p.id = a.patient_id
         ORDER BY a.appointment_date DESC, a.appointment_time DESC
-        LIMIT 200
     ")->fetchAll(PDO::FETCH_ASSOC);
 
     $billingReport = $pdo->query("
@@ -39,7 +37,6 @@ try {
         FROM billing b
         LEFT JOIN patients p ON p.id = b.patient_id
         ORDER BY b.billing_date DESC
-        LIMIT 200
     ")->fetchAll(PDO::FETCH_ASSOC);
 
     $revenueReport = $pdo->query("
@@ -50,7 +47,6 @@ try {
         LEFT JOIN appointments a ON a.id = b.appointment_id
         GROUP BY service
         ORDER BY total DESC
-        LIMIT 20
     ")->fetchAll(PDO::FETCH_ASSOC);
 
     $servicesReport = $pdo->query("
@@ -58,7 +54,6 @@ try {
         FROM treatments
         GROUP BY procedure_name
         ORDER BY total DESC
-        LIMIT 20
     ")->fetchAll(PDO::FETCH_ASSOC);
 
     if (empty($servicesReport)) {
@@ -67,7 +62,6 @@ try {
             FROM appointments
             GROUP BY treatment
             ORDER BY total DESC
-            LIMIT 20
         ")->fetchAll(PDO::FETCH_ASSOC);
     }
 

@@ -368,19 +368,31 @@ try {
     const revenueData = <?php echo json_encode($monthlyRevenueData); ?>;
     const barContainer = document.getElementById('revenueBars');
     if (barContainer) {
-        if (revenueData.length === 0) {
-            barContainer.innerHTML = '<div style="color:#6b7280;font-size:13px;">No revenue data</div>';
-        } else {
-            const maxVal = Math.max(...revenueData.map(r => Number(r.total)));
-            revenueData.forEach((item) => {
-                const heightPct = maxVal > 0 ? Math.round((Number(item.total) / maxVal) * 100) : 0;
-                const bar = document.createElement('div');
-                bar.className = 'bar';
-                bar.style.setProperty('--bar-height', heightPct + '%');
-                bar.setAttribute('data-label', item.month_label);
-                barContainer.appendChild(bar);
-            });
+        const map = {};
+        revenueData.forEach(item => {
+            map[item.ym] = { label: item.month_label, total: Number(item.total) };
+        });
+
+        const months = [];
+        const year = new Date().getFullYear();
+        const labels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        for (let m = 0; m < 12; m++) {
+            const ym = `${year}-${String(m + 1).padStart(2, '0')}`;
+            const label = labels[m];
+            const entry = map[ym] || { label, total: 0 };
+            months.push(entry);
         }
+
+        const maxVal = Math.max(1, ...months.map(r => r.total));
+        months.forEach((item) => {
+            const rawPct = (item.total / maxVal) * 100;
+            const heightPct = item.total > 0 ? Math.max(20, Math.round(rawPct)) : 8;
+            const bar = document.createElement('div');
+            bar.className = 'bar';
+            bar.style.setProperty('--bar-height', heightPct + '%');
+            bar.setAttribute('data-label', item.label);
+            barContainer.appendChild(bar);
+        });
     }
 
     document.getElementById('analyticsPeriod')?.addEventListener('change', function () {
