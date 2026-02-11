@@ -1,58 +1,228 @@
 <?php
 /**
  * Analytics - Admin page for viewing clinic analytics and statistics
- * 
- * sample text
  */
 
 $pageTitle = 'Analytics';
 
+require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/admin_layout_start.php';
+
+$period = $_GET['period'] ?? 'month';
+$period = in_array($period, ['week', 'month', 'quarter', 'year'], true) ? $period : 'month';
+
+$today = new DateTime('today');
+$startDate = clone $today;
+$endDate = clone $today;
+
+switch ($period) {
+    case 'week':
+        $startDate = (clone $today)->modify('-6 days');
+        break;
+    case 'quarter':
+        $month = (int)$today->format('n');
+        $quarterStartMonth = (int)(floor(($month - 1) / 3) * 3) + 1;
+        $startDate = new DateTime($today->format('Y') . '-' . str_pad((string)$quarterStartMonth, 2, '0', STR_PAD_LEFT) . '-01');
+        break;
+    case 'year':
+        $startDate = new DateTime($today->format('Y') . '-01-01');
+        break;
+    case 'month':
+    default:
+        $startDate = new DateTime($today->format('Y-m-01'));
+        break;
+}
+
+$startStr = $startDate->format('Y-m-d');
+$endStr = $endDate->format('Y-m-d');
+
+$totalPatients = 0;
+$appointmentsCount = 0;
+$revenueTotal = 0;
+$avgWaitMinutes = 0;
+$newPatients = 0;
+$returningPatients = 0;
+$ageGroupLabel = 'N/A';
+$genderDistribution = 'N/A';
+$topServices = [];
+$topDentistName = 'Dentist';
+$topDentistCount = 0;
+$topStaffName = 'Staff';
+$topStaffCount = 0;
+
+try {
+    $totalPatients = (int)($pdo->query("SELECT COUNT(*) FROM patients")->fetchColumn() ?? 0);
+
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE appointment_date BETWEEN ? AND ?");
+    $stmt->execute([$startStr, $endStr]);
+    $appointmentsCount = (int)($stmt->fetchColumn() ?? 0);
+
+    $stmt = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) FROM payments WHERE payment_date BETWEEN ? AND ?");
+    $stmt->execute([$startStr, $endStr]);
+    $revenueTotal = (float)($stmt->fetchColumn() ?? 0);
+
+    $stmt = $pdo->prepare("
+        SELECT COALESCE(AVG(TIMESTAMPDIFF(MINUTE, created_at, completed_at)), 0)
+        FROM queue
+        WHERE status = 'completed'
+          AND completed_at IS NOT NULL
+          AND DATE(completed_at) BETWEEN ? AND ?
+    ");
+    $stmt->execute([$startStr, $endStr]);
+    $avgWaitMinutes = (int)round((float)($stmt->fetchColumn() ?? 0));
+
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM patients WHERE DATE(created_at) BETWEEN ? AND ?");
+    $stmt->execute([$startStr, $endStr]);
+    $newPatients = (int)($stmt->fetchColumn() ?? 0);
+
+    $stmt = $pdo->prepare("
+        SELECT COUNT(DISTINCT a.patient_id)
+        FROM appointments a
+        JOIN patients p ON p.id = a.patient_id
+        WHERE a.appointment_date BETWEEN ? AND ?
+          AND DATE(p.created_at) < ?
+    ");
+    $stmt->execute([$startStr, $endStr, $startStr]);
+    $returningPatients = (int)($stmt->fetchColumn() ?? 0);
+
+    $stmt = $pdo->query("
+        SELECT
+            CASE
+                WHEN age BETWEEN 0 AND 12 THEN '0-12'
+                WHEN age BETWEEN 13 AND 17 THEN '13-17'
+                WHEN age BETWEEN 18 AND 24 THEN '18-24'
+                WHEN age BETWEEN 25 AND 35 THEN '25-35'
+                WHEN age BETWEEN 36 AND 45 THEN '36-45'
+                WHEN age BETWEEN 46 AND 60 THEN '46-60'
+                WHEN age >= 61 THEN '60+'
+                ELSE NULL
+            END AS age_group,
+            COUNT(*) AS total
+        FROM patients
+        WHERE age IS NOT NULL
+        GROUP BY age_group
+        ORDER BY total DESC
+        LIMIT 1
+    ");
+    $ageGroupLabel = $stmt->fetchColumn() ?: 'N/A';
+
+    $stmt = $pdo->query("
+        SELECT
+            SUM(CASE WHEN LOWER(gender) IN ('female', 'f') THEN 1 ELSE 0 END) AS female_count,
+            SUM(CASE WHEN LOWER(gender) IN ('male', 'm') THEN 1 ELSE 0 END) AS male_count,
+            COUNT(*) AS total
+        FROM patients
+        WHERE gender IS NOT NULL AND gender <> ''
+    ");
+    $genderRow = $stmt->fetch(PDO::FETCH_ASSOC) ?: ['female_count' => 0, 'male_count' => 0, 'total' => 0];
+    $genderTotal = (int)($genderRow['total'] ?? 0);
+    if ($genderTotal > 0) {
+        $femalePct = (int)round(((int)$genderRow['female_count'] / $genderTotal) * 100);
+        $malePct = 100 - $femalePct;
+        $genderDistribution = $femalePct . '% F / ' . $malePct . '% M';
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT procedure_name AS service_name, COUNT(*) AS total
+        FROM treatments
+        WHERE treatment_date BETWEEN ? AND ?
+        GROUP BY procedure_name
+        ORDER BY total DESC
+        LIMIT 4
+    ");
+    $stmt->execute([$startStr, $endStr]);
+    $topServices = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    if (empty($topServices)) {
+        $stmt = $pdo->prepare("
+            SELECT treatment AS service_name, COUNT(*) AS total
+            FROM appointments
+            WHERE appointment_date BETWEEN ? AND ?
+            GROUP BY treatment
+            ORDER BY total DESC
+            LIMIT 4
+        ");
+        $stmt->execute([$startStr, $endStr]);
+        $topServices = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT u.full_name, COUNT(*) AS total
+        FROM treatments t
+        JOIN users u ON u.id = t.doctor_id
+        WHERE u.role = 'dentist'
+          AND t.treatment_date BETWEEN ? AND ?
+        GROUP BY u.id
+        ORDER BY total DESC
+        LIMIT 1
+    ");
+    $stmt->execute([$startStr, $endStr]);
+    $topDentist = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($topDentist) {
+        $topDentistName = $topDentist['full_name'] ?: 'Dentist';
+        $topDentistCount = (int)$topDentist['total'];
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT u.full_name, COUNT(*) AS total
+        FROM appointments a
+        JOIN users u ON u.id = a.created_by
+        WHERE u.role = 'staff'
+          AND a.appointment_date BETWEEN ? AND ?
+        GROUP BY u.id
+        ORDER BY total DESC
+        LIMIT 1
+    ");
+    $stmt->execute([$startStr, $endStr]);
+    $topStaff = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($topStaff) {
+        $topStaffName = $topStaff['full_name'] ?: 'Staff';
+        $topStaffCount = (int)$topStaff['total'];
+    }
+} catch (Exception $e) {
+    // Keep defaults on error
+}
 ?>
             <div class="content-main">
                 <!-- Page Header -->
                 <div class="page-header">
                     <h2>Analytics Dashboard</h2>
                     <select class="filter-select" id="analyticsPeriod">
-                        <option value="week">This Week</option>
-                        <option value="month" selected>This Month</option>
-                        <option value="quarter">This Quarter</option>
-                        <option value="year">This Year</option>
+                        <option value="week" <?php echo $period === 'week' ? 'selected' : ''; ?>>This Week</option>
+                        <option value="month" <?php echo $period === 'month' ? 'selected' : ''; ?>>This Month</option>
+                        <option value="quarter" <?php echo $period === 'quarter' ? 'selected' : ''; ?>>This Quarter</option>
+                        <option value="year" <?php echo $period === 'year' ? 'selected' : ''; ?>>This Year</option>
                     </select>
                 </div>
 
                 <!-- Key Metrics -->
                 <div class="summary-cards">
                     <div class="summary-card">
-                        <div class="summary-icon blue">👥</div>
+                        <div class="summary-icon blue">&#128101;</div>
                         <div class="summary-info">
-                            <h3>156</h3>
+                            <h3><?php echo number_format($totalPatients); ?></h3>
                             <p>Total Patients</p>
-                            <span class="trend up">↑ 12% vs last month</span>
                         </div>
                     </div>
                     <div class="summary-card">
-                        <div class="summary-icon green">📅</div>
+                        <div class="summary-icon green">&#128197;</div>
                         <div class="summary-info">
-                            <h3>89</h3>
+                            <h3><?php echo number_format($appointmentsCount); ?></h3>
                             <p>Appointments</p>
-                            <span class="trend up">↑ 8% vs last month</span>
                         </div>
                     </div>
                     <div class="summary-card">
-                        <div class="summary-icon green">💰</div>
+                        <div class="summary-icon green">&#128176;</div>
                         <div class="summary-info">
-                            <h3>₱125,000</h3>
+                            <h3>&#8369;<?php echo number_format($revenueTotal, 2); ?></h3>
                             <p>Revenue</p>
-                            <span class="trend up">↑ 15% vs last month</span>
                         </div>
                     </div>
                     <div class="summary-card">
-                        <div class="summary-icon yellow">⏱️</div>
+                        <div class="summary-icon yellow">&#9201;</div>
                         <div class="summary-info">
-                            <h3>45 min</h3>
+                            <h3><?php echo number_format($avgWaitMinutes); ?> min</h3>
                             <p>Avg. Wait Time</p>
-                            <span class="trend down">↓ 5 min vs last month</span>
                         </div>
                     </div>
                 </div>
@@ -64,12 +234,12 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                         <h3 class="chart-title">Revenue Overview</h3>
                         <div class="chart-placeholder">
                             <div class="bar-chart">
-                                <div class="bar" style="height: 60%;" data-label="Jan"></div>
-                                <div class="bar" style="height: 75%;" data-label="Feb"></div>
-                                <div class="bar" style="height: 65%;" data-label="Mar"></div>
-                                <div class="bar" style="height: 85%;" data-label="Apr"></div>
-                                <div class="bar" style="height: 70%;" data-label="May"></div>
-                                <div class="bar" style="height: 90%;" data-label="Jun"></div>
+                                <div class="bar" style="--bar-height: 60%;" data-label="Jan"></div>
+                                <div class="bar" style="--bar-height: 75%;" data-label="Feb"></div>
+                                <div class="bar" style="--bar-height: 65%;" data-label="Mar"></div>
+                                <div class="bar" style="--bar-height: 85%;" data-label="Apr"></div>
+                                <div class="bar" style="--bar-height: 70%;" data-label="May"></div>
+                                <div class="bar" style="--bar-height: 90%;" data-label="Jun"></div>
                             </div>
                         </div>
                     </div>
@@ -102,19 +272,19 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                         <div class="stat-content">
                             <div class="stat-row">
                                 <span>New Patients (This Month)</span>
-                                <span class="stat-value">24</span>
+                                <span class="stat-value"><?php echo number_format($newPatients); ?></span>
                             </div>
                             <div class="stat-row">
                                 <span>Returning Patients</span>
-                                <span class="stat-value">132</span>
+                                <span class="stat-value"><?php echo number_format($returningPatients); ?></span>
                             </div>
                             <div class="stat-row">
                                 <span>Most Common Age Group</span>
-                                <span class="stat-value">25-35</span>
+                                <span class="stat-value"><?php echo htmlspecialchars($ageGroupLabel); ?></span>
                             </div>
                             <div class="stat-row">
                                 <span>Gender Distribution</span>
-                                <span class="stat-value">60% F / 40% M</span>
+                                <span class="stat-value"><?php echo htmlspecialchars($genderDistribution); ?></span>
                             </div>
                         </div>
                     </div>
@@ -123,26 +293,21 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                     <div class="stat-card">
                         <h3 class="stat-title">Top Services</h3>
                         <div class="stat-content">
-                            <div class="service-rank">
-                                <span class="rank">1</span>
-                                <span class="service-name">Root Canal Treatment</span>
-                                <span class="service-count">32</span>
-                            </div>
-                            <div class="service-rank">
-                                <span class="rank">2</span>
-                                <span class="service-name">Oral Prophylaxis</span>
-                                <span class="service-count">28</span>
-                            </div>
-                            <div class="service-rank">
-                                <span class="rank">3</span>
-                                <span class="service-name">Tooth Extraction</span>
-                                <span class="service-count">18</span>
-                            </div>
-                            <div class="service-rank">
-                                <span class="rank">4</span>
-                                <span class="service-name">Denture Services</span>
-                                <span class="service-count">11</span>
-                            </div>
+                            <?php if (!empty($topServices)): ?>
+                                <?php foreach ($topServices as $index => $service): ?>
+                                    <div class="service-rank">
+                                        <span class="rank"><?php echo $index + 1; ?></span>
+                                        <span class="service-name"><?php echo htmlspecialchars($service['service_name'] ?: 'Unknown'); ?></span>
+                                        <span class="service-count"><?php echo number_format((int)$service['total']); ?></span>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <div class="service-rank">
+                                    <span class="rank">1</span>
+                                    <span class="service-name">No data</span>
+                                    <span class="service-count">0</span>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
 
@@ -151,17 +316,25 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                         <h3 class="stat-title">Staff Performance</h3>
                         <div class="stat-content">
                             <div class="staff-stat">
-                                <span class="staff-name">Dr. Rex</span>
-                                <span class="staff-metric">45 patients treated</span>
+                                <span class="staff-name"><?php echo htmlspecialchars($topDentistName); ?></span>
+                                <span class="staff-metric"><?php echo number_format($topDentistCount); ?> patients treated</span>
                             </div>
                             <div class="staff-stat">
-                                <span class="staff-name">Staff</span>
-                                <span class="staff-metric">89 appointments managed</span>
+                                <span class="staff-name"><?php echo htmlspecialchars($topStaffName); ?></span>
+                                <span class="staff-metric"><?php echo number_format($topStaffCount); ?> appointments managed</span>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+<script>
+    document.getElementById('analyticsPeriod')?.addEventListener('change', function () {
+        const params = new URLSearchParams(window.location.search);
+        params.set('period', this.value);
+        window.location.search = params.toString();
+    });
+</script>
 
 <?php
 require_once __DIR__ . '/includes/admin_layout_end.php';

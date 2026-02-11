@@ -541,6 +541,23 @@
     transition: all 0.3s;
 }
 
+.bar-chart .bar {
+    height: 0;
+    animation: barGrow 0.9s ease-out forwards;
+}
+
+.bar-chart .bar:nth-child(1) { animation-delay: 0.05s; }
+.bar-chart .bar:nth-child(2) { animation-delay: 0.12s; }
+.bar-chart .bar:nth-child(3) { animation-delay: 0.19s; }
+.bar-chart .bar:nth-child(4) { animation-delay: 0.26s; }
+.bar-chart .bar:nth-child(5) { animation-delay: 0.33s; }
+.bar-chart .bar:nth-child(6) { animation-delay: 0.4s; }
+
+@keyframes barGrow {
+    from { height: 0; }
+    to { height: var(--bar-height, 60%); }
+}
+
 .bar:hover {
     background: linear-gradient(to top, #2563eb, #3b82f6);
 }

@@ -467,16 +467,9 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `first_name`, `middle_name`, `last_name`, `username`, `password`, `email`, `full_name`, `role`, `created_at`, `updated_at`, `is_archived`, `deleted_at`) VALUES
-(1, '', NULL, '', 'adminn', '$2y$10$fBqiR.vEHMxmVTuyCB6GrODnHfiaF9fjOORHRlm9KN.iU46V46kJC', 'admin@rfdental.com', NULL, 'admin', '2026-01-02 06:32:17', '2026-02-10 17:39:28', 0, NULL),
 (4, '', NULL, '', 'staff', '$2y$10$jRGwuu0MuLLPiNaDV5uz8.SSueIZkw7AwOeyouvIPCGnftm/OcBdK', 'staff@rfdental.com', NULL, 'staff', '2026-01-09 14:40:00', '2026-02-10 17:39:28', 0, NULL),
 (6, '', NULL, '', 'dentist', '$2y$10$J.tCZfkE.TDCaYClTem.GertJO7FDz2dwXDkukVluf0nWfJg1qzW2', 'dentist@rfdental.com', NULL, 'dentist', '2026-01-12 02:44:24', '2026-02-10 17:39:28', 0, NULL),
-(213, '', NULL, '', 'chimp', '$2y$10$XBxSm7AfCTPKNxYdUpnk9eMxalhzr.oKybRQTlj8dVz38g1KfEdta', 'chimp.artfiles@gmail.com', NULL, 'staff', '2026-01-16 06:46:40', '2026-02-10 17:39:28', 0, NULL),
-(214, '', NULL, '', 'james', '$2y$10$sEEhpydSTyeVrLigBNLJfe/PvVObMCy7ZmyRBjV64y56AbaZ6S6v6', 'james33@gmail.com', NULL, 'staff', '2026-01-26 16:09:49', '2026-02-10 17:39:28', 0, NULL),
-(215, 'Boss', '', 'Zata', 'boss', '$2y$10$bJmmt17nhalOd5TsSsdC1O9cvkmtVoYbhTHG71qKLCk.kdtMlj8OO', 'bosszata20@gmail.com', NULL, 'dentist', '2026-01-26 18:06:23', '2026-02-10 17:39:28', 0, NULL),
-(216, 'david', '', 'casinillo', 'david', '$2y$10$tln3pNuAFFgKkPwhEDpbJ.vKkwrzKl3AzuGnOuqBAJHWudcSIq/YK', 'davidcasinillo@gmail.com', NULL, 'dentist', '2026-01-27 01:40:32', '2026-02-10 17:39:28', 0, NULL),
-(217, 'jayson', 'rrr', 'belmes', 'jayson', '$2y$10$qBmRuLaPlARta.oDG4rn6O5wxUuP3d.fDh.0MAvWVvQx/M2ctIdYS', 'jayson@gmail.com', NULL, 'staff', '2026-01-27 06:54:15', '2026-02-10 17:39:28', 0, NULL),
-(218, 'asdasd', 'asdsa', 'asdasd', 'sample', '$2y$10$qWuuGa0v/tG61SvtiDPWbuSAXx0HDxpAmXxtQPxNkL16vzx.JB08S', 'sample@gmail.com', NULL, 'dentist', '2026-02-02 13:45:54', '2026-02-10 17:39:28', 0, NULL),
-(219, '', NULL, '', 'admin', '$2y$10$FXDdqW3kOxHDvH7nH9i/4.Mrrze218ezCvGOmk6jjcfuRXciQMuma', 'admin@rfdental.com', 'Administrator', 'admin', '2026-02-10 17:39:28', '2026-02-10 17:39:28', 0, NULL);
+(2, '', NULL, '', 'admin', '$2y$10$FXDdqW3kOxHDvH7nH9i/4.Mrrze218ezCvGOmk6jjcfuRXciQMuma', 'admin@rfdental.com', 'Administrator', 'admin', '2026-02-10 17:39:28', '2026-02-10 17:39:28', 0, NULL);
 
 --
 -- Indexes for dumped tables

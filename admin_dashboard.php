@@ -6,16 +6,45 @@
 
 $pageTitle = 'Dashboard';
 
+require_once __DIR__ . '/config/database.php';
+
 // Include the layout start
 require_once __DIR__ . '/includes/admin_layout_start.php';
 
-// Dashboard statistics (placeholder - replace with actual database queries)
+// Dashboard statistics
 $totalUsers = 15;
-$totalPatients = 150;
-$totalAppointments = 45;
-$totalRevenue = 25000;
-$pendingPayments = 5;
-$completedToday = 8;
+$totalPatients = 0;
+$totalAppointments = 0;
+$totalRevenue = 0;
+$pendingPayments = 0;
+$completedToday = 0;
+
+try {
+    $totalPatients = (int)($pdo->query("SELECT COUNT(*) FROM patients")->fetchColumn() ?? 0);
+    $totalAppointments = (int)($pdo->query("SELECT COUNT(*) FROM appointments")->fetchColumn() ?? 0);
+
+    $totalRevenue = (float)($pdo->query("SELECT COALESCE(SUM(amount), 0) FROM payments")->fetchColumn() ?? 0);
+
+    $pendingPayments = (int)($pdo->query("
+        SELECT COUNT(*)
+        FROM billing
+        WHERE payment_status IN ('pending', 'unpaid', 'partial')
+           OR (balance IS NOT NULL AND balance > 0)
+    ")->fetchColumn() ?? 0);
+
+    $completedToday = (int)($pdo->query("
+        SELECT COUNT(*)
+        FROM queue
+        WHERE status = 'completed'
+          AND DATE(updated_at) = CURDATE()
+    ")->fetchColumn() ?? 0);
+} catch (Exception $e) {
+    $totalPatients = 0;
+    $totalAppointments = 0;
+    $totalRevenue = 0;
+    $pendingPayments = 0;
+    $completedToday = 0;
+}
 ?>
             <!-- Admin Dashboard Content -->
             <div class="content-main">

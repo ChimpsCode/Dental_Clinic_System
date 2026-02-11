@@ -5,15 +5,30 @@
 
 $pageTitle = 'User Management';
 
-$users = [
-    ['id' => 1, 'username' => 'admin', 'fullName' => 'Administrator', 'email' => 'admin@rfclinic.com', 'role' => 'admin', 'status' => 'active'],
-    ['id' => 2, 'username' => 'dentist', 'fullName' => 'Dr. Rex', 'email' => 'dentist@rfclinic.com', 'role' => 'dentist', 'status' => 'active'],
-    ['id' => 3, 'username' => 'staff', 'fullName' => 'Staff', 'email' => 'staff@rfclinic.com', 'role' => 'staff', 'status' => 'active'],
-    ['id' => 4, 'username' => 'juan_dela', 'fullName' => 'Juan Dela Cruz', 'email' => 'juan@email.com', 'role' => 'staff', 'status' => 'inactive'],
-];
-$totalUsers = count($users);
-
+require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/admin_layout_start.php';
+
+$users = [];
+$totalUsers = 0;
+
+try {
+    $stmt = $pdo->query("
+        SELECT id, username, full_name, email, role
+        FROM users
+        ORDER BY id ASC
+    ");
+    $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($users as &$user) {
+        if (!isset($user['status']) || $user['status'] === null || $user['status'] === '') {
+            $user['status'] = 'active';
+        }
+    }
+    unset($user);
+    $totalUsers = count($users);
+} catch (Exception $e) {
+    $users = [];
+    $totalUsers = 0;
+}
 ?>
             <div class="content-main">
                 <!-- Page Header -->
@@ -52,16 +67,22 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                         </thead>
                         <tbody id="usersTableBody">
                             <?php foreach ($users as $user): ?>
+                            <?php
+                                $username = $user['username'] ?? '';
+                                $fullName = $user['full_name'] ?? '';
+                                $email = $user['email'] ?? '';
+                                $displayName = trim($fullName) !== '' ? $fullName : ($username !== '' ? $username : $email);
+                            ?>
                             <tr>
                                 <td><?php echo $user['id']; ?></td>
-                                <td><?php echo htmlspecialchars($user['username']); ?></td>
-                                <td><?php echo htmlspecialchars($user['fullName']); ?></td>
-                                <td><?php echo htmlspecialchars($user['email']); ?></td>
+                                <td><?php echo htmlspecialchars($username); ?></td>
+                                <td><?php echo htmlspecialchars($displayName); ?></td>
+                                <td><?php echo htmlspecialchars($email); ?></td>
                                 <td><span class="role-badge <?php echo $user['role']; ?>"><?php echo ucfirst($user['role']); ?></span></td>
                                 <td><span class="status-badge <?php echo $user['status']; ?>"><?php echo ucfirst($user['status']); ?></span></td>
                                 <td class="action-buttons">
-                                    <button class="action-btn icon" title="Edit">✏️</button>
-                                    <button class="action-btn icon" title="Delete">🗑️</button>
+                                    <button class="action-btn icon" title="Edit" onclick="openUserModal(<?php echo (int)$user['id']; ?>)">&#9998;</button>
+                                    <button class="action-btn icon" title="Delete" onclick="deleteUser(<?php echo (int)$user['id']; ?>)">&#128465;</button>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -80,7 +101,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                         <button class="pagination-btn">Next</button>
                     </div>
                 </div>
-                </div>
+            </div>
 
 <?php
 require_once __DIR__ . '/includes/admin_layout_end.php';

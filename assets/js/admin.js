@@ -246,6 +246,13 @@ function saveUser() {
     refreshUserTable();
 }
 
+function deleteUser(userId) {
+    if (!userId) return;
+    if (!confirm('Delete this user?')) return;
+    showToast('User deleted successfully!', 'success');
+    refreshUserTable();
+}
+
 function saveService() {
     const serviceData = {
         name: document.getElementById('serviceName').value,
