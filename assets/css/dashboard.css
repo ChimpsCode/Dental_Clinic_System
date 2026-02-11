@@ -8,6 +8,8 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: #f3f4f6;
     display: flex;
+    min-height: 100vh;
+    min-height: 100dvh;
     height: 100vh;
     overflow: hidden;
 }
@@ -117,6 +119,13 @@ body {
     overflow: hidden;
 }
 
+.main-content,
+.content-area,
+.content-main,
+.content-sidebar {
+    min-width: 0;
+}
+
 /* Top Header */
 .top-header {
     background: white;
@@ -154,6 +163,10 @@ body {
     min-width: 40px;
     min-height: 40px;
     background: #e5e7eb;
+    border: none;
+    outline: none;
+    align-items: center;
+    justify-content: center;
 }
 
 .menu-toggle:hover {
@@ -1086,12 +1099,15 @@ body {
     
     .content-area {
         padding: 20px;
+        flex-direction: column;
     }
     
     .content-sidebar {
         width: 100%;
-        max-width: 400px;
-        margin: 0 auto;
+        max-width: none;
+        margin: 0;
+        position: static;
+        max-height: none;
     }
 }
 
@@ -1191,6 +1207,27 @@ body {
     
     .sidebar-section {
         padding: 15px;
+    }
+}
+
+@media (max-width: 640px) {
+    .top-header {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .header-left,
+    .header-right {
+        width: 100%;
+    }
+
+    .header-right {
+        justify-content: flex-end;
+    }
+
+    .user-profile-dropdown {
+        width: 90vw;
+        max-width: 320px;
     }
 }
 

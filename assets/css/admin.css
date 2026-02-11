@@ -1308,3 +1308,81 @@ body.modal-open {
     font-size: 0.875rem;
     color: #374151;
 }
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .content-area {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+}
+
+@media (max-width: 768px) {
+    .content-area {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .search-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-input {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .filter-select,
+    .date-input {
+        width: 100%;
+    }
+
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .data-table {
+        min-width: 600px;
+    }
+
+    .pagination {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .pagination-buttons {
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 480px) {
+    .page-header h2 {
+        font-size: 1.25rem;
+    }
+
+    .action-buttons {
+        flex-wrap: wrap;
+    }
+
+    .quick-actions,
+    .services-grid,
+    .reports-grid,
+    .charts-row,
+    .stats-grid,
+    .backup-info {
+        grid-template-columns: 1fr;
+    }
+
+    .form-row {
+        flex-direction: column;
+    }
+}

@@ -221,6 +221,11 @@ function isActivePage($page) {
         <!-- Top Header -->
         <header class="top-header">
             <div class="header-left">
+                <button class="menu-toggle" id="menuToggle" type="button" aria-label="Toggle sidebar" aria-controls="adminSidebar">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
                 <div class="header-title">
                     <h1><?php echo htmlspecialchars($pageTitle); ?></h1>
                     <p>Admin Panel - RF Dental Clinic</p>

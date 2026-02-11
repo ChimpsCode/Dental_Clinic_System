@@ -110,7 +110,7 @@ function isActivePage($page) {
     <div class="page-loader"></div>
 
     <!-- Left Sidebar - Staff Navigation -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="staffSidebar">
         <div class="sidebar-logo">
             <img src="assets/images/Logo.png" alt="RF Logo">
             <span>RF Dental Clinic</span>
@@ -184,9 +184,17 @@ function isActivePage($page) {
 
     <!-- Main Content -->
     <main class="main-content">
+        <!-- Sidebar Overlay for mobile -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
         <!-- Top Header -->
         <header class="top-header">
             <div class="header-left">
+                <button class="menu-toggle" id="menuToggle" type="button" aria-label="Toggle sidebar" aria-controls="staffSidebar">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
                 <div class="header-title">
                     <h1><?php echo htmlspecialchars($pageTitle); ?></h1>
                     <p>Staff Panel - RF Dental Clinic</p>
