@@ -65,19 +65,22 @@ try {
     $showingEnd = 0;
 }
 
-$today = date('Y-m-d');
-$todayCount = count(array_filter($allAppointments, function($a) use ($today) {
-    return $a['appointment_date'] === $today;
-}));
-$completedCount = count(array_filter($allAppointments, function($a) {
-    return strtolower($a['status'] ?? '') === 'completed';
-}));
-$pendingCount = count(array_filter($allAppointments, function($a) {
-    return strtolower($a['status'] ?? '') === 'scheduled' || strtolower($a['status'] ?? '') === 'pending';
-}));
-$cancelledCount = count(array_filter($allAppointments, function($a) {
-    return strtolower($a['status'] ?? '') === 'cancelled';
-}));
+$todayCount = 0;
+$completedCount = 0;
+$pendingCount = 0;
+$cancelledCount = 0;
+try {
+    $baseWhere = $countWhereClause ? $countWhereClause . " AND " : "WHERE ";
+    $todayCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere appointment_date = CURDATE()")->fetchColumn() ?? 0);
+    $completedCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) = 'completed'")->fetchColumn() ?? 0);
+    $pendingCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) IN ('scheduled','pending')")->fetchColumn() ?? 0);
+    $cancelledCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) = 'cancelled'")->fetchColumn() ?? 0);
+} catch (Exception $e) {
+    $todayCount = 0;
+    $completedCount = 0;
+    $pendingCount = 0;
+    $cancelledCount = 0;
+}
 
 require_once __DIR__ . '/includes/admin_layout_start.php';
 ?>
@@ -94,28 +97,28 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                 <!-- Stats Cards -->
                 <div class="summary-cards">
                     <div class="summary-card">
-                        <div class="summary-icon blue">📅</div>
+                        <div class="summary-icon blue">&#128197;</div>
                         <div class="summary-info">
                             <h3><?php echo $todayCount; ?></h3>
                             <p>Today's Appointments</p>
                         </div>
                     </div>
                     <div class="summary-card">
-                        <div class="summary-icon green">✓</div>
+                        <div class="summary-icon green">&#10003;</div>
                         <div class="summary-info">
                             <h3><?php echo $completedCount; ?></h3>
                             <p>Completed</p>
                         </div>
                     </div>
                     <div class="summary-card">
-                        <div class="summary-icon yellow">⏳</div>
+                        <div class="summary-icon yellow">&#9203;</div>
                         <div class="summary-info">
                             <h3><?php echo $pendingCount; ?></h3>
                             <p>Pending</p>
                         </div>
                     </div>
                     <div class="summary-card">
-                        <div class="summary-icon red">❌</div>
+                        <div class="summary-icon red">&#10060;</div>
                         <div class="summary-info">
                             <h3><?php echo $cancelledCount; ?></h3>
                             <p>Cancelled</p>

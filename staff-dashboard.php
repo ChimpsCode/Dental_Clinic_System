@@ -38,6 +38,32 @@ try {
     function buildPatientName($item) {
         return trim(($item['first_name'] ?? '') . ' ' . ($item['middle_name'] ?? '') . ' ' . ($item['last_name'] ?? '') . ' ' . ($item['suffix'] ?? ''));
     }
+
+    $monthlyRevenue = (float)($pdo->query("
+        SELECT COALESCE(SUM(amount), 0)
+        FROM payments
+        WHERE YEAR(payment_date) = YEAR(CURDATE())
+          AND MONTH(payment_date) = MONTH(CURDATE())
+    ")->fetchColumn() ?? 0);
+
+    $totalCollected = (float)($pdo->query("
+        SELECT COALESCE(SUM(paid_amount), 0)
+        FROM billing
+        WHERE payment_status = 'paid'
+    ")->fetchColumn() ?? 0);
+
+    $pendingPayments = (float)($pdo->query("
+        SELECT COALESCE(SUM(balance), 0)
+        FROM billing
+        WHERE payment_status IN ('pending', 'unpaid', 'partial')
+           OR (balance IS NOT NULL AND balance > 0)
+    ")->fetchColumn() ?? 0);
+
+    $todaysPatients = (int)($pdo->query("
+        SELECT COUNT(*)
+        FROM patients
+        WHERE DATE(created_at) = CURDATE()
+    ")->fetchColumn() ?? 0);
     
 } catch (Exception $e) {
     $queueItems = [];
@@ -48,6 +74,10 @@ try {
     $cancelledCount = 0;
     $inProcedureItem = null;
     $waitingItems = [];
+    $monthlyRevenue = 0;
+    $totalCollected = 0;
+    $pendingPayments = 0;
+    $todaysPatients = 0;
 }
 ?>
 
@@ -56,31 +86,31 @@ try {
     <!-- Summary Cards -->
     <div class="summary-cards">
         <div class="summary-card">
-            <div class="summary-icon yellow">⏰</div>
+            <div class="summary-icon green">&#128176;</div>
             <div class="summary-info">
-                <h3 id="count-waiting"><?php echo $waitingCount; ?></h3>
-                <p>Waiting</p>
+                <h3>&#8369;<?php echo number_format($monthlyRevenue, 2); ?></h3>
+                <p>Monthly Revenue</p>
             </div>
         </div>
         <div class="summary-card">
-            <div class="summary-icon green">✓</div>
+            <div class="summary-icon blue">&#128203;</div>
             <div class="summary-info">
-                <h3 id="count-completed"><?php echo $completedCount; ?></h3>
-                <p>Completed</p>
+                <h3>&#8369;<?php echo number_format($totalCollected, 2); ?></h3>
+                <p>Total Collected</p>
             </div>
         </div>
         <div class="summary-card">
-            <div class="summary-icon red" style="cursor: pointer;" onclick="openCancelledModal()">⚠️</div>
+            <div class="summary-icon yellow">&#9203;</div>
             <div class="summary-info">
-                <h3 id="count-cancelled"><?php echo $cancelledCount; ?></h3>
-                <p style="cursor: pointer;" onclick="openCancelledModal()">Cancelled</p>
+                <h3>&#8369;<?php echo number_format($pendingPayments, 2); ?></h3>
+                <p>Pending Payment</p>
             </div>
         </div>
         <div class="summary-card">
-            <div class="summary-icon gray">⏸️</div>
+            <div class="summary-icon blue">&#128101;</div>
             <div class="summary-info">
-                <h3 id="count-skipped"><?php echo $onHoldCount; ?></h3>
-                <p>On Hold</p>
+                <h3><?php echo number_format($todaysPatients); ?></h3>
+                <p>Today's Patients</p>
             </div>
         </div>
     </div>
