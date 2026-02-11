@@ -44,7 +44,7 @@ function isActivePage($page) {
     <link rel="stylesheet" href="assets/css/dashboard.css">
     <link rel="stylesheet" href="assets/css/staff_dashboard.css">
 </head>
-<body>
+<body data-user-id="<?php echo (int)($_SESSION['user_id'] ?? 0); ?>">
     <!-- Left Sidebar - Dentist Navigation -->
     <aside class="sidebar">
         <div class="sidebar-logo">
@@ -111,17 +111,6 @@ function isActivePage($page) {
                     <p>Dentist Panel - RF Dental Clinic</p>
                 </div>
             </div>
-            <div class="role_name">
-                <p>dentist</p>
-            </div>
-
-            <style>
-
-                .role_name{
-                    padding-left: 900px;
-                }
-            </style>
-            
             <div class="header-right">
                 <div class="user-profile" id="userProfileDropdown">
                     <div class="user-profile-info">

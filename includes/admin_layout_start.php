@@ -28,6 +28,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
 // Get user info from session
 $username = $_SESSION['username'] ?? 'Admin';
 $fullName = $_SESSION['full_name'] ?? 'Administrator';
+ 
 
 // Get page title for the header
 $pageTitle = $pageTitle ?? 'Admin Dashboard';
@@ -47,7 +48,7 @@ function isActivePage($page) {
     <link rel="stylesheet" href="assets/css/dashboard.css">
     <link rel="stylesheet" href="assets/css/admin.css">
 </head>
-<body>
+<body data-user-id="<?php echo (int)($_SESSION['user_id'] ?? 0); ?>">
     <!-- Add/Edit User Modal -->
     <div id="userModal" class="modal-overlay">
         <div class="modal">
