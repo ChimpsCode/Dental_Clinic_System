@@ -191,7 +191,6 @@ try {
                                     <option value="today">Today</option>
                                     <option value="week">This Week</option>
                                     <option value="month" selected>This Month</option>
-                                    <option value="custom">Custom Range</option>
                                 </select>
                             </div>
                         </div>
