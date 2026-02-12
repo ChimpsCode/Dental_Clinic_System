@@ -62,15 +62,15 @@ try {
     $stmt->execute([$startStr, $endStr]);
     $appointmentsCount = (int)($stmt->fetchColumn() ?? 0);
 
-    $stmt = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) FROM payments WHERE payment_date BETWEEN ? AND ?");
+    $stmt = $pdo->prepare("SELECT COALESCE(SUM(paid_amount), 0) FROM billing WHERE billing_date BETWEEN ? AND ?");
     $stmt->execute([$startStr, $endStr]);
     $revenueTotal = (float)($stmt->fetchColumn() ?? 0);
 
     $monthlyRevenue = (float)($pdo->query("
-        SELECT COALESCE(SUM(amount), 0)
-        FROM payments
-        WHERE YEAR(payment_date) = YEAR(CURDATE())
-          AND MONTH(payment_date) = MONTH(CURDATE())
+        SELECT COALESCE(SUM(paid_amount), 0)
+        FROM billing
+        WHERE YEAR(billing_date) = YEAR(CURDATE())
+          AND MONTH(billing_date) = MONTH(CURDATE())
     ")->fetchColumn() ?? 0);
 
     $totalCollected = (float)($pdo->query("
@@ -94,11 +94,11 @@ try {
 
     $stmt = $pdo->query("
         SELECT
-            DATE_FORMAT(payment_date, '%b') AS month_label,
-            DATE_FORMAT(payment_date, '%Y-%m') AS ym,
-            COALESCE(SUM(amount), 0) AS total
-        FROM payments
-        WHERE payment_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+            DATE_FORMAT(billing_date, '%b') AS month_label,
+            DATE_FORMAT(billing_date, '%Y-%m') AS ym,
+            COALESCE(SUM(paid_amount), 0) AS total
+        FROM billing
+        WHERE billing_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
         GROUP BY ym, month_label
         ORDER BY ym ASC
     ");
