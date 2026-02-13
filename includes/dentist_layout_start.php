@@ -8,7 +8,6 @@
 ob_start();
 session_start();
 
-// Start session and validate dentist access
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
     header('Location: login.php');

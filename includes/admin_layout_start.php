@@ -7,12 +7,10 @@
 
 ob_start();
 
-// Start session only if not already started
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Start session and validate admin access
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
     header('Location: login.php');

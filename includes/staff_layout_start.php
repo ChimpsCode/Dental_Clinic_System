@@ -1,17 +1,10 @@
 <?php
-/**
- * Staff Layout - Centralized layout wrapper for all staff pages
- * Ensures strict role-based separation: only staff can access staff pages
- * and Staff Sidebar is always displayed regardless of which staff page is loaded.
- */
 ob_start();
 
-// Start session only if not already started
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Start session and validate staff access
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
     header('Location: login.php');
@@ -24,14 +17,11 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'staff') {
     exit();
 }
 
-// Get user info from session
 $username = $_SESSION['username'] ?? 'Staff';
 $fullName = $_SESSION['full_name'] ?? 'Staff ';
 
-// Get page title for header
 $pageTitle = $pageTitle ?? 'Staff Dashboard';
 
-// Helper function to check if current page matches
 function isActivePage($page) {
     $currentPage = basename($_SERVER['PHP_SELF']);
     return $currentPage === $page;
