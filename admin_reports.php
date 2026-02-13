@@ -15,6 +15,46 @@ $revenueReport = [];
 $servicesReport = [];
 $dailySummaryReport = [];
 
+function buildReportTable($headers, $rows) {
+    $thead = '<tr>' . implode('', array_map(fn($h) => '<th>' . htmlspecialchars($h) . '</th>', $headers)) . '</tr>';
+    if (empty($rows)) {
+        $tbody = '<tr><td colspan="' . count($headers) . '" style="text-align:center;color:#6b7280;">No records found</td></tr>';
+    } else {
+        $tbodyRows = [];
+        foreach ($rows as $row) {
+            $cells = array_map(fn($c) => '<td>' . htmlspecialchars((string)$c) . '</td>', $row);
+            $tbodyRows[] = '<tr>' . implode('', $cells) . '</tr>';
+        }
+        $tbody = implode('', $tbodyRows);
+    }
+    return '<table class="print-table"><thead>' . $thead . '</thead><tbody>' . $tbody . '</tbody></table>';
+}
+
+function buildReportHtml($title, $tableHtml) {
+    $generated = date('M d, Y h:i A');
+    return '
+        <div class="print-report">
+            <div class="print-header">
+                <div class="print-brand">
+                    <div class="print-logo">RF</div>
+                    <div>
+                        <div class="print-title">RF Dental Clinic</div>
+                        <div class="print-subtitle">' . htmlspecialchars($title) . '</div>
+                    </div>
+                </div>
+                <div class="print-meta">
+                    <div>Generated: ' . htmlspecialchars($generated) . '</div>
+                </div>
+            </div>
+            <div class="print-body">' . $tableHtml . '</div>
+            <div class="print-footer">
+                <div>Confidential - For internal use only</div>
+                <div>RF Dental Clinic</div>
+            </div>
+        </div>
+    ';
+}
+
 try {
     $patientsReport = $pdo->query("
         SELECT id, full_name, phone, email, created_at
@@ -22,11 +62,21 @@ try {
         ORDER BY created_at DESC
     ")->fetchAll(PDO::FETCH_ASSOC);
 
+    $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'is_archived'");
+    $hasArchiveColumn = $checkCol->rowCount() > 0;
+    $whereClause = $hasArchiveColumn ? "WHERE (a.is_archived = 0 OR a.is_archived IS NULL)" : "";
+
     $appointmentsReport = $pdo->query("
-        SELECT a.id, CONCAT(p.first_name, ' ', p.last_name) AS patient,
+        SELECT a.id,
+               TRIM(CONCAT(
+                    COALESCE(p.first_name, a.first_name, ''), ' ',
+                    COALESCE(p.middle_name, a.middle_name, ''), ' ',
+                    COALESCE(p.last_name, a.last_name, '')
+               )) AS patient,
                a.appointment_date, a.appointment_time, a.treatment, a.status
         FROM appointments a
         LEFT JOIN patients p ON p.id = a.patient_id
+        $whereClause
         ORDER BY a.appointment_date DESC, a.appointment_time DESC
     ")->fetchAll(PDO::FETCH_ASSOC);
 
@@ -228,12 +278,75 @@ $reportPayload = [
     'daily' => $dailySummaryReport
 ];
 $reportJson = json_encode($reportPayload, $jsonFlags);
+
+$reportHtmlPayload = [
+    'patients' => buildReportHtml('Patient Report', buildReportTable(
+        ['ID', 'Full Name', 'Phone', 'Email', 'Registered'],
+        array_map(fn($p) => [
+            $p['id'] ?? '',
+            $p['full_name'] ?? '',
+            $p['phone'] ?? '',
+            $p['email'] ?? '',
+            isset($p['created_at']) ? date('M d, Y', strtotime($p['created_at'])) : ''
+        ], $patientsReport)
+    )),
+    'appointments' => buildReportHtml('Appointments Report', buildReportTable(
+        ['ID', 'Patient', 'Date', 'Time', 'Treatment', 'Status'],
+        array_map(fn($a) => [
+            $a['id'] ?? '',
+            $a['patient'] ?? '',
+            $a['appointment_date'] ?? '',
+            $a['appointment_time'] ?? '',
+            $a['treatment'] ?? '',
+            $a['status'] ?? ''
+        ], $appointmentsReport)
+    )),
+    'billing' => buildReportHtml('Billing Report', buildReportTable(
+        ['Invoice', 'Patient', 'Total', 'Paid', 'Balance', 'Status', 'Date', 'Due'],
+        array_map(fn($b) => [
+            'INV-' . str_pad((string)($b['id'] ?? 0), 4, '0', STR_PAD_LEFT),
+            $b['patient'] ?? '',
+            '₱' . number_format((float)($b['total_amount'] ?? 0), 2),
+            '₱' . number_format((float)($b['paid_amount'] ?? 0), 2),
+            '₱' . number_format((float)($b['balance'] ?? 0), 2),
+            $b['payment_status'] ?? '',
+            $b['billing_date'] ?? '',
+            $b['due_date'] ?? ''
+        ], $billingReport)
+    )),
+    'revenue' => buildReportHtml('Revenue Report', buildReportTable(
+        ['Service', 'Total Revenue'],
+        array_map(fn($r) => [
+            $r['service'] ?? 'General Service',
+            '₱' . number_format((float)($r['total'] ?? 0), 2)
+        ], $revenueReport)
+    )),
+    'services' => buildReportHtml('Services Report', buildReportTable(
+        ['Service', 'Frequency'],
+        array_map(fn($s) => [
+            $s['service'] ?? 'Service',
+            $s['total'] ?? 0
+        ], $servicesReport)
+    )),
+    'daily' => buildReportHtml('Daily Summary', buildReportTable(
+        ['Date', 'New Patients', 'Appointments', 'Revenue'],
+        array_map(fn($d) => [
+            $d['day'] ?? '',
+            $d['new_patients'] ?? 0,
+            $d['appointments'] ?? 0,
+            '₱' . number_format((float)($d['revenue'] ?? 0), 2)
+        ], $dailySummaryReport)
+    ))
+];
+$reportHtmlJson = json_encode($reportHtmlPayload, $jsonFlags);
 ?>
 <script id="reportData" type="application/json"><?php echo $reportJson; ?></script>
+<script id="reportHtml" type="application/json"><?php echo $reportHtmlJson; ?></script>
 <?php
 $pageScript = <<<'SCRIPT'
 <script>
 const reportData = JSON.parse(document.getElementById('reportData')?.textContent || '{}');
+const reportHtml = JSON.parse(document.getElementById('reportHtml')?.textContent || '{}');
 const reportTitles = {
     patients: 'Patient Report',
     appointments: 'Appointments Report',
@@ -255,6 +368,10 @@ function buildTable(headers, rows) {
 }
 
 function renderReport(type) {
+    if (reportHtml[type]) {
+        return reportHtml[type];
+    }
+
     const data = reportData[type] || [];
     let headers = [];
     let rows = [];

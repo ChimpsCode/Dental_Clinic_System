@@ -232,6 +232,35 @@ function isActivePage($page) {
             </div>
             
             <div class="header-right">
+                <div class="header-notifications" id="notificationDropdown">
+                    <button class="notification-bell" type="button" aria-label="Notifications">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 1 0-12 0v5L4 18v1h16v-1z"/>
+                        </svg>
+                        <span class="notification-badge">2</span>
+                    </button>
+                    <div class="notification-dropdown">
+                        <div class="notification-header">
+                            <span>Notifications</span>
+                            <span class="notification-count">2</span>
+                        </div>
+                        <div class="notification-list">
+                            <div class="notification-item">
+                                <div class="notification-icon">⚠️</div>
+                                <div class="notification-text">5 pending payments require attention</div>
+                            </div>
+                            <div class="notification-item">
+                                <div class="notification-icon">👤</div>
+                                <div class="notification-text">2 new patient registrations today</div>
+                            </div>
+                        </div>
+                        <button class="see-all-btn" type="button">See all notifications</button>
+                    </div>
+                </div>
+                <div class="header-user-summary">
+                    <div class="header-user-name"><?php echo htmlspecialchars($fullName); ?></div>
+                    <div class="header-user-role"><?php echo htmlspecialchars(ucfirst($_SESSION['role'] ?? 'admin')); ?></div>
+                </div>
                 <div class="user-profile" id="userProfileDropdown">
                     <div class="user-profile-info">
                         <div class="user-avatar">
@@ -239,15 +268,7 @@ function isActivePage($page) {
                         </div>
                     </div>
                     <div class="user-profile-dropdown">
-                        <div class="dropdown-header">
-                            <div class="user-avatar large">
-                                <img src="assets/images/profile.png" alt="Profile" />
-                            </div>
-                            <div class="dropdown-user-info">
-                                <div class="dropdown-name"><?php echo htmlspecialchars(explode(' ', $fullName)[0]); ?></div>
-                                <div class="dropdown-role"><?php echo htmlspecialchars(ucfirst($_SESSION['role'])); ?></div>
-                            </div>
-                        </div>
+                        <div class="dropdown-header"></div>
                         <div class="dropdown-divider"></div>
                         <a href="admin_settings.php" class="dropdown-item settings">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">

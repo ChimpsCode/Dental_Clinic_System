@@ -22,6 +22,12 @@ $monthlyRevenueData = [];
 $chartYear = (int)date('Y');
 $monthlyRevenueData = [];
 $chartYear = (int)date('Y');
+$topServices = [];
+$today = new DateTime();
+$startDate = new DateTime($today->format('Y-m-01'));
+$endDate = clone $today;
+$startStr = $startDate->format('Y-m-d');
+$endStr = $endDate->format('Y-m-d');
 
 try {
     $totalPatients = (int)($pdo->query("SELECT COUNT(*) FROM patients")->fetchColumn() ?? 0);
@@ -59,12 +65,37 @@ try {
     $stmt->execute([$chartYear]);
     $monthlyRevenueData = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    $stmt = $pdo->prepare("
+        SELECT procedure_name AS service_name, COUNT(*) AS total
+        FROM treatments
+        WHERE treatment_date BETWEEN ? AND ?
+        GROUP BY procedure_name
+        ORDER BY total DESC
+        LIMIT 4
+    ");
+    $stmt->execute([$startStr, $endStr]);
+    $topServices = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    if (empty($topServices)) {
+        $stmt = $pdo->prepare("
+            SELECT treatment AS service_name, COUNT(*) AS total
+            FROM appointments
+            WHERE appointment_date BETWEEN ? AND ?
+            GROUP BY treatment
+            ORDER BY total DESC
+            LIMIT 4
+        ");
+        $stmt->execute([$startStr, $endStr]);
+        $topServices = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
 } catch (Exception $e) {
     $totalPatients = 0;
     $totalAppointments = 0;
     $totalRevenue = 0;
     $pendingPayments = 0;
     $completedToday = 0;
+    $topServices = [];
 }
 ?>
             <!-- Admin Dashboard Content -->
@@ -123,26 +154,55 @@ try {
                     </div>
                 </div>
 
+                <!-- Top Services -->
+                <div class="section-card">
+                    <h2 class="section-title">Top Services</h2>
+                    <div class="stat-content">
+                        <?php if (!empty($topServices)): ?>
+                            <?php foreach ($topServices as $index => $service): ?>
+                                <div class="service-rank">
+                                    <span class="rank"><?php echo $index + 1; ?></span>
+                                    <span class="service-name"><?php echo htmlspecialchars($service['service_name'] ?: 'Unknown'); ?></span>
+                                    <span class="service-count"><?php echo number_format((int)$service['total']); ?></span>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="service-rank">
+                                <span class="rank">1</span>
+                                <span class="service-name">No data</span>
+                                <span class="service-count">0</span>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
             </div>
 
             <!-- Right Sidebar -->
             <aside class="content-sidebar">
-                <!-- Notifications -->
+                <!-- Quick Actions -->
                 <div class="sidebar-section">
-                    <h3 class="sidebar-section-title">Notifications</h3>
-                    <p class="sidebar-section-subtitle">Recent system alerts</p>
-                    
-                    <div class="notification-item">
-                        <div class="notification-icon">⚠️</div>
-                        <div class="notification-text">5 pending payments require attention</div>
+                    <h3 class="sidebar-section-title">Quick Actions</h3>
+                    <p class="sidebar-section-subtitle">Shortcuts to common tasks</p>
+
+                    <div class="quick-actions quick-actions-sidebar">
+                        <a href="admin_users.php" class="action-card">
+                            <span class="action-icon">👥</span>
+                            <span class="action-text">Manage Users</span>
+                        </a>
+                        <a href="admin_patients.php" class="action-card">
+                            <span class="action-icon">📋</span>
+                            <span class="action-text">View Patients</span>
+                        </a>
+                        <a href="admin_payment.php" class="action-card">
+                            <span class="action-icon">💳</span>
+                            <span class="action-text">Payment Overview</span>
+                        </a>
+                        <a href="admin_audit_trail.php" class="action-card">
+                            <span class="action-icon">📝</span>
+                            <span class="action-text">Audit Logs</span>
+                        </a>
                     </div>
-                    
-                    <div class="notification-item">
-                        <div class="notification-icon">👤</div>
-                        <div class="notification-text">2 new patient registrations today</div>
-                    </div>
-                    
-                    <button class="see-all-btn">See all notifications</button>
                 </div>
 
                 <!-- System Status -->
