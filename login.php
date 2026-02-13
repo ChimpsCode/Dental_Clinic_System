@@ -151,6 +151,7 @@ if (empty($username) || empty($password)) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RF Dental Clinic - Login</title>
+    <link rel="icon" type="image/png" href="assets/images/Logo.png">
     <link rel="stylesheet" href="assets/css/login.css">
 </head>
 <body>

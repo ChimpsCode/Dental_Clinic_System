@@ -85,7 +85,7 @@ body::before {
     max-height: 100vh;
     z-index: 1;
     object-fit: contain;
-    animation: floatIn 0.9s ease-out both, floatIdle 6s ease-in-out 1.2s infinite;
+    animation: floatIn 0.9s ease-out both;
 }
 
 .login-form-container {
@@ -123,10 +123,6 @@ body::before {
     }
 }
 
-@keyframes floatIdle {
-    0%, 100% { transform: translateY(-50%) translateX(0); }
-    50% { transform: translateY(calc(-50% - 10px)) translateX(2px); }
-}
 
 .logo-container {
     display: flex;
