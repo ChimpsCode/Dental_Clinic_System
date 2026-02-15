@@ -417,7 +417,7 @@ try {
                 </div>
             <?php endif; ?>
         </div>
-        <?php elseif (empty($queuePatients)): ?>
+ <?php elseif (empty($queuePatients)): ?>
             <!-- Treatment Queue (Empty) -->
             <div class="section-card">
                 <h2 class="section-title">⚕️ Treatment Queue</h2>
@@ -426,8 +426,7 @@ try {
                     <h3 style="font-size: 1.25rem; font-weight: 600; color: #374151; margin-bottom: 8px;">No patients in queue</h3>
                     <p style="color: #9ca3af;">The queue is empty. Time for a break!</p>
                 </div>
-            </div>
-        <?php endif; ?>
+            </div>        <?php endif; ?>
     </div>
 
     <!-- Right Column: Notifications & Quick Actions -->
