@@ -120,10 +120,18 @@ try {
     $totalRevenue = 0;
     $pendingPayments = 0;
     $completedToday = 0;
+    $totalCollected = 0;
     $topServices = [];
     $liveQueue = [];
 }
 ?>
+<style>
+@keyframes pulse {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.2); }
+    100% { opacity: 1; transform: scale(1); }
+}
+</style>
             <!-- Admin Dashboard Content -->
             <div class="content-main">
                 <!-- Summary Cards -->
@@ -170,12 +178,20 @@ try {
                             <p>Completed Today</p>
                         </div>
                     </div>
+
+                    <div class="summary-card">
+                        <div class="summary-icon blue">💵</div>
+                        <div class="summary-info">
+                            <h3>₱<?php echo number_format($totalRevenue); ?></h3>
+                            <p>Total Collected</p>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Revenue Overview & Live Queue Side by Side -->
-                <div class="dashboard-row">
+                <div class="dashboard-row" style="display: flex; flex-direction: row; gap: 20px; width: 100%;">
                     <!-- Revenue Overview -->
-                    <div class="section-card flex-1">
+                    <div class="section-card" style="flex: 1; min-width: 300px;">
                         <h2 class="section-title">6-Month Revenue (<?php echo date('Y'); ?>)</h2>
                         <div class="chart-placeholder" style="min-height: 170px;">
                             <div class="bar-chart" id="revenueBars" style="height: 140px;"></div>
@@ -183,20 +199,23 @@ try {
                     </div>
 
                     <!-- Live Queue Status -->
-                    <div class="section-card flex-1" style="border: 2px solid #10b981;">
-                        <div class="section-header">
-                            <h2 class="section-title">Live Queue Status</h2>
-                            <span class="live-indicator"><span class="pulse"></span> Live</span>
+                    <div class="section-card" style="flex: 1; min-width: 300px; border: 2px solid #10b981; border-radius: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h2 class="section-title" style="margin-bottom: 0;">Live Queue Status</h2>
+                            <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #10b981; font-weight: 500;">
+                                <span style="width: 8px; height: 8px; background: #10b981; border-radius: 50%; animation: pulse 2s infinite;"></span> Live
+                            </span>
                         </div>
                         <div class="queue-table-container">
                             <!-- DEBUG: Queue count: <?php echo count($liveQueue); ?> -->
                             <?php if (!empty($liveQueue)): ?>
-                                <table class="queue-table">
+                                <table class="queue-table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
                                     <thead>
-                                        <tr>
-                                            <th>#</th>
-                                            <th>Patient Name</th>
-                                            <th>Status</th>
+                                        <tr style="background: #f9fafb;">
+                                            <th style="text-align: left; padding: 10px 12px; color: #6b7280; font-weight: 600; font-size: 12px;">#</th>
+                                            <th style="text-align: left; padding: 10px 12px; color: #6b7280; font-weight: 600; font-size: 12px;">Patient Name</th>
+                                            <th style="text-align: left; padding: 10px 12px; color: #6b7280; font-weight: 600; font-size: 12px;">Treatment</th>
+                                            <th style="text-align: left; padding: 10px 12px; color: #6b7280; font-weight: 600; font-size: 12px;">Status</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -209,25 +228,30 @@ try {
                                                 
                                                 $statusClass = '';
                                                 $statusLabel = '';
+                                                $badgeStyle = '';
                                                 switch($queueItem['status']) {
                                                     case 'waiting':
                                                         $statusClass = 'waiting';
                                                         $statusLabel = 'Waiting';
+                                                        $badgeStyle = 'background: #fef3c7; color: #d97706;';
                                                         break;
                                                     case 'in_procedure':
                                                         $statusClass = 'in-progress';
-                                                        $statusLabel = 'In Consultation';
+                                                        $statusLabel = 'In Procedure';
+                                                        $badgeStyle = 'background: #dbeafe; color: #2563eb;';
                                                         break;
                                                     case 'on_hold':
                                                         $statusClass = 'on-hold';
                                                         $statusLabel = 'On Hold';
+                                                        $badgeStyle = 'background: #f3f4f6; color: #6b7280;';
                                                         break;
                                                 }
                                             ?>
-                                            <tr>
-                                                <td><?php echo $index + 1; ?></td>
-                                                <td><?php echo htmlspecialchars(trim($queueItem['patient_name'])); ?></td>
-                                                <td><span class="status-badge <?php echo $statusClass; ?>"><?php echo $statusLabel; ?></span></td>
+                                            <tr style="border-bottom: 1px solid #f3f4f6;">
+                                                <td style="padding: 12px; color: #374151;"><?php echo $index + 1; ?></td>
+                                                <td style="padding: 12px; color: #374151;"><?php echo htmlspecialchars(trim($queueItem['patient_name'])); ?></td>
+                                                <td style="padding: 12px; color: #374151;"><?php echo htmlspecialchars($queueItem['treatment_type'] ?: 'General'); ?></td>
+                                                <td style="padding: 12px;"><span style="display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; <?php echo $badgeStyle; ?>"><?php echo $statusLabel; ?></span></td>
                                             </tr>
                                         <?php endforeach; ?>
                                     </tbody>

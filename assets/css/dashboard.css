@@ -597,6 +597,20 @@ body {
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     padding: 20px;
+    width: 100%;
+}
+
+.dashboard-row {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    width: 100%;
+    flex-wrap: wrap;
+}
+
+.dashboard-row .flex-1 {
+    flex: 1;
+    min-width: 300px;
 }
 
 .section-title {
