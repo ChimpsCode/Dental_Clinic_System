@@ -597,7 +597,19 @@ body {
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     padding: 20px;
-    width: 560px;
+    width: 100%;
+    max-width: 700px;
+}
+
+.dashboard-row {
+    display: flex;
+    gap: 20px;
+    width: 100%;
+}
+
+.dashboard-row .flex-1 {
+    flex: 1;
+    min-width: 0;
 }
 
 .section-title {
@@ -608,6 +620,119 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.live-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #10b981;
+    font-weight: 500;
+}
+
+.pulse {
+    width: 8px;
+    height: 8px;
+    background: #10b981;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.2); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+/* Queue Table */
+.queue-table-container {
+    overflow-x: auto;
+}
+
+.queue-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.queue-table th {
+    text-align: left;
+    padding: 10px 12px;
+    background: #f9fafb;
+    color: #6b7280;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.queue-table td {
+    padding: 12px;
+    border-bottom: 1px solid #f3f4f6;
+    color: #374151;
+}
+
+.queue-table tr:last-child td {
+    border-bottom: none;
+}
+
+.queue-table tr:hover td {
+    background: #f9fafb;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-badge.waiting {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.status-badge.in-progress {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+.status-badge.on-hold {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.empty-queue {
+    text-align: center;
+    padding: 30px;
+    color: #9ca3af;
+}
+
+.empty-icon {
+    font-size: 32px;
+    display: block;
+    margin-bottom: 10px;
+}
+
+.empty-queue p {
+    font-size: 14px;
+    font-weight: 500;
+    margin: 0;
+}
+
+.empty-subtext {
+    font-size: 12px;
+    color: #d1d5db;
 }
 
 /* Patient List */

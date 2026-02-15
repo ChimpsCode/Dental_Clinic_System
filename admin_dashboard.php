@@ -23,6 +23,7 @@ $chartYear = (int)date('Y');
 $monthlyRevenueData = [];
 $chartYear = (int)date('Y');
 $topServices = [];
+$liveQueue = [];
 $today = new DateTime();
 $startDate = new DateTime($today->format('Y-m-01'));
 $endDate = clone $today;
@@ -49,21 +50,22 @@ try {
           AND DATE(updated_at) = CURDATE()
     ")->fetchColumn() ?? 0);
 
-    $chartYear = (int)($pdo->query("
-        SELECT COALESCE(MAX(YEAR(billing_date)), YEAR(CURDATE()))
-        FROM billing
-    ")->fetchColumn() ?? date('Y'));
+    // Current 6 months data for dashboard revenue overview
+    $halfYearStart = date('Y-m-01', strtotime('-5 months'));
+    $halfYearEnd = date('Y-m-t');
 
     $stmt = $pdo->prepare("
         SELECT DATE_FORMAT(billing_date, '%Y-%m') AS ym,
                COALESCE(SUM(paid_amount), 0) AS total
         FROM billing
-        WHERE YEAR(billing_date) = ?
+        WHERE billing_date BETWEEN ? AND ?
         GROUP BY ym
         ORDER BY ym ASC
     ");
-    $stmt->execute([$chartYear]);
-    $monthlyRevenueData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt->execute([$halfYearStart, $halfYearEnd]);
+    $halfYearRevenueData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $chartYear = (int)date('Y');
 
     $stmt = $pdo->prepare("
         SELECT procedure_name AS service_name, COUNT(*) AS total
@@ -89,6 +91,29 @@ try {
         $topServices = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    // Get live queue data (next 5 patients in line)
+    try {
+        $stmt = $pdo->query("
+            SELECT q.id, q.status, q.queue_time, q.treatment_type,
+                   CONCAT(p.first_name, ' ', COALESCE(p.middle_name, ''), ' ', p.last_name) AS patient_name
+            FROM queue q
+            JOIN patients p ON p.id = q.patient_id
+            WHERE q.status IN ('waiting', 'in_procedure', 'on_hold')
+              AND q.is_archived = 0
+            ORDER BY 
+                CASE q.status 
+                    WHEN 'in_procedure' THEN 1 
+                    WHEN 'waiting' THEN 2 
+                    ELSE 3 
+                END,
+                q.queue_time ASC
+            LIMIT 5
+        ");
+        $liveQueue = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        $liveQueue = [];
+    }
+
 } catch (Exception $e) {
     $totalPatients = 0;
     $totalAppointments = 0;
@@ -96,6 +121,7 @@ try {
     $pendingPayments = 0;
     $completedToday = 0;
     $topServices = [];
+    $liveQueue = [];
 }
 ?>
             <!-- Admin Dashboard Content -->
@@ -146,11 +172,73 @@ try {
                     </div>
                 </div>
 
-                <!-- Revenue Overview -->
-                <div class="section-card">
-                    <h2 class="section-title">Revenue Overview</h2>
-                    <div class="chart-placeholder" style="min-height: 170px;">
-                        <div class="bar-chart" id="revenueBars" style="height: 140px;"></div>
+                <!-- Revenue Overview & Live Queue Side by Side -->
+                <div class="dashboard-row">
+                    <!-- Revenue Overview -->
+                    <div class="section-card flex-1">
+                        <h2 class="section-title">6-Month Revenue (<?php echo date('Y'); ?>)</h2>
+                        <div class="chart-placeholder" style="min-height: 170px;">
+                            <div class="bar-chart" id="revenueBars" style="height: 140px;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Live Queue Status -->
+                    <div class="section-card flex-1" style="border: 2px solid #10b981;">
+                        <div class="section-header">
+                            <h2 class="section-title">Live Queue Status</h2>
+                            <span class="live-indicator"><span class="pulse"></span> Live</span>
+                        </div>
+                        <div class="queue-table-container">
+                            <!-- DEBUG: Queue count: <?php echo count($liveQueue); ?> -->
+                            <?php if (!empty($liveQueue)): ?>
+                                <table class="queue-table">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Patient Name</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($liveQueue as $index => $queueItem): ?>
+                                            <?php
+                                                $queueTime = new DateTime($queueItem['queue_time']);
+                                                $now = new DateTime();
+                                                $waitingInterval = $queueTime->diff($now);
+                                                $waitingMinutes = $waitingInterval->h * 60 + $waitingInterval->i;
+                                                
+                                                $statusClass = '';
+                                                $statusLabel = '';
+                                                switch($queueItem['status']) {
+                                                    case 'waiting':
+                                                        $statusClass = 'waiting';
+                                                        $statusLabel = 'Waiting';
+                                                        break;
+                                                    case 'in_procedure':
+                                                        $statusClass = 'in-progress';
+                                                        $statusLabel = 'In Consultation';
+                                                        break;
+                                                    case 'on_hold':
+                                                        $statusClass = 'on-hold';
+                                                        $statusLabel = 'On Hold';
+                                                        break;
+                                                }
+                                            ?>
+                                            <tr>
+                                                <td><?php echo $index + 1; ?></td>
+                                                <td><?php echo htmlspecialchars(trim($queueItem['patient_name'])); ?></td>
+                                                <td><span class="status-badge <?php echo $statusClass; ?>"><?php echo $statusLabel; ?></span></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            <?php else: ?>
+                                <div class="empty-queue" style="padding: 30px; text-align: center; background: #f0fdf4; border-radius: 8px;">
+                                    <p style="font-size: 16px; font-weight: 500; color: #166534; margin: 0;">No patients in queue</p>
+                                    <span style="font-size: 12px; color: #15803d;">Waiting room is empty</span>
+                                </div>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
 
@@ -224,8 +312,7 @@ try {
             </aside>
 
 <script>
-    const revenueData = <?php echo json_encode($monthlyRevenueData); ?>;
-    const revenueYear = <?php echo (int)$chartYear; ?>;
+    const revenueData = <?php echo json_encode($halfYearRevenueData); ?>;
     const barContainer = document.getElementById('revenueBars');
     if (barContainer) {
         const map = {};
@@ -234,11 +321,15 @@ try {
         });
 
         const months = [];
-        const year = revenueYear || new Date().getFullYear();
-        const labels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-        for (let m = 0; m < 12; m++) {
-            const ym = `${year}-${String(m + 1).padStart(2, '0')}`;
-            const label = labels[m];
+        const year = new Date().getFullYear();
+        const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        
+        // Get last 6 months
+        const today = new Date();
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+            const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            const label = labels[d.getMonth()];
             const entry = map[ym] || { total: 0 };
             entry.label = label;
             months.push(entry);
