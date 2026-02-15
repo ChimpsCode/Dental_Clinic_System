@@ -294,7 +294,6 @@ function isActivePage($page) {
                         </div>
                     </div>
                     <div class="user-profile-dropdown">
-                        <div class="dropdown-header"></div>
                         <div class="dropdown-divider"></div>
                         <a href="admin_settings.php" class="dropdown-item settings">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">

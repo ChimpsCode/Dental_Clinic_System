@@ -20,6 +20,31 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'staff') {
 $username = $_SESSION['username'] ?? 'Staff';
 $fullName = $_SESSION['full_name'] ?? 'Staff ';
 
+// Header notifications (lightweight counts)
+$newAppointmentsToday = 0;
+$pendingPaymentsCount = 0;
+try {
+    if (isset($pdo)) {
+        $newAppointmentsToday = (int)($pdo->query("
+            SELECT COUNT(*)
+            FROM appointments
+            WHERE appointment_date = CURDATE()
+        ")->fetchColumn() ?? 0);
+
+        $pendingPaymentsCount = (int)($pdo->query("
+            SELECT COUNT(*)
+            FROM billing
+            WHERE payment_status IN ('pending', 'unpaid', 'partial')
+               OR (balance IS NOT NULL AND balance > 0)
+        ")->fetchColumn() ?? 0);
+    }
+} catch (Exception $e) {
+    $newAppointmentsToday = 0;
+    $pendingPaymentsCount = 0;
+}
+
+$notificationTotal = $newAppointmentsToday + $pendingPaymentsCount;
+
 $pageTitle = $pageTitle ?? 'Staff Dashboard';
 
 function isActivePage($page) {
@@ -192,6 +217,10 @@ function isActivePage($page) {
                 </div>
             </div>
             <div class="header-right">
+                <div class="header-user-summary">
+                    <div class="header-user-name"><?php echo htmlspecialchars($fullName); ?></div>
+                    <div class="header-user-role"><?php echo htmlspecialchars(ucfirst($_SESSION['role'] ?? 'staff')); ?></div>
+                </div>
                 <div class="user-profile" id="userProfileDropdown">
                     <div class="user-profile-info">
                         <div class="user-avatar">
@@ -199,15 +228,6 @@ function isActivePage($page) {
                         </div>
                     </div>
                     <div class="user-profile-dropdown">
-                        <div class="dropdown-header">
-                            <div class="user-avatar large">
-                                <img src="assets/images/profile.png" alt="Profile" />
-                            </div>
-                            <div class="dropdown-user-info">
-                                <div class="dropdown-name"><?php echo htmlspecialchars(explode(' ', $fullName)[0]); ?></div>
-                                <div class="dropdown-role"><?php echo htmlspecialchars(ucfirst($_SESSION['role'])); ?></div>
-                            </div>
-                        </div>
                         <div class="dropdown-divider"></div>
                         <a href="settings.php" class="dropdown-item settings">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">

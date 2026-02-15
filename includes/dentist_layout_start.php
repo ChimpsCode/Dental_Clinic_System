@@ -24,6 +24,31 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'dentist') {
 $username = $_SESSION['username'] ?? 'Dentist';
 $fullName = $_SESSION['full_name'] ?? 'Dr. Dentist';
 
+// Header notifications (lightweight counts)
+$newAppointmentsToday = 0;
+$pendingPaymentsCount = 0;
+try {
+    if (isset($pdo)) {
+        $newAppointmentsToday = (int)($pdo->query("
+            SELECT COUNT(*)
+            FROM appointments
+            WHERE appointment_date = CURDATE()
+        ")->fetchColumn() ?? 0);
+
+        $pendingPaymentsCount = (int)($pdo->query("
+            SELECT COUNT(*)
+            FROM billing
+            WHERE payment_status IN ('pending', 'unpaid', 'partial')
+               OR (balance IS NOT NULL AND balance > 0)
+        ")->fetchColumn() ?? 0);
+    }
+} catch (Exception $e) {
+    $newAppointmentsToday = 0;
+    $pendingPaymentsCount = 0;
+}
+
+$notificationTotal = $newAppointmentsToday + $pendingPaymentsCount;
+
 // Get page title for header
 $pageTitle = $pageTitle ?? 'Dentist Dashboard';
 
@@ -46,7 +71,7 @@ function isActivePage($page) {
 </head>
 <body data-user-id="<?php echo (int)($_SESSION['user_id'] ?? 0); ?>">
     <!-- Left Sidebar - Dentist Navigation -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="dentistSidebar">
         <div class="sidebar-logo">
             <img src="assets/images/Logo.png" alt="RF Logo">
             <span>RF Dental Clinic</span>
@@ -118,15 +143,27 @@ function isActivePage($page) {
 
     <!-- Main Content -->
     <main class="main-content">
+        <!-- Sidebar Overlay for mobile -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
         <!-- Top Header -->
         <header class="top-header">
             <div class="header-left">
+                <button class="menu-toggle" id="menuToggle" type="button" aria-label="Toggle sidebar" aria-controls="dentistSidebar">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
                 <div class="header-title">
                     <h1><?php echo htmlspecialchars($pageTitle); ?></h1>
                     <p>Dentist Panel - RF Dental Clinic</p>
                 </div>
             </div>
             <div class="header-right">
+                <div class="header-user-summary">
+                    <div class="header-user-name"><?php echo htmlspecialchars($fullName); ?></div>
+                    <div class="header-user-role"><?php echo htmlspecialchars(ucfirst($_SESSION['role'] ?? 'dentist')); ?></div>
+                </div>
                 <div class="user-profile" id="userProfileDropdown">
                     <div class="user-profile-info">
                         <div class="user-avatar">
@@ -134,15 +171,6 @@ function isActivePage($page) {
                         </div>
                     </div>
                     <div class="user-profile-dropdown">
-                        <div class="dropdown-header">
-                            <div class="user-avatar large">
-                                <img src="assets/images/profile.png" alt="Profile" />
-                            </div>
-                            <div class="dropdown-user-info">
-                                <div class="dropdown-name"><?php echo htmlspecialchars(explode(' ', $fullName)[0]); ?></div>
-                                <div class="dropdown-role"><?php echo htmlspecialchars(ucfirst($_SESSION['role'])); ?></div>
-                            </div>
-                        </div>
                         <div class="dropdown-divider"></div>
                         <a href="dentist_settings.php" class="dropdown-item settings">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
