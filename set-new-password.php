@@ -13,11 +13,19 @@ $success = '';
 $email = $_SESSION['reset_email'];
 $user_id = $_SESSION['reset_user_id'];
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $password = trim($_POST['password'] ?? '');
-    $confirm_password = trim($_POST['confirm_password'] ?? '');
+// Ensure we have a verification code in session
+$sessionCode = $_SESSION['reset_code'] ?? null;
 
-    if (empty($password) || empty($confirm_password)) {
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $password         = trim($_POST['password'] ?? '');
+    $confirm_password = trim($_POST['confirm_password'] ?? '');
+    $entered_code     = trim($_POST['verification_code'] ?? '');
+
+    if (empty($entered_code)) {
+        $error = 'Please enter the verification code sent to your email.';
+    } elseif (!$sessionCode || $entered_code !== (string)$sessionCode) {
+        $error = 'The verification code you entered is incorrect.';
+    } elseif (empty($password) || empty($confirm_password)) {
         $error = 'Please fill in all fields';
     } elseif (strlen($password) < 6) {
         $error = 'Password must be at least 6 characters';
@@ -33,6 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // Clear session data
             unset($_SESSION['reset_email']);
             unset($_SESSION['reset_user_id']);
+            unset($_SESSION['reset_code']);
             // Redirect to login after 2 seconds
             header("refresh:2;url=login.php");
         } catch (PDOException $e) {
@@ -219,6 +228,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <?php endif; ?>
 
                 <form method="POST" action="set-new-password.php">
+                    <input type="text" name="verification_code" placeholder="Enter verification code" required>
                     <input type="password" name="password" placeholder="Enter new password" required>
                     <input type="password" name="confirm_password" placeholder="Confirm new password" required>
 

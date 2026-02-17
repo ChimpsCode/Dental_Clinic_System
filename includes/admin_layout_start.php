@@ -78,6 +78,7 @@ function isActivePage($page) {
             <h2 id="modalTitle">Add New User</h2>
             
             <form id="userForm">
+                <input type="hidden" id="userId">
                 <div class="form-group">
                     <label>Username</label>
                     <input type="text" id="username" class="form-control" required>

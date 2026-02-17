@@ -114,22 +114,39 @@ function openUserModal(userId = null) {
     const modal = document.getElementById('userModal');
     const form = document.getElementById('userForm');
     const title = document.getElementById('modalTitle');
+    const userIdInput = document.getElementById('userId');
     
     if (modal && form) {
         if (userId) {
             title.textContent = 'Edit User';
-            // Load user data (placeholder)
-            document.getElementById('username').value = 'sample_user';
-            document.getElementById('fullName').value = 'Sample User';
-            document.getElementById('email').value = 'sample@email.com';
-            document.getElementById('role').value = 'staff';
-            document.getElementById('status').value = 'active';
+            // Load user data from server
+            fetch(`admin_users_actions.php?action=get&id=${encodeURIComponent(userId)}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) {
+                        showToast(data.message || 'Failed to load user.', 'error');
+                        return;
+                    }
+                    const user = data.user;
+                    if (userIdInput) userIdInput.value = user.id;
+                    document.getElementById('username').value = user.username || '';
+                    document.getElementById('fullName').value = user.full_name || '';
+                    document.getElementById('email').value = user.email || '';
+                    document.getElementById('role').value = user.role || 'staff';
+                    document.getElementById('status').value = user.status || 'active';
+                    document.getElementById('password').value = '';
+                    modal.classList.add('active');
+                })
+                .catch(() => {
+                    showToast('Failed to load user.', 'error');
+                });
         } else {
             title.textContent = 'Add New User';
             form.reset();
+            if (userIdInput) userIdInput.value = '';
             document.getElementById('password').placeholder = 'Leave blank for auto-generated password';
+            modal.classList.add('active');
         }
-        modal.classList.add('active');
     }
 }
 
@@ -231,26 +248,61 @@ function initForms() {
 
 function saveUser() {
     // Get form data
-    const userData = {
-        username: document.getElementById('username').value,
-        fullName: document.getElementById('fullName').value,
-        email: document.getElementById('email').value,
-        role: document.getElementById('role').value,
-        status: document.getElementById('status').value,
-        password: document.getElementById('password').value
-    };
+    const userId = document.getElementById('userId').value;
+    const userData = new FormData();
+    userData.append('action', userId ? 'update' : 'create');
+    if (userId) userData.append('id', userId);
+    userData.append('username', document.getElementById('username').value);
+    userData.append('fullName', document.getElementById('fullName').value);
+    userData.append('email', document.getElementById('email').value);
+    userData.append('role', document.getElementById('role').value);
+    userData.append('status', document.getElementById('status').value);
+    userData.append('password', document.getElementById('password').value);
     
-    // Show success message (placeholder)
-    showToast('User saved successfully!', 'success');
-    closeUserModal();
-    refreshUserTable();
+    fetch('admin_users_actions.php', {
+        method: 'POST',
+        body: userData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (!data.success) {
+            showToast(data.message || 'Failed to save user.', 'error');
+            return;
+        }
+        showToast(data.message || 'User saved successfully!', 'success');
+        closeUserModal();
+        // For simplicity, reload the page so the table shows the latest data
+        setTimeout(() => window.location.reload(), 500);
+    })
+    .catch(() => {
+        showToast('Failed to save user.', 'error');
+    });
 }
 
 function deleteUser(userId) {
     if (!userId) return;
     if (!confirm('Delete this user?')) return;
-    showToast('User deleted successfully!', 'success');
-    refreshUserTable();
+    
+    const formData = new FormData();
+    formData.append('action', 'delete');
+    formData.append('id', userId);
+    
+    fetch('admin_users_actions.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (!data.success) {
+            showToast(data.message || 'Failed to delete user.', 'error');
+            return;
+        }
+        showToast(data.message || 'User deleted successfully!', 'success');
+        setTimeout(() => window.location.reload(), 500);
+    })
+    .catch(() => {
+        showToast('Failed to delete user.', 'error');
+    });
 }
 
 function saveService() {
