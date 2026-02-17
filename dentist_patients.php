@@ -423,6 +423,7 @@ try {
 </style>
 
 <script>
+const latestPatientId = <?php echo (int)($patients[0]['id'] ?? 0); ?>;
 const patients = <?php echo json_encode($patients); ?>;
 
 // Portal Pattern: Move modal to body level to escape stacking context
@@ -1610,6 +1611,23 @@ document.addEventListener('keydown', function(e) {
         closeBillingModal();
     }
 });
+
+// Auto-refresh when a new patient is added
+setInterval(() => {
+    fetch('dentist_patients_poll.php')
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.success) {
+                const newestId = parseInt(data.latest_id || 0, 10);
+                if (newestId > latestPatientId) {
+                    location.reload();
+                }
+            }
+        })
+        .catch(() => {
+            // Silently ignore polling errors
+        });
+}, 10000);
 </script>
 
 <?php require_once 'includes/dentist_layout_end.php'; ?>
