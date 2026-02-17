@@ -294,6 +294,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <h2>Verify Code</h2>
 
                 <p class="description-text">Enter the verification code sent to your email.</p>
+                <div class="description-text" style="font-weight:600;">
+                    Code expires in <span id="countdown">03:00</span>
+                </div>
 
                 <?php if ($error): ?>
                     <div style="color: #f44336; background: #ffebee; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 13px;">
@@ -312,7 +315,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                     <button type="submit">Verify Code</button>
 
-                    <button type="submit" name="resend_code" value="1" style="margin-top:10px;background:#6b7280;">Resend Code</button>
+                    <button type="submit" id="resendBtn" name="resend_code" value="1" style="margin-top:10px;background:#6b7280;">Resend Code</button>
 
                     <div class="back-link-wrapper">
                         <a href="login.php">Back to Login</a>
@@ -321,6 +324,38 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
         </div>
     </div>
+
+    <script>
+        (function () {
+            const ttlSeconds = <?php echo (int)$codeTtlSec; ?>;
+            const sentAt = <?php echo (int)($codeSentAt ?? 0); ?>;
+            const now = Math.floor(Date.now() / 1000);
+            let remaining = Math.max(0, ttlSeconds - (now - sentAt));
+
+            const countdownEl = document.getElementById('countdown');
+            const resendBtn = document.getElementById('resendBtn');
+
+            function updateCountdown() {
+                const min = String(Math.floor(remaining / 60)).padStart(2, '0');
+                const sec = String(remaining % 60).padStart(2, '0');
+                if (countdownEl) countdownEl.textContent = `${min}:${sec}`;
+
+                if (remaining <= 0) {
+                    if (resendBtn) resendBtn.disabled = false;
+                    return;
+                }
+                remaining -= 1;
+                setTimeout(updateCountdown, 1000);
+            }
+
+            if (resendBtn) {
+                // Allow resend only after expiry
+                resendBtn.disabled = remaining > 0;
+            }
+
+            updateCountdown();
+        })();
+    </script>
 
 </body>
 </html>
