@@ -10,43 +10,25 @@ if (!isset($_SESSION['reset_email']) || !isset($_SESSION['reset_user_id'])) {
 
 $error = '';
 $success = '';
-$email = $_SESSION['reset_email'];
-$user_id = $_SESSION['reset_user_id'];
 
-// Ensure verification step is complete
-if (!isset($_SESSION['reset_code_verified']) || $_SESSION['reset_code_verified'] !== true) {
-    header('Location: verify-reset-code.php');
-    exit();
-}
+$sessionCode = $_SESSION['reset_code'] ?? null;
+$codeSentAt  = $_SESSION['reset_code_sent_at'] ?? null;
+$codeTtlSec  = 3 * 60;
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $password         = trim($_POST['password'] ?? '');
-    $confirm_password = trim($_POST['confirm_password'] ?? '');
-    
-    if (empty($password) || empty($confirm_password)) {
-        $error = 'Please fill in all fields';
-    } elseif (strlen($password) < 6) {
-        $error = 'Password must be at least 6 characters';
-    } elseif ($password !== $confirm_password) {
-        $error = 'Passwords do not match';
-    } else {
-        try {
-            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-            $stmt = $pdo->prepare("UPDATE users SET password = ? WHERE id = ?");
-            $stmt->execute([$hashed_password, $user_id]);
+    $entered_code = trim($_POST['verification_code'] ?? '');
 
-            $success = 'Password has been reset successfully!';
-            // Clear session data
-            unset($_SESSION['reset_email']);
-            unset($_SESSION['reset_user_id']);
-            unset($_SESSION['reset_code']);
-            unset($_SESSION['reset_code_sent_at']);
-            unset($_SESSION['reset_code_verified']);
-            // Redirect to login after 2 seconds
-            header("refresh:2;url=login.php");
-        } catch (PDOException $e) {
-            $error = 'Failed to reset password. Please try again.';
-        }
+    if (!$sessionCode || !$codeSentAt || (time() - $codeSentAt) > $codeTtlSec) {
+        $error = 'The verification code has expired. Please request a new one.';
+        unset($_SESSION['reset_code'], $_SESSION['reset_code_sent_at']);
+    } elseif (empty($entered_code)) {
+        $error = 'Please enter the verification code sent to your email.';
+    } elseif ($entered_code !== (string)$sessionCode) {
+        $error = 'The verification code you entered is incorrect.';
+    } else {
+        $_SESSION['reset_code_verified'] = true;
+        $success = 'Verification successful. Redirecting...';
+        header("refresh:1;url=set-new-password.php");
     }
 }
 ?>
@@ -54,8 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Set New Password - RF Dental Clinic</title>
-    <link rel="stylesheet" href="assets/css/login.css">
+    <title>Verify Code - RF Dental Clinic</title>
     <style>
         * {
             margin: 0;
@@ -65,10 +46,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
 
         body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
             background: url("assets/images/Background.jpg");
             background-size: cover;
+            background-position: center;
             background-attachment: fixed;
             background-repeat: no-repeat;
+            position: fixed;
         }
 
         .container {
@@ -76,11 +63,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             height: 100vh;
             align-items: center;
             justify-content: center;
-            padding: 0 90px;
+            padding: 20px;
         }
 
-        .right {
-            width: 100%;
+        .centered {
             display: flex;
             align-items: center;
             justify-content: center;
@@ -113,11 +99,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             border-radius: 5px;
             background: #e6e6e6;
             font-size: 14px;
-        }
-
-        .login-box input:focus {
-            outline: none;
-            background: #ddd;
         }
 
         .login-box button {
@@ -157,29 +138,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .back-link-wrapper a:hover {
             text-decoration: underline;
         }
-
-        @media (max-width: 1024px) {
-            .container {
-                padding: 0 50px;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                padding: 20px;
-            }
-        }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <div class="right">
+        <div class="centered">
             <div class="login-box">
                 <img src="assets/images/Logo.png" class="logo" alt="RF Logo">
-                <h2>Set New Password</h2>
+                <h2>Verify Code</h2>
 
-                <p class="description-text">Enter your new password to complete the password reset.</p>
+                <p class="description-text">Enter the verification code sent to your email.</p>
 
                 <?php if ($error): ?>
                     <div style="color: #f44336; background: #ffebee; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 13px;">
@@ -193,11 +162,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     </div>
                 <?php endif; ?>
 
-                <form method="POST" action="set-new-password.php">
-                    <input type="password" name="password" placeholder="Enter new password" required>
-                    <input type="password" name="confirm_password" placeholder="Confirm new password" required>
+                <form method="POST" action="verify-reset-code.php">
+                    <input type="text" name="verification_code" placeholder="Enter verification code" required>
 
-                    <button type="submit">Update Password</button>
+                    <button type="submit">Verify Code</button>
 
                     <div class="back-link-wrapper">
                         <a href="login.php">Back to Login</a>

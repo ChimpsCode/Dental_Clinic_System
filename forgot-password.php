@@ -25,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $_SESSION['reset_email']   = $email;
                 $_SESSION['reset_user_id'] = $user['id'];
                 $_SESSION['reset_code']    = $resetCode;
+                $_SESSION['reset_code_sent_at'] = time();
 
                 // Prepare email content (plain text + HTML version)
                 $subject = 'RF Dental Clinic - Password Reset Code';
@@ -148,8 +149,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                 if ($mailSent) {
                     $success = 'A verification code has been sent to your email address.';
-                    // Redirect to new password page after 2 seconds (where you can verify the code if implemented)
-                    header("refresh:2;url=set-new-password.php");
+                    // Redirect to verification page after 2 seconds
+                    header("refresh:2;url=verify-reset-code.php");
                 } else {
                     // If $error was not already set in the PHPMailer block, provide a generic message
                     if (empty($error)) {
