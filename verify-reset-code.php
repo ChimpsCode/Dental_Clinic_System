@@ -315,7 +315,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                     <button type="submit">Verify Code</button>
 
-                    <button type="submit" id="resendBtn" name="resend_code" value="1" style="margin-top:10px;background:#6b7280;">Resend Code</button>
+                    <button type="submit" id="resendBtn" name="resend_code" value="1" formnovalidate style="margin-top:10px;background:#6b7280;">Resend Code</button>
 
                     <div class="back-link-wrapper">
                         <a href="login.php">Back to Login</a>
@@ -346,11 +346,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 }
                 remaining -= 1;
                 setTimeout(updateCountdown, 1000);
-            }
-
-            if (resendBtn) {
-                // Allow resend only after expiry
-                resendBtn.disabled = remaining > 0;
             }
 
             updateCountdown();
