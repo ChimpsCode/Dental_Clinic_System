@@ -120,8 +120,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                         <option value="failed" <?php echo $statusFilter === 'failed' ? 'selected' : ''; ?>>Failed</option>
                     </select>
                     <input type="date" class="date-input" name="date" id="dateFilter" value="<?php echo htmlspecialchars($dateFilter); ?>">
-                    <button type="submit" class="btn-filter">Search</button>
-                    <a href="admin_audit_trail.php" class="btn-filter" style="background: #6b7280;">Reset</a>
+                    <a href="admin_audit_trail.php" class="btn-filter reset">Reset</a>
                 </form>
 
                 <!-- Audit Log Table -->

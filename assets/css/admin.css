@@ -32,6 +32,7 @@
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
+    align-items: center;
 }
 
 .search-input {
@@ -58,6 +59,37 @@
     background: white;
     min-width: 150px;
     cursor: pointer;
+}
+
+.btn-filter {
+    padding: 10px 16px;
+    border: 1px solid #3b82f6;
+    border-radius: 8px;
+    background: #3b82f6;
+    color: #ffffff;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 42px;
+}
+
+.btn-filter:hover {
+    background: #2563eb;
+    border-color: #2563eb;
+}
+
+.btn-filter.reset {
+    background: #6b7280;
+    border-color: #6b7280;
+}
+
+.btn-filter.reset:hover {
+    background: #4b5563;
+    border-color: #4b5563;
 }
 
 .filter-select:focus, .date-input:focus {
