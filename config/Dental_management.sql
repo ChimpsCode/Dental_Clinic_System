@@ -28,6 +28,7 @@ CREATE TABLE `users` (
   `email` varchar(100) DEFAULT NULL,
   `full_name` varchar(100) DEFAULT NULL,
   `role` enum('admin','dentist','staff','user') DEFAULT 'user',
+  `status` enum('active','inactive') DEFAULT 'active',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   `is_archived` tinyint(1) NOT NULL DEFAULT 0,
@@ -380,6 +381,49 @@ INSERT INTO `services` (`name`, `mode`, `price`, `duration_minutes`, `descriptio
 ('Fixed Bridge', 'BULK', 5000.00, 90, 'Permanent replacement for missing teeth anchored to adjacent teeth.', 1),
 ('Teeth Whitening', 'NONE', 5000.00, 90, 'Cosmetic procedure to lighten teeth and remove stains.', 1),
 ('Orthodontic Appliance', 'BULK', 35000.00, 120, 'Devices like braces or retainers to align teeth.', 1);
+
+-- ============================================
+-- DEFAULT DATA - PATIENTS (sample)
+-- ============================================
+INSERT INTO `patients` (`id`, `first_name`, `middle_name`, `last_name`, `gender`, `phone`, `email`, `address`, `status`) VALUES
+(1, 'Mark', NULL, 'Tan', 'Male', '09170000001', 'mark.tan@example.com', 'Cebu City', 'active'),
+(2, 'Juan', NULL, 'Flores', 'Male', '09170000002', 'juan.flores@example.com', 'Mandaue City', 'active'),
+(3, 'Kevin', 'Miguel', 'Lim', 'Male', '09170000003', 'kevin.lim@example.com', 'Lapu-Lapu City', 'active'),
+(4, 'Jona', NULL, 'Casinillo', 'Female', '09170000004', 'jona.casinillo@example.com', 'Cebu City', 'active');
+
+-- ============================================
+-- DEFAULT DATA - BILLING (sample for revenue chart)
+-- ============================================
+INSERT INTO `billing` (`id`, `patient_id`, `total_amount`, `paid_amount`, `balance`, `payment_status`, `billing_date`, `due_date`, `notes`) VALUES
+(1, 1, 800.00, 800.00, 0.00, 'paid', '2026-01-10', '2026-01-17', 'General Service'),
+(2, 2, 2400.00, 2400.00, 0.00, 'paid', '2026-02-05', '2026-02-12', 'General Service'),
+(3, 3, 800.00, 800.00, 0.00, 'paid', '2026-03-08', '2026-03-15', 'General Service'),
+(4, 4, 800.00, 800.00, 0.00, 'paid', '2026-04-12', '2026-04-19', 'General Service'),
+(5, 1, 800.00, 800.00, 0.00, 'paid', '2026-05-09', '2026-05-16', 'General Service'),
+(6, 2, 800.00, 800.00, 0.00, 'paid', '2026-06-14', '2026-06-21', 'General Service'),
+(7, 3, 800.00, 800.00, 0.00, 'paid', '2026-07-11', '2026-07-18', 'General Service'),
+(8, 4, 800.00, 800.00, 0.00, 'paid', '2026-08-16', '2026-08-23', 'General Service'),
+(9, 1, 800.00, 800.00, 0.00, 'paid', '2026-09-13', '2026-09-20', 'General Service'),
+(10, 2, 800.00, 800.00, 0.00, 'paid', '2026-10-10', '2026-10-17', 'General Service'),
+(11, 3, 800.00, 800.00, 0.00, 'paid', '2026-11-14', '2026-11-21', 'General Service'),
+(12, 4, 800.00, 800.00, 0.00, 'paid', '2026-12-12', '2026-12-19', 'General Service');
+
+-- ============================================
+-- DEFAULT DATA - PAYMENTS (sample)
+-- ============================================
+INSERT INTO `payments` (`id`, `billing_id`, `patient_id`, `amount`, `payment_method`, `payment_date`, `reference_number`, `notes`, `created_by`) VALUES
+(1, 1, 1, 800.00, 'cash', '2026-01-10', 'INV-001', 'Sample payment', 1),
+(2, 2, 2, 2400.00, 'cash', '2026-02-05', 'INV-002', 'Sample payment', 1),
+(3, 3, 3, 800.00, 'cash', '2026-03-08', 'INV-003', 'Sample payment', 1),
+(4, 4, 4, 800.00, 'cash', '2026-04-12', 'INV-004', 'Sample payment', 1),
+(5, 5, 1, 800.00, 'cash', '2026-05-09', 'INV-005', 'Sample payment', 1),
+(6, 6, 2, 800.00, 'cash', '2026-06-14', 'INV-006', 'Sample payment', 1),
+(7, 7, 3, 800.00, 'cash', '2026-07-11', 'INV-007', 'Sample payment', 1),
+(8, 8, 4, 800.00, 'cash', '2026-08-16', 'INV-008', 'Sample payment', 1),
+(9, 9, 1, 800.00, 'cash', '2026-09-13', 'INV-009', 'Sample payment', 1),
+(10, 10, 2, 800.00, 'cash', '2026-10-10', 'INV-010', 'Sample payment', 1),
+(11, 11, 3, 800.00, 'cash', '2026-11-14', 'INV-011', 'Sample payment', 1),
+(12, 12, 4, 800.00, 'cash', '2026-12-12', 'INV-012', 'Sample payment', 1);
 
 COMMIT;
 

@@ -285,7 +285,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             font-size: 14px;
             z-index: 9999;
             opacity: 0;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.25s ease;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
             max-width: 350px;
             word-wrap: break-word;
@@ -315,7 +315,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             left: 0;
             height: 3px;
             background: currentColor;
-            animation: progressBar 2s linear forwards;
+            animation: progressBar 1.6s linear forwards;
         }
 
         @keyframes progressBar {
@@ -351,12 +351,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
             to {
                 opacity: 0;
-                transform: translateX(20px);
+                transform: translateX(18px);
             }
         }
 
         body.exit-animation {
-            animation: pageExit 0.5s ease-in forwards;
+            animation: pageExit 0.35s ease-in forwards;
         }
 
         @media (max-width: 1024px) {
@@ -440,7 +440,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     // Navigate after animation completes
                     setTimeout(() => {
                         window.location.href = url;
-                    }, 500);
+                    }, 350);
                 });
             });
         });

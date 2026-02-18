@@ -23,6 +23,9 @@ function initializeAdmin() {
     
     // Initialize user profile dropdown
     initUserProfileDropdown();
+
+    // Initialize password visibility toggles
+    initPasswordToggles();
 }
 
 /**
@@ -119,6 +122,8 @@ function openUserModal(userId = null) {
     if (modal && form) {
         if (userId) {
             title.textContent = 'Edit User';
+            const editOnlyFields = modal.querySelectorAll('[data-edit-only="true"]');
+            editOnlyFields.forEach(el => el.style.display = '');
             // Load user data from server
             fetch(`admin_users_actions.php?action=get&id=${encodeURIComponent(userId)}`)
                 .then(res => res.json())
@@ -130,11 +135,24 @@ function openUserModal(userId = null) {
                     const user = data.user;
                     if (userIdInput) userIdInput.value = user.id;
                     document.getElementById('username').value = user.username || '';
-                    document.getElementById('fullName').value = user.full_name || '';
+                    const fullName = (user.full_name || '').trim();
+                    const nameParts = fullName ? fullName.split(/\s+/) : [];
+                    const lastName = nameParts.length > 1 ? nameParts.pop() : '';
+                    const firstName = nameParts.shift() || '';
+                    const middleName = nameParts.join(' ');
+                    document.getElementById('firstName').value = firstName;
+                    document.getElementById('middleName').value = middleName;
+                    document.getElementById('lastName').value = lastName;
                     document.getElementById('email').value = user.email || '';
                     document.getElementById('role').value = user.role || 'staff';
-                    document.getElementById('status').value = user.status || 'active';
-                    document.getElementById('password').value = '';
+                    const statusSelect = document.getElementById('status');
+                    if (statusSelect) statusSelect.value = user.status || 'active';
+                    const passwordInput = document.getElementById('password');
+                    const confirmPasswordInput = document.getElementById('confirmPassword');
+                    if (passwordInput) passwordInput.value = '';
+                    if (confirmPasswordInput) confirmPasswordInput.value = '';
+                    if (passwordInput) passwordInput.dispatchEvent(new Event('input'));
+                    if (confirmPasswordInput) confirmPasswordInput.dispatchEvent(new Event('input'));
                     modal.classList.add('active');
                 })
                 .catch(() => {
@@ -144,7 +162,13 @@ function openUserModal(userId = null) {
             title.textContent = 'Add New User';
             form.reset();
             if (userIdInput) userIdInput.value = '';
-            document.getElementById('password').placeholder = 'Leave blank for auto-generated password';
+            document.getElementById('password').placeholder = 'Password';
+            const editOnlyFields = modal.querySelectorAll('[data-edit-only="true"]');
+            editOnlyFields.forEach(el => el.style.display = 'none');
+            const passwordInput = document.getElementById('password');
+            const confirmPasswordInput = document.getElementById('confirmPassword');
+            if (passwordInput) passwordInput.dispatchEvent(new Event('input'));
+            if (confirmPasswordInput) confirmPasswordInput.dispatchEvent(new Event('input'));
             modal.classList.add('active');
         }
     }
@@ -246,6 +270,44 @@ function initForms() {
     }
 }
 
+function initPasswordToggles() {
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    const togglePassword = document.getElementById('togglePassword');
+    const toggleConfirmPassword = document.getElementById('toggleConfirmPassword');
+
+    function bindToggle(input, toggleBtn) {
+        if (!input || !toggleBtn) return;
+
+        function updateVisibility() {
+            toggleBtn.style.display = input.value.length > 0 ? 'flex' : 'none';
+        }
+
+        input.addEventListener('input', updateVisibility);
+        input.addEventListener('paste', updateVisibility);
+        input.addEventListener('keyup', updateVisibility);
+        updateVisibility();
+
+        toggleBtn.addEventListener('click', function() {
+            const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+            input.setAttribute('type', type);
+
+            const eyeOpen = toggleBtn.querySelector('.eye-open');
+            const eyeClosed = toggleBtn.querySelector('.eye-closed');
+            if (type === 'password') {
+                if (eyeOpen) eyeOpen.style.display = 'block';
+                if (eyeClosed) eyeClosed.style.display = 'none';
+            } else {
+                if (eyeOpen) eyeOpen.style.display = 'none';
+                if (eyeClosed) eyeClosed.style.display = 'block';
+            }
+        });
+    }
+
+    bindToggle(passwordInput, togglePassword);
+    bindToggle(confirmPasswordInput, toggleConfirmPassword);
+}
+
 function saveUser() {
     // Get form data
     const userId = document.getElementById('userId').value;
@@ -253,11 +315,18 @@ function saveUser() {
     userData.append('action', userId ? 'update' : 'create');
     if (userId) userData.append('id', userId);
     userData.append('username', document.getElementById('username').value);
-    userData.append('fullName', document.getElementById('fullName').value);
+    const firstName = document.getElementById('firstName').value.trim();
+    const middleName = document.getElementById('middleName').value.trim();
+    const lastName = document.getElementById('lastName').value.trim();
+    userData.append('firstName', firstName);
+    userData.append('middleName', middleName);
+    userData.append('lastName', lastName);
     userData.append('email', document.getElementById('email').value);
     userData.append('role', document.getElementById('role').value);
-    userData.append('status', document.getElementById('status').value);
+    const statusSelect = document.getElementById('status');
+    if (statusSelect) userData.append('status', statusSelect.value);
     userData.append('password', document.getElementById('password').value);
+    userData.append('confirmPassword', document.getElementById('confirmPassword').value);
     
     fetch('admin_users_actions.php', {
         method: 'POST',
@@ -302,6 +371,35 @@ function deleteUser(userId) {
     })
     .catch(() => {
         showToast('Failed to delete user.', 'error');
+    });
+}
+
+function toggleUserStatus(userId, currentStatus) {
+    if (!userId) return;
+    const nextStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    const actionText = nextStatus === 'active' ? 'Activate' : 'Deactivate';
+    if (!confirm(`${actionText} this user?`)) return;
+
+    const formData = new FormData();
+    formData.append('action', 'toggle_status');
+    formData.append('id', userId);
+    formData.append('status', nextStatus);
+
+    fetch('admin_users_actions.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (!data.success) {
+            showToast(data.message || 'Failed to update status.', 'error');
+            return;
+        }
+        showToast(data.message || 'Status updated.', 'success');
+        setTimeout(() => window.location.reload(), 500);
+    })
+    .catch(() => {
+        showToast('Failed to update status.', 'error');
     });
 }
 

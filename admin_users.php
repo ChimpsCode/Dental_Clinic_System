@@ -10,13 +10,16 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
 
 $users = [];
 $totalUsers = 0;
+$hasStatusColumn = false;
 
 try {
-    $stmt = $pdo->query("
-        SELECT id, username, full_name, email, role
-        FROM users
-        ORDER BY id ASC
-    ");
+    $colStmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'status'");
+    $hasStatusColumn = (bool)$colStmt->fetch(PDO::FETCH_ASSOC);
+
+    $sql = $hasStatusColumn
+        ? "SELECT id, username, full_name, email, role, status FROM users ORDER BY id ASC"
+        : "SELECT id, username, full_name, email, role FROM users ORDER BY id ASC";
+    $stmt = $pdo->query($sql);
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
     foreach ($users as &$user) {
         if (!isset($user['status']) || $user['status'] === null || $user['status'] === '') {
@@ -82,6 +85,11 @@ try {
                                 <td><span class="status-badge <?php echo $user['status']; ?>"><?php echo ucfirst($user['status']); ?></span></td>
                                 <td class="action-buttons">
                                     <button class="action-btn icon" title="Edit" onclick="openUserModal(<?php echo (int)$user['id']; ?>)">&#9998;</button>
+                                    <?php if ($hasStatusColumn): ?>
+                                        <button class="action-btn icon" title="<?php echo ($user['status'] === 'active') ? 'Deactivate' : 'Activate'; ?>" onclick="toggleUserStatus(<?php echo (int)$user['id']; ?>, '<?php echo htmlspecialchars($user['status']); ?>')">
+                                            <?php echo ($user['status'] === 'active') ? '&#128275;' : '&#128274;'; ?>
+                                        </button>
+                                    <?php endif; ?>
                                     <button class="action-btn icon" title="Delete" onclick="deleteUser(<?php echo (int)$user['id']; ?>)">&#128465;</button>
                                 </td>
                             </tr>

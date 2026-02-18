@@ -489,6 +489,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                 paymentData['<?php echo $invoiceNum; ?>'] = {
                     id: '<?php echo $invoiceNum; ?>',
                     billing_id: '<?php echo $record['billing_id']; ?>',
+                    patient_id: '<?php echo $record['patient_id']; ?>',
                     patient: '<?php echo addslashes($fullName); ?>',
                     services: '<?php echo addslashes($services); ?>',
                     amount: '<?php echo $record['total_amount']; ?>',

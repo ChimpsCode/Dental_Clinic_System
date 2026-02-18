@@ -93,16 +93,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             border-radius: 8px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, .18);
             text-align: center;
+            animation: cardIn 0.35s ease-out;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
         .logo {
             width: 50px;
             margin-bottom: 20px;
+            animation: fadeIn 0.25s ease-out;
         }
 
         .login-box h2 {
             color: #1673ff;
             margin-bottom: 25px;
+            animation: fadeInUp 0.3s ease-out;
         }
 
         .login-box input {
@@ -113,11 +117,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             border-radius: 5px;
             background: #e6e6e6;
             font-size: 14px;
+            transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
         }
 
         .login-box input:focus {
             outline: none;
             background: #ddd;
+            box-shadow: 0 0 0 3px rgba(22, 115, 255, 0.15);
+            transform: translateY(-1px);
         }
 
         .login-box button {
@@ -131,10 +138,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             letter-spacing: 1px;
             cursor: pointer;
             margin-top: 15px;
+            transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
         }
 
         .login-box button:hover {
             background: #084bb5;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(13, 91, 215, 0.2);
         }
 
         .description-text {
@@ -142,20 +152,44 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             font-size: 14px;
             margin-bottom: 20px;
             line-height: 1.5;
+            animation: fadeInUp 0.3s ease-out;
         }
 
         .back-link-wrapper {
             margin-top: 20px;
+            animation: fadeIn 0.25s ease-out;
         }
 
         .back-link-wrapper a {
             color: #0d5bd7;
             text-decoration: none;
             font-weight: 500;
+            transition: color 0.2s ease, text-decoration-color 0.2s ease;
         }
 
         .back-link-wrapper a:hover {
             text-decoration: underline;
+            color: #084bb5;
+        }
+
+        .login-box:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        @keyframes cardIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         @media (max-width: 1024px) {

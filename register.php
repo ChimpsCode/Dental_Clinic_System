@@ -2,6 +2,12 @@
 session_start();
 require_once 'config/database.php';
 
+// Registration is admin-only
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+    header('Location: login.php');
+    exit();
+}
+
 // Redirect if already logged in
 if (isset($_SESSION['user_id'])) {
     header('Location: dashboard.php');
@@ -18,19 +24,17 @@ $confirmPassword = isset($_POST['confirm_password']) ? $_POST['confirm_password'
 $email = trim(isset($_POST['email']) ? $_POST['email'] : '');
 $firstName = trim(isset($_POST['first_name']) ? $_POST['first_name'] : '');
 $lastName = trim(isset($_POST['last_name']) ? $_POST['last_name'] : '');
-$role = isset($_POST['role']) ? trim($_POST['role']) : '';
+$role = 'staff';
 
 // Create full name from first and last name
 $fullName = trim($firstName . ' ' . $lastName);
     
-    if (empty($username) || empty($password) || empty($confirmPassword) || empty($firstName) || empty($lastName) || empty($role)) {
+    if (empty($username) || empty($password) || empty($confirmPassword) || empty($firstName) || empty($lastName)) {
         $error = 'Please fill in all required fields';
     } elseif ($password !== $confirmPassword) {
         $error = 'Passwords do not match';
     } elseif (strlen($password) < 6) {
         $error = 'Password must be at least 6 characters long';
-    } elseif (!in_array($role, ['dentist', 'staff'])) {
-        $error = 'Please select a valid role';
     } else {
         try {
             // Check if PDO connection exists
@@ -434,11 +438,7 @@ $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
                         </div>
                     </div>
 
-                    <select name="role" id="role" required style="width: 100%; padding: 13px; margin: 12px 0; border: none; border-radius: 5px; background: #e6e6e6; font-size: 14px; cursor: pointer;">
-                        <option value="">-- Select Role Account --</option>
-                        <option value="dentist" <?php echo (isset($_POST['role']) && $_POST['role'] === 'dentist') ? 'selected' : ''; ?>>Dentist</option>
-                        <option value="staff" <?php echo (isset($_POST['role']) && $_POST['role'] === 'staff') ? 'selected' : ''; ?>>Staff</option>
-                    </select>
+                
 
                     <button type="submit">Create Account</button>
                 </form>

@@ -346,7 +346,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Navigate after animation completes
             setTimeout(() => {
                 window.location.href = url;
-            }, 500);
+            }, 350);
         });
     });
 });

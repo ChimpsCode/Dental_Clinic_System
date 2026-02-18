@@ -25,13 +25,18 @@ function jsonError($message, $code = 400) {
 }
 
 try {
+    $colStmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'status'");
+    $hasStatusColumn = (bool)$colStmt->fetch(PDO::FETCH_ASSOC);
+
     if ($action === 'get') {
         $id = (int)($_GET['id'] ?? 0);
         if ($id <= 0) {
             jsonError('Invalid user ID');
         }
 
-        $stmt = $pdo->prepare("SELECT id, username, full_name, email, role FROM users WHERE id = ?");
+        $stmt = $hasStatusColumn
+            ? $pdo->prepare("SELECT id, username, full_name, email, role, status FROM users WHERE id = ?")
+            : $pdo->prepare("SELECT id, username, full_name, email, role FROM users WHERE id = ?");
         $stmt->execute([$id]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -39,8 +44,10 @@ try {
             jsonError('User not found', 404);
         }
 
-        // Provide a virtual status field for UI (all users treated as active for now)
-        $user['status'] = 'active';
+        if (!$hasStatusColumn) {
+            // Provide a virtual status field for UI (all users treated as active for now)
+            $user['status'] = 'active';
+        }
 
         echo json_encode(['success' => true, 'user' => $user]);
         exit;
@@ -49,17 +56,26 @@ try {
     if ($action === 'create' || $action === 'update') {
         $id       = (int)($_POST['id'] ?? 0);
         $username = trim($_POST['username'] ?? '');
-        $fullName = trim($_POST['fullName'] ?? '');
+        $firstName  = trim($_POST['firstName'] ?? '');
+        $middleName = trim($_POST['middleName'] ?? '');
+        $lastName   = trim($_POST['lastName'] ?? '');
+        $fullName   = trim($firstName . ' ' . ($middleName !== '' ? $middleName . ' ' : '') . $lastName);
         $email    = trim($_POST['email'] ?? '');
         $role     = trim($_POST['role'] ?? '');
         $password = trim($_POST['password'] ?? '');
+        $status   = trim($_POST['status'] ?? 'active');
+        $confirmPassword = trim($_POST['confirmPassword'] ?? '');
 
-        if ($username === '' || $fullName === '' || $email === '' || $role === '') {
+        if ($username === '' || $firstName === '' || $lastName === '' || $email === '' || $role === '') {
             jsonError('Please fill in all required fields.');
         }
 
         if (!in_array($role, ['admin', 'dentist', 'staff'], true)) {
             jsonError('Invalid role selected.');
+        }
+
+        if ($hasStatusColumn && !in_array($status, ['active', 'inactive'], true)) {
+            jsonError('Invalid status selected.');
         }
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -79,14 +95,23 @@ try {
                 $password = substr(bin2hex(random_bytes(8)), 0, 10);
             }
 
+            if ($confirmPassword !== '' && $password !== $confirmPassword) {
+                jsonError('Passwords do not match.');
+            }
+
             if (strlen($password) < 6) {
                 jsonError('Password must be at least 6 characters.');
             }
 
             $hashed = password_hash($password, PASSWORD_DEFAULT);
 
-            $stmt = $pdo->prepare("INSERT INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
-            $stmt->execute([$username, $hashed, $email, $fullName, $role]);
+            if ($hasStatusColumn) {
+                $stmt = $pdo->prepare("INSERT INTO users (username, password, email, full_name, role, status) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$username, $hashed, $email, $fullName, $role, $status]);
+            } else {
+                $stmt = $pdo->prepare("INSERT INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
+                $stmt->execute([$username, $hashed, $email, $fullName, $role]);
+            }
 
             $newId = (int)$pdo->lastInsertId();
 
@@ -128,7 +153,15 @@ try {
             $fields = ['username' => $username, 'email' => $email, 'full_name' => $fullName, 'role' => $role];
             $setParts = ['username = :username', 'email = :email', 'full_name = :full_name', 'role = :role'];
 
+            if ($hasStatusColumn) {
+                $fields['status'] = $status;
+                $setParts[] = 'status = :status';
+            }
+
             if ($password !== '') {
+                if ($password !== $confirmPassword) {
+                    jsonError('Passwords do not match.');
+                }
                 if (strlen($password) < 6) {
                     jsonError('Password must be at least 6 characters.');
                 }
@@ -169,6 +202,34 @@ try {
         $stmt->execute([$id]);
 
         echo json_encode(['success' => true, 'message' => 'User deleted successfully.']);
+        exit;
+    }
+
+    if ($action === 'toggle_status') {
+        $id = (int)($_POST['id'] ?? 0);
+        $status = trim($_POST['status'] ?? '');
+        if ($id <= 0) {
+            jsonError('Invalid user ID.');
+        }
+
+        if (!in_array($status, ['active', 'inactive'], true)) {
+            jsonError('Invalid status.');
+        }
+
+        $colStmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'status'");
+        if (!$colStmt->fetch(PDO::FETCH_ASSOC)) {
+            jsonError('Status column not available.', 400);
+        }
+
+        // Prevent deactivating primary admin
+        if ($id === 1 && $status === 'inactive') {
+            jsonError('You cannot deactivate the primary admin account.');
+        }
+
+        $stmt = $pdo->prepare("UPDATE users SET status = ? WHERE id = ?");
+        $stmt->execute([$status, $id]);
+
+        echo json_encode(['success' => true, 'message' => 'User status updated.']);
         exit;
     }
 

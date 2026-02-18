@@ -78,53 +78,68 @@ function isActivePage($page) {
 <body data-user-id="<?php echo (int)($_SESSION['user_id'] ?? 0); ?>">
     <!-- Add/Edit User Modal -->
     <div id="userModal" class="modal-overlay">
-        <div class="modal">
+        <div class="modal user-modal">
             <h2 id="modalTitle">Add New User</h2>
+            <p class="modal-subtitle">Enter user details to add a new system user</p>
             
             <form id="userForm">
                 <input type="hidden" id="userId">
-                <div class="form-group">
-                    <label>Username</label>
-                    <input type="text" id="username" class="form-control" required>
+                
+                <div class="form-grid">
+                    <input type="text" id="firstName" class="form-control" placeholder="First Name" required>
+                    <input type="text" id="middleName" class="form-control" placeholder="Middle Name (Optional)">
+                </div>
+
+                <input type="text" id="lastName" class="form-control" placeholder="Last Name" required>
+
+                <div class="form-grid">
+                    <input type="text" id="username" class="form-control" placeholder="Username" required>
+                    <input type="email" id="email" class="form-control" placeholder="Email" required>
                 </div>
                 
-                <div class="form-group">
-                    <label>Full Name</label>
-                    <input type="text" id="fullName" class="form-control" required>
-                </div>
-                
-                <div class="form-group">
-                    <label>Email</label>
-                    <input type="email" id="email" class="form-control" required>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group" style="flex:1;">
-                        <label>Role</label>
-                        <select id="role" class="form-control" required>
-                            <option value="staff">Staff</option>
-                            <option value="dentist">Dentist</option>
-                            <option value="admin">Admin</option>
-                        </select>
+                <div class="form-grid">
+                    <div class="input-group">
+                        <input type="password" id="password" class="form-control" placeholder="Password">
+                        <button type="button" class="toggle-password" id="togglePassword" aria-label="Toggle password visibility" style="display: none;">
+                            <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                            <svg class="eye-icon eye-closed" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                            </svg>
+                        </button>
                     </div>
-                    <div class="form-group" style="flex:1;">
-                        <label>Status</label>
-                        <select id="status" class="form-control">
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                        </select>
+                    <div class="input-group">
+                        <input type="password" id="confirmPassword" class="form-control" placeholder="Confirm Password">
+                        <button type="button" class="toggle-password" id="toggleConfirmPassword" aria-label="Toggle confirm password visibility" style="display: none;">
+                            <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                            <svg class="eye-icon eye-closed" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                            </svg>
+                        </button>
                     </div>
                 </div>
-                
-                <div class="form-group">
-                    <label>Password</label>
-                    <input type="password" id="password" class="form-control">
-                    <small>Leave blank to keep existing password</small>
-                </div>
+
+                <select id="role" class="form-control" required>
+                    <option value="">Select Role</option>
+                    <option value="dentist">Dentist</option>
+                    <option value="staff">Staff</option>
+                </select>
+
+                <select id="status" class="form-control" required data-edit-only="true">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
                 
                 <div class="modal-actions">
-                    <button type="button" class="btn-cancel" onclick="closeUserModal()">Cancel</button>
                     <button type="submit" class="btn-primary">Save User</button>
+                    <button type="button" class="btn-cancel" onclick="closeUserModal()">Cancel</button>
                 </div>
             </form>
         </div>
