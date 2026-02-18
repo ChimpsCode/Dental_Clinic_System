@@ -43,6 +43,23 @@ if (empty($username) || empty($password)) {
                 
                 // Get full_name from database
                 $_SESSION['full_name'] = !empty($user['full_name']) ? $user['full_name'] : $user['username'];
+
+                // First login check (optional column)
+                $isFirstLogin = false;
+                try {
+                    $colStmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'first_login'");
+                    if ($colStmt && $colStmt->fetch(PDO::FETCH_ASSOC)) {
+                        $isFirstLogin = isset($user['first_login']) && (int)$user['first_login'] === 1;
+                        if ($isFirstLogin) {
+                            $upd = $pdo->prepare("UPDATE users SET first_login = 0 WHERE id = ?");
+                            $upd->execute([$user['id']]);
+                        }
+                    }
+                } catch (Exception $e) {
+                    // Ignore if column doesn't exist
+                    $isFirstLogin = false;
+                }
+                $_SESSION['first_login'] = $isFirstLogin ? 1 : 0;
                 
                 // Log successful login
                 require_once 'includes/audit_helper.php';
@@ -110,6 +127,22 @@ if (empty($username) || empty($password)) {
                 
                 // Get full_name from database
                 $_SESSION['full_name'] = !empty($user['full_name']) ? $user['full_name'] : $user['username'];
+
+                // First login check (optional column)
+                $isFirstLogin = false;
+                try {
+                    $colStmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'first_login'");
+                    if ($colStmt && $colStmt->fetch(PDO::FETCH_ASSOC)) {
+                        $isFirstLogin = isset($user['first_login']) && (int)$user['first_login'] === 1;
+                        if ($isFirstLogin) {
+                            $upd = $pdo->prepare("UPDATE users SET first_login = 0 WHERE id = ?");
+                            $upd->execute([$user['id']]);
+                        }
+                    }
+                } catch (Exception $e) {
+                    $isFirstLogin = false;
+                }
+                $_SESSION['first_login'] = $isFirstLogin ? 1 : 0;
                 
                 // Log successful login
                 require_once 'includes/audit_helper.php';

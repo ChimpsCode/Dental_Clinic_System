@@ -28,6 +28,7 @@ CREATE TABLE `users` (
   `email` varchar(100) DEFAULT NULL,
   `full_name` varchar(100) DEFAULT NULL,
   `role` enum('admin','dentist','staff','user') DEFAULT 'user',
+  `first_login` tinyint(1) NOT NULL DEFAULT 1,
   `status` enum('active','inactive') DEFAULT 'active',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
@@ -360,10 +361,10 @@ ALTER TABLE `treatment_plans` ADD CONSTRAINT `treatment_plans_ibfk_2` FOREIGN KE
 -- ============================================
 -- DEFAULT DATA - USERS
 -- ============================================
-INSERT INTO `users` (`first_name`, `middle_name`, `last_name`, `username`, `password`, `email`, `full_name`, `role`) VALUES
-('', NULL, '', 'admin', '$2y$10$FXDdqW3kOxHDvH7nH9i/4.Mrrze218ezCvGOmk6jjcfuRXciQMuma', 'admin@rfdental.com', 'Administrator', 'admin'),
-('', NULL, '', 'staff', '$2y$10$jRGwuu0MuLLPiNaDV5uz8.SSueIZkw7AwOeyouvIPCGnftm/OcBdK', 'staff@rfdental.com', NULL, 'staff'),
-('', NULL, '', 'dentist', '$2y$10$J.tCZfkE.TDCaYClTem.GertJO7FDz2dwXDkukVluf0nWfJg1qzW2', 'dentist@rfdental.com', NULL, 'dentist');
+INSERT INTO `users` (`first_name`, `middle_name`, `last_name`, `username`, `password`, `email`, `full_name`, `role`, `first_login`) VALUES
+('', NULL, '', 'admin', '$2y$10$FXDdqW3kOxHDvH7nH9i/4.Mrrze218ezCvGOmk6jjcfuRXciQMuma', 'admin@rfdental.com', 'Administrator', 'admin', 0),
+('', NULL, '', 'staff', '$2y$10$jRGwuu0MuLLPiNaDV5uz8.SSueIZkw7AwOeyouvIPCGnftm/OcBdK', 'staff@rfdental.com', NULL, 'staff', 0),
+('', NULL, '', 'dentist', '$2y$10$J.tCZfkE.TDCaYClTem.GertJO7FDz2dwXDkukVluf0nWfJg1qzW2', 'dentist@rfdental.com', NULL, 'dentist', 0);
 
 -- ============================================
 -- DEFAULT DATA - SERVICES

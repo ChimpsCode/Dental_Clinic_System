@@ -10,6 +10,13 @@
     <script src="assets/js/dashboard.js"></script>
     <script src="assets/js/admin.js"></script>
     <?php if (isset($pageScript)) { echo $pageScript; } ?>
+    <div id="firstLoginModal" class="first-login-overlay" aria-hidden="true">
+        <div class="first-login-modal" role="dialog" aria-modal="true" aria-labelledby="firstLoginTitle">
+            <h2 id="firstLoginTitle">Welcome to the System!</h2>
+            <p>This appears to be your first login. For security purposes, please update your password and review your account details before proceeding.</p>
+            <button type="button" class="btn-primary" id="firstLoginOkBtn">Okay</button>
+        </div>
+    </div>
     <script>
         // Ensure user profile dropdown works
         document.addEventListener('DOMContentLoaded', function() {
