@@ -710,6 +710,16 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
                 selectedTeeth.push(btn.dataset.tooth);
             });
             data.selectedTeeth = selectedTeeth;
+
+            if (services.length === 0) {
+                alert('Please select at least one service before submitting.');
+                return;
+            }
+
+            if (selectedTeeth.length === 0) {
+                alert('Please select at least one tooth before submitting.');
+                return;
+            }
             
             const medicalConditions = [];
             document.querySelectorAll('input[name="medicalConditions"]:checked').forEach(cb => {

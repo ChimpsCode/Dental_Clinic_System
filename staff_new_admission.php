@@ -1779,6 +1779,20 @@ btn.classList.add('bg-blue-200', 'border-blue-400');
                 selectedTeeth.push(wrapper.dataset.tooth);
             });
             data.selectedTeeth = selectedTeeth;
+
+            if (services.length === 0) {
+                showModal('error', 'Missing Services', 'Please select at least one service before submitting.', [
+                    { text: 'Okay', onclick: closeModal }
+                ]);
+                return;
+            }
+
+            if (selectedTeeth.length === 0) {
+                showModal('error', 'Missing Teeth', 'Please select at least one tooth before submitting.', [
+                    { text: 'Okay', onclick: closeModal }
+                ]);
+                return;
+            }
             
             // Add selected teeth to form data
             selectedTeeth.forEach(tooth => {
