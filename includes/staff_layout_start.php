@@ -221,33 +221,6 @@ function isActivePage($page) {
                 </div>
             </div>
             <div class="header-right">
-                <div class="header-notifications" id="notificationDropdown" style="margin-right: 20px;">
-                    <button class="notification-bell" type="button" aria-label="Notifications">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                            <path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 1 0-12 0v5L4 18v1h16v-1z"/>
-                        </svg>
-                        <?php if ($notificationTotal > 0): ?>
-                            <span class="notification-badge"><?php echo $notificationTotal; ?></span>
-                        <?php endif; ?>
-                    </button>
-                    <div class="notification-dropdown">
-                        <div class="notification-header">
-                            <span>Notifications</span>
-                            <span class="notification-count"><?php echo $notificationTotal; ?></span>
-                        </div>
-                        <div class="notification-list">
-                            <div class="notification-item">
-                                <div class="notification-icon">📅</div>
-                                <div class="notification-text"><?php echo $newAppointmentsToday; ?> new appointments today</div>
-                            </div>
-                            <div class="notification-item">
-                                <div class="notification-icon">⚠️</div>
-                                <div class="notification-text"><?php echo $pendingPaymentsCount; ?> pending payments require attention</div>
-                            </div>
-                        </div>
-                        <button class="see-all-btn" type="button">See all notifications</button>
-                    </div>
-                </div>
                 <div class="header-user-summary">
                     <div class="header-user-name"><?php echo htmlspecialchars($firstName); ?></div>
                     <div class="header-user-role"><?php echo htmlspecialchars(ucfirst($_SESSION['role'] ?? 'staff')); ?></div>
