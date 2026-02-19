@@ -11,6 +11,21 @@
     <script src="assets/js/admin.js"></script>
     <?php if (isset($pageScript)) { echo $pageScript; } ?>
     <script>
+        // Auto logout after 10 minutes of inactivity (client-side)
+        (function() {
+            const LOGOUT_AFTER_MS = 10 * 60 * 1000;
+            let timer;
+            const reset = () => {
+                clearTimeout(timer);
+                timer = setTimeout(() => window.location.href = 'logout.php', LOGOUT_AFTER_MS);
+            };
+            ['click','mousemove','keydown','scroll','touchstart'].forEach(evt =>
+                document.addEventListener(evt, reset, { passive: true })
+            );
+            reset();
+        })();
+    </script>
+    <script>
         // Ensure user profile dropdown works
         document.addEventListener('DOMContentLoaded', function() {
             const userProfile = document.getElementById('userProfileDropdown');
