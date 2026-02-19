@@ -31,20 +31,6 @@ window.addEventListener('resize', function() {
 
 // Rest of the code wrapped in DOMContentLoaded
 document.addEventListener('DOMContentLoaded', function() {
-    // First login welcome modal
-    const firstLoginModal = document.getElementById('firstLoginModal');
-    const firstLoginOkBtn = document.getElementById('firstLoginOkBtn');
-    if (firstLoginModal && document.body.dataset.firstLogin === '1') {
-        firstLoginModal.classList.add('show');
-        document.body.style.overflow = 'hidden';
-    }
-    if (firstLoginOkBtn && firstLoginModal) {
-        firstLoginOkBtn.addEventListener('click', function() {
-            firstLoginModal.classList.remove('show');
-            document.body.style.overflow = '';
-        });
-    }
-
     // Close sidebar when clicking on nav items (mobile)
     const navItemsSidebar = document.querySelectorAll('.nav-item');
     navItemsSidebar.forEach(item => {

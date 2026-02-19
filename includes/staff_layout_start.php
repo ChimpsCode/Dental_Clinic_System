@@ -126,7 +126,7 @@ function isActivePage($page) {
         }
     </style>
 </head>
-<body data-user-id="<?php echo (int)($_SESSION['user_id'] ?? 0); ?>" data-first-login="<?php echo !empty($_SESSION['first_login']) ? '1' : '0'; ?>">
+<body data-user-id="<?php echo (int)($_SESSION['user_id'] ?? 0); ?>">
     <div class="page-loader"></div>
 
     <!-- Left Sidebar - Staff Navigation -->

@@ -27,6 +27,8 @@ function jsonError($message, $code = 400) {
 try {
     $colStmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'status'");
     $hasStatusColumn = (bool)$colStmt->fetch(PDO::FETCH_ASSOC);
+    $firstLoginStmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'first_login'");
+    $hasFirstLoginColumn = (bool)$firstLoginStmt->fetch(PDO::FETCH_ASSOC);
 
     if ($action === 'get') {
         $id = (int)($_GET['id'] ?? 0);
@@ -105,9 +107,15 @@ try {
 
             $hashed = password_hash($password, PASSWORD_DEFAULT);
 
-            if ($hasStatusColumn) {
+            if ($hasStatusColumn && $hasFirstLoginColumn) {
+                $stmt = $pdo->prepare("INSERT INTO users (username, password, email, full_name, role, status, first_login) VALUES (?, ?, ?, ?, ?, ?, 1)");
+                $stmt->execute([$username, $hashed, $email, $fullName, $role, $status]);
+            } elseif ($hasStatusColumn) {
                 $stmt = $pdo->prepare("INSERT INTO users (username, password, email, full_name, role, status) VALUES (?, ?, ?, ?, ?, ?)");
                 $stmt->execute([$username, $hashed, $email, $fullName, $role, $status]);
+            } elseif ($hasFirstLoginColumn) {
+                $stmt = $pdo->prepare("INSERT INTO users (username, password, email, full_name, role, first_login) VALUES (?, ?, ?, ?, ?, 1)");
+                $stmt->execute([$username, $hashed, $email, $fullName, $role]);
             } else {
                 $stmt = $pdo->prepare("INSERT INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
                 $stmt->execute([$username, $hashed, $email, $fullName, $role]);

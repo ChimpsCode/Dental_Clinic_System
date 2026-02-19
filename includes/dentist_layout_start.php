@@ -73,7 +73,7 @@ function isActivePage($page) {
     <link rel="stylesheet" href="assets/css/dashboard.css">
     <link rel="stylesheet" href="assets/css/staff_dashboard.css">
 </head>
-<body data-user-id="<?php echo (int)($_SESSION['user_id'] ?? 0); ?>" data-first-login="<?php echo !empty($_SESSION['first_login']) ? '1' : '0'; ?>">
+<body data-user-id="<?php echo (int)($_SESSION['user_id'] ?? 0); ?>">
     <!-- Left Sidebar - Dentist Navigation -->
     <aside class="sidebar" id="dentistSidebar">
         <div class="sidebar-logo">
