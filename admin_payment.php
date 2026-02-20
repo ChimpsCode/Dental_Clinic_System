@@ -199,7 +199,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                                 <td><?php echo $invoiceNum; ?></td>
                                 <td>
                                     <?php if ($record['patient_id']): ?>
-                                    <a href="patient_records.php?id=<?php echo $record['patient_id']; ?>" style="color: #2563eb; text-decoration: none; font-weight: 500;">
+                                    <a href="patient_records.php?id=<?php echo $record['patient_id']; ?>" style="color: #374151; text-decoration: none; font-weight: 500;">
                                         <?php echo htmlspecialchars($fullName); ?>
                                     </a>
                                     <?php else: ?>

@@ -26,6 +26,9 @@ function initializeAdmin() {
 
     // Initialize password visibility toggles
     initPasswordToggles();
+
+    // Initialize meatball menus in user tables
+    initUserKebabMenu();
 }
 
 /**
@@ -396,6 +399,151 @@ function toggleUserStatus(userId, currentStatus) {
     .catch(() => {
         showToast('Failed to update status.', 'error');
     });
+}
+
+/**
+ * User Kebab (meatball) menu
+ */
+let userKebabDropdown = null;
+let userKebabBackdrop = null;
+let activeUserKebabButton = null;
+
+function initUserKebabMenu() {
+    userKebabDropdown = document.getElementById('userKebabDropdown');
+    userKebabBackdrop = document.getElementById('userKebabBackdrop');
+
+    if (!userKebabDropdown || !userKebabBackdrop) return;
+
+    document.addEventListener('click', handleUserKebabToggle);
+    userKebabDropdown.addEventListener('click', handleUserKebabAction);
+    userKebabBackdrop.addEventListener('click', closeUserKebabDropdown);
+    window.addEventListener('resize', closeUserKebabDropdown);
+    window.addEventListener('scroll', closeUserKebabDropdown, true);
+}
+
+function handleUserKebabToggle(e) {
+    const button = e.target.closest('.user-kebab-btn');
+    const isKebabButton = Boolean(button);
+
+    if (!isKebabButton) {
+        if (!e.target.closest('.user-kebab-dropdown')) {
+            closeUserKebabDropdown();
+        }
+        return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (activeUserKebabButton === button) {
+        closeUserKebabDropdown();
+        return;
+    }
+
+    openUserKebabDropdown(button);
+}
+
+function openUserKebabDropdown(button) {
+    if (!userKebabDropdown || !userKebabBackdrop) return;
+
+    const userId = button.dataset.userId;
+    const status = button.dataset.userStatus || 'active';
+
+    userKebabDropdown.innerHTML = getUserKebabMarkup(userId, status);
+    positionUserKebabDropdown(button);
+
+    userKebabDropdown.classList.add('show');
+    userKebabBackdrop.classList.add('show');
+    button.classList.add('active');
+    activeUserKebabButton = button;
+}
+
+function closeUserKebabDropdown() {
+    if (userKebabDropdown) {
+        userKebabDropdown.classList.remove('show');
+        userKebabDropdown.innerHTML = '';
+    }
+    if (userKebabBackdrop) {
+        userKebabBackdrop.classList.remove('show');
+    }
+    if (activeUserKebabButton) {
+        activeUserKebabButton.classList.remove('active');
+        activeUserKebabButton = null;
+    }
+}
+
+function positionUserKebabDropdown(button) {
+    const rect = button.getBoundingClientRect();
+    const dropdownWidth = 190;
+    const dropdownHeight = 160;
+    const padding = 12;
+
+    let left = rect.right + 6;
+    let top = rect.top;
+
+    if (left + dropdownWidth > window.innerWidth - padding) {
+        left = rect.left - dropdownWidth - 6;
+    }
+    if (left < padding) left = padding;
+
+    if (top + dropdownHeight > window.innerHeight - padding) {
+        top = rect.bottom - dropdownHeight;
+    }
+    if (top < padding) top = padding;
+
+    userKebabDropdown.style.left = `${left}px`;
+    userKebabDropdown.style.top = `${top}px`;
+}
+
+function getUserKebabMarkup(userId, status) {
+    const isActive = status === 'active';
+    const toggleLabel = isActive ? 'Deactivate' : 'Activate';
+    const toggleIcon = isActive
+        ? '<path d=\"M5 12h14\"/>'
+        : '<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>';
+
+    return `
+        <a href="#" data-action="edit" data-user-id="${userId}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+            Edit
+        </a>
+        <a href="#" data-action="toggle" data-user-id="${userId}" data-user-status="${status}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${toggleIcon}</svg>
+            ${toggleLabel}
+        </a>
+        <a href="#" class="danger" data-action="delete" data-user-id="${userId}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            Delete
+        </a>
+    `;
+}
+
+function handleUserKebabAction(e) {
+    const link = e.target.closest('a[data-action]');
+    if (!link) return;
+
+    e.preventDefault();
+    const action = link.dataset.action;
+    const userId = parseInt(link.dataset.userId, 10);
+    const status = link.dataset.userStatus;
+
+    closeUserKebabDropdown();
+
+    if (!userId) return;
+
+    switch (action) {
+        case 'edit':
+            openUserModal(userId);
+            break;
+        case 'toggle':
+            toggleUserStatus(userId, status || 'active');
+            break;
+        case 'delete':
+            deleteUser(userId);
+            break;
+        default:
+            break;
+    }
 }
 
 function saveService() {

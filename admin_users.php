@@ -85,19 +85,113 @@ try {
                                 <td><span class="role-badge <?php echo $user['role']; ?>"><?php echo ucfirst($user['role']); ?></span></td>
                                 <td><span class="status-badge <?php echo $user['status']; ?>"><?php echo ucfirst($user['status']); ?></span></td>
                                 <td class="action-buttons">
-                                    <button class="action-btn icon" title="Edit" onclick="openUserModal(<?php echo (int)$user['id']; ?>)">&#9998;</button>
-                                    <?php if ($hasStatusColumn): ?>
-                                        <button class="action-btn icon" title="<?php echo ($user['status'] === 'active') ? 'Deactivate' : 'Activate'; ?>" onclick="toggleUserStatus(<?php echo (int)$user['id']; ?>, '<?php echo htmlspecialchars($user['status']); ?>')">
-                                            <?php echo ($user['status'] === 'active') ? '&#128275;' : '&#128274;'; ?>
-                                        </button>
-                                    <?php endif; ?>
-                                    <button class="action-btn icon" title="Delete" onclick="deleteUser(<?php echo (int)$user['id']; ?>)">&#128465;</button>
+                                    <button
+                                        class="user-kebab-btn"
+                                        type="button"
+                                        data-user-id="<?php echo (int)$user['id']; ?>"
+                                        data-user-status="<?php echo htmlspecialchars($user['status']); ?>"
+                                        aria-label="User actions"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                            <circle cx="12" cy="5" r="2"></circle>
+                                            <circle cx="12" cy="12" r="2"></circle>
+                                            <circle cx="12" cy="19" r="2"></circle>
+                                        </svg>
+                                    </button>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
+
+                <div id="userKebabDropdown" class="user-kebab-dropdown"></div>
+                <div id="userKebabBackdrop" class="user-kebab-backdrop"></div>
+
+                <style>
+                    .user-kebab-btn {
+                        background: none;
+                        border: none;
+                        cursor: pointer;
+                        padding: 8px;
+                        border-radius: 50%;
+                        color: #6b7280;
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        transition: all 0.2s ease;
+                    }
+
+                    .user-kebab-btn:hover,
+                    .user-kebab-btn.active {
+                        background-color: #f3f4f6;
+                        color: #111827;
+                    }
+
+                    .user-kebab-dropdown {
+                        position: fixed;
+                        display: none;
+                        background: #fff;
+                        border: 1px solid #e5e7eb;
+                        border-radius: 10px;
+                        box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.2);
+                        min-width: 170px;
+                        z-index: 10000;
+                        overflow: hidden;
+                    }
+
+                    .user-kebab-dropdown.show {
+                        display: block;
+                        animation: fadeInKebab 0.16s ease;
+                    }
+
+                    .user-kebab-dropdown a {
+                        display: flex;
+                        align-items: center;
+                        gap: 10px;
+                        padding: 10px 14px;
+                        color: #374151;
+                        text-decoration: none;
+                        font-size: 0.95rem;
+                        transition: background 0.15s ease, color 0.15s ease;
+                    }
+
+                    .user-kebab-dropdown a:hover {
+                        background: #f3f4f6;
+                        color: #111827;
+                    }
+
+                    .user-kebab-dropdown .danger {
+                        color: #b91c1c;
+                    }
+
+                    .user-kebab-dropdown .danger:hover {
+                        background: #fef2f2;
+                        color: #991b1b;
+                    }
+
+                    .user-kebab-dropdown svg {
+                        width: 18px;
+                        height: 18px;
+                        color: currentColor;
+                    }
+
+                    .user-kebab-backdrop {
+                        position: fixed;
+                        inset: 0;
+                        display: none;
+                        z-index: 9999;
+                    }
+
+                    .user-kebab-backdrop.show {
+                        display: block;
+                    }
+
+                    @keyframes fadeInKebab {
+                        from { opacity: 0; transform: translateY(-4px); }
+                        to { opacity: 1; transform: translateY(0); }
+                    }
+                </style>
 
                 <!-- Pagination -->
                 <div class="pagination">

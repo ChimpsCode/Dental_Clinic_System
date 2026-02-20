@@ -343,6 +343,90 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
     border-color: #fca5a5; 
 }
 
+/* Service kebab menu */
+.service-kebab-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    color: #6b7280;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.service-kebab-btn:hover,
+.service-kebab-btn.active {
+    background-color: #f3f4f6;
+    color: #111827;
+}
+
+.service-kebab-dropdown {
+    position: fixed;
+    display: none;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.2);
+    min-width: 170px;
+    z-index: 10000;
+    overflow: hidden;
+}
+
+.service-kebab-dropdown.show {
+    display: block;
+    animation: fadeInKebab 0.16s ease;
+}
+
+.service-kebab-dropdown a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    color: #374151;
+    text-decoration: none;
+    font-size: 0.95rem;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.service-kebab-dropdown a:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+.service-kebab-dropdown .danger {
+    color: #b91c1c;
+}
+
+.service-kebab-dropdown .danger:hover {
+    background: #fef2f2;
+    color: #991b1b;
+}
+
+.service-kebab-dropdown svg {
+    width: 18px;
+    height: 18px;
+    color: currentColor;
+}
+
+.service-kebab-backdrop {
+    position: fixed;
+    inset: 0;
+    display: none;
+    z-index: 9999;
+}
+
+.service-kebab-backdrop.show {
+    display: block;
+}
+
+@keyframes fadeInKebab {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 /* Toast notification */
 .toast { 
     position: fixed; 
@@ -511,10 +595,18 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
                                 </span>
                             </td>
                             <td>
-                                <div class="actions">
-                                    <button type="button" class="action-btn edit" onclick="editService(<?php echo (int)$service['id']; ?>)">✏️ Edit</button>
-                                    <button type="button" class="action-btn delete" onclick="deleteService(<?php echo (int)$service['id']; ?>)">🗑️ Delete</button>
-                                </div>
+                                <button
+                                    type="button"
+                                    class="service-kebab-btn"
+                                    data-service-id="<?php echo (int)$service['id']; ?>"
+                                    aria-label="Service actions"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                        <circle cx="12" cy="5" r="2"></circle>
+                                        <circle cx="12" cy="12" r="2"></circle>
+                                        <circle cx="12" cy="19" r="2"></circle>
+                                    </svg>
+                                </button>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -562,6 +654,10 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
         </div>
     </div>
 </div>
+
+<!-- Service kebab portal -->
+<div id="serviceKebabDropdown" class="service-kebab-dropdown"></div>
+<div id="serviceKebabBackdrop" class="service-kebab-backdrop"></div>
 
 <!-- Add Modal -->
 <div id="addModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 99999; align-items: center; justify-content: center;">
@@ -717,6 +813,134 @@ function showToast(message, type) {
         toast.classList.remove('show');
     }, 1500);
 }
+
+/**
+ * Service kebab (meatball) menu
+ */
+let serviceKebabDropdown = null;
+let serviceKebabBackdrop = null;
+let activeServiceKebabButton = null;
+
+function initServiceKebabMenu() {
+    serviceKebabDropdown = document.getElementById('serviceKebabDropdown');
+    serviceKebabBackdrop = document.getElementById('serviceKebabBackdrop');
+
+    if (!serviceKebabDropdown || !serviceKebabBackdrop) return;
+
+    document.addEventListener('click', handleServiceKebabToggle);
+    serviceKebabDropdown.addEventListener('click', handleServiceKebabAction);
+    serviceKebabBackdrop.addEventListener('click', closeServiceKebabDropdown);
+    window.addEventListener('resize', closeServiceKebabDropdown);
+    window.addEventListener('scroll', closeServiceKebabDropdown, true);
+}
+
+function handleServiceKebabToggle(e) {
+    const button = e.target.closest('.service-kebab-btn');
+    const isKebabButton = Boolean(button);
+
+    if (!isKebabButton) {
+        if (!e.target.closest('.service-kebab-dropdown')) {
+            closeServiceKebabDropdown();
+        }
+        return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (activeServiceKebabButton === button) {
+        closeServiceKebabDropdown();
+        return;
+    }
+
+    openServiceKebabDropdown(button);
+}
+
+function openServiceKebabDropdown(button) {
+    if (!serviceKebabDropdown || !serviceKebabBackdrop) return;
+
+    const id = button.dataset.serviceId;
+
+    serviceKebabDropdown.innerHTML = getServiceKebabMarkup(id);
+    positionServiceKebabDropdown(button);
+
+    serviceKebabDropdown.classList.add('show');
+    serviceKebabBackdrop.classList.add('show');
+    button.classList.add('active');
+    activeServiceKebabButton = button;
+}
+
+function closeServiceKebabDropdown() {
+    if (serviceKebabDropdown) {
+        serviceKebabDropdown.classList.remove('show');
+        serviceKebabDropdown.innerHTML = '';
+    }
+    if (serviceKebabBackdrop) {
+        serviceKebabBackdrop.classList.remove('show');
+    }
+    if (activeServiceKebabButton) {
+        activeServiceKebabButton.classList.remove('active');
+        activeServiceKebabButton = null;
+    }
+}
+
+function positionServiceKebabDropdown(button) {
+    const rect = button.getBoundingClientRect();
+    const dropdownWidth = 180;
+    const dropdownHeight = 120;
+    const padding = 12;
+
+    let left = rect.right + 6;
+    let top = rect.top;
+
+    if (left + dropdownWidth > window.innerWidth - padding) {
+        left = rect.left - dropdownWidth - 6;
+    }
+    if (left < padding) left = padding;
+
+    if (top + dropdownHeight > window.innerHeight - padding) {
+        top = rect.bottom - dropdownHeight;
+    }
+    if (top < padding) top = padding;
+
+    serviceKebabDropdown.style.left = `${left}px`;
+    serviceKebabDropdown.style.top = `${top}px`;
+}
+
+function getServiceKebabMarkup(id) {
+    return `
+        <a href="#" data-action="edit" data-id="${id}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+            Edit
+        </a>
+        <a href="#" class="danger" data-action="delete" data-id="${id}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            Delete
+        </a>
+    `;
+}
+
+function handleServiceKebabAction(e) {
+    const link = e.target.closest('a[data-action]');
+    if (!link) return;
+
+    e.preventDefault();
+    const action = link.dataset.action;
+    const id = parseInt(link.dataset.id, 10);
+
+    closeServiceKebabDropdown();
+
+    if (!id) return;
+
+    if (action === 'edit') {
+        editService(id);
+    } else if (action === 'delete') {
+        deleteService(id);
+    }
+}
+
+// Kick off kebab menu bindings
+initServiceKebabMenu();
 </script>
 
 <?php require_once 'includes/admin_layout_end.php'; ?>

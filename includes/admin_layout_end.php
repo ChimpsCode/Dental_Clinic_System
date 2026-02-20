@@ -1,8 +1,4 @@
 <?php
-/**
- * Admin Layout - End wrapper
- * This file closes the content area and main content tags opened by admin_layout_start.php
- */
 ?>
         </div>
     </main>
@@ -11,7 +7,6 @@
     <script src="assets/js/admin.js"></script>
     <?php if (isset($pageScript)) { echo $pageScript; } ?>
     <script>
-        // Auto logout after 10 minutes of inactivity (client-side)
         (function() {
             const LOGOUT_AFTER_MS = 10 * 60 * 1000;
             let timer;
