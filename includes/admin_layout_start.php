@@ -96,11 +96,7 @@ function isActivePage($page) {
                 <div class="form-grid">
                     <div class="input-group">
                         <input type="password" id="password" class="form-control" placeholder="Password">
-<<<<<<< HEAD
                         <button type="button" class="toggle-password" id="togglePassword" aria-label="Toggle password visibility" style="display: flex; top: 28px;">
-=======
-                        <button type="button" class="toggle-password" id="togglePassword" aria-label="Toggle password visibility" style="display: flex; top:28px">
->>>>>>> e1892ce (meatball menu in admin)
                             <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                 <circle cx="12" cy="12" r="3"></circle>
@@ -113,11 +109,7 @@ function isActivePage($page) {
                     </div>
                     <div class="input-group">
                         <input type="password" id="confirmPassword" class="form-control" placeholder="Confirm Password">
-<<<<<<< HEAD
                         <button type="button" class="toggle-password" id="toggleConfirmPassword" aria-label="Toggle confirm password visibility" style="display: flex; top: 28px;">
-=======
-                        <button type="button" class="toggle-password" id="toggleConfirmPassword" aria-label="Toggle confirm password visibility" style="display: flex; top:28px">
->>>>>>> e1892ce (meatball menu in admin)
                             <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                 <circle cx="12" cy="12" r="3"></circle>
