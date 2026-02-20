@@ -100,7 +100,7 @@ function isActivePage($page) {
                 <div class="form-grid">
                     <div class="input-group">
                         <input type="password" id="password" class="form-control" placeholder="Password">
-                        <button type="button" class="toggle-password" id="togglePassword" aria-label="Toggle password visibility" style="display: none;">
+                        <button type="button" class="toggle-password" id="togglePassword" aria-label="Toggle password visibility" style="display: flex; top: 28px;">
                             <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                 <circle cx="12" cy="12" r="3"></circle>
@@ -113,7 +113,7 @@ function isActivePage($page) {
                     </div>
                     <div class="input-group">
                         <input type="password" id="confirmPassword" class="form-control" placeholder="Confirm Password">
-                        <button type="button" class="toggle-password" id="toggleConfirmPassword" aria-label="Toggle confirm password visibility" style="display: none;">
+                        <button type="button" class="toggle-password" id="toggleConfirmPassword" aria-label="Toggle confirm password visibility" style="display: flex; top: 28px;">
                             <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                 <circle cx="12" cy="12" r="3"></circle>
@@ -264,7 +264,7 @@ function isActivePage($page) {
         <!-- Top Header -->
         <header class="top-header">
             <div class="header-left">
-                <button class="menu-toggle" id="menuToggle" type="button" aria-label="Toggle sidebar" aria-controls="adminSidebar">
+                <button class="menu-toggle" id="menuToggle" type="button" aria-label="Toggle sidebar" aria-controls="adminSidebar" >
                     <span></span>
                     <span></span>
                     <span></span>
