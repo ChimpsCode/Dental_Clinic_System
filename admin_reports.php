@@ -183,7 +183,7 @@ try {
 } catch (Exception $e) {
     $patientsReport = [];
     $appointmentsReport = [];
-    $billingReport = [];
+    $paymentReport = [];
     $revenueReport = [];
     $servicesReport = [];
     $dailySummaryReport = [];
@@ -220,7 +220,7 @@ try {
                     </div>
                     <div class="report-card">
                         <div class="report-icon">&#128176;</div>
-                        <h3>Billing Report</h3>
+                        <h3>Payment Report</h3>
                         <p>Financial summary including all transactions, payments received, and pending amounts.</p>
                         <div class="report-actions">
                             <button class="btn-secondary" onclick="previewReport('billing')">Preview</button>
@@ -254,6 +254,24 @@ try {
                             <button class="btn-primary" onclick="printReport('daily')">&#128424; Print</button>
                         </div>
                     </div>
+                    <div class="report-card">
+                        <div class="report-icon">&#128424;</div>
+                        <h3>Printed Invoices</h3>
+                        <p>Recently printed payment invoices with amount, status, and timestamp.</p>
+                        <div class="report-actions">
+                            <button class="btn-secondary" onclick="previewReport('printed')">Preview</button>
+                            <button class="btn-primary" onclick="printReport('printed')">&#128424; Print</button>
+                        </div>
+                    </div>
+                    <div class="report-card">
+                        <div class="report-icon">&#128197;</div>
+                        <h3>Print Activity</h3>
+                        <p>Daily count of invoices printed in the last 7 days.</p>
+                        <div class="report-actions">
+                            <button class="btn-secondary" onclick="previewReport('printed_daily')">Preview</button>
+                            <button class="btn-primary" onclick="printReport('printed_daily')">&#128424; Print</button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Report Generator -->
@@ -266,10 +284,12 @@ try {
                                 <select id="customReportType" class="form-control">
                                     <option value="patients">Patient Report</option>
                                     <option value="appointments">Appointments Report</option>
-                                    <option value="billing">Billing Report</option>
+                                    <option value="billing">Payment Report</option>
                                     <option value="revenue">Revenue Report</option>
                                     <option value="services">Services Report</option>
                                     <option value="daily">Daily Summary</option>
+                                    <option value="printed">Printed Invoices</option>
+                                    <option value="printed_daily">Print Activity (7 days)</option>
                                 </select>
                             </div>
                             <div class="form-group" style="flex:1;">
@@ -340,7 +360,7 @@ $reportHtmlPayload = [
             $a['status'] ?? ''
         ], $appointmentsReport)
     )),
-    'billing' => buildReportHtml('Billing Report', buildReportTable(
+    'billing' => buildReportHtml('Payment Report', buildReportTable(
         ['Invoice', 'Patient', 'Total', 'Paid', 'Balance', 'Status', 'Date', 'Due'],
         array_map(fn($b) => [
             'INV-' . str_pad((string)($b['id'] ?? 0), 4, '0', STR_PAD_LEFT),
@@ -349,7 +369,7 @@ $reportHtmlPayload = [
             '₱' . number_format((float)($b['paid_amount'] ?? 0), 2),
             '₱' . number_format((float)($b['balance'] ?? 0), 2),
             $b['payment_status'] ?? '',
-            $b['billing_date'] ?? '',
+            $b['payment_date'] ?? $b['billing_date'] ?? '',
             $b['due_date'] ?? ''
         ], $billingReport)
     )),
@@ -406,7 +426,7 @@ const reportHtml = JSON.parse(document.getElementById('reportHtml')?.textContent
 const reportTitles = {
     patients: 'Patient Report',
     appointments: 'Appointments Report',
-    billing: 'Billing Report',
+    billing: 'Payment Report',
     revenue: 'Revenue Report',
     services: 'Services Report',
     printed: 'Recently Printed Invoices',

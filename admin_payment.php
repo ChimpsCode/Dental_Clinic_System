@@ -504,6 +504,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
 
                 var currentPrintId = null;
                 var currentInvoiceId = null;
+                var currentBillingId = null;
 
                 // Payment Kebab Menu - Portal Based (same as queue, patient-records)
                 let paymentKebabDropdown = null;
