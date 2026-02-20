@@ -264,7 +264,7 @@ function handleGetArchivedInquiries($pdo, $page, $limit, $offset, $search, $date
     
     // Search by name
     if (!empty($search)) {
-        $where .= " AND full_name LIKE ?";
+        $where .= " AND CONCAT(first_name, ' ', last_name) LIKE ?";
         $params[] = "%$search%";
     }
     
@@ -286,7 +286,7 @@ function handleGetArchivedInquiries($pdo, $page, $limit, $offset, $search, $date
     $total = $countStmt->fetchColumn();
     
     // Get records
-    $sql = "SELECT id, full_name, email, phone, subject, message, submitted_at, deleted_at
+    $sql = "SELECT id, CONCAT(first_name, ' ', last_name) as full_name, email, phone, subject, message, submitted_at, deleted_at
             FROM inquiries
             WHERE $where
             ORDER BY deleted_at DESC

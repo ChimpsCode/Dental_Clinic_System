@@ -198,7 +198,7 @@ try {
     }
 
     $stmt = $pdo->prepare("
-        SELECT u.full_name, COUNT(*) AS total
+        SELECT CONCAT(u.first_name, ' ', u.last_name) as full_name, COUNT(*) AS total
         FROM treatments t
         JOIN users u ON u.id = t.doctor_id
         WHERE u.role = 'dentist'
@@ -215,7 +215,7 @@ try {
     }
 
     $stmt = $pdo->prepare("
-        SELECT u.full_name, COUNT(*) AS total
+        SELECT CONCAT(u.first_name, ' ', u.last_name) as full_name, COUNT(*) AS total
         FROM appointments a
         JOIN users u ON u.id = a.created_by
         WHERE u.role = 'staff'

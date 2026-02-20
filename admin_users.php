@@ -17,8 +17,8 @@ try {
     $hasStatusColumn = (bool)$colStmt->fetch(PDO::FETCH_ASSOC);
 
     $sql = $hasStatusColumn
-        ? "SELECT id, username, full_name, email, role, status FROM users ORDER BY id ASC"
-        : "SELECT id, username, full_name, email, role FROM users ORDER BY id ASC";
+        ? "SELECT id, username, first_name, middle_name, last_name, email, role, status FROM users ORDER BY id ASC"
+        : "SELECT id, username, first_name, middle_name, last_name, email, role FROM users ORDER BY id ASC";
     $stmt = $pdo->query($sql);
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
     foreach ($users as &$user) {
@@ -72,9 +72,10 @@ try {
                             <?php foreach ($users as $user): ?>
                             <?php
                                 $username = $user['username'] ?? '';
-                                $fullName = $user['full_name'] ?? '';
+                                $firstName = $user['first_name'] ?? '';
+                                $lastName = $user['last_name'] ?? '';
                                 $email = $user['email'] ?? '';
-                                $displayName = trim($fullName) !== '' ? $fullName : ($username !== '' ? $username : $email);
+                                $displayName = trim($firstName . ' ' . $lastName) ?: ($username ?: $email);
                             ?>
                             <tr>
                                 <td><?php echo $user['id']; ?></td>

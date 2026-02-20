@@ -60,7 +60,7 @@ try {
 }
 
  $username = $_SESSION['username'] ?? 'Staff';
- $fullName = $_SESSION['full_name'] ?? 'Staff';
+ $displayName = $_SESSION['display_name'] ?? 'Staff';
 
  $inquiryData = null;
  $appointmentData = null;

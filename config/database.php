@@ -14,7 +14,6 @@ function initializeDatabase($pdo) {
             username VARCHAR(50) UNIQUE NOT NULL,
             password VARCHAR(255) NOT NULL,
             email VARCHAR(100),
-            full_name VARCHAR(100),
             role VARCHAR(20) DEFAULT 'user',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -220,18 +219,18 @@ function initializeDatabase($pdo) {
         
         // Create default admin user (username: admin, password: admin123)
         $adminPassword = password_hash('admin123', PASSWORD_DEFAULT);
-        $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
-        $stmt->execute(['admin', $adminPassword, 'admin@rfdental.com', 'Administrator', 'admin']);  
+        $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role) VALUES (?, ?, ?, ?)");
+        $stmt->execute(['admin', $adminPassword, 'admin@rfdental.com', 'admin']);
 
         // Create default dentist user (username: dentist, password: dentist123)
         $dentistPassword = password_hash('dentist123', PASSWORD_DEFAULT);
-        $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
-        $stmt->execute(['dentist', $dentistPassword, 'dentist@rfdental.com', 'Dentist', 'dentist']);
+        $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role) VALUES (?, ?, ?, ?)");
+        $stmt->execute(['dentist', $dentistPassword, 'dentist@rfdental.com', 'dentist']);
 
         // Create staff user (username: staff, password: staff123)
         $staffPassword = password_hash('staff123', PASSWORD_DEFAULT);
-        $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
-        $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com', 'Staff', 'staff']);
+        $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role) VALUES (?, ?, ?, ?)");
+        $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com', 'staff']);
         
         // Insert default services with proper mode
         $defaultServices = [
@@ -329,24 +328,24 @@ if (!isset($pdo)) {
                 $stmt->execute();
                 if ($stmt->rowCount() == 0) {
                     $adminPassword = password_hash('admin123', PASSWORD_DEFAULT);
-                    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
-                    $stmt->execute(['admin', $adminPassword, 'admin@rfdental.com', 'Administrator', 'admin']);
+                    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role) VALUES (?, ?, ?, ?)");
+                    $stmt->execute(['admin', $adminPassword, 'admin@rfdental.com', 'admin']);
                 }
                 
                 $stmt = $pdo->prepare("SELECT id FROM users WHERE username = 'dentist' LIMIT 1");
                 $stmt->execute();
                 if ($stmt->rowCount() == 0) {
                     $dentistPassword = password_hash('dentist123', PASSWORD_DEFAULT);
-                    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
-                    $stmt->execute(['dentist', $dentistPassword, 'dentist@rfdental.com', 'Dentist', 'dentist']);
+                    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role) VALUES (?, ?, ?, ?)");
+                    $stmt->execute(['dentist', $dentistPassword, 'dentist@rfdental.com', 'dentist']);
                 }
                 
                 $stmt = $pdo->prepare("SELECT id FROM users WHERE username = 'staff' LIMIT 1");
                 $stmt->execute();
                 if ($stmt->rowCount() == 0) {
                     $staffPassword = password_hash('staff123', PASSWORD_DEFAULT);
-                    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
-                    $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com', 'Staff', 'staff']);
+                    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role) VALUES (?, ?, ?, ?)");
+                    $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com', 'staff']);
                 }
             }
         } catch (PDOException $e) {

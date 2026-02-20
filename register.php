@@ -26,9 +26,6 @@ $firstName = trim(isset($_POST['first_name']) ? $_POST['first_name'] : '');
 $lastName = trim(isset($_POST['last_name']) ? $_POST['last_name'] : '');
 $role = 'staff';
 
-// Create full name from first and last name
-$fullName = trim($firstName . ' ' . $lastName);
-    
     if (empty($username) || empty($password) || empty($confirmPassword) || empty($firstName) || empty($lastName)) {
         $error = 'Please fill in all required fields';
     } elseif ($password !== $confirmPassword) {
@@ -48,8 +45,8 @@ $fullName = trim($firstName . ' ' . $lastName);
                     $error = 'Username already exists';
                 } else {
 $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-                    $stmt = $pdo->prepare("INSERT INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
-                    $result = $stmt->execute([$username, $hashedPassword, $email, $fullName, $role]);
+                    $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, last_name, role) VALUES (?, ?, ?, ?, ?, ?)");
+                    $result = $stmt->execute([$username, $hashedPassword, $email, $firstName, $lastName, $role]);
                     if ($result) {
                         $success = 'Account created successfully! You can now login.';
                     } else {

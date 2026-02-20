@@ -25,11 +25,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
 
 // Get user info from session
 $username = $_SESSION['username'] ?? 'Admin';
-$fullName = $_SESSION['full_name'] ?? 'Administrator';
-
-// Display only first name in header
-$displayNameSource = trim($fullName) !== '' ? $fullName : $username;
-$firstName = preg_split('/\s+/', trim($displayNameSource))[0] ?? $displayNameSource;
+$displayName = $_SESSION['display_name'] ?? 'Administrator';
  
 // Header notifications (lightweight counts)
 $newAppointmentsToday = 0;
@@ -304,7 +300,7 @@ function isActivePage($page) {
                     </div>
                 </div>
                 <div class="header-user-summary">
-                    <div class="header-user-name"><?php echo htmlspecialchars($firstName); ?></div>
+                    <div class="header-user-name"><?php echo htmlspecialchars($displayName); ?></div>
                     <div class="header-user-role"><?php echo htmlspecialchars(ucfirst($_SESSION['role'] ?? 'admin')); ?></div>
                 </div>
                 <div class="user-profile" id="userProfileDropdown">

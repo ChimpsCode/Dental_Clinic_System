@@ -37,8 +37,8 @@ try {
         }
 
         $stmt = $hasStatusColumn
-            ? $pdo->prepare("SELECT id, username, full_name, email, role, status FROM users WHERE id = ?")
-            : $pdo->prepare("SELECT id, username, full_name, email, role FROM users WHERE id = ?");
+            ? $pdo->prepare("SELECT id, username, first_name, middle_name, last_name, email, role, status FROM users WHERE id = ?")
+            : $pdo->prepare("SELECT id, username, first_name, middle_name, last_name, email, role FROM users WHERE id = ?");
         $stmt->execute([$id]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -61,7 +61,6 @@ try {
         $firstName  = trim($_POST['firstName'] ?? '');
         $middleName = trim($_POST['middleName'] ?? '');
         $lastName   = trim($_POST['lastName'] ?? '');
-        $fullName   = trim($firstName . ' ' . ($middleName !== '' ? $middleName . ' ' : '') . $lastName);
         $email    = trim($_POST['email'] ?? '');
         $role     = trim($_POST['role'] ?? '');
         $password = trim($_POST['password'] ?? '');
@@ -108,20 +107,21 @@ try {
             $hashed = password_hash($password, PASSWORD_DEFAULT);
 
             if ($hasStatusColumn && $hasFirstLoginColumn) {
-                $stmt = $pdo->prepare("INSERT INTO users (username, password, email, full_name, role, status, first_login) VALUES (?, ?, ?, ?, ?, ?, 1)");
-                $stmt->execute([$username, $hashed, $email, $fullName, $role, $status]);
+                $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, middle_name, last_name, role, status, first_login) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)");
+                $stmt->execute([$username, $hashed, $email, $firstName, $middleName, $lastName, $role, $status]);
             } elseif ($hasStatusColumn) {
-                $stmt = $pdo->prepare("INSERT INTO users (username, password, email, full_name, role, status) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$username, $hashed, $email, $fullName, $role, $status]);
+                $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, middle_name, last_name, role, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$username, $hashed, $email, $firstName, $middleName, $lastName, $role, $status]);
             } elseif ($hasFirstLoginColumn) {
-                $stmt = $pdo->prepare("INSERT INTO users (username, password, email, full_name, role, first_login) VALUES (?, ?, ?, ?, ?, 1)");
-                $stmt->execute([$username, $hashed, $email, $fullName, $role]);
+                $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, middle_name, last_name, role, first_login) VALUES (?, ?, ?, ?, ?, ?, ?, 1)");
+                $stmt->execute([$username, $hashed, $email, $firstName, $middleName, $lastName, $role]);
             } else {
-                $stmt = $pdo->prepare("INSERT INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
-                $stmt->execute([$username, $hashed, $email, $fullName, $role]);
+                $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, middle_name, last_name, role) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$username, $hashed, $email, $firstName, $middleName, $lastName, $role]);
             }
 
             $newId = (int)$pdo->lastInsertId();
+            $displayName = trim($firstName . ' ' . $lastName);
 
             echo json_encode([
                 'success' => true,
@@ -129,7 +129,7 @@ try {
                 'user' => [
                     'id' => $newId,
                     'username' => $username,
-                    'full_name' => $fullName,
+                    'full_name' => $displayName,
                     'email' => $email,
                     'role' => $role,
                     'status' => 'active',
@@ -158,8 +158,8 @@ try {
             }
 
             // Build update query dynamically (password optional)
-            $fields = ['username' => $username, 'email' => $email, 'full_name' => $fullName, 'role' => $role];
-            $setParts = ['username = :username', 'email = :email', 'full_name = :full_name', 'role = :role'];
+            $fields = ['username' => $username, 'email' => $email, 'first_name' => $firstName, 'middle_name' => $middleName, 'last_name' => $lastName, 'role' => $role];
+            $setParts = ['username = :username', 'email = :email', 'first_name = :first_name', 'middle_name = :middle_name', 'last_name = :last_name', 'role = :role'];
 
             if ($hasStatusColumn) {
                 $fields['status'] = $status;

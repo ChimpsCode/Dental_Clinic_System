@@ -25,7 +25,6 @@ try {
         username VARCHAR(50) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
         email VARCHAR(100),
-        full_name VARCHAR(100),
         role VARCHAR(20) DEFAULT 'user',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -289,20 +288,20 @@ try {
     
     // Create admin user (username: admin, password: admin123)
     $adminPassword = password_hash('admin123', PASSWORD_DEFAULT);
-    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
-    $stmt->execute(['admin', $adminPassword, 'admin@rfdental.com', 'Administrator', 'admin']);
+    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role) VALUES (?, ?, ?, ?)");
+    $stmt->execute(['admin', $adminPassword, 'admin@rfdental.com', 'admin']);
     echo "✓ Admin user created (username: admin, password: admin123)\n";
 
     // Create dentist user (username: dentist, password: dentist123)
     $dentistPassword = password_hash('dentist123', PASSWORD_DEFAULT);
-    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
-    $stmt->execute(['dentist', $dentistPassword, 'dentist@rfdental.com', 'Dentist', 'dentist']);
+    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role) VALUES (?, ?, ?, ?)");
+    $stmt->execute(['dentist', $dentistPassword, 'dentist@rfdental.com', 'dentist']);
     echo "✓ Dentist user created (username: dentist, password: dentist123)\n";
 
     // Create staff user (username: staff, password: staff123)
     $staffPassword = password_hash('staff123', PASSWORD_DEFAULT);
-    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, full_name, role) VALUES (?, ?, ?, ?, ?)");
-    $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com', 'Staff', 'staff']);
+    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role) VALUES (?, ?, ?, ?)");
+    $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com', 'staff']);
     echo "✓ Staff user created (username: staff, password: staff123)\n";
 
     // Insert default services

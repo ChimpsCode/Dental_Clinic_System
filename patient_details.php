@@ -6,7 +6,7 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-$fullName = $_SESSION['full_name'] ?? 'Dr. Rex';
+$displayName = $_SESSION['display_name'] ?? 'Dr. Rex';
 
 $patientId = $_GET['id'] ?? 1;
 

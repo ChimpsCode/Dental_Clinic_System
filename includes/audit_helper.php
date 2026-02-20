@@ -11,17 +11,23 @@ function getUserInfo($pdo, $user_id, $username) {
     $user_info = null;
     if ($user_id) {
         try {
-            $stmt = $pdo->prepare("SELECT id, username, full_name, role FROM users WHERE id = ? LIMIT 1");
+            $stmt = $pdo->prepare("SELECT id, username, first_name, last_name, role FROM users WHERE id = ? LIMIT 1");
             $stmt->execute([$user_id]);
             $user_info = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($user_info) {
+                $user_info['full_name'] = trim(($user_info['first_name'] ?? '') . ' ' . ($user_info['last_name'] ?? ''));
+            }
         } catch (Exception $e) {
             error_log("Error getting user info: " . $e->getMessage());
         }
     } elseif ($username) {
         try {
-            $stmt = $pdo->prepare("SELECT id, username, full_name, role FROM users WHERE username = ? LIMIT 1");
+            $stmt = $pdo->prepare("SELECT id, username, first_name, last_name, role FROM users WHERE username = ? LIMIT 1");
             $stmt->execute([$username]);
             $user_info = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($user_info) {
+                $user_info['full_name'] = trim(($user_info['first_name'] ?? '') . ' ' . ($user_info['last_name'] ?? ''));
+            }
         } catch (Exception $e) {
             error_log("Error getting user info: " . $e->getMessage());
         }

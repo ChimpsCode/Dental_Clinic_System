@@ -41,8 +41,16 @@ if (empty($username) || empty($password)) {
                 $_SESSION['email'] = $user['email'] ?? '';
                 $_SESSION['role'] = $user['role'] ?? 'admin';
                 
-                // Get full_name from database
-                $_SESSION['full_name'] = !empty($user['full_name']) ? $user['full_name'] : $user['username'];
+                // Compute display name from first_name + last_name
+                $firstName = trim($user['first_name'] ?? '');
+                $lastName = trim($user['last_name'] ?? '');
+                $firstNameOnly = explode(' ', $firstName)[0] ?? '';
+                
+                if ($user['role'] === 'dentist') {
+                    $_SESSION['display_name'] = 'Dr. ' . $firstNameOnly . ' ' . $lastName;
+                } else {
+                    $_SESSION['display_name'] = $firstNameOnly . ' ' . $lastName;
+                }
 
                 // First login check (optional column)
                 $isFirstLogin = false;
@@ -125,8 +133,16 @@ if (empty($username) || empty($password)) {
                 $_SESSION['email'] = $user['email'] ?? '';
                 $_SESSION['role'] = $user['role'] ?? 'admin';
                 
-                // Get full_name from database
-                $_SESSION['full_name'] = !empty($user['full_name']) ? $user['full_name'] : $user['username'];
+                // Compute display name from first_name + last_name
+                $firstName = trim($user['first_name'] ?? '');
+                $lastName = trim($user['last_name'] ?? '');
+                $firstNameOnly = explode(' ', $firstName)[0] ?? '';
+                
+                if ($user['role'] === 'dentist') {
+                    $_SESSION['display_name'] = 'Dr. ' . $firstNameOnly . ' ' . $lastName;
+                } else {
+                    $_SESSION['display_name'] = $firstNameOnly . ' ' . $lastName;
+                }
 
                 // First login check (optional column)
                 $isFirstLogin = false;

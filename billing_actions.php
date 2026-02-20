@@ -34,7 +34,7 @@ if (!in_array($current_role, $allowed_roles)) {
             $directPass = $input['password'];
             
             try {
-                $stmt = $pdo->prepare("SELECT id, username, full_name, role FROM users WHERE username = ? AND password = ?");
+                $stmt = $pdo->prepare("SELECT id, username, first_name, last_name, role FROM users WHERE username = ? AND password = ?");
                 $stmt->execute([$directUser, $directPass]);
                 $user = $stmt->fetch(PDO::FETCH_ASSOC);
                 

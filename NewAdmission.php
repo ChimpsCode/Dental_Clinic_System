@@ -28,7 +28,7 @@ if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
 }
 
 $username = $_SESSION['username'] ?? 'User';
-$fullName = $_SESSION['full_name'] ?? 'Dr. Rex';
+$displayName = $_SESSION['display_name'] ?? 'Dr. Rex';
 
 $inquiryData = null;
 if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
