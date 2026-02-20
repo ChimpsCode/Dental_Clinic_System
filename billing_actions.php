@@ -68,6 +68,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 // Include audit helper
 require_once __DIR__ . '/includes/audit_helper.php';
 
+// Ensure printed_at column exists for logging prints
+try {
+    $colCheck = $pdo->query("SHOW COLUMNS FROM billing LIKE 'printed_at'");
+    if ($colCheck->rowCount() === 0) {
+        $pdo->exec("ALTER TABLE billing ADD COLUMN printed_at DATETIME NULL AFTER due_date");
+    }
+} catch (Exception $e) {
+    // non-fatal; continue without blocking
+}
+
 // Helper function to get patient name
 function getPatientName($pdo, $patient_id) {
     $stmt = $pdo->prepare("SELECT CONCAT(first_name, ' ', last_name) as full_name FROM patients WHERE id = ?");
@@ -106,6 +116,35 @@ try {
             } else {
                 $response['message'] = 'Billing record not found';
             }
+            break;
+
+        case 'mark_printed':
+            // Log that an invoice was printed
+            $billing_id = (int)($input['billing_id'] ?? 0);
+            if ($billing_id <= 0) {
+                $response['message'] = 'Billing ID is required';
+                break;
+            }
+
+            // Update printed timestamp
+            $stmt = $pdo->prepare("UPDATE billing SET printed_at = NOW() WHERE id = ?");
+            $stmt->execute([$billing_id]);
+
+            logAudit(
+                $pdo,
+                $current_user_id,
+                $current_username,
+                $current_role,
+                'print',
+                'billing',
+                'Printed invoice INV-' . str_pad($billing_id, 3, '0', STR_PAD_LEFT),
+                $billing_id,
+                'billing',
+                null,
+                null
+            );
+
+            $response = ['success' => true, 'message' => 'Print logged'];
             break;
             
         case 'get_details':

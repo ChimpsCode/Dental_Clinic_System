@@ -878,6 +878,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                     if (!payment) return;
                     
                     currentPrintId = invoiceId;
+                    currentBillingId = payment.billing_id;
                     
                     var statusBadge = payment.status === 'paid' 
                         ? '<span style="background: #d1fae5; color: #065f46; padding: 4px 12px; border-radius: 9999px; font-size: 0.85rem;">PAID</span>'
@@ -913,6 +914,18 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
 
                 // Confirm Print
                 function confirmPrint() {
+                    // Fire-and-forget log so reports can reflect print activity
+                    if (currentBillingId) {
+                        fetch('billing_actions.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'mark_printed',
+                                billing_id: currentBillingId
+                            })
+                        }).catch(() => {});
+                    }
+                    
                     window.print();
                 }
 

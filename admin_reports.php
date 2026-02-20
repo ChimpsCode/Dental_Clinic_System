@@ -14,6 +14,9 @@ $billingReport = [];
 $revenueReport = [];
 $servicesReport = [];
 $dailySummaryReport = [];
+$printedInvoices = [];
+$printedDaily = [];
+$printedInvoices = [];
 
 function buildReportTable($headers, $rows) {
     $thead = '<tr>' . implode('', array_map(fn($h) => '<th>' . htmlspecialchars($h) . '</th>', $headers)) . '</tr>';
@@ -83,7 +86,7 @@ try {
     $billingReport = $pdo->query("
         SELECT b.id, CONCAT(p.first_name, ' ', p.last_name) AS patient,
                b.total_amount, b.paid_amount, b.balance, b.payment_status,
-               b.billing_date, b.due_date
+               b.billing_date, b.due_date, b.printed_at
         FROM billing b
         LEFT JOIN patients p ON p.id = b.patient_id
         ORDER BY b.billing_date DESC
@@ -97,6 +100,27 @@ try {
         LEFT JOIN appointments a ON a.id = b.appointment_id
         GROUP BY service
         ORDER BY total DESC
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    // Recently printed invoices (last 7 days)
+    $printedInvoices = $pdo->query("
+        SELECT b.id, CONCAT(p.first_name, ' ', p.last_name) AS patient,
+               b.total_amount, b.payment_status, b.printed_at
+        FROM billing b
+        LEFT JOIN patients p ON p.id = b.patient_id
+        WHERE b.printed_at IS NOT NULL
+        ORDER BY b.printed_at DESC
+        LIMIT 20
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    // Printed counts per day (last 7 days)
+    $printedDaily = $pdo->query("
+        SELECT DATE(printed_at) AS day, COUNT(*) AS printed_count
+        FROM billing
+        WHERE printed_at IS NOT NULL
+          AND printed_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+        GROUP BY DATE(printed_at)
+        ORDER BY day ASC
     ")->fetchAll(PDO::FETCH_ASSOC);
 
     $servicesReport = $pdo->query("
@@ -114,6 +138,17 @@ try {
             ORDER BY total DESC
         ")->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    // Recently printed invoices (last 7 days)
+    $printedInvoices = $pdo->query("
+        SELECT b.id, CONCAT(p.first_name, ' ', p.last_name) AS patient,
+               b.total_amount, b.payment_status, b.printed_at
+        FROM billing b
+        LEFT JOIN patients p ON p.id = b.patient_id
+        WHERE b.printed_at IS NOT NULL
+        ORDER BY b.printed_at DESC
+        LIMIT 20
+    ")->fetchAll(PDO::FETCH_ASSOC);
 
     $dailySummaryReport = $pdo->query("
         SELECT
@@ -152,6 +187,8 @@ try {
     $revenueReport = [];
     $servicesReport = [];
     $dailySummaryReport = [];
+    $printedInvoices = [];
+    $printedDaily = [];
 }
 ?>
             <div class="content-main">
@@ -275,7 +312,9 @@ $reportPayload = [
     'billing' => $billingReport,
     'revenue' => $revenueReport,
     'services' => $servicesReport,
-    'daily' => $dailySummaryReport
+    'daily' => $dailySummaryReport,
+    'printed' => $printedInvoices,
+    'printed_daily' => $printedDaily
 ];
 $reportJson = json_encode($reportPayload, $jsonFlags);
 
@@ -328,6 +367,23 @@ $reportHtmlPayload = [
             $s['total'] ?? 0
         ], $servicesReport)
     )),
+    'printed' => buildReportHtml('Recently Printed Invoices', buildReportTable(
+        ['Invoice #', 'Patient', 'Amount', 'Status', 'Printed At'],
+        array_map(fn($p) => [
+            'INV-' . str_pad($p['id'] ?? 0, 3, '0', STR_PAD_LEFT),
+            $p['patient'] ?? 'Unknown',
+            '₱' . number_format((float)($p['total_amount'] ?? 0), 2),
+            ucfirst($p['payment_status'] ?? 'unpaid'),
+            $p['printed_at'] ?? ''
+        ], $printedInvoices)
+    )),
+    'printed_daily' => buildReportHtml('Print Activity (Last 7 Days)', buildReportTable(
+        ['Date', 'Invoices Printed'],
+        array_map(fn($d) => [
+            $d['day'] ?? '',
+            $d['printed_count'] ?? 0
+        ], $printedDaily)
+    )),
     'daily' => buildReportHtml('Daily Summary', buildReportTable(
         ['Date', 'New Patients', 'Appointments', 'Revenue'],
         array_map(fn($d) => [
@@ -353,6 +409,8 @@ const reportTitles = {
     billing: 'Billing Report',
     revenue: 'Revenue Report',
     services: 'Services Report',
+    printed: 'Recently Printed Invoices',
+    printed_daily: 'Print Activity (Last 7 Days)',
     daily: 'Daily Summary'
 };
 
