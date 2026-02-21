@@ -161,6 +161,32 @@ try {
                     <p class="page-subtitle">Generate and print printable reports</p>
                 </div>
 
+                <!-- Report Generator -->
+                <div class="section-card">
+                    <h2 class="section-title">&#128203; Custom Report Generator</h2>
+                    <div class="report-form">
+                        <select id="customReportType" class="form-control">
+                            <option value="patients">Patient Report</option>
+                            <option value="appointments">Appointments Report</option>
+                            <option value="billing">Billing Report</option>
+                            <option value="revenue">Revenue Report</option>
+                            <option value="services">Services Report</option>
+                            <option value="daily">Daily Summary</option>
+                        </select>
+                        <select id="dateRange" class="form-control">
+                            <option value="today">Today</option>
+                            <option value="week">This Week</option>
+                            <option value="month" selected>This Month</option>
+                        </select>
+                        
+                        <button class="btn-secondary" onclick="generateCustomReport()">Generate</button>
+                        <button class="btn-primary" onclick="printCustomReport()">Print</button>
+                        <button class="btn-secondary" onclick="exportToPDF()">Export PDF</button>
+                        
+                    
+                    </div>
+                </div>
+                
                 <!-- Report Types Grid -->
                 <div class="reports-grid">
                     <div class="report-card">
@@ -219,38 +245,7 @@ try {
                     </div>
                 </div>
 
-                <!-- Report Generator -->
-                <div class="section-card">
-                    <h2 class="section-title">&#128203; Custom Report Generator</h2>
-                    <div class="report-form">
-                        <div class="form-row">
-                            <div class="form-group" style="flex:1;">
-                                <label>Report Type</label>
-                                <select id="customReportType" class="form-control">
-                                    <option value="patients">Patient Report</option>
-                                    <option value="appointments">Appointments Report</option>
-                                    <option value="billing">Billing Report</option>
-                                    <option value="revenue">Revenue Report</option>
-                                    <option value="services">Services Report</option>
-                                    <option value="daily">Daily Summary</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="flex:1;">
-                                <label>Date Range</label>
-                                <select id="dateRange" class="form-control">
-                                    <option value="today">Today</option>
-                                    <option value="week">This Week</option>
-                                    <option value="month" selected>This Month</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-actions">
-                            <button class="btn-secondary" onclick="generateCustomReport()">Generate Report</button>
-                            <button class="btn-primary" onclick="printCustomReport()">&#128424; Print Report</button>
-                            <button class="btn-secondary" onclick="exportToPDF()">&#128196; Export PDF</button>
-                        </div>
-                    </div>
-                </div>
+                
             </div>
 
             <!-- Print Preview Modal -->
@@ -524,3 +519,35 @@ SCRIPT;
 <?php
 require_once __DIR__ . '/includes/admin_layout_end.php';
 ?>
+
+
+
+<style>
+    .report-form {
+        display: flex;
+        align-items: center;
+        justify-content: stretch;
+        gap: 10px;
+        padding: 16px 0;
+    }
+    .report-form .form-control {
+        flex: 1;
+        min-width: 0;
+    }
+    .report-form button {
+        flex: 1;
+        min-width: 0;
+        max-width: 120px;
+    }
+    .section-card {
+        height: auto;
+    }
+
+    .reports-grid {
+        margin-bottom: 40px;
+        padding-bottom: 40px;
+    }
+    .content-main {
+        padding-bottom: 40px;
+    }
+</style>

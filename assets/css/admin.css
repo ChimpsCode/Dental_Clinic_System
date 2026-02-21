@@ -5,6 +5,7 @@
     padding-left: 25px;
     padding-right: 25px;
     padding-top: 10px;
+    padding-bottom: 40px;
 }
 
 /* Page Header */
@@ -298,10 +299,20 @@
     cursor: pointer;
     font-size: 0.875rem;
     transition: all 0.2s;
+    text-decoration: none;
+    display: inline-block;
+    color: #374151;
 }
 
 .pagination-btn:hover:not(:disabled) {
     background: #f3f4f6;
+}
+
+.pagination-btn.disabled,
+.pagination-btn:disabled {
+    color: #9ca3af;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 .pagination-btn.active {
@@ -1271,6 +1282,7 @@ body.modal-open {
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
+    padding-top: 10px;
 }
 
 /* User Role Badge in Header - Legacy support */

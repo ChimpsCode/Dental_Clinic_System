@@ -15,11 +15,15 @@ $overdueCount = 0;
 $showingStart = 0;
 $showingEnd = 0;
 $filteredTotal = 0;
+$currentPage = 1;
+$totalPages = 1;
+$perPage = 10;
 
 try {
     $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : '';
     $statusFilter = isset($_GET['status']) ? trim($_GET['status']) : '';
     $dateFilter = isset($_GET['date']) ? trim($_GET['date']) : 'all';
+    $currentPage = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 
     $whereClause = "WHERE 1=1";
     $params = [];
@@ -67,6 +71,17 @@ try {
     $totalTransactions = (int)($stats['total_transactions'] ?? 0);
     $overdueCount = (int)($stats['overdue_count'] ?? 0);
 
+    $countSql = "SELECT COUNT(*) as total FROM billing b LEFT JOIN patients p ON p.id = b.patient_id $whereClause";
+    $countStmt = $pdo->prepare($countSql);
+    foreach ($params as $key => $value) {
+        $countStmt->bindValue($key, $value);
+    }
+    $countStmt->execute();
+    $filteredTotal = (int)$countStmt->fetch(PDO::FETCH_ASSOC)['total'];
+    $totalPages = ceil($filteredTotal / $perPage);
+    if ($currentPage > $totalPages) $currentPage = 1;
+    $offset = ($currentPage - 1) * $perPage;
+
     $sql = "
         SELECT
             b.id AS billing_id,
@@ -92,6 +107,7 @@ try {
         LEFT JOIN appointments a ON a.id = b.appointment_id
         $whereClause
         ORDER BY b.billing_date DESC
+        LIMIT $perPage OFFSET $offset
     ";
     $stmt = $pdo->prepare($sql);
     foreach ($params as $key => $value) {
@@ -99,9 +115,9 @@ try {
     }
     $stmt->execute();
     $billingRecords = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    $filteredTotal = count($billingRecords);
-    $showingStart = $filteredTotal ? 1 : 0;
-    $showingEnd = $filteredTotal;
+
+    $showingStart = $filteredTotal ? $offset + 1 : 0;
+    $showingEnd = min($offset + $perPage, $filteredTotal);
 } catch (Exception $e) {
     $billingRecords = [];
 }
@@ -236,16 +252,30 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                 </div>
 
                 <!-- Pagination -->
+                <?php if ($filteredTotal > 0): ?>
                 <div class="pagination">
                     <span class="pagination-info">Showing <?php echo $showingStart; ?>-<?php echo $showingEnd; ?> of <?php echo $filteredTotal; ?> transactions</span>
                     <div class="pagination-buttons">
-                        <button class="pagination-btn" disabled>Previous</button>
-                        <button class="pagination-btn active">1</button>
-                        <button class="pagination-btn">2</button>
-                        <button class="pagination-btn">7</button>
-                        <button class="pagination-btn">Next</button>
+                        <?php 
+                        $queryString = $_GET;
+                        unset($queryString['page']);
+                        $baseUrl = '?' . http_build_query($queryString);
+                        if (!empty($queryString)) $baseUrl .= '&';
+                        ?>
+                        <a href="<?php echo $baseUrl; ?>page=<?php echo $currentPage - 1; ?>" class="pagination-btn <?php echo $currentPage <= 1 ? 'disabled' : ''; ?>" <?php echo $currentPage <= 1 ? 'onclick="return false;"' : ''; ?>>Previous</a>
+                        
+                        <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                            <?php if ($i == 1 || $i == $totalPages || ($i >= $currentPage - 1 && $i <= $currentPage + 1)): ?>
+                                <a href="<?php echo $baseUrl; ?>page=<?php echo $i; ?>" class="pagination-btn <?php echo $i == $currentPage ? 'active' : ''; ?>"><?php echo $i; ?></a>
+                            <?php elseif ($i == $currentPage - 2 || $i == $currentPage + 2): ?>
+                                <span class="pagination-btn disabled">...</span>
+                            <?php endif; ?>
+                        <?php endfor; ?>
+                        
+                        <a href="<?php echo $baseUrl; ?>page=<?php echo $currentPage + 1; ?>" class="pagination-btn <?php echo $currentPage >= $totalPages ? 'disabled' : ''; ?>" <?php echo $currentPage >= $totalPages ? 'onclick="return false;"' : ''; ?>>Next</a>
                     </div>
                 </div>
+                <?php endif; ?>
             </div>
 
             <!-- View Payment Modal -->
@@ -465,7 +495,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
 
                 /* Table styling */
                 .table-container {
-                    overflow-x: auto;
+                    height: fit-content;
                 }
                 
                 .data-table {
@@ -474,6 +504,9 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
 
                 .page-header {
                     margin-bottom: 0px;
+                }
+                .main-content{
+                    padding
                 }
             </style>
 

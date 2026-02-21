@@ -125,13 +125,7 @@ try {
     $liveQueue = [];
 }
 ?>
-<style>
-@keyframes pulse {
-    0% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.5; transform: scale(1.2); }
-    100% { opacity: 1; transform: scale(1); }
-}
-</style>
+
             <!-- Admin Dashboard Content -->
             <div class="content-main">
                 <!-- Summary Cards -->
@@ -264,10 +258,7 @@ try {
                             <?php endif; ?>
                         </div>
                     </div>
-                </div>
-
-                <!-- Top Services -->
-                <div class="section-card">
+                    <div class="section-card" style="margin-bottom: 40px;">
                     <h2 class="section-title">Top Services</h2>
                     <div class="stat-content">
                         <?php if (!empty($topServices)): ?>
@@ -287,6 +278,11 @@ try {
                         <?php endif; ?>
                     </div>
                 </div>
+                </div>
+
+                <!-- Top Services -->
+                
+                
 
             </div>
 
@@ -376,3 +372,13 @@ try {
 // Include the layout end
 require_once __DIR__ . '/includes/admin_layout_end.php';
 ?>
+
+
+<style>
+@keyframes pulse {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.2); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+</style>

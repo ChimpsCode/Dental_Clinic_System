@@ -416,6 +416,10 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
     cursor: not-allowed;
     border-color: #edf2f7; /* Very light border */
 }
+.pagination{
+    padding-top: 26px;
+}
+
 </style>
 
 <div class="content-main">
