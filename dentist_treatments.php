@@ -144,25 +144,20 @@ require_once 'includes/dentist_layout_start.php';
 </div>
 
 <!-- Search & Actions -->
-<div class="search-filters">
-    <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
-        <div class="search-input-container" style="position: relative; flex: 1; max-width: 400px;">
-            <span style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #6b7280;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="m19.6 21l-6.3-6.3q-.75.6-1.725.95T9.5 16q-2.725 0-4.612-1.888T3 9.5t1.888-4.612T9.5 3t4.613 1.888T16 9.5q0 1.1-.35 2.075T14.7 13.3l6.3 6.3zM9.5 14q1.875 0 3.188-1.312T14 9.5t-1.312-3.187T9.5 5T6.313 6.313T5 9.5t1.313 3.188T9.5 14"/></svg>
-            </span>
-            <input type="text" id="searchTreatmentPlan" placeholder="Search patient name..." class="search-input" style="width: 100%; padding: 10px 16px 10px 44px;">
-        </div>
-        <select id="statusFilter" class="filter-select" style="padding: 10px 16px; border: 1px solid var(--border-color); border-radius: 8px;">
-            <option value="">All Status</option>
-            <option value="active">Active</option>
-            <option value="in_progress">In Progress</option>
-            <option value="completed">Completed</option>
-            <option value="on_hold">On Hold</option>
-        </select>
-    </div>
-    <button class="btn-primary" onclick="openNewTreatmentPlanModal()" style="display: flex; align-items: center; gap: 8px;">
-        <span>+</span> New Treatment Plan
-    </button>
+<div class="filter-bar-container">
+    <input type="text" id="searchInput" class="clean-input search-bar" placeholder="Search by name or phone...">
+    
+    <select id="statusFilter" class="clean-input filter-dropdown">
+        <option value="">All Status</option>
+        <option value="waiting">Waiting</option>
+        <option value="in_procedure">In Procedure</option>
+        <option value="completed">Completed</option>
+    </select>
+    
+    <select id="sortFilter" class="clean-input filter-dropdown">
+        <option value="newest">Newest First</option>
+        <option value="name">Name (A-Z)</option>
+    </select>
 </div>
 
 <!-- Treatment Plans Table -->
@@ -698,6 +693,68 @@ require_once 'includes/dentist_layout_start.php';
     display: flex;
     justify-content: flex-end;
     gap: 12px;
+}
+.summary-cards{
+    margin-bottom: 0px;
+
+}
+/* Container to keep everything in a neat row */
+.filter-bar-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;         /* The exact spacing between the boxes in your image */
+    width: 100%;
+    /* Optional: If your page background is white, you might want to wrap this in a very light gray (#f4f6f8) div so the white boxes pop, just like in your screenshot! */
+}
+
+/* Unified clean styling applied to BOTH the search input and dropdowns */
+.clean-input {
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;  /* That specific soft, light grayish-blue border */
+    border-radius: 6px;         /* Soft rounded corners */
+    padding: 10px 14px;         /* Comfortable breathing room for the text */
+    font-size: 14px;
+    color: #334155;             /* Dark slate text */
+    outline: none;              /* Removes the ugly default browser glow */
+    transition: border-color 0.2s ease;
+    box-sizing: border-box;
+}
+
+/* Match the soft gray placeholder text from your image */
+.clean-input::placeholder {
+    color: #94a3b8;
+}
+
+/* Subtle darker border when the user clicks to type or select */
+.clean-input:focus {
+    border-color: #94a3b8;
+}
+
+/* Search bar specific rule */
+.search-bar {
+    flex: 1; /* This forces the search bar to stretch and push the dropdowns to the right */
+}
+
+/* Dropdown specific rules for that ultra-clean look */
+.filter-dropdown {
+    cursor: pointer;
+    min-width: 130px;
+    
+    /* This removes the clunky default browser dropdown arrow */
+    appearance: none; 
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    
+    /* Adds a clean, custom SVG arrow that perfectly matches the text color */
+    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23334155%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
+    background-repeat: no-repeat;
+    background-position: right 12px top 50%;
+    background-size: 10px auto;
+    padding-right: 32px; /* Makes room so the text doesn't overlap the custom arrow */
+}
+
+.search-filters{
+    margin-bottom: 0px;
 }
 </style>
 

@@ -543,6 +543,7 @@ header.top-header {
 .content-area {
     flex: 1;
     overflow-y: auto;
+    overflow-x: visible;
     padding: 30px;
 }
 
@@ -825,10 +826,7 @@ header.top-header {
 .appt-stat-card h4 { font-size: 2rem; color: #2563eb; font-weight: 800; margin-bottom: 4px; }
 .appt-stat-card p { color: var(--text-secondary); font-size: 0.9rem; font-weight: 600; text-transform: uppercase; }
 
-.search-filters {
-    background: white; padding: 16px; border-radius: 12px; border: 1px solid var(--border-color);
-    display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
-}
+
 .search-input {
     padding: 10px 16px; border: 1px solid var(--border-color); border-radius: 8px; width: 300px; outline: none;
 }
@@ -963,11 +961,7 @@ header.top-header {
         justify-content: center;
     }
 
-    .search-filters {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 10px;
-    }
+   
 
     .search-input { width: 100%; }
 }

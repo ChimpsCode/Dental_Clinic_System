@@ -327,191 +327,7 @@ try {
     </div>
 </div>
 
-<style>
-/* Modal Styles */
-.modal-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 99999;
-    align-items: center;
-    justify-content: center;
-}
 
-.modal-overlay[style*="display: flex"] {
-    display: flex !important;
-}
-
-.modal {
-    background: white;
-    border-radius: 12px;
-    padding: 28px;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    position: relative;
-    z-index: 100000;
-}
-
-.form-row {
-    display: flex;
-    gap: 16px;
-    margin-bottom: 16px;
-}
-
-.form-group {
-    margin-bottom: 16px;
-}
-
-.form-group label {
-    display: block;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: #374151;
-    margin-bottom: 6px;
-}
-
-.form-control {
-    width: 100%;
-    padding: 10px 14px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    outline: none;
-    transition: border-color 0.2s;
-}
-
-.form-control:focus {
-    border-color: #3b82f6;
-    ring: 2px solid rgba(59, 130, 246, 0.2);
-}
-
-.modal-actions {
-    margin-top: 24px;
-    padding-top: 20px;
-    border-top: 1px solid #e5e7eb;
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-}
-
-.btn-cancel {
-    background: #f3f4f6;
-    color: #374151;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.btn-cancel:hover {
-    background: #e5e7eb;
-}
-
-/* Appointment Kebab Menu Styles - Portal Based */
-.appt-kebab-menu {
-    position: relative;
-    display: inline-block;
-}
-
-.appt-kebab-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 8px;
-    border-radius: 50%;
-    color: #6b7280;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-}
-
-.appt-kebab-btn:hover {
-    background-color: #f3f4f6;
-    color: #374151;
-}
-
-.appt-kebab-btn.active {
-    background-color: #e5e7eb;
-    color: #111827;
-}
-
-.appt-kebab-dropdown-portal {
-    display: none;
-    position: fixed;
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-    min-width: 160px;
-    max-width: 180px;
-    width: auto;
-    z-index: 99999;
-    overflow: hidden;
-}
-
-.appt-kebab-dropdown-portal.show {
-    display: block;
-    animation: apptKebabFadeIn 0.15s ease;
-}
-
-@keyframes apptKebabFadeIn {
-    from { opacity: 0; transform: scale(0.95) translateY(-4px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-.appt-kebab-dropdown-portal a {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 16px;
-    color: #374151;
-    text-decoration: none;
-    font-size: 0.875rem;
-    transition: all 0.15s ease;
-    cursor: pointer;
-    white-space: nowrap;
-}
-
-.appt-kebab-dropdown-portal a:hover {
-    background-color: #f9fafb;
-    color: #111827;
-}
-
-.appt-kebab-dropdown-portal a svg {
-    flex-shrink: 0;
-}
-
-.appt-kebab-dropdown-portal a:first-child {
-    border-radius: 8px 8px 0 0;
-}
-
-.appt-kebab-dropdown-portal a:last-child {
-    border-radius: 0 0 8px 8px;
-}
-
-.appt-kebab-backdrop {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 99998;
-}
-
-.appt-kebab-backdrop.show {
-    display: block;
-}
-</style>
 
 <script>
 // Portal Pattern: Move modal to body level
@@ -698,5 +514,202 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+
+<style>
+/* Modal Styles */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 99999;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay[style*="display: flex"] {
+    display: flex !important;
+}
+
+.modal {
+    background: white;
+    border-radius: 12px;
+    padding: 28px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    position: relative;
+    z-index: 100000;
+}
+
+.form-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 6px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.form-control:focus {
+    border-color: #3b82f6;
+    ring: 2px solid rgba(59, 130, 246, 0.2);
+}
+
+.modal-actions {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.btn-cancel {
+    background: #f3f4f6;
+    color: #374151;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-cancel:hover {
+    background: #e5e7eb;
+}
+
+/* Appointment Kebab Menu Styles - Portal Based */
+.appt-kebab-menu {
+    position: relative;
+    display: inline-block;
+}
+
+.appt-kebab-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.appt-kebab-btn:hover {
+    background-color: #f3f4f6;
+    color: #374151;
+}
+
+.appt-kebab-btn.active {
+    background-color: #e5e7eb;
+    color: #111827;
+}
+
+.appt-kebab-dropdown-portal {
+    display: none;
+    position: fixed;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    min-width: 160px;
+    max-width: 180px;
+    width: auto;
+    z-index: 99999;
+    overflow: hidden;
+}
+
+.appt-kebab-dropdown-portal.show {
+    display: block;
+    animation: apptKebabFadeIn 0.15s ease;
+}
+
+@keyframes apptKebabFadeIn {
+    from { opacity: 0; transform: scale(0.95) translateY(-4px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.appt-kebab-dropdown-portal a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    color: #374151;
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: all 0.15s ease;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.appt-kebab-dropdown-portal a:hover {
+    background-color: #f9fafb;
+    color: #111827;
+}
+
+.appt-kebab-dropdown-portal a svg {
+    flex-shrink: 0;
+}
+
+.appt-kebab-dropdown-portal a:first-child {
+    border-radius: 8px 8px 0 0;
+}
+
+.appt-kebab-dropdown-portal a:last-child {
+    border-radius: 0 0 8px 8px;
+}
+
+.appt-kebab-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 99998;
+}
+
+.appt-kebab-backdrop.show {
+    display: block;
+}
+.search-filters{
+    margin-bottom: 0px;
+}
+
+.summary-cards {
+    margin-bottom: 0px;
+}
+.search-input{
+    width: 700px;
+}
+
+</style>
 
 <?php require_once 'includes/dentist_layout_end.php'; ?>

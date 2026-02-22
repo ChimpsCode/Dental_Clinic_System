@@ -1102,6 +1102,9 @@ document.addEventListener('DOMContentLoaded', function() {
     letter-spacing: 0.05em;
     margin-bottom: 8px;
 }
+.summary-cards {
+    margin-bottom: 0px;
+}
 </style>
 
 <script>
