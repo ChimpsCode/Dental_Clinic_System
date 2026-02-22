@@ -20,7 +20,7 @@ function jsonSuccess($data = []) {
 }
 function isStrongPassword($pwd) {
     return is_string($pwd)
-        && strlen($pwd) >= 10
+        && strlen($pwd) >= 8
         && preg_match('/[A-Z]/', $pwd)
         && preg_match('/[a-z]/', $pwd)
         && preg_match('/[0-9]/', $pwd)
@@ -155,7 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $password = trim($_POST['password'] ?? '');
         $confirm  = trim($_POST['confirm_password'] ?? '');
         if (!isStrongPassword($password)) {
-            jsonError('Password must be at least 10 chars, with upper, lower, number, and symbol.');
+            jsonError('Password must be at least 8 chars, with upper, lower, number, and symbol.');
         }
         if ($password !== $confirm) {
             jsonError('Passwords do not match.');
@@ -415,6 +415,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             border-radius: 10px;
             background: #ffffff;
             font-size: 14px;
+            outline: none;
         }
 
         .login-box button {
@@ -701,6 +702,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                     <div id="step3" class="step-pane" style="display:none;">
                         <input type="password" name="password" id="password" placeholder="Enter new password" required>
+                        <div id="pwdRequirements" style="display:none; background:rgba(15,23,42,0.04); border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px; text-align:left; margin:8px 0 12px; color:#0f172a;">
+                            <div style="font-weight:700; margin-bottom:6px;">Password Requirements:</div>
+                            <ul style="list-style:none; padding-left:0; margin:0; font-size:13px; line-height:1.55;">
+                                <li data-rule="len" style="display:flex; gap:8px; align-items:center;"><span class="req-icon">✗</span>At least 8 characters</li>
+                                <li data-rule="upper" style="display:flex; gap:8px; align-items:center;"><span class="req-icon">✗</span>At least one uppercase letter</li>
+                                <li data-rule="lower" style="display:flex; gap:8px; align-items:center;"><span class="req-icon">✗</span>At least one lowercase letter</li>
+                                <li data-rule="num" style="display:flex; gap:8px; align-items:center;"><span class="req-icon">✗</span>At least one number</li>
+                                <li data-rule="sym" style="display:flex; gap:8px; align-items:center;"><span class="req-icon">✗</span>At least one symbol</li>
+                            </ul>
+                        </div>
+                        <div id="strengthMeter" style="display:none; text-align:left; font-size:12px; margin:4px 0 10px; color:#475569;">
+                            <div id="strengthBar" style="height:6px; border-radius:999px; background:#e2e8f0; overflow:hidden;">
+                                <span id="strengthFill" style="display:block; height:100%; width:10%; background:#ef4444; transition:width 0.2s ease, background 0.2s ease;"></span>
+                            </div>
+                            <div id="strengthLabel" style="margin-top:6px; font-weight:600;">Weak password</div>
+                        </div>
                         <input type="password" name="confirm_password" id="confirm_password" placeholder="Confirm new password" required>
                         <button type="button" id="changeBtn"><span id="changeBtnText">Change Password</span></button>
                     </div>
@@ -766,6 +783,73 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             const verifyBtnText = document.getElementById('verifyBtnText');
             const changeBtn = document.getElementById('changeBtn');
             const changeBtnText = document.getElementById('changeBtnText');
+            const pwdInput = document.getElementById('password');
+            const confirmInput = document.getElementById('confirm_password');
+            const strengthMeter = document.getElementById('strengthMeter');
+            const strengthFill = document.getElementById('strengthFill');
+            const strengthLabel = document.getElementById('strengthLabel');
+            const reqBox = document.getElementById('pwdRequirements');
+            const reqItems = {
+                len: reqBox.querySelector('[data-rule="len"] .req-icon'),
+                upper: reqBox.querySelector('[data-rule="upper"] .req-icon'),
+                lower: reqBox.querySelector('[data-rule="lower"] .req-icon'),
+                num: reqBox.querySelector('[data-rule="num"] .req-icon'),
+                sym: reqBox.querySelector('[data-rule="sym"] .req-icon'),
+            };
+
+            const strengthLevels = [
+                {label:'Very Weak', color:'#ef4444', min:0},
+                {label:'Weak', color:'#f97316', min:25},
+                {label:'Fair', color:'#f59e0b', min:45},
+                {label:'Good', color:'#10b981', min:65},
+                {label:'Strong', color:'#059669', min:80}
+            ];
+
+            const computeStrength = (value) => {
+                if (!value) return 0;
+                let score = Math.min(40, value.length * 4); // length weight
+                if (/[A-Z]/.test(value)) score += 15;
+                if (/[a-z]/.test(value)) score += 15;
+                if (/[0-9]/.test(value)) score += 15;
+                if (/[^A-Za-z0-9]/.test(value)) score += 15;
+                if (value.length >= 12) score += 10;
+                return Math.min(score, 100);
+            };
+
+            const updateStrength = () => {
+                const val = pwdInput.value;
+                const score = computeStrength(val);
+                if (val.length === 0) {
+                    strengthMeter.style.display = 'none';
+                    reqBox.style.display = 'none';
+                    return;
+                }
+                reqBox.style.display = 'block';
+                strengthMeter.style.display = 'block';
+                strengthFill.style.width = `${Math.max(score,10)}%`;
+                const level = strengthLevels.slice().reverse().find(l => score >= l.min) || strengthLevels[0];
+                strengthFill.style.background = level.color;
+                strengthLabel.textContent = `${level.label} password`;
+
+                // update requirement ticks
+                const checks = {
+                    len: val.length >= 8,
+                    upper: /[A-Z]/.test(val),
+                    lower: /[a-z]/.test(val),
+                    num: /[0-9]/.test(val),
+                    sym: /[^A-Za-z0-9]/.test(val),
+                };
+                Object.entries(checks).forEach(([key, ok]) => {
+                    reqItems[key].textContent = ok ? '✓' : '✗';
+                    reqItems[key].style.color = ok ? '#10b981' : '#ef4444';
+                });
+            };
+
+            pwdInput.addEventListener('input', updateStrength);
+            confirmInput.addEventListener('input', () => {
+                confirmInput.setCustomValidity(confirmInput.value && confirmInput.value !== pwdInput.value ? 'Passwords do not match' : '');
+            });
+
 
             sendBtn.addEventListener('click', () => {
                 sendBtn.disabled = true;

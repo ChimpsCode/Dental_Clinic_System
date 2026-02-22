@@ -109,21 +109,39 @@ function isActivePage($page) {
                     <input type="email" id="email" class="form-control" placeholder="Email" required>
                 </div>
                 
-                <div class="form-grid">
-                    <div class="input-group">
-                        <input type="password" id="password" class="form-control" placeholder="Password">
-                        <button type="button" class="toggle-password" id="togglePassword" aria-label="Toggle password visibility" style="display: flex; top: 28px;">
-                            <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                <circle cx="12" cy="12" r="3"></circle>
-                            </svg>
-                            <svg class="eye-icon eye-closed" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
-                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                                <line x1="1" y1="1" x2="23" y2="23"></line>
-                            </svg>
-                        </button>
+                <div class="form-grid" style="align-items:flex-start; row-gap:12px;">
+                    <div>
+                        <div class="input-group">
+                            <input type="password" id="password" class="form-control" placeholder="Password">
+                            <button type="button" class="toggle-password" id="togglePassword" aria-label="Toggle password visibility" style="display: flex; top: 28px;">
+                                <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                <svg class="eye-icon eye-closed" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="strengthMeterAdmin" style="display:none; margin:8px 0 4px; text-align:left; font-size:12px; color:#475569;">
+                            <div style="height:6px; border-radius:999px; background:#e2e8f0; overflow:hidden;">
+                                <span id="strengthFillAdmin" style="display:block; height:100%; width:10%; background:#ef4444; transition:width 0.2s ease, background 0.2s ease;"></span>
+                            </div>
+                            <div id="strengthLabelAdmin" style="margin-top:6px; font-weight:600;">Weak password</div>
+                        </div>
                     </div>
-                    <div class="input-group">
+                    <div id="pwdRequirementsAdmin" style="display:none; background:rgba(15,23,42,0.04); border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px; text-align:left; margin:0; color:#0f172a;">
+                        <div style="font-weight:700; margin-bottom:6px;">Password Requirements:</div>
+                        <ul style="list-style:none; padding-left:0; margin:0; font-size:13px; line-height:1.55;">
+                            <li data-rule="len" style="display:flex; gap:8px; align-items:center;"><span class="req-icon">✗</span>At least 8 characters</li>
+                            <li data-rule="upper" style="display:flex; gap:8px; align-items:center;"><span class="req-icon">✗</span>At least one uppercase letter</li>
+                            <li data-rule="lower" style="display:flex; gap:8px; align-items:center;"><span class="req-icon">✗</span>At least one lowercase letter</li>
+                            <li data-rule="num" style="display:flex; gap:8px; align-items:center;"><span class="req-icon">✗</span>At least one number</li>
+                            <li data-rule="sym" style="display:flex; gap:8px; align-items:center;"><span class="req-icon">✗</span>At least one symbol</li>
+                        </ul>
+                    </div>
+                    <div class="input-group" style="grid-column: 1 / span 2;">
                         <input type="password" id="confirmPassword" class="form-control" placeholder="Confirm Password">
                         <button type="button" class="toggle-password" id="toggleConfirmPassword" aria-label="Toggle confirm password visibility" style="display: flex; top: 28px;">
                             <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

@@ -26,7 +26,7 @@ function jsonError($message, $code = 400) {
 
 function isStrongPassword($pwd) {
     return is_string($pwd)
-        && strlen($pwd) >= 10
+        && strlen($pwd) >= 8
         && preg_match('/[A-Z]/', $pwd)
         && preg_match('/[a-z]/', $pwd)
         && preg_match('/[0-9]/', $pwd)
@@ -110,7 +110,7 @@ try {
             }
 
             if (!isStrongPassword($password)) {
-                jsonError('Password must be at least 10 chars, with upper, lower, number, and symbol.');
+                jsonError('Password must be at least 8 chars, with upper, lower, number, and symbol.');
             }
 
             $hashed = password_hash($password, PASSWORD_DEFAULT);
@@ -180,7 +180,7 @@ try {
                     jsonError('Passwords do not match.');
                 }
                 if (!isStrongPassword($password)) {
-                    jsonError('Password must be at least 10 chars, with upper, lower, number, and symbol.');
+                    jsonError('Password must be at least 8 chars, with upper, lower, number, and symbol.');
                 }
                 $fields['password'] = password_hash($password, PASSWORD_DEFAULT);
                 $setParts[] = 'password = :password';

@@ -273,6 +273,17 @@ function initPasswordToggles() {
     const confirmPasswordInput = document.getElementById('confirmPassword');
     const togglePassword = document.getElementById('togglePassword');
     const toggleConfirmPassword = document.getElementById('toggleConfirmPassword');
+    const reqBox = document.getElementById('pwdRequirementsAdmin');
+    const strengthMeter = document.getElementById('strengthMeterAdmin');
+    const strengthFill = document.getElementById('strengthFillAdmin');
+    const strengthLabel = document.getElementById('strengthLabelAdmin');
+    const reqItems = reqBox ? {
+        len: reqBox.querySelector('[data-rule="len"] .req-icon'),
+        upper: reqBox.querySelector('[data-rule="upper"] .req-icon'),
+        lower: reqBox.querySelector('[data-rule="lower"] .req-icon'),
+        num: reqBox.querySelector('[data-rule="num"] .req-icon'),
+        sym: reqBox.querySelector('[data-rule="sym"] .req-icon')
+    } : {};
 
     function bindToggle(input, toggleBtn) {
         if (!input || !toggleBtn) return;
@@ -304,6 +315,66 @@ function initPasswordToggles() {
 
     bindToggle(passwordInput, togglePassword);
     bindToggle(confirmPasswordInput, toggleConfirmPassword);
+
+    const strengthLevels = [
+        {label:'Very Weak', color:'#ef4444', min:0},
+        {label:'Weak', color:'#f97316', min:25},
+        {label:'Fair', color:'#f59e0b', min:45},
+        {label:'Good', color:'#10b981', min:65},
+        {label:'Strong', color:'#059669', min:80}
+    ];
+
+    const computeStrength = (value) => {
+        if (!value) return 0;
+        let score = Math.min(40, value.length * 4);
+        if (/[A-Z]/.test(value)) score += 15;
+        if (/[a-z]/.test(value)) score += 15;
+        if (/[0-9]/.test(value)) score += 15;
+        if (/[^A-Za-z0-9]/.test(value)) score += 15;
+        if (value.length >= 12) score += 10;
+        return Math.min(score, 100);
+    };
+
+    const updateStrength = () => {
+        if (!passwordInput || !strengthMeter) return;
+        const val = passwordInput.value;
+        if (!val) {
+            strengthMeter.style.display = 'none';
+            if (reqBox) reqBox.style.display = 'none';
+            return;
+        }
+        const score = computeStrength(val);
+        if (reqBox) reqBox.style.display = 'block';
+        strengthMeter.style.display = 'block';
+        if (strengthFill) strengthFill.style.width = `${Math.max(score,10)}%`;
+        const level = strengthLevels.slice().reverse().find(l => score >= l.min) || strengthLevels[0];
+        if (strengthFill) strengthFill.style.background = level.color;
+        if (strengthLabel) strengthLabel.textContent = `${level.label} password`;
+        if (reqBox) {
+            const checks = {
+                len: val.length >= 8,
+                upper: /[A-Z]/.test(val),
+                lower: /[a-z]/.test(val),
+                num: /[0-9]/.test(val),
+                sym: /[^A-Za-z0-9]/.test(val)
+            };
+            Object.entries(checks).forEach(([key, ok]) => {
+                if (!reqItems[key]) return;
+                reqItems[key].textContent = ok ? '✓' : '✗';
+                reqItems[key].style.color = ok ? '#10b981' : '#ef4444';
+            });
+        }
+    };
+
+    if (passwordInput) passwordInput.addEventListener('input', updateStrength);
+    if (confirmPasswordInput) {
+        confirmPasswordInput.addEventListener('input', () => {
+            confirmPasswordInput.setCustomValidity(
+                confirmPasswordInput.value && passwordInput && confirmPasswordInput.value !== passwordInput.value
+                    ? 'Passwords do not match' : ''
+            );
+        });
+    }
 }
 
 function saveUser() {
