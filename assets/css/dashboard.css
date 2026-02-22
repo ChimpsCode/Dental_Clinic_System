@@ -159,7 +159,8 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: visible;
+    min-height: 100%;
 }
 
 .main-content,
@@ -561,6 +562,8 @@ body {
     display: flex;
     flex-direction: column;
     gap: 25px;
+    padding-bottom: 50px;
+    min-height: 100%;
 }
 
 .content-sidebar {
@@ -1122,6 +1125,8 @@ body {
     background: #1d4ed8;
 }
 
+
+
 /* Responsive */
 @media (max-width: 1200px) {
     .content-sidebar {
@@ -1219,9 +1224,6 @@ body {
         font-size: 20px;
     }
     
-    .section-card {
-        padding: 15px;
-    }
     
     .section-title {
         font-size: 16px;
@@ -1344,9 +1346,7 @@ body {
         font-size: 11px;
     }
     
-    .section-card {
-        padding: 12px;
-    }
+    
     
     .section-title {
         font-size: 15px;
@@ -1525,6 +1525,7 @@ body {
     .section-card {
         padding: 15px;
     }
+    
 }
 
 

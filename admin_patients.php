@@ -148,7 +148,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                 </div>
 
                 <!-- Summary Stats Cards -->
-                <div class="summary-cards" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; margin-bottom: 24px;">
+                <div class="summary-cards" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; margin-bottom: 0px; margin-top: -10px;">
                     <div class="summary-card" style="background: white; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; display: flex; align-items: center; gap: 16px;">
                         <div class="summary-icon" style="width: 48px; height: 48px; background: #dbeafe; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">👥</div>
                         <div class="summary-info">
@@ -798,12 +798,9 @@ document.addEventListener('keydown', function(e) {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 32px;
-    padding: 24px;
-    background: white;
-    border-radius: 12px;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    padding-top: 0px;
+    padding-bottom: 20px;
+    margin-top: 0px;
 }
 
 .pagination-info {
@@ -818,17 +815,19 @@ document.addEventListener('keydown', function(e) {
 }
 
 .pagination-btn {
-    padding: 8px 12px;
-    border: 1px solid #d1d5db;
-    background: white;
-    color: #374151;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 6px;
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: all 0.2s;
     text-decoration: none;
-    min-width: 40px;
-    text-align: center;
+    color: #4a5568;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    min-width: 32px;
+    cursor: pointer;
 }
 
 .pagination-btn:hover {
@@ -852,9 +851,8 @@ document.addEventListener('keydown', function(e) {
 }
 
 .pagination-ellipsis {
-    padding: 8px 4px;
-    color: #6b7280;
-    font-weight: 500;
+    color: #a0aec0;
+    padding: 0 4px;
 }
 
 /* Patient Kebab Menu Styles */

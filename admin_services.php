@@ -500,20 +500,17 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
     cursor: not-allowed;
     border-color: #edf2f7; /* Very light border */
 }
+.pagination{
+    padding-top: 26px;
+}
+
 </style>
 
 <div class="content-main">
     <div class="services-page">
         <div class="page-header">
-        <div>
-            <h2>Services Management</h2>
-            <p style="font-size: 0.875rem; color: #6b7280; margin: 4px 0 0 0;">
-                Active services will appear in staff admission for patient selection
-            </p>
-        </div>
-        <button class="add-btn" onclick="document.getElementById('addModal').style.display='flex'">
-            <span>+</span> Add New Service
-        </button>
+        
+        
     </div>
 
     <!-- Stats Cards -->
@@ -550,6 +547,9 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
             <option value="1" <?php echo $statusFilter === '1' ? 'selected' : ''; ?>>Active</option>
             <option value="0" <?php echo $statusFilter === '0' ? 'selected' : ''; ?>>Inactive</option>
         </select>
+        <button class="add-btn" onclick="document.getElementById('addModal').style.display='flex'">
+            <span>+</span> Add New Service
+        </button>
     </form>
 
     <div class="services-table-container">

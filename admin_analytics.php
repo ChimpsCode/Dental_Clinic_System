@@ -280,7 +280,7 @@ try {
                 </div>
 
                 <!-- Charts Row -->
-                <div class="charts-row">
+                <div class="charts-row" style="margin-bottom: 0px;">
                     <!-- Revenue Chart -->
                     <div class="chart-card">
                         <h3 class="chart-title">Revenue Overview</h3>
@@ -310,7 +310,7 @@ try {
                 </div>
 
                 <!-- Statistics Grid -->
-                <div class="stats-grid">
+                <div class="stats-grid" style="margin-bottom:25px; padding-bottom: 35px;">
                     <!-- Patient Demographics -->
                     <div class="stat-card">
                         <h3 class="stat-title">Patient Demographics</h3>
@@ -412,7 +412,12 @@ try {
         window.location.search = params.toString();
     });
 </script>
-
+<style>
+    .content-main {
+        
+        margin-bottom: 40px;
+    }
+</style>
 <?php
 require_once __DIR__ . '/includes/admin_layout_end.php';
 ?>

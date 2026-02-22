@@ -58,7 +58,14 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                 <!-- Page Header -->
                 <div class="page-header">
                     <h2>Audit Trail</h2>
-                    <p class="page-subtitle">Track all system activities and user actions</p>
+<!-- Export Options -->
+                
+                    
+                    <div class="export-options">
+                        <button class="btn-secondary" onclick="exportAuditLogs('csv')">Export as CSV</button>
+                        <button class="btn-secondary" onclick="exportAuditLogs('excel')">Export as Excel</button>
+                        <button class="btn-secondary" onclick="printAuditLogs()">Print Logs</button>
+                    </div>
                 </div>
 
                 <!-- Stats Cards -->
@@ -235,150 +242,10 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                 </div>
                 <?php endif; ?>
 
-                <!-- Export Options -->
-                <div class="section-card">
-                    <h2 class="section-title">Export Audit Logs</h2>
-                    <div class="export-options">
-                        <button class="btn-secondary" onclick="exportAuditLogs('csv')">Export as CSV</button>
-                        <button class="btn-secondary" onclick="exportAuditLogs('excel')">Export as Excel</button>
-                        <button class="btn-secondary" onclick="printAuditLogs()">Print Logs</button>
-                    </div>
-                </div>
+                
             </div>
 
-            <style>
-                .role-badge {
-                    display: inline-block;
-                    padding: 0.25rem 0.5rem;
-                    border-radius: 4px;
-                    font-size: 0.75rem;
-                    font-weight: 600;
-                }
-                
-                .role-badge.admin {
-                    background: #fee2e2;
-                    color: #dc2626;
-                }
-                
-                .role-badge.dentist {
-                    background: #dbeafe;
-                    color: #2563eb;
-                }
-                
-                .role-badge.staff {
-                    background: #dcfce7;
-                    color: #16a34a;
-                }
-                
-                .role-badge.unknown {
-                    background: #f3f4f6;
-                    color: #6b7280;
-                }
-                
-                .action-badge {
-                    display: inline-block;
-                    padding: 0.25rem 0.5rem;
-                    border-radius: 4px;
-                    font-size: 0.75rem;
-                    font-weight: 600;
-                }
-                
-                .action-badge.login {
-                    background: #dcfce7;
-                    color: #16a34a;
-                }
-                
-                .action-badge.logout {
-                    background: #f3f4f6;
-                    color: #6b7280;
-                }
-                
-                .action-badge.failed_login {
-                    background: #fee2e2;
-                    color: #dc2626;
-                }
-                
-                .action-badge.create {
-                    background: #dcfce7;
-                    color: #16a34a;
-                }
-                
-                .action-badge.read {
-                    background: #dbeafe;
-                    color: #2563eb;
-                }
-                
-                .action-badge.update {
-                    background: #fef3c7;
-                    color: #d97706;
-                }
-                
-                .action-badge.delete {
-                    background: #fee2e2;
-                    color: #dc2626;
-                }
-                
-                .action-badge.status_change {
-                    background: #e0e7ff;
-                    color: #4f46e5;
-                }
-                
-                .action-badge.payment {
-                    background: #d1fae5;
-                    color: #059669;
-                }
-                
-                .status-badge.success {
-                    background: #dcfce7;
-                    color: #16a34a;
-                }
-                
-                .status-badge.failed {
-                    background: #fee2e2;
-                    color: #dc2626;
-                }
-                
-                .date-input {
-                    padding: 0.5rem 1rem;
-                    border: 1px solid #e5e7eb;
-                    border-radius: 8px;
-                    font-size: 0.9rem;
-                }
-                
-                .export-options {
-                    display: flex;
-                    gap: 1rem;
-                    flex-wrap: wrap;
-                }
-                
-                .section-card {
-                    background: white;
-                    border-radius: 12px;
-                    padding: 1.5rem;
-                    margin-top: 1.5rem;
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-                }
-                
-                .section-title {
-                    margin: 0 0 1rem 0;
-                    font-size: 1.1rem;
-                    color: #374151;
-                }
-                
-                .empty-state {
-                    text-align: center;
-                    color: #9ca3af;
-                    padding: 2rem;
-                }
-                
-                .empty-state svg {
-                    margin-bottom: 0.5rem;
-                }
-                
-                .no-records {
-                    text-align: center;
-                }
-            </style>
+            
 
             <script>
                 // Export audit logs

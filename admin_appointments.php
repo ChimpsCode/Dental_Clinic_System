@@ -85,17 +85,11 @@ try {
 require_once __DIR__ . '/includes/admin_layout_start.php';
 ?>
             <div class="content-main">
-                <!-- Page Header -->
-                <div class="page-header">
-                    <h2>Appointments Management</h2>
-                    <div style="display: flex; gap: 10px;">
-                        <button class="btn-primary" onclick="openAppointmentModal()">+ New Appointment</button>
-                        <button class="btn-primary" onclick="exportAppointments()" style="background: #059669;">Export Report</button>
-                    </div>
-                </div>
+                
+                
 
                 <!-- Stats Cards -->
-                <div class="summary-cards">
+                <div class="summary-cards" style="margin-top: 15px;">
                     <div class="summary-card">
                         <div class="summary-icon blue">&#128197;</div>
                         <div class="summary-info">
@@ -135,6 +129,14 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                         <span data-filter="month">This Month</span>
                     </div>
                     <input type="text" class="search-input" placeholder="Search appointments..." id="appointmentSearch">
+
+                    <div class="page-header">
+                    <h2>Appointments Management</h2>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn-primary" onclick="openAppointmentModal()">+ New Appointment</button>
+                        <button class="btn-primary" onclick="exportAppointments()" style="background: #059669;">Export Report</button>
+                    </div>
+                </div>
                 </div>
 
                 <!-- Appointments Table -->
