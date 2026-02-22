@@ -543,6 +543,7 @@ header.top-header {
 .content-area {
     flex: 1;
     overflow-y: auto;
+    overflow-x: visible;
     padding: 30px;
 }
 

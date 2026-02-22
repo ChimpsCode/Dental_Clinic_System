@@ -706,6 +706,10 @@ document.addEventListener('DOMContentLoaded', function() {
 .summary-cards {
     margin-bottom: 0px;
 }
+.search-input{
+    width: 700px;
+}
+
 </style>
 
 <?php require_once 'includes/dentist_layout_end.php'; ?>

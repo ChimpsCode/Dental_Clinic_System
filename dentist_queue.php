@@ -4,7 +4,7 @@ require_once 'config/database.php';
 require_once 'includes/dentist_layout_start.php';
 
 // Pagination settings
-$itemsPerPage = 7;
+$itemsPerPage = 5;
 $currentPage = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
 if ($currentPage < 1) $currentPage = 1;
 
@@ -191,8 +191,21 @@ try {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 20px;
-    margin-top: 12px;
+    padding-top: 0px;
+    padding-bottom: 20px;
+    background: transparent;
+    position: relative;
+    z-index: 10;
+}
+
+.queue-table-container {
+    background: white;
+    border-radius: 12px;
+    height: auto;
+    min-height: 300px;
+    overflow-x: auto;
+    overflow-y: visible;
+    margin-bottom: 20px;
 }
 
 .pagination-info {
@@ -221,7 +234,7 @@ try {
 }
 
 .pagination-btn:hover {
-    background: #f9fafb;
+    background: #fbf9f9;
     border-color: #9ca3af;
 }
 
@@ -406,7 +419,7 @@ div.main-content {
     background: white;
     border-radius: 12px;
     border: 1px solid #e5e7eb;
-    overflow: hidden;
+    overflow: visible;
     height: auto;
     min-height: auto;
 }
@@ -491,7 +504,7 @@ div.main-content {
 }
 
 .queue-table tbody tr:hover {
-    background: #f9fafb;
+    background: #f3f4f6;
 }
 
 .patient-name {
@@ -1155,46 +1168,48 @@ div.main-content {
                 <?php endif; ?>
             </tbody>
         </table>
+        
+       
     </div>
-
-    <!-- Pagination -->
-    <?php if ($totalPages > 1): ?>
-    <div class="pagination">
-        <span class="pagination-info">Showing <?php echo $showingStart; ?>-<?php echo $showingEnd; ?> of <?php echo $totalQueueItems; ?> queue items</span>
-        <div class="pagination-buttons">
-            <?php if ($currentPage > 1): ?>
-                <a href="?page=<?php echo $currentPage - 1; ?>" class="pagination-btn">Previous</a>
-            <?php else: ?>
-                <button class="pagination-btn" disabled>Previous</button>
-            <?php endif; ?>
-            
-            <?php
-            $startPage = max(1, $currentPage - 2);
-            $endPage = min($totalPages, $startPage + 4);
-            if ($endPage - $startPage < 4) {
-                $startPage = max(1, $endPage - 4);
-            }
-            
-            for ($i = $startPage; $i <= $endPage; $i++):
-                if ($i == $currentPage):
-            ?>
-                <button class="pagination-btn active"><?php echo $i; ?></button>
-            <?php else: ?>
-                <a href="?page=<?php echo $i; ?>" class="pagination-btn"><?php echo $i; ?></a>
-            <?php 
-                endif;
-            endfor;
-            ?>
-            
-            <?php if ($currentPage < $totalPages): ?>
-                <a href="?page=<?php echo $currentPage + 1; ?>" class="pagination-btn">Next</a>
-            <?php else: ?>
-                <button class="pagination-btn" disabled>Next</button>
-            <?php endif; ?>
-        </div>
-    </div>
-    <?php endif; ?>
+    
 </div>
+ <!-- Pagination -->
+        <?php if ($totalQueueItems > 0): ?>
+        <div class="pagination">
+            <span class="pagination-info">Showing <?php echo $showingStart; ?>-<?php echo $showingEnd; ?> of <?php echo $totalQueueItems; ?> queue items</span>
+            <div class="pagination-buttons">
+                <?php if ($currentPage > 1): ?>
+                    <a href="?page=<?php echo $currentPage - 1; ?>" class="pagination-btn">Previous</a>
+                <?php else: ?>
+                    <button class="pagination-btn" disabled>Previous</button>
+                <?php endif; ?>
+                
+                <?php
+                $startPage = max(1, $currentPage - 2);
+                $endPage = min($totalPages, $startPage + 4);
+                if ($endPage - $startPage < 4) {
+                    $startPage = max(1, $endPage - 4);
+                }
+                
+                for ($i = $startPage; $i <= $endPage; $i++):
+                    if ($i == $currentPage):
+                ?>
+                    <button class="pagination-btn active"><?php echo $i; ?></button>
+                <?php else: ?>
+                    <a href="?page=<?php echo $i; ?>" class="pagination-btn"><?php echo $i; ?></a>
+                <?php 
+                    endif;
+                endfor;
+                ?>
+                
+                <?php if ($currentPage < $totalPages): ?>
+                    <a href="?page=<?php echo $currentPage + 1; ?>" class="pagination-btn">Next</a>
+                <?php else: ?>
+                    <button class="pagination-btn" disabled>Next</button>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endif; ?>
 
 <script>
 // Queue Kebab Menu Functionality

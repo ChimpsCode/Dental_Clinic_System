@@ -1414,7 +1414,7 @@ setInterval(() => {
     align-items: center;
     gap: 15px;
     width: 100%;
-    padding: 10px 0;
+    padding: 0px;
     /* Optional: A light gray background on your page makes the white box pop */
     /* background-color: #f8f9fa; */ 
 }
