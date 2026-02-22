@@ -72,6 +72,8 @@ try {
     background-color: #f3f4f6;
     display: block !important;
     width: 100%;
+    padding-bottom: 10px;
+
 }
 
 /* Override main-content styles for queue page */
@@ -252,6 +254,7 @@ div.main-content {
     gap: 20px;
     margin-bottom: 24px;
     width: 100%;
+    padding-top: 15px;
 }
 
 .summary-widget {
@@ -320,10 +323,6 @@ div.main-content {
 
 /* Control Bar */
 .control-bar {
-    background: white;
-    border-radius: 12px;
-    padding: 20px 24px;
-    border: 1px solid #e5e7eb;
     margin-bottom: 24px;
     display: flex;
     gap: 16px;

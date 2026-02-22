@@ -70,7 +70,7 @@ require_once 'includes/admin_layout_start.php';
 /* Tab Navigation */
 .tab-navigation {
     display: flex;
-    gap: 4px;
+    gap: 45px;
     border-bottom: 2px solid #e5e7eb;
     margin-bottom: 0px;
     overflow-x: visible;
