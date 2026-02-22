@@ -35,13 +35,32 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
 
 // Get user info from session
 $username = $_SESSION['username'] ?? 'Admin';
-$displayName = $_SESSION['display_name'] ?? 'Administrator';
-// Keep honorific if present; show first given name
-$firstNameOnly = trim(explode(' ', preg_replace('/^Dr\\.?\\s*/i', '', $displayName), 2)[0] ?? $displayName);
-if ($firstNameOnly === '') {
-    $firstNameOnly = $username;
+$displayName = trim($_SESSION['display_name'] ?? 'Administrator');
+
+// Extract honorific if present and clean the name
+$honorific = '';
+if (preg_match('/^Dr\.?\s+/i', $displayName, $matches)) {
+    $honorific = 'Dr. ';
+    $cleanName = trim(substr($displayName, strlen($matches[0])));
+} else {
+    $cleanName = $displayName;
 }
-$displayHeaderName = (stripos($displayName, 'dr.') === 0 ? 'Dr. ' : '') . $firstNameOnly;
+
+// Split the clean name into parts to get First and Last name
+$nameParts = array_values(array_filter(explode(' ', $cleanName)));
+
+if (count($nameParts) > 1) {
+    // Has multiple names: combine the first index and the last index
+    $processedName = $nameParts[0] . ' ' . end($nameParts);
+} elseif (count($nameParts) === 1) {
+    // Only has one name
+    $processedName = $nameParts[0];
+} else {
+    // Fallback if empty
+    $processedName = $username;
+}
+
+$displayHeaderName = $honorific . $processedName;
  
 // Header notifications (lightweight counts)
 $newAppointmentsToday = 0;
@@ -88,7 +107,6 @@ function isActivePage($page) {
     <link rel="stylesheet" href="assets/css/admin.css">
 </head>
 <body data-user-id="<?php echo (int)($_SESSION['user_id'] ?? 0); ?>">
-    <!-- Add/Edit User Modal -->
     <div id="userModal" class="modal-overlay">
         <div class="modal user-modal">
             <h2 id="modalTitle">Add New User</h2>
@@ -175,7 +193,6 @@ function isActivePage($page) {
         </div>
     </div>
 
-    <!-- Left Sidebar - Admin Navigation -->
     <aside class="sidebar" id="adminSidebar">
         <div class="sidebar-logo">
             <img src="assets/images/Logo.png" alt="RF Logo">
@@ -286,12 +303,9 @@ function isActivePage($page) {
         </nav>
     </aside>
 
-    <!-- Main Content -->
     <main class="main-content">
-        <!-- Sidebar Overlay for mobile -->
         <div class="sidebar-overlay" id="sidebarOverlay"></div>
         
-        <!-- Top Header -->
         <header class="top-header">
             <div class="header-left">
                 <button class="menu-toggle" id="menuToggle" type="button" aria-label="Toggle sidebar" aria-controls="adminSidebar" >
@@ -364,5 +378,4 @@ function isActivePage($page) {
             </div>
         </header>
 
-        <!-- Content Area -->
         <div class="content-area">

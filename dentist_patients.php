@@ -18,6 +18,42 @@ try {
 } catch (Exception $e) {
     $patients = [];
 }
+
+// Pagination settings
+$perPage = 7;
+$currentPage = isset($_GET['page']) && is_numeric($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+
+// Get total count for pagination
+try {
+    $totalPatients = (int)$pdo->query("SELECT COUNT(*) FROM patients")->fetchColumn();
+} catch (Exception $e) {
+    $totalPatients = count($patients);
+}
+
+$totalPages = max(1, ceil($totalPatients / $perPage));
+if ($currentPage > $totalPages) $currentPage = 1;
+$offset = ($currentPage - 1) * $perPage;
+
+$showingStart = $totalPatients > 0 ? $offset + 1 : 0;
+$showingEnd = min($offset + $perPage, $totalPatients);
+
+// Fetch patients with limit
+try {
+    $stmt = $pdo->prepare("
+        SELECT p.*, 
+               (SELECT status FROM queue WHERE patient_id = p.id ORDER BY created_at DESC LIMIT 1) as queue_status,
+               (SELECT treatment_type FROM queue WHERE patient_id = p.id ORDER BY created_at DESC LIMIT 1) as current_treatment
+        FROM patients p 
+        ORDER BY p.created_at DESC
+        LIMIT :limit OFFSET :offset
+    ");
+    $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
+    $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    $patients = [];
+}
 ?>
 
 <!-- Summary Stats -->
@@ -71,10 +107,6 @@ try {
 </div>
 
 <!-- Patient Records Table -->
-<div class="section-card">
-    <div class="section-title">
-        <span>Patient Records</span>
-    </div>
 
     <?php if (empty($patients)): ?>
         <div class="empty-state" style="text-align: center; padding: 60px 20px;">
@@ -88,13 +120,11 @@ try {
             <p style="color: #6b7280; font-size: 0.9rem;">Patients will appear here once they are registered</p>
         </div>
     <?php else: ?>
-        <div style="overflow-x: auto;">
+        <div class="table-container">
             <table class="data-table" id="patientsTable">
                 <thead>
                     <tr>
-                        <th>First Name</th>
-                        <th>Middle Name</th>
-                        <th>Last Name</th>
+                        <th>Name</th>
                         <th>Age/Gender</th>
                         <th>Contact</th>
                         <th>Current Treatment</th>
@@ -109,11 +139,12 @@ try {
                             data-phone="<?php echo strtolower(htmlspecialchars($patient['phone'] ?? '')); ?>" 
                             data-status="<?php echo $patient['queue_status'] ?? ''; ?>">
                             <td>
-                                <div class="patient-name" style="font-weight: 600;"><?php echo htmlspecialchars($patient['first_name'] ?? 'Unknown'); ?></div>
-                            </td>
-                            <td><?php echo htmlspecialchars($patient['middle_name'] ?? ''); ?></td>
-                            <td>
-                                <div class="patient-name" style="font-weight: 600;"><?php echo htmlspecialchars($patient['last_name'] ?? 'Unknown'); ?></div>
+                                <div class="patient-name" style="font-weight: 600;">
+                                    <?php 
+                                    echo "<!-- DEBUG: first=" . ($patient['first_name'] ?? 'NULL') . " last=" . ($patient['last_name'] ?? 'NULL') . " -->";
+                                    echo htmlspecialchars(($patient['first_name'] ?? '') . ' ' . ($patient['last_name'] ?? ''));
+                                    ?>
+                                </div>
                             </td>
                             <td>
                                 <div style="font-size: 0.9rem;">
@@ -172,7 +203,45 @@ try {
             </table>
         </div>
     <?php endif; ?>
-</div>
+
+    <!-- Pagination -->
+    <?php if ($totalPatients > 0): ?>
+    <div class="pagination">
+        <span class="pagination-info">Showing <?php echo $showingStart; ?>-<?php echo $showingEnd; ?> of <?php echo $totalPatients; ?> patients</span>
+        <div class="pagination-buttons">
+            <?php 
+            $queryString = $_GET;
+            unset($queryString['page']);
+            $baseUrl = '?' . http_build_query($queryString);
+            if (!empty($queryString)) $baseUrl .= '&';
+            ?>
+            <?php if ($currentPage > 1): ?>
+                <a href="<?php echo $baseUrl; ?>page=<?php echo $currentPage - 1; ?>" class="pagination-btn">Previous</a>
+            <?php else: ?>
+                <button class="pagination-btn" disabled>Previous</button>
+            <?php endif; ?>
+            
+            <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                <?php if ($i == 1 || $i == $totalPages || ($i >= $currentPage - 1 && $i <= $currentPage + 1)): ?>
+                    <?php if ($i == $currentPage): ?>
+                        <button class="pagination-btn active"><?php echo $i; ?></button>
+                    <?php else: ?>
+                        <a href="<?php echo $baseUrl; ?>page=<?php echo $i; ?>" class="pagination-btn"><?php echo $i; ?></a>
+                    <?php endif; ?>
+                <?php elseif ($i == $currentPage - 2 || $i == $currentPage + 2): ?>
+                    <span class="pagination-ellipsis">...</span>
+                <?php endif; ?>
+            <?php endfor; ?>
+            
+            <?php if ($currentPage < $totalPages): ?>
+                <a href="<?php echo $baseUrl; ?>page=<?php echo $currentPage + 1; ?>" class="pagination-btn">Next</a>
+            <?php else: ?>
+                <button class="pagination-btn" disabled>Next</button>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+
 
 <!-- Patient Details Modal - Full Screen -->
 <div id="patientModal" class="fullscreen-modal-overlay">
@@ -1157,6 +1226,151 @@ setInterval(() => {
 <!-- styles -->
 
 <style>
+/* Table Styles - Match admin_patients */
+.table-container {
+    overflow-x: visible;
+    overflow-y: visible;
+    background: white;
+    border-radius: 12px;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table thead {
+    background: #f9fafb;
+}
+
+.data-table th {
+    padding: 14px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: #6b7280;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.data-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #f3f4f6;
+    color: #374151;
+    font-size: 0.875rem;
+}
+
+.data-table tbody tr:hover {
+    background: #f9fafb;
+}
+
+.data-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Column Alignment */
+.data-table th,
+.data-table td {
+    vertical-align: middle;
+    text-align: left;
+}
+
+.data-table th:nth-child(5),
+.data-table td:nth-child(5),
+.data-table th:nth-child(6),
+.data-table td:nth-child(6),
+.data-table th:nth-child(7),
+.data-table td:nth-child(7),
+.data-table th:nth-child(8),
+.data-table td:nth-child(8) {
+    text-align: center;
+}
+
+.data-table th:last-child,
+.data-table td:last-child {
+    text-align: center;
+    width: 60px;
+}
+
+/* Patient Name */
+.patient-name {
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.patient-contact {
+    font-size: 0.85rem;
+    color: #6b7280;
+}
+
+/* Status Badge */
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    display: inline-block;
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 20px;
+}
+
+.pagination-info {
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
+.pagination-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.pagination-btn {
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    background: white;
+    color: #374151;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    min-width: 40px;
+    text-align: center;
+}
+
+.pagination-btn:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+}
+
+.pagination-btn.active {
+    background: #2563eb;
+    color: white;
+    border-color: #2563eb;
+}
+
+.pagination-btn:disabled {
+    background: #f9fafb;
+    color: #9ca3af;
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.pagination-ellipsis {
+    padding: 8px 4px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
 .modal-overlay {
     display: none;
     position: fixed;

@@ -28,13 +28,32 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'staff') {
 }
 
 $username = $_SESSION['username'] ?? 'Staff';
-$displayName = $_SESSION['display_name'] ?? 'Staff';
-// Keep honorific if present; show first given name
-$firstNameOnly = trim(explode(' ', preg_replace('/^Dr\\.?\\s*/i', '', $displayName), 2)[0] ?? $displayName);
-if ($firstNameOnly === '') {
-    $firstNameOnly = $username;
+$displayName = trim($_SESSION['display_name'] ?? 'Staff Member');
+
+// Extract honorific if present and clean the name
+$honorific = '';
+if (preg_match('/^Dr\.?\s+/i', $displayName, $matches)) {
+    $honorific = 'Dr. ';
+    $cleanName = trim(substr($displayName, strlen($matches[0])));
+} else {
+    $cleanName = $displayName;
 }
-$displayHeaderName = (stripos($displayName, 'dr.') === 0 ? 'Dr. ' : '') . $firstNameOnly;
+
+// Split the clean name into parts to get First and Last name
+$nameParts = array_values(array_filter(explode(' ', $cleanName)));
+
+if (count($nameParts) > 1) {
+    // Has multiple names: combine the first index and the last index
+    $processedName = $nameParts[0] . ' ' . end($nameParts);
+} elseif (count($nameParts) === 1) {
+    // Only has one name
+    $processedName = $nameParts[0];
+} else {
+    // Fallback if empty
+    $processedName = $username;
+}
+
+$displayHeaderName = $honorific . $processedName;
 
 // Header notifications (lightweight counts)
 $newAppointmentsToday = 0;
@@ -58,8 +77,6 @@ try {
     $newAppointmentsToday = 0;
     $pendingPaymentsCount = 0;
 }
-
-$notificationTotal = $newAppointmentsToday + $pendingPaymentsCount;
 
 $notificationTotal = $newAppointmentsToday + $pendingPaymentsCount;
 
@@ -96,7 +113,7 @@ function isActivePage($page) {
             }
         }
 
-        /* Prevent layout shifts during page loads */d0
+        /* Prevent layout shifts during page loads */
         .content-area {
             contain: content;
         }
@@ -266,7 +283,6 @@ function isActivePage($page) {
 <body data-user-id="<?php echo (int)($_SESSION['user_id'] ?? 0); ?>">
     <div class="page-loader"></div>
 
-    <!-- Left Sidebar - Staff Navigation -->
     <aside class="sidebar" id="staffSidebar">
         <div class="sidebar-logo">
             <img src="assets/images/Logo.png" alt="RF Logo">
@@ -339,12 +355,9 @@ function isActivePage($page) {
         </nav>
     </aside>
 
-    <!-- Main Content -->
     <main class="main-content">
-        <!-- Sidebar Overlay for mobile -->
         <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-        <!-- Top Header -->
         <header class="top-header">
             <div class="header-left">
                 <button class="menu-toggle" id="menuToggle" type="button" aria-label="Toggle sidebar" aria-controls="staffSidebar">
@@ -416,7 +429,6 @@ function isActivePage($page) {
             </div>
         </header>
 
-        <!-- Content Area with Smooth Transitions -->
         <div class="content-area">
             <div class="content-main">
-                <!-- Page content will be loaded here -->
+                ```

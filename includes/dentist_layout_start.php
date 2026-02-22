@@ -35,13 +35,34 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'dentist') {
 
 // Get user info from session
 $username = $_SESSION['username'] ?? 'Dentist';
-$displayName = $_SESSION['display_name'] ?? 'Dr. Dentist';
-// Keep "Dr." but only show the first given name after it
-$firstNameOnly = trim(explode(' ', preg_replace('/^Dr\\.?\\s*/i', '', $displayName), 2)[0] ?? $displayName);
-if ($firstNameOnly === '') {
-    $firstNameOnly = $username;
+$displayName = trim($_SESSION['display_name'] ?? 'Dr. Dentist');
+
+// Extract honorific if present and clean the name
+$honorific = '';
+if (preg_match('/^Dr\.?\s+/i', $displayName, $matches)) {
+    $honorific = 'Dr. ';
+    $cleanName = trim(substr($displayName, strlen($matches[0])));
+} else {
+    // We explicitly ensure 'Dr. ' is added for dentists if it wasn't already in their display name
+    $honorific = 'Dr. ';
+    $cleanName = $displayName;
 }
-$displayHeaderName = 'Dr. ' . $firstNameOnly;
+
+// Split the clean name into parts to get First and Last name
+$nameParts = array_values(array_filter(explode(' ', $cleanName)));
+
+if (count($nameParts) > 1) {
+    // Has multiple names: combine the first index and the last index
+    $processedName = $nameParts[0] . ' ' . end($nameParts);
+} elseif (count($nameParts) === 1) {
+    // Only has one name
+    $processedName = $nameParts[0];
+} else {
+    // Fallback if empty
+    $processedName = $username;
+}
+
+$displayHeaderName = $honorific . $processedName;
 
 // Header notifications (lightweight counts)
 $newAppointmentsToday = 0;
@@ -206,7 +227,6 @@ function isActivePage($page) {
     </style>
 </head>
 <body data-user-id="<?php echo (int)($_SESSION['user_id'] ?? 0); ?>">
-    <!-- Left Sidebar - Dentist Navigation -->
     <aside class="sidebar" id="dentistSidebar">
         <div class="sidebar-logo">
             <img src="assets/images/Logo.png" alt="RF Logo">
@@ -252,7 +272,7 @@ function isActivePage($page) {
 
             <a href="dentist_prescriptions.php" class="nav-item <?php echo isActivePage('dentist_prescriptions.php') ? 'active' : ''; ?>">
                 <span class="nav-item-icon">
-                   
+                    
 <svg fill="#272020" width="24" height="24" viewBox="0 0 256 256" id="Flat" xmlns="http://www.w3.org/2000/svg">
   <path d="M188.9707,188l19.51465-19.51465a12.0001,12.0001,0,0,0-16.9707-16.9707L172,171.0293l-34.01074-34.01062A55.99228,55.99228,0,0,0,120,28H72A12,12,0,0,0,60,40V192a12,12,0,0,0,24,0V140h23.0293l48,48-19.51465,19.51465a12.0001,12.0001,0,0,0,16.9707,16.9707L172,204.9707l19.51465,19.51465a12.0001,12.0001,0,0,0,16.9707-16.9707ZM84,52h36a32,32,0,0,1,0,64H84Z"/>
 </svg>
@@ -277,12 +297,9 @@ function isActivePage($page) {
         
     </aside>
 
-    <!-- Main Content -->
     <main class="main-content">
-        <!-- Sidebar Overlay for mobile -->
         <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-        <!-- Top Header -->
         <header class="top-header">
             <div class="header-left">
                 <button class="menu-toggle" id="menuToggle" type="button" aria-label="Toggle sidebar" aria-controls="dentistSidebar">
@@ -354,6 +371,5 @@ function isActivePage($page) {
             </div>
         </header>
 
-        <!-- Content Area -->
         <div class="content-area">
             <div class="content-main">

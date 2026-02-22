@@ -203,9 +203,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>First Name</th>
-                                <th>Middle Name</th>
-                                <th>Last Name</th>
+                                <th>Name</th>
                                 <th>Contact</th>
                                 <th>Services</th>
                                 <th>Dentist</th>
@@ -217,7 +215,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                         <tbody id="patientsTableBody">
                             <?php if (empty($patients)): ?>
                                 <tr>
-                                    <td colspan="10" style="text-align: center; padding: 60px; color: #6b7280;">
+                                    <td colspan="7" style="text-align: center; padding: 60px; color: #6b7280;">
                                         No patients found
                                     </td>
                                 </tr>
@@ -238,11 +236,12 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                                         data-name="<?php echo strtolower(htmlspecialchars($patient['first_name'] ?? 'Unknown')); ?>"
                                         data-phone="<?php echo strtolower(htmlspecialchars($patient['phone'] ?? '')); ?>">
                                         <td>
-                                            <div class="patient-name"><?php echo htmlspecialchars($patient['first_name'] ?? 'Unknown'); ?></div>
-                                        </td>
-                                        <td><?php echo htmlspecialchars($patient['middle_name'] ?? ''); ?></td>
-                                        <td>
-                                            <div class="patient-name"><?php echo htmlspecialchars($patient['last_name'] ?? 'Unknown'); ?></div>
+                                            <div class="patient-name">
+                                                <?php 
+                                                echo "<!-- DEBUG: first=" . ($patient['first_name'] ?? 'NULL') . " last=" . ($patient['last_name'] ?? 'NULL') . " -->";
+                                                echo htmlspecialchars(($patient['first_name'] ?? '') . ' ' . ($patient['last_name'] ?? ''));
+                                                ?>
+                                            </div>
                                         </td>
                                         <td>
                                             <div class="patient-contact">
@@ -680,16 +679,16 @@ document.addEventListener('keydown', function(e) {
 .data-table td:first-child {
     text-align: left;
 }
+.data-table th:nth-child(2),
+.data-table td:nth-child(2),
+.data-table th:nth-child(3),
+.data-table td:nth-child(3),
+.data-table th:nth-child(4),
+.data-table td:nth-child(4),
 .data-table th:nth-child(5),
 .data-table td:nth-child(5),
 .data-table th:nth-child(6),
-.data-table td:nth-child(6),
-.data-table th:nth-child(7),
-.data-table td:nth-child(7),
-.data-table th:nth-child(8),
-.data-table td:nth-child(8),
-.data-table th:nth-child(9),
-.data-table td:nth-child(9) {
+.data-table td:nth-child(6) {
     text-align: center;
 }
 .data-table th:last-child,
