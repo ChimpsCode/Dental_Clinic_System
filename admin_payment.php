@@ -126,13 +126,10 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
 ?>
             <div class="content-main">
                 <!-- Page Header -->
-                <div class="page-header">
-                    <h2>Payment Overview</h2>
-                    <button class="btn-primary" onclick="exportPayment()">&#128229; Export Report</button>
-                </div>
+                
 
                 <!-- Stats Cards -->
-                <div class="summary-cards">
+                <div class="summary-cards" style="margin-top: 15px;">
                     <div class="summary-card">
                         <div class="summary-icon green">&#128176;</div>
                         <div class="summary-info">
@@ -177,6 +174,10 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                         <option value="month">This Month</option>
                         <option value="all">All Time</option>
                     </select>
+                    <div class="page-header">
+                    <h2>Payment Overview</h2>
+                    <button class="btn-primary" onclick="exportPayment()">&#128229; Export Report</button>
+                </div>
                 </div>
 
                 <!-- Payment Table -->
@@ -215,7 +216,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                                 <td><?php echo $invoiceNum; ?></td>
                                 <td>
                                     <?php if ($record['patient_id']): ?>
-                                    <a href="patient_records.php?id=<?php echo $record['patient_id']; ?>" style="color: #2563eb; text-decoration: none; font-weight: 500;">
+                                    <a href="patient_records.php?id=<?php echo $record['patient_id']; ?>" style="color: #374151; text-decoration: none; font-weight: 500;">
                                         <?php echo htmlspecialchars($fullName); ?>
                                     </a>
                                     <?php else: ?>
@@ -537,6 +538,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
 
                 var currentPrintId = null;
                 var currentInvoiceId = null;
+                var currentBillingId = null;
 
                 // Payment Kebab Menu - Portal Based (same as queue, patient-records)
                 let paymentKebabDropdown = null;
@@ -911,6 +913,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                     if (!payment) return;
                     
                     currentPrintId = invoiceId;
+                    currentBillingId = payment.billing_id;
                     
                     var statusBadge = payment.status === 'paid' 
                         ? '<span style="background: #d1fae5; color: #065f46; padding: 4px 12px; border-radius: 9999px; font-size: 0.85rem;">PAID</span>'
@@ -946,6 +949,18 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
 
                 // Confirm Print
                 function confirmPrint() {
+                    // Fire-and-forget log so reports can reflect print activity
+                    if (currentBillingId) {
+                        fetch('billing_actions.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'mark_printed',
+                                billing_id: currentBillingId
+                            })
+                        }).catch(() => {});
+                    }
+                    
                     window.print();
                 }
 

@@ -202,6 +202,90 @@ require_once 'includes/admin_layout_start.php';
     margin-right: 8px;
 }
 
+/* Archive meatball menu */
+.archive-kebab-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    color: #6b7280;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.archive-kebab-btn:hover,
+.archive-kebab-btn.active {
+    background-color: #f3f4f6;
+    color: #111827;
+}
+
+.archive-kebab-dropdown {
+    position: fixed;
+    display: none;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.2);
+    min-width: 170px;
+    z-index: 10000;
+    overflow: hidden;
+}
+
+.archive-kebab-dropdown.show {
+    display: block;
+    animation: fadeInKebab 0.16s ease;
+}
+
+.archive-kebab-dropdown a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    color: #374151;
+    text-decoration: none;
+    font-size: 0.95rem;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.archive-kebab-dropdown a:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+.archive-kebab-dropdown .danger {
+    color: #b91c1c;
+}
+
+.archive-kebab-dropdown .danger:hover {
+    background: #fef2f2;
+    color: #991b1b;
+}
+
+.archive-kebab-dropdown svg {
+    width: 18px;
+    height: 18px;
+    color: currentColor;
+}
+
+.archive-kebab-backdrop {
+    position: fixed;
+    inset: 0;
+    display: none;
+    z-index: 9999;
+}
+
+.archive-kebab-backdrop.show {
+    display: block;
+}
+
+@keyframes fadeInKebab {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 /* Summary Cards - 7 columns */
 .summary-cards.archive-stats {
     display: grid;
@@ -638,6 +722,10 @@ require_once 'includes/admin_layout_start.php';
             <p>This feature will be implemented in Phase 7.</p>
         </div>
     </div>
+
+    <!-- Archive meatball menu portal -->
+    <div id="archiveKebabDropdown" class="archive-kebab-dropdown"></div>
+    <div id="archiveKebabBackdrop" class="archive-kebab-backdrop"></div>
 </div>
 
 <script src="assets/js/archive.js"></script>

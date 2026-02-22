@@ -53,6 +53,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    initArchiveKebabMenu();
 });
 
 /**
@@ -211,11 +213,12 @@ function renderPatientTable(records) {
                 </div>
             </td>
             <td style="text-align: center;">
-                <button class="btn-restore btn-sm" onclick="singleAction('patients', ${patient.id}, 'restore')">
-                    Restore
-                </button>
-                <button class="btn-delete-forever btn-sm" onclick="singleAction('patients', ${patient.id}, 'delete_forever')">
-                    Delete Forever
+                <button class="archive-kebab-btn" type="button" data-module="patients" data-id="${patient.id}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="5" r="2"></circle>
+                        <circle cx="12" cy="12" r="2"></circle>
+                        <circle cx="12" cy="19" r="2"></circle>
+                    </svg>
                 </button>
             </td>
         </tr>
@@ -343,11 +346,12 @@ function renderAppointmentsTable(records) {
                 <div style="font-size: 0.85rem; color: #374151;">${formatDate(apt.deleted_at)}</div>
             </td>
             <td style="text-align: center;">
-                <button class="btn-restore btn-sm" onclick="singleAction('appointments', ${apt.id}, 'restore')">
-                    Restore
-                </button>
-                <button class="btn-delete-forever btn-sm" onclick="singleAction('appointments', ${apt.id}, 'delete_forever')">
-                    Delete Forever
+                <button class="archive-kebab-btn" type="button" data-module="appointments" data-id="${apt.id}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="5" r="2"></circle>
+                        <circle cx="12" cy="12" r="2"></circle>
+                        <circle cx="12" cy="19" r="2"></circle>
+                    </svg>
                 </button>
             </td>
         </tr>
@@ -550,11 +554,12 @@ function renderInquiriesTable(records) {
                 <div style="font-size: 0.85rem; color: #374151;">${formatDate(inquiry.deleted_at)}</div>
             </td>
             <td style="text-align: center;">
-                <button class="btn-restore btn-sm" onclick="singleAction('inquiries', ${inquiry.id}, 'restore')">
-                    Restore
-                </button>
-                <button class="btn-delete-forever btn-sm" onclick="singleAction('inquiries', ${inquiry.id}, 'delete_forever')">
-                    Delete Forever
+                <button class="archive-kebab-btn" type="button" data-module="inquiries" data-id="${inquiry.id}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="5" r="2"></circle>
+                        <circle cx="12" cy="12" r="2"></circle>
+                        <circle cx="12" cy="19" r="2"></circle>
+                    </svg>
                 </button>
             </td>
         </tr>
@@ -815,13 +820,138 @@ function singleAction(module, id, action) {
     let message = '';
     if (action === 'restore') {
         message = 'Restore this record? It will reappear in the main list.';
-    } else {
+    } else if (action === 'delete_forever') {
         message = 'WARNING: Permanently delete this record? This CANNOT be undone!';
+    } else {
+        message = 'Proceed with this action?';
     }
     
     if (!confirm(message)) return;
     
     performAction(module, action, [id]);
+}
+
+/**
+ * Archive meatball menu
+ */
+let archiveKebabDropdown = null;
+let archiveKebabBackdrop = null;
+let activeArchiveKebabButton = null;
+
+function initArchiveKebabMenu() {
+    archiveKebabDropdown = document.getElementById('archiveKebabDropdown');
+    archiveKebabBackdrop = document.getElementById('archiveKebabBackdrop');
+
+    if (!archiveKebabDropdown || !archiveKebabBackdrop) return;
+
+    document.addEventListener('click', handleArchiveKebabToggle);
+    archiveKebabDropdown.addEventListener('click', handleArchiveKebabAction);
+    archiveKebabBackdrop.addEventListener('click', closeArchiveKebabDropdown);
+    window.addEventListener('resize', closeArchiveKebabDropdown);
+    window.addEventListener('scroll', closeArchiveKebabDropdown, true);
+}
+
+function handleArchiveKebabToggle(e) {
+    const button = e.target.closest('.archive-kebab-btn');
+    const isKebabButton = Boolean(button);
+
+    if (!isKebabButton) {
+        if (!e.target.closest('.archive-kebab-dropdown')) {
+            closeArchiveKebabDropdown();
+        }
+        return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (activeArchiveKebabButton === button) {
+        closeArchiveKebabDropdown();
+        return;
+    }
+
+    openArchiveKebabDropdown(button);
+}
+
+function openArchiveKebabDropdown(button) {
+    if (!archiveKebabDropdown || !archiveKebabBackdrop) return;
+
+    const module = button.dataset.module;
+    const id = button.dataset.id;
+
+    archiveKebabDropdown.innerHTML = getArchiveKebabMarkup(module, id);
+    positionArchiveKebabDropdown(button);
+
+    archiveKebabDropdown.classList.add('show');
+    archiveKebabBackdrop.classList.add('show');
+    button.classList.add('active');
+    activeArchiveKebabButton = button;
+}
+
+function closeArchiveKebabDropdown() {
+    if (archiveKebabDropdown) {
+        archiveKebabDropdown.classList.remove('show');
+        archiveKebabDropdown.innerHTML = '';
+    }
+    if (archiveKebabBackdrop) {
+        archiveKebabBackdrop.classList.remove('show');
+    }
+    if (activeArchiveKebabButton) {
+        activeArchiveKebabButton.classList.remove('active');
+        activeArchiveKebabButton = null;
+    }
+}
+
+function positionArchiveKebabDropdown(button) {
+    const rect = button.getBoundingClientRect();
+    const dropdownWidth = 180;
+    const dropdownHeight = 140;
+    const padding = 12;
+
+    let left = rect.right + 6;
+    let top = rect.top;
+
+    if (left + dropdownWidth > window.innerWidth - padding) {
+        left = rect.left - dropdownWidth - 6;
+    }
+    if (left < padding) left = padding;
+
+    if (top + dropdownHeight > window.innerHeight - padding) {
+        top = rect.bottom - dropdownHeight;
+    }
+    if (top < padding) top = padding;
+
+    archiveKebabDropdown.style.left = `${left}px`;
+    archiveKebabDropdown.style.top = `${top}px`;
+}
+
+function getArchiveKebabMarkup(module, id) {
+    return `
+        <a href="#" data-action="restore" data-module="${module}" data-id="${id}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+            Restore
+        </a>
+        <a href="#" class="danger" data-action="delete_forever" data-module="${module}" data-id="${id}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            Delete Forever
+        </a>
+    `;
+}
+
+function handleArchiveKebabAction(e) {
+    const link = e.target.closest('a[data-action]');
+    if (!link) return;
+
+    e.preventDefault();
+    const action = link.dataset.action;
+    const module = link.dataset.module;
+    const id = parseInt(link.dataset.id, 10);
+
+    closeArchiveKebabDropdown();
+
+    if (!module || !id) return;
+
+    singleAction(module, id, action);
 }
 
 /**

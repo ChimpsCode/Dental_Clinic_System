@@ -14,6 +14,8 @@ $billingReport = [];
 $revenueReport = [];
 $servicesReport = [];
 $dailySummaryReport = [];
+$printedInvoices = [];
+$printedDaily = [];
 
 function buildReportTable($headers, $rows) {
     $thead = '<tr>' . implode('', array_map(fn($h) => '<th>' . htmlspecialchars($h) . '</th>', $headers)) . '</tr>';
@@ -83,7 +85,7 @@ try {
     $billingReport = $pdo->query("
         SELECT b.id, CONCAT(p.first_name, ' ', p.last_name) AS patient,
                b.total_amount, b.paid_amount, b.balance, b.payment_status,
-               b.billing_date, b.due_date
+               b.billing_date, b.due_date, b.printed_at
         FROM billing b
         LEFT JOIN patients p ON p.id = b.patient_id
         ORDER BY b.billing_date DESC
@@ -97,6 +99,27 @@ try {
         LEFT JOIN appointments a ON a.id = b.appointment_id
         GROUP BY service
         ORDER BY total DESC
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    // Recently printed invoices (last 7 days)
+    $printedInvoices = $pdo->query("
+        SELECT b.id, CONCAT(p.first_name, ' ', p.last_name) AS patient,
+               b.total_amount, b.payment_status, b.printed_at
+        FROM billing b
+        LEFT JOIN patients p ON p.id = b.patient_id
+        WHERE b.printed_at IS NOT NULL
+        ORDER BY b.printed_at DESC
+        LIMIT 20
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    // Printed counts per day (last 7 days)
+    $printedDaily = $pdo->query("
+        SELECT DATE(printed_at) AS day, COUNT(*) AS printed_count
+        FROM billing
+        WHERE printed_at IS NOT NULL
+          AND printed_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+        GROUP BY DATE(printed_at)
+        ORDER BY day ASC
     ")->fetchAll(PDO::FETCH_ASSOC);
 
     $servicesReport = $pdo->query("
@@ -114,6 +137,17 @@ try {
             ORDER BY total DESC
         ")->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    // Recently printed invoices (last 7 days)
+    $printedInvoices = $pdo->query("
+        SELECT b.id, CONCAT(p.first_name, ' ', p.last_name) AS patient,
+               b.total_amount, b.payment_status, b.printed_at
+        FROM billing b
+        LEFT JOIN patients p ON p.id = b.patient_id
+        WHERE b.printed_at IS NOT NULL
+        ORDER BY b.printed_at DESC
+        LIMIT 20
+    ")->fetchAll(PDO::FETCH_ASSOC);
 
     $dailySummaryReport = $pdo->query("
         SELECT
@@ -152,6 +186,8 @@ try {
     $revenueReport = [];
     $servicesReport = [];
     $dailySummaryReport = [];
+    $printedInvoices = [];
+    $printedDaily = [];
 }
 ?>
             <div class="content-main">
@@ -209,7 +245,7 @@ try {
                     </div>
                     <div class="report-card">
                         <div class="report-icon">&#128176;</div>
-                        <h3>Billing Report</h3>
+                        <h3>Payment Report</h3>
                         <p>Financial summary including all transactions, payments received, and pending amounts.</p>
                         <div class="report-actions">
                             <button class="btn-secondary" onclick="previewReport('billing')">Preview</button>
@@ -243,9 +279,27 @@ try {
                             <button class="btn-primary" onclick="printReport('daily')">&#128424; Print</button>
                         </div>
                     </div>
+                    <div class="report-card">
+                        <div class="report-icon">&#128424;</div>
+                        <h3>Printed Invoices</h3>
+                        <p>Recently printed payment invoices with amount, status, and timestamp.</p>
+                        <div class="report-actions">
+                            <button class="btn-secondary" onclick="previewReport('printed')">Preview</button>
+                            <button class="btn-primary" onclick="printReport('printed')">&#128424; Print</button>
+                        </div>
+                    </div>
+                    <div class="report-card">
+                        <div class="report-icon">&#128197;</div>
+                        <h3>Print Activity</h3>
+                        <p>Daily count of invoices printed in the last 7 days.</p>
+                        <div class="report-actions">
+                            <button class="btn-secondary" onclick="previewReport('printed_daily')">Preview</button>
+                            <button class="btn-primary" onclick="printReport('printed_daily')">&#128424; Print</button>
+                        </div>
+                    </div>
                 </div>
 
-                
+
             </div>
 
             <!-- Print Preview Modal -->
@@ -270,7 +324,9 @@ $reportPayload = [
     'billing' => $billingReport,
     'revenue' => $revenueReport,
     'services' => $servicesReport,
-    'daily' => $dailySummaryReport
+    'daily' => $dailySummaryReport,
+    'printed' => $printedInvoices,
+    'printed_daily' => $printedDaily
 ];
 $reportJson = json_encode($reportPayload, $jsonFlags);
 
@@ -296,7 +352,7 @@ $reportHtmlPayload = [
             $a['status'] ?? ''
         ], $appointmentsReport)
     )),
-    'billing' => buildReportHtml('Billing Report', buildReportTable(
+    'billing' => buildReportHtml('Payment Report', buildReportTable(
         ['Invoice', 'Patient', 'Total', 'Paid', 'Balance', 'Status', 'Date', 'Due'],
         array_map(fn($b) => [
             'INV-' . str_pad((string)($b['id'] ?? 0), 4, '0', STR_PAD_LEFT),
@@ -305,7 +361,7 @@ $reportHtmlPayload = [
             '₱' . number_format((float)($b['paid_amount'] ?? 0), 2),
             '₱' . number_format((float)($b['balance'] ?? 0), 2),
             $b['payment_status'] ?? '',
-            $b['billing_date'] ?? '',
+            $b['payment_date'] ?? $b['billing_date'] ?? '',
             $b['due_date'] ?? ''
         ], $billingReport)
     )),
@@ -322,6 +378,23 @@ $reportHtmlPayload = [
             $s['service'] ?? 'Service',
             $s['total'] ?? 0
         ], $servicesReport)
+    )),
+    'printed' => buildReportHtml('Recently Printed Invoices', buildReportTable(
+        ['Invoice #', 'Patient', 'Amount', 'Status', 'Printed At'],
+        array_map(fn($p) => [
+            'INV-' . str_pad($p['id'] ?? 0, 3, '0', STR_PAD_LEFT),
+            $p['patient'] ?? 'Unknown',
+            '₱' . number_format((float)($p['total_amount'] ?? 0), 2),
+            ucfirst($p['payment_status'] ?? 'unpaid'),
+            $p['printed_at'] ?? ''
+        ], $printedInvoices)
+    )),
+    'printed_daily' => buildReportHtml('Print Activity (Last 7 Days)', buildReportTable(
+        ['Date', 'Invoices Printed'],
+        array_map(fn($d) => [
+            $d['day'] ?? '',
+            $d['printed_count'] ?? 0
+        ], $printedDaily)
     )),
     'daily' => buildReportHtml('Daily Summary', buildReportTable(
         ['Date', 'New Patients', 'Appointments', 'Revenue'],
@@ -345,9 +418,11 @@ const reportHtml = JSON.parse(document.getElementById('reportHtml')?.textContent
 const reportTitles = {
     patients: 'Patient Report',
     appointments: 'Appointments Report',
-    billing: 'Billing Report',
+    billing: 'Payment Report',
     revenue: 'Revenue Report',
     services: 'Services Report',
+    printed: 'Recently Printed Invoices',
+    printed_daily: 'Print Activity (Last 7 Days)',
     daily: 'Daily Summary'
 };
 

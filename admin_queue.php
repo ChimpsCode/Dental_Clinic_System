@@ -254,6 +254,7 @@ div.main-content {
     gap: 20px;
     margin-bottom: 24px;
     width: 100%;
+    padding-top: 15px;
 }
 
 .summary-widget {
