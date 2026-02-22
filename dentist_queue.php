@@ -316,46 +316,79 @@ try {
     color: #6b7280;
     margin: 4px 0 0 0;
 }
-
-/* Control Bar */
+/* Align items neatly in a row */
+/* Force the container to keep items in a row */
 .control-bar {
-    background: white;
-    border-radius: 12px;
-    padding: 20px 24px;
-    border: 1px solid #e5e7eb;
-    margin-bottom: 0px;
-    display: flex;
-    gap: 16px;
+    display: flex !important;
+    flex-direction: row !important; /* Forces side-by-side layout */
     align-items: center;
+    gap: 16px;
     width: 100%;
+    margin-bottom: 24px;
+    flex-wrap: nowrap; /* Prevents items from wrapping to the next line */
+}
+
+/* Ensure the search container stretches, but not too far */
+.search-input-container {
+    flex: 1 !important;
+    max-width: auto !important;
+    position: relative;
+}
+
+/* Stop the dropdown from stretching 100% across the screen */
+.filter-select {
+    width: auto !important; 
+    min-width: 160px;
+    
+    /* Clean Styling */
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 0.95rem;
+    color: #334155;
+    outline: none;
+    height: 42px;
+    cursor: pointer;
+    
+    /* Custom clean arrow */
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2364748b%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
+    background-repeat: no-repeat;
+    background-position: right 14px top 50%;
+    background-size: 10px auto;
+    padding-right: 36px;
+}
+
+/* Positioning for the search magnifying glass */
+.search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    display: flex;
+}
+
+/* Ensure the input itself behaves */
+.search-input {
+    width: 100% !important;
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 10px 16px 10px 40px; /* 40px left padding avoids the icon */
+    font-size: 0.95rem;
+    color: #334155;
+    outline: none;
+    height: 42px;
     box-sizing: border-box;
 }
 
-.control-bar .search-input {
-    flex: 1;
-    padding: 12px 16px 12px 44px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    outline: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='%236b7280'%3E%3Cpath d='m19.6 21l-6.3-6.3q-.75.6-1.725.95T9.5 16q-2.725 0-4.612-1.888T3 9.5t1.888-4.612T9.5 3t4.613 1.888T16 9.5q0 1.1-.35 2.075T14.7 13.3l6.3 6.3zM9.5 14q1.875 0 3.188-1.312T14 9.5t-1.312-3.187T9.5 5T6.313 6.313T5 9.5t1.313 3.188T9.5 14'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: 14px center;
-    transition: border-color 0.2s;
-}
-
-.control-bar .search-input:focus {
-    border-color: #2563eb;
-}
-
-.control-bar .filter-select {
-    padding: 12px 16px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    background: white;
-    cursor: pointer;
-    min-width: 150px;
+.search-input:focus, .filter-select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 /* Main Content Override - Remove the 260px margin from layout */
@@ -771,12 +804,10 @@ div.main-content {
     .control-bar {
         flex-direction: column;
         align-items: stretch;
+        margin-bottom: 0px;
     }
     
-    .control-bar .search-input,
-    .control-bar .filter-select {
-        width: 100%;
-    }
+    
     
     .tabs-navigation {
         overflow-x: auto;
@@ -1002,7 +1033,16 @@ div.main-content {
 
 <!-- Control Bar -->
 <div class="control-bar">
-    <input type="text" class="search-input" id="queueSearch" placeholder="Search by name, treatment...">
+    <div class="search-input-container">
+        <span class="search-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+        </span>
+        <input type="text" class="search-input with-icon" id="queueSearch" placeholder="Search by name, treatment...">
+    </div>
+    
     <select class="filter-select" id="statusFilter">
         <option value="">All Status</option>
         <option value="waiting">Waiting</option>

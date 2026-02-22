@@ -206,7 +206,6 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                                 <th>First Name</th>
                                 <th>Middle Name</th>
                                 <th>Last Name</th>
-                                <th>Suffix</th>
                                 <th>Contact</th>
                                 <th>Services</th>
                                 <th>Dentist</th>
@@ -245,7 +244,6 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                                         <td>
                                             <div class="patient-name"><?php echo htmlspecialchars($patient['last_name'] ?? 'Unknown'); ?></div>
                                         </td>
-                                        <td><?php echo htmlspecialchars($patient['suffix'] ?? ''); ?></td>
                                         <td>
                                             <div class="patient-contact">
                                                 <div><?php echo htmlspecialchars($patient['phone'] ?: 'N/A'); ?></div>
@@ -672,6 +670,41 @@ document.addEventListener('keydown', function(e) {
 </script>
 
 <style>
+/* Table Column Alignment */
+.data-table th,
+.data-table td {
+    vertical-align: middle;
+    text-align: left;
+}
+.data-table th:first-child,
+.data-table td:first-child {
+    text-align: left;
+}
+.data-table th:nth-child(5),
+.data-table td:nth-child(5),
+.data-table th:nth-child(6),
+.data-table td:nth-child(6),
+.data-table th:nth-child(7),
+.data-table td:nth-child(7),
+.data-table th:nth-child(8),
+.data-table td:nth-child(8),
+.data-table th:nth-child(9),
+.data-table td:nth-child(9) {
+    text-align: center;
+}
+.data-table th:last-child,
+.data-table td:last-child {
+    text-align: center;
+    width: 60px;
+}
+
+/* Patient Contact */
+.patient-contact {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
 /* Status Badge Styles */
 .status-badge {
     padding: 4px 12px;

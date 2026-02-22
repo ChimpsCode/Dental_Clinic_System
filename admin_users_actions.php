@@ -14,7 +14,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? null) !== 'admin') {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
-}
+}   
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 

@@ -53,14 +53,17 @@ try {
 </div>
 
 <!-- Search & Filters -->
-<div class="search-filters">
-    <input type="text" id="searchInput" placeholder="Search by name or phone..." class="search-input" style="flex: 1;">
+
+<div class="search-filter-row">
+    <input type="text" id="searchInput" placeholder="Search by name or phone..." class="search-input">
+    
     <select id="statusFilter" class="filter-select">
         <option value="">All Status</option>
         <option value="waiting">Waiting</option>
         <option value="in_procedure">In Procedure</option>
         <option value="completed">Completed</option>
     </select>
+    
     <select id="sortFilter" class="filter-select">
         <option value="newest">Newest First</option>
         <option value="name">Name (A-Z)</option>
@@ -186,241 +189,6 @@ try {
         </div>
     </div>
 </div>
-
-<style>
-.fullscreen-modal-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 99999;
-    align-items: center;
-    justify-content: center;
-}
-
-.fullscreen-modal-overlay.active,
-.fullscreen-modal-overlay[style*="display: flex"] {
-    display: flex !important;
-}
-
-.fullscreen-modal-content {
-    background: white;
-    border-radius: 16px;
-    width: 95%;
-    max-width: 900px;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    position: relative;
-    z-index: 100000;
-}
-
-.fullscreen-modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 24px;
-    border-bottom: 1px solid #e5e7eb;
-    position: sticky;
-    top: 0;
-    background: white;
-    z-index: 10;
-}
-
-.fullscreen-modal-close {
-    background: none;
-    border: none;
-    font-size: 2rem;
-    cursor: pointer;
-    color: #6b7280;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    transition: all 0.2s;
-}
-
-.fullscreen-modal-close:hover {
-    background: #f3f4f6;
-    color: #111827;
-}
-
-.fullscreen-modal-body {
-    padding: 24px;
-}
-
-/* Patient Kebab Menu Styles */
-.patient-kebab-menu {
-    position: relative;
-    display: inline-block;
-}
-
-.patient-kebab-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 8px;
-    border-radius: 50%;
-    color: #6b7280;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-}
-
-.patient-kebab-btn:hover {
-    background-color: #f3f4f6;
-    color: #374151;
-}
-
-.patient-kebab-btn.active {
-    background-color: #e5e7eb;
-    color: #111827;
-}
-
-.patient-kebab-dropdown-portal {
-    display: none;
-    position: fixed;
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-    min-width: 200px;
-    max-width: 220px;
-    width: auto;
-    z-index: 99999;
-    overflow: hidden;
-}
-
-.patient-kebab-dropdown-portal.show {
-    display: block;
-    animation: patientKebabFadeIn 0.15s ease;
-}
-
-@keyframes patientKebabFadeIn {
-    from { opacity: 0; transform: scale(0.95) translateY(-4px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-.patient-kebab-dropdown-portal a {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 16px;
-    color: #374151;
-    text-decoration: none;
-    font-size: 0.875rem;
-    transition: all 0.15s ease;
-    cursor: pointer;
-    white-space: nowrap;
-}
-
-.patient-kebab-dropdown-portal a:hover {
-    background-color: #f9fafb;
-    color: #111827;
-}
-
-.patient-kebab-dropdown-portal a svg {
-    flex-shrink: 0;
-}
-
-.patient-kebab-dropdown-portal a:first-child {
-    border-radius: 8px 8px 0 0;
-}
-
-.patient-kebab-dropdown-portal a:last-child {
-    border-radius: 0 0 8px 8px;
-}
-
-.patient-kebab-backdrop {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 99998;
-}
-
-.patient-kebab-backdrop.show {
-    display: block;
-}
-
-/* Form Styles */
-.form-group {
-    margin-bottom: 16px;
-}
-
-.form-group label {
-    display: block;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: #374151;
-    margin-bottom: 6px;
-}
-
-.form-group .form-control {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 0.875rem;
-    outline: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.form-group .form-control:focus {
-    border-color: #0ea5e9;
-    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
-}
-
-.modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    margin-top: 24px;
-    padding-top: 20px;
-    border-top: 1px solid #e5e7eb;
-}
-
-.btn-primary {
-    padding: 10px 20px;
-    background: #0ea5e9;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.btn-primary:hover {
-    background: #0284c7;
-}
-
-.btn-cancel {
-    padding: 10px 20px;
-    background: white;
-    color: #374151;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.btn-cancel:hover {
-    background: #f9fafb;
-    border-color: #9ca3af;
-}
-</style>
 
 <script>
 const latestPatientId = <?php echo (int)($patients[0]['id'] ?? 0); ?>;
@@ -1106,256 +874,7 @@ function getDentistTeethDisplayText(teethString) {
     </div>
 </div>
 
-<style>
-.modal-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    z-index: 99999;
-}
 
-.modal-overlay.active {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.modal-backdrop {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    animation: backdropFadeIn 0.3s ease;
-}
-
-.modal-overlay.active .modal-backdrop {
-    display: block;
-}
-
-@keyframes backdropFadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-.modal-container {
-    position: relative;
-    z-index: 100000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    padding: 20px;
-    pointer-events: none;
-}
-
-.modal-overlay.active .modal-container {
-    animation: modalSlideIn 0.3s ease;
-    pointer-events: auto;
-}
-
-@keyframes modalSlideIn {
-    from {
-        opacity: 0;
-        transform: scale(0.95) translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-    }
-}
-
-.modal {
-    background: white;
-    border-radius: 16px;
-    padding: 32px;
-    max-width: 520px;
-    width: 100%;
-    max-height: 85vh;
-    overflow-y: auto;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
-    pointer-events: auto;
-}
-
-/* Billing Modal Styles */
-.billing-section {
-    margin-bottom: 20px;
-}
-
-.billing-section h4 {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: #374151;
-    margin-bottom: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.billing-amount-display {
-    background: #f9fafb;
-    border: 2px dashed #d1d5db;
-    border-radius: 12px;
-    padding: 20px;
-    text-align: center;
-    margin-bottom: 16px;
-}
-
-.billing-amount-label {
-    font-size: 0.875rem;
-    color: #6b7280;
-    margin-bottom: 4px;
-}
-
-.billing-amount-value {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #111827;
-}
-
-.billing-amount-value.editable {
-    cursor: pointer;
-    color: #0ea5e9;
-    transition: color 0.2s;
-}
-
-.billing-amount-value.editable:hover {
-    color: #0284c7;
-}
-
-.billing-status-badge {
-    display: inline-block;
-    padding: 4px 12px;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-}
-
-.billing-status-paid { background: #d1fae5; color: #065f46; }
-.billing-status-partial { background: #fef3c7; color: #92400e; }
-.billing-status-unpaid { background: #fee2e2; color: #991b1b; }
-
-.billing-details-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-top: 16px;
-}
-
-.billing-detail-item {
-    background: #f9fafb;
-    border-radius: 8px;
-    padding: 12px;
-}
-
-.billing-detail-label {
-    font-size: 0.75rem;
-    color: #6b7280;
-    margin-bottom: 4px;
-}
-
-.billing-detail-value {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #111827;
-}
-
-.edit-amount-form {
-    display: none;
-    background: #eff6ff;
-    border: 1px solid #bfdbfe;
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 16px;
-}
-
-.edit-amount-form.active {
-    display: block;
-}
-
-.edit-amount-form .form-group {
-    margin-bottom: 12px;
-}
-
-.edit-amount-form .form-control {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 1.25rem;
-    font-weight: 600;
-    text-align: center;
-}
-
-.edit-amount-form .form-control:focus {
-    outline: none;
-    border-color: #0ea5e9;
-    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
-}
-
-.btn-save {
-    background: #0ea5e9;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 10px 20px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.btn-save:hover {
-    background: #0284c7;
-}
-
-.btn-cancel-edit {
-    background: white;
-    color: #6b7280;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    padding: 10px 20px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.btn-cancel-edit:hover {
-    background: #f3f4f6;
-}
-
-.btn-edit {
-    background: white;
-    color: #0ea5e9;
-    border: 1px solid #0ea5e9;
-    border-radius: 8px;
-    padding: 8px 16px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.btn-edit:hover {
-    background: #eff6ff;
-}
-
-.billing-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    margin-top: 20px;
-    padding-top: 16px;
-    border-top: 1px solid #e5e7eb;
-}
-</style>
 
 <!-- Billing Modal -->
 <div id="billingModal" class="modal-overlay">
@@ -1630,4 +1149,550 @@ setInterval(() => {
 }, 10000);
 </script>
 
+
+
+
+
+
+<!-- styles -->
+
+<style>
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 99999;
+}
+
+.modal-overlay.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: backdropFadeIn 0.3s ease;
+}
+
+.modal-overlay.active .modal-backdrop {
+    display: block;
+}
+
+@keyframes backdropFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-container {
+    position: relative;
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 20px;
+    pointer-events: none;
+}
+
+.modal-overlay.active .modal-container {
+    animation: modalSlideIn 0.3s ease;
+    pointer-events: auto;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.modal {
+    background: white;
+    border-radius: 16px;
+    padding: 32px;
+    max-width: 520px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+    pointer-events: auto;
+}
+
+/* Billing Modal Styles */
+.billing-section {
+    margin-bottom: 20px;
+}
+
+.billing-section h4 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.billing-amount-display {
+    background: #f9fafb;
+    border: 2px dashed #d1d5db;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+.billing-amount-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-bottom: 4px;
+}
+
+.billing-amount-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #111827;
+}
+
+.billing-amount-value.editable {
+    cursor: pointer;
+    color: #0ea5e9;
+    transition: color 0.2s;
+}
+
+.billing-amount-value.editable:hover {
+    color: #0284c7;
+}
+
+.billing-status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.billing-status-paid { background: #d1fae5; color: #065f46; }
+.billing-status-partial { background: #fef3c7; color: #92400e; }
+.billing-status-unpaid { background: #fee2e2; color: #991b1b; }
+
+.billing-details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.billing-detail-item {
+    background: #f9fafb;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.billing-detail-label {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-bottom: 4px;
+}
+
+.billing-detail-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #111827;
+}
+
+.edit-amount-form {
+    display: none;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+}
+
+.edit-amount-form.active {
+    display: block;
+}
+
+.edit-amount-form .form-group {
+    margin-bottom: 12px;
+}
+
+.edit-amount-form .form-control {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 1.25rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+.edit-amount-form .form-control:focus {
+    outline: none;
+    border-color: #0ea5e9;
+    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+}
+
+.btn-save {
+    background: #0ea5e9;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-save:hover {
+    background: #0284c7;
+}
+
+.btn-cancel-edit {
+    background: white;
+    color: #6b7280;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-cancel-edit:hover {
+    background: #f3f4f6;
+}
+
+.btn-edit {
+    background: white;
+    color: #0ea5e9;
+    border: 1px solid #0ea5e9;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-edit:hover {
+    background: #eff6ff;
+}
+
+.billing-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+}
+.summary-cards{
+    margin-bottom: 0px;
+}
+/* Container (Keeping this the same so they stay in a row) */
+.search-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    width: 100%;
+    padding: 10px 0;
+    /* Optional: A light gray background on your page makes the white box pop */
+    /* background-color: #f8f9fa; */ 
+}
+
+/* The Clean Search Box */
+.search-input {
+    flex: 1;
+    background-color: #ffffff;      /* Solid white background */
+    border: 1px solid #d1d5db;      /* Light, clean gray border */
+    border-radius: 8px;             /* Smooth rounded corners */
+    padding: 12px 16px;             /* Gives the text room to breathe */
+    font-size: 15px;
+    color: #374151;                 /* Dark gray text for readability */
+    outline: none;                  /* Removes the harsh default browser outline */
+    transition: border-color 0.2s ease; /* Smooth transition when clicked */
+}
+.filter-select{
+    border-radius: 8px;
+    height: 43px;
+    border: 1px solid #d1d5db;   
+}
+
+/* Styling the placeholder text specifically */
+.search-input::placeholder {
+    color: #9ca3af;                 /* Matches the soft gray in your image */
+}
+
+/* Optional: Slight color change when the user clicks inside */
+.search-input:focus {
+    border-color: #9ca3af;          /* Slightly darker gray border when active */
+}
+
+/* ---------------------- */
+
+
+
+.fullscreen-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 99999;
+    align-items: center;
+    justify-content: center;
+}
+
+.fullscreen-modal-overlay.active,
+.fullscreen-modal-overlay[style*="display: flex"] {
+    display: flex !important;
+}
+
+.fullscreen-modal-content {
+    background: white;
+    border-radius: 16px;
+    width: 95%;
+    max-width: 900px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    position: relative;
+    z-index: 100000;
+}
+
+.fullscreen-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px;
+    border-bottom: 1px solid #e5e7eb;
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 10;
+}
+
+.fullscreen-modal-close {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    cursor: pointer;
+    color: #6b7280;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.fullscreen-modal-close:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+.fullscreen-modal-body {
+    padding: 24px;
+}
+
+/* Patient Kebab Menu Styles */
+.patient-kebab-menu {
+    position: relative;
+    display: inline-block;
+}
+
+.patient-kebab-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.patient-kebab-btn:hover {
+    background-color: #f3f4f6;
+    color: #374151;
+}
+
+.patient-kebab-btn.active {
+    background-color: #e5e7eb;
+    color: #111827;
+}
+
+.patient-kebab-dropdown-portal {
+    display: none;
+    position: fixed;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    min-width: 200px;
+    max-width: 220px;
+    width: auto;
+    z-index: 99999;
+    overflow: hidden;
+}
+
+.patient-kebab-dropdown-portal.show {
+    display: block;
+    animation: patientKebabFadeIn 0.15s ease;
+}
+
+@keyframes patientKebabFadeIn {
+    from { opacity: 0; transform: scale(0.95) translateY(-4px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.patient-kebab-dropdown-portal a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    color: #374151;
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: all 0.15s ease;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.patient-kebab-dropdown-portal a:hover {
+    background-color: #f9fafb;
+    color: #111827;
+}
+
+.patient-kebab-dropdown-portal a svg {
+    flex-shrink: 0;
+}
+
+.patient-kebab-dropdown-portal a:first-child {
+    border-radius: 8px 8px 0 0;
+}
+
+.patient-kebab-dropdown-portal a:last-child {
+    border-radius: 0 0 8px 8px;
+}
+
+.patient-kebab-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 99998;
+}
+
+.patient-kebab-backdrop.show {
+    display: block;
+}
+
+/* Form Styles */
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 6px;
+}
+
+.form-group .form-control {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group .form-control:focus {
+    border-color: #0ea5e9;
+    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.btn-primary {
+    padding: 10px 20px;
+    background: #0ea5e9;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover {
+    background: #0284c7;
+}
+
+.btn-cancel {
+    padding: 10px 20px;
+    background: white;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-cancel:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+}
+
+
+.content-area{
+    padding: 20px 20px;
+    margin-bottom: 40px;
+}
+
+</style>
+
 <?php require_once 'includes/dentist_layout_end.php'; ?>
+
+
+

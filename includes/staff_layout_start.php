@@ -60,6 +60,8 @@ try {
 
 $notificationTotal = $newAppointmentsToday + $pendingPaymentsCount;
 
+$notificationTotal = $newAppointmentsToday + $pendingPaymentsCount;
+
 $pageTitle = $pageTitle ?? 'Staff Dashboard';
 
 function isActivePage($page) {
@@ -112,6 +114,129 @@ function isActivePage($page) {
         }
 
         /* Stable header styling */
+        
+        /* Notifications */
+        .header-notifications {
+            position: relative;
+        }
+        .notification-bell {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: all 0.2s;
+        }
+        .notification-bell:hover,
+        .header-notifications:focus-within .notification-bell {
+            background: #f3f4f6;
+            color: #111827;
+        }
+        .notification-badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: #ef4444;
+            color: white;
+            font-size: 10px;
+            font-weight: 600;
+            min-width: 16px;
+            height: 16px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+        }
+        .notification-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            min-width: 280px;
+            z-index: 1000;
+            overflow: hidden;
+        }
+        .header-notifications.active .notification-dropdown,
+        .header-notifications:focus-within .notification-dropdown {
+            display: block;
+            animation: notificationFadeIn 0.2s ease;
+        }
+        @keyframes notificationFadeIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .notification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e7eb;
+            font-weight: 600;
+            color: #111827;
+        }
+        .notification-count {
+            background: #fee2e2;
+            color: #dc2626;
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+        .notification-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .notification-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid #f3f4f6;
+            transition: background 0.15s;
+        }
+        .notification-item:hover {
+            background: #f9fafb;
+        }
+        .notification-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .notification-text {
+            font-size: 13px;
+            color: #374151;
+            line-height: 1.4;
+        }
+        .see-all-btn {
+            width: 100%;
+            padding: 12px;
+            background: #f9fafb;
+            border: none;
+            color: #2563eb;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: center;
+            transition: background 0.15s;
+        }
+        .see-all-btn:hover {
+            background: #eff6ff;
+        }
+        
+        /* Header right spacing */
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
         .top-header {
             position: sticky;
             top: 0;
@@ -232,6 +357,33 @@ function isActivePage($page) {
                 </div>
             </div>
             <div class="header-right">
+                <div class="header-notifications" id="notificationDropdown">
+                    <button class="notification-bell" type="button" aria-label="Notifications">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 1 0-12 0v5L4 18v1h16v-1z"/>
+                        </svg>
+                        <?php if ($notificationTotal > 0): ?>
+                            <span class="notification-badge"><?php echo $notificationTotal; ?></span>
+                        <?php endif; ?>
+                    </button>
+                    <div class="notification-dropdown">
+                        <div class="notification-header">
+                            <span>Notifications</span>
+                            <span class="notification-count"><?php echo $notificationTotal; ?></span>
+                        </div>
+                        <div class="notification-list">
+                            <div class="notification-item">
+                                <div class="notification-icon">📅</div>
+                                <div class="notification-text"><?php echo $newAppointmentsToday; ?> new appointments today</div>
+                            </div>
+                            <div class="notification-item">
+                                <div class="notification-icon">⚠️</div>
+                                <div class="notification-text"><?php echo $pendingPaymentsCount; ?> pending payments require attention</div>
+                            </div>
+                        </div>
+                        <button class="see-all-btn" type="button">See all notifications</button>
+                    </div>
+                </div>
                 <div class="header-user-summary">
                     <div class="header-user-name"><?php echo htmlspecialchars($firstNameOnly); ?></div>
                     <div class="header-user-role"><?php echo htmlspecialchars(ucfirst($_SESSION['role'] ?? 'staff')); ?></div>
