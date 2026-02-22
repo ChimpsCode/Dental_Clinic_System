@@ -73,7 +73,7 @@ try {
                 SELECT pr.*, 
                        CONCAT(p.first_name, ' ', p.last_name) as patient_name,
                        p.age,
-                       u.full_name as doctor_name
+                       u.username as doctor_name
                 FROM prescriptions pr
                 LEFT JOIN patients p ON pr.patient_id = p.id
                 LEFT JOIN users u ON pr.doctor_id = u.id
@@ -117,7 +117,8 @@ try {
             $stmt = $pdo->prepare("
                 SELECT p.id, CONCAT(p.first_name, ' ', p.last_name) as patient_name, 
                        p.age, p.phone,
-                       mh.allergies, mh.current_medications, mh.medical_conditions
+                       mh.allergies, mh.current_medications, mh.medical_conditions,
+                       mh.blood_pressure, mh.heart_rate, mh.other_notes
                 FROM patients p
                 LEFT JOIN medical_history mh ON p.id = mh.patient_id
                 WHERE p.id = ?
@@ -190,7 +191,7 @@ try {
                 SELECT pr.*, 
                        CONCAT(p.first_name, ' ', p.last_name) as patient_name,
                        p.age, p.phone,
-                       u.full_name as doctor_name
+                       u.username as doctor_name
                 FROM prescriptions pr
                 LEFT JOIN patients p ON pr.patient_id = p.id
                 LEFT JOIN users u ON pr.doctor_id = u.id

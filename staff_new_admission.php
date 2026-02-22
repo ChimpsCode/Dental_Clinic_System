@@ -648,27 +648,27 @@ if (isset($_GET['appointment_id']) && is_numeric($_GET['appointment_id'])) {
                             <label class="block text-sm font-medium text-slate-600 mb-3">Do you have any of the following?</label>
                             <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                                 <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
-                                    <input type="checkbox" name="medicalConditions" value="diabetes" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <input type="checkbox" name="medicalConditions[]" value="diabetes" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
                                     <span class="text-sm text-slate-600">Diabetes</span>
                                 </label>
                                 <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
-                                    <input type="checkbox" name="medicalConditions" value="heart_disease" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <input type="checkbox" name="medicalConditions[]" value="heart_disease" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
                                     <span class="text-sm text-slate-600">Heart Disease</span>
                                 </label>
                                 <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
-                                    <input type="checkbox" name="medicalConditions" value="high_bp" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <input type="checkbox" name="medicalConditions[]" value="high_bp" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
                                     <span class="text-sm text-slate-600">High Blood Pressure</span>
                                 </label>
                                 <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
-                                    <input type="checkbox" name="medicalConditions" value="asthma" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <input type="checkbox" name="medicalConditions[]" value="asthma" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
                                     <span class="text-sm text-slate-600">Asthma</span>
                                 </label>
                                 <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
-                                    <input type="checkbox" name="medicalConditions" value="allergies" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <input type="checkbox" name="medicalConditions[]" value="allergies" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
                                     <span class="text-sm text-slate-600">Allergies</span>
                                 </label>
                                 <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
-                                    <input type="checkbox" name="medicalConditions" value="surgery" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <input type="checkbox" name="medicalConditions[]" value="surgery" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
                                     <span class="text-sm text-slate-600">Previous Surgery</span>
                                 </label>
                             </div>
@@ -1005,7 +1005,7 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
             const noConditionsCheckbox = document.getElementById('noMedicalConditions');
             const conditionsSection = document.getElementById('medicalConditionsSection');
             const medicationsSection = document.getElementById('medicationsSection');
-            const conditionCheckboxes = document.querySelectorAll('input[name="medicalConditions"]');
+            const conditionCheckboxes = document.querySelectorAll('input[name="medicalConditions[]"]');
             const validationMessage = document.getElementById('medicalHistoryValidation');
             
             // Hide validation message when user takes action
@@ -1039,13 +1039,21 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
             }
         }
 
+        // Hide validation message when any medical condition checkbox changes
+        document.querySelectorAll('input[name="medicalConditions[]"]').forEach(cb => {
+            cb.addEventListener('change', () => {
+                const validationMessage = document.getElementById('medicalHistoryValidation');
+                if (validationMessage) validationMessage.classList.add('hidden');
+            });
+        });
+
         /**
          * Validate medical history step
          * @returns {boolean} True if valid, false otherwise
          */
         function validateMedicalHistory() {
             const noConditionsCheckbox = document.getElementById('noMedicalConditions');
-            const conditionCheckboxes = document.querySelectorAll('input[name="medicalConditions"]:checked');
+            const conditionCheckboxes = document.querySelectorAll('input[name="medicalConditions[]"]:checked');
             const validationMessage = document.getElementById('medicalHistoryValidation');
             
             // Valid if "No medical conditions" is checked OR at least one condition is selected
@@ -1155,7 +1163,7 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
 // Add event listeners to hide validation messages
         document.addEventListener('DOMContentLoaded', function() {
             // Medical history validation
-            const conditionCheckboxes = document.querySelectorAll('input[name="medicalConditions"]');
+            const conditionCheckboxes = document.querySelectorAll('input[name="medicalConditions[]"]');
             const medicalValidationMessage = document.getElementById('medicalHistoryValidation');
             
             conditionCheckboxes.forEach(cb => {
@@ -1799,12 +1807,24 @@ btn.classList.add('bg-blue-200', 'border-blue-400');
                 formData.append('selectedTeeth[]', tooth);
             });
 
-            // Get medical conditions
+            // Get medical conditions (unique) and ensure FormData has only these
             const medicalConditions = [];
-            document.querySelectorAll('input[name="medicalConditions"]:checked').forEach(cb => {
+            document.querySelectorAll('input[name="medicalConditions[]"]:checked').forEach(cb => {
                 medicalConditions.push(cb.value);
             });
-            data.medicalConditions = medicalConditions;
+            const noConditionsChecked = document.getElementById('noMedicalConditions')?.checked;
+            let finalConditions = medicalConditions;
+            if (noConditionsChecked) {
+                finalConditions = ['None'];
+            } else {
+                // dedupe
+                finalConditions = Array.from(new Set(medicalConditions));
+            }
+            data.medicalConditions = finalConditions;
+            // Clear any auto-collected entries to avoid duplicates
+            formData.delete('medicalConditions[]');
+            formData.delete('medicalConditions');
+            finalConditions.forEach(cond => formData.append('medicalConditions[]', cond));
 
             const patientName = data.firstName && data.lastName ? (data.firstName + ' ' + data.lastName) : 'Patient';
 

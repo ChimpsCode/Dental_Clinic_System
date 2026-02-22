@@ -8,19 +8,19 @@ try {
     // Get recent prescriptions for display
     $stmt = $pdo->query("
         SELECT pr.*, 
-               CONCAT(p.first_name, ' ', p.last_name) as patient_name,
+               CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
                p.age,
-               u.full_name as doctor_name
-        FROM prescriptions pr
-        LEFT JOIN patients p ON pr.patient_id = p.id
-        LEFT JOIN users u ON pr.doctor_id = u.id
+               u.username AS doctor_name
+        FROM `" . DB_NAME . "`.prescriptions pr
+        LEFT JOIN `" . DB_NAME . "`.patients p ON pr.patient_id = p.id
+        LEFT JOIN `" . DB_NAME . "`.users u ON pr.doctor_id = u.id
         ORDER BY pr.issue_date DESC, pr.created_at DESC
         LIMIT 20
     ");
     $prescriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Get today's prescription count
-    $todayStmt = $pdo->query("SELECT COUNT(*) FROM prescriptions WHERE DATE(created_at) = CURDATE()");
+    $todayStmt = $pdo->query("SELECT COUNT(*) FROM `" . DB_NAME . "`.prescriptions WHERE DATE(created_at) = CURDATE()");
     $todayCount = $todayStmt->fetchColumn();
     
 } catch (Exception $e) {
@@ -233,14 +233,90 @@ try {
     border-left: 3px solid #10b981;
     line-height: 1.4;
 }
-.prescription-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.btn-action { padding: 6px 12px; border: none; border-radius: 6px; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; font-weight: 500; }
-.btn-view { background: #eff6ff; color: #2563eb; }
-.btn-view:hover { background: #dbeafe; }
-.btn-edit { background: #fef3c7; color: #d97706; }
-.btn-edit:hover { background: #fde68a; }
-.btn-delete { background: #fef2f2; color: #dc2626; }
-.btn-delete:hover { background: #fee2e2; }
+.prescription-actions { position: relative; }
+.kebab-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 10px;
+    border-radius: 50%;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    font-size: 20px;
+    line-height: 1;
+    width: 40px;
+    height: 40px;
+}
+.kebab-btn:hover { background-color: #f3f4f6; color: #374151; }
+.kebab-btn.active { background-color: #e5e7eb; color: #111827; }
+.kebab-menu {
+    display: none;
+    position: fixed;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    min-width: 200px;
+    max-width: 220px;
+    width: auto;
+    z-index: 99999;
+    overflow: hidden;
+    animation: kebabFadeIn 0.15s ease;
+}
+.kebab-menu.show { display: block; }
+@keyframes kebabFadeIn {
+    from { opacity: 0; transform: scale(0.95) translateY(-4px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.kebab-menu button {
+    width: 100%;
+    text-align: left;
+    padding: 10px 16px;
+    border: none;
+    background: none;
+    font-size: 0.9rem;
+    color: #374151;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+.kebab-menu button:hover { background-color: #f9fafb; color: #111827; }
+.kebab-menu button:first-child { border-radius: 8px 8px 0 0; }
+.kebab-menu button:last-child { border-radius: 0 0 8px 8px; }
+.kebab-menu .danger { color: #dc2626; }
+.btn-print { background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+.btn-print:hover { background: #e0e7ff; }
+
+/* Modal */
+.fullscreen-modal-overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(2px);
+    z-index: 9999;
+    padding: 24px;
+}
+.fullscreen-modal-content {
+    width: min(900px, 92vw);
+    max-height: 90vh;
+    overflow-y: auto;
+}
+.fullscreen-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #64748b;
+}
 </style>
 
 
@@ -368,9 +444,15 @@ try {
                                 </td>
                                 <td>
                                     <div class="prescription-actions">
-                                        <button class="btn-action btn-view" onclick="viewPrescription(<?php echo $prescription['id']; ?>)">View</button>
-                                        <button class="btn-action btn-edit" onclick="editPrescription(<?php echo $prescription['id']; ?>)">Edit</button>
-                                        <button class="btn-action btn-delete" onclick="deletePrescription(<?php echo $prescription['id']; ?>)">Delete</button>
+                                        <button class="kebab-btn" aria-label="Actions" onclick="toggleKebab(<?php echo $prescription['id']; ?>, event)">
+                                            &#8942;
+                                        </button>
+                                        <div class="kebab-menu" id="kebab-<?php echo $prescription['id']; ?>">
+                                            <button onclick="viewPrescription(<?php echo $prescription['id']; ?>)">View</button>
+                                            <button onclick="editPrescription(<?php echo $prescription['id']; ?>)">Edit</button>
+                                            <button onclick="printPrescription(<?php echo $prescription['id']; ?>)">Print</button>
+                                            <button class="danger" onclick="deletePrescription(<?php echo $prescription['id']; ?>)">Delete</button>
+                                        </div>
                                     </div>
                                 </td>
                             </tr>
@@ -407,7 +489,7 @@ try {
                         <div id="patientAllergies" style="color: #dc2626; font-weight: 500;"></div>
                     </div>
                     <div class="safety-item">
-                        <div style="font-size: 0.85rem; color: #475569; margin-bottom: 4px;">Current Medications</div>
+                        <div style="font-size: 0.85rem; color: #475569; margin-bottom: 4px;">Medical History</div>
                         <div id="patientMeds" style="color: #059669; font-weight: 500;"></div>
                     </div>
                 </div>
@@ -472,7 +554,7 @@ function loadPatients() {
             data.patients.forEach(patient => {
                 const option = document.createElement('option');
                 option.value = patient.id;
-                option.textContent = `${patient.patient_name} (${patient.age})`;
+                option.textContent = `${patient.patient_name}`;
                 select.appendChild(option);
             });
         }
@@ -485,9 +567,10 @@ function openNewPrescriptionModal() {
     document.getElementById('prescriptionForm').reset();
     document.getElementById('prescriptionId').value = '';
     document.getElementById('issueDate').value = new Date().toISOString().split('T')[0];
-    document.getElementById('patientSafetyInfo').style.display = 'none';
+    resetPatientSafetyInfo();
     loadPatients();
-    document.getElementById('prescriptionModal').style.display = 'block';
+    document.getElementById('printPrescriptionBtn').style.display = 'none';
+    document.getElementById('prescriptionModal').style.display = 'flex';
 }
 
 function openPatientPrescriptionModal(patientId) {
@@ -498,8 +581,10 @@ function openPatientPrescriptionModal(patientId) {
     document.getElementById('patientId').value = patientId;
     document.getElementById('patientSelect').value = patientId;
     document.getElementById('issueDate').value = new Date().toISOString().split('T')[0];
+    resetPatientSafetyInfo();
     loadPatientSafetyInfo(patientId);
-    document.getElementById('prescriptionModal').style.display = 'block';
+    document.getElementById('printPrescriptionBtn').style.display = 'none';
+    document.getElementById('prescriptionModal').style.display = 'flex';
 }
 
 function loadPatientSafetyInfo(patientId) {
@@ -515,7 +600,16 @@ function loadPatientSafetyInfo(patientId) {
             document.getElementById('patientName').textContent = patient.patient_name || 'N/A';
             document.getElementById('patientAge').textContent = patient.age || 'N/A';
             document.getElementById('patientAllergies').textContent = patient.allergies || 'None recorded';
-            document.getElementById('patientMeds').textContent = patient.current_medications || 'None recorded';
+
+            const parts = [];
+            if (patient.medical_conditions) parts.push(patient.medical_conditions);
+            if (patient.current_medications) parts.push('Meds: ' + patient.current_medications);
+            if (patient.blood_pressure) parts.push('BP: ' + patient.blood_pressure);
+            if (patient.heart_rate) parts.push('HR: ' + patient.heart_rate);
+            if (patient.other_notes) parts.push('Notes: ' + patient.other_notes);
+            document.getElementById('patientMeds').innerHTML = parts.length
+                ? parts.map(p => '• ' + p).join('<br>')
+                : 'None recorded';
             document.getElementById('patientSafetyInfo').style.display = 'block';
         }
     });
@@ -527,7 +621,7 @@ document.getElementById('patientSelect').addEventListener('change', function() {
         loadPatientSafetyInfo(patientId);
         document.getElementById('patientId').value = patientId;
     } else {
-        document.getElementById('patientSafetyInfo').style.display = 'none';
+        resetPatientSafetyInfo();
     }
 });
 
@@ -551,7 +645,8 @@ function viewPrescription(prescriptionId) {
             document.getElementById('medications').value = prescription.medications;
             document.getElementById('instructions').value = prescription.instructions || '';
             loadPatientSafetyInfo(prescription.patient_id);
-            document.getElementById('prescriptionModal').style.display = 'block';
+            document.getElementById('printPrescriptionBtn').style.display = 'inline-block';
+            document.getElementById('prescriptionModal').style.display = 'flex';
         } else {
             alert('Error: ' + data.message);
         }
@@ -613,6 +708,95 @@ function deletePrescription(prescriptionId) {
 
 function closePrescriptionModal() {
     document.getElementById('prescriptionModal').style.display = 'none';
+}
+
+// Kebab menus
+function toggleKebab(id, evt) {
+    evt.stopPropagation();
+    const menu = document.getElementById('kebab-' + id);
+    document.querySelectorAll('.kebab-menu').forEach(m => { if (m !== menu) m.classList.remove('show'); });
+    if (menu) menu.classList.toggle('show');
+}
+document.addEventListener('click', () => {
+    document.querySelectorAll('.kebab-menu').forEach(m => m.classList.remove('show'));
+});
+
+function resetPatientSafetyInfo() {
+    document.getElementById('patientName').textContent = '';
+    document.getElementById('patientAge').textContent = '';
+    document.getElementById('patientAllergies').textContent = '';
+    document.getElementById('patientMeds').textContent = '';
+    document.getElementById('patientSafetyInfo').style.display = 'none';
+}
+
+function printPrescription(idOverride = null) {
+    const presId = idOverride || currentPrescriptionId;
+    if (!presId) {
+        alert('Save the prescription first to print.');
+        return;
+    }
+    fetch('prescription_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get_prescription', prescription_id: presId })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            alert('Unable to load prescription for printing.');
+            return;
+        }
+        const p = data.prescription;
+        const patientInfo = `
+            <div style="font-weight:600;font-size:16px;color:#0f172a;">${p.patient_name || ''}</div>
+            <div style="color:#475569;font-size:13px;">Age: ${p.age || 'N/A'}</div>
+        `;
+        const html = `
+        <html>
+        <head>
+            <title>Prescription #${p.id}</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding:24px; color:#0f172a; }
+                h2 { margin:0 0 6px 0; }
+                .muted { color:#64748b; font-size:13px; margin-bottom:12px; }
+                .section { margin-top:16px; }
+                .label { font-weight:600; margin-bottom:4px; }
+                .box { border:1px solid #e2e8f0; border-radius:8px; padding:12px; background:#f8fafc; }
+                .meds { white-space:pre-wrap; font-family: 'Courier New', monospace; font-size:14px; }
+            </style>
+        </head>
+        <body>
+            <h2>Prescription</h2>
+            <div class="muted">Issued: ${p.issue_date}</div>
+            <div class="section">
+                <div class="label">Patient</div>
+                <div class="box">${patientInfo}</div>
+            </div>
+            <div class="section">
+                <div class="label">Diagnosis</div>
+                <div class="box">${p.diagnosis || ''}</div>
+            </div>
+            <div class="section">
+                <div class="label">Medications</div>
+                <div class="box meds">${(p.medications || '').replace(/\\n/g,'<br>')}</div>
+            </div>
+            <div class="section">
+                <div class="label">Instructions</div>
+                <div class="box">${p.instructions ? p.instructions.replace(/\\n/g,'<br>') : 'None'}</div>
+            </div>
+            <div class="section">
+                <div class="label">Doctor</div>
+                <div class="box">${p.doctor_name || ''}</div>
+            </div>
+        </body>
+        </html>`;
+        const win = window.open('', '_blank');
+        win.document.write(html);
+        win.document.close();
+        win.focus();
+        win.print();
+        setTimeout(() => win.close(), 500);
+    });
 }
 
 document.getElementById('searchInput').addEventListener('input', function() {

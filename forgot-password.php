@@ -692,7 +692,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <form id="resetForm">
                     <div id="step1" class="step-pane">
                         <input type="email" name="email" id="email" placeholder="Enter your email" required autofocus>
-                        <button type="button" id="sendBtn"><span id="sendBtnText">Send Code</span></button>
+                        <button type="submit" id="sendBtn"><span id="sendBtnText">Send Code</span></button>
                     </div>
 
                     <div id="step2" class="step-pane" style="display:none;">
@@ -744,6 +744,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
             const stepElems = document.querySelectorAll('.step');
             const stepperNums = [1,2,3];
+            const resetForm = document.getElementById('resetForm');
             const setStep = (n) => {
                 stepperNums.forEach((num, idx) => {
                     const el = stepElems[idx];
@@ -882,6 +883,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 });
                 setTimeout(() => { changeBtn.disabled = false; changeBtnText.textContent = 'Change Password'; }, 1200);
             });
+
+            // Allow Enter/submit to trigger the relevant action per step
+            if (resetForm) {
+                resetForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    if (document.getElementById('step1').style.display !== 'none') {
+                        sendBtn.click();
+                    } else if (document.getElementById('step2').style.display !== 'none') {
+                        verifyBtn.click();
+                    } else if (document.getElementById('step3').style.display !== 'none') {
+                        changeBtn.click();
+                    }
+                });
+            }
 
             // initialize step view
             setStep(1);
