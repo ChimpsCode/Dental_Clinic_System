@@ -36,11 +36,12 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
 // Get user info from session
 $username = $_SESSION['username'] ?? 'Admin';
 $displayName = $_SESSION['display_name'] ?? 'Administrator';
-// Derive a safe first name fallback
-$firstNameOnly = trim(explode(' ', $displayName)[0] ?? $displayName);
+// Keep honorific if present; show first given name
+$firstNameOnly = trim(explode(' ', preg_replace('/^Dr\\.?\\s*/i', '', $displayName), 2)[0] ?? $displayName);
 if ($firstNameOnly === '') {
     $firstNameOnly = $username;
 }
+$displayHeaderName = (stripos($displayName, 'dr.') === 0 ? 'Dr. ' : '') . $firstNameOnly;
  
 // Header notifications (lightweight counts)
 $newAppointmentsToday = 0;
@@ -315,7 +316,7 @@ function isActivePage($page) {
                     </div>
                 </div>
                 <div class="header-user-summary">
-                    <div class="header-user-name"><?php echo htmlspecialchars($firstNameOnly); ?></div>
+                    <div class="header-user-name"><?php echo htmlspecialchars($displayHeaderName); ?></div>
                     <div class="header-user-role"><?php echo htmlspecialchars(ucfirst($_SESSION['role'] ?? 'admin')); ?></div>
                 </div>
                 <div class="user-profile" id="userProfileDropdown">

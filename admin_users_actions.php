@@ -24,6 +24,15 @@ function jsonError($message, $code = 400) {
     exit;
 }
 
+function isStrongPassword($pwd) {
+    return is_string($pwd)
+        && strlen($pwd) >= 10
+        && preg_match('/[A-Z]/', $pwd)
+        && preg_match('/[a-z]/', $pwd)
+        && preg_match('/[0-9]/', $pwd)
+        && preg_match('/[^A-Za-z0-9]/', $pwd);
+}
+
 try {
     $colStmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'status'");
     $hasStatusColumn = (bool)$colStmt->fetch(PDO::FETCH_ASSOC);
@@ -100,8 +109,8 @@ try {
                 jsonError('Passwords do not match.');
             }
 
-            if (strlen($password) < 6) {
-                jsonError('Password must be at least 6 characters.');
+            if (!isStrongPassword($password)) {
+                jsonError('Password must be at least 10 chars, with upper, lower, number, and symbol.');
             }
 
             $hashed = password_hash($password, PASSWORD_DEFAULT);
@@ -170,8 +179,8 @@ try {
                 if ($password !== $confirmPassword) {
                     jsonError('Passwords do not match.');
                 }
-                if (strlen($password) < 6) {
-                    jsonError('Password must be at least 6 characters.');
+                if (!isStrongPassword($password)) {
+                    jsonError('Password must be at least 10 chars, with upper, lower, number, and symbol.');
                 }
                 $fields['password'] = password_hash($password, PASSWORD_DEFAULT);
                 $setParts[] = 'password = :password';
