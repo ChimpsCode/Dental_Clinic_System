@@ -1,7 +1,17 @@
 <?php
 ob_start();
 
+// Set 10-minute session lifetime
+$__sessionLifetime = 600;
 if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params([
+        'lifetime' => $__sessionLifetime,
+        'path' => '/',
+        'secure' => false,
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
+    ini_set('session.gc_maxlifetime', $__sessionLifetime);
     session_start();
 }
 
@@ -19,6 +29,11 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'staff') {
 
 $username = $_SESSION['username'] ?? 'Staff';
 $displayName = $_SESSION['display_name'] ?? 'Staff';
+// Derive first name fallback for header display
+$firstNameOnly = trim(explode(' ', $displayName)[0] ?? $displayName);
+if ($firstNameOnly === '') {
+    $firstNameOnly = $username;
+}
 
 // Header notifications (lightweight counts)
 $newAppointmentsToday = 0;
@@ -218,7 +233,7 @@ function isActivePage($page) {
             </div>
             <div class="header-right">
                 <div class="header-user-summary">
-                    <div class="header-user-name"><?php echo htmlspecialchars($displayName); ?></div>
+                    <div class="header-user-name"><?php echo htmlspecialchars($firstNameOnly); ?></div>
                     <div class="header-user-role"><?php echo htmlspecialchars(ucfirst($_SESSION['role'] ?? 'staff')); ?></div>
                 </div>
                 <div class="user-profile" id="userProfileDropdown">

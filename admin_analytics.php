@@ -100,16 +100,17 @@ try {
         WHERE DATE(created_at) = CURDATE()
     ")->fetchColumn() ?? 0);
 
+    // Revenue series scoped to selected period window
     $stmt = $pdo->prepare("
         SELECT
             DATE_FORMAT(billing_date, '%Y-%m') AS ym,
             COALESCE(SUM(paid_amount), 0) AS total
         FROM billing
-        WHERE YEAR(billing_date) = ?
+        WHERE billing_date BETWEEN ? AND ?
         GROUP BY ym
         ORDER BY ym ASC
     ");
-    $stmt->execute([$chartYear]);
+    $stmt->execute([$startStr, $endStr]);
     $monthlyRevenueData = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $stmt = $pdo->prepare("

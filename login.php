@@ -39,7 +39,10 @@ if (empty($username) || empty($password)) {
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['email'] = $user['email'] ?? '';
-                $_SESSION['role'] = $user['role'] ?? 'admin';
+                $role = strtolower($user['role'] ?? 'admin');
+                // Normalize common label variants
+                if ($role === 'administrator') { $role = 'admin'; }
+                $_SESSION['role'] = $role;
                 
                 // Compute display name from first_name + last_name
                 $firstName = trim($user['first_name'] ?? '');
@@ -131,7 +134,9 @@ if (empty($username) || empty($password)) {
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['email'] = $user['email'] ?? '';
-                $_SESSION['role'] = $user['role'] ?? 'admin';
+                $role = strtolower($user['role'] ?? 'admin');
+                if ($role === 'administrator') { $role = 'admin'; }
+                $_SESSION['role'] = $role;
                 
                 // Compute display name from first_name + last_name
                 $firstName = trim($user['first_name'] ?? '');

@@ -7,7 +7,8 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-$role = $_SESSION['role'] ?? 'admin';
+$role = strtolower($_SESSION['role'] ?? 'admin');
+if ($role === 'administrator') { $role = 'admin'; }
 
 if ($role === 'admin') {
     header('Location: admin_dashboard.php');

@@ -6,7 +6,20 @@
  */
 
 ob_start();
-session_start();
+
+// Set 10-minute session lifetime
+$__sessionLifetime = 600;
+if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params([
+        'lifetime' => $__sessionLifetime,
+        'path' => '/',
+        'secure' => false,
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
+    ini_set('session.gc_maxlifetime', $__sessionLifetime);
+    session_start();
+}
 
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();

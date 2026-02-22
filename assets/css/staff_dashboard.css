@@ -210,6 +210,17 @@ header.top-header {
     gap: 12px;
 }
 
+.user-cluster {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
 .header-user-summary {
     display: flex;
     flex-direction: column;
@@ -221,7 +232,7 @@ header.top-header {
 
 .header-user-name {
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 700;
     color: #0f172a;
 }
 
@@ -239,14 +250,7 @@ header.top-header {
 }
 
 .header-user-summary::before {
-    content: "";
-    position: absolute;
-    left: -14px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 1px;
-    height: 28px;
-    background: #e5e7eb;
+    display: none;
 }
 
 .header-title h1 {
@@ -359,7 +363,7 @@ header.top-header {
     align-items: center;
     padding: 14px 16px;
     border-bottom: 1px solid #eef2f7;
-    font-weight: 600;
+    font-weight: 700;
     color: #0f172a;
     background: #f8fafc;
 }
@@ -430,9 +434,10 @@ header.top-header {
     align-items: center;
     justify-content: center;
     padding: 6px;
-    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+    background: #ffffff;
     border-radius: 50%;
-    border: 2px solid var(--border-color);
+    border: 2px solid #cbd5e1; /* clearer edge on white header */
+    box-shadow: 0 0 0 2px #eef2f7 inset;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     width: 40px;
@@ -1219,3 +1224,11 @@ header.top-header {
 .action-btn:hover {
     background-color: #f3f4f6;
 }
+
+
+
+
+
+
+
+
