@@ -31,8 +31,12 @@ try {
                          COALESCE(p.first_name, a.first_name, '') AS first_name, 
                          COALESCE(p.middle_name, a.middle_name, '') AS middle_name, 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
                          COALESCE(p.last_name, a.last_name, '') AS last_name,
                          COALESCE(p.phone, '') AS phone
+=======
+                         COALESCE(p.last_name, a.last_name, '') AS last_name
+>>>>>>> Stashed changes
 =======
                          COALESCE(p.last_name, a.last_name, '') AS last_name
 >>>>>>> Stashed changes
@@ -45,8 +49,12 @@ try {
                          COALESCE(p.first_name, a.first_name, '') AS first_name, 
                          COALESCE(p.middle_name, a.middle_name, '') AS middle_name, 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
                          COALESCE(p.last_name, a.last_name, '') AS last_name,
                          COALESCE(p.phone, '') AS phone
+=======
+                         COALESCE(p.last_name, a.last_name, '') AS last_name
+>>>>>>> Stashed changes
 =======
                          COALESCE(p.last_name, a.last_name, '') AS last_name
 >>>>>>> Stashed changes
