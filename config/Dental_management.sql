@@ -278,6 +278,25 @@ CREATE TABLE `audit_logs` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
+-- TABLE: prescriptions
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS `prescriptions` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `patient_id` INT,
+  `doctor_id` INT,
+  `medications` TEXT,
+  `diagnosis` TEXT,
+  `instructions` TEXT,
+  `issue_date` DATE,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  FOREIGN KEY (`patient_id`) REFERENCES `patients`(`id`),
+  FOREIGN KEY (`doctor_id`) REFERENCES `users`(`id`)
+) ENGINE=InnoDB;
+
+-- ============================================
 -- INDEXES
 -- ============================================
 

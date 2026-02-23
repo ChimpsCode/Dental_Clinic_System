@@ -78,7 +78,36 @@ try {
     $pendingPaymentsCount = 0;
 }
 
-$notificationTotal = $newAppointmentsToday + $pendingPaymentsCount;
+// Header notifications (database-driven)
+$notifications = [];
+$notificationTotal = 0;
+try {
+    if (isset($pdo)) {
+        $userId = (int)($_SESSION['user_id'] ?? 0);
+        
+        if ($userId > 0) {
+            $notifStmt = $pdo->prepare("
+                SELECT * FROM notifications 
+                WHERE user_id = ? 
+                ORDER BY created_at DESC 
+                LIMIT 10
+            ");
+            $notifStmt->execute([$userId]);
+            $notifications = $notifStmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            $countStmt = $pdo->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0");
+            $countStmt->execute([$userId]);
+            $notificationTotal = (int)$countStmt->fetchColumn();
+        }
+        
+        if (empty($notifications)) {
+            $notificationTotal = $newAppointmentsToday + $pendingPaymentsCount;
+        }
+    }
+} catch (Exception $e) {
+    $notifications = [];
+    $notificationTotal = 0;
+}
 
 $pageTitle = $pageTitle ?? 'Staff Dashboard';
 
@@ -278,6 +307,125 @@ function isActivePage($page) {
             0% { transform: translateX(-100%); }
             100% { transform: translateX(100%); }
         }
+        
+        /* Notification Tabs */
+        .notification-tabs {
+            display: flex;
+            border-bottom: 1px solid #eef2f7;
+            padding: 0 12px;
+        }
+        .notification-tab {
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #6b7280;
+            background: none;
+            border: none;
+            cursor: pointer;
+            position: relative;
+            transition: color 0.2s;
+        }
+        .notification-tab:hover { color: #0f172a; }
+        .notification-tab.active { color: #0ea5e9; }
+        .notification-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #0ea5e9;
+            border-radius: 2px 2px 0 0;
+        }
+        .notification-tab .tab-count {
+            font-size: 11px;
+            background: #e2e8f0;
+            color: #64748b;
+            padding: 1px 6px;
+            border-radius: 999px;
+            margin-left: 4px;
+        }
+        .notification-tab.active .tab-count {
+            background: #e0f2fe;
+            color: #0ea5e9;
+        }
+        
+        /* Notification Read/Unread */
+        .header-notifications .notification-item.unread {
+            background: #e0f2fe;
+            border-left: 3px solid #0ea5e9;
+        }
+        .header-notifications .notification-item.read {
+            background: #ffffff;
+            opacity: 0.85;
+        }
+        .header-notifications .notification-item:hover {
+            background: #f1f5f9;
+        }
+        .header-notifications .notification-item.unread:hover {
+            background: #bae6fd;
+        }
+        .header-notifications .notification-item .notification-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .header-notifications .notification-item .notification-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        
+        /* Kebab Menu */
+        .notification-kebab {
+            position: relative;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .notification-item:hover .notification-kebab { opacity: 1; }
+        .kebab-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .kebab-btn:hover { background: #e2e8f0; color: #0f172a; }
+        .kebab-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            min-width: 120px;
+            z-index: 10;
+            display: none;
+        }
+        .kebab-menu.show { display: block; }
+        .kebab-menu button {
+            width: 100%;
+            padding: 8px 12px;
+            font-size: 13px;
+            color: #374151;
+            background: none;
+            border: none;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .kebab-menu button:hover { background: #f8fafc; }
+        .kebab-menu button:first-child { border-radius: 8px 8px 0 0; }
+        .kebab-menu button:last-child { border-radius: 0 0 8px 8px; }
+        .kebab-menu button.delete-btn { color: #dc2626; }
+        .kebab-menu button.delete-btn:hover { background: #fef2f2; }
     </style>
 </head>
 <body data-user-id="<?php echo (int)($_SESSION['user_id'] ?? 0); ?>">
@@ -385,17 +533,75 @@ function isActivePage($page) {
                             <span>Notifications</span>
                             <span class="notification-count"><?php echo $notificationTotal; ?></span>
                         </div>
-                        <div class="notification-list">
-                            <div class="notification-item">
-                                <div class="notification-icon">📅</div>
-                                <div class="notification-text"><?php echo $newAppointmentsToday; ?> new appointments today</div>
-                            </div>
-                            <div class="notification-item">
-                                <div class="notification-icon">⚠️</div>
-                                <div class="notification-text"><?php echo $pendingPaymentsCount; ?> pending payments require attention</div>
-                            </div>
+                        <div class="notification-tabs">
+                            <button class="notification-tab active" data-tab="all" onclick="filterNotifications('all', this)">
+                                All<span class="tab-count"><?php echo count($notifications); ?></span>
+                            </button>
+                            <button class="notification-tab" data-tab="unread" onclick="filterNotifications('unread', this)">
+                                Unread<span class="tab-count"><?php echo $notificationTotal; ?></span>
+                            </button>
                         </div>
-                        <button class="see-all-btn" type="button">See all notifications</button>
+                        <div class="notification-list" id="notificationList">
+                            <?php if (!empty($notifications)): ?>
+                                <?php foreach ($notifications as $notif): ?>
+                                    <div class="notification-item <?php echo $notif['is_read'] ? 'read' : 'unread'; ?>" data-notif-id="<?php echo $notif['id']; ?>" data-is-read="<?php echo $notif['is_read']; ?>">
+                                        <div class="notification-icon">
+                                            <?php 
+                                            $icons = [
+                                                'appointment' => '📅',
+                                                'payment' => '💰',
+                                                'inquiry' => '💬',
+                                                'patient' => '👤',
+                                                'reminder' => '⏰',
+                                                'queue' => '📋',
+                                                'cancellation' => '❌',
+                                                'system' => '⚙️'
+                                            ];
+                                            echo $icons[$notif['type']] ?? '🔔';
+                                            ?>
+                                        </div>
+                                        <div class="notification-content">
+                                            <div class="notification-meta">
+                                                <strong><?php echo htmlspecialchars($notif['title']); ?></strong>
+                                                <div class="notification-kebab">
+                                                    <button class="kebab-btn" onclick="toggleKebabMenu(event, this)">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                                            <circle cx="12" cy="5" r="2"/>
+                                                            <circle cx="12" cy="12" r="2"/>
+                                                            <circle cx="12" cy="19" r="2"/>
+                                                        </svg>
+                                                    </button>
+                                                    <div class="kebab-menu">
+                                                        <?php if (!$notif['is_read']): ?>
+                                                            <button onclick="markNotificationRead(<?php echo $notif['id']; ?>, '<?php echo $notif['action_url'] ?? ''; ?>', event)">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                                                Mark as read
+                                                            </button>
+                                                        <?php endif; ?>
+                                                        <button class="delete-btn" onclick="deleteNotification(<?php echo $notif['id']; ?>, event)">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                                                            Delete
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <p><?php echo htmlspecialchars($notif['message']); ?></p>
+                                            <small><?php echo date('M j, g:i A', strtotime($notif['created_at'])); ?></small>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <div class="notification-item">
+                                    <div class="notification-icon">📅</div>
+                                    <div class="notification-text"><?php echo $newAppointmentsToday; ?> new appointments today</div>
+                                </div>
+                                <div class="notification-item">
+                                    <div class="notification-icon">⚠️</div>
+                                    <div class="notification-text"><?php echo $pendingPaymentsCount; ?> pending payments require attention</div>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        <button class="see-all-btn" type="button" onclick="markAllNotificationsRead()">Mark all as read</button>
                     </div>
                 </div>
                 <div class="header-user-summary">
@@ -431,4 +637,3 @@ function isActivePage($page) {
 
         <div class="content-area">
             <div class="content-main">
-                ```

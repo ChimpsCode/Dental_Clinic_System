@@ -35,7 +35,7 @@ try {
                          COALESCE(p.first_name, a.first_name, '') AS first_name, 
                          COALESCE(p.middle_name, a.middle_name, '') AS middle_name, 
                          COALESCE(p.last_name, a.last_name, '') AS last_name,
-                         COALESCE(p.phone, a.phone) AS phone
+                         COALESCE(p.phone, '') AS phone
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id
                          " . $whereClause);
@@ -46,7 +46,7 @@ try {
                          COALESCE(p.first_name, a.first_name, '') AS first_name, 
                          COALESCE(p.middle_name, a.middle_name, '') AS middle_name, 
                          COALESCE(p.last_name, a.last_name, '') AS last_name,
-                         COALESCE(p.phone, a.phone) AS phone
+                         COALESCE(p.phone, '') AS phone
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id 
                          " . $whereClause . "
@@ -72,9 +72,9 @@ $cancelledCount = 0;
 try {
     $baseWhere = $countWhereClause ? $countWhereClause . " AND " : "WHERE ";
     $todayCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
-    $completedCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) = 'completed'")->fetchColumn() ?? 0);
-    $pendingCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) IN ('scheduled','pending')")->fetchColumn() ?? 0);
-    $cancelledCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) = 'cancelled'")->fetchColumn() ?? 0);
+    $completedCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) = 'completed' AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
+    $pendingCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) IN ('scheduled','pending') AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
+    $cancelledCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) = 'cancelled' AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
 } catch (Exception $e) {
     $todayCount = 0;
     $completedCount = 0;
@@ -697,12 +697,21 @@ require_once 'includes/staff_layout_start.php';
         e.preventDefault();
         const formData = new FormData(this);
         
+        // Debug: log form data
+        for (var pair of formData.entries()) {
+            console.log(pair[0]+ ', '+ pair[1]); 
+        }
+        
         fetch('process_appointment.php', {
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response status:', response.status);
+            return response.json();
+        })
         .then(data => {
+            console.log('Response data:', data);
             if (data.success) {
                 closeAppointmentModal();
                 location.reload();
@@ -712,7 +721,7 @@ require_once 'includes/staff_layout_start.php';
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error scheduling appointment');
+            alert('Error scheduling appointment: ' + error.message);
         });
     });
 
@@ -737,7 +746,7 @@ require_once 'includes/staff_layout_start.php';
                 <div><span style="color: #6b7280;">Date:</span> <span style="font-weight: 500; margin-left: 8px;">${new Date(appt.appointment_date).toLocaleDateString()}</span></div>
                 <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.appointment_time ? new Date('1970-01-01 ' + appt.appointment_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'N/A'}</span></div>
                 <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.treatment || 'General'}</span></div>
-                <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${appt.status === 'Completed' ? '#dcfce7' : appt.status === 'Cancelled' ? '#fee2e2' : '#e0f2fe'}; color: ${appt.status === 'Completed' ? '#15803d' : appt.status === 'Cancelled' ? '#dc2626' : '#0369a1'};">${appt.status || 'Pending'}</span></div>
+                <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${appt.status === 'Completed' ? '#dcfce7' : appt.status === 'Cancelled' ? '#fee2e2' : '#e0f2fe'}; color: ${appt.status === 'Completed' ? '#15803d' : appt.status === 'Cancelled' ? '#dc2626' : '#0369a1'};">${appt.status ? appt.status.charAt(0).toUpperCase() + appt.status.slice(1) : 'Pending'}</span></div>
                 ${appt.notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${appt.notes}</p></div>` : ''}
             </div>
         `;

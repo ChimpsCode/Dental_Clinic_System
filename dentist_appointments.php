@@ -1,28 +1,23 @@
 <?php
 $pageTitle = 'Appointments';
-require_once 'includes/dentist_layout_start.php';
 require_once 'config/database.php';
-
-// Debug: Check database connection
-error_log("Checking appointments table...");
+require_once 'includes/dentist_layout_start.php';
 
 // Fetch appointment statistics
 try {
     $stmt = $pdo->query("SELECT 
         COUNT(*) as total,
         SUM(CASE WHEN DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as today,
-        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
-        SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled
+        SUM(CASE WHEN status = 'completed' AND DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as completed,
+        SUM(CASE WHEN status = 'cancelled' AND DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as cancelled
     FROM appointments");
     $stats = $stmt->fetch(PDO::FETCH_ASSOC);
-    error_log("Stats: " . json_encode($stats));
     
     $totalAppointments = $stats['total'] ?? 0;
     $todayAppointments = $stats['today'] ?? 0;
     $completedAppointments = $stats['completed'] ?? 0;
     $cancelledAppointments = $stats['cancelled'] ?? 0;
 } catch (Exception $e) {
-    error_log("Error fetching stats: " . $e->getMessage());
     $totalAppointments = $todayAppointments = $completedAppointments = $cancelledAppointments = 0;
 }
 
@@ -34,9 +29,7 @@ try {
         LEFT JOIN patients p ON a.patient_id = p.id 
         ORDER BY a.appointment_date DESC");
     $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    error_log("Appointments found: " . count($appointments));
 } catch (Exception $e) {
-    error_log("Error fetching appointments: " . $e->getMessage());
     $appointments = [];
 }
 ?>
@@ -422,7 +415,7 @@ function viewAppointment(id) {
             <div><span style="color: #6b7280;">Date:</span> <span style="font-weight: 500; margin-left: 8px;">${dateStr}</span></div>
             <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${timeStr}</span></div>
             <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${appointment.treatment || 'General Checkup'}</span></div>
-            <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${appointment.status === 'Completed' ? '#dcfce7' : appointment.status === 'Cancelled' ? '#fee2e2' : '#e0f2fe'}; color: ${appointment.status === 'Completed' ? '#15803d' : appointment.status === 'Cancelled' ? '#dc2626' : '#0369a1'}; padding: 4px 12px; border-radius: 9999px; font-size: 0.875rem;">${appointment.status || 'Pending'}</span></div>
+            <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${appointment.status === 'Completed' ? '#dcfce7' : appointment.status === 'Cancelled' ? '#fee2e2' : '#e0f2fe'}; color: ${appointment.status === 'Completed' ? '#15803d' : appointment.status === 'Cancelled' ? '#dc2626' : '#0369a1'}; padding: 4px 12px; border-radius: 9999px; font-size: 0.875rem;">${appointment.status ? appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1) : 'Pending'}</span></div>
             ${appointment.notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${appointment.notes}</p></div>` : ''}
         </div>
     `;

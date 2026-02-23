@@ -167,11 +167,7 @@ function calculateAmount($treatmentType, $servicesMap) {
 require_once __DIR__ . '/includes/staff_layout_start.php';
 ?>
             <div class="content-main">
-                <!-- Page Header -->
-                <div class="page-header">
-                    <h2>Patient Payments</h2>
-                    <p class="page-subtitle">View and manage payments for patients from the queue</p>
-                </div>
+                
 
                 <!-- Stats Cards -->
                 <div class="summary-cards">

@@ -87,7 +87,37 @@ try {
     $pendingPaymentsCount = 0;
 }
 
-$notificationTotal = $newAppointmentsToday + $pendingPaymentsCount;
+// Header notifications (database-driven)
+$notifications = [];
+$notificationTotal = 0;
+$debugUserId = (int)($_SESSION['user_id'] ?? 0);
+try {
+    if (isset($pdo)) {
+        $userId = (int)($_SESSION['user_id'] ?? 0);
+        
+        if ($userId > 0) {
+            $notifStmt = $pdo->prepare("
+                SELECT * FROM notifications 
+                WHERE user_id = ? 
+                ORDER BY created_at DESC 
+                LIMIT 10
+            ");
+            $notifStmt->execute([$userId]);
+            $notifications = $notifStmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            $countStmt = $pdo->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0");
+            $countStmt->execute([$userId]);
+            $notificationTotal = (int)$countStmt->fetchColumn();
+        }
+        
+        if (empty($notifications)) {
+            $notificationTotal = $newAppointmentsToday + $pendingPaymentsCount;
+        }
+    }
+} catch (Exception $e) {
+    $notifications = [];
+    $notificationTotal = 0;
+}
 
 // Get page title for header
 $pageTitle = $pageTitle ?? 'Dentist Dashboard';
@@ -327,17 +357,75 @@ function isActivePage($page) {
                             <span>Notifications</span>
                             <span class="notification-count"><?php echo $notificationTotal; ?></span>
                         </div>
-                        <div class="notification-list">
-                            <div class="notification-item">
-                                <div class="notification-icon">📅</div>
-                                <div class="notification-text"><?php echo $newAppointmentsToday; ?> new appointments today</div>
-                            </div>
-                            <div class="notification-item">
-                                <div class="notification-icon">⚠️</div>
-                                <div class="notification-text"><?php echo $pendingPaymentsCount; ?> pending payments require attention</div>
-                            </div>
+                        <div class="notification-tabs">
+                            <button class="notification-tab active" data-tab="all" onclick="filterNotifications('all', this)">
+                                All<span class="tab-count"><?php echo count($notifications); ?></span>
+                            </button>
+                            <button class="notification-tab" data-tab="unread" onclick="filterNotifications('unread', this)">
+                                Unread<span class="tab-count"><?php echo $notificationTotal; ?></span>
+                            </button>
                         </div>
-                        <button class="see-all-btn" type="button">See all notifications</button>
+                        <div class="notification-list" id="notificationList">
+                            <?php if (!empty($notifications)): ?>
+                                <?php foreach ($notifications as $notif): ?>
+                                    <div class="notification-item <?php echo $notif['is_read'] ? 'read' : 'unread'; ?>" data-notif-id="<?php echo $notif['id']; ?>" data-is-read="<?php echo $notif['is_read']; ?>">
+                                        <div class="notification-icon">
+                                            <?php 
+                                            $icons = [
+                                                'appointment' => '📅',
+                                                'payment' => '💰',
+                                                'inquiry' => '💬',
+                                                'patient' => '👤',
+                                                'reminder' => '⏰',
+                                                'queue' => '📋',
+                                                'cancellation' => '❌',
+                                                'system' => '⚙️'
+                                            ];
+                                            echo $icons[$notif['type']] ?? '🔔';
+                                            ?>
+                                        </div>
+                                        <div class="notification-content">
+                                            <div class="notification-meta">
+                                                <strong><?php echo htmlspecialchars($notif['title']); ?></strong>
+                                                <div class="notification-kebab">
+                                                    <button class="kebab-btn" onclick="toggleKebabMenu(event, this)">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                                            <circle cx="12" cy="5" r="2"/>
+                                                            <circle cx="12" cy="12" r="2"/>
+                                                            <circle cx="12" cy="19" r="2"/>
+                                                        </svg>
+                                                    </button>
+                                                    <div class="kebab-menu">
+                                                        <?php if (!$notif['is_read']): ?>
+                                                            <button onclick="markNotificationRead(<?php echo $notif['id']; ?>, '<?php echo $notif['action_url'] ?? ''; ?>', event)">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                                                Mark as read
+                                                            </button>
+                                                        <?php endif; ?>
+                                                        <button class="delete-btn" onclick="deleteNotification(<?php echo $notif['id']; ?>, event)">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                                                            Delete
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <p><?php echo htmlspecialchars($notif['message']); ?></p>
+                                            <small><?php echo date('M j, g:i A', strtotime($notif['created_at'])); ?></small>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <div class="notification-item">
+                                    <div class="notification-icon">📅</div>
+                                    <div class="notification-text"><?php echo $newAppointmentsToday; ?> new appointments today</div>
+                                </div>
+                                <div class="notification-item">
+                                    <div class="notification-icon">⚠️</div>
+                                    <div class="notification-text"><?php echo $pendingPaymentsCount; ?> pending payments</div>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        <button class="see-all-btn" type="button" onclick="markAllNotificationsRead()">Mark all as read</button>
                     </div>
                 </div>
                 <div class="header-user-summary">

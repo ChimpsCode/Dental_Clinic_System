@@ -1795,7 +1795,16 @@ btn.classList.add('bg-blue-200', 'border-blue-400');
                 return;
             }
 
-            if (selectedTeeth.length === 0) {
+            // Check if any selected service requires tooth selection (not consultation/checkup)
+            const consultationKeywords = ['consultation', 'checkup', 'general', 'oral examination', 'assessment', 'recall', 'follow-up', 're-evaluation'];
+            const requiresTeeth = services.some(service => 
+                !consultationKeywords.some(keyword => service.toLowerCase().includes(keyword))
+            );
+
+            // For consultation services, clear any pre-selected teeth to avoid confusion
+            if (!requiresTeeth) {
+                // Allow submission without teeth for consultation
+            } else if (selectedTeeth.length === 0) {
                 showModal('error', 'Missing Teeth', 'Please select at least one tooth before submitting.', [
                     { text: 'Okay', onclick: closeModal }
                 ]);
@@ -1836,22 +1845,33 @@ btn.classList.add('bg-blue-200', 'border-blue-400');
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
-            .then(result => {
-                if (result.success) {
-                    showModal('success', 'Success!', 'Patient <strong>' + patientName + '</strong> has been admitted successfully and added to the queue.', [
-                        { text: 'View Queue', onclick: () => { window.location.href = 'staff_queue.php'; } },
-                        { text: 'Go to Dashboard', onclick: () => { window.location.href = 'staff-dashboard.php'; } }
-                    ]);
-                } else {
-                    showModal('error', 'Error', result.message || 'Failed to save patient. Please try again.', [
+            .then(response => {
+                console.log('Status:', response.status);
+                return response.text();
+            })
+            .then(text => {
+                console.log('Server response:', text);
+                try {
+                    const result = JSON.parse(text);
+                    if (result.success) {
+                        showModal('success', 'Success!', 'Patient <strong>' + patientName + '</strong> has been admitted successfully and added to the queue.', [
+                            { text: 'View Queue', onclick: () => { window.location.href = 'staff_queue.php'; } },
+                            { text: 'Go to Dashboard', onclick: () => { window.location.href = 'staff-dashboard.php'; } }
+                        ]);
+                    } else {
+                        showModal('error', 'Error', result.message || 'Failed to save patient. Please try again.', [
+                            { text: 'Okay', onclick: closeModal }
+                        ]);
+                    }
+                } catch (e) {
+                    showModal('error', 'Error', 'Server error: ' + text.substring(0, 200), [
                         { text: 'Okay', onclick: closeModal }
                     ]);
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                showModal('error', 'Error', 'An error occurred while saving. Please try again.', [
+                showModal('error', 'Error', 'Network error: ' + error.message, [
                     { text: 'Okay', onclick: closeModal }
                 ]);
             });

@@ -1,5 +1,6 @@
 <?php
 $pageTitle = 'Patient Records';
+require_once 'config/database.php';
 require_once 'includes/staff_layout_start.php';
 
 // Pagination settings

@@ -1,5 +1,6 @@
 <?php
 $pageTitle = 'Prescriptions';
+require_once 'config/database.php';
 require_once 'includes/dentist_layout_start.php';
 
 try {

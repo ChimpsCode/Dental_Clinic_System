@@ -412,6 +412,168 @@ header.top-header {
     border-radius: 0;
 }
 
+/* Notification Tabs */
+.notification-tabs {
+    display: flex;
+    border-bottom: 1px solid #eef2f7;
+    padding: 0 12px;
+}
+
+.notification-tab {
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #6b7280;
+    background: none;
+    border: none;
+    cursor: pointer;
+    position: relative;
+    transition: color 0.2s;
+}
+
+.notification-tab:hover {
+    color: #0f172a;
+}
+
+.notification-tab.active {
+    color: #0ea5e9;
+}
+
+.notification-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: #0ea5e9;
+    border-radius: 2px 2px 0 0;
+}
+
+.notification-tab .tab-count {
+    font-size: 11px;
+    background: #e2e8f0;
+    color: #64748b;
+    padding: 1px 6px;
+    border-radius: 999px;
+    margin-left: 4px;
+}
+
+.notification-tab.active .tab-count {
+    background: #e0f2fe;
+    color: #0ea5e9;
+}
+
+/* Notification Item Read/Unread Styles */
+.header-notifications .notification-item.unread {
+    background: #e0f2fe;
+    border-left: 3px solid #0ea5e9;
+}
+
+.header-notifications .notification-item.read {
+    background: #ffffff;
+    opacity: 0.85;
+}
+
+.header-notifications .notification-item:hover {
+    background: #f1f5f9;
+}
+
+.header-notifications .notification-item.unread:hover {
+    background: #bae6fd;
+}
+
+.header-notifications .notification-item .notification-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.header-notifications .notification-item .notification-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+/* Kebab Menu - specifically for notifications */
+.header-notifications .notification-kebab {
+    position: relative !important;
+    opacity: 0 !important;
+    transition: opacity 0.2s;
+}
+
+.notification-item:hover .notification-kebab {
+    opacity: 1 !important;
+}
+
+.header-notifications .kebab-btn {
+    background: none !important;
+    border: none !important;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    color: #64748b !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+}
+
+.header-notifications .kebab-btn:hover {
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
+}
+
+.header-notifications .kebab-menu {
+    position: absolute !important;
+    top: 100% !important;
+    right: 0 !important;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+    min-width: 120px !important;
+    z-index: 10000 !important;
+    display: none !important;
+}
+
+.header-notifications .kebab-menu.show {
+    display: block !important;
+}
+
+.header-notifications .kebab-menu button {
+    width: 100% !important;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #374151 !important;
+    background: none !important;
+    border: none !important;
+    text-align: left;
+    cursor: pointer;
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+}
+
+.header-notifications .kebab-menu button:hover {
+    background: #f8fafc !important;
+}
+
+.header-notifications .kebab-menu button:first-child {
+    border-radius: 8px 8px 0 0;
+}
+
+.header-notifications .kebab-menu button:last-child {
+    border-radius: 0 0 8px 8px;
+}
+
+.header-notifications .kebab-menu button.delete-btn {
+    color: #dc2626 !important;
+}
+
+.header-notifications .kebab-menu button.delete-btn:hover {
+    background: #fef2f2 !important;
+}
+
 .sidebar-overlay {
     display: none;
     position: fixed;

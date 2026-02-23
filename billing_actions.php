@@ -332,6 +332,18 @@ try {
                 if ($queue_id) {
                     $stmt = $pdo->prepare("UPDATE queue SET status = 'completed', updated_at = NOW() WHERE id = ? AND status = 'pending_payment'");
                     $stmt->execute([$queue_id]);
+                    
+                    // Get the appointment_id from the billing record to update the correct appointment
+                    $stmt = $pdo->prepare("SELECT appointment_id FROM billing WHERE id = ?");
+                    $stmt->execute([$billing_id]);
+                    $billingRecord = $stmt->fetch();
+                    $appointmentIdFromBilling = $billingRecord['appointment_id'] ?? null;
+                    
+                    // Only update the specific appointment linked to this billing
+                    if ($appointmentIdFromBilling) {
+                        $stmt = $pdo->prepare("UPDATE appointments SET status = 'completed', updated_at = NOW() WHERE id = ? AND status = 'scheduled'");
+                        $stmt->execute([$appointmentIdFromBilling]);
+                    }
                 }
                 
                 $pdo->commit();
