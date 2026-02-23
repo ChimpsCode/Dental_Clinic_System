@@ -90,7 +90,7 @@ try {
                 SELECT * FROM notifications 
                 WHERE user_id = ? 
                 ORDER BY created_at DESC 
-                LIMIT 10
+                LIMIT 5
             ");
             $notifStmt->execute([$userId]);
             $notifications = $notifStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -204,11 +204,11 @@ function isActivePage($page) {
             display: none;
             position: absolute;
             top: calc(100% + 8px);
-            right: 0;
+            right: -180px;
             background: white;
             border: 1px solid #e5e7eb;
             border-radius: 12px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
             min-width: 280px;
             z-index: 1000;
             overflow: hidden;
@@ -344,6 +344,7 @@ function isActivePage($page) {
             padding: 1px 6px;
             border-radius: 999px;
             margin-left: 4px;
+            
         }
         .notification-tab.active .tab-count {
             background: #e0f2fe;
@@ -354,6 +355,7 @@ function isActivePage($page) {
         .header-notifications .notification-item.unread {
             background: #e0f2fe;
             border-left: 3px solid #0ea5e9;
+            margin-bottom: 5px;
         }
         .header-notifications .notification-item.read {
             background: #ffffff;
@@ -368,12 +370,14 @@ function isActivePage($page) {
         .header-notifications .notification-item .notification-content {
             flex: 1;
             min-width: 0;
+            
         }
         .header-notifications .notification-item .notification-meta {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
             gap: 8px;
+            
         }
         
         /* Kebab Menu */
@@ -381,6 +385,7 @@ function isActivePage($page) {
             position: relative;
             opacity: 0;
             transition: opacity 0.2s;
+            
         }
         .notification-item:hover .notification-kebab { opacity: 1; }
         .kebab-btn {
@@ -393,6 +398,7 @@ function isActivePage($page) {
             display: flex;
             align-items: center;
             justify-content: center;
+            
         }
         .kebab-btn:hover { background: #e2e8f0; color: #0f172a; }
         .kebab-menu {
@@ -406,6 +412,7 @@ function isActivePage($page) {
             min-width: 120px;
             z-index: 10;
             display: none;
+            
         }
         .kebab-menu.show { display: block; }
         .kebab-menu button {
@@ -420,6 +427,7 @@ function isActivePage($page) {
             display: flex;
             align-items: center;
             gap: 8px;
+            
         }
         .kebab-menu button:hover { background: #f8fafc; }
         .kebab-menu button:first-child { border-radius: 8px 8px 0 0; }

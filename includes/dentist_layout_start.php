@@ -100,7 +100,7 @@ try {
                 SELECT * FROM notifications 
                 WHERE user_id = ? 
                 ORDER BY created_at DESC 
-                LIMIT 10
+                LIMIT 5
             ");
             $notifStmt->execute([$userId]);
             $notifications = $notifStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -181,20 +181,19 @@ function isActivePage($page) {
             padding: 0 4px;
         }
         .notification-dropdown {
-            display: none;
+            display: flex;
             position: absolute;
             top: calc(100% + 8px);
-            right: 0;
+            right: -200px;
             background: white;
             border: 1px solid #e5e7eb;
             border-radius: 12px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-            min-width: 280px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+            min-width: 280px;            
             z-index: 1000;
             overflow: hidden;
         }
         .header-notifications.active .notification-dropdown {
-            display: block;
             animation: notificationFadeIn 0.2s ease;
         }
         @keyframes notificationFadeIn {
@@ -220,6 +219,25 @@ function isActivePage($page) {
         .notification-list {
             max-height: 300px;
             overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 transparent;
+        }
+        .notification-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .notification-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .notification-list::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 3px;
+        }
+        .notification-dropdown:hover .notification-list {
+            scrollbar-width: thin;
+            scrollbar-color: #94a3b8 transparent;
+        }
+        .notification-dropdown:hover .notification-list::-webkit-scrollbar-thumb {
+            background-color: #94a3b8;
         }
         .notification-item {
             display: flex;
@@ -227,6 +245,7 @@ function isActivePage($page) {
             gap: 12px;
             padding: 12px 16px;
             border-bottom: 1px solid #f3f4f6;
+            margin-bottom: 5px;
         }
         .notification-item:hover {
             background: #f9fafb;

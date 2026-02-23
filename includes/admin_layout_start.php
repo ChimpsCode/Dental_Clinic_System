@@ -78,7 +78,7 @@ try {
                 SELECT * FROM notifications 
                 WHERE user_id = ? 
                 ORDER BY created_at DESC 
-                LIMIT 10
+                LIMIT 5
             ");
             $notifStmt->execute([$userId]);
             $notifications = $notifStmt->fetchAll(PDO::FETCH_ASSOC);
