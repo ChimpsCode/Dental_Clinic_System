@@ -4,6 +4,11 @@
  * Handle AJAX requests for notifications
  */
 
+// Ensure session for user identification
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 require_once __DIR__ . '/config/database.php';
 
 header('Content-Type: application/json');

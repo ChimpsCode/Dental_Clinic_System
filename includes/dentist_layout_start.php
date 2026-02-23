@@ -184,7 +184,7 @@ function isActivePage($page) {
             display: flex;
             position: absolute;
             top: calc(100% + 8px);
-            right: -200px;
+            right: -160px;
             background: white;
             border: 1px solid #e5e7eb;
             border-radius: 12px;

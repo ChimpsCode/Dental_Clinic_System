@@ -149,9 +149,20 @@
             
             const allTab = document.querySelector('.notification-tab[data-tab="all"] .tab-count');
             const unreadTab = document.querySelector('.notification-tab[data-tab="unread"] .tab-count');
+            const badge = document.querySelector('.notification-badge');
             
             if (allTab) allTab.textContent = allItems.length;
             if (unreadTab) unreadTab.textContent = unreadItems.length;
+            if (badge) {
+                const cnt = unreadItems.length;
+                if (cnt > 0) {
+                    badge.textContent = cnt;
+                    badge.style.display = 'flex';
+                } else {
+                    badge.textContent = '';
+                    badge.style.display = 'none';
+                }
+            }
         }
 
         // Mark all notifications as read
@@ -164,12 +175,17 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    location.reload();
+                    // update UI without reload
+                    document.querySelectorAll('.notification-item').forEach(item => {
+                        item.classList.remove('unread');
+                        item.classList.add('read');
+                        item.dataset.isRead = '1';
+                    });
+                    updateNotificationCounts();
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                location.reload();
             });
         }
     </script>

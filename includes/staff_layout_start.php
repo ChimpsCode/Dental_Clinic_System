@@ -204,7 +204,7 @@ function isActivePage($page) {
             display: none;
             position: absolute;
             top: calc(100% + 8px);
-            right: -180px;
+            right: -150px;
             background: white;
             border: 1px solid #e5e7eb;
             border-radius: 12px;
