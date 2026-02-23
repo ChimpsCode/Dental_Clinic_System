@@ -1,13 +1,7 @@
 <?php
-/**
- * Admin Layout - Centralized layout wrapper for all admin pages
- * Ensures strict role-based separation: only admins can access admin pages
- * and the Admin Sidebar is always displayed regardless of which admin page is loaded.
- */
 
 ob_start();
 
-// Set 10-minute session lifetime
 $__sessionLifetime = 600;
 if (session_status() === PHP_SESSION_NONE) {
     session_set_cookie_params([

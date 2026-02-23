@@ -9,13 +9,9 @@ if ($currentPage < 1) $currentPage = 1;
 try {
     require_once 'config/database.php';
     
-    // Check if is_archived column exists (archive system)
-    $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'is_archived'");
-    $hasArchiveColumn = $checkCol->rowCount() > 0;
-    
-    // Build WHERE clause based on column existence
-    $whereClause = $hasArchiveColumn ? "WHERE (a.is_archived = 0 OR a.is_archived IS NULL)" : "";
-    $countWhereClause = $hasArchiveColumn ? "WHERE is_archived = 0 OR is_archived IS NULL" : "";
+    // NOTE: Show all appointments (including archived) to avoid missing records
+    $whereClause = "";
+    $countWhereClause = "";
     
     // Get total count for pagination
     $countStmt = $pdo->query("SELECT COUNT(*) FROM appointments " . $countWhereClause);
@@ -34,23 +30,29 @@ try {
     $allStmt = $pdo->query("SELECT a.*, 
                          COALESCE(p.first_name, a.first_name, '') AS first_name, 
                          COALESCE(p.middle_name, a.middle_name, '') AS middle_name, 
+<<<<<<< Updated upstream
                          COALESCE(p.last_name, a.last_name, '') AS last_name,
                          COALESCE(p.phone, '') AS phone
+=======
+                         COALESCE(p.last_name, a.last_name, '') AS last_name
+>>>>>>> Stashed changes
                          FROM appointments a 
-                         LEFT JOIN patients p ON a.patient_id = p.id
-                         " . $whereClause);
+                         LEFT JOIN patients p ON a.patient_id = p.id");
     $allAppointments = $allStmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Get paginated appointments
     $stmt = $pdo->prepare("SELECT a.*, 
                          COALESCE(p.first_name, a.first_name, '') AS first_name, 
                          COALESCE(p.middle_name, a.middle_name, '') AS middle_name, 
+<<<<<<< Updated upstream
                          COALESCE(p.last_name, a.last_name, '') AS last_name,
                          COALESCE(p.phone, '') AS phone
+=======
+                         COALESCE(p.last_name, a.last_name, '') AS last_name
+>>>>>>> Stashed changes
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id 
-                         " . $whereClause . "
-                         ORDER BY a.created_at DESC
+                         ORDER BY a.appointment_date DESC, a.id DESC
                          LIMIT :limit OFFSET :offset");
     $stmt->bindValue(':limit', $itemsPerPage, PDO::PARAM_INT);
     $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
