@@ -248,6 +248,22 @@ try {
             $patient_id = $input['patient_id'] ?? 0;
             $amount = $input['amount'] ?? 0;
             $treatment = $input['treatment'] ?? '';
+            $queueDate = date('Y-m-d'); // default to today
+            $paymentDate = date('Y-m-d'); // actual payment date (today)
+            
+            // If queue provided, grab its date so billing_date aligns with queue_date for joins
+            if ($queue_id) {
+                $stmt = $pdo->prepare("SELECT patient_id, DATE(created_at) as created_date FROM queue WHERE id = ?");
+                $stmt->execute([$queue_id]);
+                $queueRow = $stmt->fetch();
+                if ($queueRow) {
+                    $queueDate = $queueRow['created_date'];
+                    // prefer patient_id from queue to avoid mismatch
+                    if (!$patient_id) {
+                        $patient_id = $queueRow['patient_id'];
+                    }
+                }
+            }
             
             // Get patient_id from queue if not provided
             if (!$patient_id && $queue_id) {
@@ -291,9 +307,9 @@ try {
                     // Check if billing exists for today
                     $stmt = $pdo->prepare("
                         SELECT id, payment_status FROM billing 
-                        WHERE patient_id = ? AND DATE(billing_date) = CURDATE()
+                        WHERE patient_id = ? AND DATE(billing_date) = ?
                     ");
-                    $stmt->execute([$patient_id]);
+                    $stmt->execute([$patient_id, $queueDate]);
                     $existing = $stmt->fetch();
                     
                     if ($existing) {
@@ -305,7 +321,8 @@ try {
                             SET payment_status = 'paid', 
                                 paid_amount = COALESCE(paid_amount, 0) + ?, 
                                 balance = 0,
-                                updated_at = NOW()
+                                updated_at = NOW(),
+                                billing_date = billing_date -- keep original service date
                             WHERE id = ?
                         ");
                         $stmt->execute([$amount, $billing_id]);
@@ -313,9 +330,9 @@ try {
                         // Create new billing
                         $stmt = $pdo->prepare("
                             INSERT INTO billing (patient_id, total_amount, paid_amount, balance, payment_status, billing_date, due_date, created_at, updated_at)
-                            VALUES (?, ?, ?, 0, 'paid', CURDATE(), DATE_ADD(CURDATE(), INTERVAL 7 DAY), NOW(), NOW())
+                            VALUES (?, ?, ?, 0, 'paid', ?, DATE_ADD(?, INTERVAL 7 DAY), NOW(), NOW())
                         ");
-                        $stmt->execute([$patient_id, $amount, $amount]);
+                        $stmt->execute([$patient_id, $amount, $amount, $queueDate, $queueDate]);
                         $billing_id = $pdo->lastInsertId();
                     }
                 }
@@ -323,9 +340,9 @@ try {
                 // Create payment record
                 $stmt = $pdo->prepare("
                     INSERT INTO payments (billing_id, patient_id, amount, payment_method, payment_date, created_by, created_at)
-                    VALUES (?, ?, ?, 'Cash', CURDATE(), ?, NOW())
+                    VALUES (?, ?, ?, 'Cash', ?, ?, NOW())
                 ");
-                $stmt->execute([$billing_id, $patient_id, $amount, $current_user_id]);
+                $stmt->execute([$billing_id, $patient_id, $amount, $paymentDate, $current_user_id]);
                 $payment_id = $pdo->lastInsertId();
                 
                 // Update queue status to completed if queue_id exists

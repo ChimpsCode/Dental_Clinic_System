@@ -68,11 +68,18 @@ require_once 'includes/staff_layout_start.php';
 .kebab-menu {
     position: relative;
     display: inline-block;
+    background: transparent;
+    border: none;
+    box-shadow: none;
 }
 
 .kebab-btn {
-    background: none;
+    background: transparent;
     border: none;
+    outline: none;
+    box-shadow: none;
+    -webkit-appearance: none;
+    appearance: none;
     cursor: pointer;
     padding: 8px;
     border-radius: 50%;
@@ -80,17 +87,19 @@ require_once 'includes/staff_layout_start.php';
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: color 0.2s ease;
+    width: 36px;
+    height: 36px;
 }
 
-.kebab-btn:hover {
-    background-color: #f3f4f6;
+.kebab-btn:hover,
+.kebab-btn:focus,
+.kebab-btn:active {
+    background: transparent;
+    border: none;
+    outline: none;
+    box-shadow: none;
     color: #374151;
-}
-
-.kebab-btn.active {
-    background-color: #e5e7eb;
-    color: #111827;
 }
 
 .kebab-dropdown-portal {
@@ -100,10 +109,10 @@ require_once 'includes/staff_layout_start.php';
     border: 1px solid #e5e7eb;
     border-radius: 8px;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-    min-width: 220px;
-    max-width: 280px;
+    min-width: 200px;
+    max-width: 220px;
     width: auto;
-    z-index: 9999;
+    z-index: 99999;
     overflow: hidden;
 }
 
@@ -153,6 +162,20 @@ require_once 'includes/staff_layout_start.php';
 
 .kebab-dropdown-portal a:last-child {
     border-radius: 0 0 8px 8px;
+}
+
+.kebab-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 99998;
+}
+
+.kebab-backdrop.show {
+    display: block;
 }
 
 /* View Modal Styles */
@@ -866,35 +889,41 @@ require_once 'includes/staff_layout_start.php';
             if (!kebabDropdown || !button) return;
 
             const rect = button.getBoundingClientRect();
-            const dropdownRect = kebabDropdown.getBoundingClientRect();
             
             const viewportWidth = window.innerWidth;
             const viewportHeight = window.innerHeight;
             
-            const padding = 15;
-            const dropdownWidth = 220;
-            
-            let left = rect.right + 5;
-            let top = rect.bottom + 8;
+            const padding = 12;
 
-            if (left + dropdownWidth > viewportWidth - padding) {
-                left = rect.left - dropdownWidth - 5;
-            }
+            // Measure dropdown size by temporarily showing it invisibly
+            kebabDropdown.style.display = 'block';
+            kebabDropdown.style.visibility = 'hidden';
+            const dropdownRect = kebabDropdown.getBoundingClientRect();
+            const dropdownWidth = dropdownRect.width || 200;
+            const dropdownHeight = dropdownRect.height || 120;
             
+            const gap = -45; // match payment dropdown spacing
+
+            // Prefer left of the button, vertically centered (same as payment page)
+            let left = rect.left - dropdownWidth - gap;
+            let top = rect.top + (rect.height / 2) - (dropdownHeight / 2);
+
+            // If it overflows on the left, place it to the right of the button
             if (left < padding) {
-                left = padding;
+                left = rect.right + gap;
             }
-            
-            if (top + 200 > viewportHeight - padding) {
-                top = rect.top - 200 - 8;
+
+            // Clamp vertical position within viewport
+            if (top + dropdownHeight > viewportHeight - padding) {
+                top = viewportHeight - padding - dropdownHeight;
             }
-            
             if (top < padding) {
                 top = padding;
             }
 
             kebabDropdown.style.left = left + 'px';
             kebabDropdown.style.top = top + 'px';
+            kebabDropdown.style.visibility = 'visible';
         }
 
         function openKebabDropdown(button) {

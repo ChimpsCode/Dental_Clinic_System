@@ -832,31 +832,35 @@ require_once 'includes/staff_layout_start.php';
         const rect = button.getBoundingClientRect();
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
-        
-        const padding = 15;
-        const dropdownWidth = 200;
-        
-        let left = rect.right + 5;
-        let top = rect.bottom + 8;
+        const padding = 12;
 
-        if (left + dropdownWidth > viewportWidth - padding) {
-            left = rect.left - dropdownWidth - 5;
-        }
-        
+        // Measure dropdown size by temporarily showing it invisibly
+        apptKebabDropdown.style.display = 'block';
+        apptKebabDropdown.style.visibility = 'hidden';
+        const dropdownRect = apptKebabDropdown.getBoundingClientRect();
+        const dropdownWidth = dropdownRect.width || 200;
+        const dropdownHeight = dropdownRect.height || 120;
+
+        // Prefer left side of the button, vertically centered
+        let left = rect.left - dropdownWidth - 8;
+        let top = rect.top + (rect.height / 2) - (dropdownHeight / 2);
+
+        // If it overflows on the left, place it on the right
         if (left < padding) {
-            left = padding;
+            left = rect.right + 8;
         }
-        
-        if (top + 180 > viewportHeight - padding) {
-            top = rect.top - 180 - 8;
+
+        // Clamp vertical position
+        if (top + dropdownHeight > viewportHeight - padding) {
+            top = viewportHeight - padding - dropdownHeight;
         }
-        
         if (top < padding) {
             top = padding;
         }
 
         apptKebabDropdown.style.left = left + 'px';
         apptKebabDropdown.style.top = top + 'px';
+        apptKebabDropdown.style.visibility = 'visible';
     }
 
     function openApptKebabDropdown(button) {

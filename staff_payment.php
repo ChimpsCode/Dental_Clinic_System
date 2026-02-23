@@ -115,16 +115,36 @@ try {
     $stmt->execute();
     $paymentRecords = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Get summary statistics
-    $statsStmt = $conn->query("SELECT 
-        (SELECT COALESCE(SUM(total_amount), 0) FROM billing WHERE payment_status = 'paid' AND DATE(billing_date) = CURDATE()) as total_collected_today,
-        (SELECT COALESCE(SUM(total_amount), 0) FROM billing WHERE payment_status IN ('pending', 'unpaid') AND DATE(billing_date) = CURDATE()) as pending_today,
-        (SELECT COUNT(*) FROM queue WHERE status = 'completed' AND DATE(created_at) = CURDATE()) as completed_today,
-        (SELECT COUNT(*) FROM queue WHERE status = 'completed' AND DATE(created_at) = CURDATE() AND patient_id NOT IN 
-            (SELECT patient_id FROM billing WHERE payment_status = 'paid' AND DATE(billing_date) = CURDATE())
-        ) as unpaid_today
-        ");
-    $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
+    // Get summary statistics based directly on today's queue + billing rows
+    // Get summary statistics directly from source tables (payments, billing, queue)
+    $statsSql = "
+        SELECT 
+            (SELECT COALESCE(SUM(amount), 0)
+             FROM payments
+             WHERE DATE(payment_date) = CURDATE()) AS total_collected_today,
+             
+            (SELECT COALESCE(SUM(total_amount), 0)
+             FROM billing
+             WHERE payment_status IN ('pending', 'unpaid')
+               AND DATE(billing_date) = CURDATE()) AS pending_today,
+               
+            (SELECT COUNT(*)
+             FROM queue
+             WHERE status = 'completed'
+               AND DATE(created_at) = CURDATE()) AS completed_today,
+               
+            (SELECT COUNT(*)
+             FROM billing
+             WHERE payment_status IN ('pending', 'unpaid')
+               AND DATE(billing_date) = CURDATE()) AS unpaid_today
+    ";
+    $statsStmt = $conn->query($statsSql);
+    $stats = $statsStmt ? $statsStmt->fetch(PDO::FETCH_ASSOC) : [
+        'total_collected_today' => 0,
+        'pending_today' => 0,
+        'completed_today' => 0,
+        'unpaid_today' => 0
+    ];
     
     // Get services for calculating amounts
     $servicesStmt = $conn->query("SELECT id, name, price FROM services WHERE is_active = 1");
@@ -267,7 +287,6 @@ require_once __DIR__ . '/includes/staff_layout_start.php';
                             <?php foreach ($paymentRecords as $record): ?>
                             <?php 
                                 $isPaid = ($record['payment_status'] === 'paid');
-                                $isCompleted = ($record['queue_status'] === 'completed');
                                 $calculatedAmount = $record['amount'] > 0 ? $record['amount'] : calculateAmount($record['treatment_type'], $servicesMap);
                             ?>
                             <tr data-queue-id="<?php echo $record['queue_id']; ?>" data-patient-id="<?php echo $record['patient_id']; ?>">
@@ -306,28 +325,22 @@ require_once __DIR__ . '/includes/staff_layout_start.php';
                                     <?php endif; ?>
                                 </td>
                                 <td class="action-cell">
-                                    <div class="kebab-menu">
-                                        <button class="kebab-btn" onclick="toggleKebabMenu(this)">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
-                                                <path fill="currentColor" d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2s-2 .9-2 2s.9 2 2 2m0 2c-1.1 0-2 .9-2 2s.9 2 2 2s2-.9 2-2s-.9-2-2-2m0 6c-1.1 0-2 .9-2 2s.9 2 2 2s2-.9 2-2s-.9-2-2-2"/>
+                                    <div class="pay-kebab-menu">
+                                        <button
+                                            class="pay-kebab-btn"
+                                            data-queue-id="<?php echo $record['queue_id']; ?>"
+                                            data-patient-id="<?php echo $record['patient_id']; ?>"
+                                            data-amount="<?php echo $calculatedAmount; ?>"
+                                            data-treatment="<?php echo htmlspecialchars($record['treatment_type'] ?: 'General Checkup'); ?>"
+                                            data-is-paid="<?php echo $isPaid ? '1' : '0'; ?>"
+                                            aria-label="Payment actions for queue <?php echo $record['queue_id']; ?>"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                                <circle cx="12" cy="6" r="2"/>
+                                                <circle cx="12" cy="12" r="2"/>
+                                                <circle cx="12" cy="18" r="2"/>
                                             </svg>
                                         </button>
-                                        <div class="kebab-dropdown">
-                                            <button class="kebab-item" onclick="viewPaymentDetails(<?php echo $record['queue_id']; ?>, <?php echo $record['patient_id']; ?>)">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
-                                                    <path fill="currentColor" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5M12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5s5 2.24 5 5s-2.24 5-5 5m0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3s3-1.34 3-3s-1.34-3-3-3"/>
-                                                </svg>
-                                                View Details
-                                            </button>
-                                            <?php if (!$isPaid && $isCompleted): ?>
-                                            <button class="kebab-item mark-paid" onclick="markAsPaid(<?php echo $record['queue_id']; ?>, <?php echo $record['patient_id']; ?>, <?php echo $calculatedAmount; ?>, '<?php echo addslashes($record['treatment_type']); ?>')">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
-                                                    <path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19L21 7l-1.41-1.41z"/>
-                                                </svg>
-                                                Mark as Paid
-                                            </button>
-                                            <?php endif; ?>
-                                        </div>
                                     </div>
                                 </td>
                             </tr>
@@ -655,76 +668,113 @@ require_once __DIR__ . '/includes/staff_layout_start.php';
                     color: #6b7280;
                 }
 
-                /* Kebab Menu Styles */
+                /* Payment Kebab Menu Styles - Portal Based */
                 .action-cell {
-                    position: relative;
+                    text-align: center;
                 }
 
-                .kebab-menu {
+                .pay-kebab-menu {
                     position: relative;
                     display: inline-block;
                 }
 
-                .kebab-btn {
-                    background: #f3f4f6;
+                .pay-kebab-btn {
+                    background: none;
                     border: none;
-                    border-radius: 6px;
-                    padding: 0.5rem;
                     cursor: pointer;
+                    padding: 8px;
+                    border-radius: 50%;
+                    color: #6b7280;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    color: #6b7280;
-                    transition: all 0.2s;
+                    transition: all 0.2s ease;
                 }
 
-                .kebab-btn:hover {
-                    background: #e5e7eb;
+                .pay-kebab-btn:hover {
+                    background-color: #f3f4f6;
                     color: #374151;
                 }
 
-                .kebab-dropdown {
+                .pay-kebab-btn.active {
+                    background-color: #e5e7eb;
+                    color: #111827;
+                }
+
+                .pay-kebab-dropdown-portal {
                     display: none;
-                    position: absolute;
-                    right: 0;
-                    top: 100%;
+                    position: fixed;
                     background: white;
+                    border: 1px solid #e5e7eb;
                     border-radius: 8px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                    min-width: 160px;
-                    z-index: 100;
+                    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+                    min-width: 200px;
+                    max-width: 220px;
+                    width: auto;
+                    z-index: 99999;
                     overflow: hidden;
                 }
 
-                .kebab-dropdown.active {
+                .pay-kebab-dropdown-portal.show {
                     display: block;
+                    animation: payKebabFadeIn 0.15s ease;
                 }
 
-                .kebab-item {
+                @keyframes payKebabFadeIn {
+                    from { opacity: 0; transform: scale(0.95) translateY(-4px); }
+                    to { opacity: 1; transform: scale(1) translateY(0); }
+                }
+
+                .pay-kebab-dropdown-portal a {
                     display: flex;
                     align-items: center;
-                    gap: 0.5rem;
-                    width: 100%;
-                    padding: 0.75rem 1rem;
-                    border: none;
-                    background: none;
-                    text-align: left;
-                    cursor: pointer;
-                    font-size: 0.875rem;
+                    gap: 10px;
+                    padding: 10px 16px;
                     color: #374151;
-                    transition: background 0.2s;
+                    text-decoration: none;
+                    font-size: 0.875rem;
+                    transition: all 0.15s ease;
+                    cursor: pointer;
+                    white-space: nowrap;
                 }
 
-                .kebab-item:hover {
-                    background: #f3f4f6;
+                .pay-kebab-dropdown-portal a:hover {
+                    background-color: #f9fafb;
+                    color: #111827;
                 }
 
-                .kebab-item.mark-paid {
-                    color: #16a34a;
+                .pay-kebab-dropdown-portal a svg {
+                    flex-shrink: 0;
                 }
 
-                .kebab-item.mark-paid:hover {
-                    background: #dcfce7;
+                .pay-kebab-dropdown-portal a:first-child {
+                    border-radius: 8px 8px 0 0;
+                }
+
+                .pay-kebab-dropdown-portal a:last-child {
+                    border-radius: 0 0 8px 8px;
+                }
+
+                .pay-kebab-dropdown-portal a.danger {
+                    color: #dc2626;
+                }
+
+                .pay-kebab-dropdown-portal a.danger:hover {
+                    background-color: #fef2f2;
+                }
+
+                .pay-kebab-backdrop {
+                    display: none;
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    z-index: 99998;
+                }
+
+                .pay-kebab-backdrop.show {
+                    display: block;
                 }
 
                 .no-records {
@@ -946,31 +996,160 @@ require_once __DIR__ . '/includes/staff_layout_start.php';
                     }
                 })();
 
-                // Close all kebab menus when clicking outside
+                // Payment Kebab Menu - Portal Based (mirrors appointment behavior)
+                let payKebabDropdown = null;
+                let payKebabBackdrop = null;
+                let payActiveButton = null;
+
+                function createPayKebabDropdown() {
+                    payKebabDropdown = document.createElement('div');
+                    payKebabDropdown.className = 'pay-kebab-dropdown-portal';
+                    payKebabDropdown.id = 'payKebabDropdownPortal';
+                    document.body.appendChild(payKebabDropdown);
+
+                    payKebabBackdrop = document.createElement('div');
+                    payKebabBackdrop.className = 'pay-kebab-backdrop';
+                    payKebabBackdrop.id = 'payKebabBackdrop';
+                    document.body.appendChild(payKebabBackdrop);
+
+                    payKebabBackdrop.addEventListener('click', closePayKebabDropdown);
+                }
+
+                function getPayMenuItems(button) {
+                    const queueId = button.dataset.queueId;
+                    const patientId = button.dataset.patientId;
+                    const amount = button.dataset.amount;
+                    const treatment = button.dataset.treatment;
+                    const isPaid = button.dataset.isPaid === '1';
+
+                    return `
+                        <a href="javascript:void(0)" data-action="view" data-queue-id="${queueId}" data-patient-id="${patientId}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
+                                <path fill="none" stroke="currentColor" stroke-width="2" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                            View Details
+                        </a>
+                        ${!isPaid ? `
+                        <a href="javascript:void(0)" data-action="mark-paid" data-queue-id="${queueId}" data-patient-id="${patientId}" data-amount="${amount}" data-treatment="${treatment}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
+                                <path fill="none" stroke="currentColor" stroke-width="2" d="M20 6 9 17l-5-5"/>
+                            </svg>
+                            Mark as Paid
+                        </a>` : ''}
+                    `;
+                }
+
+                function positionPayKebabDropdown(button) {
+                    if (!payKebabDropdown || !button) return;
+
+                    const rect = button.getBoundingClientRect();
+                    const viewportWidth = window.innerWidth;
+                    const viewportHeight = window.innerHeight;
+                    const padding = 12;
+
+                    // Measure dropdown size by temporarily showing it invisibly
+                    payKebabDropdown.style.display = 'block';
+                    payKebabDropdown.style.visibility = 'hidden';
+                    const dropdownRect = payKebabDropdown.getBoundingClientRect();
+                    const dropdownWidth = dropdownRect.width || 200;
+                    const dropdownHeight = dropdownRect.height || 120;
+
+                    // Prefer left side of the button, vertically centered
+                    let left = rect.left - dropdownWidth - 8;
+                    let top = rect.top + (rect.height / 2) - (dropdownHeight / 2);
+
+                    // If it overflows on the left, place it on the right
+                    if (left < padding) {
+                        left = rect.right + 8;
+                    }
+
+                    // Clamp vertical position
+                    if (top + dropdownHeight > viewportHeight - padding) {
+                        top = viewportHeight - padding - dropdownHeight;
+                    }
+                    if (top < padding) {
+                        top = padding;
+                    }
+
+                    payKebabDropdown.style.left = left + 'px';
+                    payKebabDropdown.style.top = top + 'px';
+                    payKebabDropdown.style.visibility = 'visible';
+                }
+
+                function openPayKebabDropdown(button) {
+                    if (!payKebabDropdown) {
+                        createPayKebabDropdown();
+                    }
+
+                    payKebabDropdown.innerHTML = getPayMenuItems(button);
+                    positionPayKebabDropdown(button);
+
+                    payKebabDropdown.classList.add('show');
+                    payKebabBackdrop.classList.add('show');
+                    payActiveButton = button;
+                    button.classList.add('active');
+
+                    payKebabDropdown.addEventListener('click', handlePayKebabClick);
+                }
+
+                function closePayKebabDropdown() {
+                    if (payKebabDropdown) {
+                        payKebabDropdown.classList.remove('show');
+                    }
+                    if (payKebabBackdrop) {
+                        payKebabBackdrop.classList.remove('show');
+                    }
+                    if (payActiveButton) {
+                        payActiveButton.classList.remove('active');
+                        payActiveButton = null;
+                    }
+                }
+
+                function handlePayKebabClick(e) {
+                    const link = e.target.closest('a');
+                    if (!link) return;
+
+                    e.preventDefault();
+                    const action = link.dataset.action;
+                    const queueId = link.dataset.queueId;
+                    const patientId = link.dataset.patientId;
+                    const amount = link.dataset.amount;
+                    const treatment = link.dataset.treatment;
+
+                    closePayKebabDropdown();
+
+                    switch (action) {
+                        case 'view':
+                            viewPaymentDetails(queueId, patientId);
+                            break;
+                        case 'mark-paid':
+                            markAsPaid(queueId, patientId, amount, treatment);
+                            break;
+                    }
+                }
+
+                // Click handler for kebab buttons
                 document.addEventListener('click', function(e) {
-                    if (!e.target.closest('.kebab-menu')) {
-                        document.querySelectorAll('.kebab-dropdown.active').forEach(dropdown => {
-                            dropdown.classList.remove('active');
-                        });
+                    const button = e.target.closest('.pay-kebab-btn');
+                    if (button) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        if (payActiveButton === button) {
+                            closePayKebabDropdown();
+                        } else {
+                            closePayKebabDropdown();
+                            openPayKebabDropdown(button);
+                        }
+                    } else if (!e.target.closest('.pay-kebab-dropdown-portal')) {
+                        closePayKebabDropdown();
                     }
                 });
 
-                function toggleKebabMenu(btn) {
-                    // Close all other dropdowns
-                    document.querySelectorAll('.kebab-dropdown.active').forEach(dropdown => {
-                        if (dropdown !== btn.nextElementSibling) {
-                            dropdown.classList.remove('active');
-                        }
-                    });
-                    
-                    // Toggle current dropdown
-                    const dropdown = btn.nextElementSibling;
-                    dropdown.classList.toggle('active');
-                }
-
                 function viewPaymentDetails(queueId, patientId) {
                     // Close kebab menu
-                    document.querySelectorAll('.kebab-dropdown.active').forEach(d => d.classList.remove('active'));
+                    closePayKebabDropdown();
                     
                     // Fetch and display details
                     document.getElementById('paymentModal').style.display = 'flex';
@@ -1036,7 +1215,7 @@ require_once __DIR__ . '/includes/staff_layout_start.php';
 
                 function markAsPaid(queueId, patientId, amount, treatment) {
                     // Close kebab menu
-                    document.querySelectorAll('.kebab-dropdown.active').forEach(d => d.classList.remove('active'));
+                    closePayKebabDropdown();
                     
                     // Set modal values
                     document.getElementById('confirmPaymentQueueId').value = queueId;

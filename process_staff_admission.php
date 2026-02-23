@@ -115,11 +115,16 @@ try {
         $stmt->execute([$patientId, $_POST['prevDentist'] ?? '', $_POST['lastVisitDate'] ?? '', $_POST['reasonLastVisit'] ?? '', $_POST['prevTreatments'] ?? '', $_POST['complaints'] ?? '']);
     }
     
-    // Medical History
+    // Medical History (schema uses medical_conditions + current_medications)
     $medicalConditions = $_POST['medicalConditions'] ?? [];
-    if (!empty($_POST['medications']) || !empty($medicalConditions)) {
-        $stmt = $pdo->prepare("INSERT INTO medical_history (patient_id, conditions, medications, created_at) VALUES (?, ?, ?, NOW())");
-        $stmt->execute([$patientId, is_array($medicalConditions) ? implode(', ', $medicalConditions) : $medicalConditions, $_POST['medications'] ?? '']);
+    $medications = $_POST['medications'] ?? '';
+    if (!empty($medications) || !empty($medicalConditions)) {
+        $stmt = $pdo->prepare("INSERT INTO medical_history (patient_id, medical_conditions, current_medications, created_at) VALUES (?, ?, ?, NOW())");
+        $stmt->execute([
+            $patientId,
+            is_array($medicalConditions) ? implode(', ', $medicalConditions) : $medicalConditions,
+            $medications
+        ]);
     }
     
     // Services

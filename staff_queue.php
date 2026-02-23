@@ -1090,25 +1090,27 @@ function positionQueueKebabDropdown(button) {
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     
-    const padding = 15;
-    const dropdownWidth = 160;
-    const dropdownHeight = 130;
-    
-    let left = rect.right + 5;
-    let top = rect.top;
+    const padding = 12;
 
-    // Position to the left if not enough space on right
-    if (left + dropdownWidth > viewportWidth - padding) {
-        left = rect.left - dropdownWidth - 5;
-    }
+    // Measure dropdown size by temporarily showing it invisibly
+    queueKebabDropdown.style.display = 'block';
+    queueKebabDropdown.style.visibility = 'hidden';
+    const dropdownRect = queueKebabDropdown.getBoundingClientRect();
+    const dropdownWidth = dropdownRect.width || 180;
+    const dropdownHeight = dropdownRect.height || 130;
     
+    // Prefer left side of the button, vertically centered
+    let left = rect.left - dropdownWidth - 8;
+    let top = rect.top + (rect.height / 2) - (dropdownHeight / 2);
+
+    // If it overflows on the left, place it on the right
     if (left < padding) {
-        left = padding;
+        left = rect.right + 8;
     }
     
-    // Position above if not enough space below
+    // Clamp vertical position
     if (top + dropdownHeight > viewportHeight - padding) {
-        top = rect.bottom - dropdownHeight;
+        top = viewportHeight - padding - dropdownHeight;
     }
     
     if (top < padding) {
@@ -1117,6 +1119,7 @@ function positionQueueKebabDropdown(button) {
 
     queueKebabDropdown.style.left = left + 'px';
     queueKebabDropdown.style.top = top + 'px';
+    queueKebabDropdown.style.visibility = 'visible';
 }
 
 function openQueueKebabDropdown(button) {
