@@ -28,6 +28,14 @@ function isStrongPassword($pwd) {
 }
 
 // AJAX endpoints for single-page wizard
+// Determine where to go back to
+$referrer = $_SERVER['HTTP_REFERER'] ?? 'home.php';
+// Only allow internal pages
+if (strpos($referrer, 'forgot-password.php') !== false || 
+    strpos($referrer, 'patient_register.php') !== false) {
+    $referrer = 'login.php';
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     header('Content-Type: application/json; charset=utf-8');
     $action = $_POST['action'];
@@ -53,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $subject = 'RF Dental Clinic - Password Reset Code';
             $message = "Hi " . $user['username'] . ",\n\nYour verification code is: " . $resetCode . "\n\nEnter this code in the application to continue resetting your password.";
 
-            // Build HTML email (reusing earlier template)
+            // Build HTML email
             ob_start();
             ?>
             <html><head><meta charset="UTF-8"><title>RF Dental Clinic - Password Reset</title></head>
@@ -350,387 +358,93 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Forgot Password - RF Dental Clinic</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: Segoe UI, Arial, sans-serif;
-        }
-
-        body {
-            margin: 0;
-            padding: 0;
-            width: 100vw;
-            height: 100vh;
-            background: url("assets/images/Background.jpg");
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-            background-repeat: no-repeat;
-            position: fixed;
-        }
-
-        .container {
-            display: flex;
-            height: 100vh;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .centered {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .login-box {
-            background: #f7f7f7;
-            width: 420px;
-            padding: 42px 38px 32px;
-            border-radius: 16px;
-            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
-            text-align: center;
-        }
-
-        .logo {
-            width: 50px;
-            margin-bottom: 20px;
-         
-        }
-
-        .login-box h2 {
-            color: #0f172a;
-            margin-bottom: 8px;
-            font-size: 26px;
-        }
-
-        .login-box input {
-            width: 100%;
-            padding: 14px;
-            margin: 14px 0;
-            border: 1px solid #d6d6d6;
-            border-radius: 10px;
-            background: #ffffff;
-            font-size: 14px;
-            outline: none;
-        }
-
-        .login-box button {
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 10px;
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            color: white;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            cursor: pointer;
-            margin-top: 12px;
-            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.35);
-            transition: transform 0.1s ease, box-shadow 0.2s ease, opacity 0.15s ease;
-        }
-
-        .login-box button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 16px 28px rgba(37, 99, 235, 0.4);
-        }
-
-        .login-box button:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: 0 8px 16px rgba(37, 99, 235, 0.25);
-        }
-
-        .spinner {
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(255,255,255,0.45);
-            border-top-color: #fff;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 8px;
-            animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .description-text {
-            color: #475569;
-            font-size: 14px;
-            margin-bottom: 22px;
-            line-height: 1.6;
-        }
-
-        .stepper {
-            display: inline-flex;
-            align-items: center;
-            gap: 30px;
-            margin: 18px auto 26px;
-            padding: 0 5px;
-        }
-        .step {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
-            flex: 1;
-            position: relative;
-        }
-        .step:not(:last-child)::after {
-            content: '';
-            position: absolute;
-            top: 16px;
-            right: -80%;
-            width: 100%;
-            height: 2px;
-            background: #e2e8f0;
-            z-index: 0;
-        }
-        .step-number {
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            display: grid;
-            place-items: center;
-            font-weight: 700;
-            font-size: 14px;
-            background: #e2e8f0;
-            color: #475569;
-            position: relative;
-            z-index: 1;
-        }
-        .step.active .step-number {
-            background: #1d4ed8;
-            color: #fff;
-            box-shadow: 0 10px 20px rgba(29, 78, 216, 0.28);
-            border: 2px solid #93c5fd;
-        }
-        .step.completed .step-number {
-            background: #bfdbfe;
-            color: #0f172a;
-            box-shadow: 0 8px 16px rgba(15, 23, 42, 0.12);
-            border: 1px solid #bfdbfe;
-        }
-        .step label {
-            font-size: 12px;
-            color: #475569;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-        }
-
-        .back-link-wrapper {
-            margin-top: 20px;
-        }
-
-        .back-link-wrapper a {
-            color: #0d5bd7;
-            text-decoration: none;
-            font-weight: 500;
-        }
-
-        .back-link-wrapper a:hover {
-            text-decoration: underline;
-        }
-
-        /* Notification Toast */
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 15px 20px;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 14px;
-            z-index: 9999;
-            opacity: 0;
-            transition: opacity 0.25s ease;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-            max-width: 350px;
-            word-wrap: break-word;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            border-left: 5px solid;
-            background: white;
-        }
-
-        .notification.show {
-            opacity: 1;
-        }
-
-        .notification::before {
-            content: '✓';
-            font-size: 20px;
-            font-weight: bold;
-            flex-shrink: 0;
-        }
-
-        .notification::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            height: 3px;
-            background: currentColor;
-            animation: progressBar 1.6s linear forwards;
-        }
-
-        @keyframes progressBar {
-            0% {
-                width: 0;
-            }
-            100% {
-                width: 100%;
-            }
-        }
-
-        .success-notification {
-            color: #4caf50;
-        }
-
-        .success-notification::before {
-            color: #4caf50;
-        }
-
-        .error-notification {
-            color: #f44336;
-        }
-
-        .error-notification::before {
-            content: '✕';
-        }
-
-        /* Page Exit Animation */
-        @keyframes pageExit {
-            from {
-                opacity: 1;
-                transform: translateX(0);
-            }
-            to {
-                opacity: 0;
-                transform: translateX(18px);
-            }
-        }
-
-        body.exit-animation {
-            animation: pageExit 0.35s ease-in forwards;
-        }
-
-        @media (max-width: 1024px) {
-            .container {
-                padding: 0 50px;
-            }
-
-            .left {
-                width: 40%;
-            }
-
-            .right {
-                width: 60%;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                padding: 20px;
-                flex-direction: column;
-            }
-
-            .left {
-                width: 100%;
-                display: none;
-            }
-
-            .right {
-                width: 100%;
-                justify-content: center;
-            }
-        }
-    </style>
+    <link rel="icon" type="image/png" href="assets/images/Logo.png">
+    <link rel="stylesheet" href="assets/css/login.css">
 </head>
 <body>
-
     <div class="container">
-        <div class="centered">
-            <div class="login-box">
-                <img src="assets/images/Logo.png" class="logo" alt="RF Logo">
-                <h2>Forgot Password</h2>
+        <div class="login-form-container" style="max-width: 450px;">
+            <!-- Close button to go back -->
+            <button type="button" class="login-close-btn" onclick="window.location.href='<?php echo htmlspecialchars($referrer); ?>'" aria-label="Close">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
 
-                <p class="description-text">Enter your email address and we’ll email you a 6-digit code to reset your password.</p>
-
-                <div class="stepper">
-                    <div class="step <?php echo $currentStep === 1 ? 'active' : ($currentStep > 1 ? 'completed' : ''); ?>">
-                        <div class="step-number">1</div>
+            <div class="logo-container">
+                <img src="assets/images/Logo.png" alt="RF Logo" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display:none;">
+                    <path d="M50 20 L30 40 L30 60 L50 80 L70 60 L70 40 Z" fill="#2563eb" stroke="#2563eb" stroke-width="2"/>
+                    <text x="50" y="45" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">R</text>
+                    <text x="50" y="70" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">F</text>
+                </svg>
+            </div>
+            
+            <h1 class="clinic-name">Forgot Password</h1>
+            
+            <?php if ($error): ?>
+                <div class="alert alert-error" style="background-color: #fee2e2; color: #dc2626; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">
+                    <?php echo htmlspecialchars($error); ?>
+                </div>
+            <?php endif; ?>
+            
+            <?php if ($success): ?>
+                <div class="alert alert-success" style="background-color: #dcfce7; color: #16a34a; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">
+                    <?php echo htmlspecialchars($success); ?>
+                </div>
+            <?php endif; ?>
+            
+            <form id="resetForm">
+                <div id="step1" class="step-pane">
+                    <p style="color: #6b7280; font-size: 14px; margin-bottom: 20px; text-align: center;">
+                        Enter your email address and we'll email you a 6-digit code to reset your password.
+                    </p>
+                    <div class="input-group">
+                        <input type="email" name="email" id="email" placeholder="Enter your email" required autofocus>
                     </div>
-                    <div class="step <?php echo $currentStep === 2 ? 'active' : ($currentStep > 2 ? 'completed' : ''); ?>">
-                        <div class="step-number">2</div>
-                    </div>
-                    <div class="step <?php echo $currentStep === 3 ? 'active' : ''; ?>">
-                        <div class="step-number">3</div>
-                    </div>
+                    <button type="button" class="login-btn" id="sendBtn">
+                        <span id="sendBtnText">Send Code</span>
+                    </button>
                 </div>
 
-                <?php if ($error): ?>
-                    <div style="color: #f44336; background: #ffebee; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 13px;">
-                        <?php echo htmlspecialchars($error); ?>
+                <div id="step2" class="step-pane" style="display:none;">
+                    <p style="color: #6b7280; font-size: 14px; margin-bottom: 20px; text-align: center;">
+                        Enter the 6-digit code sent to your email.
+                    </p>
+                    <div class="input-group">
+                        <input type="text" name="code" id="code" placeholder="Enter verification code" maxlength="6" pattern="\d{6}" style="text-align: center; letter-spacing: 8px; font-size: 18px;">
                     </div>
-                <?php endif; ?>
+                    <button type="button" class="login-btn" id="verifyBtn">
+                        <span id="verifyBtnText">Verify Code</span>
+                    </button>
+                </div>
 
-                <?php if ($success): ?>
-                    <div style="color: #4caf50; background: #e8f5e9; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 13px;">
-                        <?php echo htmlspecialchars($success); ?>
+                <div id="step3" class="step-pane" style="display:none;">
+                    <p style="color: #6b7280; font-size: 14px; margin-bottom: 20px; text-align: center;">
+                        Enter your new password.
+                    </p>
+                    <div class="input-group">
+                        <input type="password" name="password" id="password" placeholder="New password" required>
                     </div>
-                <?php endif; ?>
-
-                <form id="resetForm">
-                    <div id="step1" class="step-pane">
-                        <input type="email" name="email" id="email" placeholder="Enter your email" required autofocus>
-                        <button type="submit" id="sendBtn"><span id="sendBtnText">Send Code</span></button>
-                    </div>
-
-                    <div id="step2" class="step-pane" style="display:none;">
-                        <input type="text" name="code" id="code" placeholder="Enter verification code" maxlength="6" pattern="\\d{6}">
-                        <button type="button" id="verifyBtn"><span id="verifyBtnText">Verify Code</span></button>
-                    </div>
-
-                    <div id="step3" class="step-pane" style="display:none;">
-                        <input type="password" name="password" id="password" placeholder="Enter new password" required>
-                        <div id="pwdRequirements" style="display:none; background:rgba(15,23,42,0.04); border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px; text-align:left; margin:8px 0 12px; color:#0f172a;">
-                            <div style="font-weight:700; margin-bottom:6px;">Password Requirements:</div>
-                            <ul style="list-style:none; padding-left:0; margin:0; font-size:13px; line-height:1.55;">
-                                <li data-rule="len" style="display:flex; gap:8px; align-items:center;"><span class="req-icon">✗</span>At least 8 characters</li>
-                                <li data-rule="upper" style="display:flex; gap:8px; align-items:center;"><span class="req-icon">✗</span>At least one uppercase letter</li>
-                                <li data-rule="lower" style="display:flex; gap:8px; align-items:center;"><span class="req-icon">✗</span>At least one lowercase letter</li>
-                                <li data-rule="num" style="display:flex; gap:8px; align-items:center;"><span class="req-icon">✗</span>At least one number</li>
-                                <li data-rule="sym" style="display:flex; gap:8px; align-items:center;"><span class="req-icon">✗</span>At least one symbol</li>
-                            </ul>
-                        </div>
-                        <div id="strengthMeter" style="display:none; text-align:left; font-size:12px; margin:4px 0 10px; color:#475569;">
-                            <div id="strengthBar" style="height:6px; border-radius:999px; background:#e2e8f0; overflow:hidden;">
-                                <span id="strengthFill" style="display:block; height:100%; width:10%; background:#ef4444; transition:width 0.2s ease, background 0.2s ease;"></span>
-                            </div>
-                            <div id="strengthLabel" style="margin-top:6px; font-weight:600;">Weak password</div>
-                        </div>
+                    <div class="input-group">
                         <input type="password" name="confirm_password" id="confirm_password" placeholder="Confirm new password" required>
-                        <button type="button" id="changeBtn"><span id="changeBtnText">Change Password</span></button>
                     </div>
+                    <button type="button" class="login-btn" id="changeBtn">
+                        <span id="changeBtnText">Change Password</span>
+                    </button>
+                </div>
 
-                    <div class="back-link-wrapper">
-                        <a href="login.php" class="page-transition">Back to Login</a>
-                    </div>
-                </form>
-            </div>
+                <div class="form-links" style="margin-top: 20px; justify-content: center;">
+                    <a href="login.php" class="link page-transition">Back to Login</a>
+                </div>
+            </form>
+        </div>
     </div>
 
     <script>
-        // Page transition effect for navigation links
         document.addEventListener('DOMContentLoaded', function() {
             const pageTransitionLinks = document.querySelectorAll('.page-transition');
             pageTransitionLinks.forEach(link => {
@@ -747,10 +461,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             const resetForm = document.getElementById('resetForm');
             const setStep = (n) => {
                 stepperNums.forEach((num, idx) => {
-                    const el = stepElems[idx];
-                    el.classList.remove('active','completed');
-                    if (num === n) el.classList.add('active');
-                    if (num < n) el.classList.add('completed');
+                    if (stepElems[idx]) {
+                        stepElems[idx].classList.remove('active','completed');
+                        if (num === n) stepElems[idx].classList.add('active');
+                        if (num < n) stepElems[idx].classList.add('completed');
+                    }
                 });
                 document.getElementById('step1').style.display = n === 1 ? 'block' : 'none';
                 document.getElementById('step2').style.display = n === 2 ? 'block' : 'none';
@@ -777,84 +492,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 .catch(() => showError('Network error. Please try again.'));
             };
 
-            // Buttons
             const sendBtn = document.getElementById('sendBtn');
             const sendBtnText = document.getElementById('sendBtnText');
             const verifyBtn = document.getElementById('verifyBtn');
             const verifyBtnText = document.getElementById('verifyBtnText');
             const changeBtn = document.getElementById('changeBtn');
             const changeBtnText = document.getElementById('changeBtnText');
-            const pwdInput = document.getElementById('password');
-            const confirmInput = document.getElementById('confirm_password');
-            const strengthMeter = document.getElementById('strengthMeter');
-            const strengthFill = document.getElementById('strengthFill');
-            const strengthLabel = document.getElementById('strengthLabel');
-            const reqBox = document.getElementById('pwdRequirements');
-            const reqItems = {
-                len: reqBox.querySelector('[data-rule="len"] .req-icon'),
-                upper: reqBox.querySelector('[data-rule="upper"] .req-icon'),
-                lower: reqBox.querySelector('[data-rule="lower"] .req-icon'),
-                num: reqBox.querySelector('[data-rule="num"] .req-icon'),
-                sym: reqBox.querySelector('[data-rule="sym"] .req-icon'),
-            };
-
-            const strengthLevels = [
-                {label:'Very Weak', color:'#ef4444', min:0},
-                {label:'Weak', color:'#f97316', min:25},
-                {label:'Fair', color:'#f59e0b', min:45},
-                {label:'Good', color:'#10b981', min:65},
-                {label:'Strong', color:'#059669', min:80}
-            ];
-
-            const computeStrength = (value) => {
-                if (!value) return 0;
-                let score = Math.min(40, value.length * 4); // length weight
-                if (/[A-Z]/.test(value)) score += 15;
-                if (/[a-z]/.test(value)) score += 15;
-                if (/[0-9]/.test(value)) score += 15;
-                if (/[^A-Za-z0-9]/.test(value)) score += 15;
-                if (value.length >= 12) score += 10;
-                return Math.min(score, 100);
-            };
-
-            const updateStrength = () => {
-                const val = pwdInput.value;
-                const score = computeStrength(val);
-                if (val.length === 0) {
-                    strengthMeter.style.display = 'none';
-                    reqBox.style.display = 'none';
-                    return;
-                }
-                reqBox.style.display = 'block';
-                strengthMeter.style.display = 'block';
-                strengthFill.style.width = `${Math.max(score,10)}%`;
-                const level = strengthLevels.slice().reverse().find(l => score >= l.min) || strengthLevels[0];
-                strengthFill.style.background = level.color;
-                strengthLabel.textContent = `${level.label} password`;
-
-                // update requirement ticks
-                const checks = {
-                    len: val.length >= 8,
-                    upper: /[A-Z]/.test(val),
-                    lower: /[a-z]/.test(val),
-                    num: /[0-9]/.test(val),
-                    sym: /[^A-Za-z0-9]/.test(val),
-                };
-                Object.entries(checks).forEach(([key, ok]) => {
-                    reqItems[key].textContent = ok ? '✓' : '✗';
-                    reqItems[key].style.color = ok ? '#10b981' : '#ef4444';
-                });
-            };
-
-            pwdInput.addEventListener('input', updateStrength);
-            confirmInput.addEventListener('input', () => {
-                confirmInput.setCustomValidity(confirmInput.value && confirmInput.value !== pwdInput.value ? 'Passwords do not match' : '');
-            });
-
 
             sendBtn.addEventListener('click', () => {
                 sendBtn.disabled = true;
-                sendBtnText.innerHTML = '<span class="spinner"></span>Sending...';
+                sendBtnText.textContent = 'Sending...';
                 postJson({ action: 'send_code', email: document.getElementById('email').value }, (res) => {
                     setStep(2);
                 });
@@ -863,7 +510,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
             verifyBtn.addEventListener('click', () => {
                 verifyBtn.disabled = true;
-                verifyBtnText.innerHTML = '<span class="spinner"></span>Verifying...';
+                verifyBtnText.textContent = 'Verifying...';
                 postJson({ action: 'verify_code', code: document.getElementById('code').value }, (res) => {
                     setStep(3);
                 });
@@ -872,7 +519,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
             changeBtn.addEventListener('click', () => {
                 changeBtn.disabled = true;
-                changeBtnText.innerHTML = '<span class="spinner"></span>Updating...';
+                changeBtnText.textContent = 'Updating...';
                 postJson({
                     action: 'change_password',
                     password: document.getElementById('password').value,
@@ -898,10 +545,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 });
             }
 
-            // initialize step view
+            // Initialize step view
             setStep(1);
         });
     </script>
-
 </body>
 </html>

@@ -238,7 +238,7 @@ require_once __DIR__ . '/includes/staff_layout_start.php';
                 </div>
 
                 <!-- Search and Filter -->
-                <div class="search-filters">
+                
                     <form method="GET" class="filter-form" id="filterForm">
                         <input type="text" class="search-input" placeholder="Search by patient name or treatment..." 
                                name="search" id="paymentSearch" value="<?php echo htmlspecialchars($searchQuery); ?>">
@@ -255,7 +255,7 @@ require_once __DIR__ . '/includes/staff_layout_start.php';
                         </select>
                         <button type="submit" class="btn-filter">Search</button>
                     </form>
-                </div>
+
 
                 <!-- Payment Table -->
                 <div class="table-container">
@@ -523,20 +523,14 @@ require_once __DIR__ . '/includes/staff_layout_start.php';
                     font-size: 0.875rem;
                     margin: 0;
                 }
-
-                .search-filters {
-                    background: white;
-                    padding: 1rem;
-                    border-radius: 12px;
-                    margin-bottom: 1rem;
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-                }
+                /*input here  YY */
 
                 .filter-form {
                     display: flex;
                     gap: 0.75rem;
                     flex-wrap: wrap;
                     align-items: center;
+                    margin-bottom: 20px;
                 }
 
                 .search-input {

@@ -142,7 +142,9 @@ try {
         <table class="data-table" style="width: 100%; border-collapse: collapse;">
             <thead>
                 <tr>
-                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Name</th>
+                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">First Name</th>
+                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Middle Name</th>
+                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Last Name</th>
                     <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Age/Gender</th>
                     <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Contact</th>
                     <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Current Treatment</th>
@@ -153,7 +155,7 @@ try {
             <tbody id="patientsTableBody">
                 <?php if (empty($patients)): ?>
                     <tr>
-                        <td colspan="6" style="text-align: center; padding: 60px; color: #6b7280;">
+                        <td colspan="7" style="text-align: center; padding: 60px; color: #6b7280;">
                             <p style="font-size: 1.1rem; margin-bottom: 8px;">No patient records found</p>
                         </td>
                     </tr>
@@ -181,12 +183,13 @@ try {
                             data-phone="<?php echo strtolower(htmlspecialchars($patient['phone'] ?? '')); ?>"
                             data-status="<?php echo $status; ?>">
                             <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
-                                <span style="font-weight: 500; color: #111827;">
-                                    <?php 
-                                    echo "<!-- DEBUG: first=" . ($patient['first_name'] ?? 'NULL') . " last=" . ($patient['last_name'] ?? 'NULL') . " -->";
-                                    echo htmlspecialchars(($patient['first_name'] ?? '') . ' ' . ($patient['last_name'] ?? ''));
-                                    ?>
-                                </span>
+                                <?php echo htmlspecialchars($patient['first_name'] ?? ''); ?>
+                            </td>
+                            <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
+                                <?php echo htmlspecialchars($patient['middle_name'] ?? ''); ?>
+                            </td>
+                            <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
+                                <?php echo htmlspecialchars($patient['last_name'] ?? ''); ?>
                             </td>
                             <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
                                 <div style="font-size: 0.9rem;">
@@ -713,10 +716,9 @@ function viewPatientRecord(patientId) {
             const medications = m.current_medications || 'None';
             const conditions = m.medical_conditions || 'None';
             
-            const fullName = `${p.first_name || ''} ${p.middle_name || ''} ${p.last_name || ''} ${p.suffix || ''}`.trim();
-            document.getElementById('staffModalPatientName').innerText = fullName || 'Unknown';
+            document.getElementById('staffModalPatientName').innerText = (p.first_name || '') + ' ' + (p.last_name || '');
             
-            const hasMedicalAlert = allergies === 'Yes' || 
+            const hasMedicalAlert = allergies === 'Yes' ||
                                    conditions.toLowerCase().includes('diabetes') ||
                                    conditions.toLowerCase().includes('heart') ||
                                    conditions.toLowerCase().includes('blood pressure') ||

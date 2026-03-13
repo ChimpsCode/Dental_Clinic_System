@@ -7,6 +7,15 @@ if (isset($_SESSION['user_id'])) {
     exit();
 }
 
+// Determine where to go back to
+$referrer = $_SERVER['HTTP_REFERER'] ?? 'home.php';
+// Only allow internal pages
+if (strpos($referrer, 'login.php') !== false || 
+    strpos($referrer, 'forgot-password.php') !== false ||
+    strpos($referrer, 'patient_register.php') !== false) {
+    $referrer = 'home.php';
+}
+
 $error = '';
 $success = '';
 
@@ -212,16 +221,23 @@ if (empty($username) || empty($password)) {
     <div class="container">
         <img src="assets/images/Dentists.png" alt="Dentist" class="dentist-image" onerror="this.style.display='none';">
         <div class="login-form-container">
-            <div class="logo-container">
-                <img src="assets/images/Logo.png" alt="RF Logo" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display:none;">
-                    <path d="M50 20 L30 40 L30 60 L50 80 L70 60 L70 40 Z" fill="#2563eb" stroke="#2563eb" stroke-width="2"/>
-                    <text x="50" y="45" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">R</text>
-                    <text x="50" y="70" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">F</text>
-                </svg>
-            </div>
-            
-            <h1 class="clinic-name">RF Dental Clinic</h1>
+        <button type="button" class="login-close-btn" id="loginCloseBtn" aria-label="Close login" onclick="window.location.href='<?php echo htmlspecialchars($referrer); ?>'">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        </button>
+
+        <div class="logo-container">
+            <img src="assets/images/Logo.png" alt="RF Logo" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display:none;">
+                <path d="M50 20 L30 40 L30 60 L50 80 L70 60 L70 40 Z" fill="#2563eb" stroke="#2563eb" stroke-width="2"/>
+                <text x="50" y="45" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">R</text>
+                <text x="50" y="70" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">F</text>
+            </svg>
+        </div>
+        
+        <h1 class="clinic-name">RF Dental Clinic</h1>
             
             <div class="alert alert-error" id="errorMessage" style="display: none;"></div>
             
@@ -246,6 +262,7 @@ if (empty($username) || empty($password)) {
                 
                 <div class="form-links">
                     <a href="forgot-password.php" class="link page-transition">Forgot password ?</a>
+                    <a href="patient_register.php" class="link page-transition">Create an account</a>
                 </div>
                 <div class="form-links">
                     <span class="separator">For clinic applicants, please contact the administrator.</span>
@@ -278,6 +295,10 @@ if (empty($username) || empty($password)) {
         </div>
     </div>
     
+    <script>
+        // Pass referrer to JavaScript
+        const pageReferrer = "<?php echo addslashes($referrer); ?>";
+    </script>
     <script src="assets/js/login.js"></script>
 </body>
 </html>

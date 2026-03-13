@@ -122,7 +122,13 @@ try {
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
                     <div>
                         <div style="font-size: 1.75rem; font-weight: 700; color: #111827; margin-bottom: 8px;">
-                            <?php echo htmlspecialchars($inProcedurePatient['full_name']); ?>
+                            <?php 
+                            echo htmlspecialchars($inProcedurePatient['first_name'] ?? ''); 
+                            if (!empty($inProcedurePatient['middle_name'])) {
+                                echo '<span style="font-weight: 400; color: #6b7280;"> ' . htmlspecialchars($inProcedurePatient['middle_name']) . '</span>';
+                            }
+                            echo ' ' . htmlspecialchars($inProcedurePatient['last_name'] ?? '');
+                            ?>
                         </div>
                         <div style="display: flex; gap: 12px; align-items: center;">
                             <span style="background: #dbeafe; color: #1e40af; padding: 4px 12px; border-radius: 16px; font-size: 0.85rem; font-weight: 600;">
@@ -224,7 +230,13 @@ try {
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
                     <div>
                         <div style="font-size: 1.75rem; font-weight: 700; color: #111827; margin-bottom: 8px;">
-                            <?php echo htmlspecialchars($nextPatient['full_name']); ?>
+                            <?php 
+                            echo htmlspecialchars($nextPatient['first_name'] ?? ''); 
+                            if (!empty($nextPatient['middle_name'])) {
+                                echo '<span style="font-weight: 400; color: #6b7280;"> ' . htmlspecialchars($nextPatient['middle_name']) . '</span>';
+                            }
+                            echo ' ' . htmlspecialchars($nextPatient['last_name'] ?? '');
+                            ?>
                         </div>
                         <div style="display: flex; gap: 12px; align-items: center;">
                             <span style="background: #dbeafe; color: #1e40af; padding: 4px 12px; border-radius: 16px; font-size: 0.85rem; font-weight: 600;">
@@ -315,7 +327,13 @@ try {
                 <?php if ($inProcedurePatient): ?>
                 <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px; padding: 12px; margin-top: 12px; text-align: center;">
                     <span style="color: #92400e; font-size: 0.9rem; font-weight: 500;">
-                        ⚠️ You must complete <?php echo htmlspecialchars($inProcedurePatient['full_name']); ?>'s procedure before starting the next patient.
+                        ⚠️ You must complete <?php 
+                        echo htmlspecialchars($inProcedurePatient['first_name'] ?? '');
+                        if (!empty($inProcedurePatient['middle_name'])) {
+                            echo ' ' . htmlspecialchars($inProcedurePatient['middle_name']);
+                        }
+                        echo ' ' . htmlspecialchars($inProcedurePatient['last_name'] ?? '');
+                        ?>'s procedure before starting the next patient.
                     </span>
                 </div>
                 <?php endif; ?>
@@ -348,7 +366,9 @@ try {
                         <div class="patient-info" style="flex: 1;">
                             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
                                 <span style="background: #3b82f6; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600;">IN PROGRESS</span>
-                                <div class="patient-name"><?php echo htmlspecialchars($patient['full_name']); ?></div>
+                                <div class="patient-name">
+                                    <?php echo htmlspecialchars(($patient['first_name'] ?? '') . ' ' . ($patient['middle_name'] ?? '') . ' ' . ($patient['last_name'] ?? '')); ?>
+                                </div>
                             </div>
                             <div class="patient-details">
                                 <span class="patient-time"><?php echo htmlspecialchars($patient['treatment_type'] ?? 'General'); ?></span>
@@ -371,7 +391,7 @@ try {
                                     <?php echo $index + 2; ?>
                                 </div>
                                 <div class="patient-info" style="flex: 1;">
-                                    <div class="patient-name"><?php echo htmlspecialchars($patient['full_name']); ?></div>
+                                    <div class="patient-name"><?php echo htmlspecialchars(($patient['first_name'] ?? '') . ' ' . ($patient['middle_name'] ?? '') . ' ' . ($patient['last_name'] ?? '')); ?></div>
                                     <div class="patient-details">
                                         <span class="patient-time"><?php echo htmlspecialchars($patient['treatment_type'] ?? 'General'); ?></span>
                                         <span style="color: #6b7280;">• <?php 
@@ -637,7 +657,7 @@ function viewPatientDetails(patientId) {
             const medications = m.current_medications || 'None';
             const medicalConditions = m.medical_conditions || 'None';
             
-            document.getElementById('dentistModalPatientName').innerText = p.full_name || 'Unknown';
+            document.getElementById('dentistModalPatientName').innerText = (p.first_name || '') + ' ' + (p.middle_name || '') + ' ' + (p.last_name || '');
             
             // Check for medical alerts
             const hasMedicalAlert = allergies === 'Yes' || 
@@ -725,7 +745,9 @@ function viewPatientDetails(patientId) {
             // Build modal content
             const modalContent = 
                 '<div class="patient-info-grid">' +
-                '<div class="patient-info-item"><div class="patient-info-label">Full Name</div><div class="patient-info-value">' + (p.full_name || 'N/A') + '</div></div>' +
+                '<div class="patient-info-item"><div class="patient-info-label">First Name</div><div class="patient-info-value">' + (p.first_name || 'N/A') + '</div></div>' +
+                '<div class="patient-info-item"><div class="patient-info-label">Middle Name</div><div class="patient-info-value">' + (p.middle_name || '') + '</div></div>' +
+                '<div class="patient-info-item"><div class="patient-info-label">Last Name</div><div class="patient-info-value">' + (p.last_name || 'N/A') + '</div></div>' +
                 '<div class="patient-info-item"><div class="patient-info-label">Age</div><div class="patient-info-value">' + (p.age || 'N/A') + ' years</div></div>' +
                 '<div class="patient-info-item"><div class="patient-info-label">Gender</div><div class="patient-info-value">' + (p.gender || 'N/A') + '</div></div>' +
                 '<div class="patient-info-item"><div class="patient-info-label">Date of Birth</div><div class="patient-info-value">' + (p.date_of_birth || 'N/A') + '</div></div>' +

@@ -69,10 +69,10 @@ try {
 <!-- Search & Filters -->
 <div class="search-filters">
     <div class="filter-tabs">
-        <span class="active">All</span>
-        <span>Today</span>
-        <span>This Week</span>
-        <span>This Month</span>
+        <span class="active" data-filter="all">All</span>
+        <span data-filter="today">Today</span>
+        <span data-filter="week">This Week</span>
+        <span data-filter="month">This Month</span>
     </div>
     <input type="text" class="search-input" placeholder="Search appointments...">
 </div>
@@ -116,7 +116,7 @@ try {
                         };
                         $statusText = ucfirst($status);
                     ?>
-                    <tr>
+                    <tr class="appointment-row" data-date="<?php echo $apt['appointment_date']; ?>" data-name="<?php echo strtolower($firstName . ' ' . $middleName . ' ' . $lastName); ?>">
                         <td>
                             <div style="font-weight: 600;"><?php echo $firstName ?: '-'; ?></div>
                         </td>
@@ -343,7 +343,45 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // Filter tabs click handler
+    document.querySelectorAll('.filter-tabs span').forEach(tab => {
+        tab.addEventListener('click', function() {
+            document.querySelectorAll('.filter-tabs span').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            filterAppointments();
+        });
+    });
+    
+    // Search input handler
+    const searchInput = document.querySelector('.search-input');
+    if (searchInput) {
+        searchInput.addEventListener('input', filterAppointments);
+    }
 });
+
+function filterAppointments() {
+    const search = document.querySelector('.search-input')?.value?.toLowerCase() || '';
+    const activeFilter = document.querySelector('.filter-tabs span.active')?.dataset.filter || 'all';
+    const today = new Date().toISOString().split('T')[0];
+    const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const monthEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    document.querySelectorAll('.appointment-row').forEach(row => {
+        const nameMatch = !search || (row.dataset.name || '').includes(search);
+        
+        let dateMatch = true;
+        if (activeFilter === 'today') {
+            dateMatch = row.dataset.date === today;
+        } else if (activeFilter === 'week') {
+            dateMatch = row.dataset.date >= today && row.dataset.date <= weekEnd;
+        } else if (activeFilter === 'month') {
+            dateMatch = row.dataset.date >= today && row.dataset.date <= monthEnd;
+        }
+        
+        row.style.display = (nameMatch && dateMatch) ? '' : 'none';
+    });
+}
 
 function openNewAppointmentModal() {
     document.getElementById('newAppointmentForm').reset();

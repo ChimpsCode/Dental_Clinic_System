@@ -389,6 +389,13 @@ require_once 'includes/staff_layout_start.php';
     color: #a0aec0;
     padding: 0 4px;
 }
+.search-input {
+    width: 650px;
+}
+.section-title {
+    justify-content: right;
+    margin-bottom: 25px;
+}
 </style>
 
             <div class="summary-cards">
@@ -422,28 +429,31 @@ require_once 'includes/staff_layout_start.php';
                 </div>
             </div>
 
-            <div class="section-card" style="margin-top: 30px;">
-                <div class="section-title">
-                    <span>Inquiries Logbook</span>
-                    <button onclick="openModal()" class="btn-primary">+ Add Inquiry</button>
-                </div>
-
-                <div class="search-filters">
-                    <input type="text" id="searchInput" placeholder="Search by name..." class="search-input">
-                    <select id="filterSource" class="filter-select">
+            
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom:23px;"> 
+                    <input type="text" id="searchInput" placeholder="Search by name..." class="search-input" style="flex: 1; min-width: 200px;">
+                    <select id="filterSource" class="filter-select"style="height: 30px; border-radius: 6px" >
                         <option value="">All Sources</option>
                         <option value="Fb messenger">Fb messenger</option>
                         <option value="Phone call">Phone call</option>
                         <option value="Walk-in">Walk-in</option>
                     </select>
-                    <select id="filterStatus" class="filter-select">
+                    
+                    <select id="filterStatus" class="filter-select" style="height: 30px; border-radius: 6px ">
                         <option value="">All Status</option>
                         <option value="Pending">Pending</option>
                         <option value="Answered">Answered</option>
                         <option value="Booked">Booked</option>
                         <option value="New Admission">New Admission</option>
                     </select>
+                    <button onclick="openModal()" class="btn-primary">+ Add Inquiry</button>
                 </div>
+                
+
+            <div class="section-card" style="margin-top: 0px;">
+                
+
+                
 
                 <div style="overflow-x: auto;">
                     <table class="data-table">

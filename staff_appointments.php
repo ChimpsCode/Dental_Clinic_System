@@ -422,6 +422,9 @@ require_once 'includes/staff_layout_start.php';
     color: #6b7280;
     font-size: 0.875rem;
 }
+.search-input {
+    width: 300px;
+}
 
 .pagination-buttons {
     display: flex;

@@ -125,7 +125,9 @@ try {
             <table class="data-table" id="patientsTable">
                 <thead>
                     <tr>
-                        <th>Name</th>
+                        <th>First Name</th>
+                        <th>Middle Name</th>
+                        <th>Last Name</th>
                         <th>Age/Gender</th>
                         <th>Contact</th>
                         <th>Current Treatment</th>
@@ -140,12 +142,13 @@ try {
                             data-phone="<?php echo strtolower(htmlspecialchars($patient['phone'] ?? '')); ?>" 
                             data-status="<?php echo $patient['queue_status'] ?? ''; ?>">
                             <td>
-                                <div class="patient-name" style="font-weight: 600;">
-                                    <?php 
-                                    echo "<!-- DEBUG: first=" . ($patient['first_name'] ?? 'NULL') . " last=" . ($patient['last_name'] ?? 'NULL') . " -->";
-                                    echo htmlspecialchars(($patient['first_name'] ?? '') . ' ' . ($patient['last_name'] ?? ''));
-                                    ?>
-                                </div>
+                                <?php echo htmlspecialchars($patient['first_name'] ?? ''); ?>
+                            </td>
+                            <td>
+                                <?php echo htmlspecialchars($patient['middle_name'] ?? ''); ?>
+                            </td>
+                            <td>
+                                <?php echo htmlspecialchars($patient['last_name'] ?? ''); ?>
                             </td>
                             <td>
                                 <div style="font-size: 0.9rem;">
@@ -324,7 +327,7 @@ function viewPatientDetails(patientId) {
             const medications = m.current_medications || 'None';
             const medicalConditions = m.medical_conditions || 'None';
             
-            document.getElementById('dentistModalPatientName').innerText = p.full_name || 'Unknown';
+            document.getElementById('dentistModalPatientName').innerText = (p.first_name || '') + ' ' + (p.last_name || '');
             
             // Check for medical alerts
             const hasMedicalAlert = allergies === 'Yes' || 
@@ -337,8 +340,16 @@ function viewPatientDetails(patientId) {
                 <!-- Patient Basic Info -->
                 <div class="patient-info-grid">
                     <div class="patient-info-item">
-                        <div class="patient-info-label">Full Name</div>
-                        <div class="patient-info-value">${p.full_name || 'N/A'}</div>
+                        <div class="patient-info-label">First Name</div>
+                        <div class="patient-info-value">${p.first_name || 'N/A'}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Middle Name</div>
+                        <div class="patient-info-value">${p.middle_name || ''}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Last Name</div>
+                        <div class="patient-info-value">${p.last_name || 'N/A'}</div>
                     </div>
                     <div class="patient-info-item">
                         <div class="patient-info-label">Age</div>

@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const loginBtn = document.getElementById('loginBtn');
     const errorMessage = document.getElementById('errorMessage');
     const toast = document.getElementById('toast');
+    const loginCloseBtn = document.getElementById('loginCloseBtn');
 
     console.log('=== PAGE LOADED ===');
     console.log('Login form:', loginForm);
@@ -320,6 +321,19 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(function() {
             usernameInput.focus();
         }, 100);
+    }
+
+    // Close button functionality - redirect to referrer or home page
+    if (loginCloseBtn) {
+        loginCloseBtn.addEventListener('click', function() {
+            // Add exit animation
+            document.body.classList.add('exit-animation');
+            
+            // Navigate to referrer or home page after animation
+            setTimeout(() => {
+                window.location.href = (typeof pageReferrer !== 'undefined' && pageReferrer) ? pageReferrer : 'home.php';
+            }, 350);
+        });
     }
 
     // Show PHP error message as toast on page load if it exists
