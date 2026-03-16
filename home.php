@@ -85,10 +85,10 @@ $services = [
 ];
 
 $faqs = [
-  'What should I expect during my first visit? ',
-  'How often should I visit the dentist ? ',
-  'Do you accept dental insurance? ',
-  'What payment option do you offert? ',
+  'What should I expect during my first visit?',
+  'How often should I visit the dentist?',
+  'Do you accept dental insurance?',
+  'What payment options do you offer?',
 ];
 ?>
 <!doctype html>
@@ -102,13 +102,14 @@ $faqs = [
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,700;1,400&family=Inria+Sans:wght@400;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="assets/css/home-styles.css" />
     <link rel="stylesheet" href="assets/css/home-integration.css" />
+    <script src="assets/js/home-integration.js" defer></script>
   </head>
   <body>
     <div id="top" aria-hidden="true"></div>
       <header class="site-header">
         <div class="container header-inner">
         <a class="brand" href="#home" aria-label="RF Dental Clinic home">
-          <img class="brand-mark" src="<?= htmlspecialchars($assets['logo']) ?>" alt="" />
+          <img class="brand-mark" src="assets/images/Logo.png" alt="" />
           <span class="brand-text">RF Dental Clinic</span>
         </a>
 
@@ -164,7 +165,34 @@ $faqs = [
                 </label>
                 <label class="field">
                   <span class="sr-only">Date</span>
-                  <input name="date" type="text" placeholder="Date" />
+                  <div class="date-input-wrapper">
+                    <input name="date" type="text" placeholder="Date" id="appointment-date" />
+                    <button type="button" class="calendar-btn" id="calendar-toggle" aria-label="Open calendar">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                      </svg>
+                    </button>
+                    <div class="calendar-dropdown" id="calendar-dropdown">
+                      <div class="calendar-header">
+                        <button type="button" class="prev-month" aria-label="Previous month">&lt;</button>
+                        <span class="current-month-year"></span>
+                        <button type="button" class="next-month" aria-label="Next month">&gt;</button>
+                      </div>
+                      <div class="calendar-weekdays">
+                        <span>Sun</span>
+                        <span>Mon</span>
+                        <span>Tue</span>
+                        <span>Wed</span>
+                        <span>Thu</span>
+                        <span>Fri</span>
+                        <span>Sat</span>
+                      </div>
+                      <div class="calendar-days" id="calendar-days"></div>
+                    </div>
+                  </div>
                 </label>
                 <button class="btn btn-primary" type="submit">Book Now</button>
               </form>
@@ -267,10 +295,20 @@ $faqs = [
                   <span class="faq-q"><?= htmlspecialchars($q) ?></span>
                   <span class="faq-chevron" aria-hidden="true"></span>
                 </summary>
-                <div class="faq-a">
-                  <p>Answer content can go here (replace with your real FAQ answers).</p>
-                </div>
+                    <div class="faq-a">
+                      <?php if ($idx == 0): ?>
+                        <p>During your first visit, you'll meet our friendly team, discuss your dental history, and receive a thorough examination. We recommend bringing any previous dental records and a list of medications you're currently taking.</p>
+                      <?php elseif ($idx == 1): ?>
+                        <p>We recommend visiting the dentist every 6 months for regular check-ups and cleanings. However, if you have specific dental concerns or conditions, we may suggest more frequent visits to ensure optimal oral health.</p>
+                      <?php elseif ($idx == 2): ?>
+                        <p>Unfortunately, we do not accept dental insurance at this time. However, we offer competitive pricing and flexible payment options to make our services accessible to all patients.</p>
+                      <?php elseif ($idx == 3): ?>
+                        <p>We offer flexible payment options including cash, gcash e-wallet and bank transfers.</p>
+                      
+                      <?php endif; ?>
+                    </div>
               </details>
+              
             <?php endforeach; ?>
           </div>
 
@@ -310,7 +348,7 @@ $faqs = [
             </div>
             <div class="contact-form-card">
               <div class="form-logo" aria-hidden="true">
-                <img src="<?= htmlspecialchars($assets['logo']) ?>" alt="" />
+                <img src="assets/images/Logo.png" alt="" />
               </div>
               <form class="contact-form" action="#" method="post">
                 <div class="form-row">
@@ -361,7 +399,7 @@ $faqs = [
       <div class="container footer-inner">
         <div class="footer-brand">
           <div class="footer-brand-top">
-            <img class="footer-logo" src="<?= htmlspecialchars($assets['logo']) ?>" alt="" />
+            <img class="footer-logo" src="assets/images/Logo.png" alt="" />
             <div class="footer-brand-title">Dental Clinic</div>
           </div>
           <p class="footer-text">Providing exceptional dental care with a commitment to your comfort and health.</p>
