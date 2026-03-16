@@ -92,6 +92,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
 }
+
+// AJAX response
+if (
+    isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST' &&
+    isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest'
+) {
+    if (!empty($success)) {
+        echo json_encode(['success' => true, 'message' => $success]);
+    } else {
+        echo json_encode(['success' => false, 'message' => $error ?: 'Registration failed. Please try again.']);
+    }
+    exit();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">

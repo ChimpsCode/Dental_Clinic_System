@@ -95,6 +95,76 @@ body.login-active {
   pointer-events: auto;
 }
 
+/* Inline login panel (home hero) */
+.inline-login-panel{
+  position:fixed;
+  right:6%;
+  top:50%;
+  z-index:120;
+  opacity:0;
+  visibility:hidden;
+  transform:translateX(80px) translateY(-50%);
+  transition:
+    opacity .35s ease .20s,
+    visibility .35s ease .20s,
+    transform .40s ease .20s;
+  pointer-events:none;
+}
+.inline-login-active .inline-login-panel{
+  opacity:1;
+  visibility:visible;
+  transform:translateX(0) translateY(-50%);
+  pointer-events:auto;
+}
+.login-form-container.inline{
+  margin-right:0;
+  box-shadow:0 28px 70px rgba(0,0,0,.16);
+  opacity:0;
+  transform:translate(40px, 10px) scale(.97);
+  max-width:520px;
+  padding:44px 40px;
+  animation: cardSlideIn 0.7s ease-out both;
+  transition:
+    opacity .35s ease .28s,
+    transform .35s ease .28s;
+    
+}
+.inline-login-active .login-form-container.inline{
+  opacity:1;
+  transform:translate(0,0) scale(1);
+  pointer-events:auto;
+  width: 450px;
+  height: auto;
+}
+.login-form-container.signup-card{display:none;}
+.inline-mode-signup .login-card{display:none;}
+.inline-mode-signup .signup-card{display:block;}
+.input-group.two-col{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap:12px;
+}
+
+.login-form-container.signup-card{display:none;}
+.inline-mode-signup .login-card{display:none;}
+.inline-mode-signup .signup-card{display:block;}
+.input-group.two-col{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap:12px;
+}
+
+@keyframes cardSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(28px) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) translateY(0);
+  }
+}
+
 /* Close Button */
 .login-close-btn {
   position: absolute;

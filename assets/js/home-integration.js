@@ -2,69 +2,87 @@ document.addEventListener('DOMContentLoaded', function() {
   const loginOverlay = document.getElementById('loginOverlay');
   const headerLoginBtn = document.getElementById('headerLoginBtn');
   const loginCloseBtn = document.getElementById('loginCloseBtn');
-  const integratedLoginForm = document.getElementById('integratedLoginForm');
-  const integratedUsername = document.getElementById('integrated-username');
-  const integratedPassword = document.getElementById('integrated-password');
-  const integratedTogglePassword = document.getElementById('integratedTogglePassword');
-  const integratedLoginBtn = document.getElementById('integratedLoginBtn');
-  const loginErrorMessage = document.getElementById('loginErrorMessage');
+  const inlineLoginForm = document.getElementById('integratedLoginFormInline');
+  const inlineUsername = document.getElementById('integrated-username-inline');
+  const inlinePassword = document.getElementById('integrated-password-inline');
+  const inlineTogglePassword = document.getElementById('integratedTogglePasswordInline');
+  const inlineLoginBtn = document.getElementById('integratedLoginBtnInline');
+  const loginErrorMessage = document.getElementById('loginErrorMessageInline');
+  const headerSignUpBtn = document.querySelector('.header-actions a[href="patient_register.php"]');
+  const switchToSignup = document.getElementById('switchToSignup');
+  const inlineSignupClose = document.getElementById('inlineSignupClose');
+  const inlineSignupForm = document.getElementById('integratedSignupFormInline');
+  const signupFirst = document.getElementById('signup-firstname');
+  const signupLast = document.getElementById('signup-lastname');
+  const signupEmail = document.getElementById('signup-email');
+  const signupPhone = document.getElementById('signup-phone');
+  const signupPassword = document.getElementById('signup-password');
+  const signupConfirm = document.getElementById('signup-confirm');
+  const signupBtn = document.getElementById('integratedSignupBtnInline');
+  const signupErrorMessage = document.getElementById('signupErrorMessageInline');
+  const switchToLogin = document.getElementById('switchToLogin');
   const integrationToast = document.getElementById('integrationToast');
 
   console.log('=== HOME INTEGRATION SCRIPT LOADED ===');
 
-  // Open login overlay
-  function openLoginOverlay() {
-    console.log('Opening login overlay...');
-    loginOverlay.classList.add('active');
-    document.body.classList.add('login-active');
-    document.body.style.overflow = 'hidden';
-    integratedUsername.focus();
+  function setInlineMode(mode='login') {
+    document.body.classList.add('inline-login-active');
+    if (mode === 'signup') {
+      document.body.classList.add('inline-mode-signup');
+      if (signupFirst) signupFirst.focus();
+    } else {
+      document.body.classList.remove('inline-mode-signup');
+      if (inlineUsername) inlineUsername.focus();
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  // Close login overlay
+  // Open login (inline)
+  function openLoginOverlay() { setInlineMode('login'); }
+  function openSignupOverlay() { setInlineMode('signup'); }
+
+  // Close login (inline)
   function closeLoginOverlay() {
-    console.log('Closing login overlay...');
-    loginOverlay.classList.remove('active');
-    document.body.classList.remove('login-active');
-    document.body.style.overflow = 'auto';
-    // Reset form
-    integratedLoginForm.reset();
+    document.body.classList.remove('inline-login-active', 'inline-mode-signup');
+    if (inlineLoginForm) inlineLoginForm.reset();
+    if (inlineSignupForm) inlineSignupForm.reset();
     if (loginErrorMessage) {
       loginErrorMessage.style.display = 'none';
       loginErrorMessage.textContent = '';
     }
+    if (signupErrorMessage) {
+      signupErrorMessage.style.display = 'none';
+      signupErrorMessage.textContent = '';
+    }
   }
 
-  // Event listeners for opening login
   if (headerLoginBtn) {
     headerLoginBtn.addEventListener('click', function(e) {
       e.preventDefault();
       openLoginOverlay();
     });
   }
+  if (headerSignUpBtn) {
+    headerSignUpBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      openSignupOverlay();
+    });
+  }
 
-  // Event listener for closing login
   if (loginCloseBtn) {
     loginCloseBtn.addEventListener('click', closeLoginOverlay);
   }
+  const inlineCloseBtn = document.getElementById('inlineLoginClose');
+  if (inlineCloseBtn) inlineCloseBtn.addEventListener('click', closeLoginOverlay);
+  if (inlineSignupClose) inlineSignupClose.addEventListener('click', closeLoginOverlay);
+  if (switchToSignup) switchToSignup.addEventListener('click', (e)=>{e.preventDefault(); openSignupOverlay();});
+  if (switchToLogin) switchToLogin.addEventListener('click', (e)=>{e.preventDefault(); openLoginOverlay();});
 
   // Close on Escape key
   document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && loginOverlay.classList.contains('active')) {
+    if (e.key === 'Escape' && document.body.classList.contains('inline-login-active')) {
       closeLoginOverlay();
     }
-  });
-
-  // Close on overlay click (outside form)
-  loginOverlay.addEventListener('click', function(e) {
-    if (e.target === loginOverlay) {
-      closeLoginOverlay();
-    }
-  });
-
-  // Don't close when clicking inside form
-  document.querySelector('.login-form-container').addEventListener('click', function(e) {
-    e.stopPropagation();
   });
 
   // Show Toast Notification
@@ -127,70 +145,117 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Clear error message when user starts typing
-  if (integratedUsername && loginErrorMessage) {
-    integratedUsername.addEventListener('input', function() {
+  if (inlineUsername && loginErrorMessage) {
+    inlineUsername.addEventListener('input', function() {
       loginErrorMessage.style.display = 'none';
       loginErrorMessage.textContent = '';
     });
   }
 
-  if (integratedPassword && loginErrorMessage) {
-    integratedPassword.addEventListener('input', function() {
+  if (inlinePassword && loginErrorMessage) {
+    inlinePassword.addEventListener('input', function() {
       loginErrorMessage.style.display = 'none';
       loginErrorMessage.textContent = '';
     });
   }
 
   // Toggle password visibility button - show/hide based on input
-  if (integratedTogglePassword && integratedPassword) {
-    // Show/hide toggle button based on password input value
+  if (inlineTogglePassword && inlinePassword) {
     function updateToggleVisibility() {
-      if (integratedPassword.value.length > 0) {
-        integratedTogglePassword.style.display = 'flex';
-      } else {
-        integratedTogglePassword.style.display = 'none';
-      }
+      inlineTogglePassword.style.display = inlinePassword.value.length > 0 ? 'flex' : 'none';
     }
-    
-    // Listen to input events
-    integratedPassword.addEventListener('input', updateToggleVisibility);
-    integratedPassword.addEventListener('paste', updateToggleVisibility);
-    integratedPassword.addEventListener('keyup', updateToggleVisibility);
-    
-    // Check initial state
+    inlinePassword.addEventListener('input', updateToggleVisibility);
+    inlinePassword.addEventListener('paste', updateToggleVisibility);
+    inlinePassword.addEventListener('keyup', updateToggleVisibility);
     updateToggleVisibility();
-    
-    // Toggle password visibility
-    integratedTogglePassword.addEventListener('click', function() {
-      const type = integratedPassword.getAttribute('type') === 'password' ? 'text' : 'password';
-      integratedPassword.setAttribute('type', type);
+    inlineTogglePassword.addEventListener('click', function() {
+      const type = inlinePassword.getAttribute('type') === 'password' ? 'text' : 'password';
+      inlinePassword.setAttribute('type', type);
       
-      // Toggle between eye-open and eye-closed icons
-      const eyeOpen = integratedTogglePassword.querySelector('.eye-open');
-      const eyeClosed = integratedTogglePassword.querySelector('.eye-closed');
+      const eyeOpen = inlineTogglePassword.querySelector('.eye-open');
+      const eyeClosed = inlineTogglePassword.querySelector('.eye-closed');
       
       if (type === 'password') {
-        // Show password is hidden, show open eye
         if (eyeOpen) eyeOpen.style.display = 'block';
         if (eyeClosed) eyeClosed.style.display = 'none';
       } else {
-        // Show password is visible, show closed eye
         if (eyeOpen) eyeOpen.style.display = 'none';
         if (eyeClosed) eyeClosed.style.display = 'block';
       }
     });
   }
 
+  // Signup form handler
+  if (inlineSignupForm && signupBtn) {
+    signupBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const first = signupFirst?.value.trim();
+      const last = signupLast?.value.trim();
+      const email = signupEmail?.value.trim();
+      const phone = signupPhone?.value.trim();
+      const pass = signupPassword?.value || '';
+      const confirm = signupConfirm?.value || '';
+
+      if (!first || !last || !email || !phone || !pass || !confirm) {
+        showError('Please fill in all fields');
+        return;
+      }
+      if (pass !== confirm) {
+        showError('Passwords do not match');
+        return;
+      }
+
+      signupBtn.disabled = true;
+      const originalText = signupBtn.textContent;
+      signupBtn.textContent = 'CREATING...';
+
+      const formData = new FormData();
+      formData.append('first_name', first);
+      formData.append('last_name', last);
+      formData.append('email', email);
+      formData.append('phone', phone);
+      formData.append('password', pass);
+      formData.append('confirm_password', confirm);
+
+      fetch('patient_register.php', {
+        method: 'POST',
+        headers: {'X-Requested-With': 'XMLHttpRequest'},
+        body: formData
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          showToast('Account created', 'You can now log in.', 'success');
+          openLoginOverlay();
+          if (inlineUsername) inlineUsername.value = email;
+          if (inlinePassword) inlinePassword.value = '';
+        } else {
+          showError(data.message || 'Registration failed. Please try again.');
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        showError('Network error. Please try again.');
+      })
+      .finally(() => {
+        signupBtn.disabled = false;
+        signupBtn.textContent = originalText;
+      });
+    });
+  }
+
   // Form submission handler
-  if (integratedLoginForm && integratedLoginBtn) {
-    integratedLoginBtn.addEventListener('click', function(e) {
+  if (inlineLoginForm && inlineLoginBtn) {
+    inlineLoginBtn.addEventListener('click', function(e) {
       e.preventDefault();
       e.stopPropagation();
       
       console.log('=== LOGIN CLICKED ===');
       
-      const username = integratedUsername ? integratedUsername.value.trim() : '';
-      const password = integratedPassword ? integratedPassword.value : '';
+      const username = inlineUsername ? inlineUsername.value.trim() : '';
+      const password = inlinePassword ? inlinePassword.value : '';
 
       console.log('Username:', username);
       console.log('Password:', password ? '***' : 'empty');
@@ -201,9 +266,9 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
       // Disable button during submission
-      integratedLoginBtn.disabled = true;
-      const originalText = integratedLoginBtn.textContent;
-      integratedLoginBtn.textContent = 'LOGGING IN...';
+      inlineLoginBtn.disabled = true;
+      const originalText = inlineLoginBtn.textContent;
+      inlineLoginBtn.textContent = 'LOGGING IN...';
 
       // Prepare form data
       const formData = new FormData();
@@ -234,32 +299,32 @@ document.addEventListener('DOMContentLoaded', function() {
           }, 1500);
         } else {
           showError(data.message || 'Login failed. Please try again.');
-          integratedLoginBtn.disabled = false;
-          integratedLoginBtn.textContent = originalText;
-          integratedPassword.value = '';
-          integratedPassword.type = 'password';
+          inlineLoginBtn.disabled = false;
+          inlineLoginBtn.textContent = originalText;
+          inlinePassword.value = '';
+          inlinePassword.type = 'password';
           
           // Reset password toggle
-          const eyeOpen = integratedTogglePassword.querySelector('.eye-open');
-          const eyeClosed = integratedTogglePassword.querySelector('.eye-closed');
+          const eyeOpen = inlineTogglePassword.querySelector('.eye-open');
+          const eyeClosed = inlineTogglePassword.querySelector('.eye-closed');
           if (eyeOpen) eyeOpen.style.display = 'block';
           if (eyeClosed) eyeClosed.style.display = 'none';
-          integratedTogglePassword.style.display = 'none';
+          inlineTogglePassword.style.display = 'none';
         }
       })
       .catch(error => {
         console.error('Fetch error:', error);
         showError('Network error. Please try again.');
-        integratedLoginBtn.disabled = false;
-        integratedLoginBtn.textContent = originalText;
+        inlineLoginBtn.disabled = false;
+        inlineLoginBtn.textContent = originalText;
       });
     });
 
     // Allow Enter key to submit form
-    integratedLoginForm.addEventListener('keypress', function(e) {
-      if (e.key === 'Enter' && !integratedLoginBtn.disabled) {
+    inlineLoginForm.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter' && !inlineLoginBtn.disabled) {
         e.preventDefault();
-        integratedLoginBtn.click();
+        inlineLoginBtn.click();
       }
     });
   }

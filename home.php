@@ -218,6 +218,90 @@ $faqs = [
         </div>
       </section>
 
+      <!-- Inline login panel inside hero -->
+      <div class="inline-login-panel" id="inlineLoginPanel" role="dialog" aria-modal="true" aria-labelledby="inlineLoginTitle">
+        <div class="login-form-container inline login-card">
+          <button type="button" class="login-close-btn" id="inlineLoginClose" aria-label="Close login form">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+
+          <div class="logo-container">
+            <div class="logo"><img src="assets/images/Logo.png" alt="RF Dental Clinic logo" /></div>
+          </div>
+          <div class="clinic-name" id="inlineLoginTitle">RF Dental Clinic</div>
+
+          <form id="integratedLoginFormInline" novalidate>
+            <div class="alert alert-error" id="loginErrorMessageInline" style="display:none"></div>
+
+            <div class="input-group">
+              <input id="integrated-username-inline" name="username" type="text" placeholder="Username" autocomplete="username" required />
+            </div>
+
+            <div class="input-group">
+              <input id="integrated-password-inline" name="password" type="password" placeholder="Password" autocomplete="current-password" required />
+              <button type="button" class="toggle-password" id="integratedTogglePasswordInline" aria-label="Toggle password visibility" style="display:none">
+                <span class="eye-open">
+                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                </span>
+                <span class="eye-closed" style="display:none">
+                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3 21 21"></path><path d="M10.58 10.58A3 3 0 0 0 13.4 13.4"></path><path d="M9.88 4.24A10.64 10.64 0 0 1 21 12a10.7 10.7 0 0 1-1.1 2.94"></path><path d="M6.61 6.61A10.7 10.7 0 0 0 3 12a10.64 10.64 0 0 0 7 7"></path></svg>
+                </span>
+              </button>
+            </div>
+
+            <div class="form-links">
+              <a class="link" href="forgot-password.php">Forgot password?</a>
+              <span class="separator">|</span>
+              <a class="link" href="#" id="switchToSignup">Create account</a>
+            </div>
+
+            <button class="login-btn" type="button" id="integratedLoginBtnInline">Login</button>
+          </form>
+        </div>
+
+        <div class="login-form-container inline signup-card" id="inlineSignupCard" aria-hidden="true">
+          <button type="button" class="login-close-btn" id="inlineSignupClose" aria-label="Close sign up form">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+
+          <div class="logo-container">
+            <div class="logo"><img src="assets/images/Logo.png" alt="RF Dental Clinic logo" /></div>
+          </div>
+          <div class="clinic-name" id="inlineSignupTitle">Create Account</div>
+
+          <form id="integratedSignupFormInline" novalidate>
+            <div class="alert alert-error" id="signupErrorMessageInline" style="display:none"></div>
+
+            <div class="input-group two-col">
+              <input id="signup-firstname" name="first_name" type="text" placeholder="First name" autocomplete="given-name" required />
+              <input id="signup-lastname" name="last_name" type="text" placeholder="Last name" autocomplete="family-name" required />
+            </div>
+
+            <div class="input-group">
+              <input id="signup-email" name="email" type="email" placeholder="Email" autocomplete="email" required />
+            </div>
+
+            <div class="input-group">
+              <input id="signup-phone" name="phone" type="tel" placeholder="Phone" autocomplete="tel" required />
+            </div>
+
+            <div class="input-group">
+              <input id="signup-password" name="password" type="password" placeholder="Password (min 6 chars)" autocomplete="new-password" required />
+            </div>
+
+            <div class="input-group">
+              <input id="signup-confirm" name="confirm_password" type="password" placeholder="Confirm password" autocomplete="new-password" required />
+            </div>
+
+            <div class="form-links">
+              <a class="link" href="#" id="switchToLogin">Already have an account?</a>
+            </div>
+
+            <button class="login-btn" type="button" id="integratedSignupBtnInline">Sign Up</button>
+          </form>
+        </div>
+      </div>
+
       <section id="about" class="section about" style="padding-bottom:50px">
         <div class="container about-inner">
           <div class="about-photo">
