@@ -163,37 +163,7 @@ $faqs = [
                   <span class="sr-only">Phone</span>
                   <input name="phone" type="tel" placeholder="Phone" />
                 </label>
-                <label class="field">
-                  <span class="sr-only">Date</span>
-                  <div class="date-input-wrapper">
-                    <input name="date" type="text" placeholder="Date" id="appointment-date" />
-                    <button type="button" class="calendar-btn" id="calendar-toggle" aria-label="Open calendar">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                        <line x1="16" y1="2" x2="16" y2="6"></line>
-                        <line x1="8" y1="2" x2="8" y2="6"></line>
-                        <line x1="3" y1="10" x2="21" y2="10"></line>
-                      </svg>
-                    </button>
-                    <div class="calendar-dropdown" id="calendar-dropdown">
-                      <div class="calendar-header">
-                        <button type="button" class="prev-month" aria-label="Previous month">&lt;</button>
-                        <span class="current-month-year"></span>
-                        <button type="button" class="next-month" aria-label="Next month">&gt;</button>
-                      </div>
-                      <div class="calendar-weekdays">
-                        <span>Sun</span>
-                        <span>Mon</span>
-                        <span>Tue</span>
-                        <span>Wed</span>
-                        <span>Thu</span>
-                        <span>Fri</span>
-                        <span>Sat</span>
-                      </div>
-                      <div class="calendar-days" id="calendar-days"></div>
-                    </div>
-                  </div>
-                </label>
+
                 <button class="btn btn-primary" type="submit">Book Now</button>
               </form>
             </div>
@@ -714,6 +684,332 @@ $faqs = [
       })();
     </script>
 
+    <!-- Registration Modal for Lead Capture Flow -->
+    <div id="registrationModal" class="modal-overlay" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Secure Your Appointment</h3>
+          <button type="button" class="modal-close" aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-intro">You're almost done! Create a password to secure your account and complete your booking.</p>
+          <form id="registrationForm" class="modal-form">
+            <div class="form-group">
+              <label for="reg-password">Create Password</label>
+              <input type="password" id="reg-password" name="password" required minlength="8" placeholder="At least 8 characters" />
+            </div>
+            <div class="form-group">
+              <label for="reg-confirm-password">Confirm Password</label>
+              <input type="password" id="reg-confirm-password" name="confirm_password" required placeholder="Re-enter password" />
+            </div>
+            <input type="hidden" id="reg-name" name="name" />
+            <input type="hidden" id="reg-email" name="email" />
+            <input type="hidden" id="reg-phone" name="phone" />
+            <button type="submit" class="btn btn-primary btn-block">Finalize Registration</button>
+          </form>
+          <div class="modal-footer-text">
+            <p>By registering, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Registration Success Modal -->
+    <div id="successModal" class="modal-overlay" style="display: none;">
+      <div class="modal-content success-modal">
+        <div class="success-icon">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+        </div>
+        <h3>Registration Complete!</h3>
+        <p>Your account has been created successfully.</p>
+        <p>Redirecting to your dashboard...</p>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const appointmentForm = document.querySelector('.appointment-form');
+        const registrationModal = document.getElementById('registrationModal');
+        const successModal = document.getElementById('successModal');
+        const registrationForm = document.getElementById('registrationForm');
+        const modalClose = document.querySelector('.modal-close');
+        const body = document.body;
+
+        // Step 1: Handle initial appointment form submission
+        if (appointmentForm) {
+          appointmentForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Collect form data
+            const formData = new FormData(appointmentForm);
+            const name = formData.get('name');
+            const email = formData.get('email');
+            const phone = formData.get('phone');
+
+            // Validate required fields
+            if (!name || !email || !phone) {
+              alert('Please fill in all fields');
+              return;
+            }
+
+            // Store data in hidden fields for the registration form
+            document.getElementById('reg-name').value = name;
+            document.getElementById('reg-email').value = email;
+            document.getElementById('reg-phone').value = phone;
+
+            // Show the registration modal
+            registrationModal.style.display = 'flex';
+            body.style.overflow = 'hidden';
+          });
+        }
+
+        // Close modal handlers
+        if (modalClose) {
+          modalClose.addEventListener('click', function() {
+            registrationModal.style.display = 'none';
+            body.style.overflow = '';
+          });
+        }
+
+        registrationModal.addEventListener('click', function(e) {
+          if (e.target === registrationModal) {
+            registrationModal.style.display = 'none';
+            body.style.overflow = '';
+          }
+        });
+
+        // Step 2: Handle registration form submission
+        if (registrationForm) {
+          registrationForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const password = document.getElementById('reg-password').value;
+            const confirmPassword = document.getElementById('reg-confirm-password').value;
+
+            if (password !== confirmPassword) {
+              alert('Passwords do not match');
+              return;
+            }
+
+            if (password.length < 8) {
+              alert('Password must be at least 8 characters');
+              return;
+            }
+
+            const formData = new FormData(registrationForm);
+
+            try {
+              const response = await fetch('process_registration.php', {
+                method: 'POST',
+                body: formData
+              });
+
+              const result = await response.json();
+
+              if (result.success) {
+                // Hide registration modal and show success
+                registrationModal.style.display = 'none';
+                successModal.style.display = 'flex';
+
+                // Step 3: Redirect to dashboard after delay
+                setTimeout(() => {
+                  window.location.href = 'patient/patient-dashboard.php';
+                }, 2000);
+              } else {
+                alert(result.message || 'Registration failed');
+              }
+            } catch (error) {
+              console.error('Registration error:', error);
+              alert('An error occurred. Please try again.');
+            }
+          });
+        }
+
+        // Navigation active state handling
+        const navLinks = document.querySelectorAll('.nav-link');
+        
+        // Set initial active state based on hash
+        function setActiveLink() {
+          const hash = window.location.hash || '#top';
+          navLinks.forEach(link => {
+            if (link.getAttribute('href') === hash) {
+              link.classList.add('active');
+            } else {
+              link.classList.remove('active');
+            }
+          });
+        }
+        
+        // Add click event to nav links
+        navLinks.forEach(link => {
+          link.addEventListener('click', function(e) {
+            navLinks.forEach(l => l.classList.remove('active'));
+            this.classList.add('active');
+          });
+        });
+        
+        // Set active state on page load and hash change
+        setActiveLink();
+        window.addEventListener('hashchange', setActiveLink);
+      });
+    </script>
+
+    <style>
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+      }
+      
+      .modal-content {
+        background: white;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 420px;
+        padding: 0;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        animation: modalSlideIn 0.3s ease;
+      }
+      
+      .success-modal {
+        text-align: center;
+        padding: 40px 30px;
+      }
+      
+      @keyframes modalSlideIn {
+        from {
+          transform: translateY(-20px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+      
+      .modal-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      
+      .modal-header h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+      }
+      
+      .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #666;
+        padding: 0;
+        line-height: 1;
+      }
+      
+      .modal-close:hover {
+        color: #333;
+      }
+      
+      .modal-body {
+        padding: 24px;
+      }
+      
+      .modal-intro {
+        color: #666;
+        margin-bottom: 20px;
+        font-size: 14px;
+      }
+      
+      .modal-form .form-group {
+        margin-bottom: 16px;
+      }
+      
+      .modal-form label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 500;
+        font-size: 14px;
+      }
+      
+      .modal-form input {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+        box-sizing: border-box;
+      }
+      
+      .modal-form input:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+      }
+      
+      .btn-block {
+        width: 100%;
+        margin-top: 8px;
+      }
+      
+      .modal-footer-text {
+        margin-top: 16px;
+        text-align: center;
+        font-size: 12px;
+        color: #666;
+      }
+      
+      .modal-footer-text a {
+        color: #007bff;
+        text-decoration: none;
+      }
+      
+      .modal-footer-text a:hover {
+        text-decoration: underline;
+      }
+      
+      .success-icon {
+        color: #28a745;
+        margin-bottom: 16px;
+      }
+      
+      .success-icon svg {
+        display: block;
+        margin: 0 auto;
+      }
+    </style>
+
+    <!-- Toast Notification -->
+    <div id="integrationToast" class="toast">
+      <div class="toast-wrapper">
+        <div class="toast-left-border"></div>
+        <div class="toast-icon-wrapper">
+          <span class="toast-icon">✓</span>
+        </div>
+        <div class="toast-content">
+          <div class="toast-title"></div>
+          <div class="toast-message"></div>
+        </div>
+        <button class="toast-close" onclick="closeIntegrationToast()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="toast-loading-line"></div>
+    </div>
 
   </body>
 </html>

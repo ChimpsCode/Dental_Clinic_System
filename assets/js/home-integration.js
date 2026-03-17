@@ -265,6 +265,9 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
 
+      // Show toast notification while logging in
+      showToast('Logging In', 'Please wait while we verify your credentials...', 'success');
+
       // Disable button during submission
       inlineLoginBtn.disabled = true;
       const originalText = inlineLoginBtn.textContent;
@@ -327,132 +330,5 @@ document.addEventListener('DOMContentLoaded', function() {
         inlineLoginBtn.click();
       }
     });
-  }
-  
-  // Calendar functionality for appointment date picker
-  const dateInput = document.getElementById('appointment-date');
-  const calendarToggle = document.getElementById('calendar-toggle');
-  const calendarDropdown = document.getElementById('calendar-dropdown');
-  const calendarDays = document.getElementById('calendar-days');
-  const currentMonthYear = document.querySelector('.current-month-year');
-  const prevMonthBtn = document.querySelector('.prev-month');
-  const nextMonthBtn = document.querySelector('.next-month');
-  
-  if (dateInput && calendarToggle && calendarDropdown) {
-    let currentDate = new Date();
-    let selectedDate = null;
-    
-    function renderCalendar() {
-      const year = currentDate.getFullYear();
-      const month = currentDate.getMonth();
-      
-      // Update month/year display
-      currentMonthYear.textContent = new Date(year, month).toLocaleDateString('en-US', {
-        month: 'long',
-        year: 'numeric'
-      });
-      
-      // Clear previous days
-      calendarDays.innerHTML = '';
-      
-      // Get first day of month and total days
-      const firstDay = new Date(year, month, 1).getDay();
-      const totalDays = new Date(year, month + 1, 0).getDate();
-      const prevMonthDays = new Date(year, month, 0).getDate();
-      
-      // Add previous month days
-      for (let i = firstDay - 1; i >= 0; i--) {
-        const day = document.createElement('div');
-        day.className = 'calendar-day other-month';
-        day.textContent = prevMonthDays - i;
-        calendarDays.appendChild(day);
-      }
-      
-      // Add current month days
-      const today = new Date();
-      for (let i = 1; i <= totalDays; i++) {
-        const day = document.createElement('div');
-        day.className = 'calendar-day';
-        day.textContent = i;
-        
-        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-        
-        // Check if it's today
-        if (today.getFullYear() === year && today.getMonth() === month && today.getDate() === i) {
-          day.classList.add('today');
-        }
-        
-        // Check if it's selected
-        if (selectedDate && selectedDate.getDate() === i && 
-            selectedDate.getMonth() === month && selectedDate.getFullYear() === year) {
-          day.classList.add('selected');
-        }
-        
-        // Check if it's weekend (optional - disable weekends)
-        const dayOfWeek = new Date(year, month, i).getDay();
-        if (dayOfWeek === 0 || dayOfWeek === 6) {
-          day.classList.add('disabled');
-        } else {
-          day.addEventListener('click', function() {
-            selectedDate = new Date(year, month, i);
-            const formattedDate = `${String(month + 1).padStart(2, '0')}/${String(i).padStart(2, '0')}/${year}`;
-            dateInput.value = formattedDate;
-            calendarDropdown.classList.remove('show');
-            renderCalendar();
-          });
-        }
-        
-        calendarDays.appendChild(day);
-      }
-      
-      // Add next month days to fill grid
-      const remainingDays = 42 - (firstDay + totalDays);
-      for (let i = 1; i <= remainingDays; i++) {
-        const day = document.createElement('div');
-        day.className = 'calendar-day other-month';
-        day.textContent = i;
-        calendarDays.appendChild(day);
-      }
-    }
-    
-    // Toggle calendar dropdown
-    calendarToggle.addEventListener('click', function(e) {
-      e.stopPropagation();
-      calendarDropdown.classList.toggle('show');
-      renderCalendar();
-    });
-    
-    // Navigation buttons
-    if (prevMonthBtn) {
-      prevMonthBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        currentDate.setMonth(currentDate.getMonth() - 1);
-        renderCalendar();
-      });
-    }
-    
-    if (nextMonthBtn) {
-      nextMonthBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        currentDate.setMonth(currentDate.getMonth() + 1);
-        renderCalendar();
-      });
-    }
-    
-    // Close calendar when clicking outside
-    document.addEventListener('click', function(e) {
-      if (!calendarDropdown.contains(e.target) && e.target !== calendarToggle && !calendarToggle.contains(e.target)) {
-        calendarDropdown.classList.remove('show');
-      }
-    });
-    
-    // Allow manual date entry
-    dateInput.addEventListener('click', function() {
-      calendarDropdown.classList.add('show');
-      renderCalendar();
-    });
-    
-    // Initial render
-    renderCalendar();
   }
 });

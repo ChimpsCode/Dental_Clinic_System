@@ -22,6 +22,7 @@ function initializeDatabase($pdo) {
         // Create patients table
         $pdo->exec("CREATE TABLE IF NOT EXISTS patients (
             id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT DEFAULT NULL,
             first_name VARCHAR(100),
             middle_name VARCHAR(100),
             last_name VARCHAR(100),
@@ -39,11 +40,19 @@ function initializeDatabase($pdo) {
             religion VARCHAR(50),
             dental_insurance VARCHAR(100),
             insurance_effective_date DATE,
+            registration_source VARCHAR(50) DEFAULT 'direct',
+            source_appointment_id INT DEFAULT NULL,
+            status ENUM('active','inactive') DEFAULT 'active',
+            is_archived TINYINT(1) NOT NULL DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            created_by INT DEFAULT NULL,
+            deleted_at DATETIME DEFAULT NULL,
             INDEX idx_full_name (full_name),
             INDEX idx_phone (phone),
-            INDEX idx_email (email)
+            INDEX idx_email (email),
+            INDEX idx_user_id (user_id),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
         
         // Create appointments table
