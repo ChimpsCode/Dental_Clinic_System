@@ -279,6 +279,9 @@ document.addEventListener('DOMContentLoaded', function() {
       formData.append('password', password);
 
       // Send AJAX request
+      console.log('Sending login request to: login.php');
+      console.log('Username:', username);
+      
       fetch('login.php', {
         method: 'POST',
         headers: {
@@ -288,6 +291,17 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .then(response => {
         console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers.get('Content-Type'));
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const contentType = response.headers.get('Content-Type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error('Invalid response format. Expected JSON.');
+        }
+        
         return response.json();
       })
       .then(data => {
@@ -298,7 +312,7 @@ document.addEventListener('DOMContentLoaded', function() {
           
           // Redirect after a short delay
           setTimeout(() => {
-            window.location.href = data.redirect || 'dashboard.php';
+            window.location.href = data.redirect || '../dashboard.php';
           }, 1500);
         } else {
           showError(data.message || 'Login failed. Please try again.');
@@ -317,7 +331,7 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .catch(error => {
         console.error('Fetch error:', error);
-        showError('Network error. Please try again.');
+        showError('Network error: ' + error.message);
         inlineLoginBtn.disabled = false;
         inlineLoginBtn.textContent = originalText;
       });

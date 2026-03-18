@@ -68,6 +68,7 @@ try {
 
     // Set session for automatic login
     $_SESSION['user_id'] = $user_id;
+    $_SESSION['role'] = 'user';
     $_SESSION['user_role'] = 'user';
     $_SESSION['user_name'] = $first_name;
     $_SESSION['patient_id'] = $patient_id;

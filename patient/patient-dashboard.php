@@ -23,7 +23,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 // Verify this is a patient (user role)
-if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'user') {
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'user') {
     ob_end_clean();
     header('Location: ../login.php');
     exit();
@@ -106,14 +106,20 @@ $pageTitle = 'Patient Dashboard';
         /* Header */
         .dashboard-header {
             background: white;
-            padding: 16px 32px;
+            padding: 0 32px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-bottom: 1px solid #e5e7eb;
             position: sticky;
             top: 0;
             z-index: 100;
+            height: 64px;
+        }
+        
+        .header-left, .header-right {
+            display: flex;
+            align-items: center;
         }
         
         .logo {
@@ -123,25 +129,37 @@ $pageTitle = 'Patient Dashboard';
         }
         
         .logo img {
-            height: 40px;
+            height: 36px;
             width: auto;
         }
         
         .logo span {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
             color: #1a1a2e;
+        }
+        
+        .user-profile {
+            position: relative;
         }
         
         .user-info {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 12px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .user-info:hover {
+            background: #f3f4f6;
         }
         
         .user-avatar {
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
             background: linear-gradient(135deg, #007bff, #0056b3);
             color: white;
@@ -149,37 +167,82 @@ $pageTitle = 'Patient Dashboard';
             align-items: center;
             justify-content: center;
             font-weight: 600;
-            font-size: 14px;
+            font-size: 12px;
+            flex-shrink: 0;
         }
         
         .user-details {
-            text-align: right;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
         }
         
         .user-name {
             font-weight: 600;
             font-size: 14px;
             color: #1a1a2e;
+            line-height: 1.3;
         }
         
-        .user-email {
-            font-size: 12px;
-            color: #666;
+        .user-role {
+            font-size: 11px;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
-        .logout-btn {
-            background: #dc3545;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 13px;
+        .dropdown-arrow {
+            color: #6b7280;
+            transition: transform 0.2s;
+        }
+        
+        .user-profile:hover .dropdown-arrow {
+            transform: rotate(180deg);
+        }
+        
+        .user-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            min-width: 180px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s ease;
+            z-index: 1000;
+        }
+        
+        .user-profile:hover .user-dropdown {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            color: #374151;
+            text-decoration: none;
             transition: background 0.2s;
+            font-size: 14px;
         }
         
-        .logout-btn:hover {
-            background: #c82333;
+        .dropdown-item:hover {
+            background: #f3f4f6;
+        }
+        
+        .dropdown-item.logout {
+            color: #dc3545;
+        }
+        
+        .dropdown-item.logout:hover {
+            background: #fef2f2;
         }
         
         /* Main content */
@@ -445,7 +508,7 @@ $pageTitle = 'Patient Dashboard';
         
         @media (max-width: 600px) {
             .dashboard-header {
-                padding: 12px 16px;
+                padding: 0 16px;
             }
             
             .user-details {
@@ -459,31 +522,63 @@ $pageTitle = 'Patient Dashboard';
             .welcome-section {
                 padding: 16px;
             }
+            
+            .logo span {
+                font-size: 16px;
+            }
+            
+            .user-info {
+                padding: 6px 8px;
+            }
+            
+            .user-avatar {
+                width: 32px;
+                height: 32px;
+                font-size: 11px;
+            }
         }
     </style>
 </head>
 <body>
     <header class="dashboard-header">
-        <div class="logo">
-            <img src="../assets/images/Logo.png" alt="RF Dental Clinic">
-            <span>RF Dental Clinic</span>
+        <div class="header-left">
+            <div class="logo">
+                <img src="../assets/images/Logo.png" alt="RF Dental Clinic">
+                <span>RF Dental Clinic</span>
+            </div>
         </div>
-        <div class="user-info">
-            <div class="user-avatar">
-                <?php 
-                    $initials = strtoupper(substr($patient['first_name'] ?? 'P', 0, 1) . substr($patient['last_name'] ?? '', 0, 1));
-                    echo $initials;
-                ?>
-            </div>
-            <div class="user-details">
-                <div class="user-name">
-                    <?php echo htmlspecialchars($patient['first_name'] ?? 'Patient') . ' ' . htmlspecialchars($patient['last_name'] ?? ''); ?>
+        <div class="header-right">
+            <div class="user-profile">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <?php 
+                            $initials = strtoupper(substr($patient['first_name'] ?? 'P', 0, 1) . substr($patient['last_name'] ?? '', 0, 1));
+                            echo $initials;
+                        ?>
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name">
+                            <?php echo htmlspecialchars($patient['first_name'] ?? 'Patient') . ' ' . htmlspecialchars($patient['last_name'] ?? ''); ?>
+                        </div>
+                        <div class="user-role">Patient</div>
+                    </div>
+                    <div class="dropdown-arrow">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </div>
                 </div>
-                <div class="user-email">
-                    <?php echo htmlspecialchars($patient['email'] ?? ''); ?>
+                <div class="user-dropdown">
+                    <a href="../logout.php" class="dropdown-item logout">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                            <polyline points="16 17 21 12 16 7"></polyline>
+                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
+                        <span>Logout</span>
+                    </a>
                 </div>
             </div>
-            <a href="../logout.php" class="logout-btn">Logout</a>
         </div>
     </header>
 

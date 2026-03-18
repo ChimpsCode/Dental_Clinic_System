@@ -1,37 +1,29 @@
 <?php
 session_start();
 
-// Redirect if already logged in
-if (isset($_SESSION['user_id'])) {
-    header('Location: dashboard.php');
-    exit();
-}
-
-// Determine where to go back to
-$referrer = $_SERVER['HTTP_REFERER'] ?? 'home.php';
-// Only allow internal pages
-if (strpos($referrer, 'login.php') !== false || 
-    strpos($referrer, 'forgot-password.php') !== false ||
-    strpos($referrer, 'patient_register.php') !== false) {
-    $referrer = 'home.php';
-}
-
 $error = '';
 $success = '';
 
-if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {    
-    // Handle AJAX login request
-    if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
-        // Set JSON header
-        header('Content-Type: application/json; charset=utf-8');
-        
-        $username = trim($_POST['username'] ?? '');
-        $password = $_POST['password'] ?? '';
-        
-if (empty($username) || empty($password)) {
-            echo json_encode(['success' => false, 'message' => 'Please fill in all fields']);
-            exit();
-        }
+// Handle AJAX login request
+if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' && 
+    isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+    
+    // Set JSON header
+    header('Content-Type: application/json; charset=utf-8');
+    
+    // Check if already logged in
+    if (isset($_SESSION['user_id'])) {
+        echo json_encode(['success' => false, 'message' => 'You are already logged in']);
+        exit();
+    }
+    
+    $username = trim($_POST['username'] ?? '');
+    $password = $_POST['password'] ?? '';
+    
+    if (empty($username) || empty($password)) {
+        echo json_encode(['success' => false, 'message' => 'Please fill in all fields']);
+        exit();
+    }
 
         try {
             require_once 'config/database.php';
@@ -52,6 +44,7 @@ if (empty($username) || empty($password)) {
                 // Normalize common label variants
                 if ($role === 'administrator') { $role = 'admin'; }
                 $_SESSION['role'] = $role;
+                $_SESSION['user_role'] = $role;
                 
                 // Compute display name from first_name + last_name
                 $firstName = trim($user['first_name'] ?? '');
@@ -92,6 +85,8 @@ if (empty($username) || empty($password)) {
                     $redirect = 'staff-dashboard.php';
                 } elseif ($user['role'] === 'dentist') {
                     $redirect = 'dentist_dashboard.php';
+                } elseif ($user['role'] === 'user') {
+                    $redirect = 'patient/patient-dashboard.php';
                 } else {
                     $redirect = 'dashboard.php';
                 }
@@ -125,7 +120,7 @@ if (empty($username) || empty($password)) {
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
     
-if (empty($username) || empty($password)) {
+    if (empty($username) || empty($password)) {
         $error = 'Please fill in all fields';
     } else {
         try {
@@ -146,6 +141,7 @@ if (empty($username) || empty($password)) {
                 $role = strtolower($user['role'] ?? 'admin');
                 if ($role === 'administrator') { $role = 'admin'; }
                 $_SESSION['role'] = $role;
+                $_SESSION['user_role'] = $role;
                 
                 // Compute display name from first_name + last_name
                 $firstName = trim($user['first_name'] ?? '');
@@ -185,6 +181,8 @@ if (empty($username) || empty($password)) {
                     header('Location: staff-dashboard.php');
                 } elseif ($user['role'] === 'dentist') {
                     header('Location: dentist_dashboard.php');
+                } elseif ($user['role'] === 'user') {
+                    header('Location: patient/patient-dashboard.php');
                 } else {
                     header('Location: dashboard.php');
                 }
