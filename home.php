@@ -4,9 +4,9 @@ $assets = [
   'hero' => './assets/images/Dentists.png',
   'about' => 'https://www.figma.com/api/mcp/asset/29ac1342-8a70-42fc-a97f-67f6e09243d6',
   'tooth' => 'https://www.figma.com/api/mcp/asset/e2ebbe80-7cbc-49ff-afcc-35ac70f56115',
-  'icon_phone' => 'https://www.figma.com/api/mcp/asset/6b952526-b60f-4626-944d-502f23bcafeb',
-  'icon_email' => 'https://www.figma.com/api/mcp/asset/edbadd5e-0598-4509-9014-7cc7a891e24e',
-  'icon_time' => 'https://www.figma.com/api/mcp/asset/c6ae2ed7-ef74-4683-97bb-96d5151b6398',
+  'icon_phone' => './assets/images/icon-phone.svg',
+  'icon_email' => './assets/images/icon-email.svg',
+  'icon_time' => './assets/images/icon-time.svg',
 ];
 
 $services = [
@@ -152,18 +152,21 @@ $faqs = [
               <div class="appointment-title">Book an Appointment Today</div>
               <form class="appointment-form" action="#" method="post">
                 <label class="field">
-                  <span class="sr-only">Name</span>
-                  <input name="name" type="text" placeholder="Name" />
+                  <span class="sr-only">First Name</span>
+                  <input name="first_name" type="text" placeholder="First Name" required />
                 </label>
                 <label class="field">
-                  <span class="sr-only">Email</span>
-                  <input name="email" type="email" placeholder="Email" />
+                  <span class="sr-only">Middle Name</span>
+                  <input name="middle_name" type="text" placeholder="Middle Name" />
                 </label>
                 <label class="field">
-                  <span class="sr-only">Phone</span>
-                  <input name="phone" type="tel" placeholder="Phone" />
+                  <span class="sr-only">Last Name</span>
+                  <input name="last_name" type="text" placeholder="Last Name" required />
                 </label>
-
+                <label class="field">
+                  <span class="sr-only">Email Address</span>
+                  <input name="email" type="email" placeholder="Email Address" required />
+                </label>
                 <button class="btn btn-primary" type="submit">Book Now</button>
               </form>
             </div>
@@ -187,90 +190,6 @@ $faqs = [
           </div>
         </div>
       </section>
-
-      <!-- Inline login panel inside hero -->
-      <div class="inline-login-panel" id="inlineLoginPanel" role="dialog" aria-modal="true" aria-labelledby="inlineLoginTitle">
-        <div class="login-form-container inline login-card">
-          <button type="button" class="login-close-btn" id="inlineLoginClose" aria-label="Close login form">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-          </button>
-
-          <div class="logo-container">
-            <div class="logo"><img src="assets/images/Logo.png" alt="RF Dental Clinic logo" /></div>
-          </div>
-          <div class="clinic-name" id="inlineLoginTitle">RF Dental Clinic</div>
-
-          <form id="integratedLoginFormInline" novalidate>
-            <div class="alert alert-error" id="loginErrorMessageInline" style="display:none"></div>
-
-            <div class="input-group">
-              <input id="integrated-username-inline" name="username" type="text" placeholder="Username" autocomplete="username" required />
-            </div>
-
-            <div class="input-group">
-              <input id="integrated-password-inline" name="password" type="password" placeholder="Password" autocomplete="current-password" required />
-              <button type="button" class="toggle-password" id="integratedTogglePasswordInline" aria-label="Toggle password visibility" style="display:none">
-                <span class="eye-open">
-                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                </span>
-                <span class="eye-closed" style="display:none">
-                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3 21 21"></path><path d="M10.58 10.58A3 3 0 0 0 13.4 13.4"></path><path d="M9.88 4.24A10.64 10.64 0 0 1 21 12a10.7 10.7 0 0 1-1.1 2.94"></path><path d="M6.61 6.61A10.7 10.7 0 0 0 3 12a10.64 10.64 0 0 0 7 7"></path></svg>
-                </span>
-              </button>
-            </div>
-
-            <div class="form-links">
-              <a class="link" href="forgot-password.php">Forgot password?</a>
-              <span class="separator">|</span>
-              <a class="link" href="#" id="switchToSignup">Create account</a>
-            </div>
-
-            <button class="login-btn" type="button" id="integratedLoginBtnInline">Login</button>
-          </form>
-        </div>
-
-        <div class="login-form-container inline signup-card" id="inlineSignupCard" aria-hidden="true">
-          <button type="button" class="login-close-btn" id="inlineSignupClose" aria-label="Close sign up form">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-          </button>
-
-          <div class="logo-container">
-            <div class="logo"><img src="assets/images/Logo.png" alt="RF Dental Clinic logo" /></div>
-          </div>
-          <div class="clinic-name" id="inlineSignupTitle">Create Account</div>
-
-          <form id="integratedSignupFormInline" novalidate>
-            <div class="alert alert-error" id="signupErrorMessageInline" style="display:none"></div>
-
-            <div class="input-group two-col">
-              <input id="signup-firstname" name="first_name" type="text" placeholder="First name" autocomplete="given-name" required />
-              <input id="signup-lastname" name="last_name" type="text" placeholder="Last name" autocomplete="family-name" required />
-            </div>
-
-            <div class="input-group">
-              <input id="signup-email" name="email" type="email" placeholder="Email" autocomplete="email" required />
-            </div>
-
-            <div class="input-group">
-              <input id="signup-phone" name="phone" type="tel" placeholder="Phone" autocomplete="tel" required />
-            </div>
-
-            <div class="input-group">
-              <input id="signup-password" name="password" type="password" placeholder="Password (min 6 chars)" autocomplete="new-password" required />
-            </div>
-
-            <div class="input-group">
-              <input id="signup-confirm" name="confirm_password" type="password" placeholder="Confirm password" autocomplete="new-password" required />
-            </div>
-
-            <div class="form-links">
-              <a class="link" href="#" id="switchToLogin">Already have an account?</a>
-            </div>
-
-            <button class="login-btn" type="button" id="integratedSignupBtnInline">Sign Up</button>
-          </form>
-        </div>
-      </div>
 
       <section id="about" class="section about" style="padding-bottom:50px">
         <div class="container about-inner">
@@ -486,7 +405,7 @@ $faqs = [
               <span class="footer-icon footer-icon-mail" aria-hidden="true">✉</span>
             </a>
             <a href="https://m.me" target="_blank" rel="noreferrer" class="footer-icon-link" aria-label="Facebook Messenger">
-              <img src="./assets/images/messenger.png" alt="" class="footer-icon-img" aria-hidden="true" />
+              <img src="./assets/images/icon-messenger.svg" alt="" class="footer-icon-img" aria-hidden="true" />
             </a>
             <a href="tel:09671878603" class="footer-icon-link" aria-label="Call">
               <span class="footer-icon footer-icon-phone" aria-hidden="true">☎</span>
@@ -686,26 +605,72 @@ $faqs = [
 
     <!-- Registration Modal for Lead Capture Flow -->
     <div id="registrationModal" class="modal-overlay" style="display: none;">
-      <div class="modal-content">
+      <div class="modal-content registration-modal">
         <div class="modal-header">
           <h3>Secure Your Appointment</h3>
           <button type="button" class="modal-close" aria-label="Close">&times;</button>
         </div>
         <div class="modal-body">
-          <p class="modal-intro">You're almost done! Create a password to secure your account and complete your booking.</p>
+          <p class="modal-intro">Almost done! Complete your information and create a password to secure your account.</p>
           <form id="registrationForm" class="modal-form">
-            <div class="form-group">
-              <label for="reg-password">Create Password</label>
-              <input type="password" id="reg-password" name="password" required minlength="8" placeholder="At least 8 characters" />
+            <!-- Hidden fields from initial form -->
+            <input type="hidden" id="reg-first-name" name="first_name" />
+            <input type="hidden" id="reg-middle-name" name="middle_name" />
+            <input type="hidden" id="reg-last-name" name="last_name" />
+            <input type="hidden" id="reg-email-hidden" name="email_hidden" />
+            
+            <!-- Patient Information Section -->
+            <div class="form-section">
+              <h4 class="form-section-title">Patient Information</h4>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="reg-phone">Phone Number</label>
+                  <input type="tel" id="reg-phone" name="phone" required placeholder="09123456789" />
+                </div>
+                <div class="form-group">
+                  <label for="reg-gender">Gender</label>
+                  <select id="reg-gender" name="gender" required>
+                    <option value="">Select Gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="reg-age">Age</label>
+                  <input type="number" id="reg-age" name="age" min="1" max="120" placeholder="Age" />
+                </div>
+                <div class="form-group">
+                  <label for="reg-dob">Date of Birth</label>
+                  <input type="date" id="reg-dob" name="date_of_birth" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="reg-address">Address (Optional)</label>
+                <input type="text" id="reg-address" name="address" placeholder="Your complete address" />
+              </div>
             </div>
-            <div class="form-group">
-              <label for="reg-confirm-password">Confirm Password</label>
-              <input type="password" id="reg-confirm-password" name="confirm_password" required placeholder="Re-enter password" />
+            
+            <!-- Account Information Section -->
+            <div class="form-section">
+              <h4 class="form-section-title">Account Information</h4>
+              <div class="form-group">
+                <label for="reg-email">Email (Username)</label>
+                <input type="email" id="reg-email" name="email" required placeholder="your@email.com" />
+              </div>
+              <div class="form-group">
+                <label for="reg-password">Create Password</label>
+                <input type="password" id="reg-password" name="password" required minlength="8" placeholder="At least 8 characters" />
+              </div>
+              <div class="form-group">
+                <label for="reg-confirm-password">Confirm Password</label>
+                <input type="password" id="reg-confirm-password" name="confirm_password" required placeholder="Re-enter password" />
+              </div>
             </div>
-            <input type="hidden" id="reg-name" name="name" />
-            <input type="hidden" id="reg-email" name="email" />
-            <input type="hidden" id="reg-phone" name="phone" />
-            <button type="submit" class="btn btn-primary btn-block">Finalize Registration</button>
+            
+            <button type="submit" class="btn btn-primary btn-block">Create Account & Book Appointment</button>
           </form>
           <div class="modal-footer-text">
             <p>By registering, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</p>
@@ -729,6 +694,48 @@ $faqs = [
       </div>
     </div>
 
+    <!-- Welcome Back Modal -->
+    <div id="welcomeBackModal" class="modal-overlay" style="display: none;">
+      <div class="modal-content welcome-back-modal">
+        <div class="welcome-back-logo">
+          <img src="./assets/images/Logo.png" alt="Dental Clinic Logo" />
+        </div>
+        <h2 class="welcome-back-title">Welcome Back, Patient!</h2>
+        <p class="welcome-back-message" id="welcomeBackMessage">
+          An account for <strong id="welcomeBackUserEmail">patient@email.com</strong> was found. Please enter your password to continue your booking.
+        </p>
+        <form id="welcomeBackForm" class="welcome-back-form">
+          <div class="password-input-group">
+            <input 
+              type="password" 
+              id="welcome-back-password" 
+              name="password" 
+              required 
+              minlength="8" 
+              placeholder="Type your Password..." 
+              class="password-input"
+            />
+            <button type="button" class="toggle-password" id="welcomeBackTogglePassword" aria-label="Toggle password visibility">
+              <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <svg class="eye-icon eye-closed" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              </svg>
+            </button>
+          </div>
+          <input type="hidden" id="welcome-back-email" name="email" />
+          <input type="hidden" id="welcome-back-name" name="name" />
+          <input type="hidden" id="welcome-back-phone" name="phone" />
+          <input type="hidden" id="welcome-back-appointment-date" name="appointment_date" />
+          <button type="submit" class="btn btn-primary welcome-back-btn">Verify & Book</button>
+        </form>
+        <a href="forgot-password.php" class="forgot-password-link">Forgot Password?</a>
+      </div>
+    </div>
+
     <script>
       document.addEventListener('DOMContentLoaded', function() {
         const appointmentForm = document.querySelector('.appointment-form');
@@ -740,29 +747,75 @@ $faqs = [
 
         // Step 1: Handle initial appointment form submission
         if (appointmentForm) {
-          appointmentForm.addEventListener('submit', function(e) {
+          appointmentForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             
             // Collect form data
             const formData = new FormData(appointmentForm);
-            const name = formData.get('name');
+            const firstName = formData.get('first_name');
+            const middleName = formData.get('middle_name');
+            const lastName = formData.get('last_name');
             const email = formData.get('email');
-            const phone = formData.get('phone');
 
             // Validate required fields
-            if (!name || !email || !phone) {
-              alert('Please fill in all fields');
+            if (!firstName || !lastName || !email) {
+              alert('Please fill in all required fields (First Name, Last Name, Email)');
               return;
             }
 
-            // Store data in hidden fields for the registration form
-            document.getElementById('reg-name').value = name;
-            document.getElementById('reg-email').value = email;
-            document.getElementById('reg-phone').value = phone;
-
-            // Show the registration modal
-            registrationModal.style.display = 'flex';
-            body.style.overflow = 'hidden';
+            // Check if user already has an account
+            try {
+              const checkData = { exists: false };
+              
+              try {
+                const checkResponse = await fetch('check_user_exists.php', {
+                  method: 'POST',
+                  headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                  },
+                  body: formData
+                });
+                const checkResult = await checkResponse.json();
+                if (checkResult && typeof checkResult === 'object' && 'exists' in checkResult) {
+                  checkData.exists = checkResult.exists;
+                }
+              } catch (checkErr) {
+                console.log('Check user endpoint not available, proceeding with registration');
+              }
+              
+              if (checkData.exists) {
+                // User exists - show welcome back modal
+                const fullName = middleName ? firstName + ' ' + middleName + ' ' + lastName : firstName + ' ' + lastName;
+                document.getElementById('welcome-back-email').value = email;
+                document.getElementById('welcome-back-name').value = fullName;
+                document.getElementById('welcomeBackUserEmail').textContent = email;
+                
+                document.getElementById('welcomeBackModal').style.display = 'flex';
+                body.style.overflow = 'hidden';
+              } else {
+                // User doesn't exist - show registration modal
+                // Pre-fill the modal fields
+                document.getElementById('reg-first-name').value = firstName;
+                document.getElementById('reg-middle-name').value = middleName || '';
+                document.getElementById('reg-last-name').value = lastName;
+                document.getElementById('reg-email').value = email;
+                document.getElementById('reg-email-hidden').value = email;
+                
+                registrationModal.style.display = 'flex';
+                body.style.overflow = 'hidden';
+              }
+            } catch (error) {
+              console.error('Error:', error);
+              // Fallback to registration modal
+              document.getElementById('reg-first-name').value = firstName;
+              document.getElementById('reg-middle-name').value = middleName || '';
+              document.getElementById('reg-last-name').value = lastName;
+              document.getElementById('reg-email').value = email;
+              document.getElementById('reg-email-hidden').value = email;
+              
+              registrationModal.style.display = 'flex';
+              body.style.overflow = 'hidden';
+            }
           });
         }
 
@@ -788,6 +841,25 @@ $faqs = [
 
             const password = document.getElementById('reg-password').value;
             const confirmPassword = document.getElementById('reg-confirm-password').value;
+            const phone = document.getElementById('reg-phone').value;
+            const gender = document.getElementById('reg-gender').value;
+            const email = document.getElementById('reg-email').value;
+
+            // Validate required fields
+            if (!phone) {
+              alert('Please enter your phone number');
+              return;
+            }
+
+            if (!gender) {
+              alert('Please select your gender');
+              return;
+            }
+
+            if (!email) {
+              alert('Please enter your email address');
+              return;
+            }
 
             if (password !== confirmPassword) {
               alert('Passwords do not match');
@@ -816,7 +888,7 @@ $faqs = [
 
                 // Step 3: Redirect to dashboard after delay
                 setTimeout(() => {
-                  window.location.href = 'patient/patient-dashboard.php';
+                  window.location.href = 'user-patient/patient-dashboard.php';
                 }, 2000);
               } else {
                 alert(result.message || 'Registration failed');
@@ -824,6 +896,88 @@ $faqs = [
             } catch (error) {
               console.error('Registration error:', error);
               alert('An error occurred. Please try again.');
+            }
+          });
+        }
+
+        // Welcome Back Modal handlers
+        const welcomeBackModal = document.getElementById('welcomeBackModal');
+        const welcomeBackForm = document.getElementById('welcomeBackForm');
+        const welcomeBackCloseBtn = document.querySelector('#welcomeBackModal .modal-close');
+        
+        if (welcomeBackCloseBtn) {
+          welcomeBackCloseBtn.addEventListener('click', function() {
+            welcomeBackModal.style.display = 'none';
+            body.style.overflow = '';
+          });
+        }
+        
+        if (welcomeBackModal) {
+          welcomeBackModal.addEventListener('click', function(e) {
+            if (e.target === welcomeBackModal) {
+              welcomeBackModal.style.display = 'none';
+              body.style.overflow = '';
+            }
+          });
+        }
+        
+        if (welcomeBackForm) {
+          welcomeBackForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const password = document.getElementById('welcome-back-password').value;
+            const email = document.getElementById('welcome-back-email').value;
+            
+            if (!password || password.length < 8) {
+              alert('Password must be at least 8 characters');
+              return;
+            }
+            
+            // Disable button during submission
+            const submitBtn = welcomeBackForm.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Verifying...';
+            
+            // Try to login
+            const loginFormData = new FormData();
+            loginFormData.append('username', email);
+            loginFormData.append('password', password);
+            
+            try {
+              const response = await fetch('login.php', {
+                method: 'POST',
+                headers: {
+                  'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: loginFormData
+              });
+              
+              console.log('Login response status:', response.status);
+              const responseText = await response.text();
+              console.log('Login response text:', responseText);
+              
+              const result = JSON.parse(responseText);
+              
+              console.log('Login result:', result);
+              
+              if (result.success) {
+                // Login successful - redirect to patient dashboard
+                welcomeBackModal.style.display = 'none';
+                
+                setTimeout(() => {
+                  window.location.href = result.redirect || 'user-patient/patient-dashboard.php';
+                }, 500);
+              } else {
+                alert(result.message || 'Login failed. Please try again.');
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+              }
+            } catch (error) {
+              console.error('Login error:', error);
+              alert('An error occurred. Please try again.');
+              submitBtn.disabled = false;
+              submitBtn.textContent = originalText;
             }
           });
         }
@@ -875,7 +1029,7 @@ $faqs = [
         background: white;
         border-radius: 12px;
         width: 90%;
-        max-width: 420px;
+        max-width: 520px;
         padding: 0;
         box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         animation: modalSlideIn 0.3s ease;
@@ -982,6 +1136,58 @@ $faqs = [
         text-decoration: underline;
       }
       
+      /* Registration Modal Extended Styles */
+      .registration-modal {
+        max-width: 520px;
+      }
+      
+      .form-section {
+        margin-bottom: 24px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #eee;
+      }
+      
+      .form-section:last-of-type {
+        border-bottom: none;
+        margin-bottom: 16px;
+      }
+      
+      .form-section-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #0059a3;
+        margin: 0 0 16px 0;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #0059a3;
+        display: inline-block;
+      }
+      
+      .modal-form .form-row {
+        display: flex;
+        gap: 12px;
+      }
+      
+      .modal-form .form-row .form-group {
+        flex: 1;
+      }
+      
+      .modal-form select {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+        background: white;
+        cursor: pointer;
+        box-sizing: border-box;
+      }
+      
+      .modal-form select:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+      }
+      
       .success-icon {
         color: #28a745;
         margin-bottom: 16px;
@@ -990,6 +1196,118 @@ $faqs = [
       .success-icon svg {
         display: block;
         margin: 0 auto;
+      }
+      
+      /* Welcome Back Modal Styles */
+      .welcome-back-modal {
+        padding: 40px;
+        max-width: 420px;
+        width: 100%;
+        text-align: center;
+        border-radius: 12px;
+      }
+      
+      .welcome-back-logo {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 24px;
+      }
+      
+      .welcome-back-logo img {
+        width: 60px;
+        height: auto;
+      }
+      
+      .welcome-back-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: #0059a3;
+        margin: 0 0 16px;
+      }
+      
+      .welcome-back-message {
+        font-size: 14px;
+        color: #555;
+        line-height: 1.5;
+        margin: 0 0 24px;
+      }
+      
+      .welcome-back-message strong {
+        color: #333;
+        font-weight: 600;
+      }
+      
+      .welcome-back-form {
+        margin-bottom: 20px;
+      }
+      
+      .password-input-group {
+        position: relative;
+        margin-bottom: 20px;
+      }
+      
+      .password-input {
+        width: 100%;
+        border: none;
+        border-bottom: 1px solid #d1d5db;
+        padding: 12px 40px 12px 0;
+        font-size: 14px;
+        background: transparent;
+        transition: border-color 0.2s;
+      }
+      
+      .password-input::placeholder {
+        color: #999;
+      }
+      
+      .password-input:focus {
+        outline: none;
+        border-bottom-color: #0059a3;
+      }
+      
+      .toggle-password {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 4px;
+        color: #999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .toggle-password:hover {
+        color: #0059a3;
+      }
+      
+      .eye-icon {
+        width: 20px;
+        height: 20px;
+      }
+      
+      .welcome-back-btn {
+        width: 100%;
+        padding: 12px;
+        font-size: 16px;
+        font-weight: 600;
+        border-radius: 6px;
+      }
+      
+      .forgot-password-link {
+        display: block;
+        color: #999;
+        text-decoration: none;
+        font-size: 13px;
+        transition: color 0.2s;
+      }
+      
+      .forgot-password-link:hover {
+        color: #0059a3;
+        text-decoration: underline;
       }
     </style>
 

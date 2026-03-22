@@ -354,7 +354,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
 }
 
 .filter-tabs span.active {
-    background: #2563eb;
+    background: #3f75ea;
     color: white;
 }
 

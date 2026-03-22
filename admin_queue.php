@@ -230,9 +230,9 @@ div.main-content {
 }
 
 .pagination-btn.active {
-    background-color: #2563eb;
+    background-color: #3f75ea;
     color: #ffffff;
-    border-color: #2563eb;
+    border-color: #3f75ea;
 }
 
 .pagination-btn:disabled {
@@ -294,7 +294,7 @@ div.main-content {
 
 .summary-widget-icon.blue {
     background: #dbeafe;
-    color: #2563eb;
+    color: #3f75ea;
 }
 
 .summary-widget-icon.red {
@@ -345,7 +345,7 @@ div.main-content {
 }
 
 .control-bar .search-input:focus {
-    border-color: #2563eb;
+    border-color: #3f75ea;
 }
 
 .control-bar .filter-select {
@@ -360,7 +360,7 @@ div.main-content {
 
 .control-bar .btn-add-patient {
     padding: 12px 24px;
-    background: #2563eb;
+    background: #3f75ea;
     color: white;
     border: none;
     border-radius: 8px;
@@ -374,7 +374,7 @@ div.main-content {
 }
 
 .control-bar .btn-add-patient:hover {
-    background: #1d4ed8;
+    background: #2e529f;
 }
 
 /* Two Column Layout */
@@ -432,8 +432,8 @@ div.main-content {
 }
 
 .tab-item.active {
-    color: #2563eb;
-    border-bottom-color: #2563eb;
+    color: #3f75ea;
+    border-bottom-color: #3f75ea;
     background: white;
 }
 
@@ -450,7 +450,7 @@ div.main-content {
 
 .tab-item.active .tab-count {
     background: #dbeafe;
-    color: #2563eb;
+    color: #3f75ea;
 }
 
 /* Data Table */
@@ -545,7 +545,7 @@ div.main-content {
 }
 
 .status-badge.in-procedure .status-dot {
-    background: #2563eb;
+    background: #3f75ea;
 }
 
 .status-badge.on-hold .status-dot {
@@ -585,13 +585,13 @@ div.main-content {
 }
 
 .action-btn.primary {
-    background: #2563eb;
+    background: #3f75ea;
     color: white;
-    border-color: #2563eb;
+    border-color: #3f75ea;
 }
 
 .action-btn.primary:hover {
-    background: #1d4ed8;
+    background: #3f75ea;
 }
 
 .more-dropdown {
@@ -661,13 +661,13 @@ div.main-content {
 }
 
 .widget-card .btn-primary {
-    background: #2563eb;
+    background: #3f75ea;
     color: white;
     border: none;
 }
 
 .widget-card .btn-primary:hover {
-    background: #1d4ed8;
+    background: #3f75ea;
 }
 
 .widget-card .btn-secondary {

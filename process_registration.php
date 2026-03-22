@@ -8,14 +8,26 @@ try {
         throw new Exception('Invalid request method');
     }
 
-    $name = trim($_POST['name'] ?? '');
+    // Get all fields from POST
+    $first_name = trim($_POST['first_name'] ?? '');
+    $middle_name = trim($_POST['middle_name'] ?? '');
+    $last_name = trim($_POST['last_name'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $phone = trim($_POST['phone'] ?? '');
+    $gender = trim($_POST['gender'] ?? '');
+    $age = trim($_POST['age'] ?? '');
+    $date_of_birth = trim($_POST['date_of_birth'] ?? '');
+    $address = trim($_POST['address'] ?? '');
     $password = $_POST['password'] ?? '';
+    $confirm_password = $_POST['confirm_password'] ?? '';
 
     // Validate required fields
-    if (empty($name)) {
-        throw new Exception('Name is required');
+    if (empty($first_name)) {
+        throw new Exception('First name is required');
+    }
+
+    if (empty($last_name)) {
+        throw new Exception('Last name is required');
     }
 
     if (empty($email)) {
@@ -30,8 +42,20 @@ try {
         throw new Exception('Phone number is required');
     }
 
-    if (empty($password) || strlen($password) < 8) {
+    if (empty($gender)) {
+        throw new Exception('Gender is required');
+    }
+
+    if (empty($password)) {
+        throw new Exception('Password is required');
+    }
+
+    if (strlen($password) < 8) {
         throw new Exception('Password must be at least 8 characters');
+    }
+
+    if ($password !== $confirm_password) {
+        throw new Exception('Passwords do not match');
     }
 
     // Check if email already exists
@@ -41,27 +65,41 @@ try {
         throw new Exception('Email already registered. Please login instead.');
     }
 
-    // Parse name into components
-    $nameParts = explode(' ', $name);
-    $first_name = $nameParts[0] ?? '';
-    $last_name = count($nameParts) > 1 ? $nameParts[count($nameParts) - 1] : '';
-    $middle_name = count($nameParts) > 2 ? implode(' ', array_slice($nameParts, 1, -1)) : null;
-
     // Hash password
     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
+    // Build full name
+    $full_name = trim($first_name . ' ' . $middle_name . ' ' . $last_name);
 
     // Start transaction
     $pdo->beginTransaction();
 
     // Create user account
     $stmt = $pdo->prepare("INSERT INTO users (first_name, middle_name, last_name, username, password, email, role) VALUES (?, ?, ?, ?, ?, ?, 'user')");
-    $stmt->execute([$first_name, $middle_name, $last_name, $email, $hashedPassword, $email]);
+    $stmt->execute([$first_name, $middle_name ?: null, $last_name, $email, $hashedPassword, $email]);
     $user_id = $pdo->lastInsertId();
 
-    // Create patient record
-    $full_name = trim(($first_name ?? '') . ' ' . ($middle_name ?? '') . ' ' . ($last_name ?? ''));
-    $stmt = $pdo->prepare("INSERT INTO patients (user_id, first_name, middle_name, last_name, full_name, phone, email, registration_source, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'lead_capture', 'active')");
-    $stmt->execute([$user_id, $first_name, $middle_name, $last_name, $full_name, $phone, $email]);
+    // Create patient record with all additional fields
+    $stmt = $pdo->prepare("
+        INSERT INTO patients (
+            user_id, first_name, middle_name, last_name, full_name, 
+            phone, email, gender, age, date_of_birth, address,
+            registration_source, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'lead_capture', 'active')
+    ");
+    $stmt->execute([
+        $user_id, 
+        $first_name, 
+        $middle_name ?: null, 
+        $last_name, 
+        $full_name, 
+        $phone, 
+        $email, 
+        $gender,
+        $age ?: null,
+        $date_of_birth ?: null,
+        $address ?: null
+    ]);
     $patient_id = $pdo->lastInsertId();
 
     $pdo->commit();
@@ -76,7 +114,7 @@ try {
     echo json_encode([
         'success' => true,
         'message' => 'Registration successful!',
-        'redirect' => 'patient/patient-dashboard.php'
+        'redirect' => 'user-patient/patient-dashboard.php'
     ]);
 
 } catch (Exception $e) {

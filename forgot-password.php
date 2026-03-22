@@ -362,10 +362,32 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <title>Forgot Password - RF Dental Clinic</title>
     <link rel="icon" type="image/png" href="assets/images/Logo.png">
     <link rel="stylesheet" href="assets/css/login.css">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            margin: 0 !important;
+            padding: 20px !important;
+            background: linear-gradient(135deg, #f0f7ff 0%, #e0efff 100%) !important;
+        }
+        .container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+        .login-form-container {
+            background: #ffffff !important;
+            border-radius: 16px !important;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1) !important;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <div class="login-form-container" style="max-width: 450px;">
+        <div class="login-form-container" style="max-width: 420px;">
             <!-- Close button to go back -->
             <button type="button" class="login-close-btn" onclick="window.location.href='<?php echo htmlspecialchars($referrer); ?>'" aria-label="Close">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

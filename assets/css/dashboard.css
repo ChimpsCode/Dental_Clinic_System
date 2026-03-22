@@ -86,7 +86,7 @@ body {
 .sidebar {
     width: 260px;
     background: #FFFFFF;
-    color: rgb(0, 0, 0);
+    color: rgb(255, 255, 255);
     display: flex;
     flex-direction: column;
     box-shadow: 2px 0 10px rgba(0,0,0,0.1);
@@ -97,7 +97,8 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
+    border-bottom: 2px solid rgba(255,255,255,0.1);
+    background-color: #375ba9;
 }
 
 .sidebar-logo img {
@@ -108,9 +109,11 @@ body {
 .sidebar-logo span {
     font-size: 18px;
     font-weight: 600;
+    
 }
 
 .sidebar-nav {
+    background-color: #375ba9;
     flex: 1;
     padding: 21px 0;
 }
@@ -120,7 +123,7 @@ body {
     align-items: center;
     gap: 12px;
     padding: 14px 20px;
-    color: rgba(0, 0, 0, 0.8);
+    color: rgba(255, 255, 255, 0.8);
     text-decoration: none;
     transition: all 0.3s;
     cursor: pointer;
@@ -130,11 +133,11 @@ body {
 
 .nav-item:hover {
     background: rgba(255,255,255,0.1);
-    color: #0575D5;
+    color: #ffffff;
 }
 
 .nav-item.active {
-    background: #2563eb;
+    background: #5880d5;
     color: white;
     border-left: 4px solid #60a5fa;
 }
@@ -1443,6 +1446,7 @@ body {
     
     .sidebar-logo span {
         font-size: 16px;
+        background-color: #3a61b6;
     }
     
     .nav-item {

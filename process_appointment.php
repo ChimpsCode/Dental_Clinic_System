@@ -90,13 +90,13 @@ try {
 
     $pdo->commit();
     
-    // Send notifications for new appointment
-    try {
-        require_once __DIR__ . '/includes/notification_functions.php';
-        $patientName = trim($first_name . ' ' . $last_name);
-        $formattedDate = date('F j, Y', strtotime($appointment_date));
-        notifyNewAppointment($pdo, $patientName, $formattedDate);
-    } catch (Exception $notifErr) {
+        // Send notifications for new appointment
+        try {
+            require_once __DIR__ . '/includes/notification_functions.php';
+            $patientName = trim($first_name . ' ' . ($middle_name ?? '') . ' ' . $last_name);
+            $formattedDate = date('F j, Y', strtotime($appointment_date));
+            notifyNewAppointment($pdo, $patientName, $formattedDate);
+        } catch (Exception $notifErr) {
         // Silent fail - don't break appointment creation
     } catch (Error $notifErr) {
         // Silent fail - don't break appointment creation

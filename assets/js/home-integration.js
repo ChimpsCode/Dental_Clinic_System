@@ -37,11 +37,17 @@ document.addEventListener('DOMContentLoaded', function() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  // Open login (inline)
-  function openLoginOverlay() { setInlineMode('login'); }
-  function openSignupOverlay() { setInlineMode('signup'); }
+  // Open login - redirect to login.php
+  function openLoginOverlay() { 
+    window.location.href = 'login.php';
+  }
+  
+  // Open signup - redirect to patient_register.php
+  function openSignupOverlay() { 
+    window.location.href = 'patient_register.php';
+  }
 
-  // Close login (inline)
+  // Close login (inline) - kept for compatibility but does nothing
   function closeLoginOverlay() {
     document.body.classList.remove('inline-login-active', 'inline-mode-signup');
     if (inlineLoginForm) inlineLoginForm.reset();

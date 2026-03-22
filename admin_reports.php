@@ -626,3 +626,6 @@ require_once __DIR__ . '/includes/admin_layout_end.php';
         padding-bottom: 40px;
     }
 </style>
+
+<!-- Admin Reports Custom CSS -->
+<link rel="stylesheet" href="assets/css/admin_reports.css">

@@ -1,4 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Carousel
+    initializeCarousel();
+    
     const loginForm = document.getElementById('loginForm');
     const usernameInput = document.getElementById('username');
     const passwordInput = document.getElementById('password');
@@ -6,12 +9,58 @@ document.addEventListener('DOMContentLoaded', function() {
     const loginBtn = document.getElementById('loginBtn');
     const errorMessage = document.getElementById('errorMessage');
     const toast = document.getElementById('toast');
-    const loginCloseBtn = document.getElementById('loginCloseBtn');
 
     console.log('=== PAGE LOADED ===');
     console.log('Login form:', loginForm);
     console.log('Login button:', loginBtn);
     console.log('Toast element:', toast);
+    
+    // Carousel initialization function
+    function initializeCarousel() {
+        const slides = document.querySelectorAll('.carousel-slide');
+        const dots = document.querySelectorAll('.dot');
+        let currentSlide = 0;
+        let slideInterval;
+        
+        function showSlide(n) {
+            // Remove active class from all slides and dots
+            slides.forEach(slide => slide.classList.remove('active'));
+            dots.forEach(dot => dot.classList.remove('active'));
+            
+            // Add active class to current slide and dot
+            if (slides[n]) {
+                slides[n].classList.add('active');
+            }
+            if (dots[n]) {
+                dots[n].classList.add('active');
+            }
+        }
+        
+        function nextSlide() {
+            currentSlide = (currentSlide + 1) % slides.length;
+            showSlide(currentSlide);
+        }
+        
+        function goToSlide(n) {
+            currentSlide = n % slides.length;
+            showSlide(currentSlide);
+            clearInterval(slideInterval);
+            startAutoPlay();
+        }
+        
+        function startAutoPlay() {
+            slideInterval = setInterval(nextSlide, 5000); // Change slide every 5 seconds
+        }
+        
+        // Add click handlers to dots
+        dots.forEach((dot, index) => {
+            dot.addEventListener('click', () => goToSlide(index));
+        });
+        
+        // Show first slide and start autoplay
+        showSlide(0);
+        startAutoPlay();
+    }
 
     // Clear error message on page load (fresh login page)
     if (errorMessage) {
@@ -321,19 +370,6 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(function() {
             usernameInput.focus();
         }, 100);
-    }
-
-    // Close button functionality - redirect to referrer or home page
-    if (loginCloseBtn) {
-        loginCloseBtn.addEventListener('click', function() {
-            // Add exit animation
-            document.body.classList.add('exit-animation');
-            
-            // Navigate to referrer or home page after animation
-            setTimeout(() => {
-                window.location.href = (typeof pageReferrer !== 'undefined' && pageReferrer) ? pageReferrer : 'home.php';
-            }, 350);
-        });
     }
 
     // Show PHP error message as toast on page load if it exists

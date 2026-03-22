@@ -838,7 +838,7 @@ document.addEventListener('keydown', function(e) {
 }
 
 .pagination-btn.active {
-    background: #2563eb;
+    background: #3f75ea;
     color: white;
     border-color: #2563eb;
 }

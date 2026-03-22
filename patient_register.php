@@ -22,6 +22,7 @@ $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $firstName = trim($_POST['first_name'] ?? '');
+    $middleName = trim($_POST['middle_name'] ?? '');
     $lastName = trim($_POST['last_name'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $phone = trim($_POST['phone'] ?? '');
@@ -66,16 +67,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     
                     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
                     
+                    // Build full name
+                    $fullName = trim($firstName . ' ' . $middleName . ' ' . $lastName);
+                    
                     // Insert into users table
-                    $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, last_name, role) VALUES (?, ?, ?, ?, ?, ?)");
-                    $result = $stmt->execute([$username, $hashedPassword, $email, $firstName, $lastName, 'user']);
+                    $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, middle_name, last_name, full_name, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmt->execute([$username, $hashedPassword, $email, $firstName, $middleName ?: null, $lastName, $fullName, 'user']);
                     
                     if ($result) {
                         $userId = $pdo->lastInsertId();
                         
                         // Create patient record
-                        $stmt = $pdo->prepare("INSERT INTO patients (first_name, last_name, full_name, email, phone, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
-                        $stmt->execute([$firstName, $lastName, "$firstName $lastName", $email, $phone]);
+                        $stmt = $pdo->prepare("INSERT INTO patients (user_id, first_name, middle_name, last_name, full_name, email, phone, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
+                        $stmt->execute([$userId, $firstName, $middleName ?: null, $lastName, $fullName, $email, $phone]);
                         
                         $success = 'Account created successfully! You can now login with your email and password.';
                     } else {
@@ -116,6 +120,26 @@ if (
     <link rel="stylesheet" href="assets/css/login.css">
     <style>
         /* Additional styles for patient registration */
+        body {
+            min-height: 100vh;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            margin: 0 !important;
+            padding: 20px !important;
+            background: linear-gradient(135deg, #f0f7ff 0%, #e0efff 100%) !important;
+        }
+        .container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+        .login-form-container {
+            background: #ffffff !important;
+            border-radius: 16px !important;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1) !important;
+        }
         .form-row {
             display: flex;
             gap: 15px;
@@ -134,7 +158,7 @@ if (
 <body>
     <div class="container">
         <div class="login-form-container" style="max-width: 450px;">
-            <button type="button" class="login-close-btn" id="closeBtn" aria-label="Close registration" onclick="window.location.href='<?php echo htmlspecialchars($referrer); ?>'">
+            <button type="button" class="login-close-btn" id="closeBtn" aria-label="Close registration" onclick="window.location.href='login.php'">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
                     <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -171,6 +195,11 @@ if (
                         <input type="text" id="first_name" name="first_name" placeholder="First Name" required autocomplete="given-name">
                     </div>
                     <div class="input-group">
+                        <input type="text" id="middle_name" name="middle_name" placeholder="Middle Name (optional)" autocomplete="additional-name">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="input-group">
                         <input type="text" id="last_name" name="last_name" placeholder="Last Name" required autocomplete="family-name">
                     </div>
                 </div>
@@ -202,7 +231,7 @@ if (
             
             <div class="form-links" style="margin-top: 20px; justify-content: center;">
                 <span>Already have an account? </span>
-                <a href="<?php echo htmlspecialchars($referrer); ?>" class="link page-transition">Go Back</a>
+                <a href="login.php" class="link page-transition">Go Back</a>
             </div>
         </div>
     </div>

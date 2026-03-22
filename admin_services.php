@@ -219,7 +219,7 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
 }
 
 .add-btn { 
-    background: #2563eb; 
+    background: #3f75ea; 
     color: white; 
     border: none; 
     padding: 10px 20px; 
@@ -488,7 +488,7 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
 
 /* Active State (The Blue Button) */
 .pagination-btn.active {
-    background-color: #2563eb; /* Bright Blue */
+    background-color: #3f75ea; /* Bright Blue */
     color: #ffffff;
     border-color: #2563eb;
 }
@@ -525,7 +525,7 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
         </div>
         <div style="background: white; padding: 10px; border-radius: 12px; border: 1px solid #e5e7eb; text-align: center;">
             <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; margin-bottom: 8px;">Total Single</div>
-            <div style="font-size: 2rem; font-weight: 700; color: #2563eb;"><?php echo $totalSingle; ?></div>
+            <div style="font-size: 2rem; font-weight: 700; color: #3f75ea;"><?php echo $totalSingle; ?></div>
         </div>
         <div style="background: white; padding: 10px; border-radius: 12px; border: 1px solid #e5e7eb; text-align: center;">
             <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; margin-bottom: 8px;">Total Inactive</div>
@@ -701,7 +701,7 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
             </div>
             <div style="display: flex; justify-content: flex-end; gap: 12px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
                 <button type="button" onclick="document.getElementById('addModal').style.display='none'" style="background: #f3f4f6; border: none; color: #374151; padding: 10px 20px; border-radius: 8px; font-weight: 500; cursor: pointer;">Cancel</button>
-                <button type="submit" style="background: #2563eb; border: none; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 500; cursor: pointer;">Add Service</button>
+                <button type="submit" style="background: #3f75ea; border: none; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 500; cursor: pointer;">Add Service</button>
             </div>
         </form>
     </div>
@@ -750,7 +750,7 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
             </div>
             <div style="display: flex; justify-content: flex-end; gap: 12px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
                 <button type="button" onclick="document.getElementById('editModal').style.display='none'" style="background: #f3f4f6; border: none; color: #374151; padding: 10px 20px; border-radius: 8px; font-weight: 500; cursor: pointer;">Cancel</button>
-                <button type="submit" style="background: #2563eb; border: none; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 500; cursor: pointer;">Update Service</button>
+                <button type="submit" style="background: #3f75ea; border: none; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 500; cursor: pointer;">Update Service</button>
             </div>
         </form>
     </div>
