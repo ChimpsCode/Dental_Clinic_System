@@ -94,7 +94,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             
             // Redirect based on role
             if ($user['role'] === 'admin') {
-                $redirect = 'admin_dashboard.php';
+                $redirect = 'master/admin/admin_dashboard.php';
             } elseif ($user['role'] === 'staff') {
                 $redirect = 'staff-dashboard.php';
             } elseif ($user['role'] === 'dentist') {
@@ -202,7 +202,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 
                 // Redirect based on role
                 if ($user['role'] === 'admin') {
-                    header('Location: admin_dashboard.php');
+                    header('Location: master/admin/admin_dashboard.php');
                 } elseif ($user['role'] === 'staff') {
                     header('Location: staff-dashboard.php');
                 } elseif ($user['role'] === 'dentist') {

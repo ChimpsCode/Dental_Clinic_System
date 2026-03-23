@@ -11,7 +11,7 @@ $currentPage = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['p
 if ($currentPage < 1) $currentPage = 1;
 
 try {
-    require_once 'config/database.php';
+    require_once __DIR__ . '/../../config/database.php';
     
     // Check if is_archived column exists
     $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'is_archived'");
@@ -82,7 +82,7 @@ try {
     $cancelledCount = 0;
 }
 
-require_once __DIR__ . '/includes/admin_layout_start.php';
+require_once __DIR__ . '/../../includes/admin_layout_start.php';
 ?>
             <div class="content-main">
                 
@@ -616,7 +616,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
         e.preventDefault();
         const formData = new FormData(this);
         
-        fetch('process_appointment.php', {
+        fetch('../../process_appointment.php', {
             method: 'POST',
             body: formData
         })
@@ -661,7 +661,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
 
     function cancelAppointment(id) {
         if (confirm('Are you sure you want to cancel this appointment?')) {
-            fetch('cancel_appointment.php', {
+            fetch('../../cancel_appointment.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: id })
@@ -866,7 +866,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
 
     function deleteAppointment(id) {
         if (confirm('Are you sure you want to archive this appointment?\n\nIt will be moved to the Archive page where you can restore or permanently delete it.')) {
-            fetch('delete_appointment.php', {
+            fetch('../../delete_appointment.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: id, action: 'archive' })
@@ -888,5 +888,5 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
 </script>
 
 <?php
-require_once __DIR__ . '/includes/admin_layout_end.php';
+require_once __DIR__ . '/../../includes/admin_layout_end.php';
 ?>

@@ -5,8 +5,8 @@
 
 $pageTitle = 'Analytics';
 
-require_once __DIR__ . '/config/database.php';
-require_once __DIR__ . '/includes/admin_layout_start.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
 $period = $_GET['period'] ?? 'month';
 $period = in_array($period, ['week', 'month', 'quarter', 'year'], true) ? $period : 'month';
@@ -419,5 +419,5 @@ try {
     }
 </style>
 <?php
-require_once __DIR__ . '/includes/admin_layout_end.php';
+require_once __DIR__ . '/../../includes/admin_layout_end.php';
 ?>

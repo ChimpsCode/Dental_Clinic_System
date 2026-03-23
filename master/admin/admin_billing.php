@@ -5,7 +5,7 @@
 
 $pageTitle = 'Billing';
 
-require_once __DIR__ . '/includes/admin_layout_start.php';
+require_once __DIR__ . '/../../includes/admin_layout_start.php';
 ?>
             <div class="content-main">
                 <!-- Page Header -->
@@ -150,5 +150,5 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
             </div>
 
 <?php
-require_once __DIR__ . '/includes/admin_layout_end.php';
+require_once __DIR__ . '/../../includes/admin_layout_end.php';
 ?>

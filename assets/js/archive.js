@@ -111,7 +111,7 @@ function loadArchivedPatients(page) {
     `;
     
     // Fetch data
-    fetch('archive_actions.php', {
+    fetch('../../archive_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
@@ -259,7 +259,7 @@ function loadArchivedAppointments(page) {
     `;
     
     // Fetch data
-    fetch('archive_actions.php', {
+    fetch('../../archive_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
@@ -463,7 +463,7 @@ function loadArchivedInquiries(page) {
     `;
 
     // Fetch data
-    fetch('archive_actions.php', {
+    fetch('../../archive_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
@@ -963,7 +963,7 @@ function performAction(module, action, ids) {
     formData.append('module', module);
     ids.forEach(id => formData.append('ids[]', id));
     
-    fetch('archive_actions.php', {
+    fetch('../../archive_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: formData

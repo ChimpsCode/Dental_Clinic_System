@@ -1,7 +1,7 @@
 <?php
 $pageTitle = 'Queue Management';
-require_once 'config/database.php';
-require_once 'includes/admin_layout_start.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
 // Pagination settings
 $itemsPerPage = 7;
@@ -1231,7 +1231,7 @@ document.addEventListener('click', function(e) {
 
 // View Patient
 function viewPatientQueue(patientId) {
-    fetch('get_patient.php?id=' + patientId)
+    fetch('../../get_patient.php?id=' + patientId)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -1251,7 +1251,7 @@ function viewPatientQueue(patientId) {
 function holdPatientQueue(queueId) {
     if (!confirm('Put this patient on hold?')) return;
     
-    fetch('queue_actions.php', {
+    fetch('../../queue_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'on_hold', queue_id: queueId })
@@ -1273,7 +1273,7 @@ function holdPatientQueue(queueId) {
 function requeuePatientQueue(queueId) {
     if (!confirm('Re-queue this patient?')) return;
     
-    fetch('queue_actions.php', {
+    fetch('../../queue_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'requeue', queue_id: queueId })
@@ -1295,7 +1295,7 @@ function requeuePatientQueue(queueId) {
 function cancelPatientQueue(queueId) {
     if (!confirm('Cancel this patient from the queue?')) return;
     
-    fetch('queue_actions.php', {
+    fetch('../../queue_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'cancel', queue_id: queueId })
@@ -1317,7 +1317,7 @@ function cancelPatientQueue(queueId) {
 function deleteQueueItem(queueId) {
     if (!confirm('Delete this patient record from the queue? This action cannot be undone.')) return;
     
-    fetch('queue_actions.php', {
+    fetch('../../queue_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'delete', queue_id: queueId })
@@ -1431,4 +1431,4 @@ document.addEventListener('keydown', function(e) {
 });
 </script>
 
-<?php require_once 'includes/admin_layout_end.php'; ?>
+<?php require_once __DIR__ . '/../../includes/admin_layout_end.php'; ?>

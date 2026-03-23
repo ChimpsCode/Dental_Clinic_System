@@ -121,9 +121,9 @@ function isActivePage($page) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($pageTitle); ?> - RF Dental Clinic Admin</title>
-    <link rel="icon" type="image/png" href="assets/images/Logo.png">
-    <link rel="stylesheet" href="assets/css/dashboard.css">
-    <link rel="stylesheet" href="assets/css/admin.css">
+    <link rel="icon" type="image/png" href="../../assets/images/Logo.png">
+    <link rel="stylesheet" href="../../assets/css/dashboard.css">
+    <link rel="stylesheet" href="../../assets/css/admin.css">
 </head>
 <body data-user-id="<?php echo (int)($_SESSION['user_id'] ?? 0); ?>">
     <div id="userModal" class="modal-overlay">
@@ -214,7 +214,7 @@ function isActivePage($page) {
 
     <aside class="sidebar" id="adminSidebar">
         <div class="sidebar-logo">
-            <img src="assets/images/Logo.png" alt="RF Logo">
+            <img src="../../assets/images/Logo.png" alt="RF Logo">
             <span>RF Dental Clinic</span>
         </div>
         
@@ -431,7 +431,7 @@ function isActivePage($page) {
                 <div class="user-profile" id="userProfileDropdown">
                     <div class="user-profile-info">
                         <div class="user-avatar">
-                            <img src="assets/images/profile.png" alt="Profile" />
+                            <img src="../../assets/images/profile.png" alt="Profile" />
                         </div>
                     </div>
                     <div class="user-profile-dropdown">
@@ -442,7 +442,7 @@ function isActivePage($page) {
                             </svg>
                             <span>Settings</span>
                         </a>
-                        <a href="logout.php" class="dropdown-item logout">
+                        <a href="../../logout.php" class="dropdown-item logout">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                                 <polyline points="16 17 21 12 16 7"></polyline>

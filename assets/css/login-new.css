@@ -184,7 +184,7 @@ body {
 
 .toast.show .toast-loading-line::after {
     animation: toastLoading 5s linear forwards;
-}
+} 
 
 /* Back Button */
 .back-button {
@@ -207,6 +207,14 @@ body {
     border: none;
 }
 
+@media (max-width: 768px) {
+    .back-button {
+        top: 16px;
+        right: 16px;
+        left: auto;
+    }
+}
+
 .back-button:hover {
     background: rgba(0, 0, 0, 0.8);
     transform: translateY(-2px);
@@ -218,42 +226,88 @@ body {
     stroke-width: 2.5;
 }
 
-/* Main Container Layout */
+/* Main Container Layout - Split Screen */
 .login-container {
     display: flex;
     width: 100%;
-    max-width: 1400px;
     min-height: 100vh;
-    gap: 48px;
     padding: 0px;
-    align-items: center;
-    justify-content: center;
+}
+
+/* Image Section - Left Half */
+.image-section {
+    flex: 0 0 50%;
+    position: relative;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.clinic-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.image-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.5) 100%);
+    z-index: 1;
+}
+
+.image-content {
+    position: absolute;
+    bottom: 60px;
+    left: 0;
+    right: 0;
+    z-index: 2;
+    padding: 0 48px;
+    text-align: center;
+}
+
+.image-heading {
+    color: #fff;
+    font-size: 1.5rem;
+    font-weight: 700;
+    text-align: center;
+    text-shadow: 0 4px 24px rgba(0,0,0,0.45);
+    margin-bottom: 0;
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+}
+
+.image-subheading {
+    color: rgba(255,255,255,0.9);
+    font-size: 1.125rem;
+    text-align: center;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
 /* Carousel Section */
 .carousel-section {
-    flex: 0 1 560px;
+    flex: 0 0 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 580px;
+    height: 100vh;
+    position: relative;
 }
 
 .carousel-wrapper {
     position: relative;
     width: 100%;
     height: 100%;
-    max-width: 560px;
 }
 
 .carousel {
     width: 100%;
     height: 100%;
     position: relative;
-    border-radius: 24px;
     overflow: hidden;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12), 
-                0 4px 20px rgba(0, 0, 0, 0.08);
     background: #f5f5f5;
 }
 
@@ -269,6 +323,18 @@ body {
     overflow: hidden;
 }
 
+.carousel-slide::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(30, 41, 59, 0.55);
+    z-index: 2;
+    pointer-events: none;
+}
+
 .carousel-slide.active {
     opacity: 1;
     z-index: 10;
@@ -281,31 +347,32 @@ body {
     display: block;
 }
 
-/* Carousel Content Overlay */
 .carousel-content {
     position: absolute;
-    bottom: 0;
-    border-bottom-left-radius: 15px;
-    border-bottom-right-radius: 15px;
     left: 0;
     right: 0;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.1));
+    bottom: 80px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    pointer-events: none;
     text-align: center;
-    z-index: 20;
-    padding: 40px 24px 32px;
+    padding: 0 24px;
 }
 
 .carousel-heading {
-    font-size: 28px;
+    color: #fff;
+    font-size: 1.5rem;
     font-weight: 700;
-    color: white;
-    line-height: 1.3;
-    margin: 0;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    text-shadow: 0 4px 24px rgba(0,0,0,0.45), 0 1.5px 4px rgba(0,0,0,0.18);
+    margin-bottom: 0;
     letter-spacing: -0.5px;
+    line-height: 1.2;
 }
 
-/* Carousel Dots */
 .carousel-dots {
     position: absolute;
     bottom: 32px;
@@ -314,7 +381,6 @@ body {
     display: flex;
     gap: 10px;
     z-index: 25;
-    top: 555px;
 }
 
 .dot {
@@ -342,14 +408,15 @@ body {
     opacity: 1;
 }
 
-/* Form Section */
+/* Form Section - Right Half */
 .form-section {
-    flex: 0 1 520px;
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 100%;
-    min-height: 600px;
+    height: 100vh;
+    padding: 40px 20px;
+    background: #f8fafc;
 }
 
 .login-form-container {
@@ -927,7 +994,7 @@ body {
     }
     
     .carousel-heading {
-        font-size: 24px;
+        font-size: 1.25rem;
     }
     
     .clinic-name {
@@ -947,16 +1014,16 @@ body {
         flex: 1 1 auto;
         max-width: 520px;
         width: 100%;
+        height: 400px;
     }
     
-    .carousel-wrapper {
-        max-width: 100%;
+    .image-section {
+        display: none;
     }
     
     .form-section {
-        flex: 1 1 auto;
+        flex: 1;
         width: 100%;
-        min-height: auto;
     }
     
     .login-form-container {
@@ -966,36 +1033,31 @@ body {
 
 @media (max-width: 768px) {
     .login-container {
-        gap: 32px;
-        padding: 24px;
+        flex-direction: column;
         min-height: auto;
     }
     
     .carousel-section {
-        max-width: 100%;
-    }
-    
-    .carousel-wrapper {
-        aspect-ratio: 1;
-        max-width: 100%;
+        flex: 0 0 auto;
+        height: 250px;
     }
     
     .carousel-heading {
-        font-size: 20px;
-        padding: 32px 16px 20px;
+        font-size: 1rem;
+        padding: 0 16px;
+    }
+    
+    .carousel-content {
+        bottom: 40px;
     }
     
     .carousel-dots {
-        bottom: 24px;
+        bottom: 16px;
     }
     
-    .dot {
-        width: 8px;
-        height: 8px;
-    }
-    
-    .dot.active {
-        width: 24px;
+    .form-section {
+        flex: 1;
+        padding: 32px 24px;
     }
     
     .login-form-container {
@@ -1031,42 +1093,36 @@ body {
 
 @media (max-width: 480px) {
     .login-container {
-        gap: 24px;
-        padding: 16px;
+        flex-direction: column;
     }
     
-    .carousel-wrapper {
-        aspect-ratio: 1;
-        max-width: 100%;
-        max-height: 280px;
+    .carousel-section {
+        height: 200px;
     }
     
     .carousel-heading {
-        font-size: 18px;
-        padding: 24px 12px 16px;
-    }
-    
-    .carousel-dots {
-        bottom: 20px;
+        font-size: 0.95rem;
     }
     
     .carousel-content {
-        padding: 28px 16px 20px;
+        bottom: 40px;
+    }
+    
+    .form-section {
+        padding: 24px 16px;
+    }
+    
+    .login-form-container {
+        padding: 24px 16px;
     }
     
     .clinic-name {
         font-size: 20px;
-        
     }
     
     .login-subtitle {
         font-size: 14px;
         margin-bottom: 10px;
-    }
-    
-    .login-form-container {
-        padding: 32px 24px;
-        border-radius: 14px;
     }
     
     .logo {

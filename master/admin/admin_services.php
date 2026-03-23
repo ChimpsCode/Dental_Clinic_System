@@ -1,8 +1,8 @@
 <?php
 $pageTitle = 'Services Management';
-require_once 'includes/admin_layout_start.php';
+require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
-require_once 'config/database.php';
+require_once __DIR__ . '/../../config/database.php';
 
 // Check and migrate services table schema if needed
 // This ensures your local database matches the expected schema
@@ -943,4 +943,4 @@ function handleServiceKebabAction(e) {
 initServiceKebabMenu();
 </script>
 
-<?php require_once 'includes/admin_layout_end.php'; ?>
+<?php require_once __DIR__ . '/../../includes/admin_layout_end.php'; ?>

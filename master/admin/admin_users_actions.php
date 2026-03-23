@@ -7,7 +7,7 @@
 session_start();
 header('Content-Type: application/json');
 
-require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/../../config/database.php';
 
 // Basic auth check – must be logged in admin
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? null) !== 'admin') {

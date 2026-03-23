@@ -5,8 +5,8 @@
 
 $pageTitle = 'Audit Trail';
 
-require_once __DIR__ . '/config/database.php';
-require_once __DIR__ . '/includes/audit_helper.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/audit_helper.php';
 
 // Get filter parameters
 $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : '';
@@ -52,7 +52,7 @@ $showingEnd = min(($currentPage - 1) * $itemsPerPage + $itemsPerPage, $totalReco
 // Get stats
 $todayStats = getAuditStats($pdo, date('Y-m-d'));
 
-require_once __DIR__ . '/includes/admin_layout_start.php';
+require_once __DIR__ . '/../../includes/admin_layout_start.php';
 ?>
             <div class="content-main">
                 <!-- Page Header -->
@@ -273,5 +273,5 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
             </script>
 
 <?php
-require_once __DIR__ . '/includes/admin_layout_end.php';
+require_once __DIR__ . '/../../includes/admin_layout_end.php';
 ?>

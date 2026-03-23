@@ -23,7 +23,7 @@ if (isset($_SESSION['role']) && $_SESSION['role'] === 'staff') {
 // Redirect admin to their dashboard
 if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
     ob_end_clean();
-    header('Location: admin_dashboard.php');
+    header('Location: master/admin/admin_dashboard.php');
     exit();
 }
 

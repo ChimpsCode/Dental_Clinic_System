@@ -6,7 +6,7 @@
 $pageTitle = 'Patient Records';
 
 try {
-    require_once 'config/database.php';
+    require_once __DIR__ . '/../../config/database.php';
     
     // Check if archive columns exist (backward compatibility)
     $checkColumn = $pdo->query("SHOW COLUMNS FROM patients LIKE 'is_archived'");
@@ -139,7 +139,7 @@ try {
     $showingEnd = 0;
 }
 
-require_once __DIR__ . '/includes/admin_layout_start.php';
+require_once __DIR__ . '/../../includes/admin_layout_start.php';
 ?>
             <div class="content-main">
                 <!-- Page Header -->
@@ -586,7 +586,7 @@ function deletePatient(patientId) {
     
     const fullName = `${patient.first_name || ''} ${patient.middle_name || ''} ${patient.last_name || ''} ${patient.suffix || ''}`.trim();
     if (confirm(`Are you sure you want to archive this patient?\n\nPatient: ${fullName || 'Unknown'}\nPhone: ${patient.phone || 'N/A'}\n\nYou can restore archived patients from the Archive page.`)) {
-        fetch('patient_actions.php', {
+        fetch('../../patient_actions.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: 'action=archive&patient_id=' + patientId
@@ -642,7 +642,7 @@ document.getElementById('addAppointmentForm').addEventListener('submit', functio
     e.preventDefault();
     const formData = new FormData(this);
     
-    fetch('process_patient_appointment.php', {
+    fetch('../../process_patient_appointment.php', {
         method: 'POST',
         body: formData
     })
@@ -1139,5 +1139,5 @@ document.addEventListener('keydown', function(e) {
 </div>
 
 <?php
-require_once __DIR__ . '/includes/admin_layout_end.php';
+require_once __DIR__ . '/../../includes/admin_layout_end.php';
 ?>

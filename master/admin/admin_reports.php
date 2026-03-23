@@ -5,8 +5,8 @@
 
 $pageTitle = 'Reports';
 
-require_once __DIR__ . '/config/database.php';
-require_once __DIR__ . '/includes/admin_layout_start.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
 $patientsReport = [];
 $appointmentsReport = [];
@@ -592,7 +592,7 @@ SCRIPT;
 ?>
 
 <?php
-require_once __DIR__ . '/includes/admin_layout_end.php';
+require_once __DIR__ . '/../../includes/admin_layout_end.php';
 ?>
 
 
@@ -628,4 +628,4 @@ require_once __DIR__ . '/includes/admin_layout_end.php';
 </style>
 
 <!-- Admin Reports Custom CSS -->
-<link rel="stylesheet" href="assets/css/admin_reports.css">
+<link rel="stylesheet" href="../../assets/css/admin_reports.css">

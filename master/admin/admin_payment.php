@@ -5,7 +5,7 @@
 
 $pageTitle = 'Payment';
 
-require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/../../config/database.php';
 
 $billingRecords = [];
 $totalCollected = 0;
@@ -122,7 +122,7 @@ try {
     $billingRecords = [];
 }
 
-require_once __DIR__ . '/includes/admin_layout_start.php';
+require_once __DIR__ . '/../../includes/admin_layout_start.php';
 ?>
             <div class="content-main">
                 <!-- Page Header -->
@@ -788,7 +788,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                     if (!confirm('Mark invoice ' + invoiceId + ' as paid?')) return;
                     
                     // Send AJAX request
-                    fetch('billing_actions.php', {
+                    fetch('../../billing_actions.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -865,7 +865,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                     }
                     
                     // Send AJAX request
-                    fetch('billing_actions.php', {
+                    fetch('../../billing_actions.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -951,7 +951,7 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
                 function confirmPrint() {
                     // Fire-and-forget log so reports can reflect print activity
                     if (currentBillingId) {
-                        fetch('billing_actions.php', {
+                        fetch('../../billing_actions.php', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -990,5 +990,5 @@ require_once __DIR__ . '/includes/admin_layout_start.php';
             </script>
 
 <?php
-require_once __DIR__ . '/includes/admin_layout_end.php';
+require_once __DIR__ . '/../../includes/admin_layout_end.php';
 ?>

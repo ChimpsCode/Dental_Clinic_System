@@ -6,10 +6,10 @@
 
 $pageTitle = 'Dashboard';
 
-require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/../../config/database.php';
 
 // Include the layout start
-require_once __DIR__ . '/includes/admin_layout_start.php';
+require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
 // Dashboard statistics
 $totalUsers = 15;
@@ -370,7 +370,7 @@ try {
 
 <?php
 // Include the layout end
-require_once __DIR__ . '/includes/admin_layout_end.php';
+require_once __DIR__ . '/../../includes/admin_layout_end.php';
 ?>
 
 

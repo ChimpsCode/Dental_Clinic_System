@@ -3,8 +3,8 @@
         </div>
     </main>
 
-    <script src="assets/js/dashboard.js"></script>
-    <script src="assets/js/admin.js"></script>
+    <script src="../../assets/js/dashboard.js"></script>
+    <script src="../../assets/js/admin.js"></script>
     <?php if (isset($pageScript)) { echo $pageScript; } ?>
     <script>
         (function() {
@@ -12,7 +12,7 @@
             let timer;
             const reset = () => {
                 clearTimeout(timer);
-                timer = setTimeout(() => window.location.href = 'logout.php', LOGOUT_AFTER_MS);
+                timer = setTimeout(() => window.location.href = '../../logout.php', LOGOUT_AFTER_MS);
             };
             ['click','mousemove','keydown','scroll','touchstart'].forEach(evt =>
                 document.addEventListener(evt, reset, { passive: true })

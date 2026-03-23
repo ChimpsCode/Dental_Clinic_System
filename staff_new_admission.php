@@ -20,7 +20,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'staff') {
     // If admin, redirect to admin dashboard
     if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
         ob_end_clean();
-        header('Location: admin_dashboard.php');
+        header('Location: master/admin/admin_dashboard.php');
         exit();
     }
     // If dentist or other role, redirect to main dashboard
