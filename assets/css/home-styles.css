@@ -286,13 +286,14 @@ main [id]:not(#home){scroll-margin-top:85px}
   grid-template-columns: 1fr 1fr;
   gap:44px;
   align-items:start;
+  margin-top: -15px;
 }
 .about-photo{position:relative}
 .about-photo img{
   border-radius:10px;
   width:80%;
-  height:auto;
-  max-height:520px;
+  height:550px;
+  max-height:550px;
   
   box-shadow:0 10px 20px rgba(0,0,0,.10);
 }
@@ -314,11 +315,12 @@ main [id]:not(#home){scroll-margin-top:85px}
   margin:0 0 14px;
   font-size:20px;
   color:rgba(0,0,0,.75);
+  margin-top: 50px;
 }
 .about-stats{
   display:flex;
   gap:48px;
-  margin-top:26px;
+  margin-top:56px;
 }
 .stat-value{font-size:32px; font-weight:700}
 .stat-label{font-size:18px; color:rgba(0,0,0,.75)}
@@ -400,11 +402,14 @@ main [id]:not(#home){scroll-margin-top:85px}
 }
 details[open] .faq-chevron{transform:rotate(225deg)}
 .faq-a{
-  background:rgb(83, 160, 223);
+  background:rgb(119, 173, 218);
   padding:14px 18px 18px;
-  border-top:1px solid rgba(45, 125, 132, 0.347);
+  border-top:1px solid rgba(0, 0, 0, 0.347);
 }
-.faq-a p{margin:0; color:#fff; font-size:14px}
+.faq-a p{
+  margin:0; 
+  color: #000;
+  font-size:14px}
 .faq-cta{
   margin-top:42px;
   text-align:center;

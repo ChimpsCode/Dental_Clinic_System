@@ -136,8 +136,7 @@ function isActivePage($page) {
     <title><?php echo htmlspecialchars($pageTitle); ?> - RF Dental Clinic Dentist</title>
     <link rel="icon" type="image/png" href="assets/images/Logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/dashboard.css">
-    <link rel="stylesheet" href="assets/css/staff_dashboard.css">
+    <link rel="stylesheet" href="assets/css/dentist_dashboard.css">
     <style>
         .header-right {
             display: flex;
@@ -180,22 +179,7 @@ function isActivePage($page) {
             justify-content: center;
             padding: 0 4px;
         }
-        .notification-dropdown {
-            display: flex;
-            position: absolute;
-            top: calc(100% + 8px);
-            right: -160px;
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
-            min-width: 280px;            
-            z-index: 1000;
-            overflow: hidden;
-        }
-        .header-notifications.active .notification-dropdown {
-            animation: notificationFadeIn 0.2s ease;
-        }
+        
         @keyframes notificationFadeIn {
             from { opacity: 0; transform: translateY(-8px); }
             to { opacity: 1; transform: translateY(0); }
@@ -232,13 +216,7 @@ function isActivePage($page) {
             background-color: #cbd5e1;
             border-radius: 3px;
         }
-        .notification-dropdown:hover .notification-list {
-            scrollbar-width: thin;
-            scrollbar-color: #94a3b8 transparent;
-        }
-        .notification-dropdown:hover .notification-list::-webkit-scrollbar-thumb {
-            background-color: #94a3b8;
-        }
+       
         .notification-item {
             display: flex;
             align-items: flex-start;

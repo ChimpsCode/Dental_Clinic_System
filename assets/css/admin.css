@@ -4,7 +4,7 @@
 .content-area {
     padding-left: 25px;
     padding-right: 25px;
-    padding-top: 10px;
+    padding-top: 0px;
     padding-bottom: 40px;
 }
 
@@ -267,7 +267,7 @@
 .content-area {
     padding-left: 25px;
     padding-right: 25px;
-    padding-top: 10px;
+    padding-top: 25px;
 }
 
 /* Pagination */

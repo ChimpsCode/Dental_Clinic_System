@@ -704,6 +704,7 @@ require_once 'includes/dentist_layout_start.php';
     align-items: center;
     gap: 12px;         /* The exact spacing between the boxes in your image */
     width: 100%;
+    padding-bottom: 25px;
     /* Optional: If your page background is white, you might want to wrap this in a very light gray (#f4f6f8) div so the white boxes pop, just like in your screenshot! */
 }
 

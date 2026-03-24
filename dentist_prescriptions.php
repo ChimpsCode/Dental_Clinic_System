@@ -58,6 +58,7 @@ try {
     display: flex;
     gap: 20px;
     margin-bottom: 0px;
+    padding-bottom: 25px;
 }
 
 .stat-card {
@@ -109,6 +110,7 @@ try {
     align-items: center;
     gap: 16px;
     margin-bottom: 0px;
+    padding-bottom: 25px;
 }
 
 .search-input-container {

@@ -2,7 +2,7 @@
 $assets = [
   'logo' => 'https://www.figma.com/api/mcp/asset/0216bb5f-fd3d-487e-9d2c-5e8da91303ca',
   'hero' => './assets/images/Dentists.png',
-  'about' => 'https://www.figma.com/api/mcp/asset/29ac1342-8a70-42fc-a97f-67f6e09243d6',
+  'about' => './assets/images/2nd_Anniv.jpg',
   'tooth' => 'https://www.figma.com/api/mcp/asset/e2ebbe80-7cbc-49ff-afcc-35ac70f56115',
   'icon_phone' => './assets/images/icon-phone.svg',
   'icon_email' => './assets/images/icon-email.svg',

@@ -79,6 +79,8 @@ try {
 /* Ensure consistent background */
 .content-area {
     background-color: #f3f4f6;
+    padding-bottom: 0px;
+
 }
 
 /* Queue Kebab Menu Styles - Portal Based */
@@ -191,8 +193,8 @@ try {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-top: 0px;
-    padding-bottom: 20px;
+    padding-top: 15px;
+    padding-bottom: 15px;
     background: transparent;
     position: relative;
     z-index: 10;
@@ -264,6 +266,7 @@ try {
     gap: 20px;
     margin-bottom: 0px;
     width: 100%;
+    padding-bottom: 25px;
 }
 
 .summary-widget {
@@ -337,7 +340,8 @@ try {
     align-items: center;
     gap: 16px;
     width: 100%;
-    margin-bottom: 24px;
+    
+    padding-bottom: 25px;
     flex-wrap: nowrap; /* Prevents items from wrapping to the next line */
 }
 

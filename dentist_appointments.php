@@ -731,7 +731,7 @@ document.addEventListener('DOMContentLoaded', function() {
     display: block;
 }
 .search-filters{
-    margin-bottom: 0px;
+    margin-bottom: 25px;
 }
 
 .summary-cards {

@@ -89,7 +89,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 
 
                 <!-- Stats Cards -->
-                <div class="summary-cards" style="margin-top: 15px;">
+                <div class="summary-cards">
                     <div class="summary-card">
                         <div class="summary-icon blue">&#128197;</div>
                         <div class="summary-info">

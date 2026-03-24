@@ -207,7 +207,7 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
+    margin-bottom: 0px;
     width: 100%;
 }
 
@@ -514,7 +514,7 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
     </div>
 
     <!-- Stats Cards -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 15px;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 25px;">
         <div style="background: white; padding: 10px; border-radius: 12px; border: 1px solid #e5e7eb; text-align: center;">
             <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; margin-bottom: 8px;">Total Services</div>
             <div style="font-size: 2rem; font-weight: 700; color: #111827;"><?php echo $totalServices; ?></div>
@@ -533,7 +533,7 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
         </div>
     </div>
 
-    <form method="GET" style="margin-bottom: 20px; display: flex; gap: 12px; flex-wrap: wrap;">
+    <form method="GET" style="margin-bottom: 25px; display: flex; gap: 12px; flex-wrap: wrap;">
         <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Search services by name, mode, or description..."
                style="flex: 1; padding: 12px 16px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; outline: none; min-width: 200px;">
         <select name="mode" onchange="this.form.submit()" style="padding: 12px 16px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; outline: none;">

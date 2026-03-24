@@ -1640,7 +1640,7 @@ setInterval(() => {
     align-items: center;
     gap: 15px;
     width: 100%;
-    padding: 0px;
+    padding-bottom: 25px;
     /* Optional: A light gray background on your page makes the white box pop */
     /* background-color: #f8f9fa; */ 
 }
@@ -1912,8 +1912,8 @@ setInterval(() => {
 
 
 .content-area{
-    padding: 20px 20px;
-    margin-bottom: 40px;
+    padding: 30px 30px;
+    
 }
 
 </style>
