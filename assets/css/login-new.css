@@ -623,17 +623,17 @@ body {
 
 .captcha-display {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 0;
     background: white;
-    padding: 8px 12px;
+    padding: 4px 10px;
     border-radius: 8px 0 0 8px;
     border: 1.5px solid #d4d8e0;
     border-right: none;
     height: 46px;
-    min-width: 160px;
+    min-width: 180px;
 }
 
 .captcha-code {
@@ -644,6 +644,38 @@ body {
     font-family: 'Monaco', 'Courier New', monospace;
     flex: 1;
     text-align: center;
+}
+
+.captcha-img {
+    height: 36px;
+    border-radius: 4px;
+    background: #e5e5e5;
+}
+
+.captcha-refresh {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.captcha-refresh:hover {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.captcha-fallback {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1f2937;
+    letter-spacing: 3px;
+    font-family: 'Courier New', monospace;
 }
 
 .captcha-timer {

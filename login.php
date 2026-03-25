@@ -1,6 +1,13 @@
 <?php
 session_start();
 
+require_once 'lib/captcha.php';
+
+if (!isset($_SESSION['captcha_code']) || !isset($_SESSION['captcha_time']) || (time() - $_SESSION['captcha_time'] > 120)) {
+    $_SESSION['captcha_code'] = strval(rand(100000, 999999));
+    $_SESSION['captcha_time'] = time();
+}
+
 $error = '';
 $success = '';
 
@@ -22,9 +29,21 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
     
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
+    $captcha = $_POST['captcha'] ?? '';
     
     if (empty($username) || empty($password)) {
         echo json_encode(['success' => false, 'message' => 'Please fill in all fields']);
+        exit();
+    }
+    
+    if (empty($captcha)) {
+        echo json_encode(['success' => false, 'message' => 'Please enter the captcha code']);
+        exit();
+    }
+    
+    if (!validateCaptcha($captcha)) {
+        refreshCaptcha();
+        echo json_encode(['success' => false, 'message' => 'Invalid or expired captcha code']);
         exit();
     }
     
@@ -132,9 +151,15 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
 if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
+    $captcha = $_POST['captcha'] ?? '';
     
     if (empty($username) || empty($password)) {
         $error = 'Please fill in all fields';
+    } elseif (empty($captcha)) {
+        $error = 'Please enter the captcha code';
+    } elseif (!validateCaptcha($captcha)) {
+        refreshCaptcha();
+        $error = 'Invalid or expired captcha code';
     } else {
         try {
             require_once 'config/database.php';
@@ -319,11 +344,19 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                     <div class="captcha-section">
                         <div class="captcha-label">
                             <label>Enter the number shown below</label>
-                            <span class="captcha-timer">Expires in <span class="timer" id="captchaTimer">1:12</span></span>
+                            <span class="captcha-timer">Expires in <span class="timer" id="captchaTimer">2:00</span></span>
                         </div>
                         <div class="captcha-wrapper">
                             <div class="captcha-display">
-                                <div class="captcha-code" id="captchaCode">123456</div>
+                                <img src="lib/captcha_image.php" alt="Captcha" id="captchaImage" class="captcha-img" onerror="this.style.display='none'; document.getElementById('captchaFallback').style.display='block';">
+                                <div class="captcha-code" id="captchaFallback" style="display:none;"><?php echo $_SESSION['captcha_code']; ?></div>
+                                <button type="button" class="captcha-refresh" id="refreshCaptcha" aria-label="Refresh captcha">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="23 4 23 10 17 10"></polyline>
+                                        <polyline points="1 20 1 14 7 14"></polyline>
+                                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                                    </svg>
+                                </button>
                             </div>
                             <input type="text" id="captchaInput" name="captcha" class="captcha-input" placeholder="Enter code" maxlength="6" inputmode="numeric" required>
                         </div>

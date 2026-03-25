@@ -9,6 +9,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const loginBtn = document.getElementById('loginBtn');
     const errorMessage = document.getElementById('errorMessage');
     const toast = document.getElementById('toast');
+    const captchaImage = document.getElementById('captchaImage');
+    const refreshCaptcha = document.getElementById('refreshCaptcha');
+    const captchaInput = document.getElementById('captchaInput');
 
     console.log('=== PAGE LOADED ===');
     console.log('Login form:', loginForm);
@@ -66,6 +69,73 @@ document.addEventListener('DOMContentLoaded', function() {
     if (errorMessage) {
         errorMessage.style.display = 'none';
         errorMessage.textContent = '';
+    }
+
+    // Captcha refresh functionality
+    if (refreshCaptcha) {
+        refreshCaptcha.addEventListener('click', function() {
+            refreshCaptchaCode();
+        });
+    }
+
+    // Captcha timer and refresh function
+    let captchaTimeLeft = 120;
+    let captchaInterval;
+    const captchaTimer = document.getElementById('captchaTimer');
+    
+    function refreshCaptchaCode() {
+        if (captchaImage) {
+            captchaImage.src = 'lib/captcha_image.php?force=1&t=' + Date.now();
+            captchaImage.style.display = 'inline-block';
+        }
+        
+        const fallback = document.getElementById('captchaFallback');
+        if (fallback) {
+            fetch('lib/captcha_refresh.php?force=1')
+                .then(response => response.text())
+                .then(code => {
+                    fallback.textContent = code;
+                    fallback.style.display = 'block';
+                })
+                .catch(() => {
+                    fallback.style.display = 'none';
+                });
+        }
+        
+       
+        captchaTimeLeft = 120;
+        if (captchaTimer) {
+            captchaTimer.textContent = '2:00';
+        }
+        
+        // Clear existing interval and restart
+        if (captchaInterval) clearInterval(captchaInterval);
+        startCaptchaTimer();
+        
+        if (captchaInput) {
+            captchaInput.value = '';
+            captchaInput.focus();
+        }
+    }
+    
+    function startCaptchaTimer() {
+        captchaInterval = setInterval(function() {
+            captchaTimeLeft--;
+            const minutes = Math.floor(captchaTimeLeft / 60);
+            const seconds = captchaTimeLeft % 60;
+            
+            if (captchaTimer) {
+                captchaTimer.textContent = minutes + ':' + (seconds < 10 ? '0' : '') + seconds;
+            }
+            
+            if (captchaTimeLeft <= 0) {
+                refreshCaptchaCode();
+            }
+        }, 1000);
+    }
+    
+    if (captchaTimer) {
+        startCaptchaTimer();
     }
 
     // Show toast notification function (defined early for use in validation)
@@ -194,9 +264,11 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const username = usernameInput ? usernameInput.value.trim() : '';
             const password = passwordInput ? passwordInput.value : '';
+            const captcha = captchaInput ? captchaInput.value.trim() : '';
 
             console.log('Username:', username);
             console.log('Password:', password ? '***' : 'empty');
+            console.log('Captcha:', captcha);
 
             // Clear previous error
             if (errorMessage) {
@@ -213,6 +285,18 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!password) {
                 showToast('Error', 'Please enter your password', 'error');
                 if (passwordInput) passwordInput.focus();
+                return false;
+            }
+
+            if (!captcha) {
+                showToast('Error', 'Please enter the captcha code', 'error');
+                if (captchaInput) captchaInput.focus();
+                return false;
+            }
+
+            if (captcha.length !== 6 || !/^\d+$/.test(captcha)) {
+                showToast('Error', 'Captcha must be 6 digits', 'error');
+                if (captchaInput) captchaInput.focus();
                 return false;
             }
 

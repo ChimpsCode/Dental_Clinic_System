@@ -1,8 +1,8 @@
 -- ============================================
 -- Dental Clinic Management System - Complete Database Schema
 -- ============================================
--- Version: 1.0
--- Date: 2026-02-15
+-- Version: 2.0 (Consolidated)
+-- Date: 2026-03-24
 -- Description: Complete database schema with all tables and migrations in one file
 -- ============================================
 
@@ -16,8 +16,10 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 -- ============================================
--- TABLE: users
+-- SECTION 1: MAIN TABLES
 -- ============================================
+
+-- TABLE: users
 CREATE TABLE `users` (
   `id` int(11) NOT NULL,
   `first_name` varchar(50) NOT NULL,
@@ -35,9 +37,7 @@ CREATE TABLE `users` (
   `deleted_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
 -- TABLE: patients
--- ============================================
 CREATE TABLE `patients` (
   `id` int(11) NOT NULL,
   `first_name` varchar(100) DEFAULT NULL,
@@ -66,9 +66,7 @@ CREATE TABLE `patients` (
   `deleted_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
 -- TABLE: appointments
--- ============================================
 CREATE TABLE `appointments` (
   `id` int(11) NOT NULL,
   `first_name` varchar(100) NOT NULL,
@@ -90,9 +88,7 @@ CREATE TABLE `appointments` (
   `is_converted_to_patient` tinyint(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
 -- TABLE: queue
--- ============================================
 CREATE TABLE `queue` (
   `id` int(11) NOT NULL,
   `patient_id` int(11) NOT NULL,
@@ -111,9 +107,7 @@ CREATE TABLE `queue` (
   `deleted_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
 -- TABLE: treatments
--- ============================================
 CREATE TABLE `treatments` (
   `id` int(11) NOT NULL,
   `patient_id` int(11) NOT NULL,
@@ -129,9 +123,7 @@ CREATE TABLE `treatments` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
 -- TABLE: treatment_plans
--- ============================================
 CREATE TABLE `treatment_plans` (
   `id` int(11) NOT NULL,
   `patient_id` int(11) NOT NULL,
@@ -151,9 +143,7 @@ CREATE TABLE `treatment_plans` (
   `deleted_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
 -- TABLE: services
--- ============================================
 CREATE TABLE `services` (
   `id` int(11) NOT NULL,
   `name` varchar(200) NOT NULL,
@@ -168,9 +158,7 @@ CREATE TABLE `services` (
   `deleted_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
 -- TABLE: billing
--- ============================================
 CREATE TABLE `billing` (
   `id` int(11) NOT NULL,
   `patient_id` int(11) NOT NULL,
@@ -187,9 +175,7 @@ CREATE TABLE `billing` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
 -- TABLE: payments
--- ============================================
 CREATE TABLE `payments` (
   `id` int(11) NOT NULL,
   `billing_id` int(11) NOT NULL,
@@ -203,9 +189,7 @@ CREATE TABLE `payments` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
 -- TABLE: medical_history
--- ============================================
 CREATE TABLE `medical_history` (
   `id` int(11) NOT NULL,
   `patient_id` int(11) NOT NULL,
@@ -219,9 +203,7 @@ CREATE TABLE `medical_history` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
 -- TABLE: dental_history
--- ============================================
 CREATE TABLE `dental_history` (
   `id` int(11) NOT NULL,
   `patient_id` int(11) NOT NULL,
@@ -234,9 +216,7 @@ CREATE TABLE `dental_history` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
 -- TABLE: inquiries
--- ============================================
 CREATE TABLE `inquiries` (
   `id` int(11) NOT NULL,
   `first_name` varchar(100) NOT NULL DEFAULT '',
@@ -254,9 +234,7 @@ CREATE TABLE `inquiries` (
   `topic` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- ============================================
 -- TABLE: audit_logs
--- ============================================
 CREATE TABLE `audit_logs` (
   `id` int(11) NOT NULL,
   `user_id` int(11) DEFAULT NULL,
@@ -277,10 +255,7 @@ CREATE TABLE `audit_logs` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
 -- TABLE: prescriptions
--- ============================================
-
 CREATE TABLE IF NOT EXISTS `prescriptions` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `patient_id` INT,
@@ -297,7 +272,104 @@ CREATE TABLE IF NOT EXISTS `prescriptions` (
 ) ENGINE=InnoDB;
 
 -- ============================================
--- INDEXES
+-- SECTION 2: NORMALIZATION TABLES (from normalize_database.sql)
+-- ============================================
+
+-- Create addresses table
+CREATE TABLE IF NOT EXISTS `addresses` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `city` VARCHAR(100),
+  `province` VARCHAR(100),
+  `zip_code` VARCHAR(20),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create insurance_providers table
+CREATE TABLE IF NOT EXISTS `insurance_providers` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `provider_name` VARCHAR(100),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- SECTION 3: NOTIFICATIONS TABLE (from notifications_table.sql)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS `notifications` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `type` varchar(50) NOT NULL DEFAULT 'general',
+  `title` varchar(150) NOT NULL,
+  `message` text NOT NULL,
+  `is_read` tinyint(1) DEFAULT 0,
+  `action_url` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `user_id` (`user_id`),
+  KEY `is_read` (`is_read`),
+  KEY `created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- ============================================
+-- SECTION 4: ALTER TABLES - ADD COLUMNS
+-- ============================================
+
+-- From add_user_id_to_patients.sql
+ALTER TABLE `patients` 
+ADD COLUMN `user_id` INT(11) DEFAULT NULL AFTER `id`,
+ADD INDEX `idx_user_id` (`user_id`),
+ADD CONSTRAINT `fk_patient_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- From normalize_database.sql - Add foreign key columns to patients table
+ALTER TABLE `patients` 
+  ADD COLUMN `address_id` INT NULL AFTER `email`,
+  ADD COLUMN `insurance_provider_id` INT NULL AFTER `insurance_effective_date`,
+  ADD COLUMN `street_address` TEXT NULL AFTER `address_id`;
+
+-- From normalize_database.sql - Add foreign key constraints
+ALTER TABLE `patients` 
+  ADD CONSTRAINT `fk_patients_address` FOREIGN KEY (`address_id`) REFERENCES `addresses`(`id`),
+  ADD CONSTRAINT `fk_patients_insurance_provider` FOREIGN KEY (`insurance_provider_id`) REFERENCES `insurance_providers`(`id`);
+
+-- ============================================
+-- SECTION 5: DATA MIGRATION (from normalize_database.sql)
+-- ============================================
+
+-- Migrate existing address data to addresses table
+INSERT INTO `addresses` (`city`, `province`, `zip_code`)
+SELECT DISTINCT `city`, `province`, `zip_code`
+FROM `patients`
+WHERE `city` IS NOT NULL OR `province` IS NOT NULL OR `zip_code` IS NOT NULL;
+
+-- Update patients with address_id (match based on city, province, zip_code)
+UPDATE `patients` p
+INNER JOIN `addresses` a ON COALESCE(p.city, '') = COALESCE(a.city, '')
+  AND COALESCE(p.province, '') = COALESCE(a.province, '')
+  AND COALESCE(p.zip_code, '') = COALESCE(a.zip_code, '')
+SET p.address_id = a.id;
+
+-- Migrate existing insurance data to insurance_providers table
+INSERT INTO `insurance_providers` (`provider_name`)
+SELECT DISTINCT `dental_insurance`
+FROM `patients`
+WHERE `dental_insurance` IS NOT NULL AND `dental_insurance` != '';
+
+-- Update patients with insurance_provider_id
+UPDATE `patients` p
+INNER JOIN `insurance_providers` ip ON p.dental_insurance = ip.provider_name
+SET p.insurance_provider_id = ip.id;
+
+-- Drop old columns from patients (after data migration)
+ALTER TABLE `patients` 
+  DROP COLUMN `address`,
+  DROP COLUMN `city`,
+  DROP COLUMN `province`,
+  DROP COLUMN `zip_code`,
+  DROP COLUMN `dental_insurance`,
+  DROP COLUMN `insurance_effective_date`;
+
+-- ============================================
+-- SECTION 6: INDEXES
 -- ============================================
 
 -- users indexes
@@ -340,7 +412,7 @@ ALTER TABLE `inquiries` ADD PRIMARY KEY (`id`), ADD KEY `idx_status` (`status`),
 ALTER TABLE `audit_logs` ADD PRIMARY KEY (`id`), ADD KEY `idx_user_id` (`user_id`), ADD KEY `idx_action_type` (`action_type`), ADD KEY `idx_module` (`module`), ADD KEY `idx_status` (`status`), ADD KEY `idx_created_at` (`created_at`), ADD KEY `idx_ip` (`ip_address`);
 
 -- ============================================
--- AUTO_INCREMENT
+-- SECTION 7: AUTO_INCREMENT
 -- ============================================
 ALTER TABLE `users` MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 ALTER TABLE `patients` MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
@@ -357,7 +429,7 @@ ALTER TABLE `inquiries` MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 ALTER TABLE `audit_logs` MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 -- ============================================
--- FOREIGN KEYS
+-- SECTION 8: FOREIGN KEYS
 -- ============================================
 ALTER TABLE `appointments` ADD CONSTRAINT `appointments_ibfk_1` FOREIGN KEY (`patient_id`) REFERENCES `patients` (`id`) ON DELETE SET NULL;
 ALTER TABLE `billing` ADD CONSTRAINT `billing_ibfk_1` FOREIGN KEY (`patient_id`) REFERENCES `patients` (`id`) ON DELETE CASCADE;
@@ -377,7 +449,7 @@ ALTER TABLE `treatment_plans` ADD CONSTRAINT `treatment_plans_ibfk_1` FOREIGN KE
 ALTER TABLE `treatment_plans` ADD CONSTRAINT `treatment_plans_ibfk_2` FOREIGN KEY (`doctor_id`) REFERENCES `users` (`id`) ON DELETE SET NULL;
 
 -- ============================================
--- DEFAULT DATA - USERS
+-- SECTION 9: DEFAULT DATA - USERS
 -- ============================================
 INSERT INTO `users` (`first_name`, `middle_name`, `last_name`, `username`, `password`, `email`, `role`, `first_login`) VALUES
 ('', NULL, '', 'admin', '$2y$10$FXDdqW3kOxHDvH7nH9i/4.Mrrze218ezCvGOmk6jjcfuRXciQMuma', 'admin@rfdental.com', 'admin', 0),
@@ -385,7 +457,7 @@ INSERT INTO `users` (`first_name`, `middle_name`, `last_name`, `username`, `pass
 ('', NULL, '', 'dentist', '$2y$10$J.tCZfkE.TDCaYClTem.GertJO7FDz2dwXDkukVluf0nWfJg1qzW2', 'dentist@rfdental.com', 'dentist', 0);
 
 -- ============================================
--- DEFAULT DATA - SERVICES
+-- SECTION 10: DEFAULT DATA - SERVICES
 -- ============================================
 INSERT INTO `services` (`name`, `mode`, `price`, `duration_minutes`, `description`, `is_active`) VALUES
 ('Teeth Cleaning', 'BULK', 800.00, 60, 'Case to case cleaning', 1),
@@ -402,7 +474,7 @@ INSERT INTO `services` (`name`, `mode`, `price`, `duration_minutes`, `descriptio
 ('Orthodontic Appliance', 'BULK', 35000.00, 120, 'Devices like braces or retainers to align teeth.', 1);
 
 -- ============================================
--- DEFAULT DATA - PATIENTS (sample)
+-- SECTION 11: DEFAULT DATA - PATIENTS (sample)
 -- ============================================
 INSERT INTO `patients` (`id`, `first_name`, `middle_name`, `last_name`, `gender`, `phone`, `email`, `address`, `status`) VALUES
 (1, 'Mark', NULL, 'Tan', 'Male', '09170000001', 'mark.tan@example.com', 'Cebu City', 'active'),
@@ -411,13 +483,13 @@ INSERT INTO `patients` (`id`, `first_name`, `middle_name`, `last_name`, `gender`
 (4, 'Jona', NULL, 'Casinillo', 'Female', '09170000004', 'jona.casinillo@example.com', 'Cebu City', 'active');
 
 -- ============================================
--- DEFAULT DATA - BILLING (sample for revenue chart)
+-- SECTION 12: DEFAULT DATA - BILLING (sample for revenue chart)
 -- ============================================
 INSERT INTO `billing` (`id`, `patient_id`, `total_amount`, `paid_amount`, `balance`, `payment_status`, `billing_date`, `due_date`, `notes`) VALUES
 (1, 2, 2400.00, 2400.00, 0.00, 'paid', '2026-02-05', '2026-02-12', 'General Service');
 
 -- ============================================
--- DEFAULT DATA - PAYMENTS (sample)
+-- SECTION 13: DEFAULT DATA - PAYMENTS (sample)
 -- ============================================
 INSERT INTO `payments` (`id`, `billing_id`, `patient_id`, `amount`, `payment_method`, `payment_date`, `reference_number`, `notes`, `created_by`) VALUES
 (1, 1, 2, 2400.00, 'cash', '2026-02-05', 'INV-002', 'Sample payment', 1);
