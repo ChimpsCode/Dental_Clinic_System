@@ -84,23 +84,26 @@ document.addEventListener('DOMContentLoaded', function() {
     const captchaTimer = document.getElementById('captchaTimer');
     
     function refreshCaptchaCode() {
-        if (captchaImage) {
-            captchaImage.src = 'lib/captcha_image.php?force=1&t=' + Date.now();
-            captchaImage.style.display = 'inline-block';
-        }
-        
         const fallback = document.getElementById('captchaFallback');
-        if (fallback) {
-            fetch('lib/captcha_refresh.php?force=1')
-                .then(response => response.text())
-                .then(code => {
-                    fallback.textContent = code;
+        fetch('lib/captcha_refresh.php?force=1', { credentials: 'same-origin' })
+            .then(response => response.text())
+            .then(code => {
+                // Refresh image using the SAME session code generated above.
+                if (captchaImage) {
+                    captchaImage.src = 'lib/captcha_image.php?t=' + Date.now();
+                    captchaImage.style.display = 'inline-block';
+                }
+
+                if (fallback) {
+                    fallback.textContent = (code || '').trim();
                     fallback.style.display = 'block';
-                })
-                .catch(() => {
+                }
+            })
+            .catch(() => {
+                if (fallback) {
                     fallback.style.display = 'none';
-                });
-        }
+                }
+            });
         
        
         captchaTimeLeft = 120;
@@ -380,6 +383,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Show error toast
                     showToast('Error', data.message || 'An error occurred while logging in', 'error');
+
+                    // Keep captcha in sync after invalid/expired attempts
+                    if ((data.message || '').toLowerCase().includes('captcha')) {
+                        refreshCaptchaCode();
+                    }
                 }
             })
             .catch(error => {

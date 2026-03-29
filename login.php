@@ -11,6 +11,32 @@ if (!isset($_SESSION['captcha_code']) || !isset($_SESSION['captcha_time']) || (t
 $error = '';
 $success = '';
 
+function verifyAndUpgradePassword($pdo, array $user, string $inputPassword): bool {
+    $storedPassword = (string)($user['password'] ?? '');
+    if ($storedPassword === '') {
+        return false;
+    }
+
+    if (password_verify($inputPassword, $storedPassword)) {
+        return true;
+    }
+
+    // Legacy compatibility: allow plaintext passwords from old dumps once,
+    // then immediately upgrade to a secure hash.
+    if (hash_equals($storedPassword, $inputPassword)) {
+        try {
+            $newHash = password_hash($inputPassword, PASSWORD_DEFAULT);
+            $upd = $pdo->prepare("UPDATE users SET password = ? WHERE id = ? LIMIT 1");
+            $upd->execute([$newHash, (int)$user['id']]);
+        } catch (Exception $e) {
+            // Ignore upgrade failure; login can still proceed.
+        }
+        return true;
+    }
+
+    return false;
+}
+
 // Determine where to go back to
 $referrer = $_SERVER['HTTP_REFERER'] ?? 'home.php';
 // Only allow internal pages
@@ -54,11 +80,11 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             throw new Exception('Database connection not available');
         }
         
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ? LIMIT 1");
-        $stmt->execute([$username]);
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ? OR email = ? LIMIT 1");
+        $stmt->execute([$username, $username]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        if ($user && password_verify($password, $user['password'])) {
+        if ($user && verifyAndUpgradePassword($pdo, $user, $password)) {
             // Clear existing session and set new session data
             session_regenerate_id(true);
             
@@ -168,11 +194,11 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 throw new Exception('Database connection not available');
             }
             
-            $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ? LIMIT 1");
-            $stmt->execute([$username]);
+            $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ? OR email = ? LIMIT 1");
+            $stmt->execute([$username, $username]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
-            if ($user && password_verify($password, $user['password'])) {
+            if ($user && verifyAndUpgradePassword($pdo, $user, $password)) {
                 // Regenerate session ID to prevent session fixation
                 session_regenerate_id(true);
                 
