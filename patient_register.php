@@ -83,6 +83,10 @@ try {
 
     $userColumns = ['username', 'password', 'email', 'role'];
     $userValues = [$username, $passwordHash, $email, 'user'];
+    if (tableHasColumn($pdo, 'users', 'phone')) {
+        $userColumns[] = 'phone';
+        $userValues[] = $phone;
+    }
     if (tableHasColumn($pdo, 'users', 'first_name')) {
         $userColumns[] = 'first_name';
         $userValues[] = $firstName;
