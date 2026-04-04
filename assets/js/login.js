@@ -141,6 +141,312 @@ document.addEventListener('DOMContentLoaded', function() {
         startCaptchaTimer();
     }
 
+    // Registration toggle & submission
+    const loginContainer = document.getElementById('loginContainer');
+    const registrationContainer = document.getElementById('registrationContainer');
+    const forgotContainer = document.getElementById('forgotContainer');
+    const createAccountLink = document.getElementById('createAccountLink');
+    const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+    const backToLoginLink = document.getElementById('backToLoginLink');
+    const backToLoginFromForgotLink = document.getElementById('backToLoginFromForgotLink');
+    const registerForm = document.getElementById('registerForm');
+    const registerBtn = document.getElementById('registerBtn');
+    const registerBtnText = document.getElementById('registerBtnText');
+    const registerError = document.getElementById('registerError');
+    const registerSuccess = document.getElementById('registerSuccess');
+    const forgotError = document.getElementById('forgotError');
+    const forgotSuccess = document.getElementById('forgotSuccess');
+    const fpStep1 = document.getElementById('fpStep1');
+    const fpStep2 = document.getElementById('fpStep2');
+    const fpStep3 = document.getElementById('fpStep3');
+    const fpEmail = document.getElementById('fp_email');
+    const fpCode = document.getElementById('fp_code');
+    const fpNewPassword = document.getElementById('fp_new_password');
+    const fpConfirmPassword = document.getElementById('fp_confirm_password');
+    const fpSendBtn = document.getElementById('fpSendBtn');
+    const fpSendBtnText = document.getElementById('fpSendBtnText');
+    const fpVerifyBtn = document.getElementById('fpVerifyBtn');
+    const fpVerifyBtnText = document.getElementById('fpVerifyBtnText');
+    const fpChangeBtn = document.getElementById('fpChangeBtn');
+    const fpChangeBtnText = document.getElementById('fpChangeBtnText');
+    const fpNode1 = document.getElementById('fpNode1');
+    const fpNode2 = document.getElementById('fpNode2');
+    const fpNode3 = document.getElementById('fpNode3');
+    const fpLine1 = document.getElementById('fpLine1');
+    const fpLine2 = document.getElementById('fpLine2');
+
+    function showRegistration() {
+        if (loginContainer) loginContainer.style.display = 'none';
+        if (forgotContainer) forgotContainer.style.display = 'none';
+        if (registrationContainer) registrationContainer.style.display = 'block';
+        document.title = 'Sign Up - RF Dental Clinic';
+        if (window.location.hash !== '#register') {
+            history.replaceState(null, '', '#register');
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function showLogin() {
+        if (registrationContainer) registrationContainer.style.display = 'none';
+        if (forgotContainer) forgotContainer.style.display = 'none';
+        if (loginContainer) loginContainer.style.display = 'block';
+        document.title = 'RF Dental Clinic - Login';
+        if (window.location.hash !== '#login') {
+            history.replaceState(null, '', '#login');
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function showForgot() {
+        if (loginContainer) loginContainer.style.display = 'none';
+        if (registrationContainer) registrationContainer.style.display = 'none';
+        if (forgotContainer) forgotContainer.style.display = 'block';
+        document.title = 'Forgot Password - RF Dental Clinic';
+        if (window.location.hash !== '#forgot') {
+            history.replaceState(null, '', '#forgot');
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    [createAccountLink, backToLoginLink, forgotPasswordLink, backToLoginFromForgotLink].forEach(link => {
+        if (link) {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (this === createAccountLink) {
+                    showRegistration();
+                } else if (this === forgotPasswordLink) {
+                    showForgot();
+                } else {
+                    showLogin();
+                }
+            });
+        }
+    });
+
+    if (registerForm) {
+        registerForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const pwd = document.getElementById('reg_password').value;
+            const confirmPwd = document.getElementById('reg_confirm_password').value;
+            if (pwd !== confirmPwd) {
+                showToast('Error', 'Passwords do not match', 'error');
+                return;
+            }
+            if (pwd.length < 6) {
+                showToast('Error', 'Password must be at least 6 characters', 'error');
+                return;
+            }
+
+            const formData = new FormData(registerForm);
+            const body = new URLSearchParams();
+            formData.forEach((value, key) => body.append(key, value));
+
+            if (registerBtn) registerBtn.disabled = true;
+            if (registerBtnText) registerBtnText.textContent = 'Creating...';
+            if (registerError) registerError.style.display = 'none';
+            if (registerSuccess) registerSuccess.style.display = 'none';
+
+            fetch('patient_register.php', {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body.toString()
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    if (registerSuccess) {
+                        registerSuccess.textContent = data.message || 'Account created successfully!';
+                        registerSuccess.style.display = 'block';
+                    }
+                    showToast('Success', 'Account created! You can now log in.', 'success');
+                    setTimeout(() => {
+                        showLogin();
+                        if (usernameInput) {
+                            usernameInput.value = document.getElementById('reg_email')?.value || '';
+                            usernameInput.focus();
+                        }
+                    }, 900);
+                } else {
+                    const msg = data.message || 'Registration failed. Please try again.';
+                    if (registerError) {
+                        registerError.textContent = msg;
+                        registerError.style.display = 'block';
+                    }
+                    showToast('Error', msg, 'error');
+                }
+            })
+            .catch(() => {
+                const msg = 'Network error. Please try again.';
+                if (registerError) {
+                    registerError.textContent = msg;
+                    registerError.style.display = 'block';
+                }
+                showToast('Error', msg, 'error');
+            })
+            .finally(() => {
+                if (registerBtn) registerBtn.disabled = false;
+                if (registerBtnText) registerBtnText.textContent = 'Create Account';
+            });
+        });
+    }
+
+    function setForgotStep(step) {
+        if (fpStep1) fpStep1.style.display = step === 1 ? 'block' : 'none';
+        if (fpStep2) fpStep2.style.display = step === 2 ? 'block' : 'none';
+        if (fpStep3) fpStep3.style.display = step === 3 ? 'block' : 'none';
+
+        [fpNode1, fpNode2, fpNode3].forEach(node => {
+            if (node) node.classList.remove('active', 'done');
+        });
+        [fpLine1, fpLine2].forEach(line => {
+            if (line) line.classList.remove('active');
+        });
+
+        if (step === 1) {
+            if (fpNode1) fpNode1.classList.add('active');
+        } else if (step === 2) {
+            if (fpNode1) fpNode1.classList.add('done');
+            if (fpLine1) fpLine1.classList.add('active');
+            if (fpNode2) fpNode2.classList.add('active');
+        } else if (step === 3) {
+            if (fpNode1) fpNode1.classList.add('done');
+            if (fpNode2) fpNode2.classList.add('done');
+            if (fpLine1) fpLine1.classList.add('active');
+            if (fpLine2) fpLine2.classList.add('active');
+            if (fpNode3) fpNode3.classList.add('active');
+        }
+    }
+
+    function clearForgotMessages() {
+        if (forgotError) forgotError.style.display = 'none';
+        if (forgotSuccess) forgotSuccess.style.display = 'none';
+    }
+
+    function showForgotError(message) {
+        if (forgotError) {
+            forgotError.textContent = message;
+            forgotError.style.display = 'block';
+        }
+        showToast('Error', message, 'error');
+    }
+
+    function showForgotSuccess(message) {
+        if (forgotSuccess) {
+            forgotSuccess.textContent = message;
+            forgotSuccess.style.display = 'block';
+        }
+        showToast('Success', message, 'success');
+    }
+
+    function postForgotAction(payload) {
+        return fetch('login.php', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams(payload).toString()
+        }).then(res => res.json());
+    }
+
+    if (fpSendBtn) {
+        fpSendBtn.addEventListener('click', function() {
+            const email = (fpEmail?.value || '').trim();
+            if (!email) {
+                showForgotError('Please enter your email address.');
+                return;
+            }
+            clearForgotMessages();
+            fpSendBtn.disabled = true;
+            if (fpSendBtnText) fpSendBtnText.textContent = 'Sending...';
+            postForgotAction({ action: 'send_code', email: email })
+                .then(data => {
+                    if (!data.success) throw new Error(data.message || 'Failed to send code.');
+                    showForgotSuccess(data.message || 'Code sent. Check your email.');
+                    setForgotStep(2);
+                })
+                .catch(err => showForgotError(err.message || 'Failed to send code.'))
+                .finally(() => {
+                    fpSendBtn.disabled = false;
+                    if (fpSendBtnText) fpSendBtnText.textContent = 'Send Code';
+                });
+        });
+    }
+
+    if (fpVerifyBtn) {
+        fpVerifyBtn.addEventListener('click', function() {
+            const code = (fpCode?.value || '').trim();
+            if (!code) {
+                showForgotError('Enter the 6-digit code sent to your email.');
+                return;
+            }
+            clearForgotMessages();
+            fpVerifyBtn.disabled = true;
+            if (fpVerifyBtnText) fpVerifyBtnText.textContent = 'Verifying...';
+            postForgotAction({ action: 'verify_code', code: code })
+                .then(data => {
+                    if (!data.success) throw new Error(data.message || 'Verification failed.');
+                    showForgotSuccess(data.message || 'Code verified.');
+                    setForgotStep(3);
+                })
+                .catch(err => showForgotError(err.message || 'Verification failed.'))
+                .finally(() => {
+                    fpVerifyBtn.disabled = false;
+                    if (fpVerifyBtnText) fpVerifyBtnText.textContent = 'Verify Code';
+                });
+        });
+    }
+
+    if (fpChangeBtn) {
+        fpChangeBtn.addEventListener('click', function() {
+            const newPwd = fpNewPassword?.value || '';
+            const confirmPwd = fpConfirmPassword?.value || '';
+            if (!newPwd || !confirmPwd) {
+                showForgotError('Please complete both password fields.');
+                return;
+            }
+            clearForgotMessages();
+            fpChangeBtn.disabled = true;
+            if (fpChangeBtnText) fpChangeBtnText.textContent = 'Updating...';
+            postForgotAction({ action: 'change_password', password: newPwd, confirm_password: confirmPwd })
+                .then(data => {
+                    if (!data.success) throw new Error(data.message || 'Failed to update password.');
+                    showForgotSuccess(data.message || 'Password updated successfully.');
+                    setTimeout(() => showLogin(), 800);
+                })
+                .catch(err => showForgotError(err.message || 'Failed to update password.'))
+                .finally(() => {
+                    fpChangeBtn.disabled = false;
+                    if (fpChangeBtnText) fpChangeBtnText.textContent = 'Change Password';
+                });
+        });
+    }
+
+    // Sync UI with URL hash on load and browser back/forward.
+    function syncViewWithHash() {
+        if (window.location.hash === '#register') {
+            if (loginContainer) loginContainer.style.display = 'none';
+            if (registrationContainer) registrationContainer.style.display = 'block';
+            if (forgotContainer) forgotContainer.style.display = 'none';
+            document.title = 'Sign Up - RF Dental Clinic';
+        } else if (window.location.hash === '#forgot') {
+            if (loginContainer) loginContainer.style.display = 'none';
+            if (registrationContainer) registrationContainer.style.display = 'none';
+            if (forgotContainer) forgotContainer.style.display = 'block';
+            document.title = 'Forgot Password - RF Dental Clinic';
+        } else {
+            if (registrationContainer) registrationContainer.style.display = 'none';
+            if (forgotContainer) forgotContainer.style.display = 'none';
+            if (loginContainer) loginContainer.style.display = 'block';
+            document.title = 'RF Dental Clinic - Login';
+            if (!window.location.hash) {
+                history.replaceState(null, '', '#login');
+            }
+        }
+    }
+
+    setForgotStep(1);
+    syncViewWithHash();
+    window.addEventListener('hashchange', syncViewWithHash);
+
     // Show toast notification function (defined early for use in validation)
     function showToast(title, message, type = 'success') {
         if (!toast) return;
@@ -451,7 +757,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // Enter key to submit
     document.addEventListener('keypress', function(e) {
         if (e.key === 'Enter' && document.activeElement && document.activeElement.tagName === 'INPUT') {
-            if (loginBtn && !loginBtn.disabled) {
+            const isRegisterVisible = registrationContainer && registrationContainer.style.display !== 'none';
+            const isForgotVisible = forgotContainer && forgotContainer.style.display !== 'none';
+            if (isForgotVisible) {
+                if (fpStep1 && fpStep1.style.display !== 'none' && fpSendBtn && !fpSendBtn.disabled) {
+                    fpSendBtn.click();
+                } else if (fpStep2 && fpStep2.style.display !== 'none' && fpVerifyBtn && !fpVerifyBtn.disabled) {
+                    fpVerifyBtn.click();
+                } else if (fpStep3 && fpStep3.style.display !== 'none' && fpChangeBtn && !fpChangeBtn.disabled) {
+                    fpChangeBtn.click();
+                }
+            } else if (isRegisterVisible && registerBtn && !registerBtn.disabled) {
+                registerBtn.click();
+            } else if (loginBtn && !loginBtn.disabled) {
                 loginBtn.click();
             }
         }

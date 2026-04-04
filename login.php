@@ -11,6 +11,29 @@ if (!isset($_SESSION['captcha_code']) || !isset($_SESSION['captcha_time']) || (t
 $error = '';
 $success = '';
 
+function isStrongPassword(string $pwd): bool {
+    return strlen($pwd) >= 8
+        && preg_match('/[A-Z]/', $pwd)
+        && preg_match('/[a-z]/', $pwd)
+        && preg_match('/[0-9]/', $pwd)
+        && preg_match('/[^A-Za-z0-9]/', $pwd);
+}
+
+function tableHasColumn(PDO $pdo, string $table, string $column): bool {
+    static $cache = [];
+    $key = $table . '.' . $column;
+    if (array_key_exists($key, $cache)) {
+        return $cache[$key];
+    }
+
+    $stmt = $pdo->prepare(
+        "SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ? LIMIT 1"
+    );
+    $stmt->execute([$table, $column]);
+    $cache[$key] = (bool)$stmt->fetchColumn();
+    return $cache[$key];
+}
+
 function verifyAndUpgradePassword($pdo, array $user, string $inputPassword): bool {
     $storedPassword = (string)($user['password'] ?? '');
     if ($storedPassword === '') {
@@ -44,6 +67,145 @@ if (strpos($referrer, 'login.php') !== false ||
     strpos($referrer, 'forgot-password.php') !== false ||
     strpos($referrer, 'patient_register.php') !== false) {
     $referrer = 'home.php';
+}
+
+// Handle AJAX forgot-password actions in this same page
+if (
+    isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST' &&
+    isset($_POST['action']) && in_array($_POST['action'], ['send_code', 'verify_code', 'change_password'], true)
+) {
+    header('Content-Type: application/json; charset=utf-8');
+
+    try {
+        require_once 'config/database.php';
+        if (!isset($pdo)) {
+            throw new Exception('Database connection not available');
+        }
+
+        $action = $_POST['action'];
+
+        if ($action === 'send_code') {
+            $email = trim($_POST['email'] ?? '');
+            if ($email === '') {
+                echo json_encode(['success' => false, 'message' => 'Please enter your email address.']);
+                exit();
+            }
+
+            $stmt = $pdo->prepare("SELECT id, username FROM users WHERE email = ? LIMIT 1");
+            $stmt->execute([$email]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$user) {
+                echo json_encode(['success' => false, 'message' => 'Email not found.']);
+                exit();
+            }
+
+            $resetCode = (string)random_int(100000, 999999);
+            $_SESSION['reset_email'] = $email;
+            $_SESSION['reset_user_id'] = (int)$user['id'];
+            $_SESSION['reset_code'] = $resetCode;
+            $_SESSION['reset_code_sent_at'] = time();
+            unset($_SESSION['reset_code_verified']);
+
+            require_once 'config/mailer_config.php';
+            $subject = 'RF Dental Clinic - Password Reset Code';
+            $plain = "Hi " . ($user['username'] ?? 'User') . ", your verification code is: " . $resetCode;
+            $html = '<p>Hi ' . htmlspecialchars($user['username'] ?? 'User') . ',</p>'
+                . '<p>Your verification code is:</p>'
+                . '<p style="font-size:22px;font-weight:bold;letter-spacing:4px;">' . htmlspecialchars($resetCode) . '</p>'
+                . '<p>Enter this code to continue resetting your password.</p>';
+
+            $phpMailerBase = __DIR__ . '/PHPMailer/src';
+            if (!file_exists($phpMailerBase . '/PHPMailer.php')) {
+                echo json_encode(['success' => false, 'message' => 'Email service is not configured.']);
+                exit();
+            }
+
+            require_once $phpMailerBase . '/Exception.php';
+            require_once $phpMailerBase . '/PHPMailer.php';
+            require_once $phpMailerBase . '/SMTP.php';
+
+            $mailer = new \PHPMailer\PHPMailer\PHPMailer(true);
+            $mailer->isSMTP();
+            $mailer->Host = gethostbyname(SMTP_HOST);
+            $mailer->SMTPAuth = true;
+            $mailer->Username = SMTP_USER;
+            $mailer->Password = SMTP_PASS;
+            $mailer->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+            $mailer->Port = SMTP_PORT;
+            $mailer->SMTPOptions = [
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false,
+                    'allow_self_signed' => true,
+                ],
+            ];
+            $mailer->setFrom(MAIL_FROM, MAIL_FROM_NAME);
+            $mailer->addAddress($email, $user['username'] ?? 'User');
+            $mailer->isHTML(true);
+            $mailer->Subject = $subject;
+            $mailer->Body = $html;
+            $mailer->AltBody = $plain;
+            $mailer->send();
+
+            echo json_encode(['success' => true, 'message' => 'Code sent. Check your email.', 'step' => 2]);
+            exit();
+        }
+
+        if ($action === 'verify_code') {
+            $code = trim($_POST['code'] ?? '');
+            $sessionCode = (string)($_SESSION['reset_code'] ?? '');
+            $sentAt = (int)($_SESSION['reset_code_sent_at'] ?? 0);
+            if ($sessionCode === '' || $sentAt === 0 || (time() - $sentAt) > 180) {
+                echo json_encode(['success' => false, 'message' => 'Code expired. Please request a new one.']);
+                exit();
+            }
+            if ($code === '' || $code !== $sessionCode) {
+                echo json_encode(['success' => false, 'message' => 'Incorrect verification code.']);
+                exit();
+            }
+
+            $_SESSION['reset_code_verified'] = true;
+            echo json_encode(['success' => true, 'message' => 'Code verified.', 'step' => 3]);
+            exit();
+        }
+
+        if ($action === 'change_password') {
+            if (empty($_SESSION['reset_code_verified']) || empty($_SESSION['reset_user_id'])) {
+                echo json_encode(['success' => false, 'message' => 'Verification required before changing password.']);
+                exit();
+            }
+
+            $newPassword = (string)($_POST['password'] ?? '');
+            $confirmPassword = (string)($_POST['confirm_password'] ?? '');
+            if (!isStrongPassword($newPassword)) {
+                echo json_encode(['success' => false, 'message' => 'Password must be at least 8 chars with upper, lower, number, and symbol.']);
+                exit();
+            }
+            if ($newPassword !== $confirmPassword) {
+                echo json_encode(['success' => false, 'message' => 'Passwords do not match.']);
+                exit();
+            }
+
+            $hash = password_hash($newPassword, PASSWORD_DEFAULT);
+            $stmt = $pdo->prepare("UPDATE users SET password = ? WHERE id = ? LIMIT 1");
+            $stmt->execute([$hash, (int)$_SESSION['reset_user_id']]);
+
+            unset(
+                $_SESSION['reset_email'],
+                $_SESSION['reset_user_id'],
+                $_SESSION['reset_code'],
+                $_SESSION['reset_code_sent_at'],
+                $_SESSION['reset_code_verified']
+            );
+
+            echo json_encode(['success' => true, 'message' => 'Password updated successfully.']);
+            exit();
+        }
+    } catch (Exception $e) {
+        error_log('Forgot password inline flow error: ' . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => 'Request failed. Please try again.']);
+        exit();
+    }
 }
 
 // Handle AJAX login request
@@ -98,8 +260,13 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             
             // Get patient_id if this is a user role
             if ($role === 'user') {
-                $patientStmt = $pdo->prepare("SELECT id FROM patients WHERE user_id = ? LIMIT 1");
-                $patientStmt->execute([$user['id']]);
+                if (tableHasColumn($pdo, 'patients', 'user_id')) {
+                    $patientStmt = $pdo->prepare("SELECT id FROM patients WHERE user_id = ? LIMIT 1");
+                    $patientStmt->execute([$user['id']]);
+                } else {
+                    $patientStmt = $pdo->prepare("SELECT id FROM patients WHERE email = ? LIMIT 1");
+                    $patientStmt->execute([$user['email'] ?? '']);
+                }
                 $patient = $patientStmt->fetch(PDO::FETCH_ASSOC);
                 if ($patient) {
                     $_SESSION['patient_id'] = $patient['id'];
@@ -212,8 +379,13 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 
                 // Get patient_id if this is a user role
                 if ($role === 'user') {
-                    $patientStmt = $pdo->prepare("SELECT id FROM patients WHERE user_id = ? LIMIT 1");
-                    $patientStmt->execute([$user['id']]);
+                    if (tableHasColumn($pdo, 'patients', 'user_id')) {
+                        $patientStmt = $pdo->prepare("SELECT id FROM patients WHERE user_id = ? LIMIT 1");
+                        $patientStmt->execute([$user['id']]);
+                    } else {
+                        $patientStmt = $pdo->prepare("SELECT id FROM patients WHERE email = ? LIMIT 1");
+                        $patientStmt->execute([$user['email'] ?? '']);
+                    }
                     $patient = $patientStmt->fetch(PDO::FETCH_ASSOC);
                     if ($patient) {
                         $_SESSION['patient_id'] = $patient['id'];
@@ -291,6 +463,64 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
     <title>RF Dental Clinic - Login</title>
     <link rel="icon" type="image/png" href="assets/images/Logo.png">
     <link rel="stylesheet" href="assets/css/login-new.css">
+    <style>
+        #registrationContainer {
+            position: relative;
+        }
+        .login-close-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 6px;
+            color: #6b7280;
+            transition: color 0.2s ease;
+        }
+        .login-close-btn:hover { color: #111827; }
+        #registrationContainer .login-btn {
+            margin-top: 8px;
+        }
+        .forgot-progress {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin: 8px 0 16px;
+        }
+        .forgot-progress .node {
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            border: 2px solid #cbd5e1;
+            color: #64748b;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            background: #ffffff;
+        }
+        .forgot-progress .node.active {
+            border-color: #2563eb;
+            background: #2563eb;
+            color: #ffffff;
+        }
+        .forgot-progress .node.done {
+            border-color: #22c55e;
+            background: #22c55e;
+            color: #ffffff;
+        }
+        .forgot-progress .line {
+            width: 32px;
+            height: 2px;
+            background: #cbd5e1;
+        }
+        .forgot-progress .line.active {
+            background: #2563eb;
+        }
+    </style>
 </head>
 <body>
     <!-- Back Button -->
@@ -332,7 +562,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
 
         <!-- Right Side - Login Form -->
         <div class="form-section">
-            <div class="login-form-container">
+            <div class="login-form-container" id="loginContainer">
                 <div class="logo-container">
                     <img src="assets/images/Logo.png" alt="RF Logo" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                     <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display:none;">
@@ -389,9 +619,9 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                     </div>
                     
                     <div class="form-links">
-                        <a class="link" href="forgot-password.php">Forgot password?</a>
+                        <a class="link" href="#forgot" id="forgotPasswordLink">Forgot password?</a>
                         <span class="separator">|</span>
-                        <a class="link" href="patient_register.php">Create an account</a>
+                        <a class="link" href="#register" id="createAccountLink">Create an account</a>
                     </div>
 
                     <div class="remember-me-group" style="margin-bottom: 8px;">
@@ -413,6 +643,137 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                         });
                     </script>
                 <?php endif; ?>
+            </div>
+
+            <!-- Forgot Password (inline) -->
+            <div class="login-form-container" id="forgotContainer" style="display: none;">
+                <div class="logo-container">
+                    <img src="assets/images/Logo.png" alt="RF Logo" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display:none;">
+                        <path d="M50 20 L30 40 L30 60 L50 80 L70 60 L70 40 Z" fill="#2563eb" stroke="#2563eb" stroke-width="2"/>
+                        <text x="50" y="45" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">R</text>
+                        <text x="50" y="70" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">F</text>
+                    </svg>
+                </div>
+
+                <h1 class="clinic-name">Forgot Password</h1>
+                <div class="forgot-progress" id="forgotProgress">
+                    <span class="node active" id="fpNode1">1</span>
+                    <span class="line" id="fpLine1"></span>
+                    <span class="node" id="fpNode2">2</span>
+                    <span class="line" id="fpLine2"></span>
+                    <span class="node" id="fpNode3">3</span>
+                </div>
+                <div class="alert alert-error" id="forgotError" style="display: none;"></div>
+                <div class="alert alert-success" id="forgotSuccess" style="display: none;"></div>
+
+                <form id="forgotInlineForm" onsubmit="return false;">
+                    <div id="fpStep1" class="step-pane">
+                        <p class="login-subtitle" style="text-align:center; margin-bottom: 16px;">
+                            Enter your email and we will send a 6-digit code.
+                        </p>
+                        <div class="input-group">
+                            <input type="email" id="fp_email" placeholder="Enter your email" required autocomplete="email">
+                        </div>
+                        <button type="button" class="login-btn" id="fpSendBtn">
+                            <span id="fpSendBtnText">Send Code</span>
+                        </button>
+                    </div>
+
+                    <div id="fpStep2" class="step-pane" style="display:none;">
+                        <p class="login-subtitle" style="text-align:center; margin-bottom: 16px;">
+                            Enter the 6-digit code sent to your email.
+                        </p>
+                        <div class="input-group">
+                            <input type="text" id="fp_code" placeholder="Enter verification code" maxlength="6" inputmode="numeric" style="text-align: center; letter-spacing: 6px; font-size: 18px;">
+                        </div>
+                        <button type="button" class="login-btn" id="fpVerifyBtn">
+                            <span id="fpVerifyBtnText">Verify Code</span>
+                        </button>
+                    </div>
+
+                    <div id="fpStep3" class="step-pane" style="display:none;">
+                        <p class="login-subtitle" style="text-align:center; margin-bottom: 16px;">
+                            Enter your new password.
+                        </p>
+                        <div class="input-group">
+                            <input type="password" id="fp_new_password" placeholder="New password" required autocomplete="new-password">
+                        </div>
+                        <div class="input-group">
+                            <input type="password" id="fp_confirm_password" placeholder="Confirm new password" required autocomplete="new-password">
+                        </div>
+                        <button type="button" class="login-btn" id="fpChangeBtn">
+                            <span id="fpChangeBtnText">Change Password</span>
+                        </button>
+                    </div>
+                </form>
+
+                <div class="form-links" style="margin-top: 16px; justify-content: center;">
+                    <span>Remembered your password? </span>
+                    <a href="#login" class="link" id="backToLoginFromForgotLink">Back to login</a>
+                </div>
+            </div>
+
+            <!-- Patient Registration (inline) -->
+            <div class="login-form-container" id="registrationContainer" style="display: none;">
+                <div class="logo-container">
+                    <img src="assets/images/Logo.png" alt="RF Logo" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display:none;">
+                        <path d="M50 20 L30 40 L30 60 L50 80 L70 60 L70 40 Z" fill="#2563eb" stroke="#2563eb" stroke-width="2"/>
+                        <text x="50" y="45" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">R</text>
+                        <text x="50" y="70" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">F</text>
+                    </svg>
+                </div>
+                
+                <h1 class="clinic-name">Create Account</h1>
+                <p class="login-subtitle">Register as a patient to book and track appointments.</p>
+
+                <div class="alert alert-error" id="registerError" style="display: none;"></div>
+                <div class="alert alert-success" id="registerSuccess" style="display: none;"></div>
+                
+                <form id="registerForm" method="POST">
+                    <div style="display: flex; gap: 12px; width: 100%;">
+                        <div class="input-group" style="flex:1;">
+                            <input type="text" id="reg_first_name" name="first_name" placeholder="First Name" required autocomplete="given-name">
+                        </div>
+                        <div class="input-group" style="flex:1;">
+                            <input type="text" id="reg_middle_name" name="middle_name" placeholder="Middle Name (optional)" autocomplete="additional-name">
+                        </div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <input type="text" id="reg_last_name" name="last_name" placeholder="Last Name" required autocomplete="family-name">
+                    </div>
+                    
+                    <div class="input-group">
+                        <input type="email" id="reg_email" name="email" placeholder="Email Address" required autocomplete="email">
+                    </div>
+                    
+                    <div class="input-group">
+                        <input type="tel" id="reg_phone" name="phone" placeholder="Phone Number" required autocomplete="tel">
+                    </div>
+                    
+                    <div class="input-group">
+                        <input type="password" id="reg_password" name="password" placeholder="Password"
+                    </div>
+                    
+                    <div class="input-group">
+                        <input type="password" id="reg_confirm_password" name="confirm_password" placeholder="Confirm Password" required autocomplete="new-password">
+                    </div>
+
+                    <div class="form-links" style="margin-bottom: 20px;">
+                        <span class="separator">By registering, you agree to our Terms of Service and Privacy Policy.</span>
+                    </div>
+                    
+                    <button type="submit" class="login-btn" id="registerBtn">
+                        <span id="registerBtnText">Create Account</span>
+                    </button>
+                </form>
+                
+                <div class="form-links" style="margin-top: 16px; justify-content: center;">
+                    <span>Already have an account? </span>
+                    <a href="#login" class="link" id="backToLoginLink">Login</a>
+                </div>
             </div>
         </div>
     </div>

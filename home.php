@@ -104,6 +104,36 @@ $faqs = [
     <link rel="stylesheet" href="assets/css/home-styles.css" />
     <link rel="stylesheet" href="assets/css/home-integration.css" />
     <script src="assets/js/home-integration.js" defer></script>
+    <style>
+      @keyframes homeFadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+
+      body {
+        opacity: 0;
+        animation: homeFadeIn 0.45s ease-out forwards;
+      }
+
+      .reveal-item {
+        opacity: 0;
+        transform: translateY(18px);
+        transition: opacity 0.55s ease, transform 0.55s ease;
+      }
+
+      .reveal-item.reveal-visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .btn,
+      .service-card,
+      .faq-item,
+      .contact-form-card,
+      .contact-info-box {
+        transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease, color 0.25s ease;
+      }
+    </style>
   </head>
   <body>
     <div id="top" aria-hidden="true"></div>
@@ -123,7 +153,7 @@ $faqs = [
         </nav>
 
         <div class="header-actions">
-          <a class="btn btn-outline" href="patient_register.php">Sign Up</a>
+          <a class="btn btn-outline" href="login.php#register">Sign Up</a>
           <a class="btn btn-primary" id="headerLoginBtn" href="login.php">Login</a>
         </div>
       </div>
@@ -146,7 +176,7 @@ $faqs = [
 
             <div class="hero-ctas">
               <a class="btn btn-primary btn-lg" href="#services">Explore Services</a>
-              <a class="btn btn-outline btn-lg" href="patient_register.php">Sign Up</a>
+              <a class="btn btn-outline btn-lg" href="login.php#register">Sign Up</a>
             </div>
 
             <div class="appointment-card" aria-label="Book an appointment">
@@ -466,6 +496,37 @@ $faqs = [
         <button class="btn btn-primary" type="submit">Send</button>
       </form>
     </section>
+
+    <script>
+      (() => {
+        const targets = document.querySelectorAll([
+          '.hero-copy',
+          '.hero-visual',
+          '.appointment-card',
+          '.section-title',
+          '.section-subtitle',
+          '.service-card',
+          '.faq-item',
+          '.contact-wrapper'
+        ].join(','));
+
+        targets.forEach((el, idx) => {
+          el.classList.add('reveal-item');
+          el.style.transitionDelay = `${Math.min(idx * 35, 260)}ms`;
+        });
+
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('reveal-visible');
+              observer.unobserve(entry.target);
+            }
+          });
+        }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+        targets.forEach((el) => observer.observe(el));
+      })();
+    </script>
 
     <script>
       (() => {
