@@ -252,7 +252,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: body.toString()
             })
-            .then(res => res.json())
+            .then(async res => {
+                const text = await res.text();
+                let data = null;
+
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    if (!res.ok) {
+                        throw new Error('Server error (' + res.status + ').');
+                    }
+                    throw new Error('Invalid server response.');
+                }
+
+                if (!res.ok) {
+                    throw new Error(data?.message || ('Server error (' + res.status + ').'));
+                }
+
+                return data;
+            })
             .then(data => {
                 if (data.success) {
                     if (registerSuccess) {
@@ -276,8 +294,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     showToast('Error', msg, 'error');
                 }
             })
-            .catch(() => {
-                const msg = 'Network error. Please try again.';
+            .catch((err) => {
+                const msg = err?.message || 'Registration failed. Please try again.';
                 if (registerError) {
                     registerError.textContent = msg;
                     registerError.style.display = 'block';

@@ -783,9 +783,13 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                     <div class="input-group">
                         <input type="tel" id="reg_phone" name="phone" placeholder="Phone Number" required autocomplete="tel">
                     </div>
+
+                    <div class="input-group">
+                        <input type="text" id="reg_username" name="username" placeholder="Username" required autocomplete="username">
+                    </div>
                     
                     <div class="input-group">
-                        <input type="password" id="reg_password" name="password" placeholder="Password"
+                        <input type="password" id="reg_password" name="password" placeholder="Password" required autocomplete="new-password">
                     </div>
                     
                     <div class="input-group">
