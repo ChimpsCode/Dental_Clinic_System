@@ -466,6 +466,37 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
     <style>
         #registrationContainer {
             position: relative;
+            max-height: calc(100vh - 24px);
+            overflow: hidden;
+            padding-top: 12px;
+            padding-bottom: 10px;
+        }
+        #registrationContainer .logo {
+            width: 72px;
+            height: 72px;
+        }
+        #registrationContainer .logo-container {
+            margin-bottom: 6px;
+        }
+        #registrationContainer .clinic-name {
+            font-size: 24px;
+            line-height: 1.1;
+            margin-bottom: 4px;
+        }
+        #registrationContainer .login-subtitle {
+            margin-bottom: 8px;
+        }
+        #registrationContainer .input-group {
+            margin-bottom: 10px;
+        }
+        #registrationContainer .input-group input {
+            padding: 10px 14px;
+        }
+        #registrationContainer .form-links {
+            margin: 10px 0 8px 0 !important;
+        }
+        #registrationContainer .login-btn {
+            padding: 12px 20px;
         }
         .login-close-btn {
             position: absolute;
