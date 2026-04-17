@@ -32,7 +32,7 @@ if (!$patientId) {
 }
 
 try {
-    require_once 'config/database.php';
+    require_once '../../config/database.php';
     
     // Get patient basic info
     $stmt = $pdo->prepare("SELECT * FROM patients WHERE id = ?");

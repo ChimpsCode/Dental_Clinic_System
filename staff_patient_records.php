@@ -703,7 +703,7 @@ function filterPatients() {
 }
 
 function viewPatientRecord(patientId) {
-    fetch('patient_record_details.php?id=' + patientId)
+    fetch('master/user-patient/patient_record_details.php?id=' + patientId)
     .then(response => response.json())
     .then(data => {
         if (data.success) {
@@ -1075,7 +1075,7 @@ document.getElementById('addAppointmentForm').addEventListener('submit', functio
     e.preventDefault();
     const formData = new FormData(this);
     
-    fetch('process_patient_appointment.php', {
+    fetch('master/user-patient/process_patient_appointment.php', {
         method: 'POST',
         body: formData
     })

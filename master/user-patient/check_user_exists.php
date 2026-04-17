@@ -1,7 +1,7 @@
 <?php
 header('Content-Type: application/json');
 session_start();
-require_once 'config/database.php';
+require_once '../../config/database.php';
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

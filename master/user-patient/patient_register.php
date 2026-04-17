@@ -60,7 +60,7 @@ if (!preg_match('/^[A-Za-z0-9_.-]{3,30}$/', $username)) {
 }
 
 try {
-    require_once 'config/database.php';
+    require_once '../../config/database.php';
     if (!isset($pdo)) {
         respond(false, 'Database connection not available.', 500);
     }

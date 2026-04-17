@@ -1,8 +1,4 @@
 <?php
-/**
- * Verify Patient-Appointment Workflow
- * Run this to check if the workflow is configured correctly
- */
 
 require_once 'config/database.php';
 

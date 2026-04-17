@@ -18,14 +18,14 @@ if (session_status() === PHP_SESSION_NONE) {
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
-    header('Location: ../login.php');
+    header('Location: ../../login.php');
     exit();
 }
 
 // Verify this is a patient (user role)
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'user') {
     ob_end_clean();
-    header('Location: ../login.php');
+    header('Location: ../../login.php');
     exit();
 }
 
@@ -34,7 +34,7 @@ $user_id = $_SESSION['user_id'] ?? null;
 
 if (!$user_id) {
     ob_end_clean();
-    header('Location: ../login.php');
+    header('Location: ../../login.php');
     exit();
 }
 
@@ -42,7 +42,7 @@ if (!$user_id) {
 $patient_id = $_SESSION['patient_id'] ?? null;
 
 // Get patient details from database
-require_once '../config/database.php';
+require_once '../../config/database.php';
 try {
     $stmt = $pdo->prepare("
         SELECT p.*, u.first_name, u.middle_name, u.last_name, u.email, u.phone
@@ -87,7 +87,7 @@ $pageTitle = 'Patient Dashboard';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($pageTitle); ?> - RF Dental Clinic</title>
-    <link rel="icon" type="image/png" href="../assets/images/Logo.png">
+    <link rel="icon" type="image/png" href="../../assets/images/Logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -768,8 +768,8 @@ $pageTitle = 'Patient Dashboard';
 <body>
     <!-- Sidebar -->
     <aside class="sidebar">
-        <a href="../index.php" class="sidebar-brand">
-            <img src="../assets/images/Logo.png" alt="RF Dental Clinic">
+        <a href="../../index.php" class="sidebar-brand">
+            <img src="../../assets/images/Logo.png" alt="RF Dental Clinic">
             <span>RF Dental</span>
         </a>
 
@@ -834,7 +834,7 @@ $pageTitle = 'Patient Dashboard';
                             <i class="fas fa-user"></i>
                             <span>Profile</span>
                         </a>
-                        <a href="../logout.php" class="dropdown-item logout">
+                        <a href="../../logout.php" class="dropdown-item logout">
                             <i class="fas fa-sign-out-alt"></i>
                             <span>Logout</span>
                         </a>
@@ -1199,7 +1199,7 @@ $pageTitle = 'Patient Dashboard';
     <header class="dashboard-header">
         <div class="header-left">
             <div class="logo">
-                <img src="../assets/images/Logo.png" alt="RF Dental Clinic">
+                <img src="../../assets/images/Logo.png" alt="RF Dental Clinic">
                 <span>RF Dental Clinic</span>
             </div>
         </div>
@@ -1225,7 +1225,7 @@ $pageTitle = 'Patient Dashboard';
                     </div>
                 </div>
                 <div class="user-dropdown">
-                    <a href="../logout.php" class="dropdown-item logout">
+                    <a href="../../logout.php" class="dropdown-item logout">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                             <polyline points="16 17 21 12 16 7"></polyline>
@@ -1474,7 +1474,7 @@ $pageTitle = 'Patient Dashboard';
                 formData.append('patient_id', '<?php echo $patient_id; ?>');
                 
                 try {
-                    const response = await fetch('../process_patient_appointment.php', {
+                    const response = await fetch('process_patient_appointment.php', {
                         method: 'POST',
                         body: formData
                     });

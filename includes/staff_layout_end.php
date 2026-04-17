@@ -1,15 +1,13 @@
 <?php
-/**
- * Staff Layout - End wrapper
- * This file closes content area and main content tags opened by staff_layout_start.php
- */
+
+
 ?>
             </div>
         </div>
     </main>
 
     <script>
-        // Notification dropdown toggle
+        
         (function() {
             const notificationDropdown = document.getElementById('notificationDropdown');
             if (notificationDropdown) {
@@ -21,14 +19,14 @@
                     });
                 }
                 
-                // Close dropdown when clicking outside
+                
                 document.addEventListener('click', function(e) {
                     if (!notificationDropdown.contains(e.target)) {
                         notificationDropdown.classList.remove('active');
                     }
                 });
                 
-                // Close dropdown on Escape
+                
                 document.addEventListener('keydown', function(e) {
                     if (e.key === 'Escape' && notificationDropdown.classList.contains('active')) {
                         notificationDropdown.classList.remove('active');
@@ -39,7 +37,7 @@
     </script>
     <script src="assets/js/dashboard.js"></script>
     <script>
-        // Mark single notification as read
+        
         function markNotificationRead(notificationId, actionUrl, event) {
             if (event) {
                 event.stopPropagation();

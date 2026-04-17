@@ -1,12 +1,8 @@
 <?php
-/**
- * Audit Helper - Functions for logging system activities
- * Include this file in any script that needs audit logging
- */
 
 require_once __DIR__ . '/../config/database.php';
 
-// Helper function to get user info safely
+
 function getUserInfo($pdo, $user_id, $username) {
     $user_info = null;
     if ($user_id) {

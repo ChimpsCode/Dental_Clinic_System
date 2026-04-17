@@ -1,7 +1,7 @@
 <?php
 header('Content-Type: application/json');
 session_start();
-require_once 'config/database.php';
+require_once '../../config/database.php';
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -68,9 +68,6 @@ try {
     // Hash password
     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
-    // Build full name
-    $full_name = trim($first_name . ' ' . $middle_name . ' ' . $last_name);
-
     // Start transaction
     $pdo->beginTransaction();
 
@@ -82,17 +79,16 @@ try {
     // Create patient record with all additional fields
     $stmt = $pdo->prepare("
         INSERT INTO patients (
-            user_id, first_name, middle_name, last_name, full_name, 
+            user_id, first_name, middle_name, last_name, 
             phone, email, gender, age, date_of_birth, address,
             registration_source, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'lead_capture', 'active')
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'lead_capture', 'active')
     ");
     $stmt->execute([
         $user_id, 
         $first_name, 
         $middle_name ?: null, 
         $last_name, 
-        $full_name, 
         $phone, 
         $email, 
         $gender,
@@ -114,7 +110,7 @@ try {
     echo json_encode([
         'success' => true,
         'message' => 'Registration successful!',
-        'redirect' => 'user-patient/patient-dashboard.php'
+        'redirect' => 'master/user-patient/patient-dashboard.php'
     ]);
 
 } catch (Exception $e) {

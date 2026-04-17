@@ -27,7 +27,6 @@ function initializeDatabase($pdo) {
             middle_name VARCHAR(100),
             last_name VARCHAR(100),
             suffix VARCHAR(10),
-            full_name VARCHAR(200) NOT NULL,
             phone VARCHAR(20),
             email VARCHAR(100),
             address TEXT,
@@ -48,12 +47,14 @@ function initializeDatabase($pdo) {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             created_by INT DEFAULT NULL,
             deleted_at DATETIME DEFAULT NULL,
-            INDEX idx_full_name (full_name),
             INDEX idx_phone (phone),
             INDEX idx_email (email),
             INDEX idx_user_id (user_id),
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        
+        // Remove full_name column if it exists (redundant - we have first, middle, last name)
+        $pdo->exec("ALTER TABLE patients DROP COLUMN IF EXISTS full_name");
         
         // Create appointments table
         $pdo->exec("CREATE TABLE IF NOT EXISTS appointments (

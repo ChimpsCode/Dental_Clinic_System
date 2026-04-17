@@ -644,7 +644,7 @@ function saveDashPrescription() {
 
 // View patient details - Same modal as dentist_patients.php
 function viewPatientDetails(patientId) {
-    fetch('patient_record_details.php?id=' + patientId)
+    fetch('master/user-patient/patient_record_details.php?id=' + patientId)
     .then(response => response.json())
     .then(data => {
         if (data.success) {
@@ -1380,7 +1380,7 @@ function setupNotesAutoSave(queueId) {
 var servicesData = {};
 
 // Load services data for billing calculations
-fetch('patient_record_details.php?id=0')
+fetch('master/user-patient/patient_record_details.php?id=0')
 .catch(function() {})
 .then(function() {})
 .then(function() {
@@ -1432,7 +1432,7 @@ function loadBillingInfo(patientId) {
 
 function calculateBillingFromServices(patientId) {
     // Get services from the queue for this patient
-    fetch('patient_record_details.php?id=' + patientId)
+    fetch('master/user-patient/patient_record_details.php?id=' + patientId)
     .then(function(response) { return response.json(); })
     .then(function(data) {
         if (data.success && data.queue_item) {
@@ -1442,7 +1442,7 @@ function calculateBillingFromServices(patientId) {
             // Parse services from treatment_type
             if (treatmentType) {
                 // Fetch services list
-                fetch('patient_record_details.php?id=0')
+                fetch('master/user-patient/patient_record_details.php?id=0')
                 .then(function(r) { return r.json(); })
                 .then(function() {})
                 .catch(function() {});

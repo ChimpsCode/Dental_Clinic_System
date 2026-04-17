@@ -2,7 +2,7 @@
 header('Content-Type: application/json');
 
 session_start();
-require_once '../config/database.php';
+require_once '../../config/database.php';
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -66,27 +66,38 @@ try {
             $duration = $service['duration_minutes'] ?? 30;
         }
     }
+    
+    // Get the status_id for 'Scheduled'
+    $stmt = $pdo->prepare("SELECT id FROM appointment_statuses WHERE LOWER(status_name) = 'scheduled' LIMIT 1");
+    $stmt->execute();
+    $status_row = $stmt->fetch(PDO::FETCH_ASSOC);
+    $status_id = $status_row['id'] ?? 1; // Default to 1 if not found
 
     $pdo->beginTransaction();
 
     $stmt = $pdo->prepare("
         INSERT INTO appointments (
             patient_id, 
+            service_id,
             appointment_date, 
             appointment_time, 
             treatment, 
             notes, 
-            status, 
+            status_id,
+            status,
+            is_registered_patient,
             created_by, 
             created_at
-        ) VALUES (?, ?, ?, ?, ?, 'scheduled', ?, NOW())
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled', 1, ?, NOW())
     ");
     $stmt->execute([
         $patient_id,
+        $service_id,
         $appointment_date,
         $appointment_time,
         $treatment,
         $notes,
+        $status_id,
         $user_id ?? 1
     ]);
     

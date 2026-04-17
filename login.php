@@ -65,7 +65,7 @@ $referrer = $_SERVER['HTTP_REFERER'] ?? 'home.php';
 // Only allow internal pages
 if (strpos($referrer, 'login.php') !== false || 
     strpos($referrer, 'forgot-password.php') !== false ||
-    strpos($referrer, 'patient_register.php') !== false) {
+    strpos($referrer, 'master/user-patient/patient_register.php') !== false) {
     $referrer = 'home.php';
 }
 
@@ -312,7 +312,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             } elseif ($user['role'] === 'dentist') {
                 $redirect = 'dentist_dashboard.php';
             } elseif ($user['role'] === 'user') {
-                $redirect = 'user-patient/patient-dashboard.php';
+                $redirect = 'master/user-patient/patient-dashboard.php';
             } else {
                 $redirect = 'dashboard.php';
             }
@@ -431,7 +431,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 } elseif ($user['role'] === 'dentist') {
                     header('Location: dentist_dashboard.php');
                 } elseif ($user['role'] === 'user') {
-                    header('Location: user-patient/patient-dashboard.php');
+                    header('Location: master/user-patient/patient-dashboard.php');
                 } else {
                     header('Location: dashboard.php');
                 }

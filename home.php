@@ -323,7 +323,7 @@ $faqs = [
         </div>
       </section>
 
-      <section id="contact" class="section contact" style="padding-top:30px">
+      <section id="contact" class="section contact" style="padding-top:10px">
         <div class="container">
           <h2 class="section-title center">
             <span class="accent">Contact</span> Us
@@ -686,8 +686,22 @@ $faqs = [
               <h4 class="form-section-title">Patient Information</h4>
               <div class="form-row">
                 <div class="form-group">
+                  <label for="reg-first-name-display">First Name</label>
+                  <input type="text" id="reg-first-name-display" placeholder="First Name" required />
+                </div>
+                <div class="form-group">
+                  <label for="reg-middle-name-display">Middle Name</label>
+                  <input type="text" id="reg-middle-name-display" placeholder="Middle Name" />
+                </div>
+                <div class="form-group">
+                  <label for="reg-last-name-display">Last Name</label>
+                  <input type="text" id="reg-last-name-display" placeholder="Last Name" required />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
                   <label for="reg-phone">Phone Number</label>
-                  <input type="tel" id="reg-phone" name="phone" required placeholder="09123456789" />
+                  <input type="tel" id="reg-phone" name="phone" required placeholder="09123456789" maxlength="11" />
                 </div>
                 <div class="form-group">
                   <label for="reg-gender">Gender</label>
@@ -695,18 +709,17 @@ $faqs = [
                     <option value="">Select Gender</option>
                     <option value="male">Male</option>
                     <option value="female">Female</option>
-                    <option value="other">Other</option>
                   </select>
                 </div>
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label for="reg-age">Age</label>
-                  <input type="number" id="reg-age" name="age" min="1" max="120" placeholder="Age" />
-                </div>
-                <div class="form-group">
                   <label for="reg-dob">Date of Birth</label>
                   <input type="date" id="reg-dob" name="date_of_birth" />
+                </div>
+                <div class="form-group">
+                  <label for="reg-age">Age</label>
+                  <input type="number" id="reg-age" name="age" min="1" max="120" placeholder="Age" />
                 </div>
               </div>
               <div class="form-group">
@@ -788,6 +801,18 @@ $faqs = [
               </svg>
             </button>
           </div>
+          <div class="captcha-container">
+            <div class="captcha-wrapper">
+              <div id="captchaDisplay" class="captcha-display"></div>
+              <button type="button" class="captcha-refresh" id="refreshCaptchaBtn" aria-label="Refresh CAPTCHA">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                </svg>
+              </button>
+            </div>
+            <input type="text" id="captcha-code" name="captcha_code" required placeholder="Enter CAPTCHA code" class="captcha-input" autocomplete="off" />
+          </div>
+          <div class="captcha-error" id="captchaError" style="display: none; color: #dc3545; font-size: 13px; margin-bottom: 10px; text-align: center;"></div>
           <input type="hidden" id="welcome-back-email" name="email" />
           <input type="hidden" id="welcome-back-name" name="name" />
           <input type="hidden" id="welcome-back-phone" name="phone" />
@@ -830,7 +855,7 @@ $faqs = [
               const checkData = { exists: false };
               
               try {
-                const checkResponse = await fetch('check_user_exists.php', {
+                const checkResponse = await fetch('master/user-patient/check_user_exists.php', {
                   method: 'POST',
                   headers: {
                     'X-Requested-With': 'XMLHttpRequest'
@@ -854,14 +879,28 @@ $faqs = [
                 
                 document.getElementById('welcomeBackModal').style.display = 'flex';
                 body.style.overflow = 'hidden';
+                
+                // Clear and regenerate CAPTCHA
+                document.getElementById('captcha-code').value = '';
+                document.getElementById('captchaError').style.display = 'none';
+                generateCaptcha();
               } else {
                 // User doesn't exist - show registration modal
-                // Pre-fill the modal fields
-                document.getElementById('reg-first-name').value = firstName;
-                document.getElementById('reg-middle-name').value = middleName || '';
-                document.getElementById('reg-last-name').value = lastName;
+                // Pre-fill the modal fields (capitalize names)
+                const capitalizeName = (name) => {
+                  return name.replace(/\b\w/g, l => l.toUpperCase());
+                };
+                
+                document.getElementById('reg-first-name').value = capitalizeName(firstName);
+                document.getElementById('reg-middle-name').value = middleName ? capitalizeName(middleName) : '';
+                document.getElementById('reg-last-name').value = capitalizeName(lastName);
                 document.getElementById('reg-email').value = email;
                 document.getElementById('reg-email-hidden').value = email;
+                
+                // Also fill display fields
+                document.getElementById('reg-first-name-display').value = capitalizeName(firstName);
+                document.getElementById('reg-middle-name-display').value = middleName ? capitalizeName(middleName) : '';
+                document.getElementById('reg-last-name-display').value = capitalizeName(lastName);
                 
                 registrationModal.style.display = 'flex';
                 body.style.overflow = 'hidden';
@@ -869,11 +908,20 @@ $faqs = [
             } catch (error) {
               console.error('Error:', error);
               // Fallback to registration modal
-              document.getElementById('reg-first-name').value = firstName;
-              document.getElementById('reg-middle-name').value = middleName || '';
-              document.getElementById('reg-last-name').value = lastName;
+              const capitalizeName = (name) => {
+                return name.replace(/\b\w/g, l => l.toUpperCase());
+              };
+              
+              document.getElementById('reg-first-name').value = capitalizeName(firstName);
+              document.getElementById('reg-middle-name').value = middleName ? capitalizeName(middleName) : '';
+              document.getElementById('reg-last-name').value = capitalizeName(lastName);
               document.getElementById('reg-email').value = email;
               document.getElementById('reg-email-hidden').value = email;
+              
+              // Also fill display fields
+              document.getElementById('reg-first-name-display').value = capitalizeName(firstName);
+              document.getElementById('reg-middle-name-display').value = middleName ? capitalizeName(middleName) : '';
+              document.getElementById('reg-last-name-display').value = capitalizeName(lastName);
               
               registrationModal.style.display = 'flex';
               body.style.overflow = 'hidden';
@@ -950,7 +998,7 @@ $faqs = [
 
                 // Step 3: Redirect to dashboard after delay
                 setTimeout(() => {
-                  window.location.href = 'user-patient/patient-dashboard.php';
+                  window.location.href = 'master/user-patient/patient-dashboard.php';
                 }, 2000);
               } else {
                 alert(result.message || 'Registration failed');
@@ -1028,7 +1076,7 @@ $faqs = [
                 welcomeBackModal.style.display = 'none';
                 
                 setTimeout(() => {
-                  window.location.href = result.redirect || 'user-patient/patient-dashboard.php';
+                  window.location.href = result.redirect || 'master/user-patient/patient-dashboard.php';
                 }, 500);
               } else {
                 alert(result.message || 'Login failed. Please try again.');
@@ -1041,6 +1089,56 @@ $faqs = [
               submitBtn.disabled = false;
               submitBtn.textContent = originalText;
             }
+          });
+        }
+
+        // CAPTCHA functionality (JavaScript-based)
+        const captchaDisplay = document.getElementById('captchaDisplay');
+        const captchaInput = document.getElementById('captcha-code');
+        const captchaError = document.getElementById('captchaError');
+        const refreshCaptchaBtn = document.getElementById('refreshCaptchaBtn');
+        
+        let currentCaptchaCode = '';
+        
+        function generateCaptcha() {
+          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+          let code = '';
+          for (let i = 0; i < 6; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          currentCaptchaCode = code;
+          if (captchaDisplay) {
+            captchaDisplay.textContent = code;
+          }
+          if (captchaInput) {
+            captchaInput.value = '';
+            captchaInput.focus();
+          }
+        }
+        
+        function refreshCaptcha() {
+          generateCaptcha();
+        }
+        
+        if (captchaDisplay) {
+          generateCaptcha();
+        }
+        
+        if (refreshCaptchaBtn) {
+          refreshCaptchaBtn.addEventListener('click', function() {
+            refreshCaptcha();
+          });
+        }
+        
+        if (captchaDisplay) {
+          captchaDisplay.addEventListener('click', function() {
+            refreshCaptcha();
+          });
+        }
+        
+        if (captchaCanvas) {
+          captchaCanvas.addEventListener('click', function() {
+            refreshCaptcha();
           });
         }
 
@@ -1070,6 +1168,60 @@ $faqs = [
         // Set active state on page load and hash change
         setActiveLink();
         window.addEventListener('hashchange', setActiveLink);
+
+        // Auto-calculate age from date of birth
+        const dobInput = document.getElementById('reg-dob');
+        const ageInput = document.getElementById('reg-age');
+        
+        if (dobInput && ageInput) {
+          dobInput.addEventListener('change', function() {
+            if (!this.value) return;
+            const dob = new Date(this.value);
+            const today = new Date();
+            let age = today.getFullYear() - dob.getFullYear();
+            const monthDiff = today.getMonth() - dob.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+              age--;
+            }
+            if (age > 0 && age < 120) {
+              ageInput.value = age;
+            }
+          });
+        }
+
+        // Sync display fields with hidden fields (capitalize on input)
+        const capitalizeName = (name) => {
+          return name.replace(/\b\w/g, l => l.toUpperCase());
+        };
+
+        const firstNameDisplay = document.getElementById('reg-first-name-display');
+        const middleNameDisplay = document.getElementById('reg-middle-name-display');
+        const lastNameDisplay = document.getElementById('reg-last-name-display');
+        const firstNameHidden = document.getElementById('reg-first-name');
+        const middleNameHidden = document.getElementById('reg-middle-name');
+        const lastNameHidden = document.getElementById('reg-last-name');
+
+        if (firstNameDisplay && firstNameHidden) {
+          firstNameDisplay.addEventListener('input', function() {
+            const capitalized = capitalizeName(this.value);
+            this.value = capitalized;
+            firstNameHidden.value = capitalized;
+          });
+        }
+        if (middleNameDisplay && middleNameHidden) {
+          middleNameDisplay.addEventListener('input', function() {
+            const capitalized = capitalizeName(this.value);
+            this.value = capitalized;
+            middleNameHidden.value = capitalized;
+          });
+        }
+        if (lastNameDisplay && lastNameHidden) {
+          lastNameDisplay.addEventListener('input', function() {
+            const capitalized = capitalizeName(this.value);
+            this.value = capitalized;
+            lastNameHidden.value = capitalized;
+          });
+        }
       });
     </script>
 
@@ -1092,14 +1244,20 @@ $faqs = [
         border-radius: 12px;
         width: 90%;
         max-width: 520px;
+        max-height: 90vh;
         padding: 0;
         box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         animation: modalSlideIn 0.3s ease;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
       }
       
       .success-modal {
         text-align: center;
         padding: 40px 30px;
+        overflow-y: auto;
+        max-height: 90vh;
       }
       
       @keyframes modalSlideIn {
@@ -1119,6 +1277,7 @@ $faqs = [
         display: flex;
         justify-content: space-between;
         align-items: center;
+        flex-shrink: 0;
       }
       
       .modal-header h3 {
@@ -1143,6 +1302,10 @@ $faqs = [
       
       .modal-body {
         padding: 24px;
+        max-height: calc(90vh - 80px);
+        overflow-y: auto;
+        overflow-x: hidden;
+        flex: 1;
       }
       
       .modal-intro {
@@ -1370,6 +1533,101 @@ $faqs = [
       .forgot-password-link:hover {
         color: #0059a3;
         text-decoration: underline;
+      }
+
+      .captcha-container {
+        margin-bottom: 20px;
+      }
+
+      .captcha-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+
+      .captcha-display {
+        background: #f5f5f5;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        padding: 8px 15px;
+        font-family: 'Courier New', monospace;
+        font-size: 22px;
+        font-weight: bold;
+        letter-spacing: 6px;
+        color: #0059a3;
+        user-select: none;
+        cursor: pointer;
+        min-width: 120px;
+        text-align: center;
+        background-image: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(0,0,0,0.03) 2px,
+          rgba(0,0,0,0.03) 4px
+        );
+      }
+
+      .captcha-refresh {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 4px;
+        color: #666;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.2s;
+      }
+
+      .captcha-refresh:hover {
+        color: #0059a3;
+      }
+
+      .captcha-input {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+        box-sizing: border-box;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+      }
+
+      .captcha-input:focus {
+        outline: none;
+        border-color: #0059a3;
+        box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+      }
+
+      @media (max-height: 700px) {
+        .modal-body {
+          max-height: calc(90vh - 60px);
+        }
+      }
+
+      @media (max-width: 560px) {
+        .modal-content {
+          width: 95%;
+          max-width: 95%;
+          max-height: 85vh;
+        }
+        .modal-body {
+          max-height: calc(85vh - 60px);
+          padding: 16px;
+        }
+        .modal-form .form-row {
+          flex-direction: column;
+          gap: 0;
+        }
+        .modal-header {
+          padding: 16px;
+        }
+        .modal-header h3 {
+          font-size: 16px;
+        }
       }
     </style>
 

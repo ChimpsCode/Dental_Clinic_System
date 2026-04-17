@@ -1,8 +1,4 @@
 <?php
-/**
- * Update Queue Teeth API
- * Allows dentist to update teeth selection for a queue item
- */
 
 ob_start();
 session_start();

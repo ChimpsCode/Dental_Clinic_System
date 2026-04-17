@@ -16,102 +16,77 @@ if (session_status() === PHP_SESSION_NONE) {
 
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
-    header('Location: ../login.php');
+    header('Location: ../../login.php');
     exit();
 }
 
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'user') {
     ob_end_clean();
-    header('Location: ../login.php');
+    header('Location: ../../login.php');
     exit();
 }
 
 $user_id = $_SESSION['user_id'] ?? null;
 $patient_id = $_SESSION['patient_id'] ?? null;
+$patient = null;
+$upcoming_appointments = [];
+$past_appointments = [];
+$bookedDateSlots = [];
+$patient_name = 'Patient';
 
-require_once '../config/database.php';
+require_once '../../config/database.php';
 
-try {
-    $stmt = $pdo->prepare("
-        SELECT p.*, u.first_name, u.middle_name, u.last_name, u.email, u.phone
-        FROM patients p 
-        LEFT JOIN users u ON u.id = p.user_id 
-        WHERE p.user_id = ?
-    ");
-    $stmt->execute([$user_id]);
-    $patient = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$patient && !$patient_id) {
-        throw new Exception('Patient not found');
-    }
-    
-    if (!$patient_id && $patient) {
-        $patient_id = $patient['id'];
-        $_SESSION['patient_id'] = $patient_id;
-    }
-    
-    $stmt = $pdo->prepare("
-        SELECT * FROM appointments 
-        WHERE patient_id = ?
-        ORDER BY appointment_date DESC, appointment_time DESC
-    ");
-    $stmt->execute([$patient_id]);
-    $all_appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    $upcoming_appointments = [];
-    $past_appointments = [];
-    $today = date('Y-m-d');
-    
-    foreach ($all_appointments as $apt) {
-        $apt_date = date('Y-m-d', strtotime($apt['appointment_date']));
-        if ($apt_date >= $today) {
-            $upcoming_appointments[] = $apt;
-        } else {
-            $past_appointments[] = $apt;
-        }
-    }
-    
-    $stmt = $pdo->prepare("
-        SELECT appointment_date, appointment_time 
-        FROM appointments 
-        WHERE appointment_date >= CURDATE() 
-        AND status IN ('scheduled', 'pending', 'confirmed')
-    ");
-    $stmt->execute();
-    $bookedDates = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    $bookedDateSlots = [];
-    foreach ($bookedDates as $booked) {
-        $date = date('Y-m-d', strtotime($booked['appointment_date']));
-        $time = date('H:i', strtotime($booked['appointment_time']));
-        if (!isset($bookedDateSlots[$date])) {
-            $bookedDateSlots[$date] = [];
-        }
-        $bookedDateSlots[$date][] = $time;
-    }
-    
-} catch (Exception $e) {
-    error_log("Appointments Error: " . $e->getMessage());
-    $patient = [];
-    $upcoming_appointments = [];
-    $past_appointments = [];
-    $bookedDateSlots = [];
+// Get patient data
+$stmt = $pdo->prepare("SELECT * FROM patients WHERE id = ?");
+$stmt->execute([$patient_id]);
+$patient = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if ($patient) {
+    $patient_name = trim($patient['first_name'] . ' ' . $patient['last_name']);
 }
 
-// Always fetch services (outside the try-catch)
-try {
-    $stmt = $pdo->prepare("SELECT id, name, duration_minutes, price FROM services WHERE is_active = 1 AND is_archived = 0 ORDER BY name");
-    $stmt->execute();
-    $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (Exception $e) {
-    error_log("Services Error: " . $e->getMessage());
-    $services = [
-        ['id' => 1, 'name' => 'Consultation', 'duration_minutes' => 30, 'price' => 500],
-        ['id' => 2, 'name' => 'Teeth Cleaning', 'duration_minutes' => 60, 'price' => 800],
-        ['id' => 3, 'name' => 'Tooth Extraction', 'duration_minutes' => 45, 'price' => 800],
-        ['id' => 4, 'name' => 'Root Canal Treatment', 'duration_minutes' => 90, 'price' => 5000],
-    ];
+// Get appointments for this patient
+$stmt = $pdo->prepare("
+    SELECT a.*, 
+           s.name as service_name,
+           aps.status_name,
+           aps.color as status_color
+    FROM appointments a
+    LEFT JOIN services s ON a.service_id = s.id
+    LEFT JOIN appointment_statuses aps ON a.status_id = aps.id
+    WHERE a.patient_id = ?
+    ORDER BY a.appointment_date DESC, a.appointment_time DESC
+");
+$stmt->execute([$patient_id]);
+$all_appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Separate upcoming and past
+$today = date('Y-m-d');
+foreach ($all_appointments as $apt) {
+    $apt_date = substr($apt['appointment_date'], 0, 10);
+    if ($apt_date >= $today) {
+        $upcoming_appointments[] = $apt;
+    } else {
+        $past_appointments[] = $apt;
+    }
 }
+
+// Get booked dates for calendar
+$stmt = $pdo->query("SELECT appointment_date, appointment_time FROM appointments WHERE appointment_date >= CURDATE()");
+$bookedDates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+foreach ($bookedDates as $booked) {
+    $date = date('Y-m-d', strtotime($booked['appointment_date']));
+    $time = date('H:i', strtotime($booked['appointment_time']));
+    if (!isset($bookedDateSlots[$date])) {
+        $bookedDateSlots[$date] = [];
+    }
+    $bookedDateSlots[$date][] = $time;
+}
+
+// Get services for booking
+$stmt = $pdo->prepare("SELECT id, name, duration_minutes, price FROM services WHERE is_active = 1 ORDER BY name");
+$stmt->execute();
+$services = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $pageTitle = 'My Appointments';
 ?>
@@ -121,7 +96,7 @@ $pageTitle = 'My Appointments';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($pageTitle); ?> - RF Dental Clinic</title>
-    <link rel="icon" type="image/png" href="../assets/images/Logo.png">
+    <link rel="icon" type="image/png" href="../../assets/images/Logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -219,7 +194,7 @@ $pageTitle = 'My Appointments';
         .empty-state i { font-size: 48px; margin-bottom: 16px; color: #d1d5db; }
         .empty-state h3 { font-size: 18px; color: #374151; margin-bottom: 8px; }
         
-        .appointment-card { display: flex; gap: 16px; padding: 20px; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 16px; }
+        .appointment-card { display: flex; gap: 16px; padding: 20px; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 16px; align-items: center; }
         .apt-date { min-width: 80px; text-align: center; padding: 12px; background: #f0f7ff; border-radius: 8px; }
         .apt-month { font-size: 12px; font-weight: 600; color: #005daa; text-transform: uppercase; }
         .apt-day { font-size: 28px; font-weight: 700; color: #1a1a2e; }
@@ -228,10 +203,13 @@ $pageTitle = 'My Appointments';
         .apt-time { font-size: 14px; color: #6b7280; margin-bottom: 8px; }
         .apt-treatment { font-size: 16px; font-weight: 600; color: #1a1a2e; margin-bottom: 4px; }
         .apt-dentist { font-size: 14px; color: #6b7280; }
+        .apt-notes { font-size: 12px; color: #6b7280; margin-top: 4px; }
         .apt-status { display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
         .status-scheduled { background: #d1fae5; color: #065f46; }
+        .status-confirmed { background: #d1fae5; color: #065f46; }
         .status-completed { background: #dbeafe; color: #1e40af; }
         .status-cancelled { background: #fee2e2; color: #991b1b; }
+        .status-pending { background: #fef3c7; color: #92400e; }
         
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
         .modal-overlay.active { display: flex; }
@@ -251,9 +229,7 @@ $pageTitle = 'My Appointments';
         .modal-btn { width: 100%; padding: 14px 24px; background: #005daa; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 16px; }
         .modal-btn:hover { background: #004080; }
         
-        @media (max-width: 1024px) {
-            .booking-layout { grid-template-columns: 1fr; }
-        }
+        @media (max-width: 1024px) { .booking-layout { grid-template-columns: 1fr; } }
         @media (max-width: 768px) {
             .sidebar { width: 60px; padding: 24px 0; }
             .sidebar-brand span, .menu-item span { display: none; }
@@ -264,13 +240,15 @@ $pageTitle = 'My Appointments';
             .user-details { display: none; }
             .dashboard-main { padding: 16px; }
             .time-slots { grid-template-columns: repeat(3, 1fr); }
+            .appointment-card { flex-direction: column; text-align: center; }
+            .apt-date { width: 100%; }
         }
     </style>
 </head>
 <body>
     <aside class="sidebar">
-        <a href="../index.php" class="sidebar-brand">
-            <img src="../assets/images/Logo.png" alt="RF Dental Clinic">
+        <a href="../../index.php" class="sidebar-brand">
+            <img src="../../assets/images/Logo.png" alt="RF Dental Clinic">
             <span>RF Dental</span>
         </a>
         <nav class="sidebar-menu">
@@ -315,24 +293,16 @@ $pageTitle = 'My Appointments';
                 <div class="notification-bell"><i class="fas fa-bell"></i></div>
                 <div class="user-profile">
                     <div class="user-avatar">
-                        <?php 
-                            $initials = strtoupper(substr($patient['first_name'] ?? 'P', 0, 1) . substr($patient['middle_name'] ?? '', 0, 1) . substr($patient['last_name'] ?? '', 0, 1));
-                            echo $initials;
-                        ?>
+                        <?php echo strtoupper(substr($patient_name, 0, 1)); ?>
                     </div>
                     <div class="user-details">
-                        <div class="user-name">
-                            <?php 
-                                $fullName = trim(($patient['first_name'] ?? '') . ' ' . ($patient['middle_name'] ?? '') . ' ' . ($patient['last_name'] ?? ''));
-                                echo htmlspecialchars($fullName);
-                            ?>
-                        </div>
+                        <div class="user-name"><?php echo htmlspecialchars($patient_name); ?></div>
                         <div class="user-role">Patient</div>
                     </div>
                     <div class="dropdown-toggle"><i class="fas fa-chevron-down"></i></div>
                     <div class="user-dropdown">
                         <a href="profile.php" class="dropdown-item"><i class="fas fa-user"></i><span>Profile</span></a>
-                        <a href="../logout.php" class="dropdown-item logout"><i class="fas fa-sign-out-alt"></i><span>Logout</span></a>
+                        <a href="../../logout.php" class="dropdown-item logout"><i class="fas fa-sign-out-alt"></i><span>Logout</span></a>
                     </div>
                 </div>
             </div>
@@ -349,7 +319,7 @@ $pageTitle = 'My Appointments';
                 <div class="booking-layout">
                     <div class="calendar-box">
                         <div class="calendar-header">
-                            <h3 class="calendar-title" id="currentMonthYear">March 2026</h3>
+                            <h3 class="calendar-title" id="currentMonthYear"><?php echo date('F Y'); ?></h3>
                             <div class="calendar-nav">
                                 <button id="prevMonth"><i class="fas fa-chevron-left"></i></button>
                                 <button id="nextMonth"><i class="fas fa-chevron-right"></i></button>
@@ -379,30 +349,11 @@ $pageTitle = 'My Appointments';
                                 <label class="form-label">Select Service</label>
                                 <select id="serviceSelect" class="form-select">
                                     <option value="">-- Choose a service --</option>
-                                    <?php 
-                                    if (!empty($services)) {
-                                        foreach ($services as $svc) {
-                                            echo '<option value="' . intval($svc['id']) . '" data-duration="' . intval($svc['duration_minutes']) . '">';
-                                            echo htmlspecialchars($svc['name']) . ' (' . intval($svc['duration_minutes']) . ' min)';
-                                            echo '</option>';
-                                        }
-                                    } else {
-                                        // Fallback services
-                                        $fallback = [
-                                            ['id' => 1, 'name' => 'Consultation', 'duration_minutes' => 30],
-                                            ['id' => 2, 'name' => 'Teeth Cleaning', 'duration_minutes' => 60],
-                                            ['id' => 3, 'name' => 'Tooth Extraction', 'duration_minutes' => 45],
-                                            ['id' => 4, 'name' => 'Root Canal Treatment', 'duration_minutes' => 90],
-                                            ['id' => 5, 'name' => 'Crowns (Jacket)', 'duration_minutes' => 90],
-                                            ['id' => 6, 'name' => 'Teeth Whitening', 'duration_minutes' => 90],
-                                        ];
-                                        foreach ($fallback as $svc) {
-                                            echo '<option value="' . $svc['id'] . '" data-duration="' . $svc['duration_minutes'] . '">';
-                                            echo htmlspecialchars($svc['name']) . ' (' . $svc['duration_minutes'] . ' min)';
-                                            echo '</option>';
-                                        }
-                                    }
-                                    ?>
+                                    <?php foreach ($services as $svc): ?>
+                                        <option value="<?php echo $svc['id']; ?>" data-duration="<?php echo $svc['duration_minutes']; ?>">
+                                            <?php echo htmlspecialchars($svc['name']); ?> (<?php echo $svc['duration_minutes']; ?> min)
+                                        </option>
+                                    <?php endforeach; ?>
                                 </select>
                             </div>
                             
@@ -431,7 +382,11 @@ $pageTitle = 'My Appointments';
 
             <div id="upcoming" class="tab-content">
                 <?php if (!empty($upcoming_appointments)): ?>
-                    <?php foreach ($upcoming_appointments as $apt): ?>
+                    <?php foreach ($upcoming_appointments as $apt): 
+                        $statusClass = 'status-scheduled';
+                        if (stripos($apt['status_name'] ?? '', 'confirm') !== false) $statusClass = 'status-confirmed';
+                        if (stripos($apt['status_name'] ?? '', 'cancel') !== false) $statusClass = 'status-cancelled';
+                    ?>
                         <div class="appointment-card">
                             <div class="apt-date">
                                 <div class="apt-month"><?php echo date('M', strtotime($apt['appointment_date'])); ?></div>
@@ -440,9 +395,14 @@ $pageTitle = 'My Appointments';
                             </div>
                             <div class="apt-details">
                                 <div class="apt-time"><i class="far fa-clock"></i> <?php echo date('g:i A', strtotime($apt['appointment_time'])); ?></div>
-                                <div class="apt-treatment"><?php echo htmlspecialchars($apt['treatment'] ?? 'Dental Consultation'); ?></div>
+                                <div class="apt-treatment"><?php echo htmlspecialchars($apt['service_name'] ?? $apt['treatment'] ?? 'General Checkup'); ?></div>
+                                <?php if (!empty($apt['notes'])): ?>
+                                <div class="apt-notes"><i class="fas fa-sticky-note"></i> <?php echo htmlspecialchars(substr($apt['notes'], 0, 60)); ?><?php echo strlen($apt['notes']) > 60 ? '...' : ''; ?></div>
+                                <?php endif; ?>
                             </div>
-                            <span class="apt-status status-scheduled"><?php echo htmlspecialchars(ucfirst($apt['status'] ?? 'Scheduled')); ?></span>
+                            <span class="apt-status <?php echo $statusClass; ?>">
+                                <?php echo htmlspecialchars($apt['status_name'] ?? 'Scheduled'); ?>
+                            </span>
                         </div>
                     <?php endforeach; ?>
                 <?php else: ?>
@@ -458,16 +418,16 @@ $pageTitle = 'My Appointments';
                 <?php if (!empty($past_appointments)): ?>
                     <?php foreach ($past_appointments as $apt): ?>
                         <div class="appointment-card">
-                            <div class="apt-date">
+                            <div class="apt-date" style="background: #f3f4f6;">
                                 <div class="apt-month"><?php echo date('M', strtotime($apt['appointment_date'])); ?></div>
                                 <div class="apt-day"><?php echo date('d', strtotime($apt['appointment_date'])); ?></div>
                                 <div class="apt-year"><?php echo date('Y', strtotime($apt['appointment_date'])); ?></div>
                             </div>
                             <div class="apt-details">
                                 <div class="apt-time"><i class="far fa-clock"></i> <?php echo date('g:i A', strtotime($apt['appointment_time'])); ?></div>
-                                <div class="apt-treatment"><?php echo htmlspecialchars($apt['treatment'] ?? 'Dental Consultation'); ?></div>
+                                <div class="apt-treatment"><?php echo htmlspecialchars($apt['service_name'] ?? $apt['treatment'] ?? 'General Checkup'); ?></div>
                             </div>
-                            <span class="apt-status status-<?php echo strtolower($apt['status'] ?? 'completed'); ?>"><?php echo htmlspecialchars(ucfirst($apt['status'] ?? 'Completed')); ?></span>
+                            <span class="apt-status status-completed"><?php echo htmlspecialchars($apt['status_name'] ?? 'Completed'); ?></span>
                         </div>
                     <?php endforeach; ?>
                 <?php else: ?>
@@ -571,8 +531,6 @@ $pageTitle = 'My Appointments';
         }
 
         function selectDate(date, el) {
-            if (el.classList.contains('disabled')) return;
-            
             document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
             el.classList.add('selected');
             
@@ -590,8 +548,6 @@ $pageTitle = 'My Appointments';
 
         function loadSlots(serviceId) {
             const grid = document.getElementById('timeSlotsGrid');
-            const select = document.getElementById('serviceSelect');
-            console.log('Service select options count:', select.options.length);
             grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin" style="font-size: 24px; color: #6b7280;"></i></div>';
             
             fetch(`get_slots.php?date=${selectedDate}&service_id=${serviceId}`)
@@ -611,7 +567,6 @@ $pageTitle = 'My Appointments';
                         return;
                     }
                     
-                    // Legend
                     const legendDiv = document.createElement('div');
                     legendDiv.style.cssText = 'grid-column: 1/-1; display: flex; gap: 16px; margin-bottom: 12px; font-size: 12px; color: #6b7280;';
                     legendDiv.innerHTML = `
@@ -627,7 +582,6 @@ $pageTitle = 'My Appointments';
                         if (isBooked) {
                             s.className = 'time-slot unavailable';
                             s.innerHTML = `${formatTime(slot)} <i class="fas fa-lock" style="margin-left: 4px; font-size: 10px;"></i>`;
-                            s.title = 'This slot is already booked';
                         } else {
                             s.className = 'time-slot available';
                             s.textContent = formatTime(slot);
@@ -644,12 +598,10 @@ $pageTitle = 'My Appointments';
 
         function formatTime(t) {
             const [h, m] = t.split(':');
-            const hour = parseInt(h);
-            return `${hour % 12 || 12}:${m} ${hour >= 12 ? 'PM' : 'AM'}`;
+            return `${parseInt(h) % 12 || 12}:${m} ${h >= 12 ? 'PM' : 'AM'}`;
         }
 
         function selectTime(time, el) {
-            if (el.classList.contains('unavailable')) return;
             document.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
             el.classList.add('selected');
             selectedTime = time;
@@ -692,7 +644,7 @@ $pageTitle = 'My Appointments';
                         `;
                         document.getElementById('successModal').classList.add('active');
                         resetForm();
-                        renderCalendar();
+                        location.reload();
                     } else {
                         alert(data.message || 'Booking failed');
                     }

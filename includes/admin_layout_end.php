@@ -21,13 +21,13 @@
         })();
     </script>
     <script>
-        // Ensure user profile dropdown works
+        
         document.addEventListener('DOMContentLoaded', function() {
             const userProfile = document.getElementById('userProfileDropdown');
             const notificationDropdown = document.getElementById('notificationDropdown');
             
             if (userProfile) {
-                // Toggle dropdown on click
+                
                 userProfile.addEventListener('click', function(e) {
                     e.stopPropagation();
                     userProfile.classList.toggle('active');

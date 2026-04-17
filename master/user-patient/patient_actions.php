@@ -33,7 +33,7 @@ if (!$patientId || !is_numeric($patientId)) {
 }
 
 try {
-    require_once 'config/database.php';
+    require_once '../../config/database.php';
     
     switch ($action) {
         case 'archive':

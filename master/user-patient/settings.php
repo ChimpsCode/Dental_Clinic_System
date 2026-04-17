@@ -16,13 +16,13 @@ if (session_status() === PHP_SESSION_NONE) {
 
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
-    header('Location: ../login.php');
+    header('Location: ../../login.php');
     exit();
 }
 
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'user') {
     ob_end_clean();
-    header('Location: ../login.php');
+    header('Location: ../../login.php');
     exit();
 }
 
@@ -31,7 +31,7 @@ $patient_id = $_SESSION['patient_id'] ?? null;
 $message = '';
 $messageType = '';
 
-require_once '../config/database.php';
+require_once '../../config/database.php';
 
 try {
     $stmt = $pdo->prepare("
@@ -43,7 +43,7 @@ try {
     $stmt->execute([$user_id]);
     $patient = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    if (!$patient && !$patient_id) {
+    if (!$patient) {
         throw new Exception('Patient not found');
     }
     
@@ -52,51 +52,79 @@ try {
         $_SESSION['patient_id'] = $patient_id;
     }
     
+    $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+    $stmt->execute([$user_id]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$user) {
+        throw new Exception('User not found');
+    }
+    
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = $_POST['action'] ?? '';
         
-        if ($action === 'update_profile') {
-            $first_name = trim($_POST['first_name'] ?? '');
-            $middle_name = trim($_POST['middle_name'] ?? '');
-            $last_name = trim($_POST['last_name'] ?? '');
-            $email = trim($_POST['email'] ?? '');
-            $phone = trim($_POST['phone'] ?? '');
-            $address = trim($_POST['address'] ?? '');
-            $date_of_birth = $_POST['date_of_birth'] ?? null;
-            $gender = $_POST['gender'] ?? '';
+        if ($action === 'update_email') {
+            $new_email = trim($_POST['email'] ?? '');
             
-            $pdo->beginTransaction();
+            if (!empty($new_email) && filter_var($new_email, FILTER_VALIDATE_EMAIL)) {
+                $stmt = $pdo->prepare("UPDATE users SET email = ? WHERE id = ?");
+                $stmt->execute([$new_email, $user_id]);
+                $user['email'] = $new_email;
+                $message = 'Email updated successfully!';
+                $messageType = 'success';
+            } else {
+                $message = 'Please enter a valid email address.';
+                $messageType = 'error';
+            }
+        }
+        
+        if ($action === 'change_password') {
+            $current_password = $_POST['current_password'] ?? '';
+            $new_password = $_POST['new_password'] ?? '';
+            $confirm_password = $_POST['confirm_password'] ?? '';
             
-            $stmt = $pdo->prepare("UPDATE users SET first_name = ?, middle_name = ?, last_name = ?, email = ?, phone = ? WHERE id = ?");
-            $stmt->execute([$first_name, $middle_name, $last_name, $email, $phone, $user_id]);
+            if (password_verify($current_password, $user['password'])) {
+                if (strlen($new_password) >= 8) {
+                    if ($new_password === $confirm_password) {
+                        $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+                        $stmt = $pdo->prepare("UPDATE users SET password = ? WHERE id = ?");
+                        $stmt->execute([$hashed_password, $user_id]);
+                        $message = 'Password changed successfully!';
+                        $messageType = 'success';
+                    } else {
+                        $message = 'New passwords do not match.';
+                        $messageType = 'error';
+                    }
+                } else {
+                    $message = 'Password must be at least 8 characters.';
+                    $messageType = 'error';
+                }
+            } else {
+                $message = 'Current password is incorrect.';
+                $messageType = 'error';
+            }
+        }
+        
+        if ($action === 'update_notifications') {
+            $email_notifications = isset($_POST['email_notifications']) ? 1 : 0;
+            $sms_notifications = isset($_POST['sms_notifications']) ? 1 : 0;
             
-            $stmt = $pdo->prepare("UPDATE patients SET address = ?, date_of_birth = ?, gender = ? WHERE id = ?");
-            $stmt->execute([$address, $date_of_birth, $gender, $patient_id]);
-            
-            $pdo->commit();
-            
-            $message = 'Profile updated successfully!';
+            $stmt = $pdo->prepare("UPDATE users SET email_notifications = ?, sms_notifications = ? WHERE id = ?");
+            $stmt->execute([$email_notifications, $sms_notifications, $user_id]);
+            $message = 'Notification preferences updated!';
             $messageType = 'success';
-            
-            $stmt = $pdo->prepare("
-                SELECT p.*, u.first_name, u.middle_name, u.last_name, u.email, u.phone, u.created_at
-                FROM patients p 
-                LEFT JOIN users u ON u.id = p.user_id 
-                WHERE p.user_id = ?
-            ");
-            $stmt->execute([$user_id]);
-            $patient = $stmt->fetch(PDO::FETCH_ASSOC);
         }
     }
     
+    $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+    $stmt->execute([$user_id]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    
 } catch (Exception $e) {
-    if (isset($pdo) && $pdo->inTransaction()) {
-        $pdo->rollBack();
-    }
-    $patient = [];
+    $user = [];
 }
 
-$pageTitle = 'My Profile';
+$pageTitle = 'Account Settings';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -104,7 +132,7 @@ $pageTitle = 'My Profile';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($pageTitle); ?> - RF Dental Clinic</title>
-    <link rel="icon" type="image/png" href="../assets/images/Logo.png">
+    <link rel="icon" type="image/png" href="../../assets/images/Logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -133,36 +161,35 @@ $pageTitle = 'My Profile';
         .dropdown-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: #374151; text-decoration: none; transition: background 0.2s; font-size: 14px; }
         .dropdown-item:hover { background: #f3f4f6; }
         .dropdown-item.logout { color: #dc3545; border-top: 1px solid #e5e7eb; }
-        .dashboard-main { flex: 1; padding: 24px 32px; max-width: 900px; width: 100%; margin: 0 auto; }
+        .dashboard-main { flex: 1; padding: 24px 32px; max-width: 800px; width: 100%; margin: 0 auto; }
         .page-header { margin-bottom: 24px; }
         .page-title { font-size: 28px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
         .page-subtitle { color: #6b7280; font-size: 14px; }
         .section { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 24px; }
-        .section-title { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 20px; }
-        .profile-header { display: flex; align-items: center; gap: 20px; margin-bottom: 24px; }
-        .profile-avatar { width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #005daa, #0571ca); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 28px; }
-        .profile-info h2 { font-size: 24px; color: #1a1a2e; margin-bottom: 4px; }
-        .profile-info p { color: #6b7280; font-size: 14px; }
-        .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .section-title { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .section-title i { color: #005daa; }
         .form-group { margin-bottom: 16px; }
-        .form-group.full-width { grid-column: span 2; }
         .form-label { display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px; }
         .form-input { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; transition: border-color 0.2s; }
         .form-input:focus { outline: none; border-color: #005daa; box-shadow: 0 0 0 3px rgba(0,93,170,0.1); }
-        .form-select { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; background: white; }
         .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
         .btn-primary { background: #005daa; color: white; }
         .btn-primary:hover { background: #004080; }
-        .btn-secondary { background: #f3f4f6; color: #374151; }
-        .btn-secondary:hover { background: #e5e7eb; }
-        .btn-container { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #c82333; }
+        .checkbox-group { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+        .checkbox-input { width: 18px; height: 18px; cursor: pointer; }
+        .checkbox-label { font-size: 14px; color: #374151; cursor: pointer; }
         .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
         .alert-success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
         .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
-        .info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f3f4f6; }
-        .info-row:last-child { border-bottom: none; }
-        .info-label { color: #6b7280; font-size: 14px; }
-        .info-value { color: #1a1a2e; font-size: 14px; font-weight: 500; }
+        .danger-zone { border: 1px solid #fecaca; background: #fef2f2; }
+        .danger-zone .section-title { color: #991b1b; }
+        .account-info { background: #f9fafb; padding: 16px; border-radius: 8px; margin-bottom: 20px; }
+        .account-info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+        .account-info-row:last-child { border-bottom: none; }
+        .account-info-label { color: #6b7280; font-size: 14px; }
+        .account-info-value { color: #1a1a2e; font-size: 14px; font-weight: 500; }
         @media (max-width: 768px) {
             .sidebar { width: 60px; padding: 24px 0; }
             .sidebar-brand span, .menu-item span { display: none; }
@@ -172,16 +199,13 @@ $pageTitle = 'My Profile';
             .dashboard-header { padding: 12px 16px; }
             .user-details { display: none; }
             .dashboard-main { padding: 16px; }
-            .form-grid { grid-template-columns: 1fr; }
-            .form-group.full-width { grid-column: span 1; }
-            .profile-header { flex-direction: column; text-align: center; }
         }
     </style>
 </head>
 <body>
     <aside class="sidebar">
-        <a href="../index.php" class="sidebar-brand">
-            <img src="../assets/images/Logo.png" alt="RF Dental Clinic">
+        <a href="../../index.php" class="sidebar-brand">
+            <img src="../../assets/images/Logo.png" alt="RF Dental Clinic">
             <span>RF Dental</span>
         </a>
         <nav class="sidebar-menu">
@@ -197,7 +221,7 @@ $pageTitle = 'My Profile';
                 <i class="fas fa-file-medical"></i>
                 <span>Medical records</span>
             </a>
-            <a href="profile.php" class="menu-item active">
+            <a href="profile.php" class="menu-item">
                 <i class="fas fa-user"></i>
                 <span>My profile</span>
             </a>
@@ -209,7 +233,7 @@ $pageTitle = 'My Profile';
                 <i class="fas fa-envelope"></i>
                 <span>Messages</span>
             </a>
-            <a href="settings.php" class="menu-item">
+            <a href="settings.php" class="menu-item active">
                 <i class="fas fa-cog"></i>
                 <span>Account settings</span>
             </a>
@@ -219,8 +243,8 @@ $pageTitle = 'My Profile';
     <div class="main-wrapper">
         <header class="dashboard-header">
             <div class="header-left">
-                <h1 style="font-size: 20px; font-weight: 700; color: #1a1a2e; margin: 0;">My Profile</h1>
-                <p style="font-size: 13px; color: #6b7280; margin: 4px 0 0 0;">Manage your personal information</p>
+                <h1 style="font-size: 20px; font-weight: 700; color: #1a1a2e; margin: 0;">Account Settings</h1>
+                <p style="font-size: 13px; color: #6b7280; margin: 4px 0 0 0;">Manage your account preferences and security</p>
             </div>
             <div class="header-right">
                 <div class="notification-bell">
@@ -250,7 +274,7 @@ $pageTitle = 'My Profile';
                             <i class="fas fa-user"></i>
                             <span>Profile</span>
                         </a>
-                        <a href="../logout.php" class="dropdown-item logout">
+                        <a href="../../logout.php" class="dropdown-item logout">
                             <i class="fas fa-sign-out-alt"></i>
                             <span>Logout</span>
                         </a>
@@ -265,73 +289,75 @@ $pageTitle = 'My Profile';
             <?php endif; ?>
 
             <div class="section">
-                <div class="profile-header">
-                    <div class="profile-avatar">
-                        <?php 
-                            $initials = strtoupper(substr($patient['first_name'] ?? 'P', 0, 1) . substr($patient['middle_name'] ?? '', 0, 1) . substr($patient['last_name'] ?? '', 0, 1));
-                            echo $initials;
-                        ?>
+                <h2 class="section-title"><i class="fas fa-user-circle"></i> Account Information</h2>
+                <div class="account-info">
+                    <div class="account-info-row">
+                        <span class="account-info-label">User ID</span>
+                        <span class="account-info-value"><?php echo htmlspecialchars($user['id'] ?? 'N/A'); ?></span>
                     </div>
-                    <div class="profile-info">
-                        <h2><?php echo htmlspecialchars(trim(($patient['first_name'] ?? '') . ' ' . ($patient['middle_name'] ?? '') . ' ' . ($patient['last_name'] ?? ''))); ?></h2>
-                        <p>Patient since <?php echo date('F Y', strtotime($patient['created_at'] ?? 'now')); ?></p>
+                    <div class="account-info-row">
+                        <span class="account-info-label">Email</span>
+                        <span class="account-info-value"><?php echo htmlspecialchars($user['email'] ?? 'N/A'); ?></span>
+                    </div>
+                    <div class="account-info-row">
+                        <span class="account-info-label">Role</span>
+                        <span class="account-info-value"><?php echo htmlspecialchars(ucfirst($user['role'] ?? 'Patient')); ?></span>
+                    </div>
+                    <div class="account-info-row">
+                        <span class="account-info-label">Member Since</span>
+                        <span class="account-info-value"><?php echo date('F j, Y', strtotime($user['created_at'] ?? 'now')); ?></span>
                     </div>
                 </div>
+            </div>
 
+            <div class="section">
+                <h2 class="section-title"><i class="fas fa-lock"></i> Change Password</h2>
                 <form method="POST" action="">
-                    <input type="hidden" name="action" value="update_profile">
-                    
-                    <div class="section-title">Personal Information</div>
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label class="form-label">First Name</label>
-                            <input type="text" name="first_name" class="form-input" value="<?php echo htmlspecialchars($patient['first_name'] ?? ''); ?>" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Middle Name</label>
-                            <input type="text" name="middle_name" class="form-input" value="<?php echo htmlspecialchars($patient['middle_name'] ?? ''); ?>">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Last Name</label>
-                            <input type="text" name="last_name" class="form-input" value="<?php echo htmlspecialchars($patient['last_name'] ?? ''); ?>" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Date of Birth</label>
-                            <input type="date" name="date_of_birth" class="form-input" value="<?php echo htmlspecialchars($patient['date_of_birth'] ?? ''); ?>">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Gender</label>
-                            <select name="gender" class="form-select">
-                                <option value="">Select Gender</option>
-                                <option value="male" <?php echo ($patient['gender'] ?? '') === 'male' ? 'selected' : ''; ?>>Male</option>
-                                <option value="female" <?php echo ($patient['gender'] ?? '') === 'female' ? 'selected' : ''; ?>>Female</option>
-                                <option value="other" <?php echo ($patient['gender'] ?? '') === 'other' ? 'selected' : ''; ?>>Other</option>
-                            </select>
-                        </div>
+                    <input type="hidden" name="action" value="change_password">
+                    <div class="form-group">
+                        <label class="form-label">Current Password</label>
+                        <input type="password" name="current_password" class="form-input" required>
                     </div>
-
-                    <div class="section-title" style="margin-top: 24px;">Contact Information</div>
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label class="form-label">Email</label>
-                            <input type="email" name="email" class="form-input" value="<?php echo htmlspecialchars($patient['email'] ?? ''); ?>" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Phone</label>
-                            <input type="tel" name="phone" class="form-input" value="<?php echo htmlspecialchars($patient['phone'] ?? ''); ?>">
-                        </div>
-                        <div class="form-group full-width">
-                            <label class="form-label">Address</label>
-                            <input type="text" name="address" class="form-input" value="<?php echo htmlspecialchars($patient['address'] ?? ''); ?>">
-                        </div>
+                    <div class="form-group">
+                        <label class="form-label">New Password</label>
+                        <input type="password" name="new_password" class="form-input" minlength="8" required>
                     </div>
-
-                    <div class="btn-container">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> Save Changes
-                        </button>
+                    <div class="form-group">
+                        <label class="form-label">Confirm New Password</label>
+                        <input type="password" name="confirm_password" class="form-input" minlength="8" required>
                     </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-key"></i> Change Password
+                    </button>
                 </form>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title"><i class="fas fa-bell"></i> Notification Preferences</h2>
+                <form method="POST" action="">
+                    <input type="hidden" name="action" value="update_notifications">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="email_notifications" name="email_notifications" class="checkbox-input" <?php echo ($user['email_notifications'] ?? 1) ? 'checked' : ''; ?>>
+                        <label for="email_notifications" class="checkbox-label">Email Notifications</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="sms_notifications" name="sms_notifications" class="checkbox-input" <?php echo ($user['sms_notifications'] ?? 0) ? 'checked' : ''; ?>>
+                        <label for="sms_notifications" class="checkbox-label">SMS Notifications</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Preferences
+                    </button>
+                </form>
+            </div>
+
+            <div class="section danger-zone">
+                <h2 class="section-title"><i class="fas fa-exclamation-triangle"></i> Danger Zone</h2>
+                <p style="color: #6b7280; font-size: 14px; margin-bottom: 16px;">
+                    Once you delete your account, there is no going back. Please be certain.
+                </p>
+                <button type="button" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete your account? This action cannot be undone.')">
+                    <i class="fas fa-trash"></i> Delete Account
+                </button>
             </div>
         </main>
     </div>

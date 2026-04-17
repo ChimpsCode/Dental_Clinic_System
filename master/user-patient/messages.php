@@ -16,13 +16,13 @@ if (session_status() === PHP_SESSION_NONE) {
 
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
-    header('Location: ../login.php');
+    header('Location: ../../login.php');
     exit();
 }
 
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'user') {
     ob_end_clean();
-    header('Location: ../login.php');
+    header('Location: ../../login.php');
     exit();
 }
 
@@ -31,7 +31,7 @@ $patient_id = $_SESSION['patient_id'] ?? null;
 $message = '';
 $messageType = '';
 
-require_once '../config/database.php';
+require_once '../../config/database.php';
 
 try {
     $stmt = $pdo->prepare("
@@ -88,7 +88,7 @@ $pageTitle = 'Messages';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($pageTitle); ?> - RF Dental Clinic</title>
-    <link rel="icon" type="image/png" href="../assets/images/Logo.png">
+    <link rel="icon" type="image/png" href="../../assets/images/Logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -164,8 +164,8 @@ $pageTitle = 'Messages';
 </head>
 <body>
     <aside class="sidebar">
-        <a href="../index.php" class="sidebar-brand">
-            <img src="../assets/images/Logo.png" alt="RF Dental Clinic">
+        <a href="../../index.php" class="sidebar-brand">
+            <img src="../../assets/images/Logo.png" alt="RF Dental Clinic">
             <span>RF Dental</span>
         </a>
         <nav class="sidebar-menu">
@@ -234,7 +234,7 @@ $pageTitle = 'Messages';
                             <i class="fas fa-user"></i>
                             <span>Profile</span>
                         </a>
-                        <a href="../logout.php" class="dropdown-item logout">
+                        <a href="../../logout.php" class="dropdown-item logout">
                             <i class="fas fa-sign-out-alt"></i>
                             <span>Logout</span>
                         </a>

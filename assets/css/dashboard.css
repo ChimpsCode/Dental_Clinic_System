@@ -57,14 +57,14 @@ body {
 }
 
 
-/* Smooth scrolling */
+
 @media (prefers-reduced-motion: no-preference) {
     * {
         scroll-behavior: smooth;
     }
 }
 
-/* Touch-friendly adjustments */
+
 @media (hover: none) {
     .action-btn,
     .nav-item,

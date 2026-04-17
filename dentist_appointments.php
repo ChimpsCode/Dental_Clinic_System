@@ -74,16 +74,18 @@ try {
         <span data-filter="week">This Week</span>
         <span data-filter="month">This Month</span>
     </div>
-    <input type="text" class="search-input" placeholder="Search appointments...">
+    <input type="text" class="search-input" placeholder="Search appointments..." id="appointmentSearch">
+
+   
+    
+    <div style="display: flex; gap: 10px;">
+        <button class="btn-primary" onclick="openNewAppointmentModal()">+ New Appointment</button>
+    </div>
+</div>
 </div>
 
 <!-- Appointments Table -->
-<div class="section-card">
-    <div class="section-title">
-        <span>Appointments List</span>
-        <button class="btn-primary" onclick="openNewAppointmentModal()">+ New Appointment</button>
-    </div>
-    
+<div class="table-container">
     <table class="data-table">
         <thead>
             <tr>
@@ -354,14 +356,14 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Search input handler
-    const searchInput = document.querySelector('.search-input');
+    const searchInput = document.getElementById('appointmentSearch');
     if (searchInput) {
         searchInput.addEventListener('input', filterAppointments);
     }
 });
 
 function filterAppointments() {
-    const search = document.querySelector('.search-input')?.value?.toLowerCase() || '';
+    const search = document.getElementById('appointmentSearch')?.value?.toLowerCase() || '';
     const activeFilter = document.querySelector('.filter-tabs span.active')?.dataset.filter || 'all';
     const today = new Date().toISOString().split('T')[0];
     const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -547,6 +549,30 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
+/* Filter Tabs Styles */
+.filter-tabs {
+    display: flex;
+    gap: 8px;
+}
+
+.filter-tabs span {
+    padding: 8px 16px;
+    background: #f3f4f6;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+.filter-tabs span:hover {
+    background: #e5e7eb;
+}
+
+.filter-tabs span.active {
+    background: #3f75ea;
+    color: white;
+}
+
 /* Modal Styles */
 .modal-overlay {
     display: none;
@@ -730,15 +756,10 @@ document.addEventListener('DOMContentLoaded', function() {
 .appt-kebab-backdrop.show {
     display: block;
 }
-.search-filters{
-    margin-bottom: 25px;
-}
+
 
 .summary-cards {
     margin-bottom: 0px;
-}
-.search-input{
-    width: 700px;
 }
 
 </style>

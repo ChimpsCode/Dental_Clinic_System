@@ -583,7 +583,7 @@ function deletePatient(patientId) {
     
     const fullName = `${patient.first_name || ''} ${patient.middle_name || ''} ${patient.last_name || ''} ${patient.suffix || ''}`.trim();
     if (confirm(`Are you sure you want to archive this patient?\n\nPatient: ${fullName || 'Unknown'}\nPhone: ${patient.phone || 'N/A'}\n\nYou can restore archived patients from the Archive page.`)) {
-        fetch('../../patient_actions.php', {
+        fetch('../../master/user-patient/patient_actions.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: 'action=archive&patient_id=' + patientId
@@ -639,7 +639,7 @@ document.getElementById('addAppointmentForm').addEventListener('submit', functio
     e.preventDefault();
     const formData = new FormData(this);
     
-    fetch('../../process_patient_appointment.php', {
+    fetch('../../master/user-patient/process_patient_appointment.php', {
         method: 'POST',
         body: formData
     })

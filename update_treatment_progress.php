@@ -1,7 +1,4 @@
 <?php
-/**
- * Update Treatment Plan Progress
- */
 
 ob_start();
 session_start();

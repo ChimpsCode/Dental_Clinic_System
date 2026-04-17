@@ -197,7 +197,7 @@ require_once 'includes/dentist_layout_start.php';
                             data-status="<?php echo htmlspecialchars($plan['status']); ?>">
                             <td>
                                 <div class="patient-name" style="font-weight: 500;">
-                                    <a href="patient_details.php?id=<?php echo $plan['patient_id']; ?>" style="text-decoration: none; color: inherit;">
+                                    <a href="master/user-patient/patient_details.php?id=<?php echo $plan['patient_id']; ?>" style="text-decoration: none; color: inherit;">
                                         <?php echo htmlspecialchars($plan['full_name'] ?? 'Unknown'); ?>
                                     </a>
                                 </div>
