@@ -8,7 +8,7 @@
         </div>
     </main>
 
-    <script src="assets/js/dashboard.js"></script>
+    <script src="../../assets/js/dashboard.js"></script>
     <script>
         // Notification dropdown toggle
         (function() {
@@ -184,6 +184,32 @@
                 location.reload();
             });
         }
+    </script>
+    <script>
+        // User Profile Dropdown toggle function
+        function toggleUserDropdown(event) {
+            event.stopPropagation();
+            var userProfile = document.getElementById('userProfileDropdown');
+            if (userProfile) {
+                userProfile.classList.toggle('active');
+            }
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            var userProfile = document.getElementById('userProfileDropdown');
+            if (userProfile && !userProfile.contains(e.target)) {
+                userProfile.classList.remove('active');
+            }
+        });
+        
+        // Close dropdown on escape key
+        document.addEventListener('keydown', function(e) {
+            var userProfile = document.getElementById('userProfileDropdown');
+            if (e.key === 'Escape' && userProfile && userProfile.classList.contains('active')) {
+                userProfile.classList.remove('active');
+            }
+        });
     </script>
 </body>
 </html>

@@ -1,10 +1,10 @@
 <?php
 $pageTitle = 'Patient Records';
-require_once 'config/database.php';
-require_once 'includes/dentist_layout_start.php';
+require_once '../../config/database.php';
+require_once '../../includes/dentist_layout_start.php';
 
 try {
-    require_once 'config/database.php';
+    require_once '../../config/database.php';
     
     // Get all patients with their latest queue status
     $stmt = $pdo->query("
@@ -710,7 +710,7 @@ function openPatientPrescriptionModal(patientId) {
     document.body.appendChild(modal);
     
     // Load patient safety info
-    fetch('prescription_actions.php', {
+    fetch('master/dentist/prescription_actions.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'get_patient_info', patient_id: patientId })
@@ -746,7 +746,7 @@ function savePatientPrescription() {
         return;
     }
     
-    fetch('prescription_actions.php', {
+    fetch('master/dentist/prescription_actions.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'create_prescription', ...data })
@@ -1068,7 +1068,7 @@ function openBillingModal(patientId) {
     }
     
     // Get the latest queue for this patient
-    fetch('dentist_billing_actions.php?action=get_billing&patient_id=' + patientId)
+    fetch('master/dentist/dentist_billing_actions.php?action=get_billing&patient_id=' + patientId)
     .then(response => response.json())
     .then(data => {
         if (data.success) {
@@ -1172,7 +1172,7 @@ function saveNewAmount() {
         return;
     }
     
-    fetch('dentist_billing_actions.php', {
+    fetch('master/dentist/dentist_billing_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1214,7 +1214,7 @@ document.addEventListener('keydown', function(e) {
 
 // Auto-refresh when a new patient is added
 setInterval(() => {
-    fetch('dentist_patients_poll.php')
+    fetch('master/dentist/dentist_patients_poll.php')
         .then(response => response.json())
         .then(data => {
             if (data && data.success) {
@@ -1918,7 +1918,7 @@ setInterval(() => {
 
 </style>
 
-<?php require_once 'includes/dentist_layout_end.php'; ?>
+<?php require_once '../../includes/dentist_layout_end.php'; ?>
 
 
 

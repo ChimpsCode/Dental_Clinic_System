@@ -19,7 +19,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'dentist') {
 header('Content-Type: application/json');
 
 try {
-    require_once 'config/database.php';
+    require_once '../../config/database.php';
     $stmt = $pdo->query("SELECT id, created_at FROM patients ORDER BY created_at DESC LIMIT 1");
     $latest = $stmt->fetch(PDO::FETCH_ASSOC);
 

@@ -1,7 +1,7 @@
 <?php
 $pageTitle = 'Queue Management';
-require_once 'config/database.php';
-require_once 'includes/dentist_layout_start.php';
+require_once '../../config/database.php';
+require_once '../../includes/dentist_layout_start.php';
 
 // Pagination settings
 $itemsPerPage = 5;
@@ -1494,7 +1494,7 @@ function openQuickPrescriptionModal(patientId, queueId) {
     document.body.appendChild(modal);
     
     // Load patient safety info
-    fetch('prescription_actions.php', {
+    fetch('master/dentist/prescription_actions.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'get_patient_info', patient_id: patientId })
@@ -1530,7 +1530,7 @@ function saveQuickPrescription() {
         return;
     }
     
-    fetch('prescription_actions.php', {
+    fetch('master/dentist/prescription_actions.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'create_prescription', ...data })
@@ -1548,7 +1548,7 @@ function saveQuickPrescription() {
 
 // Update Queue Status
 function updateQueueStatus(queueId, status) {
-    fetch('queue_actions.php', {
+    fetch('../../queue_actions.php'), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -1573,7 +1573,7 @@ function updateQueueStatus(queueId, status) {
 function removeFromQueue(queueId) {
     if (!confirm('Remove this patient from the queue?')) return;
     
-    fetch('queue_actions.php', {
+    fetch('../../queue_actions.php'), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -1651,4 +1651,4 @@ if (statusFilter) {
 }
 </script>
 
-<?php require_once 'includes/dentist_layout_end.php'; ?>
+<?php require_once '../../includes/dentist_layout_end.php'; ?>

@@ -134,17 +134,28 @@ function isActivePage($page) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($pageTitle); ?> - RF Dental Clinic Dentist</title>
-    <link rel="icon" type="image/png" href="assets/images/Logo.png">
+    <link rel="icon" type="image/png" href="../../assets/images/Logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/dentist_dashboard.css">
+    <link rel="stylesheet" href="../../assets/css/dentist_dashboard.css">
     <style>
         .header-right {
             display: flex;
             align-items: center;
             gap: 16px;
+            position: relative;
+            z-index: 10;
         }
         .header-notifications {
             position: relative;
+            z-index: 10;
+        }
+        .user-profile {
+            position: relative;
+            z-index: 100;
+            cursor: pointer;
+        }
+        .user-profile-dropdown {
+            z-index: 101 !important;
         }
         .notification-bell {
             background: none;
@@ -256,7 +267,7 @@ function isActivePage($page) {
 <body data-user-id="<?php echo (int)($_SESSION['user_id'] ?? 0); ?>">
     <aside class="sidebar" id="dentistSidebar">
         <div class="sidebar-logo">
-            <img src="assets/images/Logo.png" alt="RF Logo">
+            <img src="../../assets/images/Logo.png" alt="RF Logo">
             <span>RF Dental Clinic</span>
         </div>
         
@@ -429,21 +440,21 @@ function isActivePage($page) {
                     <div class="header-user-name"><?php echo htmlspecialchars($displayHeaderName); ?></div>
                     <div class="header-user-role"><?php echo htmlspecialchars('Dentist'); ?></div>
                 </div>
-                <div class="user-profile" id="userProfileDropdown">
+                <div class="user-profile" id="userProfileDropdown" onclick="var menu=document.getElementById('userProfileDropdownMenu');menu.style.display=menu.style.display==='none'?'':'none';">
                     <div class="user-profile-info">
                         <div class="user-avatar">
-                            <img src="assets/images/profile.png" alt="Profile" />
+                            <img src="../../assets/images/profile.png" alt="Profile" />
                         </div>
                     </div>
-                    <div class="user-profile-dropdown">
+                    <div class="user-profile-dropdown" id="userProfileDropdownMenu" style="display:none;">
                         <div class="dropdown-divider"></div>
-                        <a href="dentist_settings.php" class="dropdown-item settings">
+                        <a href="../../settings.php" class="dropdown-item settings">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.64l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.49-.41h-3.84c-.25 0-.45.17-.49.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.09-.47 0-.59.22L2.74 8.87c-.12.22-.07.5.12.64l2.03 1.58c-.05.3-.07.62-.07.94 0 .33.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.64l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.49.41h3.84c.25 0 .45-.17.49-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.09.47 0 .59-.22l1.92-3.32c.12-.22.07-.5-.12-.64l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
                             </svg>
                             <span>Settings</span>
                         </a>
-                        <a href="logout.php" class="dropdown-item logout">
+                        <a href="../../logout.php" class="dropdown-item logout">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                                 <polyline points="16 17 21 12 16 7"></polyline>

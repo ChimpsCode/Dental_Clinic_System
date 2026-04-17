@@ -85,7 +85,12 @@ try {
 </div>
 
 <!-- Appointments Table -->
-<div class="table-container">
+<div class="section-card">
+    <div class="section-title">
+        <span>Appointments List</span>
+        <button class="btn-primary" onclick="openNewAppointmentModal()">+ New Appointment</button>
+    </div>
+    
     <table class="data-table">
         <thead>
             <tr>
@@ -756,7 +761,9 @@ document.addEventListener('DOMContentLoaded', function() {
 .appt-kebab-backdrop.show {
     display: block;
 }
-
+.search-filters{
+    margin-bottom: 25px;
+}
 
 .summary-cards {
     margin-bottom: 0px;

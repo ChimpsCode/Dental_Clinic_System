@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 try {
-    require_once 'config/database.php';
+    require_once '../../config/database.php';
     
     if ($action === 'edit') {
         // EDIT EXISTING APPOINTMENT

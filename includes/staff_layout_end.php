@@ -35,7 +35,7 @@
             }
         })();
     </script>
-    <script src="assets/js/dashboard.js"></script>
+    <script src="../../assets/js/dashboard.js"></script>
     <script>
         
         function markNotificationRead(notificationId, actionUrl, event) {

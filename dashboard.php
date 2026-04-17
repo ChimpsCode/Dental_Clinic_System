@@ -15,7 +15,7 @@ if ($role === 'admin') {
 } elseif ($role === 'staff') {
     header('Location: master/staff/staff-dashboard.php');
 } elseif ($role === 'dentist') {
-    header('Location: dentist_dashboard.php');
+    header('Location: master/dentist/dentist_dashboard.php');
 } else {
     header('Location: master/admin/admin_dashboard.php');
 }

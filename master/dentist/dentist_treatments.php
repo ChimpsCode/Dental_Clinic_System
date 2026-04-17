@@ -2,7 +2,7 @@
 $pageTitle = 'Treatment Plan';
 
 try {
-    require_once 'config/database.php';
+    require_once '../../config/database.php';
     
     // Get treatment plans with patient info
     $stmt = $pdo->query("
@@ -108,7 +108,7 @@ $activePlans = count(array_filter($treatmentPlans, fn($tp) => $tp['status'] === 
 $inProgress = count(array_filter($treatmentPlans, fn($tp) => $tp['status'] === 'in_progress'));
 $completedPlans = count(array_filter($treatmentPlans, fn($tp) => $tp['status'] === 'completed'));
 
-require_once 'includes/dentist_layout_start.php';
+require_once '../../includes/dentist_layout_start.php';
 ?>
 
 <!-- Summary Stats -->
@@ -759,4 +759,4 @@ require_once 'includes/dentist_layout_start.php';
 }
 </style>
 
-<?php require_once 'includes/dentist_layout_end.php'; ?>
+<?php require_once '../../includes/dentist_layout_end.php'; ?>

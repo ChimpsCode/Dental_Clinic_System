@@ -1,10 +1,10 @@
 <?php
 $pageTitle = 'Dentist Dashboard';
-require_once 'config/database.php';
-require_once 'includes/dentist_layout_start.php';
+require_once '../../config/database.php';
+require_once '../../includes/dentist_layout_start.php';
 
 try {
-    require_once 'config/database.php';
+    require_once '../../config/database.php';
     
     // Get queue statistics
     $stmt = $pdo->query("SELECT status, COUNT(*) as count FROM queue GROUP BY status");
@@ -479,7 +479,7 @@ try {
 <script>
 // Queue actions
 function startProcedure(queueId) {
-    fetch('queue_actions.php', {
+    fetch('../../queue_actions.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'action=start_procedure&queue_id=' + queueId
@@ -495,7 +495,7 @@ function startProcedure(queueId) {
 }
 
 function completeProcedure(queueId) {
-    fetch('queue_actions.php', {
+    fetch('../../queue_actions.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'action=complete&queue_id=' + queueId
@@ -590,7 +590,7 @@ function openPatientPrescriptionModal(patientId) {
     document.body.appendChild(modal);
     
     // Load patient safety info
-    fetch('prescription_actions.php', {
+    fetch('master/dentist/prescription_actions.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'get_patient_info', patient_id: patientId })
@@ -626,7 +626,7 @@ function saveDashPrescription() {
         return;
     }
     
-    fetch('prescription_actions.php', {
+    fetch('master/dentist/prescription_actions.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'create_prescription', ...data })
@@ -1402,7 +1402,7 @@ function loadBillingInfo(patientId) {
     // Add timeout to handle slow responses
     const timeoutMs = 15000; // 15 seconds
     
-    const fetchPromise = fetch('dentist_billing_actions.php?action=get_billing&patient_id=' + patientId);
+    const fetchPromise = fetch('master/dentist/dentist_billing_actions.php?action=get_billing&patient_id=' + patientId);
     const timeoutPromise = new Promise(function(_, reject) {
         setTimeout(function() {
             reject(new Error('Request timeout'));
@@ -1548,7 +1548,7 @@ function updateBillingDisplay(billing) {
 function openBillingFromDetails(patientId) {
     billingPatientId = patientId;
     
-    fetch('dentist_billing_actions.php?action=get_billing&patient_id=' + patientId)
+    fetch('master/dentist/dentist_billing_actions.php?action=get_billing&patient_id=' + patientId)
     .then(response => response.json())
     .then(data => {
         if (data.success && data.billing) {
@@ -1661,7 +1661,7 @@ function saveBillingEdit() {
         return;
     }
     
-    fetch('dentist_billing_actions.php', {
+    fetch('master/dentist/dentist_billing_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1690,4 +1690,4 @@ function saveBillingEdit() {
 }
 </script>
 
-<?php require_once 'includes/dentist_layout_end.php'; ?>
+<?php require_once '../../includes/dentist_layout_end.php'; ?>

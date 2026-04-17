@@ -1,10 +1,10 @@
 <?php
 $pageTitle = 'Prescriptions';
-require_once 'config/database.php';
-require_once 'includes/dentist_layout_start.php';
+require_once '../../config/database.php';
+require_once '../../includes/dentist_layout_start.php';
 
 try {
-    require_once 'config/database.php';
+    require_once '../../config/database.php';
     
     // Get recent prescriptions for display
     $stmt = $pdo->query("
@@ -544,7 +544,7 @@ try {
 let currentPrescriptionId = null;
 
 function loadPatients() {
-    fetch('prescription_actions.php', {
+    fetch('master/dentist/prescription_actions.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'get_patients' })
@@ -591,7 +591,7 @@ function openPatientPrescriptionModal(patientId) {
 }
 
 function loadPatientSafetyInfo(patientId) {
-    fetch('prescription_actions.php', {
+    fetch('master/dentist/prescription_actions.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'get_patient_info', patient_id: patientId })
@@ -629,7 +629,7 @@ document.getElementById('patientSelect').addEventListener('change', function() {
 });
 
 function viewPrescription(prescriptionId) {
-    fetch('prescription_actions.php', {
+    fetch('master/dentist/prescription_actions.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'get_prescription', prescription_id: prescriptionId })
@@ -671,7 +671,7 @@ function savePrescription() {
     
     const action = currentPrescriptionId ? 'update_prescription' : 'create_prescription';
     
-    fetch('prescription_actions.php', {
+    fetch('master/dentist/prescription_actions.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, ...data })
@@ -693,7 +693,7 @@ function deletePrescription(prescriptionId) {
         return;
     }
     
-    fetch('prescription_actions.php', {
+    fetch('master/dentist/prescription_actions.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'delete_prescription', prescription_id: prescriptionId })
@@ -738,7 +738,7 @@ function printPrescription(idOverride = null) {
         alert('Save the prescription first to print.');
         return;
     }
-    fetch('prescription_actions.php', {
+    fetch('master/dentist/prescription_actions.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'get_prescription', prescription_id: presId })
@@ -821,4 +821,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<?php require_once 'includes/dentist_layout_end.php'; ?>
+<?php require_once '../../includes/dentist_layout_end.php'; ?>
