@@ -1,7 +1,7 @@
 <?php
 $pageTitle = 'Dashboard';
-require_once 'config/database.php';
-require_once 'includes/staff_layout_start.php';
+require_once '../../config/database.php';
+require_once '../../includes/staff_layout_start.php';
 
 try {
     // Get queue data - same query as queue management
@@ -515,4 +515,4 @@ function getStaffTeethDisplayText(teethString) {
 }
 
 </style>
-<?php require_once 'includes/staff_layout_end.php'; ?>
+<?php require_once '../../includes/staff_layout_end.php'; ?>

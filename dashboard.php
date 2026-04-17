@@ -13,7 +13,7 @@ if ($role === 'administrator') { $role = 'admin'; }
 if ($role === 'admin') {
     header('Location: master/admin/admin_dashboard.php');
 } elseif ($role === 'staff') {
-    header('Location: staff-dashboard.php');
+    header('Location: master/staff/staff-dashboard.php');
 } elseif ($role === 'dentist') {
     header('Location: dentist_dashboard.php');
 } else {

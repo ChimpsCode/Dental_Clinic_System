@@ -308,7 +308,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             if ($user['role'] === 'admin') {
                 $redirect = 'master/admin/admin_dashboard.php';
             } elseif ($user['role'] === 'staff') {
-                $redirect = 'staff-dashboard.php';
+                $redirect = 'master/staff/staff-dashboard.php';
             } elseif ($user['role'] === 'dentist') {
                 $redirect = 'dentist_dashboard.php';
             } elseif ($user['role'] === 'user') {
@@ -427,7 +427,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 if ($user['role'] === 'admin') {
                     header('Location: master/admin/admin_dashboard.php');
                 } elseif ($user['role'] === 'staff') {
-                    header('Location: staff-dashboard.php');
+                    header('Location: master/staff/staff-dashboard.php');
                 } elseif ($user['role'] === 'dentist') {
                     header('Location: dentist_dashboard.php');
                 } elseif ($user['role'] === 'user') {

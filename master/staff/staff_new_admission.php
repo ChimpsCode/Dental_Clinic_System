@@ -31,7 +31,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'staff') {
 
 // Fetch services from database for the services selection
 try {
-    require_once 'config/database.php';
+    require_once '../../config/database.php';
     $stmt = $pdo->query("
         SELECT id, name, mode, price, duration_minutes
         FROM services 
@@ -69,7 +69,7 @@ try {
  // Check for inquiry_id
 if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
     try {
-        require_once 'config/database.php';
+        require_once '../../config/database.php';
         $stmt = $pdo->prepare("SELECT * FROM inquiries WHERE id = ?");
         $stmt->execute([$_GET['inquiry_id']]);
         $inquiryData = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -81,7 +81,7 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
 // Check for appointment_id
 if (isset($_GET['appointment_id']) && is_numeric($_GET['appointment_id'])) {
     try {
-        require_once 'config/database.php';
+        require_once '../../config/database.php';
         $stmt = $pdo->prepare("SELECT * FROM appointments WHERE id = ?");
         $stmt->execute([$_GET['appointment_id']]);
         $appointmentData = $stmt->fetch(PDO::FETCH_ASSOC);

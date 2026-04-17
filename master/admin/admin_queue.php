@@ -793,7 +793,7 @@ div.main-content {
         <option value="completed">Completed</option>
         <option value="cancelled">Cancelled</option>
     </select>
-    <a href="staff_new_admission.php" class="btn-add-patient">
+    <a href="master/staff/staff_new_admission.php" class="btn-add-patient">
         <span>+</span> Add New Patient
     </a>
 </div>

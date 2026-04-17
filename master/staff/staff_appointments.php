@@ -7,7 +7,7 @@ $currentPage = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['p
 if ($currentPage < 1) $currentPage = 1;
 
 try {
-    require_once 'config/database.php';
+    require_once '../../config/database.php';
     
     // NOTE: Show all appointments (including archived) to avoid missing records
     $whereClause = "";
@@ -89,7 +89,7 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
     }
 }
 
-require_once 'includes/staff_layout_start.php';
+require_once '../../includes/staff_layout_start.php';
 ?>
 
 <!-- Appointment Stats -->
@@ -982,4 +982,4 @@ require_once 'includes/staff_layout_start.php';
     }
 </script>
 
-<?php require_once 'includes/staff_layout_end.php'; ?>
+<?php require_once '../../includes/staff_layout_end.php'; ?>

@@ -16,7 +16,7 @@ if (!isset($_SESSION['user_id'])) {
 // Redirect staff to their dashboard
 if (isset($_SESSION['role']) && $_SESSION['role'] === 'staff') {
     ob_end_clean();
-    header('Location: staff-dashboard.php');
+    header('Location: master/staff/staff-dashboard.php');
     exit();
 }
 

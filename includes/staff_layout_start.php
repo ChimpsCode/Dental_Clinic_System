@@ -113,7 +113,7 @@ $pageTitle = $pageTitle ?? 'Staff Dashboard';
 
 function isActivePage($page) {
     $currentPage = basename($_SERVER['PHP_SELF']);
-    return $currentPage === $page;
+    return strpos($page, $currentPage) !== false || $currentPage === basename($page);
 }
 ?>
 <!DOCTYPE html>
@@ -122,9 +122,9 @@ function isActivePage($page) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($pageTitle); ?> - RF Dental Clinic Staff</title>
-    <link rel="icon" type="image/png" href="assets/images/Logo.png">
+    <link rel="icon" type="image/png" href="../../assets/images/Logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/staff_dashboard.css">
+    <link rel="stylesheet" href="../../assets/css/staff_dashboard.css">
     <style>
         /* Smooth Page Transitions */
         .content-main {
@@ -441,7 +441,7 @@ function isActivePage($page) {
 
     <aside class="sidebar" id="staffSidebar">
         <div class="sidebar-logo">
-            <img src="assets/images/Logo.png" alt="RF Logo">
+            <img src="../../assets/images/Logo.png" alt="RF Logo">
             <span>RF Dental Clinic</span>
         </div>
         
@@ -619,7 +619,7 @@ function isActivePage($page) {
                 <div class="user-profile" id="userProfileDropdown">
                     <div class="user-profile-info">
                         <div class="user-avatar">
-                            <img src="assets/images/profile.png" alt="Profile" />
+                            <img src="../../assets/images/profile.png" alt="Profile" />
                         </div>
                     </div>
                     <div class="user-profile-dropdown">

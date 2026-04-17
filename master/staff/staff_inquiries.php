@@ -6,7 +6,7 @@ $itemsPerPage = 10;
 $currentPage = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 
 try {
-    require_once 'config/database.php';
+    require_once '../../config/database.php';
     
     // Check if is_archived column exists
     $checkCol = $pdo->query("SHOW COLUMNS FROM inquiries LIKE 'is_archived'");
@@ -61,7 +61,7 @@ try {
 $showingStart = $totalInquiries > 0 ? $offset + 1 : 0;
 $showingEnd = min($offset + $itemsPerPage, $totalInquiries);
 
-require_once 'includes/staff_layout_start.php';
+require_once '../../includes/staff_layout_start.php';
 ?>
 
 <style>
@@ -1079,7 +1079,7 @@ require_once 'includes/staff_layout_start.php';
             document.getElementById('viewModal').classList.add('active');
         }
     </script>
-<?php require_once 'includes/staff_layout_end.php'; ?>
+<?php require_once '../../includes/staff_layout_end.php'; ?>
 
 <!-- Full Page Modal Overlays (Outside layout to cover sidebar and header) -->
 <div id="viewModal" class="modal-overlay">

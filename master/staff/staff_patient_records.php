@@ -1,7 +1,7 @@
 <?php
 $pageTitle = 'Patient Records';
-require_once 'config/database.php';
-require_once 'includes/staff_layout_start.php';
+require_once '../../config/database.php';
+require_once '../../includes/staff_layout_start.php';
 
 // Pagination settings
 $itemsPerPage = 10;
@@ -9,7 +9,7 @@ $currentPage = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['p
 if ($currentPage < 1) $currentPage = 1;
 
 try {
-    require_once 'config/database.php';
+    require_once '../../config/database.php';
     
     // Check if is_archived column exists
     $checkColumn = $pdo->query("SHOW COLUMNS FROM patients LIKE 'is_archived'");
@@ -1202,4 +1202,4 @@ function getStaffPatientTeethDisplayText(teethString) {
     </div>
 </div>
 
-<?php require_once 'includes/staff_layout_end.php'; ?>
+<?php require_once '../../includes/staff_layout_end.php'; ?>

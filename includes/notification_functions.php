@@ -209,7 +209,7 @@ function notifyAppointmentReminder($pdo, $patientName, $appointmentDate, $appoin
         notifyAdmin($pdo, 'reminder', $title, $message, "admin_appointments.php");
     }
     if ($role === 'all' || $role === 'staff') {
-        notifyStaff($pdo, 'reminder', $title, $message, "staff_appointments.php");
+        notifyStaff($pdo, 'reminder', $title, $message, "master/staff/staff_appointments.php");
     }
     if ($role === 'all' || $role === 'dentist') {
         notifyDentist($pdo, 'reminder', $title, $message, "dentist_appointments.php");
@@ -229,7 +229,7 @@ function notifyQueueUpdate($pdo, $patientName, $status, $dentistName = null) {
     
     $title = "Queue Update";
     $message = "Patient $patientName is " . ($statusText[$status] ?? $status);
-    $actionUrl = "staff_queue.php";
+    $actionUrl = "master/staff/staff_queue.php";
     
     notifyStaff($pdo, 'queue', $title, $message, $actionUrl);
     
@@ -250,5 +250,5 @@ function notifyAppointmentCancelled($pdo, $patientName, $appointmentDate, $reaso
     $actionUrl = "admin_appointments.php";
     
     notifyAdmin($pdo, 'cancellation', $title, $message, $actionUrl);
-    notifyStaff($pdo, 'cancellation', $title, $message, "staff_appointments.php");
+    notifyStaff($pdo, 'cancellation', $title, $message, "master/staff/staff_appointments.php");
 }

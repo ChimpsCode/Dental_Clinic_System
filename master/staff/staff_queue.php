@@ -1,7 +1,7 @@
 <?php
 $pageTitle = 'Queue Management';
-require_once 'config/database.php';
-require_once 'includes/staff_layout_start.php';
+require_once '../../config/database.php';
+require_once '../../includes/staff_layout_start.php';
 
 // Pagination settings
 $itemsPerPage = 7;
@@ -1409,4 +1409,4 @@ document.addEventListener('keydown', function(e) {
 });
 </script>
 
-<?php require_once 'includes/staff_layout_end.php'; ?>
+<?php require_once '../../includes/staff_layout_end.php'; ?>
