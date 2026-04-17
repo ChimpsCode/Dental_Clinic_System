@@ -14,6 +14,7 @@ function initializeDatabase($pdo) {
             username VARCHAR(50) UNIQUE NOT NULL,
             password VARCHAR(255) NOT NULL,
             email VARCHAR(100),
+            phone VARCHAR(20),
             role VARCHAR(20) DEFAULT 'user',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -320,6 +321,12 @@ if (!isset($pdo)) {
             if ($stmt->rowCount() == 0) {
                 initializeDatabase($pdo);
             } else {
+                // Ensure users.phone exists for account registration flow
+                $stmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'phone'");
+                if ($stmt->rowCount() == 0) {
+                    $pdo->exec("ALTER TABLE users ADD COLUMN phone VARCHAR(20) NULL AFTER email");
+                }
+
                 // Check if all required tables exist, create missing ones
                 $requiredTables = ['users', 'patients', 'appointments', 'dental_history', 'medical_history', 'treatments', 'services', 'billing', 'payments', 'treatment_plans', 'inquiries', 'queue'];
                 $stmt = $pdo->query("SHOW TABLES");
