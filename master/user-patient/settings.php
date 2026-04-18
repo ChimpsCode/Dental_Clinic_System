@@ -233,7 +233,7 @@ $pageTitle = 'Account Settings';
                 <i class="fas fa-envelope"></i>
                 <span>Messages</span>
             </a>
-            <a href="settings.php" class="menu-item active">
+            <a href="../shared/settings.php" class="menu-item active">
                 <i class="fas fa-cog"></i>
                 <span>Account settings</span>
             </a>

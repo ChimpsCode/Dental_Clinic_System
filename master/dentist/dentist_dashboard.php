@@ -479,7 +479,7 @@ try {
 <script>
 // Queue actions
 function startProcedure(queueId) {
-    fetch('../../queue_actions.php'), {
+    fetch('../shared/queue_actions.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'action=start_procedure&queue_id=' + queueId
@@ -495,7 +495,7 @@ function startProcedure(queueId) {
 }
 
 function completeProcedure(queueId) {
-    fetch('../../queue_actions.php'), {
+    fetch('../shared/queue_actions.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'action=complete&queue_id=' + queueId

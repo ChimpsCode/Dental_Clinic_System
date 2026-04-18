@@ -8,7 +8,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/../../config/database.php';
 
 header('Content-Type: application/json');
 
@@ -29,7 +29,7 @@ if (!in_array($current_role, $allowed_roles)) {
         // Check for admin bypass in POST
         if (!empty($input['username']) && !empty($input['password'])) {
             // Try direct database login for admin
-            require_once __DIR__ . '/config/database.php';
+            require_once __DIR__ . '/../../config/database.php';
             $directUser = $input['username'];
             $directPass = $input['password'];
             
@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 }
 
 // Include audit helper
-require_once __DIR__ . '/includes/audit_helper.php';
+require_once __DIR__ . '/../../includes/audit_helper.php';
 
 // Ensure printed_at column exists for logging prints
 try {

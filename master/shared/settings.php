@@ -1,7 +1,7 @@
 <?php
 $pageTitle = 'Settings';
-require_once 'config/database.php';
-require_once 'includes/staff_layout_start.php';
+require_once '../../config/database.php';
+require_once '../../includes/staff_layout_start.php';
 
 // Handle form submission
 $success_message = '';
@@ -237,4 +237,4 @@ $settings = $_SESSION['queue_settings'] ?? [
     </form>
 </div>
 
-<?php require_once 'includes/staff_layout_end.php'; ?>
+<?php require_once '../../includes/staff_layout_end.php'; ?>

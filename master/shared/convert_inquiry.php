@@ -28,7 +28,7 @@ if (!$id) {
 }
 
 try {
-    require_once 'config/database.php';
+    require_once '../../config/database.php';
     
     // Get inquiry details
     $stmt = $pdo->prepare("SELECT * FROM inquiries WHERE id = ?");

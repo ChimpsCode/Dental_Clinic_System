@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
     try {
-    require_once 'config/database.php';
+    require_once '../../config/database.php';
     
     // Debug: Log received data (remove in production)
     error_log("Received POST data: " . print_r($_POST, true));

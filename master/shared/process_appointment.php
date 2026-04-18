@@ -19,7 +19,7 @@ if (!in_array($role, ['staff', 'dentist', 'admin'])) {
 
 header('Content-Type: application/json');
 
-require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/../../config/database.php';
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -92,7 +92,7 @@ try {
     
         // Send notifications for new appointment
         try {
-            require_once __DIR__ . '/includes/notification_functions.php';
+            require_once __DIR__ . '/../../includes/notification_functions.php';
             $patientName = trim($first_name . ' ' . ($middle_name ?? '') . ' ' . $last_name);
             $formattedDate = date('F j, Y', strtotime($appointment_date));
             notifyNewAppointment($pdo, $patientName, $formattedDate);

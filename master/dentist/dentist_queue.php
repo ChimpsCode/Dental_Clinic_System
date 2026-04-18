@@ -1292,7 +1292,7 @@ function getQueueMenuItems(queueId, status) {
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
             Treatment
         </a>
-        <a href="quick_session.php?queue_id=${queueId}" class="primary">
+        <a href="../shared/quick_session.php?queue_id=${queueId}" class="primary">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
             Session
         </a>
@@ -1548,7 +1548,7 @@ function saveQuickPrescription() {
 
 // Update Queue Status
 function updateQueueStatus(queueId, status) {
-    fetch('../../queue_actions.php'), {
+    fetch('../shared/queue_actions.php'), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -1573,7 +1573,7 @@ function updateQueueStatus(queueId, status) {
 function removeFromQueue(queueId) {
     if (!confirm('Remove this patient from the queue?')) return;
     
-    fetch('../../queue_actions.php'), {
+    fetch('../shared/queue_actions.php'), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',

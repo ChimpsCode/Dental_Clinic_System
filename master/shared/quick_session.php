@@ -25,7 +25,7 @@ $patientListPage = ($userRole === 'admin') ? 'admin_patients.php' : 'master/staf
 $queuePage = ($userRole === 'admin') ? 'admin_queue.php' : 'master/staff/staff_queue.php';
 
 try {
-    require_once 'config/database.php';
+    require_once '../../config/database.php';
     
     // Get all services for dropdown with mode
     $stmt = $pdo->query("SELECT id, name, price, duration_minutes, mode FROM services WHERE is_active = 1 ORDER BY name");

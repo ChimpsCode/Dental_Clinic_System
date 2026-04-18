@@ -21,7 +21,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     exit;
 }
 
-require_once 'config/database.php';
+require_once '../../config/database.php';
 
 $action = $_POST['action'] ?? '';
 $module = $_POST['module'] ?? '';

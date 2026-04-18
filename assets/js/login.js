@@ -85,12 +85,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function refreshCaptchaCode() {
         const fallback = document.getElementById('captchaFallback');
-        fetch('lib/captcha_refresh.php?force=1', { credentials: 'same-origin' })
+        fetch('lib/security/captcha_refresh.php?force=1', { credentials: 'same-origin' })
             .then(response => response.text())
             .then(code => {
                 // Refresh image using the SAME session code generated above.
                 if (captchaImage) {
-                    captchaImage.src = 'lib/captcha_image.php?t=' + Date.now();
+                    captchaImage.src = 'lib/security/captcha_image.php?t=' + Date.now();
                     captchaImage.style.display = 'inline-block';
                 }
 

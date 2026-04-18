@@ -184,7 +184,7 @@ $pageTitle = 'Billing';
                 <i class="fas fa-envelope"></i>
                 <span>Messages</span>
             </a>
-            <a href="settings.php" class="menu-item">
+            <a href="../shared/settings.php" class="menu-item">
                 <i class="fas fa-cog"></i>
                 <span>Account settings</span>
             </a>

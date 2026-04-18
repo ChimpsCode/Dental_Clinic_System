@@ -1,8 +1,4 @@
 <?php
-/**
- * Save Procedure Notes API
- * Allows dentist to save procedure notes for a queue item
- */
 
 ob_start();
 session_start();
@@ -15,10 +11,10 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $role = $_SESSION['role'] ?? '';
-if (!in_array($role, ['dentist', 'staff', 'admin'])) {
+if (!in_array($role, ['dentist', 'admin'])) {
     ob_end_clean();
     header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+    echo json_encode(['success' => false, 'message' => 'Unauthorized - Dentist access only']);
     exit();
 }
 
@@ -26,7 +22,7 @@ header('Content-Type: application/json');
 
 $data = json_decode(file_get_contents('php://input'), true);
 $queueId = $data['queue_id'] ?? null;
-$notes = $data['procedure_notes'] ?? '';
+$teethNumbers = $data['teeth_numbers'] ?? '';
 
 if (!$queueId) {
     echo json_encode(['success' => false, 'message' => 'Queue ID is required']);
@@ -34,34 +30,34 @@ if (!$queueId) {
 }
 
 try {
-    require_once 'config/database.php';
+    require_once '../../config/database.php';
     
-    // Verify queue item exists
+    // Verify queue item exists and belongs to a valid patient
     $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.last_name 
                           FROM queue q 
                           JOIN patients p ON q.patient_id = p.id 
-                          WHERE q.id = ?");
+                          WHERE q.id = ? AND q.status IN ('waiting', 'in_procedure')");
     $stmt->execute([$queueId]);
     $queueItem = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$queueItem) {
-        echo json_encode(['success' => false, 'message' => 'Queue item not found']);
+        echo json_encode(['success' => false, 'message' => 'Queue item not found or not active']);
         exit();
     }
     
-    // Update procedure notes
-    $stmt = $pdo->prepare("UPDATE queue SET procedure_notes = ?, updated_at = NOW() WHERE id = ?");
-    $stmt->execute([$notes, $queueId]);
+    // Update teeth numbers
+    $stmt = $pdo->prepare("UPDATE queue SET teeth_numbers = ?, updated_at = NOW() WHERE id = ?");
+    $stmt->execute([$teethNumbers, $queueId]);
     
     echo json_encode([
         'success' => true,
-        'message' => 'Notes saved successfully',
+        'message' => 'Teeth updated successfully',
         'patient_name' => $queueItem['first_name'] . ' ' . $queueItem['last_name'],
-        'procedure_notes' => $notes
+        'teeth_numbers' => $teethNumbers
     ]);
     
 } catch (Exception $e) {
-    error_log("Save Notes Error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => 'Error saving notes: ' . $e->getMessage()]);
+    error_log("Update Teeth Error: " . $e->getMessage());
+    echo json_encode(['success' => false, 'message' => 'Error updating teeth: ' . $e->getMessage()]);
 }
 ?>

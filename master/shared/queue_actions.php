@@ -39,8 +39,8 @@ if (!$queueId && !$patientId) {
 }
 
 try {
-    require_once 'config/database.php';
-    require_once 'includes/audit_helper.php';
+    require_once '../../config/database.php';
+    require_once '../../includes/audit_helper.php';
     
     // Helper function to build full name
     function buildFullName($item) {
