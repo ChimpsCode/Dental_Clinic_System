@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'config/database.php';
+require_once '../../config/database.php';
 
 $error = '';
 $success = '';
@@ -182,7 +182,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <div class="container">
         <div class="centered">
             <div class="login-box">
-                <img src="assets/images/Logo.png" class="logo" alt="RF Logo">
+                <img src="../../assets/images/Logo.png" class="logo" alt="RF Logo">
                 <h2>Reset Password</h2>
 
                 <p class="description-text">Enter your new password below.</p>

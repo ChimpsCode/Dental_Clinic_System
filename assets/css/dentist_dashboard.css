@@ -1446,8 +1446,12 @@ header.top-header {
 }
 
 .data-table tbody tr:hover {
+    background-color: white;
+}
+.table-container{
     background-color: #f9fafb;
 }
+
 
 /* Card hover effects */
 .section-card, .summary-card {

@@ -1,11 +1,11 @@
 <?php
 session_start();
 
-require_once 'lib/security/captcha_lib.php';
+require_once '../../lib/security/captcha_lib.php';
 
-if (!isset($_SESSION['captcha_code']) || !isset($_SESSION['captcha_time']) || (time() - $_SESSION['captcha_time'] > 120)) {
-    $_SESSION['captcha_code'] = strval(rand(100000, 999999));
-    $_SESSION['captcha_time'] = time();
+// Only generate captcha if not set or expired - but don't auto-regenerate on page load to prevent mismatch
+if (isCaptchaExpired()) {
+    generateCaptcha();
 }
 
 $error = '';
@@ -77,7 +77,7 @@ if (
     header('Content-Type: application/json; charset=utf-8');
 
     try {
-        require_once 'config/database.php';
+        require_once '../../config/database.php';
         if (!isset($pdo)) {
             throw new Exception('Database connection not available');
         }
@@ -106,7 +106,7 @@ if (
             $_SESSION['reset_code_sent_at'] = time();
             unset($_SESSION['reset_code_verified']);
 
-            require_once 'config/mailer_config.php';
+            require_once '../../config/mailer_config.php';
             $subject = 'RF Dental Clinic - Password Reset Code';
             $plain = "Hi " . ($user['username'] ?? 'User') . ", your verification code is: " . $resetCode;
             $html = '<p>Hi ' . htmlspecialchars($user['username'] ?? 'User') . ',</p>'
@@ -224,25 +224,30 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
         exit();
     }
     
-    if (empty($captcha)) {
-        echo json_encode(['success' => false, 'message' => 'Please enter the captcha code']);
-        exit();
-    }
+    // Skip captcha check if skip_captcha flag is set (used by welcome-back flow where patient identity is already verified)
+    $skipCaptcha = isset($_POST['skip_captcha']) && $_POST['skip_captcha'] === '1';
     
-    if (!validateCaptcha($captcha)) {
-        refreshCaptcha();
-        echo json_encode(['success' => false, 'message' => 'Invalid or expired captcha code']);
-        exit();
+    if (!$skipCaptcha) {
+        if (empty($captcha)) {
+            echo json_encode(['success' => false, 'message' => 'Please enter the captcha code']);
+            exit();
+        }
+        
+        if (!validateCaptcha($captcha)) {
+            refreshCaptcha();
+            echo json_encode(['success' => false, 'message' => 'Invalid or expired captcha code']);
+            exit();
+        }
     }
     
     try {
-        require_once 'config/database.php';
+        require_once '../../config/database.php';
         
         if (!isset($pdo)) {
             throw new Exception('Database connection not available');
         }
         
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ? OR email = ? LIMIT 1");
+        $stmt = $pdo->prepare("SELECT u.*, r.role_name FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE u.username = ? OR u.email = ? LIMIT 1");
         $stmt->execute([$username, $username]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         
@@ -253,7 +258,12 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
             $_SESSION['email'] = $user['email'] ?? '';
-            $role = strtolower($user['role'] ?? 'admin');
+            // If role_id is NULL (patient user), default to 'user'; otherwise use role_name
+            if (empty($user['role_id'])) {
+                $role = 'user';
+            } else {
+                $role = strtolower($user['role_name'] ?? 'Admin');
+            }
             if ($role === 'administrator') { $role = 'admin'; }
             $_SESSION['role'] = $role;
             $_SESSION['user_role'] = $role;
@@ -278,7 +288,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             $lastName = trim($user['last_name'] ?? '');
             $firstNameOnly = explode(' ', $firstName)[0] ?? '';
             
-            if ($user['role'] === 'dentist') {
+            if ($role === 'dentist') {
                 $_SESSION['display_name'] = 'Dr. ' . $firstNameOnly . ' ' . $lastName;
             } else {
                 $_SESSION['display_name'] = $firstNameOnly . ' ' . $lastName;
@@ -301,34 +311,35 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             $_SESSION['first_login'] = $isFirstLogin ? 1 : 0;
             
             // Log successful login
-            require_once 'includes/audit_helper.php';
-            logAudit($pdo, $user['id'], $user['username'], $user['role'], 'login', 'users', 'Successful login from ' . ($_SERVER['HTTP_USER_AGENT'] ? 'web browser' : 'unknown device'));
+            require_once '../../includes/audit_helper.php';
+            logAudit($pdo, $user['id'], $user['username'], $role, 'login', 'users', 'Successful login from ' . ($_SERVER['HTTP_USER_AGENT'] ? 'web browser' : 'unknown device'));
             
             // Redirect based on role
-            if ($user['role'] === 'admin') {
-                $redirect = 'master/admin/admin_dashboard.php';
-            } elseif ($user['role'] === 'staff') {
-                $redirect = 'master/staff/staff-dashboard.php';
-            } elseif ($user['role'] === 'dentist') {
-                $redirect = 'master/dentist/dentist_dashboard.php';
-            } elseif ($user['role'] === 'user') {
-                $redirect = 'master/user-patient/patient-dashboard.php';
+            if ($role === 'admin') {
+                $redirect = '../admin/admin_dashboard.php';
+            } elseif ($role === 'staff') {
+                $redirect = '../staff/staff-dashboard.php';
+            } elseif ($role === 'dentist') {
+                $redirect = '../dentist/dentist_dashboard.php';
+            } elseif ($role === 'user') {
+                $redirect = '../user-patient/patient-dashboard.php';
             } else {
                 $redirect = 'dashboard.php';
             }
             $_SESSION['login_redirect'] = $redirect;
-            echo json_encode(['success' => true, 'message' => 'Logged in successfully', 'redirect' => $redirect]);
+            echo json_encode(['success' => true, 'message' => 'Logged in successfully', 'redirect' => $redirect, 'role' => $role]);
             exit();
         } else {
             // Log failed login attempt
-            require_once 'includes/audit_helper.php';
+            require_once '../../includes/audit_helper.php';
             if ($user) {
                 logFailedLogin($pdo, $username, 'invalid_password');
             } else {
                 logFailedLogin($pdo, $username, 'user_not_found');
             }
             
-            echo json_encode(['success' => false, 'message' => 'Invalid username or password']);
+            echo json_encode(['success' => false, 'message' => 'Wrong username or password. Please try again.']);
+            refreshCaptcha();
             exit();
         }
     } catch (PDOException $e) {
@@ -355,13 +366,13 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
         $error = 'Invalid or expired captcha code';
     } else {
         try {
-            require_once 'config/database.php';
+            require_once '../../config/database.php';
             
             if (!isset($pdo)) {
                 throw new Exception('Database connection not available');
             }
             
-            $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ? OR email = ? LIMIT 1");
+            $stmt = $pdo->prepare("SELECT u.*, r.role_name FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE u.username = ? OR u.email = ? LIMIT 1");
             $stmt->execute([$username, $username]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
@@ -372,7 +383,12 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['email'] = $user['email'] ?? '';
-                $role = strtolower($user['role'] ?? 'admin');
+                // If role_id is NULL (patient user), default to 'user'; otherwise use role_name
+                if (empty($user['role_id'])) {
+                    $role = 'user';
+                } else {
+                    $role = strtolower($user['role_name'] ?? 'Admin');
+                }
                 if ($role === 'administrator') { $role = 'admin'; }
                 $_SESSION['role'] = $role;
                 $_SESSION['user_role'] = $role;
@@ -397,7 +413,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 $lastName = trim($user['last_name'] ?? '');
                 $firstNameOnly = explode(' ', $firstName)[0] ?? '';
                 
-                if ($user['role'] === 'dentist') {
+if ($role === 'dentist') {
                     $_SESSION['display_name'] = 'Dr. ' . $firstNameOnly . ' ' . $lastName;
                 } else {
                     $_SESSION['display_name'] = $firstNameOnly . ' ' . $lastName;
@@ -420,17 +436,17 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 $_SESSION['first_login'] = $isFirstLogin ? 1 : 0;
                 
                 // Log successful login
-                require_once 'includes/audit_helper.php';
-                logAudit($pdo, $user['id'], $user['username'], $user['role'], 'login', 'users', 'Successful login');
+                require_once '../../includes/audit_helper.php';
+                logAudit($pdo, $user['id'], $user['username'], $role, 'login', 'users', 'Successful login');
                 
                 // Redirect based on role
-                if ($user['role'] === 'admin') {
+                if ($role === 'admin') {
                     header('Location: master/admin/admin_dashboard.php');
-                } elseif ($user['role'] === 'staff') {
+                } elseif ($role === 'staff') {
                     header('Location: master/staff/staff-dashboard.php');
-                } elseif ($user['role'] === 'dentist') {
+                } elseif ($role === 'dentist') {
                     header('Location: master/dentist/dentist_dashboard.php');
-                } elseif ($user['role'] === 'user') {
+                } elseif ($role === 'user') {
                     header('Location: master/user-patient/patient-dashboard.php');
                 } else {
                     header('Location: dashboard.php');
@@ -438,14 +454,14 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 exit();
             } else {
                 // Log failed login attempt
-                require_once 'includes/audit_helper.php';
+                require_once '../../includes/audit_helper.php';
                 if ($user) {
                     logFailedLogin($pdo, $username, 'invalid_password');
                 } else {
                     logFailedLogin($pdo, $username, 'user_not_found');
                 }
                 
-                $error = 'Invalid username or password';
+                $error = 'Wrong username or password. Please try again.';
             }
         } catch (PDOException $e) {
             $error = 'Database connection error. Please check your database settings.';
@@ -461,8 +477,8 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RF Dental Clinic - Login</title>
-    <link rel="icon" type="image/png" href="assets/images/Logo.png">
-    <link rel="stylesheet" href="assets/css/login-new.css">
+    <link rel="icon" type="image/png" href="../../assets/images/Logo.png">
+    <link rel="stylesheet" href="../../assets/css/login-new.css">
     <style>
         #registrationContainer {
             position: relative;
@@ -569,13 +585,13 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
             <div class="carousel-wrapper">
                 <div class="carousel">
                     <div class="carousel-slide active">
-                        <img src="assets/images/login-image1.jpg" alt="Dental Care" class="carousel-image">
+                        <img src="../../assets/images/login-image1.jpg" alt="Dental Care" class="carousel-image">
                     </div>
                     <div class="carousel-slide">
-                        <img src="assets/images/login-image2.jpg" alt="Dental Care" class="carousel-image">
+                        <img src="../../assets/images/login-image2.jpg" alt="Dental Care" class="carousel-image">
                     </div>
                     <div class="carousel-slide">
-                        <img src="assets/images/login-image3.jpg" alt="Dental Care" class="carousel-image">
+                        <img src="../../assets/images/login-image3.jpg" alt="Dental Care" class="carousel-image">
                     </div>
                 </div>
 
@@ -595,7 +611,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
         <div class="form-section">
             <div class="login-form-container" id="loginContainer">
                 <div class="logo-container">
-                    <img src="assets/images/Logo.png" alt="RF Logo" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <img src="../../assets/images/Logo.png" alt="RF Logo" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                     <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display:none;">
                         <path d="M50 20 L30 40 L30 60 L50 80 L70 60 L70 40 Z" fill="#2563eb" stroke="#2563eb" stroke-width="2"/>
                         <text x="50" y="45" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">R</text>
@@ -635,7 +651,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                         </div>
                         <div class="captcha-wrapper">
                             <div class="captcha-display">
-                                <img src="lib/security/captcha_image.php" alt="Captcha" id="captchaImage" class="captcha-img" onerror="this.style.display='none'; document.getElementById('captchaFallback').style.display='block';">
+                                <img src="../../lib/security/captcha_image.php" alt="Captcha" id="captchaImage" class="captcha-img" onerror="this.style.display='none'; document.getElementById('captchaFallback').style.display='block';">
                                 <div class="captcha-code" id="captchaFallback" style="display:none;"><?php echo $_SESSION['captcha_code']; ?></div>
                                 <button type="button" class="captcha-refresh" id="refreshCaptcha" aria-label="Refresh captcha">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -679,7 +695,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
             <!-- Forgot Password (inline) -->
             <div class="login-form-container" id="forgotContainer" style="display: none;">
                 <div class="logo-container">
-                    <img src="assets/images/Logo.png" alt="RF Logo" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <img src="../../assets/images/Logo.png" alt="RF Logo" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                     <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display:none;">
                         <path d="M50 20 L30 40 L30 60 L50 80 L70 60 L70 40 Z" fill="#2563eb" stroke="#2563eb" stroke-width="2"/>
                         <text x="50" y="45" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">R</text>
@@ -748,7 +764,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
             <!-- Patient Registration (inline) -->
             <div class="login-form-container" id="registrationContainer" style="display: none;">
                 <div class="logo-container">
-                    <img src="assets/images/Logo.png" alt="RF Logo" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <img src="../../assets/images/Logo.png" alt="RF Logo" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                     <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display:none;">
                         <path d="M50 20 L30 40 L30 60 L50 80 L70 60 L70 40 Z" fill="#2563eb" stroke="#2563eb" stroke-width="2"/>
                         <text x="50" y="45" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">R</text>
@@ -828,6 +844,6 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
         <div class="toast-loading-line"></div>
     </div>
     
-    <script src="assets/js/login.js"></script>
+    <script src="../../assets/js/login.js"></script>
 </body>
 </html>

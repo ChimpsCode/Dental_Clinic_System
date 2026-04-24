@@ -100,7 +100,7 @@ try {
         WHERE DATE(created_at) = CURDATE()
     ")->fetchColumn() ?? 0);
 
-    // Revenue series scoped to selected period window
+    // Revenue series for full year (2026)
     $stmt = $pdo->prepare("
         SELECT
             DATE_FORMAT(billing_date, '%Y-%m') AS ym,
@@ -110,7 +110,7 @@ try {
         GROUP BY ym
         ORDER BY ym ASC
     ");
-    $stmt->execute([$startStr, $endStr]);
+    $stmt->execute([$chartYear . '-01-01', $chartYear . '-12-31']);
     $monthlyRevenueData = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $stmt = $pdo->prepare("
@@ -284,8 +284,50 @@ try {
                     <!-- Revenue Chart -->
                     <div class="chart-card">
                         <h3 class="chart-title">Revenue Overview</h3>
-                        <div class="chart-placeholder">
-                            <div class="bar-chart" id="revenueBars"></div>
+                        <div style="display: flex; align-items: flex-end; gap: 10px; height: 180px; padding: 10px 15px 30px 15px; border-bottom: 1px solid #e5e7eb;">
+                                <?php 
+                                // Get all 12 months directly from database
+                                $allMonths = [];
+                                for ($m = 1; $m <= 12; $m++) {
+                                    $ym = sprintf('2026-%02d', $m);
+                                    $allMonths[$ym] = 0;
+                                }
+                                
+                                // Fetch actual revenue data
+                                $revenueStmt = $pdo->query("
+                                    SELECT DATE_FORMAT(billing_date, '%Y-%m') AS ym, SUM(paid_amount) AS total
+                                    FROM billing
+                                    WHERE billing_date LIKE '2026-%'
+                                    GROUP BY ym
+                                ");
+                                while ($row = $revenueStmt->fetch(PDO::FETCH_ASSOC)) {
+                                    if (isset($allMonths[$row['ym']])) {
+                                        $allMonths[$row['ym']] = (float)$row['total'];
+                                    }
+                                }
+                                
+                                $maxRevenue = max($allMonths);
+                                if ($maxRevenue == 0) $maxRevenue = 1;
+                                $labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                                
+                                foreach ($allMonths as $ym => $total) {
+                                    $monthNum = (int)substr($ym, 5, 2);
+                                    $label = $labels[$monthNum - 1];
+                                    if ($total > 0) {
+                                        $height = ($total / $maxRevenue) * 100;
+                                        if ($height < 20) $height = 20;
+                                        $bg = 'linear-gradient(to top, #3b82f6, #60a5fa)';
+                                    } else {
+                                        $height = 8;
+                                        $bg = '#e5e7eb';
+                                    }
+                                    ?>
+                                    <div style="flex: 1; height: <?php echo $height; ?>%; min-height: 15px; background: <?php echo $bg; ?>; border-radius: 4px 4px 0 0; position: relative;" title="<?php echo $label; ?>: ₱<?php echo number_format($total); ?>">
+                                        <span style="position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 11px; color: #6b7280; white-space: nowrap;"><?php echo $label; ?></span>
+                                    </div>
+                                    <?php
+                                }
+                                ?>
                         </div>
                     </div>
 
@@ -374,38 +416,6 @@ try {
             </div>
 
 <script>
-    const revenueData = <?php echo json_encode($monthlyRevenueData); ?>;
-    const revenueYear = <?php echo (int)$chartYear; ?>;
-    const barContainer = document.getElementById('revenueBars');
-    if (barContainer) {
-        const map = {};
-        revenueData.forEach(item => {
-            map[item.ym] = { total: Number(item.total) };
-        });
-
-        const months = [];
-        const year = revenueYear || new Date().getFullYear();
-        const labels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-        for (let m = 0; m < 12; m++) {
-            const ym = `${year}-${String(m + 1).padStart(2, '0')}`;
-            const label = labels[m];
-            const entry = map[ym] || { total: 0 };
-            entry.label = label;
-            months.push(entry);
-        }
-
-        const maxVal = Math.max(1, ...months.map(r => r.total));
-        months.forEach((item) => {
-            const rawPct = (item.total / maxVal) * 100;
-            const heightPct = item.total > 0 ? Math.max(20, Math.round(rawPct)) : 8;
-            const bar = document.createElement('div');
-            bar.className = 'bar';
-            bar.style.setProperty('--bar-height', heightPct + '%');
-            bar.setAttribute('data-label', item.label);
-            barContainer.appendChild(bar);
-        });
-    }
-
     document.getElementById('analyticsPeriod')?.addEventListener('change', function () {
         const params = new URLSearchParams(window.location.search);
         params.set('period', this.value);

@@ -5,12 +5,26 @@ require_once '../../includes/dentist_layout_start.php';
 
 // Fetch appointment statistics
 try {
-    $stmt = $pdo->query("SELECT 
-        COUNT(*) as total,
-        SUM(CASE WHEN DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as today,
-        SUM(CASE WHEN status = 'completed' AND DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as completed,
-        SUM(CASE WHEN status = 'cancelled' AND DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as cancelled
-    FROM appointments");
+    // Check if status column exists
+    $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'status'");
+    $hasStatusCol = $checkCol->fetch() !== false;
+    
+    if ($hasStatusCol) {
+        $stmt = $pdo->query("SELECT 
+            COUNT(*) as total,
+            SUM(CASE WHEN DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as today,
+            SUM(CASE WHEN status = 'completed' AND DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as completed,
+            SUM(CASE WHEN status = 'cancelled' AND DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as cancelled
+        FROM appointments");
+    } else {
+        // Use status_id column (1=scheduled, 2=confirmed, 3=in_progress, 4=completed, 5=cancelled)
+        $stmt = $pdo->query("SELECT 
+            COUNT(*) as total,
+            SUM(CASE WHEN DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as today,
+            SUM(CASE WHEN status_id = 4 AND DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as completed,
+            SUM(CASE WHEN status_id = 5 AND DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as cancelled
+        FROM appointments");
+    }
     $stats = $stmt->fetch(PDO::FETCH_ASSOC);
     
     $totalAppointments = $stats['total'] ?? 0;
@@ -24,10 +38,13 @@ try {
 // Fetch all appointments
 try {
     $stmt = $pdo->query("SELECT a.*, 
-        a.first_name, a.middle_name, a.last_name,
-        p.phone, p.email FROM appointments a 
-        LEFT JOIN patients p ON a.patient_id = p.id 
-        ORDER BY a.appointment_date DESC");
+        p.first_name, p.middle_name, p.last_name,
+        p.phone, p.email,
+        s.name as service_name
+    FROM appointments a 
+    LEFT JOIN patients p ON a.patient_id = p.id
+    LEFT JOIN services s ON a.service_id = s.id
+    ORDER BY a.appointment_date DESC");
     $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
     $appointments = [];
@@ -85,7 +102,7 @@ try {
 </div>
 
 <!-- Appointments Table -->
-<div class="table-container">
+<div class="table-container" style="background: white; border-radius: 8px;">
     <table class="data-table">
         <thead>
             <tr>
@@ -108,31 +125,38 @@ try {
                         $appointmentDate = new DateTime($apt['appointment_date']);
                         $appointmentTime = $appointmentDate->format('h:i A');
                         $appointmentDateStr = $appointmentDate->format('M d, Y');
-                        $status = $apt['status'] ?? 'scheduled';
+                        $status = $apt['status'] ?? 'Scheduled';
                         
-                        // Determine status badge color
-                        $statusColor = match($status) {
-                            'completed' => 'background: #dcfce7; color: #15803d;',
-                            'cancelled' => 'background: #fee2e2; color: #dc2626;',
-                            default => 'background: #e0f2fe; color: #0369a1;'
-                        };
-                        $statusText = ucfirst($status);
+                        // Get status from status_id if status column doesn't exist
+                        $statusId = $apt['status_id'] ?? null;
+                        if (!$status || $status === 'Scheduled') {
+                            if ($statusId == 1) $status = 'Scheduled';
+                            elseif ($statusId == 2) $status = 'In Queue';
+                            elseif ($statusId == 3) $status = 'Pending Payment';
+                            elseif ($statusId == 4) $status = 'Completed';
+                            elseif ($statusId == 5) $status = 'Cancelled';
+                        }
+                        
+                        $statusText = $status;
                     ?>
-                    <tr class="appointment-row" data-date="<?php echo $apt['appointment_date']; ?>" data-name="<?php echo strtolower($firstName . ' ' . $middleName . ' ' . $lastName); ?>">
-                        <td>
-                            <div style="font-weight: 600;"><?php echo $firstName ?: '-'; ?></div>
-                        </td>
-                        <td>
-                            <div style="color: #6b7280;"><?php echo $middleName ?: '-'; ?></div>
-                        </td>
-                        <td>
-                            <div style="font-weight: 600;"><?php echo $lastName ?: '-'; ?></div>
-                        </td>
+                    <tr class="appointment-row" data-date="<?php echo $apt['appointment_date']; ?>" data-name="<?php echo strtolower($firstName . ' ' . $lastName); ?>">
+                        <td><?php echo $firstName ?: '-'; ?></td>
+                        <td><?php echo $middleName ?: '-'; ?></td>
+                        <td><?php echo $lastName ?: '-'; ?></td>
                         <td>
                             <div><?php echo $appointmentDateStr; ?></div>
                             <div style="font-size: 0.85rem; color: #6b7280;"><?php echo $appointmentTime; ?></div>
                         </td>
-                        <td><?php echo htmlspecialchars($apt['treatment'] ?? 'General Checkup'); ?></td>
+<td><?php echo htmlspecialchars($apt['service_name'] ?? 'General Checkup'); ?></td>
+                         <?php 
+                            $statusColor = match($status) {
+                                'Completed' => 'background: #d1fae5; color: #065f46;',
+                                'Cancelled' => 'background: #fee2e2; color: #991b1b;',
+                                'In Queue' => 'background: #fef3c7; color: #92400e;',
+                                'Pending Payment' => 'background: #fed7aa; color: #c2410c;',
+                                default => 'background: #e0f2fe; color: #0369a1;' // Scheduled
+                            };
+                         ?>
                          <td><span class="status-badge" style="<?php echo $statusColor; ?>"><?php echo $statusText; ?></span></td>
                          <td>
                                 <div class="appt-kebab-menu">

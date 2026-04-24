@@ -61,6 +61,7 @@ $notifications = [];
 $notificationTotal = 0;
 $newAppointmentsToday = 0;
 $pendingPaymentsCount = 0;
+$upcomingAppointments = [];
 try {
     if (isset($pdo)) {
         // Get user ID for admin
@@ -95,6 +96,24 @@ try {
             WHERE payment_status IN ('pending', 'unpaid', 'partial')
                OR (balance IS NOT NULL AND balance > 0)
         ")->fetchColumn() ?? 0);
+        
+        // Get upcoming appointments for today and tomorrow
+        $upcomingStmt = $pdo->query("
+            SELECT 
+                a.id,
+                a.appointment_date,
+                a.appointment_time,
+                s.name as service_name,
+                CONCAT(p.first_name, ' ', p.last_name) as patient_name,
+                a.status_id
+            FROM appointments a
+            LEFT JOIN patients p ON a.patient_id = p.id
+            LEFT JOIN services s ON a.service_id = s.id
+            WHERE a.appointment_date IN (CURDATE(), DATE_ADD(CURDATE(), INTERVAL 1 DAY))
+            ORDER BY a.appointment_date, a.appointment_time
+            LIMIT 10
+        ");
+        $upcomingAppointments = $upcomingStmt->fetchAll(PDO::FETCH_ASSOC);
         
         // If no database notifications, use fallback counts
         if (empty($notifications)) {
@@ -411,14 +430,42 @@ function isActivePage($page) {
                                     </div>
                                 <?php endforeach; ?>
                             <?php else: ?>
-                                <div class="notification-item">
-                                    <div class="notification-icon">📅</div>
-                                    <div class="notification-text"><?php echo $newAppointmentsToday; ?> new appointments today</div>
-                                </div>
+                                <!-- Show upcoming appointments as notifications -->
+                                <?php if (!empty($upcomingAppointments)): ?>
+                                    <div class="notification-item" style="background: #eff6ff; border-left: 3px solid #3b82f6;">
+                                        <div class="notification-icon" style="background: #3b82f6;">📅</div>
+                                        <div class="notification-text">
+                                            <strong style="color: #1e40af;">Upcoming Appointments</strong>
+                                            <small style="display: block; color: #6b7280;">Today & Tomorrow</small>
+                                        </div>
+                                    </div>
+                                    <?php foreach ($upcomingAppointments as $apt): 
+                                        $isToday = date('Y-m-d', strtotime($apt['appointment_date'])) === date('Y-m-d');
+                                        $dayLabel = $isToday ? 'Today' : 'Tomorrow';
+                                    ?>
+                                    <div class="notification-item" onclick="window.location.href='admin_appointments.php'">
+                                        <div class="notification-icon">🕐</div>
+                                        <div class="notification-text">
+                                            <strong><?php echo htmlspecialchars($apt['patient_name'] ?? 'Patient'); ?></strong>
+                                            <small style="display: block;"><?php echo htmlspecialchars($apt['service_name'] ?? 'Appointment'); ?></small>
+                                            <small style="color: #3b82f6; display: block;">
+                                                <?php echo $dayLabel; ?> at <?php echo date('g:i A', strtotime($apt['appointment_time'])); ?>
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <div class="notification-item">
+                                        <div class="notification-icon">📅</div>
+                                        <div class="notification-text">No upcoming appointments</div>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if ($pendingPaymentsCount > 0): ?>
                                 <div class="notification-item">
                                     <div class="notification-icon">⚠️</div>
                                     <div class="notification-text"><?php echo $pendingPaymentsCount; ?> pending payments require attention</div>
                                 </div>
+                                <?php endif; ?>
                             <?php endif; ?>
                         </div>
                         <button class="see-all-btn" type="button" onclick="markAllNotificationsRead()">Mark all as read</button>

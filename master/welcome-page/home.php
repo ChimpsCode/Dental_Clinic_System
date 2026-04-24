@@ -1,12 +1,12 @@
 <?php
 $assets = [
   'logo' => 'https://www.figma.com/api/mcp/asset/0216bb5f-fd3d-487e-9d2c-5e8da91303ca',
-  'hero' => './assets/images/Dentists.png',
-  'about' => './assets/images/2nd_Anniv.jpg',
+  'hero' => '../../assets/images/Dentists.png',
+  'about' => '../../assets/images/2nd_Anniv.jpg',
   'tooth' => 'https://www.figma.com/api/mcp/asset/e2ebbe80-7cbc-49ff-afcc-35ac70f56115',
-  'icon_phone' => './assets/images/icon-phone.svg',
-  'icon_email' => './assets/images/icon-email.svg',
-  'icon_time' => './assets/images/icon-time.svg',
+  'icon_phone' => '../../assets/images/icon-phone.svg',
+  'icon_email' => '../../assets/images/icon-email.svg',
+  'icon_time' => '../../assets/images/icon-time.svg',
 ];
 
 $services = [
@@ -97,13 +97,13 @@ $faqs = [
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>RF Dental Clinic</title>
-    <link rel="icon" type="image/png" href="assets/images/Logo.png">
+    <link rel="icon" type="image/png" href="../../assets/images/Logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,700;1,400&family=Inria+Sans:wght@400;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="assets/css/home-styles.css" />
-    <link rel="stylesheet" href="assets/css/home-integration.css" />
-    <script src="assets/js/home-integration.js" defer></script>
+    <link rel="stylesheet" href="../../assets/css/home-styles.css" />
+    <link rel="stylesheet" href="../../assets/css/home-integration.css" />
+    <script src="../../assets/js/home-integration.js" defer></script>
     <style>
       @keyframes homeFadeIn {
         from { opacity: 0; }
@@ -140,7 +140,7 @@ $faqs = [
       <header class="site-header">
         <div class="container header-inner">
         <a class="brand" href="#home" aria-label="RF Dental Clinic home">
-          <img class="brand-mark" src="assets/images/Logo.png" alt="" />
+          <img class="brand-mark" src="../../assets/images/Logo.png" alt="" />
           <span class="brand-text">RF Dental Clinic</span>
         </a>
 
@@ -352,7 +352,7 @@ $faqs = [
             </div>
             <div class="contact-form-card">
               <div class="form-logo" aria-hidden="true">
-                <img src="assets/images/Logo.png" alt="" />
+                <img src="../../assets/images/Logo.png" alt="" />
               </div>
               <form class="contact-form" action="#" method="post">
                 <div class="form-row">
@@ -403,7 +403,7 @@ $faqs = [
       <div class="container footer-inner">
         <div class="footer-brand">
           <div class="footer-brand-top">
-            <img class="footer-logo" src="assets/images/Logo.png" alt="" />
+            <img class="footer-logo" src="../../assets/images/Logo.png" alt="" />
             <div class="footer-brand-title">Dental Clinic</div>
           </div>
           <p class="footer-text">Providing exceptional dental care with a commitment to your comfort and health.</p>
@@ -436,7 +436,7 @@ $faqs = [
               <span class="footer-icon footer-icon-mail" aria-hidden="true">✉</span>
             </a>
             <a href="https://m.me" target="_blank" rel="noreferrer" class="footer-icon-link" aria-label="Facebook Messenger">
-              <img src="./assets/images/icon-messenger.svg" alt="" class="footer-icon-img" aria-hidden="true" />
+              <img src="../../assets/images/icon-messenger.svg" alt="" class="footer-icon-img" aria-hidden="true" />
             </a>
             <a href="tel:09671878603" class="footer-icon-link" aria-label="Call">
               <span class="footer-icon footer-icon-phone" aria-hidden="true">☎</span>
@@ -773,7 +773,7 @@ $faqs = [
     <div id="welcomeBackModal" class="modal-overlay" style="display: none;">
       <div class="modal-content welcome-back-modal">
         <div class="welcome-back-logo">
-          <img src="./assets/images/Logo.png" alt="Dental Clinic Logo" />
+          <img src="../../assets/images/Logo.png" alt="Dental Clinic Logo" />
         </div>
         <h2 class="welcome-back-title">Welcome Back, Patient!</h2>
         <p class="welcome-back-message" id="welcomeBackMessage">
@@ -819,7 +819,7 @@ $faqs = [
           <input type="hidden" id="welcome-back-appointment-date" name="appointment_date" />
           <button type="submit" class="btn btn-primary welcome-back-btn">Verify & Book</button>
         </form>
-        <a href="forgot-password.php" class="forgot-password-link">Forgot Password?</a>
+        <a href="./reset_password.php" class="forgot-password-link">Forgot Password?</a>
       </div>
     </div>
 
@@ -855,7 +855,7 @@ $faqs = [
               const checkData = { exists: false };
               
               try {
-                const checkResponse = await fetch('master/user-patient/check_user_exists.php', {
+                const checkResponse = await fetch('../user-patient/check_user_exists.php', {
                   method: 'POST',
                   headers: {
                     'X-Requested-With': 'XMLHttpRequest'
@@ -984,7 +984,7 @@ $faqs = [
             const formData = new FormData(registrationForm);
 
             try {
-              const response = await fetch('process_registration.php', {
+              const response = await fetch('../user-patient/process_registration.php', {
                 method: 'POST',
                 body: formData
               });
@@ -998,7 +998,7 @@ $faqs = [
 
                 // Step 3: Redirect to dashboard after delay
                 setTimeout(() => {
-                  window.location.href = 'master/user-patient/patient-dashboard.php';
+                  window.location.href = '../user-patient/patient-dashboard.php';
                 }, 2000);
               } else {
                 alert(result.message || 'Registration failed');
@@ -1049,36 +1049,38 @@ $faqs = [
             submitBtn.disabled = true;
             submitBtn.textContent = 'Verifying...';
             
-            // Try to login
+            // Try to login (skip captcha since patient identity already verified via appointment details)
             const loginFormData = new FormData();
             loginFormData.append('username', email);
             loginFormData.append('password', password);
+            loginFormData.append('skip_captcha', '1');
             
             try {
-              const response = await fetch('login.php', {
+              const response = await fetch('./login.php', {
                 method: 'POST',
                 headers: {
                   'X-Requested-With': 'XMLHttpRequest'
                 },
                 body: loginFormData
               });
-              
-              console.log('Login response status:', response.status);
-              const responseText = await response.text();
-              console.log('Login response text:', responseText);
-              
-              const result = JSON.parse(responseText);
-              
-              console.log('Login result:', result);
-              
+
+              const result = await response.json();
+
               if (result.success) {
-                // Login successful - redirect to patient dashboard
-                welcomeBackModal.style.display = 'none';
-                
-                setTimeout(() => {
-                  window.location.href = result.redirect || 'master/user-patient/patient-dashboard.php';
-                }, 500);
+                // Redirect based on role
+                if (result.role === 'admin') {
+                  window.location.href = '../admin/admin_dashboard.php';
+                } else if (result.role === 'staff') {
+                  window.location.href = '../staff/staff-dashboard.php';
+                } else if (result.role === 'dentist') {
+                  window.location.href = '../dentist/dentist_dashboard.php';
+                } else if (result.role === 'user') {
+                  window.location.href = '../user-patient/patient-dashboard.php';
+                } else {
+                  window.location.href = '../dashboard.php';
+                }
               } else {
+                // Login failed - show error and re-enable button
                 alert(result.message || 'Login failed. Please try again.');
                 submitBtn.disabled = false;
                 submitBtn.textContent = originalText;

@@ -1,7 +1,7 @@
 <?php
 // Database configuration
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'dental_management');
+define('DB_NAME', 'master_rf');
 define('DB_USER', 'root');
 define('DB_PASS', '');
 
@@ -230,18 +230,18 @@ function initializeDatabase($pdo) {
         
         // Create default admin user (username: admin, password: admin123)
         $adminPassword = password_hash('admin123', PASSWORD_DEFAULT);
-        $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role) VALUES (?, ?, ?, ?)");
-        $stmt->execute(['admin', $adminPassword, 'admin@rfdental.com', 'admin']);
+        $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role_id) VALUES (?, ?, ?, 1)");
+        $stmt->execute(['admin', $adminPassword, 'admin@rfdental.com']);
 
         // Create default dentist user (username: dentist, password: dentist123)
         $dentistPassword = password_hash('dentist123', PASSWORD_DEFAULT);
-        $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role) VALUES (?, ?, ?, ?)");
-        $stmt->execute(['dentist', $dentistPassword, 'dentist@rfdental.com', 'dentist']);
+        $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role_id) VALUES (?, ?, ?, 2)");
+        $stmt->execute(['dentist', $dentistPassword, 'dentist@rfdental.com']);
 
         // Create staff user (username: staff, password: staff123)
         $staffPassword = password_hash('staff123', PASSWORD_DEFAULT);
-        $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role) VALUES (?, ?, ?, ?)");
-        $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com', 'staff']);
+        $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role_id) VALUES (?, ?, ?, 3)");
+        $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com']);
         
         // Insert default services with proper mode
         $defaultServices = [
@@ -345,24 +345,24 @@ if (!isset($pdo)) {
                 $stmt->execute();
                 if ($stmt->rowCount() == 0) {
                     $adminPassword = password_hash('admin123', PASSWORD_DEFAULT);
-                    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role) VALUES (?, ?, ?, ?)");
-                    $stmt->execute(['admin', $adminPassword, 'admin@rfdental.com', 'admin']);
+                    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role_id) VALUES (?, ?, ?, 1)");
+                    $stmt->execute(['admin', $adminPassword, 'admin@rfdental.com']);
                 }
                 
                 $stmt = $pdo->prepare("SELECT id FROM users WHERE username = 'dentist' LIMIT 1");
                 $stmt->execute();
                 if ($stmt->rowCount() == 0) {
                     $dentistPassword = password_hash('dentist123', PASSWORD_DEFAULT);
-                    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role) VALUES (?, ?, ?, ?)");
-                    $stmt->execute(['dentist', $dentistPassword, 'dentist@rfdental.com', 'dentist']);
+                    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role_id) VALUES (?, ?, ?, 2)");
+                    $stmt->execute(['dentist', $dentistPassword, 'dentist@rfdental.com']);
                 }
                 
                 $stmt = $pdo->prepare("SELECT id FROM users WHERE username = 'staff' LIMIT 1");
                 $stmt->execute();
                 if ($stmt->rowCount() == 0) {
                     $staffPassword = password_hash('staff123', PASSWORD_DEFAULT);
-                    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role) VALUES (?, ?, ?, ?)");
-                    $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com', 'staff']);
+                    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role_id) VALUES (?, ?, ?, 3)");
+                    $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com']);
                 }
             }
         } catch (PDOException $e) {

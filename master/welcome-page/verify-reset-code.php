@@ -1,7 +1,7 @@
 <?php
 session_start();
-require_once 'config/database.php';
-require_once 'config/mailer_config.php';
+require_once '../../config/database.php';
+require_once '../../config/mailer_config.php';
 
 // Check if user came from forgot password
 if (!isset($_SESSION['reset_email']) || !isset($_SESSION['reset_user_id'])) {
@@ -290,7 +290,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <div class="container">
         <div class="centered">
             <div class="login-box">
-                <img src="assets/images/Logo.png" class="logo" alt="RF Logo">
+                <img src="../../assets/images/Logo.png" class="logo" alt="RF Logo">
                 <h2>Verify Code</h2>
 
                 <p class="description-text">Enter the verification code sent to your email.</p>

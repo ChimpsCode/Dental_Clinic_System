@@ -856,12 +856,14 @@ $pageTitle = 'Patient Dashboard';
                 <div class="user-profile">
                     <div class="user-avatar">
                         <?php 
-                            $initials = strtoupper(substr($patient['first_name'] ?? 'P', 0, 1) . substr($patient['last_name'] ?? '', 0, 1));
-                            echo $initials;
+                            $first = $patient['first_name'] ?? $_SESSION['user_name'] ?? '';
+                            $last = $patient['last_name'] ?? '';
+                            $initials = strtoupper(substr($first, 0, 1) . substr($last, 0, 1));
+                            echo htmlspecialchars($initials ?: 'P');
                         ?>
                     </div>
                     <div class="user-details">
-                        <div class="user-name"><?php echo htmlspecialchars($patient['first_name'] ?? 'Patient') . ' ' . htmlspecialchars($patient['last_name'] ?? ''); ?></div>
+                        <div class="user-name"><?php echo htmlspecialchars(trim($last ?: ($first ?: 'Patient'))); ?></div>
                         <div class="user-role">Patient</div>
                     </div>
                     <div class="dropdown-toggle">

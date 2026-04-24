@@ -288,20 +288,20 @@ try {
     
     // Create admin user (username: admin, password: admin123)
     $adminPassword = password_hash('admin123', PASSWORD_DEFAULT);
-    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role) VALUES (?, ?, ?, ?)");
-    $stmt->execute(['admin', $adminPassword, 'admin@rfdental.com', 'admin']);
+    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role_id) VALUES (?, ?, ?, 1)");
+    $stmt->execute(['admin', $adminPassword, 'admin@rfdental.com']);
     echo "✓ Admin user created (username: admin, password: admin123)\n";
 
     // Create dentist user (username: dentist, password: dentist123)
     $dentistPassword = password_hash('dentist123', PASSWORD_DEFAULT);
-    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role) VALUES (?, ?, ?, ?)");
-    $stmt->execute(['dentist', $dentistPassword, 'dentist@rfdental.com', 'dentist']);
+    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role_id) VALUES (?, ?, ?, 2)");
+    $stmt->execute(['dentist', $dentistPassword, 'dentist@rfdental.com']);
     echo "✓ Dentist user created (username: dentist, password: dentist123)\n";
 
     // Create staff user (username: staff, password: staff123)
     $staffPassword = password_hash('staff123', PASSWORD_DEFAULT);
-    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role) VALUES (?, ?, ?, ?)");
-    $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com', 'staff']);
+    $stmt = $pdo->prepare("INSERT IGNORE INTO users (username, password, email, role_id) VALUES (?, ?, ?, 3)");
+    $stmt->execute(['staff', $staffPassword, 'staff@rfdental.com']);
     echo "✓ Staff user created (username: staff, password: staff123)\n";
 
     // Insert default services

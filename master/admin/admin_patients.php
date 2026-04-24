@@ -8,119 +8,77 @@ $pageTitle = 'Patient Records';
 try {
     require_once __DIR__ . '/../../config/database.php';
     
-    // Check if archive columns exist (backward compatibility)
-    $checkColumn = $pdo->query("SHOW COLUMNS FROM patients LIKE 'is_archived'");
-    $hasArchiveColumn = $checkColumn->rowCount() > 0;
-    
-    // Check if registration_source column exists
-    $checkSourceCol = $pdo->query("SHOW COLUMNS FROM patients LIKE 'registration_source'");
-    $hasSourceColumn = $checkSourceCol->rowCount() > 0;
-    
     // Pagination
     $currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
     $patientsPerPage = 7;
     $offset = ($currentPage - 1) * $patientsPerPage;
     
-    // Build WHERE clause - exclude archived and appointment-only patients
-    $whereConditions = [];
-    if ($hasArchiveColumn) {
-        $whereConditions[] = "is_archived = 0";
-    }
-    // Only show patients who are fully registered
-    // 'direct' = registered directly
-    // 'appointment_converted' = came from appointment and completed new admission
-    // 'appointment' = only booked appointment, not yet processed (HIDDEN)
-    if ($hasSourceColumn) {
-        $whereConditions[] = "(registration_source IS NULL OR registration_source = 'direct' OR registration_source = 'appointment_converted')";
-    }
-    
-    $whereClause = !empty($whereConditions) ? "WHERE " . implode(" AND ", $whereConditions) : "";
+    // WHERE clause - only active patients
+    $whereClause = "WHERE p.is_archived = 0";
     
     // Get total count for pagination
-    $countQuery = "SELECT COUNT(*) FROM patients $whereClause";
-    $stmt = $pdo->query($countQuery);
+    $stmt = $pdo->query("SELECT COUNT(*) FROM patients p $whereClause");
     $totalPatients = $stmt->fetchColumn();
     $totalPages = ceil($totalPatients / $patientsPerPage);
     
-    // Get patients with queue status and pagination
-    // Exclude archived and appointment-only patients
-    $whereConditions = [];
-    if ($hasArchiveColumn) {
-        $whereConditions[] = "p.is_archived = 0";
-    }
-    if ($hasSourceColumn) {
-        $whereConditions[] = "(p.registration_source IS NULL OR p.registration_source = 'direct' OR p.registration_source = 'appointment_converted')";
-    }
+    // Get patients with appointment status and pagination
+    $whereClause = "WHERE p.is_archived = 0";
     
-    $whereClause = !empty($whereConditions) ? "WHERE " . implode(" AND ", $whereConditions) : "";
-    
-    $stmt = $pdo->query("
+    $stmt = $pdo->prepare("
         SELECT p.*, 
                TIMESTAMPDIFF(YEAR, p.date_of_birth, CURDATE()) as age,
-               q.status as queue_status, 
-               q.treatment_type,
-               q.queue_time,
-               q.priority
+               a.status_id as appointment_status_id,
+               a.status_name as appointment_status,
+               a.appointment_date,
+               a.appointment_time,
+               svc.name as service_name
         FROM patients p 
-        LEFT JOIN queue q ON p.id = q.patient_id 
-            AND q.id = (
-                SELECT MAX(id) FROM queue 
-                WHERE patient_id = p.id 
-                AND DATE(q.created_at) = CURDATE()
+        LEFT JOIN (
+            SELECT a1.*, s.status_name
+            FROM appointments a1
+            LEFT JOIN appointment_statuses s ON a1.status_id = s.id
+            WHERE a1.id = (
+                SELECT MAX(a2.id) FROM appointments a2 WHERE a2.patient_id = a1.patient_id
             )
+        ) a ON p.id = a.patient_id
+        LEFT JOIN services svc ON a.service_id = svc.id
         $whereClause
+        GROUP BY p.id
         ORDER BY p.created_at DESC
-        LIMIT $offset, $patientsPerPage
+        LIMIT :limit OFFSET :offset
     ");
+    $stmt->bindValue(':limit', $patientsPerPage, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
     $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Calculate stats from ALL patients (not just current page)
-    // Exclude archived and appointment-only patients
-    $statsConditions = [];
-    if ($hasArchiveColumn) {
-        $statsConditions[] = "p.is_archived = 0";
-    }
-    if ($hasSourceColumn) {
-        $statsConditions[] = "(p.registration_source IS NULL OR p.registration_source = 'direct' OR p.registration_source = 'appointment_converted')";
-    }
-    
-    $statsWhere = !empty($statsConditions) ? "WHERE " . implode(" AND ", $statsConditions) . " AND" : "WHERE";
-    
-    $inQueueStmt = $pdo->query("
+    // Calculate stats from ALL patients
+    // Get patients with completed appointments
+    $completedStmt = $pdo->query("
         SELECT COUNT(DISTINCT p.id) FROM patients p
-        LEFT JOIN queue q ON p.id = q.patient_id 
-        $statsWhere q.status IN ('waiting', 'in_procedure')
-        AND (q.id IS NULL OR q.id = (
-            SELECT MAX(id) FROM queue WHERE patient_id = p.id AND DATE(created_at) = CURDATE()
-        ))
+        INNER JOIN appointments a ON p.id = a.patient_id
+        WHERE p.is_archived = 0 AND a.status_id = 3
     ");
-    $inQueue = $inQueueStmt->fetchColumn();
+    $completedCount = $completedStmt->fetchColumn();
     
-    $scheduledStmt = $pdo->query("
+    // Get patients with pending appointments (status 1 = Pending, 2 = Confirmed)
+    $pendingStmt = $pdo->query("
         SELECT COUNT(DISTINCT p.id) FROM patients p
-        LEFT JOIN queue q ON p.id = q.patient_id 
-        $statsWhere q.status = 'scheduled'
-        AND (q.id IS NULL OR q.id = (
-            SELECT MAX(id) FROM queue WHERE patient_id = p.id AND DATE(created_at) = CURDATE()
-        ))
+        INNER JOIN appointments a ON p.id = a.patient_id
+        WHERE p.is_archived = 0 AND a.status_id IN (1, 2) AND a.appointment_date >= CURDATE()
     ");
-    $scheduledCount = $scheduledStmt->fetchColumn();
+    $pendingCount = $pendingStmt->fetchColumn();
     
     // Stats for new patients this month
-    $monthConditions = [];
-    if ($hasArchiveColumn) {
-        $monthConditions[] = "is_archived = 0";
-    }
-    if ($hasSourceColumn) {
-        $monthConditions[] = "(registration_source IS NULL OR registration_source = 'direct' OR registration_source = 'appointment_converted')";
-    }
-    $monthConditions[] = "created_at > DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
-    
-    $newThisMonthWhere = "WHERE " . implode(" AND ", $monthConditions);
     $newThisMonthStmt = $pdo->query("
-        SELECT COUNT(*) FROM patients $newThisMonthWhere
+        SELECT COUNT(*) FROM patients 
+        WHERE is_archived = 0 AND created_at > DATE_SUB(CURDATE(), INTERVAL 30 DAY)
     ");
     $newThisMonth = $newThisMonthStmt->fetchColumn();
+    
+    // For backward compatibility
+    $inQueue = $pendingCount;
+    $scheduledCount = $completedCount;
     
     // Pagination calculations
     $showingStart = $totalPatients > 0 ? $offset + 1 : 0;
@@ -131,6 +89,8 @@ try {
     $totalPatients = 0;
     $inQueue = 0;
     $scheduledCount = 0;
+    $completedCount = 0;
+    $pendingCount = 0;
     $newThisMonth = 0;
     $currentPage = 1;
     $totalPages = 0;
@@ -188,10 +148,11 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     <input type="text" class="search-input" placeholder="Search by name or phone..." id="searchInput">
                     <select class="filter-select" id="statusFilter">
                         <option value="">All Status</option>
-                        <option value="waiting">Waiting</option>
-                        <option value="in_procedure">In Procedure</option>
-                        <option value="completed">Completed</option>
-                        <option value="scheduled">Scheduled</option>
+                        <option value="1">Pending</option>
+                        <option value="2">Confirmed</option>
+                        <option value="3">Completed</option>
+                        <option value="4">Cancelled</option>
+                        <option value="5">No Show</option>
                     </select>
                 </div>
 
@@ -205,8 +166,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                 <th>Last Name</th>
                                 <th>Contact</th>
                                 <th>Services</th>
-                                <th>Dentist</th>
-                                <th>Time</th>
+                                <th>Appointment</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -221,14 +181,21 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                             <?php else: ?>
                                 <?php foreach ($patients as $patient): ?>
                                     <?php 
-                                    // Format time like staff queue
-                                    $queueTime = $patient['queue_time'] ?? '';
+                                    // Format appointment time
+                                    $appointmentTime = $patient['appointment_time'] ?? '';
                                     $time12hr = '';
                                     $time24hr = '';
-                                    if (!empty($queueTime)) {
-                                        $timeObj = new DateTime($queueTime);
+                                    if (!empty($appointmentTime)) {
+                                        $timeObj = new DateTime($appointmentTime);
                                         $time12hr = $timeObj->format('g:i A');
                                         $time24hr = $timeObj->format('H:i');
+                                    }
+                                    // Format appointment date
+                                    $appointmentDate = $patient['appointment_date'] ?? '';
+                                    $dateDisplay = '';
+                                    if (!empty($appointmentDate)) {
+                                        $dateObj = new DateTime($appointmentDate);
+                                        $dateDisplay = $dateObj->format('M d, Y');
                                     }
                                     ?>
                                     <tr class="patient-row" 
@@ -249,29 +216,33 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                                 <div><?php echo htmlspecialchars($patient['email'] ?? ''); ?></div>
                                             </div>
                                         </td>
-                                        <td><?php echo htmlspecialchars($patient['treatment_type'] ?? 'General Checkup'); ?></td>
-                                        <td>Dr. Rex</td>
+                                        <td><?php echo htmlspecialchars($patient['service_name'] ?? 'N/A'); ?></td>
                                         <td>
                                             <div class="time-display">
-                                                <span class="time-12hr"><?php echo $time12hr; ?></span>
-                                                <span class="time-24hr"><?php echo $time24hr; ?></span>
+                                                <?php if ($dateDisplay): ?>
+                                                <span class="time-12hr"><?php echo $dateDisplay; ?></span>
+                                                <span class="time-24hr"><?php echo $time12hr; ?></span>
+                                                <?php else: ?>
+                                                <span class="time-12hr" style="color: #9ca3af;">No appointment</span>
+                                                <?php endif; ?>
                                             </div>
                                         </td>
                                         <td>
                                             <?php 
-                                            $status = $patient['queue_status'];
-                                            if ($status === 'waiting') {
-                                                echo '<span class="status-badge waiting">Waiting</span>';
-                                            } elseif ($status === 'in_procedure') {
-                                                echo '<span class="status-badge in-procedure">In Procedure</span>';
-                                            } elseif ($status === 'completed') {
+                                            $appStatus = $patient['appointment_status'] ?? '';
+                                            $statusId = $patient['appointment_status_id'] ?? 0;
+                                            if ($statusId == 1) {
+                                                echo '<span class="status-badge waiting">Pending</span>';
+                                            } elseif ($statusId == 2) {
+                                                echo '<span class="status-badge in-procedure">Confirmed</span>';
+                                            } elseif ($statusId == 3) {
                                                 echo '<span class="status-badge completed">Completed</span>';
-                                            } elseif ($status === 'on_hold') {
-                                                echo '<span class="status-badge on-hold">On Hold</span>';
-                                            } elseif ($status === 'scheduled') {
-                                                echo '<span class="status-badge scheduled">Scheduled</span>';
+                                            } elseif ($statusId == 4) {
+                                                echo '<span class="status-badge on-hold">Cancelled</span>';
+                                            } elseif ($statusId == 5) {
+                                                echo '<span class="status-badge scheduled">No Show</span>';
                                             } else {
-                                                echo '<span class="status-badge">Not in Queue</span>';
+                                                echo '<span class="status-badge">No Appointment</span>';
                                             }
                                             ?>
                                         </td>
@@ -376,10 +347,10 @@ function filterPatients() {
         
         // Get patient object from our data
         const patient = patients.find(p => p.id == patientId);
-        const queueStatus = patient?.queue_status || '';
+        const appointmentStatusId = patient?.appointment_status_id || 0;
         
         const matchSearch = !search || name.includes(search) || phone.includes(search);
-        const matchStatus = !statusFilter || queueStatus === statusFilter || statusFilter === '';
+        const matchStatus = !statusFilter || String(appointmentStatusId) === statusFilter || statusFilter === '';
         
         row.style.display = (matchSearch && matchStatus) ? '' : 'none';
     });

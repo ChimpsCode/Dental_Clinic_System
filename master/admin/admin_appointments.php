@@ -36,19 +36,23 @@ try {
     
     // Get all appointments for stats (without pagination, exclude archived)
     $allStmt = $pdo->query("SELECT a.*, 
-                         CONCAT(COALESCE(p.first_name, a.first_name, ''), ' ', IFNULL(COALESCE(p.middle_name, a.middle_name, ''), ''), ' ', COALESCE(p.last_name, a.last_name, '')) as full_name, 
-                         COALESCE(p.phone, '') AS phone
+                         p.first_name, p.middle_name, p.last_name,
+                         COALESCE(p.phone, '') AS phone,
+                         s.name as service_name
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id
+                         LEFT JOIN services s ON a.service_id = s.id
                          $whereClause");
     $allAppointments = $allStmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Get paginated appointments (exclude archived)
     $stmt = $pdo->prepare("SELECT a.*, 
-                         CONCAT(COALESCE(p.first_name, a.first_name, ''), ' ', IFNULL(COALESCE(p.middle_name, a.middle_name, ''), ''), ' ', COALESCE(p.last_name, a.last_name, '')) as full_name, 
-                         COALESCE(p.phone, '') AS phone
+                         p.first_name, p.middle_name, p.last_name,
+                         COALESCE(p.phone, '') AS phone,
+                         s.name as service_name
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id 
+                         LEFT JOIN services s ON a.service_id = s.id
                          $whereClause
                          ORDER BY a.created_at DESC
                          LIMIT :limit OFFSET :offset");
@@ -70,11 +74,22 @@ $completedCount = 0;
 $pendingCount = 0;
 $cancelledCount = 0;
 try {
+    $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'status'");
+    $hasStatusCol = $checkCol->fetch() !== false;
+    
     $baseWhere = $countWhereClause ? $countWhereClause . " AND " : "WHERE ";
     $todayCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
-    $completedCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) = 'completed' AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
-    $pendingCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) IN ('scheduled','pending') AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
-    $cancelledCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) = 'cancelled' AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
+    
+    if ($hasStatusCol) {
+        $completedCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) = 'completed' AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
+        $pendingCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) IN ('scheduled','pending') AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
+        $cancelledCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) = 'cancelled' AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
+    } else {
+        // status_id: 4=completed, 5=cancelled, 1=scheduled, 2=confirmed
+        $completedCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere status_id = 4 AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
+        $pendingCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere status_id IN (1,2) AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
+        $cancelledCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere status_id = 5 AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
+    }
 } catch (Exception $e) {
     $todayCount = 0;
     $completedCount = 0;
@@ -144,7 +159,9 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Patient Name</th>
+                                <th>First Name</th>
+                                <th>Middle Name</th>
+                                <th>Last Name</th>
                                 <th>Date & Time</th>
                                 <th>Treatment</th>
                                 <th>Status</th>
@@ -154,31 +171,43 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                         <tbody id="appointmentsTableBody">
                             <?php if (empty($appointments)): ?>
                                 <tr>
-                                    <td colspan="5" style="text-align: center; padding: 60px; color: #6b7280;">
+                                    <td colspan="7" style="text-align: center; padding: 60px; color: #6b7280;">
                                         <p style="font-size: 1.1rem; margin-bottom: 8px;">No appointments found</p>
                                     </td>
                                 </tr>
                             <?php else: ?>
                                 <?php foreach ($appointments as $appt): ?>
+                                    <?php
+                                        $firstName = htmlspecialchars($appt['first_name'] ?? '');
+                                        $middleName = htmlspecialchars($appt['middle_name'] ?? '');
+                                        $lastName = htmlspecialchars($appt['last_name'] ?? '');
+                                        $fullName = trim("$firstName $middleName $lastName") ?: 'Unknown';
+                                    ?>
                                     <tr class="appointment-row" 
-                                        data-name="<?php echo strtolower(htmlspecialchars($appt['full_name'] ?? 'Unknown')); ?>"
+                                        data-name="<?php echo strtolower($fullName); ?>"
                                         data-date="<?php echo date('Y-m-d', strtotime($appt['appointment_date'])); ?>"
                                         data-status="<?php echo strtolower($appt['status'] ?? ''); ?>">
-                                        <td>
-                                            <div class="patient-name"><?php echo htmlspecialchars($appt['full_name'] ?? 'Unknown'); ?></div>
-                                            <div style="font-size: 0.85rem; color: #6b7280;">Phone: <?php echo htmlspecialchars($appt['phone'] ?? 'N/A'); ?></div>
-                                        </td>
+                                        <td><?php echo $firstName ?: '-'; ?></td>
+                                        <td><?php echo $middleName ?: '-'; ?></td>
+                                        <td><?php echo $lastName ?: '-'; ?></td>
                                         <td>
                                             <div><?php echo date('M d, Y', strtotime($appt['appointment_date'])); ?></div>
-                                            <div style="font-size: 0.85rem; color: #6b7280;"><?php echo htmlspecialchars($appt['appointment_time'] ?? 'N/A'); ?></div>
+                                            <div style="font-size: 0.85rem; color: #6b7280;"><?php echo date('h:i A', strtotime($appt['appointment_time'] ?? '')); ?></div>
+                                            <div style="font-size: 0.85rem; color: #6b7280;">Phone: <?php echo htmlspecialchars($appt['phone'] ?? 'N/A'); ?></div>
                                         </td>
-                                        <td><?php echo htmlspecialchars($appt['treatment'] ?? 'General'); ?></td>
+                                        <td><?php echo htmlspecialchars($appt['service_name'] ?? 'General'); ?></td>
                                         <td>
                                             <?php 
-                                                $status = $appt['status'] ?? 'Pending';
+                                                $status = $appt['status'] ?? 'Scheduled';
                                                 $statusClass = strtolower($status);
+                                                // Map status to badge class
+                                                $badgeClass = 'status-scheduled';
+                                                if (stripos($status, 'queue') !== false) $badgeClass = 'status-in-queue';
+                                                if (stripos($status, 'pending') !== false) $badgeClass = 'status-pending';
+                                                if (stripos($status, 'complete') !== false) $badgeClass = 'status-completed';
+                                                if (stripos($status, 'cancel') !== false) $badgeClass = 'status-cancelled';
                                             ?>
-                                            <span class="status-badge <?php echo $statusClass; ?>"><?php echo htmlspecialchars($status); ?></span>
+                                            <span class="status-badge <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($status); ?></span>
                                         </td>
                                         <td>
                                             <div class="appt-kebab-menu">

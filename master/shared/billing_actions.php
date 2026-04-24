@@ -288,15 +288,16 @@ try {
             try {
                 // Find or create billing record
                 if ($billing_id) {
-                    // Get old status before update
-                    $stmt = $pdo->prepare("SELECT payment_status FROM billing WHERE id = ?");
+                    // Get old status before update - use payment_status_id
+                    $stmt = $pdo->prepare("SELECT payment_status_id FROM billing WHERE id = ?");
                     $stmt->execute([$billing_id]);
-                    $old_status = $stmt->fetchColumn();
+                    $old_status_id = $stmt->fetchColumn();
+                    $old_status = $old_status_id == 1 ? 'paid' : 'unpaid';
                     
-                    // Update existing billing
+                    // Update existing billing - use payment_status_id = 1 for paid
                     $stmt = $pdo->prepare("
                         UPDATE billing 
-                        SET payment_status = 'paid', 
+                        SET payment_status_id = 1,
                             paid_amount = COALESCE(paid_amount, 0) + ?, 
                             balance = 0,
                             updated_at = NOW()
@@ -306,31 +307,30 @@ try {
                 } else {
                     // Check if billing exists for today
                     $stmt = $pdo->prepare("
-                        SELECT id, payment_status FROM billing 
+                        SELECT id, payment_status_id FROM billing 
                         WHERE patient_id = ? AND DATE(billing_date) = ?
                     ");
                     $stmt->execute([$patient_id, $queueDate]);
                     $existing = $stmt->fetch();
                     
                     if ($existing) {
-                        // Update existing
+                        // Update existing - use payment_status_id
                         $billing_id = $existing['id'];
-                        $old_status = $existing['payment_status'];
+                        $old_status = $existing['payment_status_id'] == 1 ? 'paid' : 'unpaid';
                         $stmt = $pdo->prepare("
                             UPDATE billing 
-                            SET payment_status = 'paid', 
+                            SET payment_status_id = 1,
                                 paid_amount = COALESCE(paid_amount, 0) + ?, 
                                 balance = 0,
-                                updated_at = NOW(),
-                                billing_date = billing_date -- keep original service date
+                                updated_at = NOW()
                             WHERE id = ?
                         ");
                         $stmt->execute([$amount, $billing_id]);
                     } else {
-                        // Create new billing
+                        // Create new billing - use payment_status_id = 1 for paid
                         $stmt = $pdo->prepare("
-                            INSERT INTO billing (patient_id, total_amount, paid_amount, balance, payment_status, billing_date, due_date, created_at, updated_at)
-                            VALUES (?, ?, ?, 0, 'paid', ?, DATE_ADD(?, INTERVAL 7 DAY), NOW(), NOW())
+                            INSERT INTO billing (patient_id, total_amount, paid_amount, balance, payment_status_id, billing_date, due_date, created_at, updated_at)
+                            VALUES (?, ?, ?, 0, 1, ?, DATE_ADD(?, INTERVAL 7 DAY), NOW(), NOW())
                         ");
                         $stmt->execute([$patient_id, $amount, $amount, $queueDate, $queueDate]);
                         $billing_id = $pdo->lastInsertId();

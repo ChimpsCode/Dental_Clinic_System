@@ -30,17 +30,20 @@ try {
 
     if ($searchQuery !== '') {
         $whereClause .= " AND (
-            CONCAT(COALESCE(p.first_name,''), ' ', COALESCE(p.middle_name,''), ' ', COALESCE(p.last_name,''), ' ', COALESCE(p.suffix,'')) LIKE :search
+            CONCAT(COALESCE(p.first_name,''), ' ', COALESCE(p.middle_name,''), ' ', COALESCE(p.last_name,'')) LIKE :search
             OR b.id LIKE :searchId
         )";
         $params[':search'] = '%' . $searchQuery . '%';
         $params[':searchId'] = '%' . $searchQuery . '%';
     }
 
+    // Fix: use payment_status_id
     if ($statusFilter === 'paid') {
-        $whereClause .= " AND b.payment_status = 'paid'";
+        $whereClause .= " AND b.payment_status_id = 1";
+    } elseif ($statusFilter === 'partial') {
+        $whereClause .= " AND b.payment_status_id = 2";
     } elseif ($statusFilter === 'unpaid') {
-        $whereClause .= " AND (b.payment_status IS NULL OR b.payment_status IN ('pending', 'unpaid', 'partial'))";
+        $whereClause .= " AND b.payment_status_id IN (3, 4)";
     }
 
     switch ($dateFilter) {
@@ -57,12 +60,13 @@ try {
             break;
     }
 
+    // Fix: use payment_status_id
     $statsStmt = $pdo->query("
         SELECT
-            COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN paid_amount ELSE 0 END), 0) AS total_collected,
-            COALESCE(SUM(CASE WHEN payment_status IN ('pending', 'unpaid', 'partial') THEN balance ELSE 0 END), 0) AS pending_payments,
+            COALESCE(SUM(CASE WHEN payment_status_id = 1 THEN paid_amount ELSE 0 END), 0) AS total_collected,
+            COALESCE(SUM(CASE WHEN payment_status_id IN (2, 3, 4) THEN balance ELSE 0 END), 0) AS pending_payments,
             COUNT(*) AS total_transactions,
-            SUM(CASE WHEN due_date < CURDATE() AND (balance IS NOT NULL AND balance > 0) THEN 1 ELSE 0 END) AS overdue_count
+            SUM(CASE WHEN payment_status_id IN (3, 4) AND billing_date < CURDATE() THEN 1 ELSE 0 END) AS overdue_count
         FROM billing
     ");
     $stats = $statsStmt->fetch(PDO::FETCH_ASSOC) ?: [];
@@ -82,6 +86,7 @@ try {
     if ($currentPage > $totalPages) $currentPage = 1;
     $offset = ($currentPage - 1) * $perPage;
 
+    // Fix: join with payment_statuses table
     $sql = "
         SELECT
             b.id AS billing_id,
@@ -91,7 +96,7 @@ try {
             b.total_amount,
             b.paid_amount,
             b.balance,
-            b.payment_status,
+            ps.status_name AS payment_status,
             b.billing_date,
             b.due_date,
             p.first_name,
@@ -99,12 +104,13 @@ try {
             p.last_name,
             p.suffix,
             p.phone,
-            p.address,
-            COALESCE(t.procedure_name, a.treatment, 'General Service') AS service_name
+            svc.name AS service_name
         FROM billing b
         LEFT JOIN patients p ON p.id = b.patient_id
         LEFT JOIN treatments t ON t.id = b.treatment_id
         LEFT JOIN appointments a ON a.id = b.appointment_id
+        LEFT JOIN services svc ON a.service_id = svc.id
+        LEFT JOIN payment_statuses ps ON b.payment_status_id = ps.id
         $whereClause
         ORDER BY b.billing_date DESC
         LIMIT $perPage OFFSET $offset
@@ -166,6 +172,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     <select class="filter-select" id="paymentStatus">
                         <option value="">All Status</option>
                         <option value="paid">Paid</option>
+                        <option value="partial">Partial</option>
                         <option value="unpaid">Unpaid</option>
                     </select>
                     <select class="filter-select" id="dateRange">
@@ -196,10 +203,10 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                             </tr>
                         </thead>
                         <tbody id="paymentTableBody">
-                            <?php if (empty($billingRecords)): ?>
+                            <?php if (count($billingRecords) == 0): ?>
                             <tr>
                                 <td colspan="8" style="text-align: center; padding: 40px; color: #6b7280;">
-                                    No payment records found. Add patients and create billing to see payments here.
+                                    No payment records found. Add patients and create billing to see payments here. (Records: <?php echo count($billingRecords); ?>)
                                 </td>
                             </tr>
                             <?php else: ?>
@@ -208,7 +215,14 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                 $fullName = trim($record['first_name'] . ' ' . $record['middle_name'] . ' ' . $record['last_name'] . ' ' . $record['suffix']);
                                 $fullName = preg_replace('/\s+/', ' ', $fullName);
                                 $services = $record['service_name'] ?? 'General Service';
-                                $status = $record['payment_status'] === 'paid' ? 'paid' : 'unpaid';
+                                $statusRaw = $record['payment_status'];
+                                if ($statusRaw === 'Paid') {
+                                    $status = 'paid';
+                                } elseif ($statusRaw === 'Partial') {
+                                    $status = 'partial';
+                                } else {
+                                    $status = 'unpaid';
+                                }
                                 $isOverdue = !empty($record['due_date']) && $record['due_date'] < date('Y-m-d') && $record['balance'] > 0;
                                 $displayStatus = $isOverdue ? 'overdue' : $status;
                             ?>

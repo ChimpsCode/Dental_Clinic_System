@@ -9,20 +9,8 @@ $currentPage = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['p
 if ($currentPage < 1) $currentPage = 1;
 
 try {
-    require_once '../../config/database.php';
-    
-    // Check if is_archived column exists
-    $checkColumn = $pdo->query("SHOW COLUMNS FROM patients LIKE 'is_archived'");
-    $hasArchiveColumn = $checkColumn->rowCount() > 0;
-    
-    // Build WHERE clause to exclude archived patients
-    $whereClause = $hasArchiveColumn ? "WHERE is_archived = 0" : "";
-    $whereClauseP = $hasArchiveColumn ? "WHERE p.is_archived = 0" : "";
-    
-    // Get total count for pagination (exclude archived)
-    $countQuery = "SELECT COUNT(*) FROM patients $whereClause";
-    $countStmt = $pdo->query($countQuery);
-    $totalPatients = $countStmt->fetchColumn();
+    // Get total count for pagination
+    $totalPatients = (int)$pdo->query("SELECT COUNT(*) FROM patients WHERE is_archived = 0")->fetchColumn();
     $totalPages = max(1, ceil($totalPatients / $itemsPerPage));
     
     // Ensure current page is valid
@@ -33,23 +21,27 @@ try {
     $showingStart = $totalPatients > 0 ? $offset + 1 : 0;
     $showingEnd = min($offset + $itemsPerPage, $totalPatients);
     
-    // Get all patients for stats (without pagination, exclude archived)
-    $allStmt = $pdo->query("
-        SELECT p.*,
-               (SELECT status FROM queue WHERE patient_id = p.id ORDER BY created_at DESC LIMIT 1) as queue_status,
-               (SELECT treatment_type FROM queue WHERE patient_id = p.id ORDER BY created_at DESC LIMIT 1) as current_treatment
-        FROM patients p
-        $whereClauseP
-    ");
-    $allPatients = $allStmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Get paginated patients (exclude archived)
+    // Get paginated patients with appointment data
     $stmt = $pdo->prepare("
-        SELECT p.*,
-               (SELECT status FROM queue WHERE patient_id = p.id ORDER BY created_at DESC LIMIT 1) as queue_status,
-               (SELECT treatment_type FROM queue WHERE patient_id = p.id ORDER BY created_at DESC LIMIT 1) as current_treatment
+        SELECT p.*, 
+               TIMESTAMPDIFF(YEAR, p.date_of_birth, CURDATE()) as age,
+               a.status_id as appointment_status_id,
+               a.status_name as appointment_status,
+               a.appointment_date,
+               a.appointment_time,
+               svc.name as service_name
         FROM patients p 
-        $whereClauseP
+        LEFT JOIN (
+            SELECT a1.*, s.status_name
+            FROM appointments a1
+            LEFT JOIN appointment_statuses s ON a1.status_id = s.id
+            WHERE a1.id = (
+                SELECT MAX(a2.id) FROM appointments a2 WHERE a2.patient_id = a1.patient_id
+            )
+        ) a ON p.id = a.patient_id
+        LEFT JOIN services svc ON a.service_id = svc.id
+        WHERE p.is_archived = 0
+        GROUP BY p.id
         ORDER BY p.created_at DESC
         LIMIT :limit OFFSET :offset
     ");
@@ -58,20 +50,34 @@ try {
     $stmt->execute();
     $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Calculate stats from all patients (exclude archived)
-    $inQueue = count(array_filter($allPatients, fn($p) => in_array($p['queue_status'] ?? '', ['waiting', 'in_procedure'])));
-    $scheduledCount = count(array_filter($allPatients, fn($p) => ($p['queue_status'] ?? '') === 'scheduled'));
-    $newThisMonth = count(array_filter($allPatients, fn($p) => !empty($p['created_at']) && strtotime($p['created_at']) > strtotime('-30 days')));
+    // Get stats
+    $inQueueStmt = $pdo->query("
+        SELECT COUNT(DISTINCT p.id) FROM patients p
+        INNER JOIN appointments a ON p.id = a.patient_id
+        WHERE p.is_archived = 0 AND a.status_id IN (1, 2) AND a.appointment_date >= CURDATE()
+    ");
+    $inQueue = $inQueueStmt->fetchColumn();
+    
+    $completedStmt = $pdo->query("
+        SELECT COUNT(DISTINCT p.id) FROM patients p
+        INNER JOIN appointments a ON p.id = a.patient_id
+        WHERE p.is_archived = 0 AND a.status_id = 3
+    ");
+    $completedCount = $completedStmt->fetchColumn();
+    
+    $newThisMonthStmt = $pdo->query("
+        SELECT COUNT(*) FROM patients WHERE is_archived = 0 AND created_at > DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+    ");
+    $newThisMonth = $newThisMonthStmt->fetchColumn();
     
 } catch (Exception $e) {
     $patients = [];
-    $allPatients = [];
     $totalPatients = 0;
     $totalPages = 1;
     $showingStart = 0;
     $showingEnd = 0;
     $inQueue = 0;
-    $scheduledCount = 0;
+    $completedCount = 0;
     $newThisMonth = 0;
 }
 ?>
@@ -89,14 +95,14 @@ try {
         <div class="summary-icon" style="width: 48px; height: 48px; background: #fef3c7; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">⏰</div>
         <div class="summary-info">
             <h3 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0;"><?php echo $inQueue; ?></h3>
-            <p style="font-size: 0.875rem; color: #6b7280; margin: 0;">In Queue</p>
+            <p style="font-size: 0.875rem; color: #6b7280; margin: 0;">Pending</p>
         </div>
     </div>
     <div class="summary-card" style="background: white; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; display: flex; align-items: center; gap: 16px;">
         <div class="summary-icon" style="width: 48px; height: 48px; background: #e0e7ff; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">📅</div>
         <div class="summary-info">
-            <h3 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0;"><?php echo $scheduledCount; ?></h3>
-            <p style="font-size: 0.875rem; color: #6b7280; margin: 0;">Scheduled</p>
+            <h3 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0;"><?php echo $completedCount; ?></h3>
+            <p style="font-size: 0.875rem; color: #6b7280; margin: 0;">Completed</p>
         </div>
     </div>
     <div class="summary-card" style="background: white; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; display: flex; align-items: center; gap: 16px;">
@@ -134,12 +140,10 @@ try {
 </div>
 
 <!-- Patient Records Table -->
-<div class="section-card" style="background: white; border-radius: 12px; padding: 24px; border: 1px solid #e5e7eb;">
-    <div class="section-title" style="font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; color: #111827;">
-        <span>All Patient Records</span>
-    </div>
+<div class="section-card" style="background: white; border-radius: 12px; border: 1px solid #e5e7eb;">
+    
     <div style="overflow-x: auto;">
-        <table class="data-table" style="width: 100%; border-collapse: collapse;">
+        <table class="data-table" style="width: 100%; border-collapse: collapse; border-radius: 26px;">
             <thead>
                 <tr>
                     <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">First Name</th>
@@ -161,27 +165,28 @@ try {
                     </tr>
                 <?php else: ?>
                     <?php foreach ($patients as $patient): 
-                        $status = $patient['queue_status'] ?? '';
+                        $statusId = $patient['appointment_status_id'] ?? 0;
                         $statusColors = [
-                            'waiting' => '#fef3c7:#92400e',
-                            'in_procedure' => '#dbeafe:#1d4ed8',
-                            'completed' => '#d1fae5:#065f46',
-                            'on_hold' => '#f3f4f6:#6b7280',
-                            'cancelled' => '#fee2e2:#dc2626',
-                            'scheduled' => '#e0e7ff:#4338ca'
+                            1 => '#fef3c7:#92400e',
+                            2 => '#dbeafe:#1d4ed8',
+                            3 => '#d1fae5:#065f46',
+                            4 => '#fee2e2:#dc2626',
+                            5 => '#f3f4f6:#6b7280'
                         ];
                         $bgColor = '#f3f4f6';
                         $textColor = '#6b7280';
-                        if (isset($statusColors[$status])) {
-                            list($bg, $text) = explode(':', $statusColors[$status]);
+                        if (isset($statusColors[$statusId])) {
+                            list($bg, $text) = explode(':', $statusColors[$statusId]);
                             $bgColor = $bg;
                             $textColor = $text;
                         }
+                        $statusLabels = [1 => 'Pending', 2 => 'Confirmed', 3 => 'Completed', 4 => 'Cancelled', 5 => 'No Show'];
+                        $statusLabel = $statusLabels[$statusId] ?? 'No Appointment';
                     ?>
                         <tr class="patient-row" 
                             data-name="<?php echo strtolower(htmlspecialchars($patient['first_name'] ?? 'Unknown')); ?>"
                             data-phone="<?php echo strtolower(htmlspecialchars($patient['phone'] ?? '')); ?>"
-                            data-status="<?php echo $status; ?>">
+                            data-status="<?php echo $statusId; ?>">
                             <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
                                 <?php echo htmlspecialchars($patient['first_name'] ?? ''); ?>
                             </td>
@@ -204,11 +209,11 @@ try {
                                 </div>
                             </td>
                             <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
-                                <span style="font-weight: 500; color: #111827;"><?php echo htmlspecialchars($patient['current_treatment'] ?: 'None'); ?></span>
+                                <span style="font-weight: 500; color: #111827;"><?php echo htmlspecialchars($patient['service_name'] ?: 'N/A'); ?></span>
                             </td>
                             <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
                                 <span style="background: <?php echo $bgColor; ?>; color: <?php echo $textColor; ?>; padding: 4px 12px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600;">
-                                    <?php echo ucfirst(str_replace('_', ' ', $status ?: 'None')); ?>
+                                    <?php echo $statusLabel; ?>
                                 </span>
                             </td>
                             <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">

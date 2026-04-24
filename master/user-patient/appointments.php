@@ -42,15 +42,18 @@ $stmt->execute([$patient_id]);
 $patient = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if ($patient) {
-    $patient_name = trim($patient['first_name'] . ' ' . $patient['last_name']);
+    $firstName = trim($patient['first_name'] ?? '');
+    $lastName = trim($patient['last_name'] ?? '');
+    $patient_name = $lastName ?: 'Patient';
+    // Avatar: First letter of first name + last name (e.g., "John Doe" → "JD")
+    $avatar_initial = strtoupper(substr($firstName, 0, 1)) . strtoupper(substr($lastName, 0, 1));
 }
 
 // Get appointments for this patient
 $stmt = $pdo->prepare("
     SELECT a.*, 
            s.name as service_name,
-           aps.status_name,
-           aps.color as status_color
+           aps.status_name
     FROM appointments a
     LEFT JOIN services s ON a.service_id = s.id
     LEFT JOIN appointment_statuses aps ON a.status_id = aps.id
@@ -204,12 +207,12 @@ $pageTitle = 'My Appointments';
         .apt-treatment { font-size: 16px; font-weight: 600; color: #1a1a2e; margin-bottom: 4px; }
         .apt-dentist { font-size: 14px; color: #6b7280; }
         .apt-notes { font-size: 12px; color: #6b7280; margin-top: 4px; }
-        .apt-status { display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
-        .status-scheduled { background: #d1fae5; color: #065f46; }
-        .status-confirmed { background: #d1fae5; color: #065f46; }
-        .status-completed { background: #dbeafe; color: #1e40af; }
+        .apt-status { display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .status-scheduled { background: #e0f2fe; color: #0369a1; }
+        .status-in-queue { background: #fef3c7; color: #92400e; }
+        .status-pending-payment { background: #fed7aa; color: #c2410c; }
+        .status-completed { background: #d1fae5; color: #065f46; }
         .status-cancelled { background: #fee2e2; color: #991b1b; }
-        .status-pending { background: #fef3c7; color: #92400e; }
         
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
         .modal-overlay.active { display: flex; }
@@ -293,7 +296,7 @@ $pageTitle = 'My Appointments';
                 <div class="notification-bell"><i class="fas fa-bell"></i></div>
                 <div class="user-profile">
                     <div class="user-avatar">
-                        <?php echo strtoupper(substr($patient_name, 0, 1)); ?>
+                        <?php echo htmlspecialchars($avatar_initial ?? 'P'); ?>
                     </div>
                     <div class="user-details">
                         <div class="user-name"><?php echo htmlspecialchars($patient_name); ?></div>
@@ -345,6 +348,7 @@ $pageTitle = 'My Appointments';
                         <div id="bookingForm" style="display: none;">
                             <div class="selected-date" id="selectedDateDisplay"></div>
                             
+                            <!-- Step 1: Select Service First -->
                             <div class="form-group">
                                 <label class="form-label">Select Service</label>
                                 <select id="serviceSelect" class="form-select">
@@ -357,16 +361,18 @@ $pageTitle = 'My Appointments';
                                 </select>
                             </div>
                             
+                            <!-- Step 2: Time Slots (show after service selected) -->
                             <div class="form-group">
                                 <label class="form-label">Select Time Slot</label>
                                 <div class="time-slots" id="timeSlotsGrid">
                                     <div style="grid-column: 1/-1; text-align: center; padding: 20px; color: #6b7280; background: #f9fafb; border-radius: 8px;">
-                                        <i class="fas fa-info-circle" style="margin-right: 8px;"></i>
-                                        Select a service to see available time slots
+                                        <i class="fas fa-clock" style="margin-right: 8px;"></i>
+                                        Select a service to see available times
                                     </div>
                                 </div>
                             </div>
                             
+                            <!-- Step 3: Notes -->
                             <div class="form-group">
                                 <label class="form-label">Notes (Optional)</label>
                                 <textarea id="appointmentNotes" class="form-textarea" placeholder="Any additional notes..."></textarea>
@@ -383,9 +389,12 @@ $pageTitle = 'My Appointments';
             <div id="upcoming" class="tab-content">
                 <?php if (!empty($upcoming_appointments)): ?>
                     <?php foreach ($upcoming_appointments as $apt): 
+                        $statusName = $apt['status_name'] ?? 'Scheduled';
                         $statusClass = 'status-scheduled';
-                        if (stripos($apt['status_name'] ?? '', 'confirm') !== false) $statusClass = 'status-confirmed';
-                        if (stripos($apt['status_name'] ?? '', 'cancel') !== false) $statusClass = 'status-cancelled';
+                        if (stripos($statusName, 'queue') !== false || stripos($statusName, 'in queue') !== false) $statusClass = 'status-in-queue';
+                        if (stripos($statusName, 'pending') !== false) $statusClass = 'status-pending-payment';
+                        if (stripos($statusName, 'cancel') !== false) $statusClass = 'status-cancelled';
+                        if (stripos($statusName, 'complete') !== false) $statusClass = 'status-completed';
                     ?>
                         <div class="appointment-card">
                             <div class="apt-date">
@@ -401,7 +410,7 @@ $pageTitle = 'My Appointments';
                                 <?php endif; ?>
                             </div>
                             <span class="apt-status <?php echo $statusClass; ?>">
-                                <?php echo htmlspecialchars($apt['status_name'] ?? 'Scheduled'); ?>
+                                <?php echo htmlspecialchars($statusName); ?>
                             </span>
                         </div>
                     <?php endforeach; ?>
@@ -417,6 +426,14 @@ $pageTitle = 'My Appointments';
             <div id="past" class="tab-content">
                 <?php if (!empty($past_appointments)): ?>
                     <?php foreach ($past_appointments as $apt): ?>
+                        <?php 
+                        $statusName = $apt['status_name'] ?? 'Completed';
+                        $statusClass = 'status-completed';
+                        if (stripos($statusName, 'queue') !== false || stripos($statusName, 'in queue') !== false) $statusClass = 'status-in-queue';
+                        if (stripos($statusName, 'pending') !== false) $statusClass = 'status-pending-payment';
+                        if (stripos($statusName, 'cancel') !== false) $statusClass = 'status-cancelled';
+                        if (stripos($statusName, 'complete') !== false) $statusClass = 'status-completed';
+                        ?>
                         <div class="appointment-card">
                             <div class="apt-date" style="background: #f3f4f6;">
                                 <div class="apt-month"><?php echo date('M', strtotime($apt['appointment_date'])); ?></div>
@@ -427,7 +444,7 @@ $pageTitle = 'My Appointments';
                                 <div class="apt-time"><i class="far fa-clock"></i> <?php echo date('g:i A', strtotime($apt['appointment_time'])); ?></div>
                                 <div class="apt-treatment"><?php echo htmlspecialchars($apt['service_name'] ?? $apt['treatment'] ?? 'General Checkup'); ?></div>
                             </div>
-                            <span class="apt-status status-completed"><?php echo htmlspecialchars($apt['status_name'] ?? 'Completed'); ?></span>
+                            <span class="apt-status <?php echo $statusClass; ?>"><?php echo htmlspecialchars($statusName); ?></span>
                         </div>
                     <?php endforeach; ?>
                 <?php else: ?>
@@ -530,92 +547,97 @@ $pageTitle = 'My Appointments';
             }
         }
 
-        function selectDate(date, el) {
+function selectDate(selDate, el) {
             document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
             el.classList.add('selected');
             
-            selectedDate = date;
+            selectedDate = selDate;
             selectedTime = null;
             
-            const formatted = new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            const formatted = new Date(selDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
             
             document.getElementById('datePrompt').style.display = 'none';
             document.getElementById('bookingForm').style.display = 'block';
             document.getElementById('selectedDateDisplay').textContent = formatted;
             
-            updateBookBtn();
+            // Reset selections
+            selectedTime = null;
+            document.getElementById('serviceSelect').value = '';
+            document.getElementById('timeSlotsGrid').innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: #6b7280; background: #f9fafb; border-radius: 8px;"><i class="fas fa-clock"></i> Select a service to see available times</div>';
         }
-
+        
         function loadSlots(serviceId) {
             const grid = document.getElementById('timeSlotsGrid');
-            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin" style="font-size: 24px; color: #6b7280;"></i></div>';
+            if (!selectedDate || !serviceId) return;
             
-            fetch(`get_slots.php?date=${selectedDate}&service_id=${serviceId}`)
-                .then(r => r.json())
-                .then(data => {
-                    grid.innerHTML = '';
-                    
-                    if (!data.is_open) {
-                        grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: #991b1b;">Clinic is closed on this day</div>';
-                        return;
-                    }
-                    
-                    const allSlots = [...data.available_slots, ...data.booked_slots].sort();
-                    
-                    if (allSlots.length === 0) {
-                        grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: #991b1b;">No time slots available</div>';
-                        return;
-                    }
-                    
-                    const legendDiv = document.createElement('div');
-                    legendDiv.style.cssText = 'grid-column: 1/-1; display: flex; gap: 16px; margin-bottom: 12px; font-size: 12px; color: #6b7280;';
-                    legendDiv.innerHTML = `
-                        <span><span style="display: inline-block; width: 12px; height: 12px; background: #d1fae5; border-radius: 4px; margin-right: 4px;"></span> Available</span>
-                        <span><span style="display: inline-block; width: 12px; height: 12px; background: #fee2e2; border-radius: 4px; margin-right: 4px;"></span> Booked</span>
-                    `;
-                    grid.appendChild(legendDiv);
-                    
-                    allSlots.forEach(slot => {
-                        const s = document.createElement('div');
-                        const isBooked = data.booked_slots.includes(slot);
-                        
-                        if (isBooked) {
-                            s.className = 'time-slot unavailable';
-                            s.innerHTML = `${formatTime(slot)} <i class="fas fa-lock" style="margin-left: 4px; font-size: 10px;"></i>`;
-                        } else {
-                            s.className = 'time-slot available';
-                            s.textContent = formatTime(slot);
-                            s.dataset.time = slot;
-                            s.addEventListener('click', () => selectTime(slot, s));
-                        }
-                        grid.appendChild(s);
-                    });
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+            
+            fetch('./get_slots.php?date=' + selectedDate + '&service_id=' + serviceId)
+                .then(function(resp) { return resp.json(); })
+                .then(function(data) { 
+                    displaySlots(data, grid); 
                 })
-                .catch(() => {
-                    grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: #991b1b;">Error loading slots</div>';
+                .catch(function(err) { 
+                    grid.innerHTML = 'Error: ' + err.message; 
                 });
         }
-
+        
+        function displaySlots(data, grid) {
+            grid.innerHTML = '';
+            
+            if (!data.is_open) {
+                grid.innerHTML = '<div style="color:orange;">' + (data.message || 'Clinic closed') + '</div>';
+                return;
+            }
+            
+            // Show legend
+            const legend = document.createElement('div');
+            legend.style.cssText = 'grid-column: 1/-1; display: flex; gap: 16px; margin-bottom: 12px; font-size: 12px;';
+            legend.innerHTML = '<span style="color:#065f46;"><i class="fas fa-check-circle"></i> Available</span><span style="color:#991b1b;"><i class="fas fa-times-circle"></i> Booked</span>';
+            grid.appendChild(legend);
+            
+            const allSlots = [...data.available_slots, ...data.booked_slots].sort();
+            if (allSlots.length === 0) {
+                grid.innerHTML += '<div style="color:orange;">No slots available</div>';
+                return;
+            }
+            
+            allSlots.forEach(function(slot) {
+                const s = document.createElement('div');
+                const isBooked = data.booked_slots.includes(slot);
+                s.className = isBooked ? 'time-slot unavailable' : 'time-slot available';
+                s.textContent = formatTime(slot);
+                if (!isBooked) {
+                    s.dataset.time = slot;
+                    s.onclick = function() { selectTime(slot, s); };
+                } else {
+                    s.title = 'Already booked';
+                }
+                grid.appendChild(s);
+            });
+        }
+        
         function formatTime(t) {
             const [h, m] = t.split(':');
             return `${parseInt(h) % 12 || 12}:${m} ${h >= 12 ? 'PM' : 'AM'}`;
         }
-
+        
         function selectTime(time, el) {
             document.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
             el.classList.add('selected');
             selectedTime = time;
             updateBookBtn();
         }
-
+        
         function updateBookBtn() {
             document.getElementById('bookBtn').disabled = !(selectedDate && selectedTime && document.getElementById('serviceSelect').value);
         }
-
+        
+        // Service selection loads time slots for the selected date
         document.getElementById('serviceSelect').addEventListener('change', function() {
-            if (selectedDate && this.value) {
-                loadSlots(this.value);
-                selectedTime = null;
+            const serviceId = this.value;
+            if (selectedDate && serviceId) {
+                loadSlots(serviceId);
             }
             updateBookBtn();
         });
@@ -643,8 +665,16 @@ $pageTitle = 'My Appointments';
                             <p><strong>Time:</strong> ${formatTime(selectedTime)}</p>
                         `;
                         document.getElementById('successModal').classList.add('active');
-                        resetForm();
-                        location.reload();
+                        
+                        // Refresh the time slots to show the newly booked slot as unavailable
+                        const serviceId = document.getElementById('serviceSelect').value;
+                        if (serviceId) {
+                            loadSlots(serviceId);
+                        }
+                        
+                        // Reset time selection
+                        selectedTime = null;
+                        updateBookBtn();
                     } else {
                         alert(data.message || 'Booking failed');
                     }

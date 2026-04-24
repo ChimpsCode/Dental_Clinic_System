@@ -28,20 +28,18 @@ try {
     
     // Get all appointments for stats (without pagination)
     $allStmt = $pdo->query("SELECT a.*, 
-                         COALESCE(p.first_name, a.first_name, '') AS first_name, 
-                         COALESCE(p.middle_name, a.middle_name, '') AS middle_name, 
-                         COALESCE(p.last_name, a.last_name, '') AS last_name
+                         p.first_name, p.middle_name, p.last_name, p.phone
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id");
     $allAppointments = $allStmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Get paginated appointments
     $stmt = $pdo->prepare("SELECT a.*, 
-                         COALESCE(p.first_name, a.first_name, '') AS first_name, 
-                         COALESCE(p.middle_name, a.middle_name, '') AS middle_name, 
-                         COALESCE(p.last_name, a.last_name, '') AS last_name
+                         p.first_name, p.middle_name, p.last_name, p.phone,
+                         s.name as service_name
                          FROM appointments a 
-                         LEFT JOIN patients p ON a.patient_id = p.id 
+                         LEFT JOIN patients p ON a.patient_id = p.id
+                         LEFT JOIN services s ON a.service_id = s.id
                          ORDER BY a.appointment_date DESC, a.id DESC
                          LIMIT :limit OFFSET :offset");
     $stmt->bindValue(':limit', $itemsPerPage, PDO::PARAM_INT);
@@ -62,11 +60,22 @@ $completedCount = 0;
 $pendingCount = 0;
 $cancelledCount = 0;
 try {
+    $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'status'");
+    $hasStatusCol = $checkCol->fetch() !== false;
+    
     $baseWhere = $countWhereClause ? $countWhereClause . " AND " : "WHERE ";
     $todayCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
-    $completedCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) = 'completed' AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
-    $pendingCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) IN ('scheduled','pending') AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
-    $cancelledCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) = 'cancelled' AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
+    
+    if ($hasStatusCol) {
+        $completedCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) = 'completed' AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
+        $pendingCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) IN ('scheduled','pending') AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
+        $cancelledCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) = 'cancelled' AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
+    } else {
+        // status_id: 4=completed, 5=cancelled, 1=scheduled, 2=confirmed
+        $completedCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere status_id = 4 AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
+        $pendingCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere status_id IN (1,2) AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
+        $cancelledCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere status_id = 5 AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
+    }
 } catch (Exception $e) {
     $todayCount = 0;
     $completedCount = 0;
@@ -161,6 +170,10 @@ require_once '../../includes/staff_layout_start.php';
         <span data-filter="month">This Month</span>
     </div>
     <input type="text" class="search-input" id="searchAppointment" placeholder="Search appointments...">
+    <div class="section-title">
+        
+        <button class="btn-primary" onclick="closeApptKebabDropdown(); openAppointmentModal()">+ New Appointment</button>
+    </div>
 </div>
 
 <?php if ($inquiryData): ?>
@@ -175,10 +188,7 @@ require_once '../../includes/staff_layout_start.php';
 
 <!-- Appointments Table -->
 <div class="section-card">
-    <div class="section-title">
-        <span>Appointments List</span>
-        <button class="btn-primary" onclick="openAppointmentModal()">+ New Appointment</button>
-    </div>
+    
     
     <div style="overflow-x: auto;">
         <table class="data-table">
@@ -205,28 +215,32 @@ require_once '../../includes/staff_layout_start.php';
                         $firstName = htmlspecialchars($appt['first_name'] ?? '');
                         $middleName = htmlspecialchars($appt['middle_name'] ?? '');
                         $lastName = htmlspecialchars($appt['last_name'] ?? '');
-                        $displayName = trim("$firstName $middleName $lastName") ?: 'Unknown';
+                        $fullName = trim("$firstName $middleName $lastName") ?: 'Unknown';
+                        $status = $appt['status'] ?? '';
+                        $statusId = $appt['status_id'] ?? null;
+                        
+                        // Get status from status_id if status column doesn't exist
+                        if (!$status || $status === 'scheduled') {
+                            if ($statusId == 1) $status = 'scheduled';
+                            elseif ($statusId == 2) $status = 'confirmed';
+                            elseif ($statusId == 3) $status = 'in_progress';
+                            elseif ($statusId == 4) $status = 'completed';
+                            elseif ($statusId == 5) $status = 'cancelled';
+                        }
                     ?>
                         <tr class="appointment-row" 
-                            data-name="<?php echo strtolower($displayName); ?>"
+                            data-name="<?php echo strtolower($fullName); ?>"
                             data-date="<?php echo date('Y-m-d', strtotime($appt['appointment_date'])); ?>"
-                            data-status="<?php echo strtolower($appt['status'] ?? ''); ?>">
-                            <td>
-                                <div style="font-weight: 600;"><?php echo $firstName ?: '-'; ?></div>
-                            </td>
-                            <td>
-                                <div style="color: #6b7280;"><?php echo $middleName ?: '-'; ?></div>
-                            </td>
-                            <td>
-                                <div style="font-weight: 600;"><?php echo $lastName ?: '-'; ?></div>
-                            </td>
+                            data-status="<?php echo strtolower($status); ?>">
+                            <td><?php echo $firstName ?: '-'; ?></td>
+                            <td><?php echo $middleName ?: '-'; ?></td>
+                            <td><?php echo $lastName ?: '-'; ?></td>
                             <td>
                                 <div><?php echo date('M d, Y', strtotime($appt['appointment_date'])); ?></div>
                                 <div style="font-size: 0.85rem; color: #6b7280;">
                                     <?php 
                                     $time = $appt['appointment_time'] ?? '';
                                     if ($time) {
-                                        // Convert 24-hour format to 12-hour format with AM/PM
                                         echo date('h:i A', strtotime($time));
                                     } else {
                                         echo 'N/A';
@@ -234,21 +248,17 @@ require_once '../../includes/staff_layout_start.php';
                                     ?>
                                 </div>
                             </td>
-                            <td><?php echo htmlspecialchars($appt['treatment'] ?? 'General'); ?></td>
+                            <td><?php echo htmlspecialchars($appt['service_name'] ?? 'General'); ?></td>
                             <td>
                                 <?php 
-                                    $status = $appt['status'] ?? 'Pending';
-                                    $statusClass = strtolower($status);
-                                    $statusColors = [
-                                        'completed' => 'dcfce7', '15803d',
-                                        'cancelled' => 'fee2e2', 'dc2626',
-                                        'upcoming' => 'e0f2fe', '0369a1',
-                                        'pending' => 'fef3c7', '92400e'
-                                    ];
-                                    $bgColor = $statusColors[$statusClass . '_bg'] ?? 'fef3c7';
-                                    $textColor = $statusColors[$statusClass . '_text'] ?? '92400e';
+                                    $status = $appt['status'] ?? 'Scheduled';
+                                    $badgeClass = 'status-scheduled';
+                                    if (stripos($status, 'queue') !== false) $badgeClass = 'status-in-queue';
+                                    if (stripos($status, 'pending') !== false) $badgeClass = 'status-pending-payment';
+                                    if (stripos($status, 'complete') !== false) $badgeClass = 'status-completed';
+                                    if (stripos($status, 'cancel') !== false) $badgeClass = 'status-cancelled';
                                 ?>
-                                <span class="status-badge" style="background: #<?php echo $bgColor; ?>; color: #<?php echo $textColor; ?>;"><?php echo htmlspecialchars($status); ?></span>
+                                <span class="status-badge <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($status); ?></span>
                             </td>
                             <td>
                                 <div class="appt-kebab-menu">
@@ -627,9 +637,33 @@ require_once '../../includes/staff_layout_start.php';
     })();
 
     document.addEventListener('DOMContentLoaded', function() {
+        // Initialize kebab dropdown elements early
+        createApptKebabDropdown();
+        
+        // Add global click handler for kebab menu
+        document.addEventListener('click', function(e) {
+            const button = e.target.closest('.appt-kebab-btn');
+            if (button) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const btnId = button.id || ('appt-btn-' + button.dataset.apptId);
+                
+                if (apptActiveButtonId === btnId && apptKebabDropdown.classList.contains('show')) {
+                    closeApptKebabDropdown();
+                } else {
+                    closeApptKebabDropdown();
+                    openApptKebabDropdown(button);
+                }
+            } else if (!e.target.closest('.appt-kebab-dropdown-portal')) {
+                closeApptKebabDropdown();
+            }
+        });
+        
         // Filter tabs click handler
         document.querySelectorAll('.filter-tabs span').forEach(tab => {
             tab.addEventListener('click', function() {
+                closeApptKebabDropdown();
                 document.querySelectorAll('.filter-tabs span').forEach(t => t.classList.remove('active'));
                 this.classList.add('active');
                 filterAppointments();
@@ -637,7 +671,10 @@ require_once '../../includes/staff_layout_start.php';
         });
 
         // Search input handler
-        document.getElementById('searchAppointment').addEventListener('input', filterAppointments);
+        document.getElementById('searchAppointment').addEventListener('input', function() {
+            closeApptKebabDropdown();
+            filterAppointments();
+        });
         
         // Auto-open modal if forwarded from inquiry
         <?php if ($showModal): ?>
@@ -740,7 +777,7 @@ require_once '../../includes/staff_layout_start.php';
                 <div><span style="color: #6b7280;">Phone:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.phone || 'N/A'}</span></div>
                 <div><span style="color: #6b7280;">Date:</span> <span style="font-weight: 500; margin-left: 8px;">${new Date(appt.appointment_date).toLocaleDateString()}</span></div>
                 <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.appointment_time ? new Date('1970-01-01 ' + appt.appointment_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'N/A'}</span></div>
-                <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.treatment || 'General'}</span></div>
+                <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.service_name || appt.treatment || 'General'}</span></div>
                 <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${appt.status === 'Completed' ? '#dcfce7' : appt.status === 'Cancelled' ? '#fee2e2' : '#e0f2fe'}; color: ${appt.status === 'Completed' ? '#15803d' : appt.status === 'Cancelled' ? '#dc2626' : '#0369a1'};">${appt.status ? appt.status.charAt(0).toUpperCase() + appt.status.slice(1) : 'Pending'}</span></div>
                 ${appt.notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${appt.notes}</p></div>` : ''}
             </div>
@@ -779,7 +816,7 @@ require_once '../../includes/staff_layout_start.php';
     // Appointment Kebab Menu Functions - Portal Based
     let apptKebabDropdown = null;
     let apptKebabBackdrop = null;
-    let apptActiveButton = null;
+    let apptActiveButtonId = null;
 
     function createApptKebabDropdown() {
         apptKebabDropdown = document.createElement('div');
@@ -872,13 +909,23 @@ require_once '../../includes/staff_layout_start.php';
         }
 
         const apptId = button.dataset.apptId;
+        const btnId = 'appt-btn-' + apptId;
+        
+        // Remove active class from previous button
+        if (apptActiveButtonId) {
+            const prevBtn = document.getElementById(apptActiveButtonId);
+            if (prevBtn) prevBtn.classList.remove('active');
+        }
 
         apptKebabDropdown.innerHTML = getApptMenuItems(apptId);
         positionApptKebabDropdown(button);
 
+        apptKebabDropdown.style.display = '';
         apptKebabDropdown.classList.add('show');
+        apptKebabBackdrop.style.display = '';
         apptKebabBackdrop.classList.add('show');
-        apptActiveButton = button;
+        apptActiveButtonId = btnId;
+        button.id = btnId;
         button.classList.add('active');
 
         apptKebabDropdown.addEventListener('click', handleApptKebabClick);
@@ -887,13 +934,16 @@ require_once '../../includes/staff_layout_start.php';
     function closeApptKebabDropdown() {
         if (apptKebabDropdown) {
             apptKebabDropdown.classList.remove('show');
+            apptKebabDropdown.style.display = 'none';
         }
         if (apptKebabBackdrop) {
             apptKebabBackdrop.classList.remove('show');
+            apptKebabBackdrop.style.display = 'none';
         }
-        if (apptActiveButton) {
-            apptActiveButton.classList.remove('active');
-            apptActiveButton = null;
+        if (apptActiveButtonId) {
+            const btn = document.getElementById(apptActiveButtonId);
+            if (btn) btn.classList.remove('active');
+            apptActiveButtonId = null;
         }
     }
 
@@ -902,45 +952,31 @@ require_once '../../includes/staff_layout_start.php';
         if (!link) return;
 
         e.preventDefault();
+        e.stopPropagation();
         const action = link.dataset.action;
         const id = link.dataset.id;
 
         closeApptKebabDropdown();
-
-        switch (action) {
-            case 'view':
-                viewAppointment(id);
-                break;
-            case 'edit':
-                editAppointment(id);
-                break;
-            case 'forward':
-                forwardToAdmission(id);
-                break;
-            case 'delete':
-                deleteAppointment(id);
-                break;
-        }
-    }
-
-    // Click handler for kebab buttons
-    document.addEventListener('click', function(e) {
-        const button = e.target.closest('.appt-kebab-btn');
-        if (button) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            if (apptActiveButton === button) {
-                closeApptKebabDropdown();
-            } else {
-                closeApptKebabDropdown();
-                openApptKebabDropdown(button);
+        
+        // Ensure dropdown is fully hidden before action
+        setTimeout(() => {
+            switch (action) {
+                case 'view':
+                    viewAppointment(id);
+                    break;
+                case 'edit':
+                    editAppointment(id);
+                    break;
+                case 'forward':
+                    forwardToAdmission(id);
+                    break;
+                case 'delete':
+                    deleteAppointment(id);
+                    break;
             }
-        } else if (!e.target.closest('.appt-kebab-dropdown-portal')) {
-            closeApptKebabDropdown();
-        }
-    });
-
+        }, 10);
+    }
+    
     function editAppointment(id) {
         const appt = appointments.find(a => a.id == id);
         if (!appt) return;

@@ -85,12 +85,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function refreshCaptchaCode() {
         const fallback = document.getElementById('captchaFallback');
-        fetch('lib/security/captcha_refresh.php?force=1', { credentials: 'same-origin' })
+        fetch('../../lib/security/captcha_refresh.php?force=1', { credentials: 'same-origin' })
             .then(response => response.text())
             .then(code => {
                 // Refresh image using the SAME session code generated above.
                 if (captchaImage) {
-                    captchaImage.src = 'lib/security/captcha_image.php?t=' + Date.now();
+                    captchaImage.src = '../../lib/security/captcha_image.php?t=' + Date.now();
                     captchaImage.style.display = 'inline-block';
                 }
 
@@ -247,7 +247,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (registerError) registerError.style.display = 'none';
             if (registerSuccess) registerSuccess.style.display = 'none';
 
-            fetch('patient_register.php', {
+            fetch('../../master/user-patient/patient_register.php', {
                 method: 'POST',
                 headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: body.toString()
@@ -358,7 +358,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function postForgotAction(payload) {
-        return fetch('login.php', {
+        return fetch('../../master/welcome-page/login.php', {
             method: 'POST',
             headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams(payload).toString()
@@ -633,9 +633,10 @@ document.addEventListener('DOMContentLoaded', function() {
             
             console.log('Sending AJAX request...');
             
-            fetch('login.php', {
+            fetch('../../master/welcome-page/login.php', {
                 method: 'POST',
                 body: formData,
+                credentials: 'include',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
                 }

@@ -3,6 +3,7 @@ header('Content-Type: application/json');
 
 session_start();
 require_once '../../config/database.php';
+require_once '../../includes/sms_functions.php';
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -42,18 +43,7 @@ try {
     if ($dateObj < new DateTime('today')) {
         throw new Exception('Cannot book appointments in the past');
     }
-
-    $stmt = $pdo->prepare("
-        SELECT COUNT(*) FROM appointments 
-        WHERE appointment_date = ? 
-        AND appointment_time = ?
-        AND status IN ('scheduled', 'pending', 'confirmed')
-    ");
-    $stmt->execute([$appointment_date, $appointment_time]);
-    if ($stmt->fetchColumn() > 0) {
-        throw new Exception('This time slot is already booked. Please select another time.');
-    }
-
+    
     $treatment = 'General Checkup';
     $duration = 30;
     
@@ -67,6 +57,35 @@ try {
         }
     }
     
+    // Check for overlap conflicts using duration-based overlap logic
+    $timeParts = explode(':', $appointment_time);
+    $newStartMinutes = (int)$timeParts[0] * 60 + (int)$timeParts[1];
+    $newEndMinutes = $newStartMinutes + $duration;
+    
+    // Get existing bookings with their durations
+    $stmt = $pdo->prepare("
+        SELECT 
+            TIME_FORMAT(appointment_time, '%H:%i') as start_time,
+            COALESCE(duration_minutes, 
+                (SELECT duration_minutes FROM services WHERE id = appointments.service_id), 
+                30) as dur
+        FROM appointments 
+        WHERE appointment_date = ?
+    ");
+    $stmt->execute([$appointment_date]);
+    $existingBookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    foreach ($existingBookings as $existing) {
+        $exParts = explode(':', $existing['start_time']);
+        $exStart = (int)$exParts[0] * 60 + (int)$exParts[1];
+        $exEnd = $exStart + (int)$existing['dur'];
+        
+        // Check overlap
+        if ($newStartMinutes < $exEnd && $newEndMinutes > $exStart) {
+            throw new Exception('This time slot overlaps with an existing booking. Please select a different time.');
+        }
+    }
+    
     // Get the status_id for 'Scheduled'
     $stmt = $pdo->prepare("SELECT id FROM appointment_statuses WHERE LOWER(status_name) = 'scheduled' LIMIT 1");
     $stmt->execute();
@@ -75,44 +94,95 @@ try {
 
     $pdo->beginTransaction();
 
-    $stmt = $pdo->prepare("
-        INSERT INTO appointments (
-            patient_id, 
-            service_id,
-            appointment_date, 
-            appointment_time, 
-            treatment, 
-            notes, 
-            status_id,
-            status,
-            is_registered_patient,
-            created_by, 
-            created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled', 1, ?, NOW())
-    ");
-    $stmt->execute([
-        $patient_id,
-        $service_id,
-        $appointment_date,
-        $appointment_time,
-        $treatment,
-        $notes,
-        $status_id,
-        $user_id ?? 1
-    ]);
+    // Check what columns exist
+    $cols = $pdo->query("DESCRIBE appointments");
+    $columns = $cols->fetchAll(PDO::FETCH_COLUMN);
+    
+    $colList = [];
+    $valList = [];
+    $params = [];
+    
+    if (in_array('patient_id', $columns)) {
+        $colList[] = 'patient_id';
+        $params[] = $patient_id;
+    }
+    if (in_array('service_id', $columns)) {
+        $colList[] = 'service_id';
+        $params[] = $service_id;
+    }
+    if (in_array('appointment_date', $columns)) {
+        $colList[] = 'appointment_date';
+        $params[] = $appointment_date;
+    }
+    if (in_array('appointment_time', $columns)) {
+        $colList[] = 'appointment_time';
+        $params[] = $appointment_time;
+    }
+    if (in_array('duration_minutes', $columns)) {
+        $colList[] = 'duration_minutes';
+        $params[] = $duration;
+    }
+    if (in_array('treatment', $columns)) {
+        $colList[] = 'treatment';
+        $params[] = $treatment;
+    }
+    if (in_array('notes', $columns)) {
+        $colList[] = 'notes';
+        $params[] = $notes;
+    }
+    if (in_array('created_by', $columns)) {
+        $colList[] = 'created_by';
+        $params[] = $_SESSION['user_id'] ?? null;
+    }
+    
+    $sql = "INSERT INTO appointments (" . implode(', ', $colList) . ") VALUES (" . implode(', ', array_fill(0, count($params), '?')) . ")";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
     
     $appointment_id = $pdo->lastInsertId();
 
     $pdo->commit();
 
+    // Get patient phone for SMS
+    $stmt = $pdo->prepare("SELECT phone FROM patients WHERE id = ?");
+    $stmt->execute([$patient_id]);
+    $patient = $stmt->fetch(PDO::FETCH_ASSOC);
+    $patient_phone = $patient['phone'] ?? null;
+    
+    // Get patient name for SMS
+    $stmt = $pdo->prepare("SELECT first_name, last_name FROM patients WHERE id = ?");
+    $stmt->execute([$patient_id]);
+    $patient_info = $stmt->fetch(PDO::FETCH_ASSOC);
+    $patient_name = ($patient_info['first_name'] ?? '') . ' ' . ($patient_info['last_name'] ?? '');
+    
+    // Send SMS confirmation
+    $sms_sent = false;
+    $sms_error = null;
+    if ($patient_phone) {
+        $sms_result = sendAppointmentConfirmationSMS(
+            $patient_phone,
+            $patient_name,
+            $appointment_date,
+            $appointment_time,
+            $treatment
+        );
+        $sms_sent = $sms_result['success'];
+        if (!$sms_sent) {
+            $sms_error = $sms_result['error'];
+            error_log("SMS failed for appointment $appointment_id: " . $sms_error);
+        }
+    }
+
     $formattedDate = date('F j, Y', strtotime($appointment_date));
     $formattedTime = date('g:i A', strtotime($appointment_time));
 
-    echo json_encode([
+    $response = [
         'success' => true,
         'message' => "Appointment booked successfully for {$formattedDate} at {$formattedTime}!",
         'appointment_id' => $appointment_id
-    ]);
+    ];
+    
+    echo json_encode($response);
 
 } catch (Exception $e) {
     if (isset($pdo) && $pdo->inTransaction()) {

@@ -1,9 +1,11 @@
 <?php
 session_start();
-require_once 'config/database.php';
+require_once '../../config/database.php';
 
-// Registration is admin-only
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+// Registration is admin-only (role_id = 1 is admin, or role = 'admin')
+$isAdmin = (isset($_SESSION['role_id']) && $_SESSION['role_id'] == 1) || 
+           (isset($_SESSION['role']) && $_SESSION['role'] === 'admin');
+if (!$isAdmin) {
     header('Location: login.php');
     exit();
 }
@@ -45,8 +47,9 @@ $role = 'staff';
                     $error = 'Username already exists';
                 } else {
 $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-                    $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, last_name, role) VALUES (?, ?, ?, ?, ?, ?)");
-                    $result = $stmt->execute([$username, $hashedPassword, $email, $firstName, $lastName, $role]);
+                    // Get role_id for staff (role_id = 3)
+                    $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, last_name, role_id) VALUES (?, ?, ?, ?, ?, 3)");
+                    $result = $stmt->execute([$username, $hashedPassword, $email, $firstName, $lastName]);
                     if ($result) {
                         $success = 'Account created successfully! You can now login.';
                     } else {
@@ -78,7 +81,7 @@ $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
         }
 
         body {
-            background: url("assets/images/Background.jpg");
+            background: url("../../assets/images/Background.jpg");
             background-size: cover;
             background-attachment: fixed;
             background-repeat: no-repeat;
@@ -382,12 +385,12 @@ $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
     <div class="container">
         <div class="left">
-            <img src="assets/images/Dentists.png" class="dentist-img" alt="Dentist">
+            <img src="../../assets/images/Dentists.png" class="dentist-img" alt="Dentist">
         </div>
 
         <div class="right">
             <div class="login-box">
-                <img src="assets/images/Logo.png" class="logo" alt="Logo">
+                <img src="../../assets/images/Logo.png" class="logo" alt="Logo">
                 <h2>Create Account</h2>
 
                 <p class="description-text">Create a new account to get started.</p>

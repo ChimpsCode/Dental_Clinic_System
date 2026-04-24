@@ -71,30 +71,26 @@ try {
     // Start transaction
     $pdo->beginTransaction();
 
-    // Create user account
-    $stmt = $pdo->prepare("INSERT INTO users (first_name, middle_name, last_name, username, password, email, role) VALUES (?, ?, ?, ?, ?, ?, 'user')");
+    // Create user account (for patient users, role_id = NULL)
+    $stmt = $pdo->prepare("INSERT INTO users (first_name, middle_name, last_name, username, password, email) VALUES (?, ?, ?, ?, ?, ?)");
     $stmt->execute([$first_name, $middle_name ?: null, $last_name, $email, $hashedPassword, $email]);
     $user_id = $pdo->lastInsertId();
 
-    // Create patient record with all additional fields
+    // Create patient record (without address - use addresses table separately if needed)
     $stmt = $pdo->prepare("
         INSERT INTO patients (
-            user_id, first_name, middle_name, last_name, 
-            phone, email, gender, age, date_of_birth, address,
-            registration_source, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'lead_capture', 'active')
+            first_name, middle_name, last_name, 
+            phone, email, gender, date_of_birth
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
     ");
     $stmt->execute([
-        $user_id, 
         $first_name, 
         $middle_name ?: null, 
         $last_name, 
         $phone, 
         $email, 
         $gender,
-        $age ?: null,
-        $date_of_birth ?: null,
-        $address ?: null
+        $date_of_birth ?: null
     ]);
     $patient_id = $pdo->lastInsertId();
 
@@ -110,7 +106,7 @@ try {
     echo json_encode([
         'success' => true,
         'message' => 'Registration successful!',
-        'redirect' => 'master/user-patient/patient-dashboard.php'
+        'redirect' => '../user-patient/patient-dashboard.php'
     ]);
 
 } catch (Exception $e) {

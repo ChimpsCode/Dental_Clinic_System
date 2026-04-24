@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'config/database.php';
+require_once '../../config/database.php';
 
 // Check if user came from forgot password
 if (!isset($_SESSION['reset_email']) || !isset($_SESSION['reset_user_id'])) {
@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <head>
     <meta charset="UTF-8">
     <title>Set New Password - RF Dental Clinic</title>
-    <link rel="stylesheet" href="assets/css/login.css">
+    <link rel="stylesheet" href="../../assets/css/login.css">
     <style>
         * {
             margin: 0;
@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
 
         body {
-            background: url("assets/images/Background.jpg");
+            background: url("../../assets/images/Background.jpg");
             background-size: cover;
             background-attachment: fixed;
             background-repeat: no-repeat;
@@ -210,7 +210,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <div class="container">
         <div class="right">
             <div class="login-box">
-                <img src="assets/images/Logo.png" class="logo" alt="RF Logo">
+                <img src="../../assets/images/Logo.png" class="logo" alt="RF Logo">
                 <h2>Set New Password</h2>
 
                 <p class="description-text">Enter your new password to complete the password reset.</p>

@@ -13,17 +13,24 @@ $totalUsers = 0;
 $hasStatusColumn = false;
 
 try {
-    $colStmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'status'");
-    $hasStatusColumn = (bool)$colStmt->fetch(PDO::FETCH_ASSOC);
-
-    $sql = $hasStatusColumn
-        ? "SELECT id, username, first_name, middle_name, last_name, email, role, status FROM users ORDER BY id ASC"
-        : "SELECT id, username, first_name, middle_name, last_name, email, role FROM users ORDER BY id ASC";
-    $stmt = $pdo->query($sql);
+    // Get users with role names from roles table
+    // If role_id is NULL, treat as Patient
+    $stmt = $pdo->query("
+        SELECT u.id, u.username, u.first_name, u.middle_name, u.last_name, u.email, u.status, u.is_archived,
+               u.role_id,
+               CASE 
+                   WHEN u.role_id IS NULL THEN 'Patient'
+                   ELSE r.role_name
+               END as role_name
+        FROM users u
+        LEFT JOIN roles r ON u.role_id = r.id
+        ORDER BY u.id ASC
+    ");
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
     foreach ($users as &$user) {
         if (!isset($user['status']) || $user['status'] === null || $user['status'] === '') {
-            $user['status'] = 'active';
+            $user['status'] = 'Active';
         }
     }
     unset($user);
@@ -51,6 +58,7 @@ try {
                         <option value="admin">Admin</option>
                         <option value="dentist">Dentist</option>
                         <option value="staff">Staff</option>
+                        <option value="patient">Patient</option>
                     </select>
                 </div>
 
@@ -61,7 +69,9 @@ try {
                             <tr>
                                 <th>ID</th>
                                 <th>Username</th>
-                                <th>Full Name</th>
+                                <th>First Name</th>
+                                <th>Middle Name</th>
+                                <th>Last Name</th>
                                 <th>Email</th>
                                 <th>Role</th>
                                 <th>Status</th>
@@ -73,17 +83,19 @@ try {
                             <?php
                                 $username = $user['username'] ?? '';
                                 $firstName = $user['first_name'] ?? '';
+                                $middleName = $user['middle_name'] ?? '';
                                 $lastName = $user['last_name'] ?? '';
                                 $email = $user['email'] ?? '';
-                                $displayName = trim($firstName . ' ' . $lastName) ?: ($username ?: $email);
                             ?>
                             <tr>
                                 <td><?php echo $user['id']; ?></td>
                                 <td><?php echo htmlspecialchars($username); ?></td>
-                                <td><?php echo htmlspecialchars($displayName); ?></td>
+                                <td><?php echo htmlspecialchars($firstName); ?></td>
+                                <td><?php echo htmlspecialchars($middleName); ?></td>
+                                <td><?php echo htmlspecialchars($lastName); ?></td>
                                 <td><?php echo htmlspecialchars($email); ?></td>
-                                <td><span class="role-badge <?php echo $user['role']; ?>"><?php echo ucfirst($user['role']); ?></span></td>
-                                <td><span class="status-badge <?php echo $user['status']; ?>"><?php echo ucfirst($user['status']); ?></span></td>
+                                <td><span class="role-badge <?php echo strtolower($user['role_name'] ?? ''); ?>"><?php echo htmlspecialchars($user['role_name'] ?? 'N/A'); ?></span></td>
+                                <td><span class="status-badge <?php echo strtolower($user['status']); ?>"><?php echo htmlspecialchars($user['status']); ?></span></td>
                                 <td class="action-buttons">
                                     <button
                                         class="user-kebab-btn"

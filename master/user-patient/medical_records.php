@@ -206,15 +206,17 @@ $pageTitle = 'Medical Records';
                 <div class="user-profile">
                     <div class="user-avatar">
                         <?php 
-                            $initials = strtoupper(substr($patient['first_name'] ?? 'P', 0, 1) . substr($patient['middle_name'] ?? '', 0, 1) . substr($patient['last_name'] ?? '', 0, 1));
-                            echo $initials;
+                            $first = $patient['first_name'] ?? $_SESSION['user_name'] ?? '';
+                            $last = $patient['last_name'] ?? '';
+                            $initials = strtoupper(substr($first, 0, 1) . substr($last, 0, 1));
+                            echo htmlspecialchars($initials ?: 'P');
                         ?>
                     </div>
                     <div class="user-details">
                         <div class="user-name">
                             <?php 
-                                $fullName = trim(($patient['first_name'] ?? '') . ' ' . ($patient['middle_name'] ?? '') . ' ' . ($patient['last_name'] ?? ''));
-                                echo htmlspecialchars($fullName);
+                                $displayName = trim($last ?: ($first ?: 'Patient'));
+                                echo htmlspecialchars($displayName);
                             ?>
                         </div>
                         <div class="user-role">Patient</div>

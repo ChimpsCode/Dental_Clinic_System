@@ -50,8 +50,9 @@ try {
           AND DATE(updated_at) = CURDATE()
     ")->fetchColumn() ?? 0);
 
-    // Current 6 months data for dashboard revenue overview
-    $halfYearStart = date('Y-m-01', strtotime('-5 months'));
+    // Current 6 months data for dashboard revenue overview (current year only)
+    $chartYear = (int)date('Y');
+    $halfYearStart = $chartYear . '-01-01';
     $halfYearEnd = date('Y-m-t');
 
     $stmt = $pdo->prepare("
@@ -187,8 +188,65 @@ try {
                     <!-- Revenue Overview -->
                     <div class="section-card" style="flex: 1; min-width: 300px;">
                         <h2 class="section-title">6-Month Revenue (<?php echo date('Y'); ?>)</h2>
-                        <div class="chart-placeholder" style="min-height: 170px;">
-                            <div class="bar-chart" id="revenueBars" style="height: 140px;"></div>
+                        <div style="display: flex; align-items: flex-end; gap: 15px; height: 180px; padding: 10px 20px 30px 20px; border-bottom: 1px solid #e5e7eb;">
+                                <?php 
+                                // Get last 6 months dynamically
+                                $currentMonth = (int)date('n');
+                                $currentYear = (int)date('Y');
+                                $sixMonthsData = [];
+                                
+                                for ($i = 5; $i >= 0; $i--) {
+                                    $month = $currentMonth - $i;
+                                    $year = $currentYear;
+                                    if ($month <= 0) {
+                                        $month += 12;
+                                        $year -= 1;
+                                    }
+                                    $ym = sprintf('%d-%02d', $year, $month);
+                                    $sixMonthsData[$ym] = 0;
+                                }
+                                
+                                // Fetch actual revenue data directly - include ALL months with data
+                                $revenueStmt = $pdo->query("
+                                    SELECT DATE_FORMAT(billing_date, '%Y-%m') AS ym, SUM(paid_amount) AS total
+                                    FROM billing
+                                    WHERE billing_date >= '2025-11-01'
+                                    GROUP BY ym
+                                    ORDER BY ym
+                                ");
+                                while ($row = $revenueStmt->fetch(PDO::FETCH_ASSOC)) {
+                                    $sixMonthsData[$row['ym']] = (float)$row['total'];
+                                }
+                                
+                                // Filter to only show months with data in recent range
+                                $sixMonthsFiltered = array_filter($sixMonthsData, function($v) { return $v > 0 || true; });
+                                
+                                $maxRevenue = max($sixMonthsData);
+                                if ($maxRevenue == 0) $maxRevenue = 1;
+                                $labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                                
+                                // Sort by date and take last 6 months that have data
+                                ksort($sixMonthsData);
+                                $sixMonthsData = array_slice($sixMonthsData, -6, 6, true);
+                                
+                                foreach ($sixMonthsData as $ym => $total) {
+                                    $monthNum = (int)substr($ym, 5, 2);
+                                    $label = $labels[$monthNum - 1];
+                                    if ($total > 0) {
+                                        $height = ($total / $maxRevenue) * 100;
+                                        if ($height < 20) $height = 20;
+                                        $bg = 'linear-gradient(to top, #3b82f6, #60a5fa)';
+                                    } else {
+                                        $height = 8;
+                                        $bg = '#e5e7eb';
+                                    }
+                                    ?>
+                                    <div style="flex: 1; height: <?php echo $height; ?>%; min-height: 15px; background: <?php echo $bg; ?>; border-radius: 4px 4px 0 0; position: relative;" title="<?php echo $label; ?>: ₱<?php echo number_format($total); ?>">
+                                        <span style="position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 12px; color: #6b7280; white-space: nowrap;"><?php echo $label; ?></span>
+                                    </div>
+                                    <?php
+                                }
+                                ?>
                         </div>
                     </div>
 
@@ -331,42 +389,7 @@ try {
                 </div>
             </aside>
 
-<script>
-    const revenueData = <?php echo json_encode($halfYearRevenueData); ?>;
-    const barContainer = document.getElementById('revenueBars');
-    if (barContainer) {
-        const map = {};
-        revenueData.forEach(item => {
-            map[item.ym] = { total: Number(item.total) };
-        });
 
-        const months = [];
-        const year = new Date().getFullYear();
-        const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        
-        // Get last 6 months
-        const today = new Date();
-        for (let i = 5; i >= 0; i--) {
-            const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-            const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-            const label = labels[d.getMonth()];
-            const entry = map[ym] || { total: 0 };
-            entry.label = label;
-            months.push(entry);
-        }
-
-        const maxVal = Math.max(1, ...months.map(r => r.total));
-        months.forEach((item) => {
-            const rawPct = (item.total / maxVal) * 100;
-            const heightPct = item.total > 0 ? Math.max(20, Math.round(rawPct)) : 8;
-            const bar = document.createElement('div');
-            bar.className = 'bar';
-            bar.style.setProperty('--bar-height', heightPct + '%');
-            bar.setAttribute('data-label', item.label);
-            barContainer.appendChild(bar);
-        });
-    }
-</script>
 
 <?php
 // Include the layout end
@@ -379,6 +402,12 @@ require_once __DIR__ . '/../../includes/admin_layout_end.php';
     0% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.5; transform: scale(1.2); }
     100% { opacity: 1; transform: scale(1); }
+}
+
+/* Revenue Bar Chart */
+.chart-placeholder {
+    min-height: 170px;
+    width: 100%;
 }
 
 </style>
