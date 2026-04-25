@@ -40,7 +40,7 @@ try {
         LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id
         LEFT JOIN queue_statuses qs ON q.status_id = qs.id
         WHERE q.status_id IN (1, 2) AND q.is_archived = 0
-        ORDER BY q.priority ASC, q.queue_time DESC
+        ORDER BY q.priority ASC, q.queue_time ASC
         LIMIT 10
     ");
     $queuePatients = $stmt->fetchAll(PDO::FETCH_ASSOC);
