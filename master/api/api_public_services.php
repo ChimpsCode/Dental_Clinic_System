@@ -9,6 +9,9 @@ try {
     $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     error_log("API services: " . count($services) . " found");
+    foreach ($services as $s) {
+        error_log("  - Service: id=" . $s['id'] . ", name=" . $s['name']);
+    }
     
     echo json_encode([
         'success' => true,

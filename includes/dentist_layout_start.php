@@ -23,13 +23,13 @@ if (session_status() === PHP_SESSION_NONE) {
 
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
-    header('Location: ../../master/welcome-page/login.php');
+    header('Location: login.php');
     exit();
 }
 
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'dentist') {
     ob_end_clean();
-    header('Location: ../../master/welcome-page/login.php');
+    header('Location: login.php');
     exit();
 }
 

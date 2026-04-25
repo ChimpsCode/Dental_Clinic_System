@@ -63,6 +63,10 @@ try {
         throw new Exception('Patient name is required');
     }
     
+    // Get shared IDs before processing patient
+    $appointmentId = !empty($_POST['appointment_id']) ? intval($_POST['appointment_id']) : null;
+    $inquiryId = !empty($_POST['inquiry_id']) ? intval($_POST['inquiry_id']) : null;
+    
     // Check if patient already exists
     $stmt = $pdo->prepare("SELECT id FROM patients WHERE first_name = ? AND last_name = ? AND phone = ? LIMIT 1");
     $stmt->execute([$firstName, $lastName, $phone]);
@@ -105,8 +109,6 @@ try {
         $stmt->execute($updateValues);
     } else {
         $source = 'walk-in';
-        $appointmentId = !empty($_POST['appointmentId']) ? intval($_POST['appointmentId']) : null;
-        $inquiryId = !empty($_POST['inquiryId']) ? intval($_POST['inquiryId']) : null;
         
         // Get column names from database dynamically
         $cols = $pdo->query("DESCRIBE patients");
@@ -159,29 +161,49 @@ try {
         $patientId = $pdo->lastInsertId();
     }
     
-    // Link from appointment if applicable
-    if ($appointmentId) {
-        $apptCols = $pdo->query("DESCRIBE appointments");
-        $apptAvailable = array_column($apptCols->fetchAll(), 'Field');
-        
-        $apptUpdates = ['patient_id = ?'];
-        $apptValues = [$patientId];
-        
-        if (in_array('status', $apptAvailable)) {
-            $apptUpdates[] = "status = 'In Queue'";
-        }
-        if (in_array('status_id', $apptAvailable)) {
-            $apptUpdates[] = 'status_id = 2';
-        }
-        if (in_array('updated_at', $apptAvailable)) {
-            $apptUpdates[] = 'updated_at = NOW()';
-        }
-        
-        $apptValues[] = $appointmentId;
-        $stmt = $pdo->prepare("UPDATE appointments SET " . implode(', ', $apptUpdates) . " WHERE id = ?");
-        $stmt->execute($apptValues);
+// Link from appointment if applicable
+if ($appointmentId) {
+    error_log("Processing Appointment ID: " . $appointmentId);
+
+    $updateSuccess = false;
+
+    // 1. Try to update all columns including updated_at
+    try {
+        $stmt = $pdo->prepare("UPDATE appointments SET patient_id = ?, status_id = 2, status = 'In Queue', updated_at = NOW() WHERE id = ?");
+        $stmt->execute([$patientId, $appointmentId]);
+        $updateSuccess = true;
+    } catch (Exception $e) {}
+
+    // 2. Fallback: If updated_at doesn't exist, try updating patient, status_id, and status
+    if (!$updateSuccess) {
+        try {
+            $stmt = $pdo->prepare("UPDATE appointments SET patient_id = ?, status_id = 2, status = 'In Queue' WHERE id = ?");
+            $stmt->execute([$patientId, $appointmentId]);
+            $updateSuccess = true;
+        } catch (Exception $e) {}
     }
-    
+
+    // 3. Fallback: If status_id doesn't exist, just update status string
+    if (!$updateSuccess) {
+        try {
+            $stmt = $pdo->prepare("UPDATE appointments SET patient_id = ?, status = 'In Queue' WHERE id = ?");
+            $stmt->execute([$patientId, $appointmentId]);
+            $updateSuccess = true;
+        } catch (Exception $e) {}
+    }
+
+    // 4. Fallback: If status string doesn't exist, just update status_id
+    if (!$updateSuccess) {
+        try {
+            $stmt = $pdo->prepare("UPDATE appointments SET patient_id = ?, status_id = 2 WHERE id = ?");
+            $stmt->execute([$patientId, $appointmentId]);
+        } catch (Exception $e) {
+            error_log("Failed to update appointment: " . $e->getMessage());
+        }
+    }
+
+    error_log("Appointment status successfully updated to In Queue");
+}
     // Link from inquiry if applicable
     if ($inquiryId) {
         $inqCols = $pdo->query("DESCRIBE inquiries");
@@ -262,6 +284,27 @@ try {
     }
     $treatmentType = !empty($serviceNames) ? implode(', ', $serviceNames) : 'Consultation';
     
+    // Service IDs - get the first selected service_id
+    $serviceIds = $_POST['service_ids'] ?? [];
+    if (is_string($serviceIds)) {
+        $serviceIds = [$serviceIds];
+    }
+    $primaryServiceId = !empty($serviceIds[0]) ? intval($serviceIds[0]) : null;
+    
+    error_log("DEBUG admission - service_ids received: " . json_encode($serviceIds) . ", primaryServiceId: " . $primaryServiceId);
+    
+    // Debug: Get service name from services table using the id
+    if ($primaryServiceId) {
+        try {
+            $svcStmt = $pdo->prepare("SELECT id, name FROM services WHERE id = ?");
+            $svcStmt->execute([$primaryServiceId]);
+            $svcInfo = $svcStmt->fetch(PDO::FETCH_ASSOC);
+            error_log("DEBUG service lookup - Looking for id $primaryServiceId, found: " . json_encode($svcInfo));
+        } catch (Exception $e) {
+            error_log("DEBUG service lookup error: " . $e->getMessage());
+        }
+    }
+    
     // Selected Teeth
     $selectedTeeth = $_POST['selectedTeeth'] ?? [];
     if (is_string($selectedTeeth)) {
@@ -282,16 +325,16 @@ try {
         
         if ($existingQueue) {
             $queueId = $existingQueue['id'];
-            $stmt = $pdo->prepare("UPDATE queue SET treatment_type = ?, queue_time = NOW() WHERE id = ?");
-            $stmt->execute([$treatmentType, $queueId]);
+            $stmt = $pdo->prepare("UPDATE queue SET treatment_type = ?, service_id = ?, queue_time = NOW() WHERE id = ?");
+            $stmt->execute([$treatmentType, $primaryServiceId, $queueId]);
         } else {
             // Insert new queue entry
-            $stmt = $pdo->prepare("INSERT INTO queue (patient_id, status_id, priority, treatment_type, queue_time, created_at) VALUES (?, 1, 5, ?, NOW(), NOW())");
-            $stmt->execute([$patientId, $treatmentType]);
+            $stmt = $pdo->prepare("INSERT INTO queue (patient_id, status_id, priority, treatment_type, service_id, queue_time, created_at) VALUES (?, 1, 5, ?, ?, NOW(), NOW())");
+            $stmt->execute([$patientId, $treatmentType, $primaryServiceId]);
             $queueId = (int)$pdo->lastInsertId();
         }
         
-        error_log("Queue insert: patientId=$patientId, treatmentType=$treatmentType, queueId=$queueId");
+        error_log("Queue insert: patientId=$patientId, treatmentType=$treatmentType, serviceId=$primaryServiceId, queueId=$queueId");
     } catch (Exception $qErr) {
         error_log("Queue insert ERROR: " . $qErr->getMessage());
         $queueId = 0;
@@ -306,9 +349,32 @@ try {
             $servicesStmt = $pdo->query("SELECT name, price FROM services WHERE is_active = 1");
             $servicesData = $servicesStmt->fetchAll(PDO::FETCH_KEY_PAIR);
             
+            // Clinic synonyms mapping
+            $synonyms = [
+                'General Checkup' => 'Consultation',
+                'Dental Fillings' => 'Tooth Restoration (Pasta)',
+                'Tooth Extraction' => 'Tooth Extraction (Ibot)',
+                'Oral Prophylaxis' => 'Teeth Cleaning',
+                'Braces Adjustment' => 'Orthodontic Appliance',
+                'Denture Fitting' => 'Denture Adjustment'
+            ];
+
             foreach ($serviceNames as $serviceName) {
+                $serviceName = trim($serviceName);
+                
+                // Map to official name if it's a synonym
+                $lookupName = $serviceName;
+                foreach ($synonyms as $syn => $official) {
+                    if (strcasecmp($syn, $serviceName) === 0 || stripos($serviceName, $syn) !== false) {
+                        $lookupName = $official;
+                        break;
+                    }
+                }
+
                 foreach ($servicesData as $name => $price) {
-                    if (strcasecmp(trim($name), trim($serviceName)) === 0) {
+                    if (strcasecmp(trim($name), $lookupName) === 0 || 
+                        stripos($lookupName, $name) !== false ||
+                        stripos($name, $lookupName) !== false) {
                         $totalAmount += floatval($price);
                         break;
                     }
@@ -387,7 +453,8 @@ try {
         'billing_id' => $billingId,
         'total_amount' => $totalAmount,
         'debug_queue_check' => $debugQueueCheck,
-        'debug_treatment' => $treatmentType
+        'debug_treatment' => $treatmentType,
+        'debug_appointment_id' => $appointmentId
     ]);
     
 } catch (Exception $e) {

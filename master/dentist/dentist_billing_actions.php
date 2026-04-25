@@ -51,9 +51,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             
             $queueId = $queueItem['id'];
             $treatmentType = $queueItem['treatment_type'];
+            $serviceId = $queueItem['service_id'] ?? null;
             $teethNumbers = $queueItem['teeth_numbers'];
             $queueStatus = $queueItem['status'];
             $queueDate = date('F d, Y', strtotime($queueItem['created_at']));
+            
+            error_log("DEBUG billing - patient_id: $patientId, treatmentType: $treatmentType, serviceId: $serviceId");
             
             // Get patient info
             $patientStmt = $pdo->prepare("SELECT first_name, middle_name, last_name, phone, email FROM patients WHERE id = ?");
@@ -73,21 +76,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             $billingStmt->execute([$patientId]);
             $billing = $billingStmt->fetch(PDO::FETCH_ASSOC);
             
-            // Calculate estimated amount from services
+            // Get service price directly using service_id (NEW APPROACH)
             $estimatedAmount = 0;
-            if (!empty($treatmentType)) {
-                $servicesStmt = $pdo->query("SELECT name, price FROM services WHERE is_active = 1");
-                $services = $servicesStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+            $matchedServices = [];
+            if ($serviceId) {
+                // Direct JOIN - get price from services table using service_id
+                $serviceStmt = $pdo->prepare("
+                    SELECT s.id, s.name, s.price, s.mode 
+                    FROM services s 
+                    WHERE s.id = ? AND s.is_active = 1
+                ");
+                $serviceStmt->execute([$serviceId]);
+                $serviceData = $serviceStmt->fetch(PDO::FETCH_ASSOC);
                 
-                $treatments = explode(',', $treatmentType);
-                foreach ($treatments as $treatment) {
-                    $treatment = trim($treatment);
-                    foreach ($services as $name => $price) {
-                        if (strcasecmp($name, $treatment) === 0) {
-                            $estimatedAmount += floatval($price);
-                            break;
-                        }
-                    }
+                if ($serviceData) {
+                    $estimatedAmount = floatval($serviceData['price']);
+                    $matchedServices[] = [
+                        'id' => $serviceData['id'],
+                        'name' => $serviceData['name'],
+                        'price' => $estimatedAmount
+                    ];
+                    error_log("Found service by ID: " . $serviceData['name'] . " = ₱" . $estimatedAmount);
                 }
             }
             
@@ -97,6 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             $balance = 0;
             $paymentStatus = 'unpaid';
             $billingId = null;
+            $billingNotes = '';
             
             if ($billing) {
                 $totalAmount = floatval($billing['total_amount'] ?? 0);
@@ -104,10 +114,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 $balance = floatval($billing['balance'] ?? 0);
                 $paymentStatus = strtolower($billing['payment_status'] ?? 'unpaid');
                 $billingId = $billing['id'];
-            } elseif ($estimatedAmount > 0) {
-                // Use estimated amount as default
+                $billingNotes = $billing['notes'] ?? '';
+            } 
+            
+            // If totalAmount is 0 but estimatedAmount is > 0, use estimated as default
+            if ($totalAmount <= 0 && $estimatedAmount > 0) {
                 $totalAmount = $estimatedAmount;
                 $balance = $estimatedAmount;
+            }
+            
+            // Ensure estimatedAmount reflects reality (if it was somehow 0)
+            if ($estimatedAmount <= 0 && $totalAmount > 0) {
+                $estimatedAmount = $totalAmount;
             }
             
             echo json_encode([
@@ -118,17 +136,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                     'patient_id' => $patientId,
                     'patient_name' => $patientName ?: 'Unknown',
                     'treatment_type' => $treatmentType ?: 'Consultation',
+                    'service_id' => $serviceId,
+                    'service_name' => !empty($matchedServices[0]['name']) ? $matchedServices[0]['name'] : ($treatmentType ?: 'Consultation'),
                     'teeth_numbers' => $teethNumbers,
                     'queue_status' => ucfirst($queueStatus ?? ''),
                     'queue_date' => $queueDate,
                     'phone' => $patient['phone'] ?? '',
                     'email' => $patient['email'] ?? '',
-                    'estimated_amount' => $estimatedAmount > 0 ? $estimatedAmount : null,
+                    'estimated_amount' => $estimatedAmount,
                     'total_amount' => $totalAmount,
                     'paid_amount' => $paidAmount,
                     'balance' => $balance,
                     'payment_status' => $paymentStatus,
-                    'billing_notes' => $billing['notes'] ?? ''
+                    'billing_notes' => $billingNotes,
+                    'matched_services' => $matchedServices
                 ]
             ]);
         } catch (Exception $e) {

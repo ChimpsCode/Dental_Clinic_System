@@ -91,9 +91,27 @@ try {
     $treatment = $serviceName;
     $notes = 'Created from inquiry. Source: ' . ($inquiry['source'] ?? 'Unknown');
     
-    // Include patient name fields in the appointment
-    $stmt = $pdo->prepare("INSERT INTO appointments (patient_id, first_name, middle_name, last_name, appointment_date, appointment_time, treatment, notes, status, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, NOW())");
-    $stmt->execute([$patient_id, $firstName, $middleName, $lastName, $today, $defaultTime, $treatment, $notes, $_SESSION['user_id'] ?? 1]);
+    // Create appointment
+    $stmt = $pdo->prepare("INSERT INTO appointments 
+        (patient_id, appointment_date, appointment_time, service_id, notes, status, status_id, created_by, created_at) 
+        VALUES (?, ?, ?, ?, ?, 'scheduled', 1, ?, NOW())");
+    
+    // Resolve service_id
+    $service_id = null;
+    try {
+        $svcStmt = $pdo->prepare("SELECT id FROM services WHERE name = ? LIMIT 1");
+        $svcStmt->execute([$treatment]);
+        $service_id = $svcStmt->fetchColumn() ?: null;
+    } catch (Exception $e) {}
+
+    $stmt->execute([
+        $patient_id, 
+        $today, 
+        $defaultTime, 
+        $service_id,
+        $notes, 
+        $_SESSION['user_id'] ?? 1
+    ]);
     
     $appointment_id = $pdo->lastInsertId();
     

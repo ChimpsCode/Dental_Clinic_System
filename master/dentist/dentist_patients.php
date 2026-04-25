@@ -954,7 +954,7 @@ function getDentistTeethDisplayText(teethString) {
                 <div class="form-group">
                     <label>Treatment</label>
                     <select name="treatment" class="form-control">
-                        <option value="General Checkup">General Checkup</option>
+                        <option value="Consultation">Consultation</option>
                         <option value="Teeth Cleaning">Teeth Cleaning</option>
                         <option value="Root Canal">Root Canal</option>
                         <option value="Tooth Extraction">Tooth Extraction</option>

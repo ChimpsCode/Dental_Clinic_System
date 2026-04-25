@@ -1155,7 +1155,7 @@ div.main-content {
                                     <?php echo $displayStatus; ?>
                                 </span>
                             </td>
-                            <td><?php echo htmlspecialchars($item['treatment_type'] ?? 'General Checkup'); ?></td>
+                            <td><?php echo htmlspecialchars($item['treatment_type'] ?? 'Consultation'); ?></td>
                             <td>
                                 <div class="time-display">
                                     <span class="time-12hr"><?php echo $time12hr; ?></span>

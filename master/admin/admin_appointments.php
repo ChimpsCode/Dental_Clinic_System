@@ -38,10 +38,12 @@ try {
     $allStmt = $pdo->query("SELECT a.*, 
                          p.first_name, p.middle_name, p.last_name,
                          COALESCE(p.phone, '') AS phone,
-                         s.name as service_name
+                         s.name as service_name,
+                         st.status_name as status_label
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id
                          LEFT JOIN services s ON a.service_id = s.id
+                         LEFT JOIN appointment_statuses st ON a.status_id = st.id
                          $whereClause");
     $allAppointments = $allStmt->fetchAll(PDO::FETCH_ASSOC);
     
@@ -49,10 +51,12 @@ try {
     $stmt = $pdo->prepare("SELECT a.*, 
                          p.first_name, p.middle_name, p.last_name,
                          COALESCE(p.phone, '') AS phone,
-                         s.name as service_name
+                         s.name as service_name,
+                         st.status_name as status_label
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id 
                          LEFT JOIN services s ON a.service_id = s.id
+                         LEFT JOIN appointment_statuses st ON a.status_id = st.id
                          $whereClause
                          ORDER BY a.created_at DESC
                          LIMIT :limit OFFSET :offset");
@@ -186,7 +190,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                     <tr class="appointment-row" 
                                         data-name="<?php echo strtolower($fullName); ?>"
                                         data-date="<?php echo date('Y-m-d', strtotime($appt['appointment_date'])); ?>"
-                                        data-status="<?php echo strtolower($appt['status'] ?? ''); ?>">
+                                        data-status="<?php echo strtolower($appt['status_label'] ?? $appt['status'] ?? ''); ?>">
                                         <td><?php echo $firstName ?: '-'; ?></td>
                                         <td><?php echo $middleName ?: '-'; ?></td>
                                         <td><?php echo $lastName ?: '-'; ?></td>
@@ -198,7 +202,19 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                         <td><?php echo htmlspecialchars($appt['service_name'] ?? 'General'); ?></td>
                                         <td>
                                             <?php 
-                                                $status = $appt['status'] ?? 'Scheduled';
+                                                // Robust status resolution
+                                                $statusId = (int)($appt['status_id'] ?? 0);
+                                                $status = $appt['status_label'];
+                                                
+                                                if (!$status) {
+                                                    if ($statusId === 1) $status = 'Scheduled';
+                                                    elseif ($statusId === 2) $status = 'In Queue';
+                                                    elseif ($statusId === 3) $status = 'Pending Payment';
+                                                    elseif ($statusId === 4) $status = 'Completed';
+                                                    elseif ($statusId === 5) $status = 'Cancelled';
+                                                    else $status = $appt['status'] ?? 'Scheduled';
+                                                }
+                                                
                                                 $statusClass = strtolower($status);
                                                 // Map status to badge class
                                                 $badgeClass = 'status-scheduled';
@@ -645,7 +661,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         e.preventDefault();
         const formData = new FormData(this);
         
-        fetch('../../process_appointment.php', {
+        fetch('../shared/process_appointment.php', {
             method: 'POST',
             body: formData
         })

@@ -40,16 +40,26 @@ try {
     $stmt = $pdo->query("SELECT a.*, 
         p.first_name, p.middle_name, p.last_name,
         p.phone, p.email,
-        s.name as service_name
+        s.name as service_name,
+        st.status_name as status_label
     FROM appointments a 
     LEFT JOIN patients p ON a.patient_id = p.id
     LEFT JOIN services s ON a.service_id = s.id
+    LEFT JOIN appointment_statuses st ON a.status_id = st.id
     ORDER BY a.appointment_date DESC");
     $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
     $appointments = [];
 }
 ?>
+
+<!-- Add extra CSS for status badges -->
+<style>
+.status-badge.status-in-queue {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+</style>
 
 <!-- Appointment Stats -->
 <div class="summary-cards">
@@ -125,18 +135,19 @@ try {
                         $appointmentDate = new DateTime($apt['appointment_date']);
                         $appointmentTime = $appointmentDate->format('h:i A');
                         $appointmentDateStr = $appointmentDate->format('M d, Y');
-                        $status = $apt['status'] ?? 'Scheduled';
                         
-                        // Get status from status_id if status column doesn't exist
-                        $statusId = $apt['status_id'] ?? null;
-                        if (!$status || $status === 'Scheduled') {
-                            if ($statusId == 1) $status = 'Scheduled';
-                            elseif ($statusId == 2) $status = 'In Queue';
-                            elseif ($statusId == 3) $status = 'Pending Payment';
-                            elseif ($statusId == 4) $status = 'Completed';
-                            elseif ($statusId == 5) $status = 'Cancelled';
+                        // Robust status resolution
+                        $statusId = (int)($apt['status_id'] ?? 0);
+                        $status = $apt['status_label'];
+                        
+                        if (!$status) {
+                            if ($statusId === 1) $status = 'Scheduled';
+                            elseif ($statusId === 2) $status = 'In Queue';
+                            elseif ($statusId === 3) $status = 'Pending Payment';
+                            elseif ($statusId === 4) $status = 'Completed';
+                            elseif ($statusId === 5) $status = 'Cancelled';
+                            else $status = $apt['status'] ?? 'Scheduled';
                         }
-                        
                         $statusText = $status;
                     ?>
                     <tr class="appointment-row" data-date="<?php echo $apt['appointment_date']; ?>" data-name="<?php echo strtolower($firstName . ' ' . $lastName); ?>">
@@ -147,7 +158,7 @@ try {
                             <div><?php echo $appointmentDateStr; ?></div>
                             <div style="font-size: 0.85rem; color: #6b7280;"><?php echo $appointmentTime; ?></div>
                         </td>
-<td><?php echo htmlspecialchars($apt['service_name'] ?? 'General Checkup'); ?></td>
+<td><?php echo htmlspecialchars($apt['service_name'] ?? 'Consultation'); ?></td>
                          <?php 
                             $statusColor = match($status) {
                                 'Completed' => 'background: #d1fae5; color: #065f46;',
@@ -226,7 +237,7 @@ try {
             <div class="form-group">
                 <label>Treatment</label>
                 <select name="treatment" class="form-control">
-                    <option value="General Checkup">General Checkup</option>
+                    <option value="Consultation">Consultation</option>
                     <option value="Teeth Cleaning">Teeth Cleaning</option>
                     <option value="Root Canal">Root Canal</option>
                     <option value="Extraction">Extraction</option>
@@ -310,7 +321,7 @@ try {
             <div class="form-group">
                 <label>Treatment</label>
                 <select name="treatment" id="edit_treatment" class="form-control">
-                    <option value="General Checkup">General Checkup</option>
+                    <option value="Consultation">Consultation</option>
                     <option value="Teeth Cleaning">Teeth Cleaning</option>
                     <option value="Root Canal">Root Canal</option>
                     <option value="Extraction">Extraction</option>
@@ -478,7 +489,7 @@ function viewAppointment(id) {
             <div><span style="color: #6b7280;">Phone:</span> <span style="font-weight: 500; margin-left: 8px;">${appointment.phone || 'N/A'}</span></div>
             <div><span style="color: #6b7280;">Date:</span> <span style="font-weight: 500; margin-left: 8px;">${dateStr}</span></div>
             <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${timeStr}</span></div>
-            <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${appointment.treatment || 'General Checkup'}</span></div>
+            <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${appointment.treatment || 'Consultation'}</span></div>
             <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${appointment.status === 'Completed' ? '#dcfce7' : appointment.status === 'Cancelled' ? '#fee2e2' : '#e0f2fe'}; color: ${appointment.status === 'Completed' ? '#15803d' : appointment.status === 'Cancelled' ? '#dc2626' : '#0369a1'}; padding: 4px 12px; border-radius: 9999px; font-size: 0.875rem;">${appointment.status ? appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1) : 'Pending'}</span></div>
             ${appointment.notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${appointment.notes}</p></div>` : ''}
         </div>
@@ -498,7 +509,7 @@ function editAppointment(id) {
     document.getElementById('edit_last_name').value = appointment.last_name || '';
     document.getElementById('edit_phone').value = appointment.phone || '';
     document.getElementById('edit_email').value = appointment.email || '';
-    document.getElementById('edit_treatment').value = appointment.treatment || 'General Checkup';
+    document.getElementById('edit_treatment').value = appointment.treatment || 'Consultation';
     document.getElementById('edit_status').value = appointment.status || 'scheduled';
     document.getElementById('edit_notes').value = appointment.notes || '';
     

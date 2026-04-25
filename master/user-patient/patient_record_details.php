@@ -54,12 +54,12 @@ try {
     $patient['full_name'] = implode(' ', $nameParts);
     
     // Get medical history (most recent)
-    $stmt = $pdo->prepare("SELECT * FROM medical_history WHERE patient_id = ? ORDER BY created_at DESC LIMIT 1");
+    $stmt = $pdo->prepare("SELECT * FROM medical_history WHERE patient_id = ? ORDER BY updated_at DESC LIMIT 1");
     $stmt->execute([$patientId]);
     $medicalHistory = $stmt->fetch(PDO::FETCH_ASSOC);
     
     // Get dental history (most recent)
-    $stmt = $pdo->prepare("SELECT * FROM dental_history WHERE patient_id = ? ORDER BY created_at DESC LIMIT 1");
+    $stmt = $pdo->prepare("SELECT * FROM dental_history WHERE patient_id = ? ORDER BY updated_at DESC LIMIT 1");
     $stmt->execute([$patientId]);
     $dentalHistory = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -69,7 +69,7 @@ try {
     $queueItem = $stmt->fetch(PDO::FETCH_ASSOC);
     
     // Get treatment history (all completed treatments)
-    $stmt = $pdo->prepare("SELECT * FROM treatments WHERE patient_id = ? ORDER BY created_at DESC");
+    $stmt = $pdo->prepare("SELECT * FROM treatments WHERE patient_id = ? ORDER BY treatment_date DESC");
     $stmt->execute([$patientId]);
     $treatmentHistory = $stmt->fetchAll(PDO::FETCH_ASSOC);
     

@@ -21,7 +21,7 @@ try {
     $showingStart = $totalAppointments > 0 ? $offset + 1 : 0;
     $showingEnd = min($offset + $itemsPerPage, $totalAppointments);
     
-    // Get all appointments - direct query
+    // Get all appointments - join with status table
     $sql = "SELECT a.*, 
         COALESCE(p.first_name, 'Unknown') as first_name, 
         COALESCE(p.middle_name, '') as middle_name, 
@@ -34,11 +34,13 @@ try {
         COALESCE(addr.city, '') as city,
         COALESCE(addr.province, '') as province,
         COALESCE(addr.zip_code, '') as zip_code,
-        s.name as service_name
+        s.name as service_name,
+        st.status_name as status_label
         FROM appointments a 
         LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
         LEFT JOIN addresses addr ON p.address_id = addr.id
         LEFT JOIN services s ON a.service_id = s.id
+        LEFT JOIN appointment_statuses st ON a.status_id = st.id
         ORDER BY a.appointment_date DESC, a.id DESC";
     $allAppointments = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     
@@ -213,17 +215,25 @@ require_once '../../includes/staff_layout_start.php';
                         $middleName = htmlspecialchars($appt['middle_name'] ?? '');
                         $lastName = htmlspecialchars($appt['last_name'] ?? '');
                         $fullName = trim("$firstName $middleName $lastName") ?: 'Unknown';
-                        $status = $appt['status'] ?? '';
-                        $statusId = $appt['status_id'] ?? null;
                         
-                        // Get status from status_id if status column doesn't exist
-                        if (!$status || $status === 'scheduled') {
-                            if ($statusId == 1) $status = 'scheduled';
-                            elseif ($statusId == 2) $status = 'confirmed';
-                            elseif ($statusId == 3) $status = 'in_progress';
-                            elseif ($statusId == 4) $status = 'completed';
-                            elseif ($statusId == 5) $status = 'cancelled';
-                        }
+                       // Robust status resolution
+$statusId = (int)($appt['status_id'] ?? 0);
+$status = $appt['status_label'];
+
+// FORCE "In Queue" if the ID matches or the database string contains it
+if ($statusId === 2 || stripos($appt['status'] ?? '', 'Queue') !== false) {
+    $status = 'In Queue';
+}
+
+// Fallback logic
+if (!$status) {
+    if ($statusId === 1) $status = 'Scheduled';
+    elseif ($statusId === 2) $status = 'In Queue';
+    elseif ($statusId === 3) $status = 'Pending Payment';
+    elseif ($statusId === 4) $status = 'Completed';
+    elseif ($statusId === 5) $status = 'Cancelled';
+    else $status = $appt['status'] ?? 'Scheduled';
+}
                     ?>
                         <tr class="appointment-row" 
                             data-name="<?php echo strtolower($fullName); ?>"
@@ -248,7 +258,6 @@ require_once '../../includes/staff_layout_start.php';
                             <td><?php echo htmlspecialchars($appt['service_name'] ?? 'General'); ?></td>
                             <td>
                                 <?php 
-                                    $status = $appt['status'] ?? 'Scheduled';
                                     $badgeClass = 'status-scheduled';
                                     if (stripos($status, 'arrived') !== false) $badgeClass = 'status-in-queue';
                                     if (stripos($status, 'queue') !== false) $badgeClass = 'status-in-queue';
@@ -760,7 +769,7 @@ require_once '../../includes/staff_layout_start.php';
             console.log(pair[0]+ ', '+ pair[1]); 
         }
         
-        fetch('process_appointment.php', {
+        fetch('../shared/process_appointment.php', {
             method: 'POST',
             body: formData
         })

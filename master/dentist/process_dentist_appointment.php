@@ -46,7 +46,7 @@ try {
         $email = trim($_POST['email'] ?? '');
         $appointment_date = $_POST['appointment_date'] ?? '';
         $appointment_time = $_POST['appointment_time'] ?? '';
-        $treatment = $_POST['treatment'] ?? 'General Checkup';
+        $treatment = $_POST['treatment'] ?? 'Consultation';
         $notes = trim($_POST['notes'] ?? '');
         $status = $_POST['status'] ?? 'scheduled';
         
@@ -101,7 +101,7 @@ try {
     $email = trim($_POST['email'] ?? '');
     $appointment_date = $_POST['appointment_date'] ?? '';
     $appointment_time = $_POST['appointment_time'] ?? '';
-    $treatment = $_POST['treatment'] ?? 'General Checkup';
+    $treatment = $_POST['treatment'] ?? 'Consultation';
     $notes = trim($_POST['notes'] ?? '');
     
     // Validate required fields
@@ -137,18 +137,24 @@ try {
     
     // Create appointment
     $stmt = $pdo->prepare("INSERT INTO appointments 
-        (patient_id, first_name, middle_name, last_name, appointment_date, appointment_time, treatment, notes, status, created_by, created_at) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, NOW())");
+        (patient_id, appointment_date, appointment_time, service_id, notes, status, status_id, created_by, created_at) 
+        VALUES (?, ?, ?, ?, ?, 'scheduled', 1, ?, NOW())");
+    
+    // Resolve service_id
+    $service_id = null;
+    try {
+        $svcStmt = $pdo->prepare("SELECT id FROM services WHERE name = ? LIMIT 1");
+        $svcStmt->execute([$treatment]);
+        $service_id = $svcStmt->fetchColumn() ?: null;
+    } catch (Exception $e) {}
+
     $stmt->execute([
         $patient_id,
-        $first_name,
-        $middle_name,
-        $last_name,
         $appointment_date,
         $appointment_time,
-        $treatment,
+        $service_id,
         $notes,
-        $_SESSION['user_id']
+        $_SESSION['user_id'] ?? null
     ]);
     
     $appointment_id = $pdo->lastInsertId();

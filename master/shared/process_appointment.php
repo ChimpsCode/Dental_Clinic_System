@@ -63,6 +63,11 @@ try {
     if ($existing_patient) {
         // Existing patient - link the appointment
         $patient_id = $existing_patient['id'];
+    } else {
+        // NEW PATIENT: Create patient record first
+        $stmt = $pdo->prepare("INSERT INTO patients (first_name, middle_name, last_name, phone, created_at) VALUES (?, ?, ?, ?, NOW())");
+        $stmt->execute([$first_name, $middle_name, $last_name, $phone]);
+        $patient_id = $pdo->lastInsertId();
     }
 
     // Check if is_archived column exists, if not create it
@@ -75,8 +80,27 @@ try {
         // Silent fail - column might already exist
     }
     
-    $stmt = $pdo->prepare("INSERT INTO appointments (first_name, middle_name, last_name, patient_id, appointment_date, appointment_time, treatment, notes, status, created_by, created_at, is_archived) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, NOW(), 0)");
-    $result = $stmt->execute([$first_name, $middle_name, $last_name, $patient_id, $appointment_date, $appointment_time, $treatment, $notes, $_SESSION['user_id'] ?? 1]);
+    // Correct columns for appointments table
+    $stmt = $pdo->prepare("INSERT INTO appointments 
+        (patient_id, appointment_date, appointment_time, service_id, notes, status, status_id, created_by, created_at, is_archived) 
+        VALUES (?, ?, ?, ?, ?, 'scheduled', 1, ?, NOW(), 0)");
+    
+    // We need to resolve service_id from treatment string if possible, or use a default
+    $service_id = null;
+    try {
+        $svcStmt = $pdo->prepare("SELECT id FROM services WHERE name = ? LIMIT 1");
+        $svcStmt->execute([$treatment]);
+        $service_id = $svcStmt->fetchColumn() ?: null;
+    } catch (Exception $e) {}
+
+    $result = $stmt->execute([
+        $patient_id, 
+        $appointment_date, 
+        $appointment_time, 
+        $service_id,
+        $notes, 
+        $_SESSION['user_id'] ?? 1
+    ]);
     
     if (!$result) {
         throw new Exception("Failed to insert appointment. PDO Error: " . implode(", ", $stmt->errorInfo()));

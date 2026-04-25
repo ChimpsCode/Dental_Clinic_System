@@ -120,8 +120,9 @@ try {
     
     // Get appointments - only upcoming ones
     $stmt = $pdo->prepare("
-        SELECT a.* 
+        SELECT a.*, aps.status_name as status_label
         FROM appointments a 
+        LEFT JOIN appointment_statuses aps ON a.status_id = aps.id
         WHERE a.patient_id = ? AND a.appointment_date >= CURDATE()
         ORDER BY a.appointment_date ASC, a.appointment_time ASC
         LIMIT 5
@@ -626,14 +627,29 @@ $pageTitle = 'Patient Dashboard';
             text-transform: uppercase;
         }
 
-        .status-confirmed {
+        .status-scheduled {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .status-in-queue {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-pending-payment {
+            background: #fed7aa;
+            color: #c2410c;
+        }
+
+        .status-completed {
             background: #d1fae5;
             color: #065f46;
         }
 
-        .status-pending {
-            background: #fef3c7;
-            color: #92400e;
+        .status-cancelled {
+            background: #fee2e2;
+            color: #991b1b;
         }
 
         .empty-message {
@@ -989,11 +1005,19 @@ $pageTitle = 'Patient Dashboard';
                                                 <?php echo date('M jS', strtotime($apt['appointment_date'])); ?>
                                             </span>
                                             <span class="appointment-type">
-                                                <?php echo date('g:i A', strtotime($apt['appointment_time'])); ?> • Routine Cleaning
+                                                <?php echo date('g:i A', strtotime($apt['appointment_time'])); ?> • <?php echo htmlspecialchars($apt['treatment'] ?? 'Routine Cleaning'); ?>
                                             </span>
                                         </div>
-                                        <span class="appointment-status status-confirmed">
-                                            Confirmed
+                                        <?php 
+                                            $status = $apt['status_label'] ?? $apt['status'] ?? 'Scheduled';
+                                            $statusClass = 'status-scheduled';
+                                            if (stripos($status, 'queue') !== false) $statusClass = 'status-in-queue';
+                                            if (stripos($status, 'pending') !== false) $statusClass = 'status-pending-payment';
+                                            if (stripos($status, 'complete') !== false) $statusClass = 'status-completed';
+                                            if (stripos($status, 'cancel') !== false) $statusClass = 'status-cancelled';
+                                        ?>
+                                        <span class="appointment-status <?php echo $statusClass; ?>">
+                                            <?php echo htmlspecialchars($status); ?>
                                         </span>
                                     </li>
                                 <?php endforeach; ?>

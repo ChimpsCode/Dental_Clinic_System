@@ -31,8 +31,26 @@ try {
     $pdo->beginTransaction();
 
     // Create the appointment
-    $stmt = $pdo->prepare("INSERT INTO appointments (patient_id, appointment_date, appointment_time, treatment, notes, status, created_by, created_at) VALUES (?, ?, ?, ?, ?, 'scheduled', ?, NOW())");
-    $stmt->execute([$patient_id, $appointment_date, $appointment_time, $treatment, $notes, $_SESSION['user_id'] ?? 1]);
+    $stmt = $pdo->prepare("INSERT INTO appointments 
+        (patient_id, appointment_date, appointment_time, service_id, notes, status, status_id, created_by, created_at) 
+        VALUES (?, ?, ?, ?, ?, 'scheduled', 1, ?, NOW())");
+    
+    // Resolve service_id
+    $service_id = null;
+    try {
+        $svcStmt = $pdo->prepare("SELECT id FROM services WHERE name = ? LIMIT 1");
+        $svcStmt->execute([$treatment]);
+        $service_id = $svcStmt->fetchColumn() ?: null;
+    } catch (Exception $e) {}
+
+    $stmt->execute([
+        $patient_id, 
+        $appointment_date, 
+        $appointment_time, 
+        $service_id,
+        $notes, 
+        $_SESSION['user_id'] ?? 1
+    ]);
     
     $appointment_id = $pdo->lastInsertId();
 
@@ -43,11 +61,11 @@ try {
 
     if ($existingQueue) {
         // Update existing queue entry
-        $stmt = $pdo->prepare("UPDATE queue SET status = 'scheduled', treatment_type = ?, updated_at = NOW() WHERE id = ?");
+        $stmt = $pdo->prepare("UPDATE queue SET status = 'scheduled', status_id = 1, treatment_type = ?, updated_at = NOW() WHERE id = ?");
         $stmt->execute([$treatment, $existingQueue['id']]);
     } else {
         // Create new queue entry with 'scheduled' status
-        $stmt = $pdo->prepare("INSERT INTO queue (patient_id, treatment_type, status, created_by, created_at) VALUES (?, ?, 'scheduled', ?, NOW())");
+        $stmt = $pdo->prepare("INSERT INTO queue (patient_id, treatment_type, status, status_id, created_by, created_at) VALUES (?, ?, 'scheduled', 1, ?, NOW())");
         $stmt->execute([$patient_id, $treatment, $_SESSION['user_id'] ?? 1]);
     }
 

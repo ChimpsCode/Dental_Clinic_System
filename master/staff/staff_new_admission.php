@@ -64,7 +64,9 @@ try {
 
  $inquiryData = null;
  $appointmentData = null;
- $appointmentId = null;
+ 
+ // Always try to get appointment_id first
+ $appointmentId = isset($_GET['appointment_id']) && is_numeric($_GET['appointment_id']) ? (int)$_GET['appointment_id'] : null;
  
  // Check for inquiry_id
 if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
@@ -98,12 +100,11 @@ if (isset($_GET['first_name']) || isset($_GET['last_name'])) {
         'zip_code' => $_GET['zip_code'] ?? '',
         'email' => $_GET['email'] ?? ''
     ];
-    $appointmentId = $_GET['appointment_id'] ?? null;
+    $appointmentId = $appointmentId ?? ($_GET['appointment_id'] ?? null);
 }
 
 // Otherwise try database lookup
-elseif (isset($_GET['appointment_id']) && is_numeric($_GET['appointment_id'])) {
-    $apptId = (int)$_GET['appointment_id'];
+elseif ($appointmentId) {
     try {
         require_once '../../config/database.php';
         
@@ -118,11 +119,10 @@ elseif (isset($_GET['appointment_id']) && is_numeric($_GET['appointment_id'])) {
                             LEFT JOIN addresses addr ON p.address_id = addr.id
                             LEFT JOIN services s ON a.service_id = s.id
                             WHERE a.id = ?");
-        $stmt->execute([$apptId]);
+        $stmt->execute([$appointmentId]);
         $appointmentData = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if ($appointmentData) {
-            $appointmentId = $apptId;
             
             // If patient is linked, use their data
             if (!empty($appointmentData['patient_id'])) {
@@ -1422,9 +1422,11 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
             fetch('../api/api_public_services.php')
                 .then(response => response.json())
                 .then(data => {
-                    console.log('[SERVICES] Loaded:', data);
+                    console.log('[SERVICES] Raw API response:', data);
                     if (data.success) {
                         dbServices = data.services;
+                        console.log('[SERVICES] Loaded services count:', dbServices.length);
+                        dbServices.forEach(s => console.log('  Service:', s.id, s.name));
                         renderServices();
                     } else {
                         console.error('[SERVICES] Error:', data.message);
@@ -1509,9 +1511,16 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
             const price = parseFloat(service.price).toLocaleString('en-PH', { minimumFractionDigits: 2 });
             const duration = service.duration_minutes ? ` - ${service.duration_minutes} mins` : '';
             
+            console.log('Creating checkbox for service:', {
+                name: service.name,
+                originalId: service.id,
+                stringId: String(service.id),
+                intId: parseInt(service.id)
+            });
+            
             return `
                 <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors">
-                    <input type="checkbox" name="services[]" value="${escapeHtml(service.name)}" data-mode="${service.mode}" data-id="${service.id}" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
+                    <input type="checkbox" name="services[]" value="${escapeHtml(service.name)}" data-mode="${service.mode}" data-id="${String(service.id)}" class="w-5 h-5 text-blue-500 rounded focus:ring-blue-500" onchange="updateDentalChartMode()">
                     <div>
                         <span class="block text-sm font-medium text-slate-800">${escapeHtml(service.name)}</span>
                         <span class="block text-xs text-slate-500">₱${price}${duration}</span>
@@ -1857,16 +1866,34 @@ btn.classList.add('bg-blue-200', 'border-blue-400');
         });
 
         function handleSubmit() {
-            const form = document.getElementById('admissionForm');
-            const formData = new FormData(form);
-            const data = Object.fromEntries(formData.entries());
+    const form = document.getElementById('admissionForm');
+    const formData = new FormData(form);
+    
+    // --- ADD THIS SECTION HERE ---
+    // This grabs the appointment_id from the browser URL (?appointment_id=XX)
+    // and attaches it to the data sent to the server.
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('appointment_id')) {
+        formData.append('appointment_id', urlParams.get('appointment_id'));
+    }
+    // ------------------------------
+
+    const data = Object.fromEntries(formData.entries());
 
             // Get selected services
             const services = [];
+            const serviceIds = [];
             document.querySelectorAll('input[name="services[]"]:checked').forEach(cb => {
                 services.push(cb.value);
+                serviceIds.push(cb.dataset.id);
             });
+            console.log('Selected services:', services);
+            console.log('Selected service IDs:', serviceIds);
             data.services = services;
+            data.service_ids = serviceIds;
+            
+            // Add service_ids to formData for submission
+            serviceIds.forEach(id => formData.append('service_ids[]', id));
 
             // Get selected teeth
             const selectedTeeth = [];
@@ -1941,7 +1968,9 @@ btn.classList.add('bg-blue-200', 'border-blue-400');
                 try {
                     const result = JSON.parse(text);
                     if (result.success) {
-                        showModal('success', 'Success!', 'Patient <strong>' + patientName + '</strong> has been admitted successfully and added to the queue.', [
+                        const debugInfo = 'Patient ID: ' + result.patient_id + ', Queue ID: ' + result.queue_id + ', Appointment: ' + (result.debug_appointment_id || 'None');
+                        console.log('DEBUG:', result);
+                        showModal('success', 'Success!', 'Patient <strong>' + patientName + '</strong> has been admitted.<br><br>' + debugInfo, [
                             { text: 'View Queue', onclick: () => { window.location.href = 'staff_queue.php'; } },
                             { text: 'Go to Dashboard', onclick: () => { window.location.href = 'staff-dashboard.php'; } }
                         ]);

@@ -138,6 +138,14 @@ try {
         $colList[] = 'reference_code';
         $params[] = 'APT' . date('ymdHis') . mt_rand(10, 99);
     }
+    if (in_array('status', $columns)) {
+        $colList[] = 'status';
+        $params[] = 'scheduled';
+    }
+    if (in_array('status_id', $columns)) {
+        $colList[] = 'status_id';
+        $params[] = 1;
+    }
     
     $sql = "INSERT INTO appointments (" . implode(', ', $colList) . ") VALUES (" . implode(', ', array_fill(0, count($params), '?')) . ")";
     $stmt = $pdo->prepare($sql);
