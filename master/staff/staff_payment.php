@@ -14,17 +14,32 @@ $itemsPerPage = 10;
 $currentPage = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
 if ($currentPage < 1) $currentPage = 1;
 
+
+
+
+
+
+
+
+
+
+
+
 // Get payment records from queue with payment status
 try {
     $conn = $pdo;
     
-    // Get filter parameters
+    // Force PDO to throw errors so they don't fail silently
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+   // Get filter parameters
     $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : '';
     $statusFilter = isset($_GET['status']) ? trim($_GET['status']) : '';
     $dateFilter = isset($_GET['date']) ? trim($_GET['date']) : 'all';
     
-    // Build base WHERE clause for reuse
-    $whereClause = "WHERE q.status IN ('completed', 'pending_payment', 'in_procedure', 'waiting')";
+    // We removed the is_archived and status restrictions! 
+    // The front desk needs to see completed/archived patients so they can pay.
+    $whereClause = "WHERE 1=1";
     $params = [];
     
     // Apply search filter
@@ -60,10 +75,10 @@ try {
             break;
     }
     
-    // Get total count for pagination
+    // Get total count for pagination (FIXED: Using billing_date instead of created_at)
     $countSql = "SELECT COUNT(*) FROM queue q
-                 LEFT JOIN patients p ON q.patient_id = p.id
-                 LEFT JOIN billing b ON b.patient_id = q.patient_id AND DATE(b.billing_date) = DATE(q.created_at)
+                 LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id
+                 LEFT JOIN billing b ON b.patient_id = CAST(q.patient_id AS UNSIGNED) AND DATE(b.billing_date) = DATE(q.created_at)
                  $whereClause";
     $countStmt = $conn->prepare($countSql);
     foreach ($params as $key => $value) {
@@ -81,13 +96,13 @@ try {
     $showingStart = $totalRecords > 0 ? $offset + 1 : 0;
     $showingEnd = min($offset + $itemsPerPage, $totalRecords);
     
-    // Build the query with pagination
+    // Build the query with pagination (FIXED: Using billing_date instead of created_at)
     $sql = "SELECT 
                 q.id as queue_id,
                 q.patient_id,
                 q.treatment_type,
                 q.teeth_numbers,
-                q.status as queue_status,
+                COALESCE(qs.status_name, 'Unknown') as queue_status,
                 q.created_at as queue_date,
                 q.notes as queue_notes,
                 CONCAT(p.first_name, ' ', p.last_name) as patient_name,
@@ -100,8 +115,9 @@ try {
                 b.paid_amount,
                 b.notes as billing_notes
             FROM queue q
-            LEFT JOIN patients p ON q.patient_id = p.id
-            LEFT JOIN billing b ON b.patient_id = q.patient_id AND DATE(b.billing_date) = DATE(q.created_at)
+            LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id
+            LEFT JOIN queue_statuses qs ON q.status_id = qs.id
+            LEFT JOIN billing b ON b.patient_id = CAST(q.patient_id AS UNSIGNED) AND DATE(b.billing_date) = DATE(q.created_at)
             $whereClause
             ORDER BY q.created_at DESC
             LIMIT :limit OFFSET :offset";
@@ -115,8 +131,14 @@ try {
     $stmt->execute();
     $paymentRecords = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Get summary statistics based directly on today's queue + billing rows
-    // Get summary statistics directly from source tables (payments, billing, queue)
+
+
+
+
+
+
+
+    // Get summary statistics
     $statsSql = "
         SELECT 
             (SELECT COALESCE(SUM(amount), 0)
@@ -130,7 +152,7 @@ try {
                
             (SELECT COUNT(*)
              FROM queue
-             WHERE status = 'completed'
+             WHERE status_id = 3
                AND DATE(created_at) = CURDATE()) AS completed_today,
                
             (SELECT COUNT(*)
@@ -140,14 +162,11 @@ try {
     ";
     $statsStmt = $conn->query($statsSql);
     $stats = $statsStmt ? $statsStmt->fetch(PDO::FETCH_ASSOC) : [
-        'total_collected_today' => 0,
-        'pending_today' => 0,
-        'completed_today' => 0,
-        'unpaid_today' => 0
+        'total_collected_today' => 0, 'pending_today' => 0, 'completed_today' => 0, 'unpaid_today' => 0
     ];
     
     // Get services for calculating amounts
-    $servicesStmt = $conn->query("SELECT id, name, price FROM services WHERE is_active = 1");
+    $servicesStmt = $conn->query("SELECT id, name, price FROM services");
     $servicesList = $servicesStmt->fetchAll(PDO::FETCH_ASSOC);
     $servicesMap = [];
     foreach ($servicesList as $service) {
@@ -155,19 +174,26 @@ try {
     }
     
 } catch (Exception $e) {
-    $paymentRecords = [];
-    $stats = [
-        'total_collected_today' => 0,
-        'pending_today' => 0,
-        'completed_today' => 0,
-        'unpaid_today' => 0
-    ];
-    $servicesMap = [];
-    $totalRecords = 0;
-    $totalPages = 1;
-    $showingStart = 0;
-    $showingEnd = 0;
+    // FORCES THE ERROR TO SHOW ON SCREEN INSTEAD OF FAILING SILENTLY
+    die("<div style='padding: 20px; background: #fee2e2; color: #dc2626; border: 1px solid #f87171; border-radius: 8px; margin: 20px; font-family: sans-serif;'>
+        <h3 style='margin-top:0;'>Database Error Detected:</h3>
+        <p>" . htmlspecialchars($e->getMessage()) . "</p>
+        <p><em>Please take a screenshot of this red box so we can fix the exact column causing the issue!</em></p>
+    </div>");
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Helper function to calculate amount from treatment type
 function calculateAmount($treatmentType, $servicesMap) {
@@ -1234,7 +1260,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     const treatment = document.getElementById('confirmPaymentTreatmentValue').value;
                     
                     // Send AJAX request to mark as paid
-                    fetch('billing_actions.php', {
+                    fetch('../shared/billing_actions.php', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

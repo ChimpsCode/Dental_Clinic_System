@@ -294,16 +294,18 @@ try {
                     $old_status_id = $stmt->fetchColumn();
                     $old_status = $old_status_id == 1 ? 'paid' : 'unpaid';
                     
-                    // Update existing billing - use payment_status_id = 1 for paid
-                    $stmt = $pdo->prepare("
-                        UPDATE billing 
-                        SET payment_status_id = 1,
-                            paid_amount = COALESCE(paid_amount, 0) + ?, 
-                            balance = 0,
-                            updated_at = NOW()
-                        WHERE id = ?
-                    ");
-                    $stmt->execute([$amount, $billing_id]);
+                    // Check billing columns
+                        $stmt = $pdo->query("DESCRIBE billing");
+                        $bcols = array_column($stmt->fetchAll(), 'Field');
+                        $bupdates = [];
+                        if (in_array('payment_status_id', $bcols)) { $bupdates[] = "payment_status_id = 1"; }
+                        if (in_array('paid_amount', $bcols)) { $bupdates[] = "paid_amount = COALESCE(paid_amount, 0) + " . $amount; }
+                        if (in_array('balance', $bcols)) { $bupdates[] = "balance = 0"; }
+                        if (in_array('updated_at', $bcols)) { $bupdates[] = "updated_at = NOW()"; }
+                        if (!empty($bupdates)) {
+                            $stmt = $pdo->prepare("UPDATE billing SET " . implode(', ', $bupdates) . " WHERE id = ?");
+                            $stmt->execute([$billing_id]);
+                        }
                 } else {
                     // Check if billing exists for today
                     $stmt = $pdo->prepare("
@@ -314,26 +316,41 @@ try {
                     $existing = $stmt->fetch();
                     
                     if ($existing) {
-                        // Update existing - use payment_status_id
+                        // Update existing - use column checks
                         $billing_id = $existing['id'];
                         $old_status = $existing['payment_status_id'] == 1 ? 'paid' : 'unpaid';
-                        $stmt = $pdo->prepare("
-                            UPDATE billing 
-                            SET payment_status_id = 1,
-                                paid_amount = COALESCE(paid_amount, 0) + ?, 
-                                balance = 0,
-                                updated_at = NOW()
-                            WHERE id = ?
-                        ");
-                        $stmt->execute([$amount, $billing_id]);
+                        $stmt = $pdo->query("DESCRIBE billing");
+                        $bcols = array_column($stmt->fetchAll(), 'Field');
+                        $bupdates = [];
+                        if (in_array('payment_status_id', $bcols)) { $bupdates[] = "payment_status_id = 1"; }
+                        if (in_array('paid_amount', $bcols)) { $bupdates[] = "paid_amount = COALESCE(paid_amount, 0) + " . $amount; }
+                        if (in_array('balance', $bcols)) { $bupdates[] = "balance = 0"; }
+                        if (in_array('updated_at', $bcols)) { $bupdates[] = "updated_at = NOW()"; }
+                        if (!empty($bupdates)) {
+                            $stmt = $pdo->prepare("UPDATE billing SET " . implode(', ', $bupdates) . " WHERE id = ?");
+                            $stmt->execute([$billing_id]);
+                        }
                     } else {
-                        // Create new billing - use payment_status_id = 1 for paid
-                        $stmt = $pdo->prepare("
-                            INSERT INTO billing (patient_id, total_amount, paid_amount, balance, payment_status_id, billing_date, due_date, created_at, updated_at)
-                            VALUES (?, ?, ?, 0, 1, ?, DATE_ADD(?, INTERVAL 7 DAY), NOW(), NOW())
-                        ");
-                        $stmt->execute([$patient_id, $amount, $amount, $queueDate, $queueDate]);
-                        $billing_id = $pdo->lastInsertId();
+                        // Create new billing - column check
+                        $stmt = $pdo->query("DESCRIBE billing");
+                        $bcols = array_column($stmt->fetchAll(), 'Field');
+                        $bcolsList = [];
+                        $bvals = [];
+                        if (in_array('patient_id', $bcols)) { $bcolsList[] = "patient_id"; $bvals[] = $patient_id; }
+                        if (in_array('total_amount', $bcols)) { $bcolsList[] = "total_amount"; $bvals[] = $amount; }
+                        if (in_array('paid_amount', $bcols)) { $bcolsList[] = "paid_amount"; $bvals[] = $amount; }
+                        if (in_array('balance', $bcols)) { $bcolsList[] = "balance"; $bvals[] = 0; }
+                        if (in_array('payment_status_id', $bcols)) { $bcolsList[] = "payment_status_id"; $bvals[] = 1; }
+                        if (in_array('billing_date', $bcols)) { $bcolsList[] = "billing_date"; $bvals[] = $queueDate; }
+                        if (in_array('due_date', $bcols)) { $bcolsList[] = "due_date"; $bvals[] = date('Y-m-d', strtotime($queueDate . ' +7 days')); }
+                        if (in_array('created_at', $bcols)) { $bcolsList[] = "created_at"; $bvals[] = 'NOW()'; }
+                        if (in_array('updated_at', $bcols)) { $bcolsList[] = "updated_at"; $bvals[] = 'NOW()'; }
+                        if (!empty($bcolsList)) {
+                            $sql = "INSERT INTO billing (" . implode(', ', $bcolsList) . ") VALUES (" . implode(', ', array_fill(0, count($bvals), '?')) . ")";
+                            $stmt = $pdo->prepare($sql);
+                            $stmt->execute($bvals);
+                            $billing_id = $pdo->lastInsertId();
+                        }
                     }
                 }
                 
@@ -347,19 +364,14 @@ try {
                 
                 // Update queue status to completed if queue_id exists
                 if ($queue_id) {
-                    $stmt = $pdo->prepare("UPDATE queue SET status = 'completed', updated_at = NOW() WHERE id = ? AND status = 'pending_payment'");
-                    $stmt->execute([$queue_id]);
-                    
-                    // Get the appointment_id from the billing record to update the correct appointment
-                    $stmt = $pdo->prepare("SELECT appointment_id FROM billing WHERE id = ?");
-                    $stmt->execute([$billing_id]);
-                    $billingRecord = $stmt->fetch();
-                    $appointmentIdFromBilling = $billingRecord['appointment_id'] ?? null;
-                    
-                    // Only update the specific appointment linked to this billing
-                    if ($appointmentIdFromBilling) {
-                        $stmt = $pdo->prepare("UPDATE appointments SET status = 'completed', updated_at = NOW() WHERE id = ? AND status = 'scheduled'");
-                        $stmt->execute([$appointmentIdFromBilling]);
+                    $stmt = $pdo->query("DESCRIBE queue");
+                    $qcols = array_column($stmt->fetchAll(), 'Field');
+                    $qupdates = [];
+                    if (in_array('status', $qcols)) { $qupdates[] = "status = 'completed'"; }
+                    if (in_array('updated_at', $qcols)) { $qupdates[] = "updated_at = NOW()"; }
+                    if (!empty($qupdates)) {
+                        $stmt = $pdo->prepare("UPDATE queue SET " . implode(', ', $qupdates) . " WHERE id = ? AND status = 'pending_payment'");
+                        $stmt->execute([$queue_id]);
                     }
                 }
                 
@@ -380,15 +392,50 @@ try {
             break;
             
         case 'update_amount':
-            // Used by admin_payment.php
+            // Used by admin_payment.php, dentist_dashboard.php
             $input = json_decode(file_get_contents('php://input'), true);
             
             $billing_id = $input['billing_id'] ?? 0;
+            $patient_id = $input['patient_id'] ?? 0;
+            $queue_id = $input['queue_id'] ?? 0;
             $new_amount = $input['new_amount'] ?? 0;
             $reason = $input['reason'] ?? '';
             
+            // If no billing_id, try to find or create one
             if (!$billing_id) {
-                $response['message'] = 'Billing ID is required';
+                if (!$patient_id && $queue_id) {
+                    // Get patient_id from queue
+                    $stmt = $pdo->prepare("SELECT patient_id FROM queue WHERE id = ?");
+                    $stmt->execute([$queue_id]);
+                    $patient_id = $stmt->fetchColumn();
+                }
+                
+                if ($patient_id) {
+                    // Check if billing exists for today
+                    $stmt = $pdo->prepare("SELECT id FROM billing WHERE patient_id = ? AND DATE(billing_date) = CURDATE() LIMIT 1");
+                    $stmt->execute([$patient_id]);
+                    $billing_id = $stmt->fetchColumn();
+                    
+                    if (!$billing_id) {
+                        // Create new billing record
+                        $stmt = $pdo->prepare("INSERT INTO billing (patient_id, total_amount, payment_status, billing_date, created_at) VALUES (?, ?, 'pending', NOW(), NOW())");
+                        $stmt->execute([$patient_id, $new_amount]);
+                        $billing_id = $pdo->lastInsertId();
+                    }
+                }
+            }
+            
+            if (!$billing_id) {
+                // Last attempt - create billing with just patient_id
+                if ($patient_id) {
+                    $stmt = $pdo->prepare("INSERT INTO billing (patient_id, total_amount, payment_status, billing_date, created_at) VALUES (?, ?, 'pending', NOW(), NOW())");
+                    $stmt->execute([$patient_id, $new_amount]);
+                    $billing_id = $pdo->lastInsertId();
+                }
+            }
+            
+            if (!$billing_id) {
+                $response['message'] = 'Could not create billing. Patient ID: ' . $patient_id . ', Queue ID: ' . $queue_id;
                 echo json_encode($response);
                 exit;
             }
@@ -410,12 +457,18 @@ try {
             $new_balance = max(0, $new_amount - $paid_amount);
             
             // Update billing amount
-            $stmt = $pdo->prepare("
-                UPDATE billing 
-                SET total_amount = ?, balance = ?, updated_at = NOW()
-                WHERE id = ?
-            ");
-            $stmt->execute([$new_amount, $new_balance, $billing_id]);
+            $stmt = $pdo->query("DESCRIBE billing");
+            $bcols = array_column($stmt->fetchAll(), 'Field');
+            $bupdates = [];
+            $bparams = [];
+            if (in_array('total_amount', $bcols)) { $bupdates[] = "total_amount = ?"; $bparams[] = $new_amount; }
+            if (in_array('balance', $bcols)) { $bupdates[] = "balance = ?"; $bparams[] = max(0, $new_amount - $paid_amount); }
+            if (in_array('updated_at', $bcols)) { $bupdates[] = "updated_at = NOW()"; }
+            if (!empty($bupdates)) {
+                $stmt = $pdo->prepare("UPDATE billing SET " . implode(', ', $bupdates) . " WHERE id = ?");
+                $bparams[] = $billing_id;
+                $stmt->execute($bparams);
+            }
             
             // Log audit - billing updated
             logAudit($pdo, $current_user_id, $current_username, $current_role, 'update', 'billing', 'Updated billing amount: ₱' . number_format($old_amount, 2) . ' → ₱' . number_format($new_amount, 2) . ' for patient: ' . $patient_name . ' (INV-' . str_pad($billing_id, 3, '0', STR_PAD_LEFT) . ')' . ($reason ? ' - Reason: ' . $reason : ''), $billing_id, 'billing', '₱' . number_format($old_amount, 2), '₱' . number_format($new_amount, 2));

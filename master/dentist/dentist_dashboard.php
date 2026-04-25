@@ -368,10 +368,114 @@ function completeProcedure(queueId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            const amount = data.amount || 0;
+            alert('Procedure Completed!\n\nTotal Amount: ₱' + amount.toLocaleString('en-PH', {minimumFractionDigits: 2}) + '\n\nPatient moved to billing.');
             location.reload();
         } else {
             alert('Error: ' + data.message);
         }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to complete procedure');
+    });
+}
+
+// Billing functions
+let billingAdjEditMode = false;
+let currentStandardPrice = 0;
+let currentTotalAmount = 0;
+
+function toggleBillingEdit() {
+    const inputContainer = document.getElementById('adjustmentInputContainer');
+    const adjustmentDisplay = document.getElementById('detailsAdjustmentAmount');
+    const saveBtn = document.getElementById('saveBillingBtn');
+    const adjustBtn = document.getElementById('adjustPriceBtn');
+    
+    billingAdjEditMode = !billingAdjEditMode;
+    
+    if (billingAdjEditMode) {
+        inputContainer.style.display = 'block';
+        adjustmentDisplay.style.display = 'none';
+        saveBtn.style.display = 'block';
+        adjustBtn.textContent = 'Cancel';
+        adjustBtn.style.background = '#6b7280';
+    } else {
+        inputContainer.style.display = 'none';
+        adjustmentDisplay.style.display = 'block';
+        saveBtn.style.display = 'none';
+        adjustBtn.textContent = 'Adjust Price';
+        adjustBtn.style.background = '#f59e0b';
+    }
+}
+
+function updateBillingTotal() {
+    const adjustmentInput = document.getElementById('adjustmentInput');
+    const adjustmentAmount = parseFloat(adjustmentInput.value) || 0;
+    const totalAmount = currentStandardPrice + adjustmentAmount;
+    currentTotalAmount = totalAmount;
+    
+    const sign = adjustmentAmount >= 0 ? '+' : '';
+    document.getElementById('detailsAdjustmentAmount').textContent = sign + '₱' + adjustmentAmount.toLocaleString('en-PH', {minimumFractionDigits: 2});
+    document.getElementById('detailsTotalAmount').textContent = '₱' + totalAmount.toLocaleString('en-PH', {minimumFractionDigits: 2});
+}
+
+function saveBillingAdjustment(patientId, queueId) {
+    const newAmount = currentTotalAmount;
+    
+    fetch('../shared/billing_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'update_amount',
+            patient_id: patientId,
+            queue_id: queueId,
+            new_amount: newAmount,
+            reason: 'Dentist adjustment'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Amount updated to ₱' + newAmount.toLocaleString('en-PH', {minimumFractionDigits: 2}));
+            toggleBillingEdit();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to save amount');
+    });
+}
+
+function markAsPaidComplete(patientId, queueId) {
+    const amount = currentTotalAmount > 0 ? currentTotalAmount : currentStandardPrice;
+    if (!confirm('Mark as paid for ₱' + amount.toLocaleString('en-PH', {minimumFractionDigits: 2}) + '?')) return;
+    
+    fetch('../shared/billing_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'mark_paid',
+            patient_id: patientId,
+            queue_id: queueId,
+            amount: amount,
+            treatment: 'Dental Procedure'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Payment marked as paid!');
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to mark as paid');
     });
 }
 
@@ -448,7 +552,7 @@ function viewPatientDetails(patientId) {
                 <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:12px;padding:20px;margin-bottom:20px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                         <h3 style="font-size:1rem;font-weight:600;color:#92400e;margin:0;">💰 Billing Management</h3>
-                        <button onclick="openBillingEdit(${p.id}, ${q.id})" class="btn-primary" style="padding:6px 12px;font-size:0.8rem;background:#f59e0b;">Adjust Price</button>
+                        <button onclick="toggleBillingEdit()" class="btn-primary" id="adjustPriceBtn" style="padding:6px 12px;font-size:0.8rem;background:#f59e0b;">Adjust Price</button>
                     </div>
                     <div class="patient-info-grid">
                         <div class="patient-info-item">
@@ -459,7 +563,10 @@ function viewPatientDetails(patientId) {
                         </div>
                         <div class="patient-info-item">
                             <div class="patient-info-label">Additional Adjustment</div>
-                            <div id="detailsAdjustmentAmount" class="patient-info-value" style="color:#0ea5e9;font-weight:700;">+₱0.00</div>
+                            <div id="adjustmentInputContainer" style="display:none;">
+                                <input type="number" id="adjustmentInput" class="patient-info-value" style="color:#0ea5e9;font-weight:700;padding:8px;border:2px solid #0ea5e9;border-radius:8px;width:150px;" placeholder="Enter adjustment amount" value="0" onchange="updateBillingTotal()">
+                            </div>
+                            <div id="detailsAdjustmentAmount" class="patient-info-value" style="color:#0ea5e8;font-weight:700;">+₱0.00</div>
                         </div>
                         <div class="patient-info-item">
                             <div class="patient-info-label">Final Total Amount</div>
@@ -473,6 +580,10 @@ function viewPatientDetails(patientId) {
                                 <span style="background:#fef3c7;color:#92400e;padding:4px 12px;border-radius:9999px;font-size:0.85rem;font-weight:600;">PENDING</span>
                             </div>
                         </div>
+                    </div>
+                    <div style="margin-top:16px;display:flex;gap:12px;align-items:center;">
+                        <button onclick="saveBillingAdjustment(${p.id}, ${q.id})" id="saveBillingBtn" class="btn-primary" style="padding:8px 16px;display:none;">Save Amount</button>
+                        <button onclick="markAsPaidComplete(${p.id}, ${q.id})" id="markPaidBtn" class="btn-primary" style="padding:8px 16px;background:#16a34a;">Mark as Paid</button>
                     </div>
                 </div>
 
@@ -511,6 +622,11 @@ function viewPatientDetails(patientId) {
             if (q.id) {
                 setupNotesAutoSave(q.id);
                 loadBillingInfo(p.id);
+                
+                // Set billing globals for adjustment
+                currentStandardPrice = parseFloat(q.service_price) || 500;
+                currentTotalAmount = currentStandardPrice;
+                updateBillingTotal();
             }
         }
     });
