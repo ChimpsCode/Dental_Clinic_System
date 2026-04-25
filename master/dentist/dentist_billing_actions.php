@@ -99,6 +99,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                     error_log("Found service by ID: " . $serviceData['name'] . " = ₱" . $estimatedAmount);
                 }
             }
+
+            // Fallback: if queue doesn't store service_id, try to get it from appointment
+            if (empty($serviceId) && !empty($queueItem['appointment_id'])) {
+                try {
+                    $apptStmt = $pdo->prepare("SELECT service_id, treatment FROM appointments WHERE id = ? LIMIT 1");
+                    $apptStmt->execute([$queueItem['appointment_id']]);
+                    $appt = $apptStmt->fetch(PDO::FETCH_ASSOC);
+                    if ($appt && !empty($appt['service_id'])) {
+                        $serviceId = $appt['service_id'];
+                        $serviceStmt = $pdo->prepare("SELECT s.id, s.name, s.price FROM services s WHERE s.id = ? AND s.is_active = 1");
+                        $serviceStmt->execute([$serviceId]);
+                        $serviceData = $serviceStmt->fetch(PDO::FETCH_ASSOC);
+                        if ($serviceData) {
+                            $estimatedAmount = floatval($serviceData['price']);
+                            $matchedServices[] = [
+                                'id' => $serviceData['id'],
+                                'name' => $serviceData['name'],
+                                'price' => $estimatedAmount
+                            ];
+                            error_log("Found service by appointment_id: " . $serviceData['name'] . " = ₱" . $estimatedAmount);
+                        }
+                    } else {
+                        // Last resort: try to resolve service by treatment name text
+                        $treatmentName = $queueItem['treatment_type'] ?? $appt['treatment'] ?? null;
+                        if (!empty($treatmentName)) {
+                            $nameStmt = $pdo->prepare("SELECT id, name, price FROM services WHERE name = ? LIMIT 1");
+                            $nameStmt->execute([$treatmentName]);
+                            $byName = $nameStmt->fetch(PDO::FETCH_ASSOC);
+                            if ($byName) {
+                                $serviceId = $byName['id'];
+                                $estimatedAmount = floatval($byName['price']);
+                                $matchedServices[] = [
+                                    'id' => $byName['id'],
+                                    'name' => $byName['name'],
+                                    'price' => $estimatedAmount
+                                ];
+                                error_log("Resolved service by name: " . $byName['name'] . " = ₱" . $estimatedAmount);
+                            }
+                        }
+                    }
+                } catch (Exception $e) {
+                    // ignore and continue, we'll fallback to treatment_type text
+                }
+            }
             
             // If no billing record exists, create default values
             $totalAmount = 0;

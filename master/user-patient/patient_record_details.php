@@ -63,8 +63,19 @@ try {
     $stmt->execute([$patientId]);
     $dentalHistory = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    // Get current queue item if any
-    $stmt = $pdo->prepare("SELECT q.*, qs.status_name as status_text FROM queue q LEFT JOIN queue_statuses qs ON q.status_id = qs.id WHERE q.patient_id = ? AND q.status_id IN (1, 2) AND q.is_archived = 0 ORDER BY q.created_at DESC LIMIT 1");
+    // Get current queue item if any (Now with services joined)
+    $stmt = $pdo->prepare("
+        SELECT 
+            q.*, 
+            qs.status_name as status_text,
+            s.name as service_name,
+            s.price as service_price
+        FROM queue q 
+        LEFT JOIN queue_statuses qs ON q.status_id = qs.id 
+        LEFT JOIN services s ON q.service_id = s.id
+        WHERE q.patient_id = ? AND q.status_id IN (1, 2) AND q.is_archived = 0 
+        ORDER BY q.created_at DESC LIMIT 1
+    ");
     $stmt->execute([$patientId]);
     $queueItem = $stmt->fetch(PDO::FETCH_ASSOC);
     

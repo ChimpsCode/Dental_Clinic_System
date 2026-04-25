@@ -433,10 +433,14 @@ function viewPatientDetails(patientId) {
                 <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:20px;margin-bottom:20px;">
                     <h3 style="font-size:1rem;font-weight:600;color:#1e40af;margin-bottom:12px;">📋 Active Treatment</h3>
                     <div class="patient-info-label">Procedure</div>
-                    <div class="patient-info-value" id="modalProcedureName" style="font-size:1.1rem;font-weight:600;">Loading...</div>
+                    <div class="patient-info-value" id="modalProcedureName" style="font-size:1.1rem;font-weight:600;">
+                        ${q.service_name || q.treatment_type || 'Consultation'}
+                    </div>
                     <div style="margin-top:8px;">
                         <span class="patient-info-label">Price:</span>
-                        <span id="modalProcedurePrice" style="font-size:1rem;font-weight:600;color:#059669;margin-left:8px;">₱0.00</span>
+                        <span id="modalProcedurePrice" style="font-size:1rem;font-weight:600;color:#059669;margin-left:8px;">
+                            ₱${q.service_price ? parseFloat(q.service_price).toLocaleString('en-PH', {minimumFractionDigits: 2}) : '0.00'}
+                        </span>
                     </div>
                 </div>
 
@@ -447,12 +451,34 @@ function viewPatientDetails(patientId) {
                         <button onclick="openBillingEdit(${p.id}, ${q.id})" class="btn-primary" style="padding:6px 12px;font-size:0.8rem;background:#f59e0b;">Adjust Price</button>
                     </div>
                     <div class="patient-info-grid">
-                        <div class="patient-info-item"><div class="patient-info-label">Standard Price (Services)</div><div id="detailsEstimatedAmount" class="patient-info-value" style="color:#92400e;">₱0.00</div></div>
-                        <div class="patient-info-item"><div class="patient-info-label">Additional Adjustment</div><div id="detailsAdjustmentAmount" class="patient-info-value" style="color:#0ea5e9;font-weight:700;">+₱0.00</div></div>
-                        <div class="patient-info-item"><div class="patient-info-label">Final Total Amount</div><div id="detailsTotalAmount" class="patient-info-value" style="font-weight:800;color:#111827;font-size:1.1rem;">₱0.00</div></div>
-                        <div class="patient-info-item"><div class="patient-info-label">Payment Status</div><div id="detailsStatus" class="patient-info-value">Loading...</div></div>
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Standard Price (Services)</div>
+                            <div id="detailsEstimatedAmount" class="patient-info-value" style="color:#92400e;">
+                                ₱${q.service_price ? parseFloat(q.service_price).toLocaleString('en-PH', {minimumFractionDigits: 2}) : '0.00'}
+                            </div>
+                        </div>
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Additional Adjustment</div>
+                            <div id="detailsAdjustmentAmount" class="patient-info-value" style="color:#0ea5e9;font-weight:700;">+₱0.00</div>
+                        </div>
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Final Total Amount</div>
+                            <div id="detailsTotalAmount" class="patient-info-value" style="font-weight:800;color:#111827;font-size:1.1rem;">
+                                ₱${q.service_price ? parseFloat(q.service_price).toLocaleString('en-PH', {minimumFractionDigits: 2}) : '0.00'}
+                            </div>
+                        </div>
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Payment Status</div>
+                            <div id="detailsStatus" class="patient-info-value">
+                                <span style="background:#fef3c7;color:#92400e;padding:4px 12px;border-radius:9999px;font-size:0.85rem;font-weight:600;">PENDING</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
+
+
+
 
                 <!-- Teeth Section -->
                 <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:20px;margin-bottom:20px;">

@@ -861,10 +861,10 @@ div.main-content {
                             $queueTime = new DateTime($item['queue_time']);
                             $time12hr = $queueTime->format('g:i A');
                             $time24hr = $queueTime->format('H:i');
-                            $statusClass = strtolower(str_replace('_', '-', $item['status']));
-                            $statusLabel = ucwords(str_replace('_', ' ', $item['status']));
+                            $statusClass = strtolower(str_replace('_', '-', $item['status_text'] ?? 'waiting'));
+                            $statusLabel = ucwords(str_replace('_', ' ', $item['status_text'] ?? 'waiting'));
                         ?>
-                            <tr class="queue-row" data-status="<?php echo $item['status']; ?>" data-name="<?php echo strtolower(($item['first_name'] ?? '')); ?>">
+                            <tr class="queue-row" data-status="<?php echo $item['status_text'] ?? 'waiting'; ?>" data-name="<?php echo strtolower(($item['first_name'] ?? '')); ?>">
                                 <td><?php echo str_pad($item['id'], 3, '0', STR_PAD_LEFT); ?></td>
                                 <td>
                                     <div class="patient-name"><?php echo htmlspecialchars($item['first_name'] ?: 'Unknown'); ?></div>
@@ -894,7 +894,7 @@ div.main-content {
                                 </td>
 <td>
                                     <div class="queue-kebab-menu">
-                                        <button class="queue-kebab-btn" data-queue-id="<?php echo $item['id']; ?>" data-patient-id="<?php echo $item['patient_id']; ?>" data-status="<?php echo $item['status']; ?>">
+                                        <button class="queue-kebab-btn" data-queue-id="<?php echo $item['id']; ?>" data-patient-id="<?php echo $item['patient_id']; ?>" data-status="<?php echo $item['status_text']; ?>">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                                                 <circle cx="12" cy="6" r="2"/>
                                                 <circle cx="12" cy="12" r="2"/>
@@ -902,7 +902,6 @@ div.main-content {
                                             </svg>
                                         </button>
                                     </div>
-                                </td>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
