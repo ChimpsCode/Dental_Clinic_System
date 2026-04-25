@@ -30,7 +30,7 @@ try {
                 WHEN 'completed' THEN 3 
                 ELSE 2
             END,
-            q.queue_time DESC
+            q.queue_time ASC
     ");
     $allQueueItems = $allStmt->fetchAll(PDO::FETCH_ASSOC);
     

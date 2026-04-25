@@ -151,21 +151,34 @@ try {
             
             $patientId = $queueItem['patient_id'];
             $patientName = buildFullName($queueItem);
+            $treatmentType = $queueItem['treatment_od'] ?? 'consultation';
+            $stmt = $pdo->prepare("SELECT price FROM services WHERE LOWER(name) = ? AND is_active = 1 LIMIT 1");
+            $stmt->execute([strtolower($treatmentType)]);
+            $service = $stmt->fetch();
+            $calculatedAmount = $service['price'] ?? 500;
             
             $pdo->beginTransaction();
             
             // Update to status_id 3 (pending_payment)
             updateQueueStatus($pdo, $queueId, 3, 'pending_payment');
             
-            // Update appointment status if exists
-            $stmt = $pdo->prepare("UPDATE appointments SET status_id = 3, status = 'pending_payment', updated_at = NOW() WHERE patient_id = ? AND status_id = 2");
-            $stmt->execute([$patientId]);
+// Update appointment status if exists
+            $stmt = $pdo->query("DESCRIBE appointments");
+            $aptCols = array_column($stmt->fetchAll(), 'Field');
+            $aptUpdates = [];
+            if (in_array('status_id', $aptCols)) { $aptUpdates[] = "status_id = 3"; }
+            if (in_array('status', $aptCols)) { $aptUpdates[] = "status = 'pending_payment'"; }
+            if (in_array('updated_at', $aptCols)) { $aptUpdates[] = "updated_at = NOW()"; }
+            if (!empty($aptUpdates)) {
+                $stmt = $pdo->prepare("UPDATE appointments SET " . implode(', ', $aptUpdates) . " WHERE patient_id = ? AND status_id = 2");
+                $stmt->execute([$patientId]);
+            }
             
             $pdo->commit();
             
             logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Completed procedure for: ' . $patientName, $queueId, 'queue', '2', '3');
             
-            echo json_encode(['success' => true, 'message' => 'Procedure completed. Record moved to billing.', 'patient_id' => $patientId]);
+            echo json_encode(['success' => true, 'message' => 'Procedure completed. Record moved to billing.', 'patient_id' => $patientId, 'amount' => $calculatedAmount]);
             break;
             
         case 'on_hold':

@@ -1154,7 +1154,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     `;
                     
                     // Fetch details via AJAX
-                    fetch('billing_actions.php?action=get_details&queue_id=' + queueId + '&patient_id=' + patientId)
+                    fetch('../shared/billing_actions.php?action=get_details&queue_id=' + queueId + '&patient_id=' + patientId)
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
