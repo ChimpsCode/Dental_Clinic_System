@@ -2,20 +2,15 @@
 $pageTitle = 'Appointments';
 
 // Pagination settings
-$itemsPerPage = 5;
+$itemsPerPage = 50;
 $currentPage = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
 if ($currentPage < 1) $currentPage = 1;
 
 try {
     require_once '../../config/database.php';
     
-    // NOTE: Show all appointments (including archived) to avoid missing records
-    $whereClause = "";
-    $countWhereClause = "";
-    
-    // Get total count for pagination
-    $countStmt = $pdo->query("SELECT COUNT(*) FROM appointments " . $countWhereClause);
-    $totalAppointments = $countStmt->fetchColumn();
+    // Get total count
+    $totalAppointments = (int)$pdo->query("SELECT COUNT(*) FROM appointments")->fetchColumn();
     $totalPages = max(1, ceil($totalAppointments / $itemsPerPage));
     
     // Ensure current page is valid
@@ -26,26 +21,29 @@ try {
     $showingStart = $totalAppointments > 0 ? $offset + 1 : 0;
     $showingEnd = min($offset + $itemsPerPage, $totalAppointments);
     
-    // Get all appointments for stats (without pagination)
-    $allStmt = $pdo->query("SELECT a.*, 
-                         p.first_name, p.middle_name, p.last_name, p.phone
-                         FROM appointments a 
-                         LEFT JOIN patients p ON a.patient_id = p.id");
-    $allAppointments = $allStmt->fetchAll(PDO::FETCH_ASSOC);
+    // Get all appointments - direct query
+    $sql = "SELECT a.*, 
+        COALESCE(p.first_name, 'Unknown') as first_name, 
+        COALESCE(p.middle_name, '') as middle_name, 
+        COALESCE(p.last_name, '') as last_name,
+        COALESCE(p.phone, '') as phone, 
+        COALESCE(p.email, '') as email,
+        COALESCE(addr.street_address, '') as address,
+        COALESCE(p.date_of_birth, '') as date_of_birth,
+        COALESCE(p.gender, '') as gender,
+        COALESCE(addr.city, '') as city,
+        COALESCE(addr.province, '') as province,
+        COALESCE(addr.zip_code, '') as zip_code,
+        s.name as service_name
+        FROM appointments a 
+        LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
+        LEFT JOIN addresses addr ON p.address_id = addr.id
+        LEFT JOIN services s ON a.service_id = s.id
+        ORDER BY a.appointment_date DESC, a.id DESC";
+    $allAppointments = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     
-    // Get paginated appointments
-    $stmt = $pdo->prepare("SELECT a.*, 
-                         p.first_name, p.middle_name, p.last_name, p.phone,
-                         s.name as service_name
-                         FROM appointments a 
-                         LEFT JOIN patients p ON a.patient_id = p.id
-                         LEFT JOIN services s ON a.service_id = s.id
-                         ORDER BY a.appointment_date DESC, a.id DESC
-                         LIMIT :limit OFFSET :offset");
-    $stmt->bindValue(':limit', $itemsPerPage, PDO::PARAM_INT);
-    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-    $stmt->execute();
-    $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Paginate
+    $appointments = array_slice($allAppointments, $offset, $itemsPerPage);
 } catch (Exception $e) {
     $appointments = [];
     $allAppointments = [];
@@ -53,6 +51,7 @@ try {
     $totalPages = 1;
     $showingStart = 0;
     $showingEnd = 0;
+    error_log("Staff Appointments Error: " . $e->getMessage());
 }
 
 $todayCount = 0;
@@ -63,18 +62,18 @@ try {
     $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'status'");
     $hasStatusCol = $checkCol->fetch() !== false;
     
-    $baseWhere = $countWhereClause ? $countWhereClause . " AND " : "WHERE ";
-    $todayCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
+    // Simple direct queries for today stats
+    $todayCount = (int)$pdo->query("SELECT COUNT(*) FROM appointments WHERE DATE(appointment_date) = CURDATE()")->fetchColumn();
     
     if ($hasStatusCol) {
-        $completedCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) = 'completed' AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
-        $pendingCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) IN ('scheduled','pending') AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
-        $cancelledCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) = 'cancelled' AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
+        $completedCount = (int)$pdo->query("SELECT COUNT(*) FROM appointments WHERE LOWER(status) = 'completed' AND DATE(appointment_date) = CURDATE()")->fetchColumn();
+        $pendingCount = (int)$pdo->query("SELECT COUNT(*) FROM appointments WHERE LOWER(status) IN ('scheduled','pending') AND DATE(appointment_date) = CURDATE()")->fetchColumn();
+        $cancelledCount = (int)$pdo->query("SELECT COUNT(*) FROM appointments WHERE LOWER(status) = 'cancelled' AND DATE(appointment_date) = CURDATE()")->fetchColumn();
     } else {
         // status_id: 4=completed, 5=cancelled, 1=scheduled, 2=confirmed
-        $completedCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere status_id = 4 AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
-        $pendingCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere status_id IN (1,2) AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
-        $cancelledCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere status_id = 5 AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
+        $completedCount = (int)$pdo->query("SELECT COUNT(*) FROM appointments WHERE status_id = 4 AND DATE(appointment_date) = CURDATE()")->fetchColumn();
+        $pendingCount = (int)$pdo->query("SELECT COUNT(*) FROM appointments WHERE status_id IN (1,2) AND DATE(appointment_date) = CURDATE()")->fetchColumn();
+        $cancelledCount = (int)$pdo->query("SELECT COUNT(*) FROM appointments WHERE status_id = 5 AND DATE(appointment_date) = CURDATE()")->fetchColumn();
     }
 } catch (Exception $e) {
     $todayCount = 0;
@@ -100,8 +99,6 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
 
 require_once '../../includes/staff_layout_start.php';
 ?>
-
-<!-- Appointment Stats -->
 <div class="summary-cards" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 24px;">
     <div class="summary-card" style="width: 100%;">
         <div class="summary-icon blue" style="background: #e0f2fe; color: #0284c7;">📋</div>
@@ -253,6 +250,7 @@ require_once '../../includes/staff_layout_start.php';
                                 <?php 
                                     $status = $appt['status'] ?? 'Scheduled';
                                     $badgeClass = 'status-scheduled';
+                                    if (stripos($status, 'arrived') !== false) $badgeClass = 'status-in-queue';
                                     if (stripos($status, 'queue') !== false) $badgeClass = 'status-in-queue';
                                     if (stripos($status, 'pending') !== false) $badgeClass = 'status-pending-payment';
                                     if (stripos($status, 'complete') !== false) $badgeClass = 'status-completed';
@@ -573,6 +571,34 @@ require_once '../../includes/staff_layout_start.php';
     background-color: #fef2f2;
 }
 
+.status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-badge.status-in-queue {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-badge.status-pending-payment {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.status-badge.status-completed {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.status-badge.status-cancelled {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
 .appt-kebab-backdrop {
     display: none;
     position: fixed;
@@ -848,13 +874,13 @@ require_once '../../includes/staff_layout_start.php';
                 </svg>
                 Edit
             </a>
-            <a href="javascript:void(0)" data-action="forward" data-id="${apptId}">
+            <a href="javascript:void(0)" data-action="forward_to_queue" data-id="${apptId}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M22 12h-16"/>
                     <path d="M12 5l7 7-7 7"/>
                     <path d="M3 5v14"/>
                 </svg>
-                Forward to Admission
+                Forward to Queue
             </a>
             <a href="javascript:void(0)" data-action="delete" data-id="${apptId}" class="danger">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -967,8 +993,8 @@ require_once '../../includes/staff_layout_start.php';
                 case 'edit':
                     editAppointment(id);
                     break;
-                case 'forward':
-                    forwardToAdmission(id);
+                case 'forward_to_queue':
+                    forwardToQueue(id);
                     break;
                 case 'delete':
                     deleteAppointment(id);
@@ -985,13 +1011,28 @@ require_once '../../includes/staff_layout_start.php';
         alert('Edit functionality for appointment #' + id + ' - Coming soon!');
     }
 
-    function forwardToAdmission(id) {
+    function forwardToQueue(id) {
         const appt = appointments.find(a => a.id == id);
         if (!appt) return;
         
-        if (confirm('Forward this appointment to admission?')) {
-            // Redirect to staff new admission form with appointment data
-            window.location.href = 'staff_new_admission.php?appointment_id=' + id;
+        if (confirm('Forward this appointment to Queue?\n\nThis will open the admission form where you can select the service and teeth before adding to the queue.')) {
+            // Build URL with patient data in query params
+            let url = 'staff_new_admission.php?appointment_id=' + id;
+            
+            // Add all patient data to URL
+            if (appt.first_name) url += '&first_name=' + encodeURIComponent(appt.first_name);
+            if (appt.middle_name) url += '&middle_name=' + encodeURIComponent(appt.middle_name);
+            if (appt.last_name) url += '&last_name=' + encodeURIComponent(appt.last_name);
+            if (appt.phone) url += '&phone=' + encodeURIComponent(appt.phone);
+            if (appt.email) url += '&email=' + encodeURIComponent(appt.email);
+            if (appt.address) url += '&address=' + encodeURIComponent(appt.address);
+            if (appt.date_of_birth) url += '&date_of_birth=' + encodeURIComponent(appt.date_of_birth);
+            if (appt.gender) url += '&gender=' + encodeURIComponent(appt.gender);
+            if (appt.city) url += '&city=' + encodeURIComponent(appt.city);
+            if (appt.province) url += '&province=' + encodeURIComponent(appt.province);
+            if (appt.zip_code) url += '&zip_code=' + encodeURIComponent(appt.zip_code);
+            
+            window.location.href = url;
         }
     }
 

@@ -4,34 +4,34 @@ require_once '../../config/database.php';
 require_once '../../includes/staff_layout_start.php';
 
 try {
-    // Get queue data - same query as queue management
+    // Get queue data
     $stmt = $pdo->query("
-        SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix, p.phone
+        SELECT q.*, COALESCE(p.first_name, 'Unknown') as first_name, COALESCE(p.middle_name, '') as middle_name, COALESCE(p.last_name, '') as last_name, COALESCE(p.suffix, '') as suffix, COALESCE(p.phone, '') as phone, COALESCE(qs.status_name, 'waiting') as status_text
         FROM queue q 
-        LEFT JOIN patients p ON q.patient_id = p.id 
-        WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'on_hold', 'cancelled')
+        LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id 
+        LEFT JOIN queue_statuses qs ON qs.id = q.status_id
+        WHERE q.status_id IN (1, 2, 3, 4, 5, 6) AND q.is_archived = 0
         ORDER BY 
-            CASE q.status 
+            CASE COALESCE(qs.status_name, 'waiting')
                 WHEN 'in_procedure' THEN 1 
                 WHEN 'waiting' THEN 2 
-                WHEN 'on_hold' THEN 3 
-                WHEN 'completed' THEN 4 
-                WHEN 'cancelled' THEN 5 
+                WHEN 'completed' THEN 3 
+                ELSE 2
             END,
             q.queue_time DESC
     ");
     $queueItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    $waitingCount = count(array_filter($queueItems, fn($q) => $q['status'] === 'waiting'));
-    $procedureCount = count(array_filter($queueItems, fn($q) => $q['status'] === 'in_procedure'));
-    $completedCount = count(array_filter($queueItems, fn($q) => $q['status'] === 'completed'));
-    $onHoldCount = count(array_filter($queueItems, fn($q) => $q['status'] === 'on_hold'));
-    $cancelledCount = count(array_filter($queueItems, fn($q) => $q['status'] === 'cancelled'));
+    $waitingCount = count(array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'waiting'));
+    $procedureCount = count(array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'in_procedure'));
+    $completedCount = count(array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'completed'));
+    $onHoldCount = count(array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'on_hold'));
+    $cancelledCount = count(array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'cancelled'));
     
-    $inProcedureItem = array_filter($queueItems, fn($q) => $q['status'] === 'in_procedure');
+    $inProcedureItem = array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'in_procedure');
     $inProcedureItem = !empty($inProcedureItem) ? reset($inProcedureItem) : null;
 
-    $waitingItems = array_filter($queueItems, fn($q) => $q['status'] === 'waiting');
+    $waitingItems = array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'waiting');
 
     // Helper function to build full name
     function buildPatientName($item) {
@@ -98,7 +98,7 @@ try {
             <div id="cancelled-modal-list">
                 <div id="cancelled-today-list">
                     <?php 
-                    $cancelledItems = array_filter($queueItems, fn($q) => $q['status'] === 'cancelled');
+                    $cancelledItems = array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'cancelled');
                     if (empty($cancelledItems)): ?>
                         <p style="text-align: center; color: #6b7280; padding: 20px;">No cancelled patients today</p>
                     <?php else: ?>
@@ -196,7 +196,7 @@ try {
                 <h2 class="section-title">⏸️ On Hold</h2>
                 <div class="patient-list" id="onhold-list">
                     <?php 
-                    $onHoldItems = array_filter($queueItems, fn($q) => $q['status'] === 'on_hold');
+                    $onHoldItems = array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'on_hold');
                     if (empty($onHoldItems)): ?>
                         <div style="text-align: center; padding: 0; color: #6b7280;">
                             <p>No patients on hold</p>

@@ -715,11 +715,11 @@ $faqs = [
               <div class="form-row">
                 <div class="form-group">
                   <label for="reg-dob">Date of Birth</label>
-                  <input type="date" id="reg-dob" name="date_of_birth" />
+                  <input type="date" id="reg-dob" name="date_of_birth" onchange="var d=new Date(this.value);var a=new Date().getFullYear()-d.getFullYear();if(new Date().getMonth()<d.getMonth()||(new Date().getMonth()==d.getMonth()&&new Date().getDate()<d.getDate()))a--;document.getElementById('reg-age').value=a>0&&a<120?a:''" />
                 </div>
                 <div class="form-group">
                   <label for="reg-age">Age</label>
-                  <input type="number" id="reg-age" name="age" min="1" max="120" placeholder="Age" />
+                  <input type="number" id="reg-age" name="age" min="1" max="120" placeholder="Auto-calculated" readonly style="background-color: #f3f4f6;" />
                 </div>
               </div>
               <div class="form-group">
@@ -1165,31 +1165,30 @@ $faqs = [
             navLinks.forEach(l => l.classList.remove('active'));
             this.classList.add('active');
           });
-        });
+});
         
+        // Global function to calculate age
+        window.handleBirthdateChange = function() {
+            const birthdateInput = document.getElementById('reg-dob');
+            const ageInput = document.getElementById('reg-age');
+            
+            if (birthdateInput && ageInput && birthdateInput.value) {
+                const birthDate = new Date(birthdateInput.value);
+                const today = new Date();
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const monthDiff = today.getMonth() - birthDate.getMonth();
+                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                    age--;
+                }
+                if (age >= 0 && age < 120) {
+                    ageInput.value = age;
+                }
+            }
+        };
+
         // Set active state on page load and hash change
         setActiveLink();
         window.addEventListener('hashchange', setActiveLink);
-
-        // Auto-calculate age from date of birth
-        const dobInput = document.getElementById('reg-dob');
-        const ageInput = document.getElementById('reg-age');
-        
-        if (dobInput && ageInput) {
-          dobInput.addEventListener('change', function() {
-            if (!this.value) return;
-            const dob = new Date(this.value);
-            const today = new Date();
-            let age = today.getFullYear() - dob.getFullYear();
-            const monthDiff = today.getMonth() - dob.getMonth();
-            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-              age--;
-            }
-            if (age > 0 && age < 120) {
-              ageInput.value = age;
-            }
-          });
-        }
 
         // Sync display fields with hidden fields (capitalize on input)
         const capitalizeName = (name) => {

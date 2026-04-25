@@ -79,14 +79,87 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
 }
 
 // Check for appointment_id
-if (isset($_GET['appointment_id']) && is_numeric($_GET['appointment_id'])) {
+$patientFromAppointment = null;
+
+// First try to get patient data from URL params (passed from staff_appointments)
+if (isset($_GET['first_name']) || isset($_GET['last_name'])) {
+    $patientFromAppointment = [
+        'first_name' => $_GET['first_name'] ?? '',
+        'middle_name' => $_GET['middle_name'] ?? '',
+        'last_name' => $_GET['last_name'] ?? '',
+        'suffix' => $_GET['suffix'] ?? '',
+        'phone' => $_GET['phone'] ?? '',
+        'date_of_birth' => $_GET['date_of_birth'] ?? '',
+        'age' => '',
+        'gender' => $_GET['gender'] ?? '',
+        'address' => $_GET['address'] ?? '',
+        'city' => $_GET['city'] ?? '',
+        'province' => $_GET['province'] ?? '',
+        'zip_code' => $_GET['zip_code'] ?? '',
+        'email' => $_GET['email'] ?? ''
+    ];
+    $appointmentId = $_GET['appointment_id'] ?? null;
+}
+
+// Otherwise try database lookup
+elseif (isset($_GET['appointment_id']) && is_numeric($_GET['appointment_id'])) {
+    $apptId = (int)$_GET['appointment_id'];
     try {
         require_once '../../config/database.php';
-        $stmt = $pdo->prepare("SELECT * FROM appointments WHERE id = ?");
-        $stmt->execute([$_GET['appointment_id']]);
+        
+        $stmt = $pdo->prepare("SELECT a.*, 
+                            p.first_name, p.middle_name, p.last_name, p.suffix,
+                            p.phone as patient_phone, p.date_of_birth, p.age, p.gender,
+                            addr.street_address as address, addr.city, addr.province, addr.zip_code,
+                            p.email,
+                            s.name as service_name
+                            FROM appointments a 
+                            LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
+                            LEFT JOIN addresses addr ON p.address_id = addr.id
+                            LEFT JOIN services s ON a.service_id = s.id
+                            WHERE a.id = ?");
+        $stmt->execute([$apptId]);
         $appointmentData = $stmt->fetch(PDO::FETCH_ASSOC);
+        
         if ($appointmentData) {
-            $appointmentId = $_GET['appointment_id'];
+            $appointmentId = $apptId;
+            
+            // If patient is linked, use their data
+            if (!empty($appointmentData['patient_id'])) {
+                $patientFromAppointment = [
+                    'first_name' => $appointmentData['first_name'] ?? '',
+                    'middle_name' => $appointmentData['middle_name'] ?? '',
+                    'last_name' => $appointmentData['last_name'] ?? '',
+                    'suffix' => $appointmentData['suffix'] ?? '',
+                    'phone' => $appointmentData['patient_phone'] ?? '',
+                    'date_of_birth' => $appointmentData['date_of_birth'] ?? '',
+                    'age' => $appointmentData['age'] ?? '',
+                    'gender' => $appointmentData['gender'] ?? '',
+                    'address' => $appointmentData['address'] ?? '',
+                    'city' => $appointmentData['city'] ?? '',
+                    'province' => $appointmentData['province'] ?? '',
+                    'zip_code' => $appointmentData['zip_code'] ?? '',
+                    'email' => $appointmentData['email'] ?? ''
+                ];
+            }
+            // If no patient linked, check if appointment has patient info directly stored
+            elseif (!empty($appointmentData['first_name']) || !empty($appointmentData['last_name'])) {
+                $patientFromAppointment = [
+                    'first_name' => $appointmentData['first_name'] ?? '',
+                    'middle_name' => $appointmentData['middle_name'] ?? '',
+                    'last_name' => $appointmentData['last_name'] ?? '',
+                    'suffix' => $appointmentData['suffix'] ?? '',
+                    'phone' => $appointmentData['phone'] ?? '',
+                    'date_of_birth' => '',
+                    'age' => '',
+                    'gender' => '',
+                    'address' => '',
+                    'city' => '',
+                    'province' => '',
+                    'zip_code' => '',
+                    'email' => ''
+                ];
+            }
         }
     } catch (Exception $e) {
         $appointmentData = null;
@@ -468,6 +541,9 @@ if (isset($_GET['appointment_id']) && is_numeric($_GET['appointment_id'])) {
                 <?php if (isset($_GET['inquiry_id'])): ?>
                 <input type="hidden" name="inquiry_id" value="<?php echo htmlspecialchars($_GET['inquiry_id']); ?>">
                 <?php endif; ?>
+                <?php if (!empty($appointmentData['service_name'])): ?>
+                <input type="hidden" id="preselectedService" value="<?php echo htmlspecialchars($appointmentData['service_name']); ?>">
+                <?php endif; ?>
                 
                 <!-- STEP 1: Patient Information -->
                 <div id="step-1" class="space-y-8 flex-1">
@@ -478,38 +554,38 @@ if (isset($_GET['appointment_id']) && is_numeric($_GET['appointment_id'])) {
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">First Name</label>
-                                <input type="text" name="firstName" value="<?php echo htmlspecialchars($inquiryData['first_name'] ?? $appointmentData['first_name'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Juan">
+                                <input type="text" name="firstName" value="<?php echo htmlspecialchars($inquiryData['first_name'] ?? $patientFromAppointment['first_name'] ?? $appointmentData['first_name'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Juan">
                             </div>
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Middle Name</label>
-                                <input type="text" name="middleName" value="<?php echo htmlspecialchars($inquiryData['middle_name'] ?? $appointmentData['middle_name'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="">
+                                <input type="text" name="middleName" value="<?php echo htmlspecialchars($inquiryData['middle_name'] ?? $patientFromAppointment['middle_name'] ?? $appointmentData['middle_name'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="">
                             </div>
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Last Name</label>
-                                <input type="text" name="lastName" value="<?php echo htmlspecialchars($inquiryData['last_name'] ?? $appointmentData['last_name'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Dela Cruz">
+                                <input type="text" name="lastName" value="<?php echo htmlspecialchars($inquiryData['last_name'] ?? $patientFromAppointment['last_name'] ?? $appointmentData['last_name'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Dela Cruz">
                             </div>
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Suffix</label>
-                                <input type="text" name="suffix" value="<?php echo htmlspecialchars($appointmentData['suffix'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Jr.">
+                                <input type="text" name="suffix" value="<?php echo htmlspecialchars($patientFromAppointment['suffix'] ?? $appointmentData['suffix'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Jr.">
                             </div>
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Birthdate</label>
-                                <input type="date" name="birthdate" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-slate-600">
+                                <input type="date" name="birthdate" value="<?php echo htmlspecialchars($patientFromAppointment['date_of_birth'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-slate-600">
                             </div>
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Age <span class="text-xs text-slate-400">(auto-calculated)</span></label>
-                                <input type="number" name="age" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm bg-gray-50" placeholder="Auto" readonly>
+                                <input type="number" name="age" value="<?php echo htmlspecialchars($patientFromAppointment['age'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm bg-gray-50" placeholder="Auto" readonly>
                             </div>
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Gender</label>
                                 <div class="relative">
                                     <select name="gender" class="w-full px-3 py-2 border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-slate-600 bg-white">
-                                        <option value="" disabled selected>Select</option>
-                                        <option value="male">Male</option>
-                                        <option value="female">Female</option>
+                                        <option value="" disabled <?php echo empty($patientFromAppointment['gender']) ? 'selected' : ''; ?>>Select</option>
+                                        <option value="male" <?php echo ($patientFromAppointment['gender'] ?? '') === 'male' ? 'selected' : ''; ?>>Male</option>
+                                        <option value="female" <?php echo ($patientFromAppointment['gender'] ?? '') === 'female' ? 'selected' : ''; ?>>Female</option>
                                     </select>
                                     <svg xmlns="http://www.w3.org/2000/svg" class="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                                 </div>
@@ -527,34 +603,34 @@ if (isset($_GET['appointment_id']) && is_numeric($_GET['appointment_id'])) {
                         <div class="grid grid-cols-1 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Home Address</label>
-                                <input type="text" name="address" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="123 Main St, Barangay">
+                                <input type="text" name="address" value="<?php echo htmlspecialchars($patientFromAppointment['address'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="123 Main St, Barangay">
                             </div>
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">City</label>
-                                <input type="text" name="city" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                <input type="text" name="city" value="<?php echo htmlspecialchars($patientFromAppointment['city'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Province</label>
-                                <input type="text" name="province" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                <input type="text" name="province" value="<?php echo htmlspecialchars($patientFromAppointment['province'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Zip Code</label>
-                                <input type="text" name="zipCode" pattern="[0-9]*" inputmode="numeric" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                <input type="text" name="zipCode" value="<?php echo htmlspecialchars($patientFromAppointment['zip_code'] ?? ''); ?>" pattern="[0-9]*" inputmode="numeric" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
                             </div>
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Mobile Number</label>
-                                <input type="tel" name="mobileNumber" value="<?php echo htmlspecialchars($inquiryData['contact_info'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" inputmode="numeric" maxlength="11">
+                                <input type="tel" name="mobileNumber" value="<?php echo htmlspecialchars($inquiryData['contact_info'] ?? $patientFromAppointment['phone'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" inputmode="numeric" maxlength="11">
                                 <div class="text-xs text-red-500 mt-1 hidden" id="mobileError">Mobile number must be exactly 11 digits</div>
                             </div>
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Email Address</label>
-                                <input type="text" name="emailAddress" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="example@email.com">
+                                <input type="text" name="emailAddress" value="<?php echo htmlspecialchars($patientFromAppointment['email'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="example@email.com">
                                 <div class="text-xs text-red-500 mt-1 hidden" id="emailError">Email must contain @ symbol</div>
                             </div>
                         </div>
@@ -1343,7 +1419,7 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
                 container.innerHTML = '<div style="text-align: center; padding: 40px; color: #6b7280; grid-column: 1 / -1;">Loading services...</div>';
             }
             
-            fetch('api_public_services.php')
+            fetch('../api/api_public_services.php')
                 .then(response => response.json())
                 .then(data => {
                     console.log('[SERVICES] Loaded:', data);
@@ -1413,6 +1489,17 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
             
             container.innerHTML = html;
             console.log('[SERVICES] Services rendered successfully');
+            
+            // Pre-select service from appointment if available
+            const preselectedServiceName = document.getElementById('preselectedService')?.value;
+            if (preselectedServiceName) {
+                console.log('[SERVICES] Pre-selecting service:', preselectedServiceName);
+                const serviceCheckbox = document.querySelector(`input[name="services[]"][value="${preselectedServiceName}"]`);
+                if (serviceCheckbox) {
+                    serviceCheckbox.checked = true;
+                    updateDentalChartMode();
+                }
+            }
         }
         
         /**

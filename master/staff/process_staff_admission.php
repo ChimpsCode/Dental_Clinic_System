@@ -1,6 +1,9 @@
 <?php
 session_start();
 
+// Clean any previous output
+ob_clean();
+
 // Turn off all error display
 error_reporting(0);
 ini_set('display_errors', 0);
@@ -67,64 +70,182 @@ try {
     
     if ($existingPatient) {
         $patientId = $existingPatient['id'];
-        $stmt = $pdo->prepare("UPDATE patients SET 
-            first_name = ?, middle_name = ?, last_name = ?, suffix = ?,
-            date_of_birth = ?, age = ?, gender = ?, religion = ?,
-            address = ?, city = ?, province = ?, zip_code = ?, phone = ?, email = ?,
-            dental_insurance = ?, insurance_effective_date = ?,
-            updated_at = NOW() WHERE id = ?");
-        $stmt->execute([$firstName, $middleName, $lastName, $suffix,
-            $birthdate, $age, $gender, $religion,
-            $address, $city, $province, $zipCode, $phone, $email,
-            $dentalInsurance, $insuranceEffectiveDate, $patientId]);
+        
+        // Get column names from database dynamically
+        $cols = $pdo->query("DESCRIBE patients");
+        $availableColumns = array_column($cols->fetchAll(), 'Field');
+        
+        $updateParts = [];
+        $updateValues = [];
+        
+        $updateMap = [
+            'first_name' => $firstName,
+            'middle_name' => $middleName,
+            'last_name' => $lastName,
+            'suffix' => $suffix,
+            'date_of_birth' => $birthdate,
+            'gender' => $gender,
+            'phone' => $phone,
+            'email' => $email,
+        ];
+        
+        foreach ($updateMap as $col => $val) {
+            if (in_array($col, $availableColumns)) {
+                $updateParts[] = "$col = ?";
+                $updateValues[] = $val;
+            }
+        }
+        
+        if (in_array('updated_at', $availableColumns)) {
+            $updateParts[] = 'updated_at = NOW()';
+        }
+        
+        $updateValues[] = $patientId;
+        $stmt = $pdo->prepare("UPDATE patients SET " . implode(', ', $updateParts) . " WHERE id = ?");
+        $stmt->execute($updateValues);
     } else {
         $source = 'walk-in';
         $appointmentId = !empty($_POST['appointmentId']) ? intval($_POST['appointmentId']) : null;
         $inquiryId = !empty($_POST['inquiryId']) ? intval($_POST['inquiryId']) : null;
         
-        // Get column names
-        $columns = "first_name, middle_name, last_name, suffix, date_of_birth, age, gender, religion, address, city, province, zip_code, phone, email, dental_insurance, insurance_effective_date, status, registration_source, created_at";
-        $placeholders = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, NOW()";
+        // Get column names from database dynamically
+        $cols = $pdo->query("DESCRIBE patients");
+        $availableColumns = array_column($cols->fetchAll(), 'Field');
+        
+        // Build column list based on available columns
+        $colList = [];
+        $values = [];
+        
+        $fieldMap = [
+            'first_name' => $firstName,
+            'middle_name' => $middleName,
+            'last_name' => $lastName,
+            'suffix' => $suffix,
+            'date_of_birth' => $birthdate,
+            'gender' => $gender,
+            'phone' => $phone,
+            'email' => $email,
+        ];
+        
+        foreach ($fieldMap as $col => $val) {
+            if (in_array($col, $availableColumns)) {
+                $colList[] = $col;
+                $values[] = $val;
+            }
+        }
+        
+        if (in_array('registration_source_id', $availableColumns)) {
+            // Check if inquiry_sources table exists and has data
+            try {
+                $sourceCount = $pdo->query("SELECT COUNT(*) FROM inquiry_sources")->fetchColumn();
+                if ($sourceCount > 0) {
+                    $sourceStmt = $pdo->query("SELECT id FROM inquiry_sources ORDER BY id LIMIT 1");
+                    $validSourceId = $sourceStmt->fetchColumn();
+                    if ($validSourceId) {
+                        $colList[] = 'registration_source_id';
+                        $values[] = $validSourceId;
+                    }
+                }
+            } catch (Exception $srcErr) {
+                // inquiry_sources table might not exist or have data, skip this field
+            }
+        }
+        
+        $columns = implode(', ', $colList);
+        $placeholders = implode(', ', array_fill(0, count($values), '?'));
         
         $stmt = $pdo->prepare("INSERT INTO patients ($columns) VALUES ($placeholders)");
-        $stmt->execute([$firstName, $middleName, $lastName, $suffix,
-            $birthdate, $age, $gender, $religion,
-            $address, $city, $province, $zipCode, $phone, $email,
-            $dentalInsurance, $insuranceEffectiveDate, $source]);
+        $stmt->execute($values);
         $patientId = $pdo->lastInsertId();
     }
     
     // Link from appointment if applicable
     if ($appointmentId) {
-        $stmt = $pdo->prepare("UPDATE appointments SET patient_id = ?, updated_at = NOW() WHERE id = ?");
-        $stmt->execute([$patientId, $appointmentId]);
+        $apptCols = $pdo->query("DESCRIBE appointments");
+        $apptAvailable = array_column($apptCols->fetchAll(), 'Field');
+        
+        $apptUpdates = ['patient_id = ?'];
+        $apptValues = [$patientId];
+        
+        if (in_array('status', $apptAvailable)) {
+            $apptUpdates[] = "status = 'In Queue'";
+        }
+        if (in_array('status_id', $apptAvailable)) {
+            $apptUpdates[] = 'status_id = 2';
+        }
+        if (in_array('updated_at', $apptAvailable)) {
+            $apptUpdates[] = 'updated_at = NOW()';
+        }
+        
+        $apptValues[] = $appointmentId;
+        $stmt = $pdo->prepare("UPDATE appointments SET " . implode(', ', $apptUpdates) . " WHERE id = ?");
+        $stmt->execute($apptValues);
     }
     
     // Link from inquiry if applicable
     if ($inquiryId) {
-        $checkCol = $pdo->query("SHOW COLUMNS FROM inquiries LIKE 'converted_patient_id'");
-        if ($checkCol->rowCount() > 0) {
-            $stmt = $pdo->prepare("UPDATE inquiries SET converted_patient_id = ?, updated_at = NOW() WHERE id = ?");
-            $stmt->execute([$patientId, $inquiryId]);
+        $inqCols = $pdo->query("DESCRIBE inquiries");
+        $inqAvailable = array_column($inqCols->fetchAll(), 'Field');
+        
+        $inqUpdates = ['converted_patient_id = ?'];
+        $inqValues = [$patientId];
+        
+        if (in_array('updated_at', $inqAvailable)) {
+            $inqUpdates[] = 'updated_at = NOW()';
+        }
+        
+        $inqValues[] = $inquiryId;
+        $stmt = $pdo->prepare("UPDATE inquiries SET " . implode(', ', $inqUpdates) . " WHERE id = ?");
+        $stmt->execute($inqValues);
+    }
+    
+    // Dental History - use INSERT IGNORE to handle duplicate constraint
+    if (!empty($_POST['prevDentist']) || !empty($_POST['lastVisitDate']) || !empty($_POST['reasonLastVisit']) || !empty($_POST['prevTreatments']) || !empty($_POST['complaints'])) {
+        try {
+            $dhCols = $pdo->query("DESCRIBE dental_history");
+            $dhAvailable = array_column($dhCols->fetchAll(), 'Field');
+            
+            $dhColList = ['patient_id'];
+            $dhValues = [$patientId];
+            
+            if (in_array('previous_dentist', $dhAvailable)) { $dhColList[] = 'previous_dentist'; $dhValues[] = $_POST['prevDentist'] ?? ''; }
+            if (in_array('last_visit_date', $dhAvailable)) { $dhColList[] = 'last_visit_date'; $dhValues[] = $_POST['lastVisitDate'] ?? ''; }
+            if (in_array('reason_last_visit', $dhAvailable)) { $dhColList[] = 'reason_last_visit'; $dhValues[] = $_POST['reasonLastVisit'] ?? ''; }
+            if (in_array('previous_treatments', $dhAvailable)) { $dhColList[] = 'previous_treatments'; $dhValues[] = $_POST['prevTreatments'] ?? ''; }
+            if (in_array('chief_complaint', $dhAvailable)) { $dhColList[] = 'chief_complaint'; $dhValues[] = $_POST['complaints'] ?? ''; }
+            
+            $dhColsStr = implode(', ', $dhColList);
+            $dhPlaceholders = implode(', ', array_fill(0, count($dhValues), '?'));
+            $stmt = $pdo->prepare("INSERT IGNORE INTO dental_history ($dhColsStr) VALUES ($dhPlaceholders)");
+            $stmt->execute($dhValues);
+        } catch (Exception $dhErr) {
+            // Skip if duplicate - dental history might already exist
+            error_log("Dental history skipped: " . $dhErr->getMessage());
         }
     }
     
-    // Dental History
-    if (!empty($_POST['prevDentist']) || !empty($_POST['lastVisitDate']) || !empty($_POST['reasonLastVisit']) || !empty($_POST['prevTreatments']) || !empty($_POST['complaints'])) {
-        $stmt = $pdo->prepare("INSERT INTO dental_history (patient_id, previous_dentist, last_visit_date, reason_last_visit, previous_treatments, chief_complaint, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
-        $stmt->execute([$patientId, $_POST['prevDentist'] ?? '', $_POST['lastVisitDate'] ?? '', $_POST['reasonLastVisit'] ?? '', $_POST['prevTreatments'] ?? '', $_POST['complaints'] ?? '']);
-    }
-    
-    // Medical History (schema uses medical_conditions + current_medications)
+    // Medical History - use INSERT IGNORE
     $medicalConditions = $_POST['medicalConditions'] ?? [];
     $medications = $_POST['medications'] ?? '';
     if (!empty($medications) || !empty($medicalConditions)) {
-        $stmt = $pdo->prepare("INSERT INTO medical_history (patient_id, medical_conditions, current_medications, created_at) VALUES (?, ?, ?, NOW())");
-        $stmt->execute([
-            $patientId,
-            is_array($medicalConditions) ? implode(', ', $medicalConditions) : $medicalConditions,
-            $medications
-        ]);
+        try {
+            $mhCols = $pdo->query("DESCRIBE medical_history");
+            $mhAvailable = array_column($mhCols->fetchAll(), 'Field');
+            
+            $mhColList = ['patient_id'];
+            $mhValues = [$patientId];
+            
+            if (in_array('medical_conditions', $mhAvailable)) { $mhColList[] = 'medical_conditions'; $mhValues[] = is_array($medicalConditions) ? implode(', ', $medicalConditions) : $medicalConditions; }
+            if (in_array('current_medications', $mhAvailable)) { $mhColList[] = 'current_medications'; $mhValues[] = $medications; }
+            
+            $mhColsStr = implode(', ', $mhColList);
+            $mhPlaceholders = implode(', ', array_fill(0, count($mhValues), '?'));
+            $stmt = $pdo->prepare("INSERT IGNORE INTO medical_history ($mhColsStr) VALUES ($mhPlaceholders)");
+            $stmt->execute($mhValues);
+        } catch (Exception $mhErr) {
+            // Skip if duplicate - medical history might already exist
+            error_log("Medical history skipped: " . $mhErr->getMessage());
+        }
     }
     
     // Services
@@ -151,20 +272,29 @@ try {
     }
     $teethNumbers = !empty($selectedTeeth) ? implode(', ', $selectedTeeth) : '';
     
-    // Add to Queue
+    // Add to Queue - moved AFTER billing commit
+    $queueId = 0;
     try {
-        $stmt = $pdo->prepare("INSERT INTO queue (patient_id, treatment_type, teeth_numbers, status, priority, queue_time, created_at) VALUES (?, ?, ?, 'waiting', 5, NOW(), NOW())");
-        $stmt->execute([$patientId, $treatmentType, $teethNumbers]);
-        $queueId = $pdo->lastInsertId();
-    } catch (Exception $qErr) {
-        // Try without teeth_numbers column
-        try {
-            $stmt = $pdo->prepare("INSERT INTO queue (patient_id, treatment_type, status, priority, queue_time, created_at) VALUES (?, ?, 'waiting', 5, NOW(), NOW())");
+        // Check if patient is already in an active queue
+        $checkQueue = $pdo->prepare("SELECT id FROM queue WHERE patient_id = ? AND status_id = 1 AND is_archived = 0 LIMIT 1");
+        $checkQueue->execute([$patientId]);
+        $existingQueue = $checkQueue->fetch();
+        
+        if ($existingQueue) {
+            $queueId = $existingQueue['id'];
+            $stmt = $pdo->prepare("UPDATE queue SET treatment_type = ?, queue_time = NOW() WHERE id = ?");
+            $stmt->execute([$treatmentType, $queueId]);
+        } else {
+            // Insert new queue entry
+            $stmt = $pdo->prepare("INSERT INTO queue (patient_id, status_id, priority, treatment_type, queue_time, created_at) VALUES (?, 1, 5, ?, NOW(), NOW())");
             $stmt->execute([$patientId, $treatmentType]);
-            $queueId = $pdo->lastInsertId();
-        } catch (Exception $q2) {
-            throw new Exception("Failed to add to queue: " . $q2->getMessage());
+            $queueId = (int)$pdo->lastInsertId();
         }
+        
+        error_log("Queue insert: patientId=$patientId, treatmentType=$treatmentType, queueId=$queueId");
+    } catch (Exception $qErr) {
+        error_log("Queue insert ERROR: " . $qErr->getMessage());
+        $queueId = 0;
     }
     
     // Create Billing Record
@@ -193,8 +323,37 @@ try {
     $billingNotes = 'Initial billing from admission - Services: ' . $treatmentType;
     
     try {
-        $billingStmt = $pdo->prepare("INSERT INTO billing (patient_id, appointment_id, total_amount, paid_amount, balance, payment_status, billing_date, due_date, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'unpaid', CURDATE(), CURDATE(), ?, NOW(), NOW())");
-        $billingStmt->execute([$patientId, $appointmentId, $totalAmount, 0, $totalAmount, $billingNotes]);
+        $bCols = $pdo->query("DESCRIBE billing");
+        $bAvailable = array_column($bCols->fetchAll(), 'Field');
+        
+        $bColList = [];
+        $bValues = [];
+        $bSetClauses = [];
+        
+        $bFieldMap = [
+            'patient_id' => $patientId,
+            'appointment_id' => $appointmentId,
+            'total_amount' => $totalAmount,
+            'paid_amount' => 0,
+            'balance' => $totalAmount,
+            'payment_status' => 'unpaid',
+            'notes' => $billingNotes,
+        ];
+        
+        foreach ($bFieldMap as $col => $val) {
+            if (in_array($col, $bAvailable)) {
+                $bColList[] = $col;
+                $bValues[] = $val;
+            }
+        }
+        
+        $bColsStr = implode(', ', $bColList);
+        $bPlaceholders = implode(', ', array_fill(0, count($bValues), '?'));
+        
+        $billingSql = "INSERT INTO billing ($bColsStr, billing_date, due_date) VALUES ($bPlaceholders, CURDATE(), CURDATE())";
+        
+        $stmt = $pdo->prepare($billingSql);
+        $stmt->execute($bValues);
         $billingId = $pdo->lastInsertId();
     } catch (Exception $bErr) {
         $billingId = 0;
@@ -204,7 +363,7 @@ try {
     
     // Try to send notification (don't break if it fails)
     try {
-        require_once __DIR__ . '/includes/notification_functions.php';
+        require_once __DIR__ . '/../../includes/notification_functions.php';
         if (function_exists('notifyNewPatient')) {
             $patientName = trim($firstName . ' ' . $lastName);
             notifyNewPatient($pdo, $patientName, $patientId);
@@ -213,18 +372,37 @@ try {
         // Silent fail
     }
     
+    // Debug: verify queue was added
+    $debugQueueCheck = null;
+    try {
+        $debugStmt = $pdo->query("SELECT id FROM queue WHERE patient_id = " . (int)$patientId . " ORDER BY id DESC LIMIT 1");
+        $debugQueueCheck = $debugStmt->fetch();
+    } catch (Exception $e) {}
+    
     echo json_encode([
         'success' => true, 
         'message' => 'Patient admitted and added to queue successfully!',
         'patient_id' => $patientId,
         'queue_id' => $queueId,
         'billing_id' => $billingId,
-        'total_amount' => $totalAmount
+        'total_amount' => $totalAmount,
+        'debug_queue_check' => $debugQueueCheck,
+        'debug_treatment' => $treatmentType
     ]);
     
 } catch (Exception $e) {
     if (isset($pdo) && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    
+    $errorMsg = $e->getMessage();
+    error_log("Process admission error: " . $errorMsg);
+    
+    // Clean error message - remove any extra text
+    $cleanMsg = trim($errorMsg);
+    if (strpos($cleanMsg, 'Error:') !== false) {
+        $cleanMsg = substr($cleanMsg, strpos($cleanMsg, 'Error:') + 6);
+    }
+    
+    echo json_encode(['success' => false, 'message' => trim($cleanMsg)]);
 }

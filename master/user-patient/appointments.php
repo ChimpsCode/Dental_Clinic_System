@@ -654,8 +654,10 @@ function selectDate(selDate, el) {
             formData.append('notes', document.getElementById('appointmentNotes').value);
             
             fetch('book_appointment.php', { method: 'POST', body: formData })
-                .then(r => r.json())
-                .then(data => {
+                .then(r => r.text())
+                .then(text => {
+                    console.log('Response:', text);
+                    const data = JSON.parse(text);
                     if (data.success) {
                         const serviceName = document.querySelector('#serviceSelect option:checked').text;
                         document.getElementById('modalMessage').textContent = data.message;
@@ -679,7 +681,10 @@ function selectDate(selDate, el) {
                         alert(data.message || 'Booking failed');
                     }
                 })
-                .catch(() => alert('An error occurred'))
+                .catch(err => {
+                    console.error('Error:', err);
+                    alert('An error occurred: ' + err.message)
+                })
                 .finally(() => {
                     btn.disabled = false;
                     btn.innerHTML = '<i class="fas fa-calendar-check"></i> Book Appointment';

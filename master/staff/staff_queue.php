@@ -10,30 +10,36 @@ if ($currentPage < 1) $currentPage = 1;
 
 try {
     // Get ALL queue data for counts (without pagination)
+    // Use only status_id column (no 'status' text column exists)
     $allStmt = $pdo->query("
-        SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix, p.phone
+        SELECT q.*, 
+               COALESCE(p.first_name, 'Unknown') as first_name, 
+               COALESCE(p.middle_name, '') as middle_name, 
+               COALESCE(p.last_name, '') as last_name, 
+               COALESCE(p.suffix, '') as suffix, 
+               COALESCE(p.phone, '') as phone,
+               COALESCE(qs.status_name, 'waiting') as status_text
         FROM queue q 
-        LEFT JOIN patients p ON q.patient_id = p.id 
-        WHERE q.status IN ('waiting', 'in_procedure', 'pending_payment', 'completed', 'on_hold', 'cancelled')
+        LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id
+        LEFT JOIN queue_statuses qs ON qs.id = q.status_id
+        WHERE q.status_id IN (1, 2, 3, 4, 5, 6) AND q.is_archived = 0
         ORDER BY 
-            CASE q.status 
+            CASE COALESCE(qs.status_name, 'waiting')
                 WHEN 'in_procedure' THEN 1 
                 WHEN 'waiting' THEN 2 
-                WHEN 'pending_payment' THEN 3 
-                WHEN 'on_hold' THEN 4 
-                WHEN 'completed' THEN 5 
-                WHEN 'cancelled' THEN 6 
+                WHEN 'completed' THEN 3 
+                ELSE 2
             END,
             q.queue_time DESC
     ");
     $allQueueItems = $allStmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Calculate counts from all items
-    $waitingCount = count(array_filter($allQueueItems, fn($q) => $q['status'] === 'waiting'));
-    $procedureCount = count(array_filter($allQueueItems, fn($q) => $q['status'] === 'in_procedure'));
-    $completedToday = count(array_filter($allQueueItems, fn($q) => $q['status'] === 'completed'));
-    $onHoldCount = count(array_filter($allQueueItems, fn($q) => $q['status'] === 'on_hold'));
-    $cancelledCount = count(array_filter($allQueueItems, fn($q) => $q['status'] === 'cancelled'));
+    // Calculate counts - use status_text
+    $waitingCount = count(array_filter($allQueueItems, fn($q) => ($q['status_text'] ?? '') === 'waiting'));
+    $procedureCount = count(array_filter($allQueueItems, fn($q) => ($q['status_text'] ?? '') === 'in_procedure'));
+    $completedToday = count(array_filter($allQueueItems, fn($q) => ($q['status_text'] ?? '') === 'completed'));
+    $onHoldCount = count(array_filter($allQueueItems, fn($q) => ($q['status_text'] ?? '') === 'on_hold'));
+    $cancelledCount = count(array_filter($allQueueItems, fn($q) => ($q['status_text'] ?? '') === 'cancelled'));
     $totalInQueue = $waitingCount + $procedureCount + $onHoldCount;
     
     // Pagination calculations
@@ -840,10 +846,11 @@ div.main-content {
                             $queueTime = new DateTime($item['queue_time']);
                             $time12hr = $queueTime->format('g:i A');
                             $time24hr = $queueTime->format('H:i');
-                            $statusClass = strtolower(str_replace('_', '-', $item['status']));
-                            $statusLabel = ucwords(str_replace('_', ' ', $item['status']));
+                            $statusText = $item['status_text'] ?? 'waiting';
+                            $statusClass = strtolower(str_replace(' ', '-', $statusText));
+                            $statusLabel = ucwords($statusText);
                         ?>
-                            <tr class="queue-row" data-status="<?php echo $item['status']; ?>" data-name="<?php echo strtolower(($item['first_name'] ?? '')); ?>">
+                            <tr class="queue-row" data-status="<?php echo $statusText; ?>" data-name="<?php echo strtolower(($item['first_name'] ?? '')); ?>">
                                 <td><?php echo str_pad($item['id'], 3, '0', STR_PAD_LEFT); ?></td>
                                 <td>
                                     <div class="patient-name"><?php echo htmlspecialchars($item['first_name'] ?: 'Unknown'); ?></div>
@@ -873,7 +880,7 @@ div.main-content {
                                 </td>
 <td>
                                     <div class="queue-kebab-menu">
-                                        <button class="queue-kebab-btn" data-queue-id="<?php echo $item['id']; ?>" data-patient-id="<?php echo $item['patient_id']; ?>" data-status="<?php echo $item['status']; ?>">
+                                        <button class="queue-kebab-btn" data-queue-id="<?php echo $item['id']; ?>" data-patient-id="<?php echo $item['patient_id']; ?>" data-status="<?php echo $statusText; ?>">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                                                 <circle cx="12" cy="6" r="2"/>
                                                 <circle cx="12" cy="12" r="2"/>

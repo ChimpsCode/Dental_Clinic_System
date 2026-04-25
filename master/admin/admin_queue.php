@@ -11,29 +11,34 @@ if ($currentPage < 1) $currentPage = 1;
 try {
     // Get ALL queue data for counts (without pagination)
     $allStmt = $pdo->query("
-        SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix, p.phone
+        SELECT q.*, 
+               COALESCE(p.first_name, 'Unknown') as first_name, 
+               COALESCE(p.middle_name, '') as middle_name, 
+               COALESCE(p.last_name, '') as last_name, 
+               COALESCE(p.suffix, '') as suffix, 
+               COALESCE(p.phone, '') as phone,
+               COALESCE(qs.status_name, 'waiting') as status_text
         FROM queue q 
-        LEFT JOIN patients p ON q.patient_id = p.id 
-        WHERE q.status IN ('waiting', 'in_procedure', 'pending_payment', 'completed', 'on_hold', 'cancelled')
+        LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id
+        LEFT JOIN queue_statuses qs ON qs.id = q.status_id
+        WHERE q.status_id IN (1, 2, 3, 4, 5, 6) AND q.is_archived = 0
         ORDER BY 
-            CASE q.status 
+            CASE COALESCE(qs.status_name, 'waiting')
                 WHEN 'in_procedure' THEN 1 
                 WHEN 'waiting' THEN 2 
-                WHEN 'pending_payment' THEN 3 
-                WHEN 'on_hold' THEN 4 
-                WHEN 'completed' THEN 5 
-                WHEN 'cancelled' THEN 6 
+                WHEN 'completed' THEN 3 
+                ELSE 2
             END,
             q.queue_time DESC
     ");
     $allQueueItems = $allStmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Calculate counts from all items
-    $waitingCount = count(array_filter($allQueueItems, fn($q) => $q['status'] === 'waiting'));
-    $procedureCount = count(array_filter($allQueueItems, fn($q) => $q['status'] === 'in_procedure'));
-    $completedToday = count(array_filter($allQueueItems, fn($q) => $q['status'] === 'completed'));
-    $onHoldCount = count(array_filter($allQueueItems, fn($q) => $q['status'] === 'on_hold'));
-    $cancelledCount = count(array_filter($allQueueItems, fn($q) => $q['status'] === 'cancelled'));
+    // Calculate counts
+    $waitingCount = count(array_filter($allQueueItems, fn($q) => ($q['status_text'] ?? '') === 'waiting'));
+    $procedureCount = count(array_filter($allQueueItems, fn($q) => ($q['status_text'] ?? '') === 'in_procedure'));
+    $completedToday = count(array_filter($allQueueItems, fn($q) => ($q['status_text'] ?? '') === 'completed'));
+    $onHoldCount = count(array_filter($allQueueItems, fn($q) => ($q['status_text'] ?? '') === 'on_hold'));
+    $cancelledCount = count(array_filter($allQueueItems, fn($q) => ($q['status_text'] ?? '') === 'cancelled'));
     $totalInQueue = $waitingCount + $procedureCount + $onHoldCount;
     
     // Pagination calculations

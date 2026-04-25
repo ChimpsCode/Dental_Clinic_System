@@ -6,25 +6,40 @@ require_once '../../includes/dentist_layout_start.php';
 try {
     require_once '../../config/database.php';
     
-    // Get queue statistics
-    $stmt = $pdo->query("SELECT status, COUNT(*) as count FROM queue GROUP BY status");
-    $queueStats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+    // Get queue statistics - use only status_id column
+    $stmt = $pdo->query("
+        SELECT qs.status_name, COUNT(*) as count 
+        FROM queue q 
+        LEFT JOIN queue_statuses qs ON q.status_id = qs.id 
+        WHERE q.status_id IN (1, 2, 3, 4, 5, 6) AND q.is_archived = 0
+        GROUP BY q.status_id
+    ");
+    $statusCounts = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    $waitingCount = $queueStats['waiting'] ?? 0;
-    $inProcedureCount = $queueStats['in_procedure'] ?? 0;
-    $completedToday = $queueStats['completed'] ?? 0;
-    $onHoldCount = $queueStats['on_hold'] ?? 0;
+    $waitingCount = 0;
+    $inProcedureCount = 0;
+    $completedToday = 0;
+    $onHoldCount = 0;
+    foreach ($statusCounts as $sc) {
+        switch ($sc['status_name'] ?? 'waiting') {
+            case 'waiting': $waitingCount = (int)$sc['count']; break;
+            case 'in_procedure': $inProcedureCount = (int)$sc['count']; break;
+            case 'completed': $completedToday = (int)$sc['count']; break;
+            case 'on_hold': $onHoldCount = (int)$sc['count']; break;
+        }
+    }
     
     // Get today's completed count
-    $stmt = $pdo->query("SELECT COUNT(*) FROM queue WHERE status = 'completed' AND DATE(updated_at) = CURDATE()");
+    $stmt = $pdo->query("SELECT COUNT(*) FROM queue WHERE status_id = 3 AND DATE(completed_at) = CURDATE()");
     $completedToday = $stmt->fetchColumn();
     
-    // Get patients currently in queue - same query logic as queue management
+    // Get patients currently in queue
     $stmt = $pdo->query("
-        SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix, p.phone, p.gender, p.age
+        SELECT q.*, COALESCE(p.first_name, 'Unknown') as first_name, COALESCE(p.middle_name, '') as middle_name, COALESCE(p.last_name, '') as last_name, COALESCE(p.suffix, '') as suffix, COALESCE(p.phone, '') as phone, COALESCE(p.gender, '') as gender, COALESCE(qs.status_name, 'waiting') as status_text
         FROM queue q
-        JOIN patients p ON q.patient_id = p.id
-        WHERE q.status IN ('waiting', 'in_procedure')
+        LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id
+        LEFT JOIN queue_statuses qs ON q.status_id = qs.id
+        WHERE q.status_id IN (1, 2) AND q.is_archived = 0
         ORDER BY q.priority ASC, q.queue_time DESC
         LIMIT 10
     ");
@@ -96,11 +111,11 @@ try {
         $nextPatient = null;
         $upcomingPatients = [];
         foreach ($queuePatients as $index => $patient) {
-            if ($patient['status'] === 'in_procedure') {
-                $inProcedurePatient = $patient;
-            } elseif ($patient['status'] === 'waiting' && !$nextPatient) {
-                $nextPatient = $patient;
-            } elseif ($patient['status'] === 'waiting') {
+if (($patient['status_text'] ?? '') === 'in_procedure') {
+            $inProcedurePatient = $patient;
+        } elseif (($patient['status_text'] ?? '') === 'waiting' && !$nextPatient) {
+            $nextPatient = $patient;
+        } elseif (($patient['status_text'] ?? '') === 'waiting') {
                 $upcomingPatients[] = $patient;
             }
         }
@@ -361,7 +376,7 @@ try {
             <?php if (empty($upcomingPatients) && !empty($queuePatients)): ?>
                 <!-- Show in-procedure patient if no waiting patients -->
                 <?php foreach ($queuePatients as $patient): ?>
-                    <?php if ($patient['status'] === 'in_procedure'): ?>
+                    <?php if (($patient['status_text'] ?? '') === 'in_procedure'): ?>
                     <div class="patient-item" style="border: 2px solid #3b82f6; background: #eff6ff;">
                         <div class="patient-info" style="flex: 1;">
                             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
@@ -479,7 +494,7 @@ try {
 <script>
 // Queue actions
 function startProcedure(queueId) {
-    fetch('../shared/queue_actions.php'), {
+    fetch('../shared/queue_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'action=start_procedure&queue_id=' + queueId
@@ -495,7 +510,7 @@ function startProcedure(queueId) {
 }
 
 function completeProcedure(queueId) {
-    fetch('../shared/queue_actions.php'), {
+    fetch('../shared/queue_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'action=complete&queue_id=' + queueId
@@ -590,7 +605,7 @@ function openPatientPrescriptionModal(patientId) {
     document.body.appendChild(modal);
     
     // Load patient safety info
-    fetch('master/dentist/prescription_actions.php'), {
+    fetch('master/dentist/prescription_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'get_patient_info', patient_id: patientId })
@@ -626,7 +641,7 @@ function saveDashPrescription() {
         return;
     }
     
-    fetch('master/dentist/prescription_actions.php'), {
+    fetch('master/dentist/prescription_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'create_prescription', ...data })
@@ -642,18 +657,60 @@ function saveDashPrescription() {
     });
 }
 
-// View patient details - Same modal as dentist_patients.php
+// View patient details - Simple version
 function viewPatientDetails(patientId) {
-    fetch('master/user-patient/patient_record_details.php?id=' + patientId)
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const p = data.patient;
-            const m = data.medical_history || {};
-            const d = data.dental_history || {};
-            const q = data.queue_item || {};
-            
-            const allergies = m.allergies || 'None';
+    alert('View Details Clicked for Patient ID: ' + patientId);
+}
+
+// REMOVED BROKEN CODE - moved to end of file for debugging
+/* ORIGINAL viewPatientDetails CODE:
+function viewPatientDetails_ORIGINAL(patientId) {
+    console.log('Loading patient details for ID:', patientId);
+    fetch('../user-patient/patient_record_details.php?id=' + patientId)
+    .then(response => {
+        console.log('Response status:', response.status);
+        return response.text();
+    })
+    .then(text => {
+        console.log('Response text:', text);
+        try {
+            const data = JSON.parse(text);
+            if (data.success) {
+                const p = data.patient;
+                const m = data.medical_history || {};
+                const d = data.dental_history || {};
+                const q = data.queue_item || {};
+                
+                const allergies = m.allergies || 'None';
+                const medications = m.current_medications || 'None';
+                const medicalConditions = m.medical_conditions || 'None';
+                
+                document.getElementById('dentistModalPatientName').innerText = (p.first_name || '') + ' ' + (p.middle_name || '') + ' ' + (p.last_name || '');
+                
+                // Check for medical alerts
+                const hasMedicalAlert = allergies === 'Yes' || 
+                                       medicalConditions.toLowerCase().includes('diabetes') ||
+                                       medicalConditions.toLowerCase().includes('heart') ||
+                                       medicalConditions.toLowerCase().includes('blood pressure') ||
+                                       medicalConditions.toLowerCase().includes('asthma');
+                
+                // Build modal content with patient data...
+                document.getElementById('patientModalContent').innerHTML = '<div class="patient-details">Patient: ' + (p.first_name || '') + ' ' + (p.last_name || '') + '</div>';
+                document.getElementById('patientModal').classList.add('active');
+            } else {
+                alert('Error loading patient details: ' + data.message);
+            }
+        } catch(e) {
+            console.error('Parse error:', e);
+            alert('Error parsing response');
+        }
+    })
+    .catch(function(error) {
+        console.error('Error:', error);
+        alert('Failed to load patient details: ' + error.message);
+    });
+}
+*/
             const medications = m.current_medications || 'None';
             const medicalConditions = m.medical_conditions || 'None';
             
@@ -683,9 +740,10 @@ function viewPatientDetails(patientId) {
             
             // Build status badge
             let statusBadge = '<span style="background: #f3f4f6; color: #6b7280; padding: 4px 12px; border-radius: 9999px; font-size: 0.85rem;">N/A</span>';
-            if (q.status === 'in_procedure') {
+            const queueStatus = q.status_text || q.status || 'waiting';
+            if (queueStatus === 'in_procedure') {
                 statusBadge = '<span style="background: #dcfce7; color: #15803d; padding: 4px 12px; border-radius: 9999px; font-size: 0.85rem;">IN PROCEDURE</span>';
-            } else if (q.status === 'waiting') {
+            } else if (queueStatus === 'waiting') {
                 statusBadge = '<span style="background: #fef3c7; color: #d97706; padding: 4px 12px; border-radius: 9999px; font-size: 0.85rem;">WAITING</span>';
             }
             
@@ -812,13 +870,7 @@ function viewPatientDetails(patientId) {
             
             // Load billing info
             loadBillingInfo(patientId);
-        } else {
-            alert('Error loading patient details: ' + data.message);
         }
-    })
-    .catch(function(error) {
-        console.error('Error:', error);
-        alert('Failed to load patient details');
     });
 }
 
@@ -1432,7 +1484,7 @@ function loadBillingInfo(patientId) {
 
 function calculateBillingFromServices(patientId) {
     // Get services from the queue for this patient
-    fetch('master/user-patient/patient_record_details.php?id=' + patientId)
+    fetch('../user-patient/patient_record_details.php?id=' + patientId)
     .then(function(response) { return response.json(); })
     .then(function(data) {
         if (data.success && data.queue_item) {

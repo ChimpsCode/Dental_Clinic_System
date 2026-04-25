@@ -64,7 +64,7 @@ try {
     $dentalHistory = $stmt->fetch(PDO::FETCH_ASSOC);
     
     // Get current queue item if any
-    $stmt = $pdo->prepare("SELECT * FROM queue WHERE patient_id = ? AND status IN ('waiting', 'in_procedure') ORDER BY created_at DESC LIMIT 1");
+    $stmt = $pdo->prepare("SELECT q.*, qs.status_name as status_text FROM queue q LEFT JOIN queue_statuses qs ON q.status_id = qs.id WHERE q.patient_id = ? AND q.status_id IN (1, 2) AND q.is_archived = 0 ORDER BY q.created_at DESC LIMIT 1");
     $stmt->execute([$patientId]);
     $queueItem = $stmt->fetch(PDO::FETCH_ASSOC);
     

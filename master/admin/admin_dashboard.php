@@ -96,11 +96,11 @@ try {
     try {
         $stmt = $pdo->query("
             SELECT q.id, q.status, q.queue_time, q.treatment_type,
-                   CONCAT(p.first_name, ' ', COALESCE(p.middle_name, ''), ' ', p.last_name) AS patient_name
+                   COALESCE(CONCAT(p.first_name, ' ', COALESCE(p.middle_name, ''), ' ', p.last_name), 'Unknown') AS patient_name
             FROM queue q
-            JOIN patients p ON p.id = q.patient_id
+            LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED)
             WHERE q.status IN ('waiting', 'in_procedure', 'on_hold')
-              AND q.is_archived = 0
+              AND (q.is_archived = 0 OR q.is_archived IS NULL)
             ORDER BY 
                 CASE q.status 
                     WHEN 'in_procedure' THEN 1 

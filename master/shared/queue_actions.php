@@ -50,8 +50,8 @@ try {
     switch ($action) {
         case 'call':
             // Get queue item
-            $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix, p.phone FROM queue q 
-                                   LEFT JOIN patients p ON q.patient_id = p.id WHERE q.id = ?");
+            $stmt = $pdo->prepare("SELECT q.*, COALESCE(p.first_name, 'Unknown') as first_name, COALESCE(p.middle_name, '') as middle_name, COALESCE(p.last_name, '') as last_name, COALESCE(p.suffix, '') as suffix, COALESCE(p.phone, '') as phone FROM queue q 
+                                   LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED) WHERE q.id = ?");
             $stmt->execute([$queueId]);
             $queueItem = $stmt->fetch();
             $patientName = buildFullName($queueItem);
@@ -71,7 +71,7 @@ try {
             // Check if there's already a procedure in progress
             $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix 
                                    FROM queue q 
-                                   LEFT JOIN patients p ON q.patient_id = p.id 
+                                   LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED) 
                                    WHERE q.status = 'in_procedure' 
                                    AND DATE(q.created_at) = CURDATE() 
                                    LIMIT 1");
@@ -96,7 +96,7 @@ try {
             $stmt->execute([$queueId]);
             
             $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix FROM queue q 
-                                   LEFT JOIN patients p ON q.patient_id = p.id WHERE q.id = ?");
+                                   LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED) WHERE q.id = ?");
             $stmt->execute([$queueId]);
             $queueItem = $stmt->fetch();
             $patientName = buildFullName($queueItem);
@@ -115,7 +115,7 @@ try {
             // First, get the queue item details BEFORE updating
             $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix 
                                    FROM queue q 
-                                   LEFT JOIN patients p ON q.patient_id = p.id 
+                                   LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED) 
                                    WHERE q.id = ?");
             $stmt->execute([$queueId]);
             $queueItem = $stmt->fetch();
@@ -204,7 +204,7 @@ try {
             $stmt->execute([$queueId]);
             
             $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix FROM queue q 
-                                   LEFT JOIN patients p ON q.patient_id = p.id WHERE q.id = ?");
+                                   LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED) WHERE q.id = ?");
             $stmt->execute([$queueId]);
             $queueItem = $stmt->fetch();
             $patientName = buildFullName($queueItem);
@@ -228,7 +228,7 @@ try {
             $stmt->execute([$queueId]);
             
             $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix FROM queue q 
-                                   LEFT JOIN patients p ON q.patient_id = p.id WHERE q.id = ?");
+                                   LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED) WHERE q.id = ?");
             $stmt->execute([$queueId]);
             $queueItem = $stmt->fetch();
             $patientName = buildFullName($queueItem);
@@ -252,7 +252,7 @@ try {
             $stmt->execute([$queueId]);
             
             $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix FROM queue q 
-                                   LEFT JOIN patients p ON q.patient_id = p.id WHERE q.id = ?");
+                                   LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED) WHERE q.id = ?");
             $stmt->execute([$queueId]);
             $queueItem = $stmt->fetch();
             $patientName = buildFullName($queueItem);
@@ -268,7 +268,7 @@ try {
             
         case 'delete':
             $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix FROM queue q 
-                                   LEFT JOIN patients p ON q.patient_id = p.id WHERE q.id = ?");
+                                   LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED) WHERE q.id = ?");
             $stmt->execute([$queueId]);
             $queueItem = $stmt->fetch();
             $patientName = buildFullName($queueItem);

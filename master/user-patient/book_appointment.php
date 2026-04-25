@@ -134,6 +134,10 @@ try {
         $colList[] = 'created_by';
         $params[] = $_SESSION['user_id'] ?? null;
     }
+    if (in_array('reference_code', $columns)) {
+        $colList[] = 'reference_code';
+        $params[] = 'APT' . date('ymdHis') . mt_rand(10, 99);
+    }
     
     $sql = "INSERT INTO appointments (" . implode(', ', $colList) . ") VALUES (" . implode(', ', array_fill(0, count($params), '?')) . ")";
     $stmt = $pdo->prepare($sql);
