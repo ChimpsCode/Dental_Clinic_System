@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 24, 2026 at 09:14 AM
+-- Generation Time: Apr 25, 2026 at 07:48 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -191,7 +191,10 @@ CREATE TABLE `appointments` (
 --
 
 INSERT INTO `appointments` (`id`, `reference_code`, `patient_id`, `is_registered_patient`, `converted_patient_id`, `booked_by_id`, `relation_to_patient`, `service_id`, `status_id`, `appointment_date`, `appointment_time`, `duration_minutes`, `notes`, `is_reminded`, `check_in_time`, `created_by`, `created_at`, `is_archived`) VALUES
-(121, '', 121, 1, NULL, NULL, NULL, 1, NULL, '2026-04-24', '09:00:00', NULL, '', 0, NULL, 13, '2026-04-23 05:14:36', 0);
+(121, '', 121, 1, NULL, NULL, NULL, 1, 1, '2026-04-24', '09:00:00', NULL, '', 0, NULL, 13, '2026-04-23 05:14:36', 0),
+(130, 'APT2604240', 123, 1, NULL, NULL, NULL, 3, 1, '2026-04-24', '15:30:00', 30, '', 0, NULL, 15, '2026-04-24 07:39:48', 0),
+(133, 'APT2604241', 124, 1, NULL, NULL, NULL, 5, 2, '2026-04-24', '11:00:00', 120, '', 0, NULL, 16, '2026-04-24 08:00:31', 0),
+(135, 'APT2604250', 133, 1, NULL, NULL, NULL, 2, 1, '2026-04-25', '13:30:00', 90, '', 0, NULL, 17, '2026-04-25 05:34:17', 0);
 
 -- --------------------------------------------------------
 
@@ -264,69 +267,87 @@ CREATE TABLE `billing` (
 --
 
 INSERT INTO `billing` (`id`, `patient_id`, `treatment_id`, `appointment_id`, `total_amount`, `paid_amount`, `balance`, `payment_status_id`, `billing_date`, `due_date`, `notes`) VALUES
-(1, 2, 0, NULL, 500.00, 500.00, 0.00, 1, '2026-01-28', NULL, NULL),
-(2, 3, 0, NULL, 5000.00, 5000.00, 0.00, 1, '2026-01-19', NULL, NULL),
-(3, 4, 0, NULL, 800.00, 480.00, 320.00, 2, '2026-01-18', NULL, NULL),
-(4, 6, 0, NULL, 2000.00, 2000.00, 0.00, 1, '2026-01-19', NULL, NULL),
-(5, 8, 0, NULL, 500.00, 500.00, 0.00, 1, '2026-01-28', NULL, NULL),
-(6, 9, 0, NULL, 500.00, 500.00, 0.00, 1, '2026-01-14', NULL, NULL),
-(7, 11, 0, NULL, 5000.00, 5000.00, 0.00, 1, '2026-01-03', NULL, NULL),
-(8, 17, 0, NULL, 35000.00, 35000.00, 0.00, 1, '2026-01-25', NULL, NULL),
-(9, 18, 0, NULL, 800.00, 800.00, 0.00, 1, '2026-01-10', NULL, NULL),
-(10, 20, 0, NULL, 800.00, 800.00, 0.00, 1, '2026-01-18', NULL, NULL),
-(11, 21, 0, NULL, 5000.00, 5000.00, 0.00, 1, '2026-01-13', NULL, NULL),
-(12, 22, 0, NULL, 5000.00, 2750.00, 2250.00, 2, '2026-01-14', NULL, NULL),
-(13, 24, 0, NULL, 5000.00, 5000.00, 0.00, 1, '2026-01-21', NULL, NULL),
-(14, 25, 0, NULL, 500.00, 500.00, 0.00, 1, '2026-01-28', NULL, NULL),
-(15, 26, 0, NULL, 500.00, 500.00, 0.00, 1, '2026-02-14', NULL, NULL),
-(16, 36, 0, NULL, 800.00, 800.00, 0.00, 1, '2026-02-06', NULL, NULL),
-(17, 37, 0, NULL, 2000.00, 1100.00, 900.00, 2, '2026-02-09', NULL, NULL),
-(18, 38, 0, NULL, 2000.00, 2000.00, 0.00, 1, '2026-02-04', NULL, NULL),
-(19, 41, 0, NULL, 800.00, 800.00, 0.00, 1, '2026-02-10', NULL, NULL),
-(20, 43, 0, NULL, 5000.00, 5000.00, 0.00, 1, '2026-02-27', NULL, NULL),
-(21, 44, 0, NULL, 500.00, 500.00, 0.00, 1, '2026-02-05', NULL, NULL),
-(22, 45, 0, NULL, 5000.00, 5000.00, 0.00, 1, '2026-02-19', NULL, NULL),
-(23, 46, 0, NULL, 800.00, 800.00, 0.00, 1, '2026-02-13', NULL, NULL),
-(24, 47, 0, NULL, 5000.00, 5000.00, 0.00, 1, '2026-02-19', NULL, NULL),
-(25, 48, 0, NULL, 500.00, 500.00, 0.00, 1, '2026-02-01', NULL, NULL),
-(26, 49, 0, NULL, 35000.00, 35000.00, 0.00, 1, '2026-02-24', NULL, NULL),
-(27, 51, 0, NULL, 2000.00, 2000.00, 0.00, 1, '2026-02-03', NULL, NULL),
-(28, 52, 0, NULL, 800.00, 800.00, 0.00, 1, '2026-02-23', NULL, NULL),
-(29, 53, 0, NULL, 800.00, 800.00, 0.00, 1, '2026-02-16', NULL, NULL),
-(30, 54, 0, NULL, 500.00, 500.00, 0.00, 1, '2026-02-10', NULL, NULL),
-(31, 56, 0, NULL, 800.00, 800.00, 0.00, 1, '2026-03-16', NULL, NULL),
-(32, 58, 0, NULL, 35000.00, 35000.00, 0.00, 1, '2026-03-05', NULL, NULL),
-(33, 59, 0, NULL, 5000.00, 5000.00, 0.00, 1, '2026-03-05', NULL, NULL),
-(34, 60, 0, NULL, 2000.00, 2000.00, 0.00, 1, '2026-03-16', NULL, NULL),
-(35, 61, 0, NULL, 5000.00, 5000.00, 0.00, 1, '2026-03-04', NULL, NULL),
-(36, 63, 0, NULL, 800.00, 800.00, 0.00, 1, '2026-03-31', NULL, NULL),
-(37, 65, 0, NULL, 500.00, 250.00, 250.00, 2, '2026-03-16', NULL, NULL),
-(38, 66, 0, NULL, 500.00, 500.00, 0.00, 1, '2026-03-01', NULL, NULL),
-(39, 67, 0, NULL, 5000.00, 5000.00, 0.00, 1, '2026-03-12', NULL, NULL),
-(40, 69, 0, NULL, 5000.00, 5000.00, 0.00, 1, '2026-03-24', NULL, NULL),
-(41, 70, 0, NULL, 2000.00, 2000.00, 0.00, 1, '2026-03-18', NULL, NULL),
-(42, 78, 0, NULL, 5000.00, 5000.00, 0.00, 1, '2026-03-24', NULL, NULL),
-(43, 79, 0, NULL, 800.00, 800.00, 0.00, 1, '2026-03-20', NULL, NULL),
-(44, 83, 0, NULL, 35000.00, 35000.00, 0.00, 1, '2026-03-09', NULL, NULL),
-(45, 84, 0, NULL, 800.00, 800.00, 0.00, 1, '2026-03-14', NULL, NULL),
-(46, 86, 0, NULL, 2000.00, 2000.00, 0.00, 1, '2026-03-18', NULL, NULL),
-(47, 87, 0, NULL, 5000.00, 5000.00, 0.00, 1, '2026-03-16', NULL, NULL),
-(48, 88, 0, NULL, 500.00, 500.00, 0.00, 1, '2026-03-21', NULL, NULL),
-(49, 89, 0, NULL, 35000.00, 35000.00, 0.00, 1, '2026-03-30', NULL, NULL),
-(50, 91, 0, NULL, 500.00, 500.00, 0.00, 1, '2026-04-15', NULL, NULL),
-(51, 92, 0, NULL, 800.00, 800.00, 0.00, 1, '2026-04-15', NULL, NULL),
-(52, 93, 0, NULL, 5000.00, 5000.00, 0.00, 1, '2026-04-22', NULL, NULL),
-(53, 95, 0, NULL, 500.00, 500.00, 0.00, 1, '2026-04-26', NULL, NULL),
-(54, 96, 0, NULL, 5000.00, 5000.00, 0.00, 1, '2026-04-22', NULL, NULL),
-(55, 97, 0, NULL, 500.00, 500.00, 0.00, 1, '2026-04-24', NULL, NULL),
-(56, 99, 0, NULL, 800.00, 800.00, 0.00, 1, '2026-04-15', NULL, NULL),
-(57, 100, 0, NULL, 2000.00, 2000.00, 0.00, 1, '2026-04-12', NULL, NULL),
-(58, 101, 0, NULL, 5000.00, 5000.00, 0.00, 1, '2026-04-20', NULL, NULL),
-(59, 102, 0, NULL, 5000.00, 5000.00, 0.00, 1, '2026-04-05', NULL, NULL),
-(60, 103, 0, NULL, 500.00, 500.00, 0.00, 1, '2026-04-18', NULL, NULL),
-(61, 107, 0, NULL, 500.00, 500.00, 0.00, 1, '2026-04-14', NULL, NULL),
-(62, 110, 0, NULL, 500.00, 500.00, 0.00, 1, '2026-04-11', NULL, NULL),
-(63, 116, 0, NULL, 35000.00, 35000.00, 0.00, 1, '2026-04-10', NULL, NULL);
+(1, 2, NULL, NULL, 500.00, 500.00, 0.00, 1, '2026-01-28', NULL, NULL),
+(2, 3, NULL, NULL, 5000.00, 5000.00, 0.00, 1, '2026-01-19', NULL, NULL),
+(3, 4, NULL, NULL, 800.00, 480.00, 320.00, 2, '2026-01-18', NULL, NULL),
+(4, 6, NULL, NULL, 2000.00, 2000.00, 0.00, 1, '2026-01-19', NULL, NULL),
+(5, 8, NULL, NULL, 500.00, 500.00, 0.00, 1, '2026-01-28', NULL, NULL),
+(6, 9, NULL, NULL, 500.00, 500.00, 0.00, 1, '2026-01-14', NULL, NULL),
+(7, 11, NULL, NULL, 5000.00, 5000.00, 0.00, 1, '2026-01-03', NULL, NULL),
+(8, 17, NULL, NULL, 35000.00, 35000.00, 0.00, 1, '2026-01-25', NULL, NULL),
+(9, 18, NULL, NULL, 800.00, 800.00, 0.00, 1, '2026-01-10', NULL, NULL),
+(10, 20, NULL, NULL, 800.00, 800.00, 0.00, 1, '2026-01-18', NULL, NULL),
+(11, 21, NULL, NULL, 5000.00, 5000.00, 0.00, 1, '2026-01-13', NULL, NULL),
+(12, 22, NULL, NULL, 5000.00, 2750.00, 2250.00, 2, '2026-01-14', NULL, NULL),
+(13, 24, NULL, NULL, 5000.00, 5000.00, 0.00, 1, '2026-01-21', NULL, NULL),
+(14, 25, NULL, NULL, 500.00, 500.00, 0.00, 1, '2026-01-28', NULL, NULL),
+(15, 26, NULL, NULL, 500.00, 500.00, 0.00, 1, '2026-02-14', NULL, NULL),
+(16, 36, NULL, NULL, 800.00, 800.00, 0.00, 1, '2026-02-06', NULL, NULL),
+(17, 37, NULL, NULL, 2000.00, 1100.00, 900.00, 2, '2026-02-09', NULL, NULL),
+(18, 38, NULL, NULL, 2000.00, 2000.00, 0.00, 1, '2026-02-04', NULL, NULL),
+(19, 41, NULL, NULL, 800.00, 800.00, 0.00, 1, '2026-02-10', NULL, NULL),
+(20, 43, NULL, NULL, 5000.00, 5000.00, 0.00, 1, '2026-02-27', NULL, NULL),
+(21, 44, NULL, NULL, 500.00, 500.00, 0.00, 1, '2026-02-05', NULL, NULL),
+(22, 45, NULL, NULL, 5000.00, 5000.00, 0.00, 1, '2026-02-19', NULL, NULL),
+(23, 46, NULL, NULL, 800.00, 800.00, 0.00, 1, '2026-02-13', NULL, NULL),
+(24, 47, NULL, NULL, 5000.00, 5000.00, 0.00, 1, '2026-02-19', NULL, NULL),
+(25, 48, NULL, NULL, 500.00, 500.00, 0.00, 1, '2026-02-01', NULL, NULL),
+(26, 49, NULL, NULL, 35000.00, 35000.00, 0.00, 1, '2026-02-24', NULL, NULL),
+(27, 51, NULL, NULL, 2000.00, 2000.00, 0.00, 1, '2026-02-03', NULL, NULL),
+(28, 52, NULL, NULL, 800.00, 800.00, 0.00, 1, '2026-02-23', NULL, NULL),
+(29, 53, NULL, NULL, 800.00, 800.00, 0.00, 1, '2026-02-16', NULL, NULL),
+(30, 54, NULL, NULL, 500.00, 500.00, 0.00, 1, '2026-02-10', NULL, NULL),
+(31, 56, NULL, NULL, 800.00, 800.00, 0.00, 1, '2026-03-16', NULL, NULL),
+(32, 58, NULL, NULL, 35000.00, 35000.00, 0.00, 1, '2026-03-05', NULL, NULL),
+(33, 59, NULL, NULL, 5000.00, 5000.00, 0.00, 1, '2026-03-05', NULL, NULL),
+(34, 60, NULL, NULL, 2000.00, 2000.00, 0.00, 1, '2026-03-16', NULL, NULL),
+(35, 61, NULL, NULL, 5000.00, 5000.00, 0.00, 1, '2026-03-04', NULL, NULL),
+(36, 63, NULL, NULL, 800.00, 800.00, 0.00, 1, '2026-03-31', NULL, NULL),
+(37, 65, NULL, NULL, 500.00, 250.00, 250.00, 2, '2026-03-16', NULL, NULL),
+(38, 66, NULL, NULL, 500.00, 500.00, 0.00, 1, '2026-03-01', NULL, NULL),
+(39, 67, NULL, NULL, 5000.00, 5000.00, 0.00, 1, '2026-03-12', NULL, NULL),
+(40, 69, NULL, NULL, 5000.00, 5000.00, 0.00, 1, '2026-03-24', NULL, NULL),
+(41, 70, NULL, NULL, 2000.00, 2000.00, 0.00, 1, '2026-03-18', NULL, NULL),
+(42, 78, NULL, NULL, 5000.00, 5000.00, 0.00, 1, '2026-03-24', NULL, NULL),
+(43, 79, NULL, NULL, 800.00, 800.00, 0.00, 1, '2026-03-20', NULL, NULL),
+(44, 83, NULL, NULL, 35000.00, 35000.00, 0.00, 1, '2026-03-09', NULL, NULL),
+(45, 84, NULL, NULL, 800.00, 800.00, 0.00, 1, '2026-03-14', NULL, NULL),
+(46, 86, NULL, NULL, 2000.00, 2000.00, 0.00, 1, '2026-03-18', NULL, NULL),
+(47, 87, NULL, NULL, 5000.00, 5000.00, 0.00, 1, '2026-03-16', NULL, NULL),
+(48, 88, NULL, NULL, 500.00, 500.00, 0.00, 1, '2026-03-21', NULL, NULL),
+(49, 89, NULL, NULL, 35000.00, 35000.00, 0.00, 1, '2026-03-30', NULL, NULL),
+(50, 91, NULL, NULL, 500.00, 500.00, 0.00, 1, '2026-04-15', NULL, NULL),
+(51, 92, NULL, NULL, 800.00, 800.00, 0.00, 1, '2026-04-15', NULL, NULL),
+(52, 93, NULL, NULL, 5000.00, 5000.00, 0.00, 1, '2026-04-22', NULL, NULL),
+(53, 95, NULL, NULL, 500.00, 500.00, 0.00, 1, '2026-04-26', NULL, NULL),
+(54, 96, NULL, NULL, 5000.00, 5000.00, 0.00, 1, '2026-04-22', NULL, NULL),
+(55, 97, NULL, NULL, 500.00, 500.00, 0.00, 1, '2026-04-24', NULL, NULL),
+(56, 99, NULL, NULL, 800.00, 800.00, 0.00, 1, '2026-04-15', NULL, NULL),
+(57, 100, NULL, NULL, 2000.00, 2000.00, 0.00, 1, '2026-04-12', NULL, NULL),
+(58, 101, NULL, NULL, 5000.00, 5000.00, 0.00, 1, '2026-04-20', NULL, NULL),
+(59, 102, NULL, NULL, 5000.00, 5000.00, 0.00, 1, '2026-04-05', NULL, NULL),
+(60, 103, NULL, NULL, 500.00, 500.00, 0.00, 1, '2026-04-18', NULL, NULL),
+(61, 107, NULL, NULL, 500.00, 500.00, 0.00, 1, '2026-04-14', NULL, NULL),
+(62, 110, NULL, NULL, 500.00, 500.00, 0.00, 1, '2026-04-11', NULL, NULL),
+(63, 116, NULL, NULL, 35000.00, 35000.00, 0.00, 1, '2026-04-10', NULL, NULL),
+(64, 121, NULL, NULL, 500.00, 0.00, 500.00, NULL, '2026-04-24', '2026-04-24', 'Initial billing from admission - Services: Consultation'),
+(65, 121, NULL, NULL, 800.00, 0.00, 800.00, NULL, '2026-04-24', '2026-04-24', 'Initial billing from admission - Services: Tooth Restoration (Pasta)'),
+(66, 124, NULL, NULL, 500.00, 0.00, 500.00, NULL, '2026-04-24', '2026-04-24', 'Initial billing from admission - Services: Consultation'),
+(67, 124, NULL, NULL, 500.00, 0.00, 500.00, NULL, '2026-04-24', '2026-04-24', 'Initial billing from admission - Services: Consultation'),
+(68, 127, NULL, NULL, 500.00, 0.00, 500.00, NULL, '2026-04-24', '2026-04-24', 'Initial billing from admission - Services: Consultation'),
+(69, 121, NULL, NULL, 500.00, 0.00, 500.00, NULL, '2026-04-24', '2026-04-24', 'Initial billing from admission - Services: Consultation'),
+(70, 124, NULL, NULL, 800.00, 0.00, 800.00, NULL, '2026-04-24', '2026-04-24', 'Initial billing from admission - Services: Teeth Cleaning'),
+(71, 123, NULL, NULL, 800.00, 0.00, 800.00, NULL, '2026-04-24', '2026-04-24', 'Initial billing from admission - Services: Teeth Cleaning'),
+(72, 124, NULL, NULL, 5000.00, 0.00, 5000.00, NULL, '2026-04-24', '2026-04-24', 'Initial billing from admission - Services: Fixed Bridge'),
+(73, 123, NULL, NULL, 800.00, 0.00, 800.00, NULL, '2026-04-24', '2026-04-24', 'Initial billing from admission - Services: Teeth Cleaning'),
+(74, 128, NULL, NULL, 800.00, 0.00, 800.00, NULL, '2026-04-24', '2026-04-24', 'Initial billing from admission - Services: Tooth Extraction (Ibot)'),
+(75, 129, NULL, NULL, 800.00, 0.00, 800.00, NULL, '2026-04-24', '2026-04-24', 'Initial billing from admission - Services: Tooth Extraction (Ibot)'),
+(76, 123, NULL, NULL, 800.00, 0.00, 800.00, NULL, '2026-04-24', '2026-04-24', 'Initial billing from admission - Services: Tooth Extraction (Ibot)'),
+(77, 130, NULL, NULL, 500.00, 0.00, 500.00, NULL, '2026-04-24', '2026-04-24', 'Initial billing from admission - Services: Periapical Xray'),
+(78, 132, NULL, NULL, 800.00, 0.00, 800.00, NULL, '2026-04-24', '2026-04-24', 'Initial billing from admission - Services: Teeth Cleaning'),
+(79, 123, NULL, NULL, 500.00, 0.00, 500.00, NULL, '2026-04-24', '2026-04-24', 'Initial billing from admission - Services: Denture Adjustment'),
+(80, 121, NULL, NULL, 5000.00, 0.00, 5000.00, NULL, '2026-04-25', '2026-04-25', 'Initial billing from admission - Services: Teeth Whitening'),
+(81, 124, NULL, NULL, 5000.00, 0.00, 5000.00, NULL, '2026-04-25', '2026-04-25', 'Initial billing from admission - Services: Removable Dentures');
 
 -- --------------------------------------------------------
 
@@ -427,6 +448,20 @@ CREATE TABLE `medical_history` (
   `other_notes` text DEFAULT NULL,
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `medical_history`
+--
+
+INSERT INTO `medical_history` (`id`, `patient_id`, `allergies`, `current_medications`, `medical_conditions`, `blood_pressure`, `heart_rate`, `other_notes`, `updated_at`) VALUES
+(1, 121, NULL, '', 'None', NULL, NULL, NULL, '2026-04-24 11:49:16'),
+(6, 124, NULL, '', 'None', NULL, NULL, NULL, '2026-04-24 12:17:21'),
+(8, 127, NULL, '', 'None', NULL, NULL, NULL, '2026-04-24 12:32:05'),
+(11, 123, NULL, '', 'None', NULL, NULL, NULL, '2026-04-24 12:40:01'),
+(14, 128, NULL, '', 'None', NULL, NULL, NULL, '2026-04-24 14:51:19'),
+(15, 129, NULL, '', 'None', NULL, NULL, NULL, '2026-04-24 15:00:31'),
+(17, 130, NULL, '', 'None', NULL, NULL, NULL, '2026-04-24 15:11:04'),
+(18, 132, NULL, '', 'None', NULL, NULL, NULL, '2026-04-24 15:15:55');
 
 -- --------------------------------------------------------
 
@@ -608,9 +643,17 @@ INSERT INTO `patients` (`id`, `type_id`, `first_name`, `middle_name`, `last_name
 (118, 2, 'Carmen', 'Suarez', 'Guevarra', 'Female', 1, 118, NULL, NULL, '1956-04-15', '09979454128', NULL, 0, NULL, '2026-04-17 01:36:26', '2026-04-22 07:56:09'),
 (119, NULL, 'Boss', 'Lorenzo', 'Zata', 'Male', NULL, NULL, NULL, NULL, '2000-02-04', '09241534656', 'bosszata20@gmail.com', 0, NULL, '2026-04-22 11:31:51', '2026-04-22 11:31:51'),
 (120, NULL, 'Trisha Mael', 'Macapagal', 'Albuela', 'Female', NULL, NULL, NULL, NULL, '2002-02-04', '09271544652', 'trishaaame43@gmail.com', 0, NULL, '2026-04-23 02:08:47', '2026-04-23 02:08:47'),
-(121, NULL, 'Jery', 'Mariam', 'Maglungsod', 'Male', NULL, NULL, NULL, NULL, '2000-02-22', '09654646466', 'jery23@gmail.com', 0, NULL, '2026-04-23 02:15:20', '2026-04-23 02:15:20'),
+(121, NULL, 'Jery', 'Mariam', 'Maglungsod', 'Male', NULL, NULL, NULL, '', '2000-02-22', '09654646466', '', 0, NULL, '2026-04-23 02:15:20', '2026-04-25 02:32:13'),
 (122, NULL, 'Nathaniel', 'Villar', 'Quirante', 'Female', NULL, NULL, NULL, NULL, '2000-02-03', '09267913056', 'nathaniel@gmail.com', 0, NULL, '2026-04-23 16:35:37', '2026-04-23 16:35:37'),
-(123, NULL, 'James Kyle', NULL, 'Paraiso', 'Male', NULL, NULL, NULL, NULL, '2000-02-22', '01215646546', 'jamesparaiso@gmail.com', 0, NULL, '2026-04-24 04:49:19', '2026-04-24 04:49:19');
+(123, NULL, 'James Kyle', 'we', 'Paraiso', 'Male', NULL, NULL, NULL, '', '2000-02-22', '01215646546', '', 0, NULL, '2026-04-24 04:49:19', '2026-04-24 15:17:05'),
+(124, NULL, 'Nathaniel', 'watada', 'Dgg', 'Male', NULL, NULL, NULL, '', '2000-02-21', '09254568894', '', 0, NULL, '2026-04-24 07:56:57', '2026-04-25 02:35:42'),
+(127, NULL, 'Trisha Maelaa', 'Macapagal', 'Albuelaa', 'Female', NULL, NULL, NULL, '', '2002-04-21', '09271544652', '', 0, NULL, '2026-04-24 12:32:05', '2026-04-24 12:32:05'),
+(128, NULL, 'Boss bi', 'Lorenzo ewwe', 'Diaz', 'Male', NULL, NULL, NULL, '', '2003-08-26', '09241534656', '', 0, NULL, '2026-04-24 14:51:19', '2026-04-24 14:51:19'),
+(129, NULL, 'Trisha Maee', 'Macapagal', 'Albuelat', 'Female', NULL, NULL, NULL, '', '2001-08-01', '09271544652', '', 0, NULL, '2026-04-24 15:00:31', '2026-04-24 15:00:31'),
+(130, NULL, 'Malita', 'Lorenzo', 'Zata', 'Male', NULL, NULL, NULL, '', '2000-03-04', '09241534656', '', 0, NULL, '2026-04-24 15:11:04', '2026-04-24 15:11:04'),
+(131, NULL, 'Test', NULL, 'Patient1777043631', NULL, NULL, NULL, NULL, NULL, NULL, '09996691156', NULL, 0, NULL, '2026-04-24 15:13:51', '2026-04-24 15:13:51'),
+(132, NULL, 'kurt jayew', 'trinidad', 'maligmate', 'Male', NULL, NULL, NULL, '', '2009-04-01', '09441534654', '', 0, NULL, '2026-04-24 15:15:55', '2026-04-24 15:15:55'),
+(133, NULL, 'James Ryan', 'Kilang', 'Dela Cruz', 'Male', NULL, NULL, NULL, NULL, NULL, '09214546845', 'kristopermbl23@gmail.com', 0, NULL, '2026-04-25 05:12:37', '2026-04-25 05:12:37');
 
 -- --------------------------------------------------------
 
@@ -845,6 +888,18 @@ CREATE TABLE `queue` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `queue`
+--
+
+INSERT INTO `queue` (`id`, `patient_id`, `status_id`, `priority`, `treatment_type`, `teeth_numbers`, `procedure_notes`, `is_processed`, `completed_at`, `queue_time`, `notes`, `is_archived`, `created_at`) VALUES
+(3, 129, 1, 5, 'General Checkup', NULL, NULL, 0, NULL, '23:04:31', NULL, 0, '2026-04-24 15:04:31'),
+(5, 100, 1, 5, 'General Checkup', NULL, NULL, 0, NULL, '23:34:31', NULL, 0, '2026-04-24 15:13:27'),
+(7, 132, 1, 5, 'Teeth Cleaning', NULL, NULL, 0, NULL, '23:15:55', NULL, 0, '2026-04-24 15:15:55'),
+(8, 123, 1, 5, 'Denture Adjustment', NULL, NULL, 0, NULL, '23:17:05', NULL, 0, '2026-04-24 15:17:05'),
+(9, 121, 1, 5, 'Teeth Whitening', NULL, NULL, 0, NULL, '10:32:13', NULL, 0, '2026-04-25 02:32:13'),
+(10, 124, 1, 5, 'Removable Dentures', NULL, NULL, 0, NULL, '10:35:42', NULL, 0, '2026-04-25 02:35:42');
+
 -- --------------------------------------------------------
 
 --
@@ -869,6 +924,16 @@ CREATE TABLE `queue_statuses` (
   `id` int(11) NOT NULL,
   `status_name` varchar(50) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `queue_statuses`
+--
+
+INSERT INTO `queue_statuses` (`id`, `status_name`) VALUES
+(1, 'waiting'),
+(2, 'in_procedure'),
+(3, 'completed'),
+(4, 'cancelled');
 
 -- --------------------------------------------------------
 
@@ -1177,7 +1242,9 @@ INSERT INTO `users` (`id`, `role_id`, `first_name`, `middle_name`, `last_name`, 
 (12, NULL, 'Trisha Mael', 'Macapagal', 'Albuela', 'trishaaame43@gmail.com', '$2y$10$u9.zrGklOypo4EUyBy1OXenL0PAFkmymLPk4nV6H/27F/Tabsq4dm', 'trishaaame43@gmail.com', NULL, NULL, NULL, 'Active', 0, '2026-04-23 02:08:47', '2026-04-23 02:08:47'),
 (13, NULL, 'Jery', 'Mariam', 'Maglungsod', 'jery23@gmail.com', '$2y$10$WeeieXOD22AgG.JK87HtUuqIhDEsDHUS8kQW/EJDhZkRH4TomLj6e', 'jery23@gmail.com', NULL, NULL, NULL, 'Active', 0, '2026-04-23 02:15:20', '2026-04-23 02:15:20'),
 (14, NULL, 'Nathaniel', 'Villar', 'Quirante', 'nathaniel@gmail.com', '$2y$10$Mo3eE8l.L8fQLJf9zL0Ih.cykzlu5Pd/jm0jVAX.slyijoAhAhIYy', 'nathaniel@gmail.com', NULL, NULL, NULL, 'Active', 0, '2026-04-23 16:35:37', '2026-04-23 16:35:37'),
-(15, NULL, 'James Kyle', NULL, 'Paraiso', 'jamesparaiso@gmail.com', '$2y$10$ev7h7BOjFbOzTzmsouDsduGzY17xZ5SVgGX4ipaCxhQVCK5/2OBeS', 'jamesparaiso@gmail.com', NULL, NULL, NULL, 'Active', 0, '2026-04-24 04:49:19', '2026-04-24 04:49:19');
+(15, NULL, 'James Kyle', NULL, 'Paraiso', 'jamesparaiso@gmail.com', '$2y$10$ev7h7BOjFbOzTzmsouDsduGzY17xZ5SVgGX4ipaCxhQVCK5/2OBeS', 'jamesparaiso@gmail.com', NULL, NULL, NULL, 'Active', 0, '2026-04-24 04:49:19', '2026-04-24 04:49:19'),
+(16, NULL, 'Nathaniel', NULL, 'Dgg', 'kuyapan@gmail.com', '$2y$10$XNmf7VcRxuaaR67YzxgrZOfsymksAYhfZ2sIfAsMQ2GwPOoGwbFNm', 'kuyapan@gmail.com', NULL, NULL, NULL, 'Active', 0, '2026-04-24 07:56:57', '2026-04-24 07:56:57'),
+(17, NULL, 'James Ryan', 'Kilang', 'Dela Cruz', 'kristopermbl23@gmail.com', '$2y$10$1BknNyFky1UPXEJGwzIKI.7ui8bAklnlhQsssQeYDpXWIRz62G8Xq', 'kristopermbl23@gmail.com', NULL, NULL, NULL, 'Active', 0, '2026-04-25 05:12:37', '2026-04-25 05:12:37');
 
 --
 -- Indexes for dumped tables
@@ -1467,7 +1534,7 @@ ALTER TABLE `addresses`
 -- AUTO_INCREMENT for table `appointments`
 --
 ALTER TABLE `appointments`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=129;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=136;
 
 --
 -- AUTO_INCREMENT for table `appointment_statuses`
@@ -1485,7 +1552,7 @@ ALTER TABLE `audit_logs`
 -- AUTO_INCREMENT for table `billing`
 --
 ALTER TABLE `billing`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=64;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=82;
 
 --
 -- AUTO_INCREMENT for table `dental_history`
@@ -1527,7 +1594,7 @@ ALTER TABLE `insurance_providers`
 -- AUTO_INCREMENT for table `medical_history`
 --
 ALTER TABLE `medical_history`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
 
 --
 -- AUTO_INCREMENT for table `medicines`
@@ -1545,7 +1612,7 @@ ALTER TABLE `notifications`
 -- AUTO_INCREMENT for table `patients`
 --
 ALTER TABLE `patients`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=124;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=134;
 
 --
 -- AUTO_INCREMENT for table `patient_files`
@@ -1593,7 +1660,7 @@ ALTER TABLE `prescription_items`
 -- AUTO_INCREMENT for table `queue`
 --
 ALTER TABLE `queue`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `queue_items`
@@ -1605,7 +1672,7 @@ ALTER TABLE `queue_items`
 -- AUTO_INCREMENT for table `queue_statuses`
 --
 ALTER TABLE `queue_statuses`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `religions`
@@ -1671,7 +1738,7 @@ ALTER TABLE `treatment_plan_details`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
 
 --
 -- Constraints for dumped tables

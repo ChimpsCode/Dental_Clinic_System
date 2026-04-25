@@ -16,13 +16,13 @@ if (session_status() === PHP_SESSION_NONE) {
 
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
-    header('Location: ../../login.php');
+    header('Location: ../../master/welcome-page/login.php');
     exit();
 }
 
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'user') {
     ob_end_clean();
-    header('Location: ../../login.php');
+    header('Location: ../../master/welcome-page/login.php');
     exit();
 }
 
@@ -201,6 +201,7 @@ $pageTitle = 'Account Settings';
             .dashboard-main { padding: 16px; }
         }
     </style>
+    <link rel="stylesheet" href="../../assets/css/patient_portal.css">
 </head>
 <body>
     <aside class="sidebar">
@@ -212,6 +213,10 @@ $pageTitle = 'Account Settings';
             <a href="patient-dashboard.php" class="menu-item">
                 <i class="fas fa-home"></i>
                 <span>Dashboard</span>
+            </a>
+            <a href="inquiry_consultation.php" class="menu-item">
+                <i class="fas fa-comments"></i>
+                <span>Inquiry / Consultation</span>
             </a>
             <a href="appointments.php" class="menu-item">
                 <i class="fas fa-calendar-alt"></i>
@@ -228,10 +233,6 @@ $pageTitle = 'Account Settings';
             <a href="billing.php" class="menu-item">
                 <i class="fas fa-credit-card"></i>
                 <span>Billing</span>
-            </a>
-            <a href="messages.php" class="menu-item">
-                <i class="fas fa-envelope"></i>
-                <span>Messages</span>
             </a>
             <a href="../shared/settings.php" class="menu-item active">
                 <i class="fas fa-cog"></i>
@@ -262,7 +263,7 @@ $pageTitle = 'Account Settings';
                     <div class="user-details">
                         <div class="user-name">
                             <?php 
-                                $displayName = trim($last ?: ($first ?: 'Patient'));
+                                $displayName = trim($first ?: 'Patient');
                                 echo htmlspecialchars($displayName);
                             ?>
                         </div>

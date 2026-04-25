@@ -26,6 +26,20 @@ function tableHasColumn(PDO $pdo, string $table, string $column): bool {
     return $cache[$key];
 }
 
+function findRoleId(PDO $pdo, string $roleName): ?int {
+    static $cache = [];
+    $key = strtolower($roleName);
+    if (array_key_exists($key, $cache)) {
+        return $cache[$key];
+    }
+
+    $stmt = $pdo->prepare("SELECT id FROM roles WHERE LOWER(role_name) = LOWER(?) LIMIT 1");
+    $stmt->execute([$roleName]);
+    $roleId = $stmt->fetchColumn();
+    $cache[$key] = $roleId !== false ? (int)$roleId : null;
+    return $cache[$key];
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     respond(false, 'Invalid request method.', 405);
 }
@@ -81,8 +95,18 @@ try {
 
     $pdo->beginTransaction();
 
-    $userColumns = ['username', 'password', 'email', 'role'];
-    $userValues = [$username, $passwordHash, $email, 'user'];
+    $userColumns = ['username', 'password', 'email'];
+    $userValues = [$username, $passwordHash, $email];
+
+    if (tableHasColumn($pdo, 'users', 'role_id')) {
+        $patientRoleId = findRoleId($pdo, 'Patient');
+        $userColumns[] = 'role_id';
+        $userValues[] = $patientRoleId;
+    } elseif (tableHasColumn($pdo, 'users', 'role')) {
+        $userColumns[] = 'role';
+        $userValues[] = 'user';
+    }
+
     if (tableHasColumn($pdo, 'users', 'phone')) {
         $userColumns[] = 'phone';
         $userValues[] = $phone;
@@ -90,6 +114,10 @@ try {
     if (tableHasColumn($pdo, 'users', 'first_name')) {
         $userColumns[] = 'first_name';
         $userValues[] = $firstName;
+    }
+    if (tableHasColumn($pdo, 'users', 'middle_name')) {
+        $userColumns[] = 'middle_name';
+        $userValues[] = $middleName !== '' ? $middleName : null;
     }
     if (tableHasColumn($pdo, 'users', 'last_name')) {
         $userColumns[] = 'last_name';
@@ -130,7 +158,10 @@ try {
         $patientColumns[] = 'email';
         $patientValues[] = $email;
     }
-    if (tableHasColumn($pdo, 'patients', 'registration_source')) {
+    if (tableHasColumn($pdo, 'patients', 'registration_source_id')) {
+        $patientColumns[] = 'registration_source_id';
+        $patientValues[] = null;
+    } elseif (tableHasColumn($pdo, 'patients', 'registration_source')) {
         $patientColumns[] = 'registration_source';
         $patientValues[] = 'self-register';
     }

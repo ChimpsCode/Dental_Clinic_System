@@ -264,6 +264,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             } else {
                 $role = strtolower($user['role_name'] ?? 'Admin');
             }
+            if ($role === 'patient') { $role = 'user'; }
             if ($role === 'administrator') { $role = 'admin'; }
             $_SESSION['role'] = $role;
             $_SESSION['user_role'] = $role;
@@ -289,9 +290,9 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             $firstNameOnly = explode(' ', $firstName)[0] ?? '';
             
             if ($role === 'dentist') {
-                $_SESSION['display_name'] = 'Dr. ' . $firstNameOnly . ' ' . $lastName;
+                $_SESSION['display_name'] = 'Dr. ' . trim($firstNameOnly ?: 'Dentist');
             } else {
-                $_SESSION['display_name'] = $firstNameOnly . ' ' . $lastName;
+                $_SESSION['display_name'] = trim($firstNameOnly ?: $user['username']);
             }
             
             // First login check (optional column)
@@ -324,7 +325,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             } elseif ($role === 'user') {
                 $redirect = '../user-patient/patient-dashboard.php';
             } else {
-                $redirect = 'dashboard.php';
+                $redirect = '../../dashboard.php';
             }
             $_SESSION['login_redirect'] = $redirect;
             echo json_encode(['success' => true, 'message' => 'Logged in successfully', 'redirect' => $redirect, 'role' => $role]);
@@ -389,6 +390,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 } else {
                     $role = strtolower($user['role_name'] ?? 'Admin');
                 }
+                if ($role === 'patient') { $role = 'user'; }
                 if ($role === 'administrator') { $role = 'admin'; }
                 $_SESSION['role'] = $role;
                 $_SESSION['user_role'] = $role;
@@ -414,9 +416,9 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 $firstNameOnly = explode(' ', $firstName)[0] ?? '';
                 
 if ($role === 'dentist') {
-                    $_SESSION['display_name'] = 'Dr. ' . $firstNameOnly . ' ' . $lastName;
+                    $_SESSION['display_name'] = 'Dr. ' . trim($firstNameOnly ?: 'Dentist');
                 } else {
-                    $_SESSION['display_name'] = $firstNameOnly . ' ' . $lastName;
+                    $_SESSION['display_name'] = trim($firstNameOnly ?: $user['username']);
                 }
                 
                 // First login check (optional column)
@@ -441,15 +443,15 @@ if ($role === 'dentist') {
                 
                 // Redirect based on role
                 if ($role === 'admin') {
-                    header('Location: master/admin/admin_dashboard.php');
+                    header('Location: ../admin/admin_dashboard.php');
                 } elseif ($role === 'staff') {
-                    header('Location: master/staff/staff-dashboard.php');
+                    header('Location: ../staff/staff-dashboard.php');
                 } elseif ($role === 'dentist') {
-                    header('Location: master/dentist/dentist_dashboard.php');
+                    header('Location: ../dentist/dentist_dashboard.php');
                 } elseif ($role === 'user') {
-                    header('Location: master/user-patient/patient-dashboard.php');
+                    header('Location: ../user-patient/patient-dashboard.php');
                 } else {
-                    header('Location: dashboard.php');
+                    header('Location: ../../dashboard.php');
                 }
                 exit();
             } else {

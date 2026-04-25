@@ -16,13 +16,13 @@ if (session_status() === PHP_SESSION_NONE) {
 
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
-    header('Location: ../../login.php');
+    header('Location: ../../master/welcome-page/login.php');
     exit();
 }
 
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'user') {
     ob_end_clean();
-    header('Location: ../../login.php');
+    header('Location: ../../master/welcome-page/login.php');
     exit();
 }
 
@@ -44,7 +44,7 @@ $patient = $stmt->fetch(PDO::FETCH_ASSOC);
 if ($patient) {
     $firstName = trim($patient['first_name'] ?? '');
     $lastName = trim($patient['last_name'] ?? '');
-    $patient_name = $lastName ?: 'Patient';
+    $patient_name = $firstName ?: 'Patient';
     // Avatar: First letter of first name + last name (e.g., "John Doe" → "JD")
     $avatar_initial = strtoupper(substr($firstName, 0, 1)) . strtoupper(substr($lastName, 0, 1));
 }
@@ -53,10 +53,9 @@ if ($patient) {
 $stmt = $pdo->prepare("
     SELECT a.*, 
            s.name as service_name,
-           aps.status_name
+           COALESCE(a.status, 'Scheduled') as status_name
     FROM appointments a
     LEFT JOIN services s ON a.service_id = s.id
-    LEFT JOIN appointment_statuses aps ON a.status_id = aps.id
     WHERE a.patient_id = ?
     ORDER BY a.appointment_date DESC, a.appointment_time DESC
 ");
@@ -247,6 +246,7 @@ $pageTitle = 'My Appointments';
             .apt-date { width: 100%; }
         }
     </style>
+    <link rel="stylesheet" href="../../assets/css/patient_portal.css">
 </head>
 <body>
     <aside class="sidebar">
@@ -258,6 +258,10 @@ $pageTitle = 'My Appointments';
             <a href="patient-dashboard.php" class="menu-item">
                 <i class="fas fa-home"></i>
                 <span>Dashboard</span>
+            </a>
+            <a href="inquiry_consultation.php" class="menu-item">
+                <i class="fas fa-comments"></i>
+                <span>Inquiry / Consultation</span>
             </a>
             <a href="appointments.php" class="menu-item active">
                 <i class="fas fa-calendar-alt"></i>
@@ -274,10 +278,6 @@ $pageTitle = 'My Appointments';
             <a href="billing.php" class="menu-item">
                 <i class="fas fa-credit-card"></i>
                 <span>Billing</span>
-            </a>
-            <a href="messages.php" class="menu-item">
-                <i class="fas fa-envelope"></i>
-                <span>Messages</span>
             </a>
             <a href="../shared/settings.php" class="menu-item">
                 <i class="fas fa-cog"></i>
@@ -299,7 +299,7 @@ $pageTitle = 'My Appointments';
                         <?php echo htmlspecialchars($avatar_initial ?? 'P'); ?>
                     </div>
                     <div class="user-details">
-                        <div class="user-name"><?php echo htmlspecialchars($patient_name); ?></div>
+                        <div class="user-name"><?php echo htmlspecialchars(trim((string)preg_split('/\s+/', trim($patient_name))[0] ?: 'Patient')); ?></div>
                         <div class="user-role">Patient</div>
                     </div>
                     <div class="dropdown-toggle"><i class="fas fa-chevron-down"></i></div>

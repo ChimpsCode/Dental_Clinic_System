@@ -18,14 +18,14 @@ if (session_status() === PHP_SESSION_NONE) {
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
-    header('Location: ../../login.php');
+    header('Location: ../../master/welcome-page/login.php');
     exit();
 }
 
 // Verify this is a patient (user role)
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'user') {
     ob_end_clean();
-    header('Location: ../../login.php');
+    header('Location: ../../master/welcome-page/login.php');
     exit();
 }
 
@@ -34,7 +34,7 @@ $user_id = $_SESSION['user_id'] ?? null;
 
 if (!$user_id) {
     ob_end_clean();
-    header('Location: ../../login.php');
+    header('Location: ../../master/welcome-page/login.php');
     exit();
 }
 
@@ -44,13 +44,68 @@ $patient_id = $_SESSION['patient_id'] ?? null;
 // Get patient details from database
 require_once '../../config/database.php';
 try {
-    $stmt = $pdo->prepare("
-        SELECT p.*, u.first_name, u.middle_name, u.last_name, u.email, u.phone
-        FROM patients p 
-        LEFT JOIN users u ON u.id = p.user_id 
-        WHERE p.user_id = ?
+    $userStmt = $pdo->prepare("
+        SELECT id, first_name, middle_name, last_name, email, phone
+        FROM users
+        WHERE id = ?
+        LIMIT 1
     ");
-    $stmt->execute([$user_id]);
+    $userStmt->execute([$user_id]);
+    $user = $userStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    $hasPatientUserId = (bool)$pdo->query("SHOW COLUMNS FROM patients LIKE 'user_id'")->fetch(PDO::FETCH_ASSOC);
+
+    if ($hasPatientUserId) {
+        $stmt = $pdo->prepare("
+            SELECT p.*, u.first_name, u.middle_name, u.last_name, u.email, u.phone
+            FROM patients p 
+            LEFT JOIN users u ON u.id = p.user_id 
+            WHERE p.user_id = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$user_id]);
+    } elseif (!empty($patient_id)) {
+        $stmt = $pdo->prepare("
+            SELECT p.*,
+                   ? AS first_name,
+                   ? AS middle_name,
+                   ? AS last_name,
+                   ? AS email,
+                   ? AS phone
+            FROM patients p
+            WHERE p.id = ?
+            LIMIT 1
+        ");
+        $stmt->execute([
+            $user['first_name'] ?? null,
+            $user['middle_name'] ?? null,
+            $user['last_name'] ?? null,
+            $user['email'] ?? null,
+            $user['phone'] ?? null,
+            (int)$patient_id,
+        ]);
+    } else {
+        $stmt = $pdo->prepare("
+            SELECT p.*,
+                   ? AS first_name,
+                   ? AS middle_name,
+                   ? AS last_name,
+                   ? AS email,
+                   ? AS phone
+            FROM patients p
+            WHERE p.email = ?
+            LIMIT 1
+        ");
+        $stmt->execute([
+            $user['first_name'] ?? null,
+            $user['middle_name'] ?? null,
+            $user['last_name'] ?? null,
+            $user['email'] ?? null,
+            $user['phone'] ?? null,
+            $user['email'] ?? '',
+        ]);
+    }
+
     $patient = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$patient) {
@@ -107,7 +162,7 @@ $pageTitle = 'Patient Dashboard';
 
         /* Sidebar Navigation */
         .sidebar {
-            width: 220px;
+            width: 260px;
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             padding: 32px 0;
             position: fixed;
@@ -181,7 +236,7 @@ $pageTitle = 'Patient Dashboard';
         /* Main Content Area */
         .main-wrapper {
             flex: 1;
-            margin-left: 220px;
+            margin-left: 260px;
             display: flex;
             flex-direction: column;
             min-height: 100vh;
@@ -313,8 +368,8 @@ $pageTitle = 'Patient Dashboard';
         /* Main Content */
         .dashboard-main {
             flex: 1;
-            padding: 24px 32px;
-            max-width: 1400px;
+            padding: 24px 32px 40px;
+            max-width: 1500px;
             width: 100%;
             margin: 0 auto;
         }
@@ -794,6 +849,7 @@ $pageTitle = 'Patient Dashboard';
             }
         }
     </style>
+    <link rel="stylesheet" href="../../assets/css/patient_portal.css">
 </head>
 <body>
     <!-- Sidebar -->
@@ -804,14 +860,18 @@ $pageTitle = 'Patient Dashboard';
         </a>
 
         <nav class="sidebar-menu">
-            <a href="#" class="menu-item active" data-page="dashboard">
-                <i class="fas fa-home"></i>
-                <span>Dashboard</span>
-            </a>
-            <a href="#" class="menu-item" data-page="appointments">
-                <i class="fas fa-calendar-alt"></i>
-                <span>My appointments</span>
-            </a>
+                <a href="#" class="menu-item active" data-page="dashboard">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="menu-item" data-page="inquiry">
+                    <i class="fas fa-comments"></i>
+                    <span>Inquiry / Consultation</span>
+                </a>
+                <a href="#" class="menu-item" data-page="appointments">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>My appointments</span>
+                </a>
             <a href="#" class="menu-item" data-page="records">
                 <i class="fas fa-file-medical"></i>
                 <span>Medical records</span>
@@ -823,10 +883,6 @@ $pageTitle = 'Patient Dashboard';
             <a href="#" class="menu-item" data-page="billing">
                 <i class="fas fa-credit-card"></i>
                 <span>Billing</span>
-            </a>
-            <a href="#" class="menu-item" data-page="messages">
-                <i class="fas fa-envelope"></i>
-                <span>Messages</span>
             </a>
             <a href="#" class="menu-item" data-page="settings">
                 <i class="fas fa-cog"></i>
@@ -863,7 +919,7 @@ $pageTitle = 'Patient Dashboard';
                         ?>
                     </div>
                     <div class="user-details">
-                        <div class="user-name"><?php echo htmlspecialchars(trim($last ?: ($first ?: 'Patient'))); ?></div>
+                        <div class="user-name"><?php echo htmlspecialchars(trim($first ?: 'Patient')); ?></div>
                         <div class="user-role">Patient</div>
                     </div>
                     <div class="dropdown-toggle">
@@ -1081,6 +1137,9 @@ $pageTitle = 'Patient Dashboard';
                         case 'appointments':
                             window.location.href = './appointments.php';
                             break;
+                        case 'inquiry':
+                            window.location.href = './inquiry_consultation.php';
+                            break;
                         case 'records':
                             window.location.href = './medical_records.php';
                             break;
@@ -1089,9 +1148,6 @@ $pageTitle = 'Patient Dashboard';
                             break;
                         case 'billing':
                             window.location.href = './billing.php';
-                            break;
-                        case 'messages':
-                            window.location.href = './messages.php';
                             break;
                         case 'settings':
                             window.location.href = './settings.php';

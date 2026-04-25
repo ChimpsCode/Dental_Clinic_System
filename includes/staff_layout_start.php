@@ -17,13 +17,13 @@ if (session_status() === PHP_SESSION_NONE) {
 
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
-    header('Location: login.php');
+    header('Location: ../../master/welcome-page/login.php');
     exit();
 }
 
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'staff') {
     ob_end_clean();
-    header('Location: login.php');
+    header('Location: ../../master/welcome-page/login.php');
     exit();
 }
 
@@ -39,17 +39,12 @@ if (preg_match('/^Dr\.?\s+/i', $displayName, $matches)) {
     $cleanName = $displayName;
 }
 
-// Split the clean name into parts to get First and Last name
+// Show only the first name in the profile header.
 $nameParts = array_values(array_filter(explode(' ', $cleanName)));
 
-if (count($nameParts) > 1) {
-    // Has multiple names: combine the first index and the last index
-    $processedName = $nameParts[0] . ' ' . end($nameParts);
-} elseif (count($nameParts) === 1) {
-    // Only has one name
+if (count($nameParts) >= 1) {
     $processedName = $nameParts[0];
 } else {
-    // Fallback if empty
     $processedName = $username;
 }
 

@@ -1,6 +1,6 @@
 <?php
-// Redirect to home page
-header('Location: home.php');
+// Redirect to the actual welcome page entry point.
+header('Location: master/welcome-page/home.php');
 exit();
 ?>
 
