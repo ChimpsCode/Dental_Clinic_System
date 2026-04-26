@@ -129,10 +129,105 @@ try {
     ");
     $stmt->execute([$patient_id]);
     $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $upcomingCount = count($appointments);
+    $nextAppointment = $appointments[0] ?? null;
+    $activeInquiryCount = 0;
+    $queueStatusText = 'No active queue today';
+    $queueNumberText = 'None';
+    $billingSummaryText = 'No balance';
+    $recentActivity = [];
+
+    $hasInquiries = (bool)$pdo->query("SHOW TABLES LIKE 'inquiries'")->fetch(PDO::FETCH_ASSOC);
+    if ($hasInquiries) {
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) 
+            FROM inquiries 
+            WHERE patient_id = ? 
+              AND COALESCE(is_archived, 0) = 0
+              AND LOWER(COALESCE(status, 'pending')) NOT IN ('resolved', 'closed', 'completed', 'cancelled')
+        ");
+        $stmt->execute([$patient_id]);
+        $activeInquiryCount = (int)$stmt->fetchColumn();
+
+        $stmt = $pdo->prepare("
+            SELECT id, created_at, concern, inquiry_message, status
+            FROM inquiries
+            WHERE patient_id = ? AND COALESCE(is_archived, 0) = 0
+            ORDER BY created_at DESC, id DESC
+            LIMIT 3
+        ");
+        $stmt->execute([$patient_id]);
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $recentActivity[] = [
+                'title' => 'Inquiry submitted',
+                'date' => $row['created_at'] ?? '',
+                'details' => trim((string)($row['concern'] ?: ($row['inquiry_message'] ?: ($row['status'] ?: 'Consultation request sent.')))),
+                'icon' => 'fas fa-comments'
+            ];
+        }
+    }
+
+    $hasQueue = (bool)$pdo->query("SHOW TABLES LIKE 'queue'")->fetch(PDO::FETCH_ASSOC);
+    if ($hasQueue) {
+        $stmt = $pdo->prepare("
+            SELECT q.*
+            FROM queue q
+            WHERE q.patient_id = ?
+              AND DATE(q.created_at) = CURDATE()
+              AND COALESCE(q.is_archived, 0) = 0
+            ORDER BY q.created_at DESC, q.id DESC
+            LIMIT 1
+        ");
+        $stmt->execute([$patient_id]);
+        $queueItem = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($queueItem) {
+            $queueNumberText = '#' . str_pad((string)$queueItem['id'], 3, '0', STR_PAD_LEFT);
+            $queueStatusText = !empty($queueItem['treatment_type'])
+                ? 'In queue for ' . $queueItem['treatment_type']
+                : 'Checked in today';
+        }
+    }
+
+    $hasBilling = (bool)$pdo->query("SHOW TABLES LIKE 'billing'")->fetch(PDO::FETCH_ASSOC);
+    if ($hasBilling) {
+        $stmt = $pdo->prepare("
+            SELECT SUM(GREATEST(COALESCE(balance, 0), COALESCE(total_amount, 0) - COALESCE(paid_amount, 0))) AS outstanding
+            FROM billing
+            WHERE patient_id = ?
+        ");
+        $stmt->execute([$patient_id]);
+        $outstanding = (float)($stmt->fetchColumn() ?: 0);
+        if ($outstanding > 0) {
+            $billingSummaryText = 'PHP ' . number_format($outstanding, 2);
+        }
+    }
+
+    if (count($recentActivity) < 4) {
+        foreach ($appointments as $apt) {
+            $recentActivity[] = [
+                'title' => 'Appointment scheduled',
+                'date' => $apt['created_at'] ?? ($apt['appointment_date'] ?? ''),
+                'details' => (!empty($apt['appointment_date']) ? date('M j, Y', strtotime($apt['appointment_date'])) : 'Upcoming appointment')
+                    . (!empty($apt['appointment_time']) ? ' at ' . date('g:i A', strtotime($apt['appointment_time'])) : ''),
+                'icon' => 'fas fa-calendar-check'
+            ];
+            if (count($recentActivity) >= 4) {
+                break;
+            }
+        }
+    }
     
 } catch (Exception $e) {
     $patient = [];
     $appointments = [];
+    $upcomingCount = 0;
+    $nextAppointment = null;
+    $activeInquiryCount = 0;
+    $queueStatusText = 'No active queue today';
+    $queueNumberText = 'None';
+    $billingSummaryText = 'No balance';
+    $recentActivity = [];
 }
 
 $pageTitle = 'Patient Dashboard';
@@ -435,6 +530,59 @@ $pageTitle = 'Patient Dashboard';
             transform: translateY(-2px);
         }
 
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .summary-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .summary-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .summary-card-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .summary-card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #eff6ff;
+            color: #005daa;
+        }
+
+        .summary-card-value {
+            font-size: 26px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 6px;
+        }
+
+        .summary-card-subtext {
+            font-size: 13px;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
         /* Dashboard Grid */
         .dashboard-grid {
             display: grid;
@@ -723,6 +871,80 @@ $pageTitle = 'Patient Dashboard';
             font-weight: 600;
         }
 
+        .quick-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+
+        .quick-action-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 8px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            color: #1a1a2e;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .quick-action-btn:hover {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #005daa;
+        }
+
+        .activity-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .activity-icon-wrap {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: #eff6ff;
+            color: #005daa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .activity-content strong {
+            display: block;
+            font-size: 13px;
+            color: #1a1a2e;
+            margin-bottom: 4px;
+        }
+
+        .activity-content span,
+        .activity-content small {
+            display: block;
+            color: #6b7280;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
         /* Responsive */
         @media (max-width: 1200px) {
             .dashboard-main {
@@ -731,6 +953,10 @@ $pageTitle = 'Patient Dashboard';
 
             .dashboard-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .summary-cards {
+                grid-template-columns: repeat(2, 1fr);
             }
 
             .welcome-section {
@@ -846,6 +1072,11 @@ $pageTitle = 'Patient Dashboard';
                 gap: 16px;
             }
 
+            .summary-cards {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
             .dashboard-header {
                 justify-content: flex-end;
             }
@@ -891,10 +1122,6 @@ $pageTitle = 'Patient Dashboard';
             <a href="#" class="menu-item" data-page="records">
                 <i class="fas fa-file-medical"></i>
                 <span>Medical records</span>
-            </a>
-            <a href="#" class="menu-item" data-page="profile">
-                <i class="fas fa-user"></i>
-                <span>My profile</span>
             </a>
             <a href="#" class="menu-item" data-page="billing">
                 <i class="fas fa-credit-card"></i>
@@ -963,10 +1190,50 @@ $pageTitle = 'Patient Dashboard';
                     <h1>Welcome Back, <?php echo htmlspecialchars($patient['first_name'] ?? 'Patient'); ?>!</h1>
                     <p>Track your oral wellness journey and manage your dental plan details below.</p>
                 </div>
-                <a href="#book-appointment" class="btn">
+                <a href="appointments.php" class="btn">
                     <i class="fas fa-calendar-plus"></i>
                     Book a New Appointment
                 </a>
+            </section>
+
+            <section class="summary-cards">
+                <article class="summary-card">
+                    <div class="summary-card-top">
+                        <div class="summary-card-title">Upcoming Appointments</div>
+                        <div class="summary-card-icon"><i class="fas fa-calendar-alt"></i></div>
+                    </div>
+                    <div class="summary-card-value"><?php echo (int)$upcomingCount; ?></div>
+                    <div class="summary-card-subtext">
+                        <?php echo $nextAppointment ? htmlspecialchars(date('M j, Y', strtotime($nextAppointment['appointment_date'])) . ' at ' . date('g:i A', strtotime($nextAppointment['appointment_time']))) : 'No upcoming appointment scheduled.'; ?>
+                    </div>
+                </article>
+
+                <article class="summary-card">
+                    <div class="summary-card-top">
+                        <div class="summary-card-title">Active Inquiries</div>
+                        <div class="summary-card-icon"><i class="fas fa-comments"></i></div>
+                    </div>
+                    <div class="summary-card-value"><?php echo (int)$activeInquiryCount; ?></div>
+                    <div class="summary-card-subtext">Open consultation requests waiting for clinic updates.</div>
+                </article>
+
+                <article class="summary-card">
+                    <div class="summary-card-top">
+                        <div class="summary-card-title">Queue Status</div>
+                        <div class="summary-card-icon"><i class="fas fa-ticket-alt"></i></div>
+                    </div>
+                    <div class="summary-card-value"><?php echo htmlspecialchars($queueNumberText); ?></div>
+                    <div class="summary-card-subtext"><?php echo htmlspecialchars($queueStatusText); ?></div>
+                </article>
+
+                <article class="summary-card">
+                    <div class="summary-card-top">
+                        <div class="summary-card-title">Billing Summary</div>
+                        <div class="summary-card-icon"><i class="fas fa-credit-card"></i></div>
+                    </div>
+                    <div class="summary-card-value"><?php echo htmlspecialchars($billingSummaryText); ?></div>
+                    <div class="summary-card-subtext">Latest balance overview from your billing records.</div>
+                </article>
             </section>
 
             <!-- Dashboard Grid -->
@@ -990,11 +1257,51 @@ $pageTitle = 'Patient Dashboard';
 
                 <!-- Right Sidebar -->
                 <div>
+                    <section class="sidebar-card">
+                        <h3 class="sidebar-card-title">Quick Actions</h3>
+                        <div class="quick-actions">
+                            <a href="appointments.php" class="quick-action-btn">
+                                <i class="fas fa-calendar-plus"></i>
+                                <span>Book Appointment</span>
+                            </a>
+                            <a href="inquiry_consultation.php" class="quick-action-btn">
+                                <i class="fas fa-comments"></i>
+                                <span>Submit Inquiry</span>
+                            </a>
+                            <a href="medical_records.php" class="quick-action-btn">
+                                <i class="fas fa-file-medical"></i>
+                                <span>View Medical Records</span>
+                            </a>
+                        </div>
+                    </section>
+
+                    <section class="sidebar-card">
+                        <h3 class="sidebar-card-title">Recent Activity</h3>
+                        <?php if (!empty($recentActivity)): ?>
+                            <ul class="activity-list">
+                                <?php foreach ($recentActivity as $activity): ?>
+                                    <li class="activity-item">
+                                        <div class="activity-icon-wrap"><i class="<?php echo htmlspecialchars($activity['icon']); ?>"></i></div>
+                                        <div class="activity-content">
+                                            <strong><?php echo htmlspecialchars($activity['title']); ?></strong>
+                                            <span><?php echo htmlspecialchars($activity['details']); ?></span>
+                                            <?php if (!empty($activity['date'])): ?>
+                                                <small><?php echo htmlspecialchars(date('M j, Y g:i A', strtotime($activity['date']))); ?></small>
+                                            <?php endif; ?>
+                                        </div>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php else: ?>
+                            <div class="empty-message">No recent activity yet.</div>
+                        <?php endif; ?>
+                    </section>
+
                     <!-- Upcoming Appointments -->
                     <section class="sidebar-card">
                         <div class="sidebar-card-title">
                             <span>Upcoming Appointments</span>
-                            <a href="#" class="view-link">View All</a>
+                            <a href="appointments.php" class="view-link">View All</a>
                         </div>
                         <?php if (!empty($appointments)): ?>
                             <ul class="appointment-list">

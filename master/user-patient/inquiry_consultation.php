@@ -135,21 +135,21 @@ $pageTitle = 'Inquiry / Consultation';
     <link rel="stylesheet" href="../../assets/css/patient_portal.css">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Inter', sans-serif; background: #f3f4f6; min-height: 100vh; display: flex; }
-        .sidebar { width: 260px; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; }
-        .main-wrapper { flex: 1; margin-left: 260px; min-height: 100vh; display: flex; flex-direction: column; }
-        .dashboard-header { position: sticky; top: 0; z-index: 20; display: flex; justify-content: space-between; align-items: center; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: #f5f7fa; min-height: 100vh; display: flex; }
+        .sidebar { width: 220px; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; }
+        .main-wrapper { flex: 1; margin-left: 220px; min-height: 100vh; display: flex; flex-direction: column; }
+        .dashboard-header { background: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 50; height: 70px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .header-right { display: flex; align-items: center; gap: 16px; }
-        .notification-bell { font-size: 20px; }
+        .notification-bell { font-size: 20px; color: #6b7280; }
         .user-profile { position: relative; display: flex; align-items: center; gap: 12px; }
-        .user-avatar { width: 40px; height: 40px; border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+        .user-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #005daa, #0571ca); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; }
         .user-details { display: flex; flex-direction: column; }
         .dropdown-toggle { color: #6b7280; }
         .user-dropdown { position: absolute; top: calc(100% + 8px); right: 0; background: #fff; border-radius: 10px; min-width: 180px; box-shadow: 0 12px 28px rgba(15, 23, 42, 0.15); border: 1px solid #e5e7eb; opacity: 0; visibility: hidden; transform: translateY(-8px); transition: all 0.2s ease; }
         .user-profile:hover .user-dropdown { opacity: 1; visibility: visible; transform: translateY(0); }
         .dropdown-item { display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: #374151; text-decoration: none; }
         .dropdown-item.logout { border-top: 1px solid #e5e7eb; color: #dc2626; }
-        .dashboard-main { padding: 24px 32px 40px; width: 100%; max-width: 1500px; margin: 0 auto; }
+        .dashboard-main { flex: 1; padding: 24px 32px 40px; width: 100%; max-width: 1500px; margin: 0 auto; }
         .top-layout {
             display: grid;
             grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.95fr);
@@ -335,7 +335,8 @@ $pageTitle = 'Inquiry / Consultation';
         @media (max-width: 768px) {
             .sidebar { width: 60px; }
             .main-wrapper { margin-left: 60px; }
-            .dashboard-main { padding: 18px 16px 32px; }
+            .dashboard-header { padding: 12px 16px; height: 60px; }
+            .dashboard-main { padding: 16px; }
             .info-grid,
             .field-grid,
             .modal-body { grid-template-columns: 1fr; }
@@ -366,15 +367,11 @@ $pageTitle = 'Inquiry / Consultation';
                 <i class="fas fa-file-medical"></i>
                 <span>Medical records</span>
             </a>
-            <a href="profile.php" class="menu-item">
-                <i class="fas fa-user"></i>
-                <span>My profile</span>
-            </a>
             <a href="billing.php" class="menu-item">
                 <i class="fas fa-credit-card"></i>
                 <span>Billing</span>
             </a>
-            <a href="../shared/settings.php" class="menu-item">
+            <a href="settings.php" class="menu-item">
                 <i class="fas fa-cog"></i>
                 <span>Account settings</span>
             </a>
@@ -384,8 +381,8 @@ $pageTitle = 'Inquiry / Consultation';
     <div class="main-wrapper">
         <header class="dashboard-header">
             <div class="header-left">
-                <h1 style="font-size: 1.4rem; font-weight: 700; color: #111827; margin: 0;">Inquiry / Consultation</h1>
-                <p style="font-size: 1rem; color: #111827; margin: 4px 0 0;">Send a consultation request and track your inquiry status.</p>
+                <h1 style="font-size: 20px; font-weight: 700; color: #1a1a2e; margin: 0;">Inquiry / Consultation</h1>
+                <p style="font-size: 13px; color: #6b7280; margin: 4px 0 0;">Send a consultation request and track your inquiry status.</p>
             </div>
             <div class="header-right">
                 <div class="notification-bell"><i class="fas fa-bell"></i></div>

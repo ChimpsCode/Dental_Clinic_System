@@ -179,15 +179,11 @@ $pageTitle = 'Medical Records';
                 <i class="fas fa-file-medical"></i>
                 <span>Medical records</span>
             </a>
-            <a href="profile.php" class="menu-item">
-                <i class="fas fa-user"></i>
-                <span>My profile</span>
-            </a>
             <a href="billing.php" class="menu-item">
                 <i class="fas fa-credit-card"></i>
                 <span>Billing</span>
             </a>
-            <a href="../shared/settings.php" class="menu-item">
+            <a href="settings.php" class="menu-item">
                 <i class="fas fa-cog"></i>
                 <span>Account settings</span>
             </a>

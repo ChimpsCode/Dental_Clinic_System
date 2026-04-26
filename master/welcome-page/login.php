@@ -60,6 +60,87 @@ function verifyAndUpgradePassword($pdo, array $user, string $inputPassword): boo
     return false;
 }
 
+function ensurePatientRecordForUser(PDO $pdo, array $user): ?int {
+    if (tableHasColumn($pdo, 'patients', 'user_id')) {
+        $patientStmt = $pdo->prepare("SELECT id FROM patients WHERE user_id = ? LIMIT 1");
+        $patientStmt->execute([(int)$user['id']]);
+        $patient = $patientStmt->fetch(PDO::FETCH_ASSOC);
+        if ($patient) {
+            return (int)$patient['id'];
+        }
+    }
+
+    $email = trim((string)($user['email'] ?? ''));
+    if ($email !== '') {
+        $patientStmt = $pdo->prepare("SELECT id FROM patients WHERE email = ? LIMIT 1");
+        $patientStmt->execute([$email]);
+        $patient = $patientStmt->fetch(PDO::FETCH_ASSOC);
+        if ($patient) {
+            return (int)$patient['id'];
+        }
+    }
+
+    $patientColumns = [];
+    $patientValues = [];
+
+    if (tableHasColumn($pdo, 'patients', 'first_name')) {
+        $patientColumns[] = 'first_name';
+        $patientValues[] = trim((string)($user['first_name'] ?? 'Patient')) ?: 'Patient';
+    }
+    if (tableHasColumn($pdo, 'patients', 'middle_name')) {
+        $middleName = trim((string)($user['middle_name'] ?? ''));
+        $patientColumns[] = 'middle_name';
+        $patientValues[] = $middleName !== '' ? $middleName : null;
+    }
+    if (tableHasColumn($pdo, 'patients', 'last_name')) {
+        $lastName = trim((string)($user['last_name'] ?? ''));
+        $patientColumns[] = 'last_name';
+        $patientValues[] = $lastName !== '' ? $lastName : 'Patient';
+    }
+    if (tableHasColumn($pdo, 'patients', 'email')) {
+        $patientColumns[] = 'email';
+        $patientValues[] = $email !== '' ? $email : null;
+    }
+    if (tableHasColumn($pdo, 'patients', 'phone')) {
+        $phone = trim((string)($user['phone'] ?? ''));
+        $patientColumns[] = 'phone';
+        $patientValues[] = $phone !== '' ? $phone : null;
+    }
+    if (tableHasColumn($pdo, 'patients', 'gender')) {
+        $gender = trim((string)($user['gender'] ?? ''));
+        $normalizedGender = in_array($gender, ['Male', 'Female'], true) ? $gender : null;
+        $patientColumns[] = 'gender';
+        $patientValues[] = $normalizedGender;
+    }
+    if (tableHasColumn($pdo, 'patients', 'date_of_birth')) {
+        $dob = trim((string)($user['date_of_birth'] ?? ''));
+        $patientColumns[] = 'date_of_birth';
+        $patientValues[] = $dob !== '' ? $dob : null;
+    }
+    if (tableHasColumn($pdo, 'patients', 'registration_source_id')) {
+        $patientColumns[] = 'registration_source_id';
+        $patientValues[] = null;
+    } elseif (tableHasColumn($pdo, 'patients', 'registration_source')) {
+        $patientColumns[] = 'registration_source';
+        $patientValues[] = 'self-register';
+    }
+    if (tableHasColumn($pdo, 'patients', 'user_id')) {
+        $patientColumns[] = 'user_id';
+        $patientValues[] = (int)$user['id'];
+    }
+
+    if (empty($patientColumns)) {
+        return null;
+    }
+
+    $placeholders = implode(', ', array_fill(0, count($patientColumns), '?'));
+    $sql = "INSERT INTO patients (" . implode(', ', $patientColumns) . ") VALUES (" . $placeholders . ")";
+    $insertStmt = $pdo->prepare($sql);
+    $insertStmt->execute($patientValues);
+
+    return (int)$pdo->lastInsertId();
+}
+
 // Determine where to go back to
 $referrer = $_SERVER['HTTP_REFERER'] ?? 'home.php';
 // Only allow internal pages
@@ -271,16 +352,9 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             
             // Get patient_id if this is a user role
             if ($role === 'user') {
-                if (tableHasColumn($pdo, 'patients', 'user_id')) {
-                    $patientStmt = $pdo->prepare("SELECT id FROM patients WHERE user_id = ? LIMIT 1");
-                    $patientStmt->execute([$user['id']]);
-                } else {
-                    $patientStmt = $pdo->prepare("SELECT id FROM patients WHERE email = ? LIMIT 1");
-                    $patientStmt->execute([$user['email'] ?? '']);
-                }
-                $patient = $patientStmt->fetch(PDO::FETCH_ASSOC);
-                if ($patient) {
-                    $_SESSION['patient_id'] = $patient['id'];
+                $patientId = ensurePatientRecordForUser($pdo, $user);
+                if ($patientId) {
+                    $_SESSION['patient_id'] = $patientId;
                 }
             }
             
@@ -397,16 +471,9 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 
                 // Get patient_id if this is a user role
                 if ($role === 'user') {
-                    if (tableHasColumn($pdo, 'patients', 'user_id')) {
-                        $patientStmt = $pdo->prepare("SELECT id FROM patients WHERE user_id = ? LIMIT 1");
-                        $patientStmt->execute([$user['id']]);
-                    } else {
-                        $patientStmt = $pdo->prepare("SELECT id FROM patients WHERE email = ? LIMIT 1");
-                        $patientStmt->execute([$user['email'] ?? '']);
-                    }
-                    $patient = $patientStmt->fetch(PDO::FETCH_ASSOC);
-                    if ($patient) {
-                        $_SESSION['patient_id'] = $patient['id'];
+                    $patientId = ensurePatientRecordForUser($pdo, $user);
+                    if ($patientId) {
+                        $_SESSION['patient_id'] = $patientId;
                     }
                 }
                 

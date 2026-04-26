@@ -829,27 +829,23 @@ $pageTitle = 'Patient Dashboard';
         </a>
 
         <nav class="sidebar-menu">
-            <a href="#" class="menu-item active" data-page="dashboard">
+            <a href="patient-dashboard.php" class="menu-item active">
                 <i class="fas fa-home"></i>
                 <span>Dashboard</span>
             </a>
-            <a href="#" class="menu-item" data-page="inquiry">
+            <a href="inquiry_consultation.php" class="menu-item">
                 <i class="fas fa-comments"></i>
                 <span>Inquiry / Consultation</span>
             </a>
-            <a href="#" class="menu-item" data-page="appointments">
+            <a href="appointments.php" class="menu-item">
                 <i class="fas fa-calendar-alt"></i>
                 <span>My appointments</span>
             </a>
-            <a href="#" class="menu-item" data-page="records">
+            <a href="medical_records.php" class="menu-item">
                 <i class="fas fa-file-medical"></i>
                 <span>Medical records</span>
             </a>
-            <a href="#" class="menu-item" data-page="profile">
-                <i class="fas fa-user"></i>
-                <span>My profile</span>
-            </a>
-            <a href="#" class="menu-item" data-page="billing">
+            <a href="billing.php" class="menu-item">
                 <i class="fas fa-credit-card"></i>
                 <span>Billing</span>
             </a>

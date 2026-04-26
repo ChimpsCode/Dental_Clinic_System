@@ -695,12 +695,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Show success toast
                     showToast('Success', 'Login successful!', 'success');
                     
-                    // Wait 2 seconds for user to see animation
-                    console.log('Waiting 2 seconds before redirect...');
+                    const targetRedirect = data.redirect
+                        ? new URL(data.redirect, window.location.href).toString()
+                        : new URL('../../dashboard.php', window.location.href).toString();
+
+                    loginBtn.disabled = true;
+                    console.log('Resolved redirect target:', targetRedirect);
+
                     setTimeout(() => {
-                        console.log('Redirecting to:', data.redirect || 'admin_dashboard.php');
-                        // Redirect based on user role (admin or staff)
-                        window.location.href = data.redirect || 'admin_dashboard.php';
+                        console.log('Redirecting to:', targetRedirect);
+                        window.location.replace(targetRedirect);
                     }, 1000);
                 } else {
                     console.log('=== LOGIN FAILED ===');

@@ -411,12 +411,6 @@ if ($action === 'create') {
         $email = trim($patient['email'] ?: ($patient['user_email'] ?? ''));
         $patientId = (int)$patient['id'];
         $source = 'Patient Portal';
-    } elseif (inquiryCanManage($role)) {
-        $fullName = trim($_POST['full_name'] ?? '');
-        $phone = trim($_POST['phone'] ?? '');
-        $email = trim($_POST['email'] ?? '');
-        $patientId = !empty($_POST['patient_id']) ? (int)$_POST['patient_id'] : null;
-        $source = trim($_POST['source'] ?? 'Staff Dashboard');
     } else {
         inquiryJson(['success' => false, 'message' => 'Unauthorized.']);
     }

@@ -6,38 +6,6 @@ require_once '../../includes/inquiry_module_helper.php';
 
 ensureInquiryModuleSchema($pdo);
 
-$statusFilter = trim($_GET['status'] ?? '');
-$serviceFilter = (int)($_GET['service_id'] ?? 0);
-$dateFilter = trim($_GET['date'] ?? '');
-$search = trim($_GET['search'] ?? '');
-
-$where = ["COALESCE(i.is_archived, 0) = 0"];
-$params = [];
-
-if ($statusFilter !== '' && in_array($statusFilter, getInquiryStatuses(), true)) {
-    $where[] = "i.status = ?";
-    $params[] = $statusFilter;
-}
-
-if ($serviceFilter > 0) {
-    $where[] = "i.service_id = ?";
-    $params[] = $serviceFilter;
-}
-
-if ($dateFilter !== '') {
-    $where[] = "DATE(i.created_at) = ?";
-    $params[] = $dateFilter;
-}
-
-if ($search !== '') {
-    $where[] = "(COALESCE(i.full_name, '') LIKE ? OR COALESCE(i.phone, '') LIKE ? OR COALESCE(i.email, '') LIKE ? OR COALESCE(i.concern, i.inquiry_message, '') LIKE ? OR COALESCE(s.name, '') LIKE ?)";
-    for ($i = 0; $i < 5; $i++) {
-        $params[] = '%' . $search . '%';
-    }
-}
-
-$whereSql = 'WHERE ' . implode(' AND ', $where);
-
 $query = "
     SELECT i.*,
            s.name AS service_name,
@@ -47,170 +15,234 @@ $query = "
     FROM inquiries i
     LEFT JOIN services s ON s.id = i.service_id
     LEFT JOIN users ass ON ass.id = i.assigned_staff_id
-    $whereSql
+    WHERE COALESCE(i.is_archived, 0) = 0
     ORDER BY i.created_at DESC, i.id DESC
 ";
 $stmt = $pdo->prepare($query);
-$stmt->execute($params);
+$stmt->execute();
 $inquiries = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-$allStats = $pdo->query("
-    SELECT status, created_at, preferred_date
-    FROM inquiries
-    WHERE COALESCE(is_archived, 0) = 0
-")->fetchAll(PDO::FETCH_ASSOC);
 
 $services = fetchInquiryServices($pdo);
 $staffMembers = fetchAssignableStaff($pdo);
-
-$summary = [
-    'total' => count($allStats),
-    'pending' => count(array_filter($allStats, fn($row) => ($row['status'] ?? '') === 'Pending')),
-    'scheduled_today' => count(array_filter($allStats, function ($row) {
-        $date = $row['preferred_date'] ?: substr((string)($row['created_at'] ?? ''), 0, 10);
-        return ($row['status'] ?? '') === 'Scheduled' && $date === date('Y-m-d');
-    })),
-    'completed' => count(array_filter($allStats, fn($row) => ($row['status'] ?? '') === 'Completed')),
-];
+$statuses = ['Pending', 'Contacted', 'Scheduled', 'Completed', 'Cancelled'];
 
 require_once '../../includes/staff_layout_start.php';
 ?>
 <style>
-.summary-cards {
+.page-shell {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 18px;
-    margin-bottom: 24px;
+    gap: 22px;
 }
-.summary-card {
-    background: #fff;
+.page-card,
+.table-card,
+.empty-state-card,
+.modal-card {
+    background: #ffffff;
     border: 1px solid #e5e7eb;
-    border-radius: 18px;
-    padding: 20px;
-    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.05);
+    border-radius: 24px;
+    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.06);
+}
+.page-card {
+    padding: 24px;
+}
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 18px;
+}
+.page-title-wrap h1 {
+    margin: 0;
+    font-size: 1.9rem;
+    color: #0f172a;
+    font-weight: 800;
+}
+.page-title-wrap p {
+    margin: 8px 0 0;
+    color: #64748b;
+    font-size: 1rem;
+}
+.header-actions {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
+    width: min(540px, 100%);
 }
-.summary-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 16px;
+.search-wrap {
+    position: relative;
+    flex: 1;
+}
+.search-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    pointer-events: none;
+    z-index: 1;
+    width: 18px;
+    height: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
 }
-.summary-icon svg {
-    width: 26px;
-    height: 26px;
-}
-.summary-info h3 {
-    font-size: 1.8rem;
-    color: #0f172a;
-    margin: 0;
-}
-.summary-info p {
-    margin: 4px 0 0;
-    color: #64748b;
-    font-size: 0.95rem;
-}
-.module-shell {
-    display: grid;
-    gap: 24px;
-}
-.toolbar-card,
-.table-card,
-.empty-card {
+.search-input,
+.filter-select,
+.filter-input,
+.form-input,
+.form-select,
+.form-textarea {
+    width: 100%;
+    border: 1px solid #dbe2ea;
+    border-radius: 16px;
     background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 20px;
-    box-shadow: 0 18px 34px rgba(15, 23, 42, 0.05);
-}
-.toolbar-card {
-    padding: 22px;
-}
-.toolbar-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 18px;
-}
-.toolbar-title h2 {
-    margin: 0;
-    color: #0f172a;
-    font-size: 1.55rem;
-}
-.toolbar-title p {
-    margin: 6px 0 0;
-    color: #64748b;
-}
-.toolbar-actions {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-}
-.search-input {
-    width: min(420px, 100%);
-    border: 1px solid #d1d5db;
-    border-radius: 14px;
     padding: 13px 16px;
     font: inherit;
+    color: #0f172a;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
-.filter-row {
-    display: grid;
-    grid-template-columns: 1.25fr repeat(3, minmax(0, 180px));
-    gap: 14px;
+.search-input {
+    padding-left: 44px;
 }
-.filter-input,
-.filter-select,
-.filter-date {
-    width: 100%;
-    border: 1px solid #d1d5db;
-    border-radius: 14px;
-    padding: 13px 14px;
-    font: inherit;
-    background: #fff;
+.search-input:focus,
+.filter-select:focus,
+.filter-input:focus,
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+    outline: none;
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
 }
 .btn-primary,
 .btn-secondary,
+.btn-ghost,
 .btn-danger {
     border: none;
-    border-radius: 14px;
+    border-radius: 16px;
     padding: 12px 18px;
     font: inherit;
     font-weight: 700;
     cursor: pointer;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
 }
-.btn-primary { background: #2563eb; color: #fff; }
-.btn-secondary { background: #eef2ff; color: #1d4ed8; }
-.btn-danger { background: #fee2e2; color: #b91c1c; }
-.table-card { padding: 8px 0 0; overflow: hidden; }
-.table-wrap { overflow-x: auto; }
-.data-table { width: 100%; border-collapse: collapse; min-width: 1280px; }
-.data-table th {
-    text-align: left;
-    padding: 18px 24px;
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+.btn-primary:hover,
+.btn-secondary:hover,
+.btn-ghost:hover,
+.btn-danger:hover {
+    transform: translateY(-1px);
+}
+.btn-primary {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: #fff;
+    box-shadow: 0 16px 28px rgba(37, 99, 235, 0.22);
+}
+.btn-secondary {
+    background: #eef4ff;
+    color: #1d4ed8;
+}
+.btn-ghost {
+    background: #f8fafc;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+}
+.btn-danger {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+.filters-card {
+    display: grid;
+    gap: 14px;
+}
+.filter-row {
+    display: grid;
+    grid-template-columns: 1fr 220px 220px 220px;
+    gap: 14px;
+    align-items: end;
+}
+.custom-range-row {
+    display: none;
+    grid-template-columns: repeat(2, minmax(0, 220px));
+    gap: 14px;
+}
+.custom-range-row.active {
+    display: grid;
+}
+.filter-group label,
+.form-group label,
+.detail-field label {
+    display: block;
+    margin-bottom: 8px;
     color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+.table-card {
+    overflow: hidden;
+}
+.table-head {
+    padding: 22px 24px 0;
+}
+.table-head h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: #0f172a;
+}
+.table-head p {
+    margin: 6px 0 0;
+    color: #64748b;
+}
+.table-wrap {
+    overflow: auto;
+    padding: 16px 0 4px;
+}
+.data-table {
+    width: 100%;
+    min-width: 1280px;
+    border-collapse: collapse;
+}
+.data-table th {
+    padding: 16px 24px;
+    text-align: left;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
     border-bottom: 1px solid #e5e7eb;
 }
 .data-table td {
-    padding: 18px 24px;
+    padding: 20px 24px;
     border-bottom: 1px solid #eef2f7;
     vertical-align: top;
     color: #0f172a;
     font-size: 14px;
 }
 .patient-name {
-    font-weight: 700;
+    font-size: 15px;
+    font-weight: 800;
     color: #0f172a;
 }
-.muted {
+.muted-text {
     color: #64748b;
     line-height: 1.55;
+}
+.service-title {
+    font-weight: 700;
+}
+.source-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
 }
 .status-badge {
     display: inline-flex;
@@ -219,167 +251,151 @@ require_once '../../includes/staff_layout_start.php';
     padding: 7px 12px;
     border-radius: 999px;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 800;
+    white-space: nowrap;
 }
 .status-Pending { background: #fef3c7; color: #92400e; }
 .status-Contacted { background: #dbeafe; color: #1d4ed8; }
 .status-Scheduled { background: #dcfce7; color: #166534; }
-.status-Completed { background: #e0f2fe; color: #0369a1; }
+.status-Completed { background: #e5e7eb; color: #475569; }
 .status-Cancelled { background: #fee2e2; color: #b91c1c; }
-.urgency-pill {
-    display: inline-flex;
-    padding: 5px 10px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 700;
-}
-.urgency-High { background: #fee2e2; color: #b91c1c; }
-.urgency-Medium { background: #fef3c7; color: #92400e; }
-.urgency-Low { background: #dcfce7; color: #166534; }
 .actions-cell {
-    width: 72px;
+    width: 84px;
     text-align: right;
 }
-.meatball-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 999px;
-    border: 1px solid #e5e7eb;
-    background: #f3f4f6;
+.patient-kebab-btn {
+    background: none;
+    border: none;
     cursor: pointer;
-    color: #475569;
-    display: inline-flex;
+    padding: 8px;
+    border-radius: 50%;
+    color: #6b7280;
+    display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+    transition: all 0.2s ease;
 }
-.meatball-btn:hover,
-.meatball-btn[aria-expanded="true"] {
-    background: #e9eef5;
-    border-color: #dbe3ef;
-    color: #0f172a;
-    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+.patient-kebab-btn:hover {
+    background-color: #f3f4f6;
+    color: #374151;
 }
-.meatball-btn i {
-    font-size: 14px;
-    line-height: 1;
+.patient-kebab-btn.active {
+    background-color: #e5e7eb;
+    color: #111827;
 }
-.meatball-icon {
-    width: 14px;
-    height: 14px;
-    display: block;
-}
-.meatball-icon circle {
-    fill: currentColor;
-}
-.meatball-menu {
+.patient-kebab-dropdown-portal {
     position: fixed;
     min-width: 200px;
     max-width: 220px;
     background: #fff;
     border: 1px solid #e5e7eb;
-    border-radius: 10px;
+    border-radius: 14px;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-    padding: 6px;
-    z-index: 200000;
-    display: none;
+    z-index: 99999;
     overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateX(8px) scale(0.96);
+    transform-origin: top right;
+    transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
 }
-.meatball-menu.show {
-    display: block;
-    animation: meatballFadeIn 0.15s ease;
+.patient-kebab-dropdown-portal.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateX(0) scale(1);
 }
-@keyframes meatballFadeIn {
-    from { opacity: 0; transform: scale(0.95) translateY(-4px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
-}
-.meatball-backdrop {
-    display: none;
-    position: fixed;
-    inset: 0;
-    z-index: 199999;
-}
-.meatball-backdrop.show { display: block; }
-.menu-divider {
-    height: 1px;
-    background: #e5e7eb;
-    margin: 6px 4px;
-}
-.menu-action {
-    width: 100%;
-    border: none;
-    background: none;
-    text-align: left;
-    padding: 10px 12px;
-    border-radius: 10px;
-    cursor: pointer;
-    font: inherit;
-    color: #374151;
+.patient-kebab-dropdown-portal a {
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 14px;
-    font-weight: 500;
+    padding: 11px 16px;
+    color: #374151;
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: all 0.15s ease;
+    cursor: pointer;
+    white-space: nowrap;
 }
-.menu-action i {
-    width: 16px;
-    text-align: center;
-    color: #6b7280;
+.patient-kebab-dropdown-portal a:hover {
+    background-color: #f9fafb;
+    color: #111827;
 }
-.menu-action:hover { background: #f8fafc; }
-.menu-action:focus-visible,
-.meatball-btn:focus-visible,
-.modal-close:focus-visible,
-.btn-primary:focus-visible,
-.btn-secondary:focus-visible,
-.btn-danger:focus-visible,
-.form-input:focus-visible,
-.form-select:focus-visible,
-.form-textarea:focus-visible,
-.search-input:focus-visible,
-.filter-select:focus-visible,
-.filter-date:focus-visible {
-    outline: 3px solid rgba(37, 99, 235, 0.18);
-    outline-offset: 2px;
+.patient-kebab-dropdown-portal a svg {
+    flex-shrink: 0;
 }
-.menu-action.danger { color: #dc2626; }
-.menu-action.danger i { color: #dc2626; }
-.menu-action.warn { color: #b45309; }
-.menu-action.warn i { color: #b45309; }
-.empty-card {
-    padding: 54px 28px;
-    text-align: center;
+.patient-kebab-dropdown-portal a.is-danger {
+    color: #b91c1c;
 }
-.empty-card h3 { font-size: 1.5rem; color: #0f172a; margin-bottom: 10px; }
-.empty-card p { color: #64748b; margin-bottom: 20px; }
-.modal-overlay {
+.patient-kebab-dropdown-portal a:first-child {
+    border-radius: 14px 14px 0 0;
+}
+.patient-kebab-dropdown-portal a:last-child {
+    border-radius: 0 0 14px 14px;
+}
+.patient-kebab-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.55);
+    z-index: 99998;
     display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 1600;
-    padding: 20px;
 }
-.modal-overlay.active { display: flex; }
-.modal-card {
-    width: min(880px, 100%);
-    max-height: 92vh;
-    overflow: auto;
-    background: #fff;
-    border-radius: 22px;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0 30px 60px rgba(15, 23, 42, 0.2);
+.patient-kebab-backdrop.show {
+    display: block;
 }
-.modal-header {
-    padding: 22px 24px;
-    border-bottom: 1px solid #e5e7eb;
+.empty-state-card {
+    padding: 56px 28px;
+    text-align: center;
+}
+.empty-state-card h3 {
+    margin: 0 0 10px;
+    font-size: 1.45rem;
+    color: #0f172a;
+}
+.empty-state-card p {
+    margin: 0 0 22px;
+    color: #64748b;
+}
+.results-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 12px;
+    padding: 0 24px 18px;
+    color: #64748b;
+    font-size: 14px;
 }
-.modal-header h3 { margin: 0; font-size: 1.25rem; color: #0f172a; }
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.58);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 20px;
+}
+.modal-overlay.active {
+    display: flex;
+}
+.modal-card {
+    width: min(1040px, 100%);
+    max-height: 92vh;
+    overflow: auto;
+}
+.modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 22px 24px;
+    border-bottom: 1px solid #e5e7eb;
+}
+.modal-head h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #0f172a;
+}
 .modal-close {
     width: 40px;
     height: 40px;
@@ -391,283 +407,231 @@ require_once '../../includes/staff_layout_start.php';
 .modal-body {
     padding: 24px;
 }
+.detail-layout {
+    display: grid;
+    grid-template-columns: 1.2fr 0.9fr;
+    gap: 22px;
+}
+.detail-panel,
+.control-panel {
+    border: 1px solid #e5e7eb;
+    border-radius: 20px;
+    padding: 20px;
+    background: #fcfdff;
+}
 .detail-grid,
 .form-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px 20px;
+    gap: 16px;
 }
-.detail-block.full,
-.form-group.full {
+.full-span {
     grid-column: 1 / -1;
 }
-.detail-label,
-.form-label {
-    display: block;
-    margin-bottom: 6px;
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #64748b;
-    font-weight: 700;
-}
-.detail-value {
+.detail-field .value {
     color: #0f172a;
     line-height: 1.6;
-}
-.detail-panel-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 18px 20px;
-    margin-bottom: 18px;
-    border-radius: 18px;
-    background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
-    border: 1px solid #dbeafe;
-}
-.detail-panel-header h4 {
-    margin: 0 0 6px;
-    color: #0f172a;
-    font-size: 1.1rem;
-}
-.detail-panel-header p {
-    margin: 0;
-    color: #64748b;
-}
-.detail-stack {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-.detail-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
-    border-radius: 999px;
     background: #fff;
-    border: 1px solid #dbeafe;
-    color: #1e3a8a;
-    font-size: 12px;
-    font-weight: 700;
-}
-.form-input,
-.form-select,
-.form-textarea {
-    width: 100%;
-    border: 1px solid #d1d5db;
+    border: 1px solid #edf2f7;
     border-radius: 14px;
     padding: 13px 14px;
-    font: inherit;
-    background: #fff;
+    min-height: 52px;
 }
-.form-textarea { min-height: 120px; resize: vertical; }
+.form-textarea {
+    min-height: 120px;
+    resize: vertical;
+}
 .modal-footer {
-    padding: 0 24px 24px;
     display: flex;
     justify-content: flex-end;
     gap: 12px;
+    padding: 0 24px 24px;
 }
 .toast {
     position: fixed;
-    right: 24px;
-    bottom: 24px;
+    right: 22px;
+    bottom: 22px;
     min-width: 280px;
-    background: #0f172a;
-    color: #fff;
+    max-width: 420px;
     padding: 14px 16px;
-    border-radius: 14px;
-    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
-    z-index: 1700;
+    border-radius: 16px;
+    color: #fff;
+    background: #0f172a;
+    box-shadow: 0 24px 42px rgba(15, 23, 42, 0.18);
+    z-index: 2100;
     display: none;
 }
-.toast.show { display: block; }
-@media (max-width: 1200px) {
-    .summary-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .filter-row { grid-template-columns: 1fr 1fr; }
+.toast.show {
+    display: block;
 }
-@media (max-width: 768px) {
-    .summary-cards,
+.table-empty {
+    text-align: center;
+    padding: 54px 24px;
+    color: #64748b;
+}
+@media (max-width: 1180px) {
+    .filter-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .detail-layout {
+        grid-template-columns: 1fr;
+    }
+}
+@media (max-width: 860px) {
+    .page-header {
+        flex-direction: column;
+    }
+    .header-actions {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+    }
     .filter-row,
-    .detail-grid,
-    .form-grid { grid-template-columns: 1fr; }
-    .toolbar-top { flex-direction: column; align-items: stretch; }
-    .toolbar-actions { justify-content: stretch; }
-    .search-input { width: 100%; }
+    .custom-range-row,
+    .form-grid,
+    .detail-grid {
+        grid-template-columns: 1fr;
+    }
+    .results-bar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
 }
 </style>
 
-<div class="module-shell">
-    <div class="summary-cards">
-        <div class="summary-card">
-            <div class="summary-icon" style="background:#dbeafe;color:#1d4ed8;">
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 4h12a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H9l-4 4v-4H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Z"/></svg>
+<div class="page-shell">
+    <section class="page-card">
+        <div class="page-header">
+            <div class="page-title-wrap">
+                <h1>Inquiry / Consultation</h1>
+                <p>Manage patient inquiries and requests</p>
             </div>
-            <div class="summary-info"><h3><?php echo $summary['total']; ?></h3><p>Total Inquiries</p></div>
-        </div>
-        <div class="summary-card">
-            <div class="summary-icon" style="background:#fef3c7;color:#92400e;">
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 2h10v2a5 5 0 0 1-2.2 4.15L13.4 9 14.8 9.85A5 5 0 0 1 17 14v8H7v-8a5 5 0 0 1 2.2-4.15L10.6 9 9.2 8.15A5 5 0 0 1 7 4V2Zm2 12v6h6v-6a3 3 0 0 0-1.32-2.49L12 10.5l-1.68 1.01A3 3 0 0 0 9 14Zm1.5-10a3 3 0 0 0 1.32 2.49L12 7.5l.18-.01A3 3 0 0 0 13.5 4h-3Z"/></svg>
+            <div class="header-actions">
+                <div class="search-wrap">
+                    <span class="search-icon" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="m21 21-4.3-4.3"></path>
+                        </svg>
+                    </span>
+                    <input id="searchInput" type="text" class="search-input" placeholder="Search patient">
+                </div>
             </div>
-            <div class="summary-info"><h3><?php echo $summary['pending']; ?></h3><p>Pending</p></div>
         </div>
-        <div class="summary-card">
-            <div class="summary-icon" style="background:#dcfce7;color:#166534;">
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 2h2v2h6V2h2v2h1a3 3 0 0 1 3 3v11a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h1V2Zm12 8H5v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8Zm-4.7 2.3 1.4 1.4-4.5 4.5-2.5-2.5 1.4-1.4 1.1 1.1 3.1-3.1Z"/></svg>
-            </div>
-            <div class="summary-info"><h3><?php echo $summary['scheduled_today']; ?></h3><p>Scheduled Today</p></div>
-        </div>
-        <div class="summary-card">
-            <div class="summary-icon" style="background:#e0f2fe;color:#0369a1;">
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm4.3 6.3-5.6 5.6-2-2-1.4 1.4 3.4 3.4 7-7-1.4-1.4Z"/></svg>
-            </div>
-            <div class="summary-info"><h3><?php echo $summary['completed']; ?></h3><p>Completed</p></div>
-        </div>
-    </div>
+    </section>
 
-    <div class="toolbar-card">
-        <div class="toolbar-top">
-            <div class="toolbar-title">
-                <h2>Inquiry / Consultation</h2>
-                <p>Review patient concerns, update follow-up progress, and convert approved requests into appointments.</p>
+    <section class="page-card filters-card">
+        <div class="filter-row">
+            <div class="filter-group">
+                <label for="statusFilter">Status Filter</label>
+                <select id="statusFilter" class="filter-select">
+                    <option value="All">All</option>
+                    <?php foreach ($statuses as $status): ?>
+                        <option value="<?php echo htmlspecialchars($status); ?>"><?php echo htmlspecialchars($status); ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
-            <div class="toolbar-actions">
-                <button type="button" class="btn-primary" onclick="openCreateModal()">+ New Inquiry</button>
+            <div class="filter-group">
+                <label for="dateFilter">Date Filter</label>
+                <select id="dateFilter" class="filter-select">
+                    <option value="All">All Dates</option>
+                    <option value="Today">Today</option>
+                    <option value="This Week">This Week</option>
+                    <option value="Custom">Custom Range</option>
+                </select>
             </div>
-        </div>
-        <form method="GET" class="filter-row">
-            <input type="text" name="search" class="search-input" placeholder="Search patient, contact, service, or concern..." value="<?php echo htmlspecialchars($search); ?>">
-            <select name="status" class="filter-select">
-                <option value="">All Statuses</option>
-                <?php foreach (getInquiryStatuses() as $status): ?>
-                    <option value="<?php echo htmlspecialchars($status); ?>" <?php echo $statusFilter === $status ? 'selected' : ''; ?>><?php echo htmlspecialchars($status); ?></option>
-                <?php endforeach; ?>
-            </select>
-            <input type="date" name="date" class="filter-date" value="<?php echo htmlspecialchars($dateFilter); ?>">
-            <select name="service_id" class="filter-select">
-                <option value="0">All Services</option>
-                <?php foreach ($services as $service): ?>
-                    <option value="<?php echo (int)$service['id']; ?>" <?php echo $serviceFilter === (int)$service['id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($service['name']); ?></option>
-                <?php endforeach; ?>
-            </select>
-        </form>
-    </div>
-
-    <?php if (empty($inquiries)): ?>
-        <div class="empty-card">
-            <h3>No inquiries yet</h3>
-            <p>No inquiry / consultation requests match the current filters.</p>
-            <button type="button" class="btn-primary" onclick="openCreateModal()">Create New Inquiry</button>
-        </div>
-    <?php else: ?>
-        <div class="table-card">
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Patient Name</th>
-                            <th>Contact Info</th>
-                            <th>Service / Inquiry</th>
-                            <th>Preferred Schedule</th>
-                            <th>Source</th>
-                            <th>Status</th>
-                            <th>Assigned Staff</th>
-                            <th>Date Created</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($inquiries as $inquiry): ?>
-                            <?php
-                            $fullName = trim(($inquiry['full_name'] ?: trim(($inquiry['first_name'] ?? '') . ' ' . ($inquiry['middle_name'] ?? '') . ' ' . ($inquiry['last_name'] ?? ''))));
-                            $schedule = [];
-                            if (!empty($inquiry['preferred_date'])) {
-                                $schedule[] = date('M d, Y', strtotime($inquiry['preferred_date']));
-                            }
-                            if (!empty($inquiry['preferred_time'])) {
-                                $schedule[] = date('g:i A', strtotime($inquiry['preferred_time']));
-                            }
-                            $assigned = trim(($inquiry['assigned_first_name'] ?? '') . ' ' . ($inquiry['assigned_last_name'] ?? ''));
-                            ?>
-                            <tr>
-                                <td>
-                                    <div class="patient-name"><?php echo htmlspecialchars($fullName ?: 'Unknown Patient'); ?></div>
-                                    <div class="muted"><?php echo htmlspecialchars($inquiry['email'] ?: 'No email'); ?></div>
-                                </td>
-                                <td>
-                                    <div><?php echo htmlspecialchars($inquiry['phone'] ?: ($inquiry['contact_info'] ?: 'No contact')); ?></div>
-                                </td>
-                                <td>
-                                    <div class="patient-name"><?php echo htmlspecialchars($inquiry['service_name'] ?: 'General Consultation'); ?></div>
-                                    <div class="muted"><?php echo htmlspecialchars(mb_strlen($inquiry['concern'] ?: ($inquiry['inquiry_message'] ?? '')) > 80 ? mb_substr($inquiry['concern'] ?: ($inquiry['inquiry_message'] ?? ''), 0, 80) . '...' : ($inquiry['concern'] ?: ($inquiry['inquiry_message'] ?? 'No concern provided'))); ?></div>
-                                    <?php if (!empty($inquiry['urgency'])): ?>
-                                        <div style="margin-top:8px;"><span class="urgency-pill urgency-<?php echo htmlspecialchars($inquiry['urgency']); ?>"><?php echo htmlspecialchars($inquiry['urgency']); ?> Urgency</span></div>
-                                    <?php endif; ?>
-                                </td>
-                                <td><?php echo htmlspecialchars($schedule ? implode(' at ', $schedule) : 'No preference'); ?></td>
-                                <td><?php echo htmlspecialchars($inquiry['source'] ?: 'Patient Portal'); ?></td>
-                                <td><span class="status-badge status-<?php echo htmlspecialchars($inquiry['status']); ?>"><?php echo htmlspecialchars($inquiry['status']); ?></span></td>
-                                <td><?php echo htmlspecialchars($assigned ?: ($inquiry['assigned_username'] ?: 'Unassigned')); ?></td>
-                                <td><?php echo date('M d, Y h:i A', strtotime($inquiry['created_at'])); ?></td>
-                                <td class="actions-cell">
-                                    <button type="button" class="meatball-btn" aria-label="Open actions" aria-haspopup="menu" aria-expanded="false" data-inquiry-id="<?php echo (int)$inquiry['id']; ?>" onclick="openActionMenu(event)">
-                                        <svg class="meatball-icon" viewBox="0 0 16 16" aria-hidden="true">
-                                            <circle cx="8" cy="3" r="1.5"></circle>
-                                            <circle cx="8" cy="8" r="1.5"></circle>
-                                            <circle cx="8" cy="13" r="1.5"></circle>
-                                        </svg>
-                                    </button>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+            <div class="filter-group">
+                <label for="serviceFilter">Service Filter</label>
+                <select id="serviceFilter" class="filter-select">
+                    <option value="All">All Services</option>
+                    <?php foreach ($services as $service): ?>
+                        <option value="<?php echo htmlspecialchars($service['name']); ?>"><?php echo htmlspecialchars($service['name']); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="sourceFilter">Source Filter</label>
+                <select id="sourceFilter" class="filter-select">
+                    <option value="All">All Sources</option>
+                    <option value="Facebook">Facebook</option>
+                    <option value="Walk-in">Walk-in</option>
+                    <option value="Referral">Referral</option>
+                    <option value="Website">Website</option>
+                    <option value="Patient Portal">Patient Portal</option>
+                </select>
             </div>
         </div>
-    <?php endif; ?>
-</div>
-
-<div class="meatball-menu" id="actionMenu"></div>
-<div class="meatball-backdrop" id="actionMenuBackdrop"></div>
-
-<div class="modal-overlay" id="viewModal">
-    <div class="modal-card">
-        <div class="modal-header">
-            <h3>Inquiry Details</h3>
-            <button type="button" class="modal-close" onclick="closeModal('viewModal')"><i class="fas fa-times"></i></button>
+        <div id="customRangeRow" class="custom-range-row">
+            <div class="filter-group">
+                <label for="dateFrom">Date From</label>
+                <input id="dateFrom" type="date" class="filter-input">
+            </div>
+            <div class="filter-group">
+                <label for="dateTo">Date To</label>
+                <input id="dateTo" type="date" class="filter-input">
+            </div>
         </div>
-        <div class="modal-body">
-            <div class="detail-grid" id="viewDetails"></div>
+    </section>
+
+    <section class="table-card">
+        <div class="table-head">
+            <h2>Patient Inquiry Records</h2>
+            <p>Review requests, update statuses, assign staff, and respond quickly to consultation needs.</p>
         </div>
-    </div>
+        <div class="results-bar">
+            <div id="resultsSummary">Showing 0 inquiries</div>
+            <button type="button" class="btn-ghost" onclick="resetFilters()">Reset Filters</button>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Patient Name</th>
+                        <th>Contact Info</th>
+                        <th>Service / Inquiry</th>
+                        <th>Preferred Schedule</th>
+                        <th>Source</th>
+                        <th>Status</th>
+                        <th>Assigned Staff</th>
+                        <th>Date Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="inquiryTableBody"></tbody>
+            </table>
+        </div>
+        <div id="emptyTableState" class="table-empty" style="display:none;">
+            <h3 style="margin:0 0 8px;color:#0f172a;">No inquiries yet</h3>
+            <p style="margin:0 0 18px;">No inquiries matched your current search or filter settings.</p>
+        </div>
+    </section>
 </div>
 
 <div class="modal-overlay" id="formModal">
     <div class="modal-card">
-        <div class="modal-header">
-            <h3 id="formModalTitle">New Inquiry</h3>
+        <div class="modal-head">
+            <h3 id="formModalTitle">+ New Inquiry</h3>
             <button type="button" class="modal-close" onclick="closeModal('formModal')"><i class="fas fa-times"></i></button>
         </div>
-        <form id="inquiryFormModal">
+        <form id="inquiryForm">
             <div class="modal-body">
-                <input type="hidden" name="id" id="form_id">
+                <input type="hidden" id="form_id" name="id">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label class="form-label" for="form_full_name">Patient Name</label>
-                        <input class="form-input" id="form_full_name" name="full_name" required>
+                        <label for="form_full_name">Full Name</label>
+                        <input id="form_full_name" name="full_name" class="form-input" required>
                     </div>
                     <div class="form-group">
-                        <label class="form-label" for="form_phone">Phone</label>
-                        <input class="form-input" id="form_phone" name="phone">
+                        <label for="form_phone">Phone Number</label>
+                        <input id="form_phone" name="phone" class="form-input" required>
                     </div>
                     <div class="form-group">
-                        <label class="form-label" for="form_email">Email</label>
-                        <input class="form-input" id="form_email" name="email" type="email">
+                        <label for="form_email">Email</label>
+                        <input id="form_email" name="email" type="email" class="form-input">
                     </div>
                     <div class="form-group">
-                        <label class="form-label" for="form_service_id">Service</label>
-                        <select class="form-select" id="form_service_id" name="service_id">
+                        <label for="form_service_id">Service Needed</label>
+                        <select id="form_service_id" name="service_id" class="form-select">
                             <option value="">Select service</option>
                             <?php foreach ($services as $service): ?>
                                 <option value="<?php echo (int)$service['id']; ?>"><?php echo htmlspecialchars($service['name']); ?></option>
@@ -675,32 +639,50 @@ require_once '../../includes/staff_layout_start.php';
                         </select>
                     </div>
                     <div class="form-group">
-                        <label class="form-label" for="form_preferred_date">Preferred Date</label>
-                        <input class="form-input" id="form_preferred_date" name="preferred_date" type="date">
+                        <label for="form_preferred_date">Preferred Date</label>
+                        <input id="form_preferred_date" name="preferred_date" type="date" class="form-input">
                     </div>
                     <div class="form-group">
-                        <label class="form-label" for="form_preferred_time">Preferred Time</label>
-                        <input class="form-input" id="form_preferred_time" name="preferred_time" type="time">
+                        <label for="form_preferred_time">Preferred Time</label>
+                        <input id="form_preferred_time" name="preferred_time" type="time" class="form-input">
                     </div>
                     <div class="form-group">
-                        <label class="form-label" for="form_pain_level">Pain Level</label>
-                        <input class="form-input" id="form_pain_level" name="pain_level" placeholder="Example: 3 - Moderate">
+                        <label for="form_source">Source</label>
+                        <select id="form_source" name="source" class="form-select">
+                            <option value="Website">Website</option>
+                            <option value="Facebook">Facebook</option>
+                            <option value="Walk-in">Walk-in</option>
+                            <option value="Referral">Referral</option>
+                        </select>
                     </div>
                     <div class="form-group">
-                        <label class="form-label" for="form_urgency">Urgency</label>
-                        <select class="form-select" id="form_urgency" name="urgency">
+                        <label for="form_urgency">Urgency Level</label>
+                        <select id="form_urgency" name="urgency" class="form-select">
                             <option value="Low">Low</option>
-                            <option value="Medium">Medium</option>
+                            <option value="Medium" selected>Medium</option>
                             <option value="High">High</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label class="form-label" for="form_source">Source</label>
-                        <input class="form-input" id="form_source" name="source" value="Staff Dashboard">
+                        <label for="form_pain_level">Pain Level</label>
+                        <select id="form_pain_level" name="pain_level" class="form-select">
+                            <option value="">Select pain level</option>
+                            <?php for ($i = 1; $i <= 10; $i++): ?>
+                                <option value="<?php echo $i; ?>"><?php echo $i; ?></option>
+                            <?php endfor; ?>
+                        </select>
                     </div>
-                    <div class="form-group full">
-                        <label class="form-label" for="form_concern">Concern / Message</label>
-                        <textarea class="form-textarea" id="form_concern" name="concern" required></textarea>
+                    <div class="form-group">
+                        <label for="form_status">Status</label>
+                        <select id="form_status" name="status" class="form-select">
+                            <?php foreach ($statuses as $status): ?>
+                                <option value="<?php echo htmlspecialchars($status); ?>" <?php echo $status === 'Pending' ? 'selected' : ''; ?>><?php echo htmlspecialchars($status); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group full-span">
+                        <label for="form_concern">Full Concern Description</label>
+                        <textarea id="form_concern" name="concern" class="form-textarea" required></textarea>
                     </div>
                 </div>
             </div>
@@ -712,122 +694,49 @@ require_once '../../includes/staff_layout_start.php';
     </div>
 </div>
 
-<div class="modal-overlay" id="statusModal">
+<div class="modal-overlay" id="detailModal">
     <div class="modal-card">
-        <div class="modal-header">
-            <h3>Change Status</h3>
-            <button type="button" class="modal-close" onclick="closeModal('statusModal')"><i class="fas fa-times"></i></button>
-        </div>
-        <form id="statusForm">
-            <div class="modal-body">
-                <input type="hidden" name="id" id="status_id">
-                <div class="form-group full">
-                    <label class="form-label" for="status_value">Status</label>
-                    <select class="form-select" id="status_value" name="status">
-                        <?php foreach (getInquiryStatuses() as $status): ?>
-                            <option value="<?php echo htmlspecialchars($status); ?>"><?php echo htmlspecialchars($status); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="closeModal('statusModal')">Cancel</button>
-                <button type="submit" class="btn-primary">Update Status</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div class="modal-overlay" id="assignModal">
-    <div class="modal-card">
-        <div class="modal-header">
-            <h3>Assign Staff</h3>
-            <button type="button" class="modal-close" onclick="closeModal('assignModal')"><i class="fas fa-times"></i></button>
-        </div>
-        <form id="assignForm">
-            <div class="modal-body">
-                <input type="hidden" name="id" id="assign_id">
-                <div class="form-group full">
-                    <label class="form-label" for="assigned_staff_id">Assigned Staff</label>
-                    <select class="form-select" id="assigned_staff_id" name="assigned_staff_id">
-                        <option value="">Unassigned</option>
-                        <?php foreach ($staffMembers as $member): ?>
-                            <?php $memberName = trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? '')); ?>
-                            <option value="<?php echo (int)$member['id']; ?>"><?php echo htmlspecialchars($memberName ?: $member['username']); ?> (<?php echo htmlspecialchars(ucfirst($member['role'])); ?>)</option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="closeModal('assignModal')">Cancel</button>
-                <button type="submit" class="btn-primary">Save Assignment</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div class="modal-overlay" id="notesModal">
-    <div class="modal-card">
-        <div class="modal-header">
-            <h3>Add Internal Notes</h3>
-            <button type="button" class="modal-close" onclick="closeModal('notesModal')"><i class="fas fa-times"></i></button>
-        </div>
-        <form id="notesForm">
-            <div class="modal-body">
-                <input type="hidden" name="id" id="notes_id">
-                <div class="form-group full">
-                    <label class="form-label" for="notes_value">Internal Notes</label>
-                    <textarea class="form-textarea" id="notes_value" name="notes"></textarea>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="closeModal('notesModal')">Cancel</button>
-                <button type="submit" class="btn-primary">Save Notes</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div class="modal-overlay" id="convertModal">
-    <div class="modal-card">
-        <div class="modal-header">
-            <h3>Convert to Appointment</h3>
-            <button type="button" class="modal-close" onclick="closeModal('convertModal')"><i class="fas fa-times"></i></button>
-        </div>
-        <form id="convertForm">
-            <div class="modal-body">
-                <input type="hidden" name="id" id="convert_id">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label class="form-label" for="appointment_date">Appointment Date</label>
-                        <input class="form-input" id="appointment_date" name="appointment_date" type="date" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="appointment_time">Appointment Time</label>
-                        <input class="form-input" id="appointment_time" name="appointment_time" type="time" required>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="closeModal('convertModal')">Cancel</button>
-                <button type="submit" class="btn-primary">Create Appointment</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div class="modal-overlay" id="confirmModal">
-    <div class="modal-card" style="width:min(460px,100%);">
-        <div class="modal-header">
-            <h3 id="confirmTitle">Confirm Action</h3>
-            <button type="button" class="modal-close" onclick="closeModal('confirmModal')"><i class="fas fa-times"></i></button>
+        <div class="modal-head">
+            <h3>Inquiry Details</h3>
+            <button type="button" class="modal-close" onclick="closeModal('detailModal')"><i class="fas fa-times"></i></button>
         </div>
         <div class="modal-body">
-            <div class="detail-value" id="confirmMessage">Are you sure?</div>
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn-secondary" onclick="closeModal('confirmModal')">Cancel</button>
-            <button type="button" class="btn-danger" id="confirmActionBtn">Confirm</button>
+            <div class="detail-layout">
+                <div class="detail-panel">
+                    <div class="detail-grid" id="detailFields"></div>
+                </div>
+                <div class="control-panel">
+                    <form id="detailControlForm">
+                        <input type="hidden" id="detail_id">
+                        <div class="form-group">
+                            <label for="detail_status">Change Status</label>
+                            <select id="detail_status" class="form-select">
+                                <?php foreach ($statuses as $status): ?>
+                                    <option value="<?php echo htmlspecialchars($status); ?>"><?php echo htmlspecialchars($status); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="detail_assigned_staff_id">Assign Staff</label>
+                            <select id="detail_assigned_staff_id" class="form-select">
+                                <option value="">Unassigned</option>
+                                <?php foreach ($staffMembers as $member): ?>
+                                    <option value="<?php echo (int)$member['id']; ?>">
+                                        <?php echo htmlspecialchars(trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? '')) ?: ($member['username'] ?? 'Staff')); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="detail_notes">Add Internal Notes</label>
+                            <textarea id="detail_notes" class="form-textarea" placeholder="Add internal notes for follow-up, coordination, or scheduling."></textarea>
+                        </div>
+                        <div class="modal-footer" style="padding:0;margin-top:8px;">
+                            <button type="submit" class="btn-primary">Save</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -836,12 +745,22 @@ require_once '../../includes/staff_layout_start.php';
 
 <script>
 const inquiries = <?php echo json_encode($inquiries); ?>;
-const inquiryMap = Object.fromEntries(inquiries.map((item) => [String(item.id), item]));
-const actionMenu = document.getElementById('actionMenu');
-const actionMenuBackdrop = document.getElementById('actionMenuBackdrop');
-let activeInquiry = null;
-let activeMenuButton = null;
-let pendingConfirmAction = null;
+const services = <?php echo json_encode($services); ?>;
+let inquiryMap = Object.fromEntries(inquiries.map((item) => [String(item.id), item]));
+let filteredInquiries = [...inquiries];
+let activeInquiryId = null;
+
+const searchInput = document.getElementById('searchInput');
+const statusFilter = document.getElementById('statusFilter');
+const dateFilter = document.getElementById('dateFilter');
+const serviceFilter = document.getElementById('serviceFilter');
+const sourceFilter = document.getElementById('sourceFilter');
+const dateFrom = document.getElementById('dateFrom');
+const dateTo = document.getElementById('dateTo');
+const customRangeRow = document.getElementById('customRangeRow');
+const tableBody = document.getElementById('inquiryTableBody');
+const emptyTableState = document.getElementById('emptyTableState');
+const resultsSummary = document.getElementById('resultsSummary');
 
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (character) => ({
@@ -853,9 +772,164 @@ function escapeHtml(value) {
     }[character]));
 }
 
-function formatMultilineText(value, fallback) {
-    const safeValue = escapeHtml(value || fallback || '');
-    return safeValue.replace(/\n/g, '<br>');
+function nl2brSafe(value, fallback = 'N/A') {
+    const text = value && String(value).trim() !== '' ? value : fallback;
+    return escapeHtml(text).replace(/\n/g, '<br>');
+}
+
+function formatDateTime(dateValue, timeValue) {
+    const parts = [];
+    if (dateValue) {
+        parts.push(new Date(`${dateValue}T00:00:00`).toLocaleDateString());
+    }
+    if (timeValue) {
+        parts.push(new Date(`1970-01-01T${timeValue}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
+    }
+    return parts.length ? parts.join(' at ') : 'No preference';
+}
+
+function formatCreatedAt(value) {
+    if (!value) return 'N/A';
+    const date = new Date(value.replace(' ', 'T'));
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
+function getAssignedName(inquiry) {
+    const full = [inquiry.assigned_first_name, inquiry.assigned_last_name].filter(Boolean).join(' ').trim();
+    return full || inquiry.assigned_username || 'Unassigned';
+}
+
+function isWithinDateFilter(inquiry) {
+    if (dateFilter.value === 'All') return true;
+    const createdAt = new Date(String(inquiry.created_at).replace(' ', 'T'));
+    if (Number.isNaN(createdAt.getTime())) return false;
+
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(todayStart);
+    todayEnd.setDate(todayEnd.getDate() + 1);
+
+    if (dateFilter.value === 'Today') {
+        return createdAt >= todayStart && createdAt < todayEnd;
+    }
+
+    if (dateFilter.value === 'This Week') {
+        const start = new Date(todayStart);
+        const day = start.getDay();
+        const diff = day === 0 ? -6 : 1 - day;
+        start.setDate(start.getDate() + diff);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 7);
+        return createdAt >= start && createdAt < end;
+    }
+
+    if (dateFilter.value === 'Custom') {
+        if (!dateFrom.value && !dateTo.value) return true;
+        const recordDate = createdAt.toISOString().slice(0, 10);
+        if (dateFrom.value && recordDate < dateFrom.value) return false;
+        if (dateTo.value && recordDate > dateTo.value) return false;
+        return true;
+    }
+
+    return true;
+}
+
+function applyFilters() {
+    const query = searchInput.value.trim().toLowerCase();
+    filteredInquiries = inquiries.filter((inquiry) => {
+        const haystack = [
+            inquiry.full_name,
+            inquiry.first_name,
+            inquiry.last_name,
+            inquiry.phone,
+            inquiry.contact_info,
+            inquiry.email,
+            inquiry.concern,
+            inquiry.inquiry_message,
+            inquiry.service_name,
+            inquiry.source,
+            inquiry.status,
+            getAssignedName(inquiry)
+        ].join(' ').toLowerCase();
+
+        const matchesSearch = query === '' || haystack.includes(query);
+        const matchesStatus = statusFilter.value === 'All' || (inquiry.status || 'Pending') === statusFilter.value;
+        const matchesService = serviceFilter.value === 'All' || (inquiry.service_name || 'General Consultation') === serviceFilter.value;
+        const matchesSource = sourceFilter.value === 'All' || (inquiry.source || 'Website') === sourceFilter.value;
+
+        return matchesSearch && matchesStatus && matchesService && matchesSource && isWithinDateFilter(inquiry);
+    });
+
+    renderTable();
+}
+
+function renderTable() {
+    if (!filteredInquiries.length) {
+        tableBody.innerHTML = '';
+        emptyTableState.style.display = 'block';
+        resultsSummary.textContent = 'Showing 0 inquiries';
+        return;
+    }
+
+    emptyTableState.style.display = 'none';
+    resultsSummary.textContent = `Showing ${filteredInquiries.length} ${filteredInquiries.length === 1 ? 'inquiry' : 'inquiries'}`;
+
+    tableBody.innerHTML = filteredInquiries.map((inquiry) => {
+        const concern = inquiry.concern || inquiry.inquiry_message || 'No concern provided';
+        const preview = concern.length > 92 ? `${concern.slice(0, 92)}...` : concern;
+        const fullName = inquiry.full_name || [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown Patient';
+        const source = inquiry.source || 'Website';
+        const status = inquiry.status || 'Pending';
+        return `
+            <tr>
+                <td>
+                    <div class="patient-name">${escapeHtml(fullName)}</div>
+                </td>
+                <td>
+                    <div>${escapeHtml(inquiry.phone || inquiry.contact_info || 'No phone')}</div>
+                    <div class="muted-text">${escapeHtml(inquiry.email || 'No email')}</div>
+                </td>
+                <td>
+                    <div class="service-title">${escapeHtml(inquiry.service_name || 'General Consultation')}</div>
+                    <div class="muted-text">${escapeHtml(preview)}</div>
+                </td>
+                <td>${escapeHtml(formatDateTime(inquiry.preferred_date, inquiry.preferred_time))}</td>
+                <td><span class="source-chip">${escapeHtml(source)}</span></td>
+                <td><span class="status-badge status-${escapeHtml(status)}">${escapeHtml(status)}</span></td>
+                <td>${escapeHtml(getAssignedName(inquiry))}</td>
+                <td>${escapeHtml(formatCreatedAt(inquiry.created_at))}</td>
+                <td class="actions-cell">
+                    <button
+                        type="button"
+                        class="patient-kebab-btn"
+                        aria-label="Open actions"
+                        aria-haspopup="menu"
+                        aria-expanded="false"
+                        data-inquiry-id="${Number(inquiry.id)}"
+                        onclick="openActionMenu(event)"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="12" cy="6" r="2"/>
+                            <circle cx="12" cy="12" r="2"/>
+                            <circle cx="12" cy="18" r="2"/>
+                        </svg>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function resetFilters() {
+    searchInput.value = '';
+    statusFilter.value = 'All';
+    dateFilter.value = 'All';
+    serviceFilter.value = 'All';
+    sourceFilter.value = 'All';
+    dateFrom.value = '';
+    dateTo.value = '';
+    customRangeRow.classList.remove('active');
+    applyFilters();
 }
 
 function showToast(message, isError = false) {
@@ -863,98 +937,12 @@ function showToast(message, isError = false) {
     toast.textContent = message;
     toast.style.background = isError ? '#b91c1c' : '#0f172a';
     toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 2600);
+    setTimeout(() => toast.classList.remove('show'), 2800);
 }
 
-function closeActionMenu() {
-    actionMenu.classList.remove('show');
-    actionMenu.innerHTML = '';
-    actionMenu.style.left = '';
-    actionMenu.style.right = '';
-    actionMenu.style.top = '';
-    actionMenu.style.visibility = '';
-    actionMenuBackdrop.classList.remove('show');
-    if (activeMenuButton) {
-        activeMenuButton.setAttribute('aria-expanded', 'false');
-    }
-    activeMenuButton = null;
-}
-
-actionMenuBackdrop.addEventListener('click', closeActionMenu);
-
-function openActionMenu(event) {
-    event.stopPropagation();
-    const triggerButton = event.currentTarget;
-    const inquiryId = triggerButton.dataset.inquiryId;
-    const inquiry = inquiryMap[inquiryId];
-
-    if (!inquiry) {
-        showToast('Unable to load inquiry actions.', true);
-        return;
-    }
-
-    if (activeMenuButton === triggerButton && actionMenu.classList.contains('show')) {
-        closeActionMenu();
-        return;
-    }
-
-    activeInquiry = inquiry;
-    activeMenuButton = triggerButton;
-    const rect = triggerButton.getBoundingClientRect();
-    actionMenu.innerHTML = `
-        <button class="menu-action" type="button" onclick="openViewModal()"><i class="fas fa-eye"></i> View Details</button>
-        <button class="menu-action" type="button" onclick="openEditModal()"><i class="fas fa-pen"></i> Edit Inquiry</button>
-        <button class="menu-action" type="button" onclick="openStatusModal()"><i class="fas fa-flag"></i> Change Status</button>
-        <button class="menu-action" type="button" onclick="openAssignModal()"><i class="fas fa-user-check"></i> Assign Staff</button>
-        <button class="menu-action" type="button" onclick="openNotesModal()"><i class="fas fa-note-sticky"></i> Add Internal Notes</button>
-        <div class="menu-divider"></div>
-        <button class="menu-action" type="button" onclick="openConvertModal()"><i class="fas fa-calendar-plus"></i> Convert to Appointment</button>
-        <button class="menu-action warn" type="button" onclick="confirmArchiveInquiry()"><i class="fas fa-box-archive"></i> Archive Inquiry</button>
-        <button class="menu-action danger" type="button" onclick="confirmDeleteInquiry()"><i class="fas fa-trash-can"></i> Delete Inquiry</button>
-    `;
-    actionMenu.classList.add('show');
-    actionMenuBackdrop.classList.add('show');
-    actionMenu.style.display = 'block';
-    actionMenu.style.visibility = 'hidden';
-    const menuRect = actionMenu.getBoundingClientRect();
-    const viewportPadding = 12;
-    const menuWidth = menuRect.width || 200;
-    const menuHeight = menuRect.height || 260;
-
-    let left = rect.left - menuWidth - 8;
-    let top = rect.top + (rect.height / 2) - (menuHeight / 2);
-
-    if (left < viewportPadding) {
-        left = rect.right + 8;
-    }
-    if (left + menuWidth > window.innerWidth - viewportPadding) {
-        left = window.innerWidth - menuWidth - viewportPadding;
-    }
-    if (top + menuHeight > window.innerHeight - viewportPadding) {
-        top = window.innerHeight - viewportPadding - menuHeight;
-    }
-    if (top < viewportPadding) {
-        top = viewportPadding;
-    }
-
-    actionMenu.style.top = `${top}px`;
-    actionMenu.style.left = `${left}px`;
-    actionMenu.style.visibility = 'visible';
-    triggerButton.setAttribute('aria-expanded', 'true');
-}
-
-window.addEventListener('resize', closeActionMenu);
-window.addEventListener('scroll', closeActionMenu, true);
-document.addEventListener('click', (event) => {
-    if (!event.target.closest('.meatball-btn') && !event.target.closest('.meatball-menu')) {
-        closeActionMenu();
-    }
-});
-document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-        closeActionMenu();
-    }
-});
+let inquiryKebabDropdown = null;
+let inquiryKebabBackdrop = null;
+let inquiryActiveButton = null;
 
 function openModal(id) {
     document.getElementById(id).classList.add('active');
@@ -963,8 +951,166 @@ function openModal(id) {
 
 function closeModal(id) {
     document.getElementById(id).classList.remove('active');
-    if (id === 'confirmModal') {
-        pendingConfirmAction = null;
+}
+
+function closeActionMenu() {
+    if (inquiryKebabDropdown) {
+        inquiryKebabDropdown.classList.remove('show');
+        inquiryKebabDropdown.innerHTML = '';
+    }
+    if (inquiryKebabBackdrop) {
+        inquiryKebabBackdrop.classList.remove('show');
+    }
+    if (inquiryActiveButton) {
+        inquiryActiveButton.setAttribute('aria-expanded', 'false');
+        inquiryActiveButton.classList.remove('active');
+        inquiryActiveButton = null;
+    }
+}
+
+function createInquiryKebabDropdown() {
+    inquiryKebabDropdown = document.createElement('div');
+    inquiryKebabDropdown.className = 'patient-kebab-dropdown-portal';
+    inquiryKebabDropdown.id = 'inquiryKebabDropdownPortal';
+    document.body.appendChild(inquiryKebabDropdown);
+
+    inquiryKebabBackdrop = document.createElement('div');
+    inquiryKebabBackdrop.className = 'patient-kebab-backdrop';
+    inquiryKebabBackdrop.id = 'inquiryKebabBackdrop';
+    document.body.appendChild(inquiryKebabBackdrop);
+
+    inquiryKebabBackdrop.addEventListener('click', closeActionMenu);
+}
+
+function getInquiryMenuItems(inquiryId) {
+    return `
+        <a href="javascript:void(0)" data-action="view" data-id="${inquiryId}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+            </svg>
+            View
+        </a>
+        <a href="javascript:void(0)" data-action="edit" data-id="${inquiryId}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 20h9"/>
+                <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4Z"/>
+            </svg>
+            Edit
+        </a>
+        <a href="javascript:void(0)" data-action="schedule" data-id="${inquiryId}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M8 2v4"/>
+                <path d="M16 2v4"/>
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <path d="M3 10h18"/>
+                <path d="m9 16 2 2 4-4"/>
+            </svg>
+            Mark as Scheduled
+        </a>
+        <a href="javascript:void(0)" class="is-danger" data-action="cancel" data-id="${inquiryId}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="m4.9 4.9 14.2 14.2"/>
+            </svg>
+            Cancel
+        </a>
+    `;
+}
+
+function positionInquiryKebabDropdown(button) {
+    if (!inquiryKebabDropdown || !button) return;
+
+    const rect = button.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const padding = 12;
+
+    inquiryKebabDropdown.style.display = 'block';
+    inquiryKebabDropdown.style.visibility = 'hidden';
+    const dropdownRect = inquiryKebabDropdown.getBoundingClientRect();
+    const dropdownWidth = dropdownRect.width || 200;
+    const dropdownHeight = dropdownRect.height || 120;
+
+    let left = rect.left - dropdownWidth - 8;
+    let top = rect.top + (rect.height / 2) - (dropdownHeight / 2);
+
+    if (left < padding) {
+        left = rect.right + 8;
+    }
+    if (top + dropdownHeight > viewportHeight - padding) {
+        top = viewportHeight - padding - dropdownHeight;
+    }
+    if (top < padding) {
+        top = padding;
+    }
+
+    inquiryKebabDropdown.style.left = `${left}px`;
+    inquiryKebabDropdown.style.top = `${top}px`;
+    inquiryKebabDropdown.style.visibility = 'visible';
+}
+
+function openActionMenu(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const button = event.currentTarget;
+    const inquiryId = button.dataset.inquiryId;
+    const inquiry = inquiryMap[String(inquiryId)];
+
+    if (!inquiry) {
+        showToast('Unable to load actions.', true);
+        return;
+    }
+
+    if (!inquiryKebabDropdown) {
+        createInquiryKebabDropdown();
+    }
+
+    if (inquiryActiveButton === button && inquiryKebabDropdown.classList.contains('show')) {
+        closeActionMenu();
+        return;
+    }
+
+    if (inquiryActiveButton) {
+        inquiryActiveButton.classList.remove('active');
+        inquiryActiveButton.setAttribute('aria-expanded', 'false');
+    }
+
+    inquiryKebabDropdown.innerHTML = getInquiryMenuItems(inquiryId);
+    positionInquiryKebabDropdown(button);
+    inquiryKebabDropdown.classList.add('show');
+    inquiryKebabBackdrop.classList.add('show');
+    inquiryActiveButton = button;
+    button.classList.add('active');
+    button.setAttribute('aria-expanded', 'true');
+    inquiryKebabDropdown.onclick = handleInquiryKebabClick;
+}
+
+function handleInquiryKebabClick(event) {
+    const link = event.target.closest('a[data-action]');
+    if (!link) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const action = link.dataset.action;
+    const id = parseInt(link.dataset.id, 10);
+
+    closeActionMenu();
+
+    switch (action) {
+        case 'view':
+            openDetailModal(id);
+            break;
+        case 'edit':
+            openEditModal(id);
+            break;
+        case 'schedule':
+            quickSchedule(id);
+            break;
+        case 'cancel':
+            quickCancel(id);
+            break;
     }
 }
 
@@ -976,132 +1122,98 @@ document.querySelectorAll('.modal-overlay').forEach((overlay) => {
     });
 });
 
-function openViewModal() {
-    const schedule = [
-        activeInquiry.preferred_date ? new Date(activeInquiry.preferred_date).toLocaleDateString() : '',
-        activeInquiry.preferred_time ? new Date(`1970-01-01T${activeInquiry.preferred_time}`).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'}) : ''
-    ].filter(Boolean).join(' at ') || 'No preference';
+window.addEventListener('resize', function() {
+    if (inquiryKebabDropdown && inquiryKebabDropdown.classList.contains('show') && inquiryActiveButton) {
+        positionInquiryKebabDropdown(inquiryActiveButton);
+    }
+});
+window.addEventListener('scroll', closeActionMenu, true);
+document.addEventListener('click', function(event) {
+    if (!event.target.closest('.patient-kebab-btn') && !event.target.closest('.patient-kebab-dropdown-portal')) {
+        closeActionMenu();
+    }
+});
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeActionMenu();
+    }
+});
 
-    const assigned = [activeInquiry.assigned_first_name, activeInquiry.assigned_last_name].filter(Boolean).join(' ') || activeInquiry.assigned_username || 'Unassigned';
-    document.getElementById('viewDetails').innerHTML = `
-        <div class="detail-block full">
-            <div class="detail-panel-header">
-                <div>
-                    <h4>${escapeHtml(activeInquiry.full_name || 'Unknown Patient')}</h4>
-                    <p>${escapeHtml(activeInquiry.service_name || 'General Consultation')}</p>
-                </div>
-                <div class="detail-stack">
-                    <span class="detail-chip">Pain: ${escapeHtml(activeInquiry.pain_level || 'N/A')}</span>
-                    <span class="status-badge status-${escapeHtml(activeInquiry.status || 'Pending')}">${escapeHtml(activeInquiry.status || 'Pending')}</span>
-                </div>
-            </div>
+function openEditModal(id) {
+    const inquiry = inquiryMap[String(id)];
+    if (!inquiry) {
+        showToast('Unable to load inquiry record.', true);
+        return;
+    }
+
+    activeInquiryId = id;
+    document.getElementById('formModalTitle').textContent = 'Edit Inquiry';
+    document.getElementById('form_id').value = inquiry.id;
+    document.getElementById('form_full_name').value = inquiry.full_name || '';
+    document.getElementById('form_phone').value = inquiry.phone || inquiry.contact_info || '';
+    document.getElementById('form_email').value = inquiry.email || '';
+    document.getElementById('form_service_id').value = inquiry.service_id || '';
+    document.getElementById('form_preferred_date').value = inquiry.preferred_date || '';
+    document.getElementById('form_preferred_time').value = inquiry.preferred_time || '';
+    document.getElementById('form_source').value = inquiry.source || 'Website';
+    document.getElementById('form_urgency').value = inquiry.urgency || 'Medium';
+    document.getElementById('form_pain_level').value = inquiry.pain_level || '';
+    document.getElementById('form_status').value = inquiry.status || 'Pending';
+    document.getElementById('form_concern').value = inquiry.concern || inquiry.inquiry_message || '';
+    openModal('formModal');
+}
+
+function openDetailModal(id) {
+    const inquiry = inquiryMap[String(id)];
+    if (!inquiry) {
+        showToast('Unable to load inquiry details.', true);
+        return;
+    }
+
+    activeInquiryId = id;
+    document.getElementById('detail_id').value = inquiry.id;
+    document.getElementById('detail_status').value = inquiry.status || 'Pending';
+    document.getElementById('detail_assigned_staff_id').value = inquiry.assigned_staff_id || '';
+    document.getElementById('detail_notes').value = inquiry.notes || '';
+
+    const fullName = inquiry.full_name || [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown Patient';
+    document.getElementById('detailFields').innerHTML = `
+        <div class="detail-field">
+            <label>Patient Name</label>
+            <div class="value">${escapeHtml(fullName)}</div>
         </div>
-        <div class="detail-block">
-            <div class="detail-label">Patient Name</div>
-            <div class="detail-value">${escapeHtml(activeInquiry.full_name || 'Unknown Patient')}</div>
+        <div class="detail-field">
+            <label>Contact Info</label>
+            <div class="value">${escapeHtml(inquiry.phone || inquiry.contact_info || 'No phone')}<br>${escapeHtml(inquiry.email || 'No email')}</div>
         </div>
-        <div class="detail-block">
-            <div class="detail-label">Contact Info</div>
-            <div class="detail-value">${escapeHtml(activeInquiry.phone || activeInquiry.contact_info || 'No phone')}<br>${escapeHtml(activeInquiry.email || 'No email')}</div>
+        <div class="detail-field full-span">
+            <label>Full Concern Description</label>
+            <div class="value">${nl2brSafe(inquiry.concern || inquiry.inquiry_message, 'No concern provided')}</div>
         </div>
-        <div class="detail-block">
-            <div class="detail-label">Service</div>
-            <div class="detail-value">${escapeHtml(activeInquiry.service_name || 'General Consultation')}</div>
+        <div class="detail-field">
+            <label>Service Needed</label>
+            <div class="value">${escapeHtml(inquiry.service_name || 'General Consultation')}</div>
         </div>
-        <div class="detail-block">
-            <div class="detail-label">Preferred Date / Time</div>
-            <div class="detail-value">${escapeHtml(schedule)}</div>
+        <div class="detail-field">
+            <label>Pain Level</label>
+            <div class="value">${escapeHtml(inquiry.pain_level || 'Not specified')}</div>
         </div>
-        <div class="detail-block">
-            <div class="detail-label">Pain Level</div>
-            <div class="detail-value">${escapeHtml(activeInquiry.pain_level || 'Not specified')}</div>
+        <div class="detail-field">
+            <label>Preferred Date & Time</label>
+            <div class="value">${escapeHtml(formatDateTime(inquiry.preferred_date, inquiry.preferred_time))}</div>
         </div>
-        <div class="detail-block">
-            <div class="detail-label">Status</div>
-            <div class="detail-value"><span class="status-badge status-${escapeHtml(activeInquiry.status || 'Pending')}">${escapeHtml(activeInquiry.status || 'Pending')}</span></div>
+        <div class="detail-field">
+            <label>Source</label>
+            <div class="value">${escapeHtml(inquiry.source || 'Website')}</div>
         </div>
-        <div class="detail-block">
-            <div class="detail-label">Assigned Staff</div>
-            <div class="detail-value">${escapeHtml(assigned)}</div>
-        </div>
-        <div class="detail-block">
-            <div class="detail-label">Source</div>
-            <div class="detail-value">${escapeHtml(activeInquiry.source || 'Patient Portal')}</div>
-        </div>
-        <div class="detail-block full">
-            <div class="detail-label">Concern</div>
-            <div class="detail-value">${formatMultilineText(activeInquiry.concern || activeInquiry.inquiry_message, 'No concern provided')}</div>
-        </div>
-        <div class="detail-block full">
-            <div class="detail-label">Internal Notes</div>
-            <div class="detail-value">${formatMultilineText(activeInquiry.notes, 'No internal notes yet.')}</div>
+        <div class="detail-field full-span">
+            <label>Notes</label>
+            <div class="value">${nl2brSafe(inquiry.notes, 'No internal notes yet.')}</div>
         </div>
     `;
-    openModal('viewModal');
-}
 
-function openCreateModal() {
-    activeInquiry = null;
-    document.getElementById('formModalTitle').textContent = 'New Inquiry';
-    document.getElementById('inquiryFormModal').reset();
-    document.getElementById('form_id').value = '';
-    document.getElementById('form_source').value = 'Staff Dashboard';
-    openModal('formModal');
+    openModal('detailModal');
 }
-
-function openEditModal() {
-    document.getElementById('formModalTitle').textContent = 'Edit Inquiry';
-    document.getElementById('form_id').value = activeInquiry.id;
-    document.getElementById('form_full_name').value = activeInquiry.full_name || '';
-    document.getElementById('form_phone').value = activeInquiry.phone || activeInquiry.contact_info || '';
-    document.getElementById('form_email').value = activeInquiry.email || '';
-    document.getElementById('form_service_id').value = activeInquiry.service_id || '';
-    document.getElementById('form_preferred_date').value = activeInquiry.preferred_date || '';
-    document.getElementById('form_preferred_time').value = activeInquiry.preferred_time || '';
-    document.getElementById('form_pain_level').value = activeInquiry.pain_level || '';
-    document.getElementById('form_urgency').value = activeInquiry.urgency || 'Low';
-    document.getElementById('form_source').value = activeInquiry.source || 'Patient Portal';
-    document.getElementById('form_concern').value = activeInquiry.concern || activeInquiry.inquiry_message || '';
-    openModal('formModal');
-}
-
-function openStatusModal() {
-    document.getElementById('status_id').value = activeInquiry.id;
-    document.getElementById('status_value').value = activeInquiry.status;
-    openModal('statusModal');
-}
-
-function openAssignModal() {
-    document.getElementById('assign_id').value = activeInquiry.id;
-    document.getElementById('assigned_staff_id').value = activeInquiry.assigned_staff_id || '';
-    openModal('assignModal');
-}
-
-function openNotesModal() {
-    document.getElementById('notes_id').value = activeInquiry.id;
-    document.getElementById('notes_value').value = activeInquiry.notes || '';
-    openModal('notesModal');
-}
-
-function openConvertModal() {
-    document.getElementById('convert_id').value = activeInquiry.id;
-    document.getElementById('appointment_date').value = activeInquiry.preferred_date || '';
-    document.getElementById('appointment_time').value = activeInquiry.preferred_time || '';
-    openModal('convertModal');
-}
-
-function openConfirmModal(title, message, action, buttonLabel = 'Confirm') {
-    document.getElementById('confirmTitle').textContent = title;
-    document.getElementById('confirmMessage').textContent = message;
-    document.getElementById('confirmActionBtn').textContent = buttonLabel;
-    pendingConfirmAction = action;
-    openModal('confirmModal');
-}
-
-document.getElementById('confirmActionBtn').addEventListener('click', async () => {
-    if (!pendingConfirmAction) return;
-    await pendingConfirmAction();
-});
 
 async function postAction(payload) {
     const formData = new FormData();
@@ -1110,106 +1222,91 @@ async function postAction(payload) {
     return response.json();
 }
 
-document.getElementById('inquiryFormModal').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    formData.append('action', document.getElementById('form_id').value ? 'update' : 'create');
-    const response = await fetch('../shared/inquiry_actions.php', { method: 'POST', body: formData });
-    const data = await response.json();
+async function refreshData() {
+    window.location.reload();
+}
+
+async function quickSchedule(id) {
+    const data = await postAction({ action: 'status', id, status: 'Scheduled' });
     if (!data.success) {
-        showToast(data.message || 'Unable to save inquiry.', true);
+        showToast(data.message || 'Unable to mark inquiry as scheduled.', true);
         return;
     }
-    showToast(data.message || 'Inquiry saved successfully.');
-    window.location.reload();
-});
-
-document.getElementById('statusForm').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const data = await postAction({
-        action: 'status',
-        id: document.getElementById('status_id').value,
-        status: document.getElementById('status_value').value
-    });
-    if (!data.success) return showToast(data.message || 'Unable to update status.', true);
-    showToast(data.message || 'Status updated.');
-    window.location.reload();
-});
-
-document.getElementById('assignForm').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const data = await postAction({
-        action: 'assign',
-        id: document.getElementById('assign_id').value,
-        assigned_staff_id: document.getElementById('assigned_staff_id').value
-    });
-    if (!data.success) return showToast(data.message || 'Unable to save assignment.', true);
-    showToast(data.message || 'Assignment updated.');
-    window.location.reload();
-});
-
-document.getElementById('notesForm').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const data = await postAction({
-        action: 'notes',
-        id: document.getElementById('notes_id').value,
-        notes: document.getElementById('notes_value').value
-    });
-    if (!data.success) return showToast(data.message || 'Unable to save notes.', true);
-    showToast(data.message || 'Notes saved.');
-    window.location.reload();
-});
-
-document.getElementById('convertForm').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const data = await postAction({
-        action: 'convert_to_appointment',
-        id: document.getElementById('convert_id').value,
-        appointment_date: document.getElementById('appointment_date').value,
-        appointment_time: document.getElementById('appointment_time').value
-    });
-    if (!data.success) return showToast(data.message || 'Unable to convert inquiry.', true);
-    showToast(data.message || 'Inquiry converted to appointment.');
-    window.location.reload();
-});
-
-function confirmArchiveInquiry() {
-    if (!activeInquiry) return;
-    openConfirmModal(
-        'Archive Inquiry',
-        `Archive inquiry for ${activeInquiry.full_name || 'this patient'}? This will hide it from the active table but keep it in the database.`,
-        archiveInquiry,
-        'Archive'
-    );
+    showToast(data.message || 'Inquiry marked as scheduled.');
+    refreshData();
 }
 
-async function archiveInquiry() {
-    if (!activeInquiry) return;
-    const data = await postAction({ action: 'archive', id: activeInquiry.id });
-    if (!data.success) return showToast(data.message || 'Unable to archive inquiry.', true);
-    closeModal('confirmModal');
-    showToast(data.message || 'Inquiry archived.');
-    window.location.reload();
+async function quickCancel(id) {
+    const data = await postAction({ action: 'status', id, status: 'Cancelled' });
+    if (!data.success) {
+        showToast(data.message || 'Unable to cancel inquiry.', true);
+        return;
+    }
+    showToast(data.message || 'Inquiry cancelled.');
+    refreshData();
 }
 
-function confirmDeleteInquiry() {
-    if (!activeInquiry) return;
-    openConfirmModal(
-        'Delete Inquiry',
-        `Permanently delete inquiry for ${activeInquiry.full_name || 'this patient'}? This action cannot be undone.`,
-        deleteInquiry,
-        'Delete'
-    );
-}
+document.getElementById('inquiryForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    formData.append('action', document.getElementById('form_id').value ? 'update' : 'create');
 
-async function deleteInquiry() {
-    if (!activeInquiry) return;
-    const data = await postAction({ action: 'delete', id: activeInquiry.id });
-    if (!data.success) return showToast(data.message || 'Unable to delete inquiry.', true);
-    closeModal('confirmModal');
-    showToast(data.message || 'Inquiry deleted permanently.');
-    window.location.reload();
-}
+    try {
+        const response = await fetch('../shared/inquiry_actions.php', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (!data.success) {
+            showToast(data.message || 'Unable to save inquiry.', true);
+            return;
+        }
+        showToast(data.message || 'Inquiry saved successfully.');
+        closeModal('formModal');
+        refreshData();
+    } catch (error) {
+        showToast('Something went wrong while saving the inquiry.', true);
+    }
+});
+
+document.getElementById('detailControlForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const id = document.getElementById('detail_id').value;
+    if (!id) {
+        showToast('Invalid inquiry selected.', true);
+        return;
+    }
+
+    const responses = await Promise.all([
+        postAction({ action: 'status', id, status: document.getElementById('detail_status').value }),
+        postAction({ action: 'assign', id, assigned_staff_id: document.getElementById('detail_assigned_staff_id').value }),
+        postAction({ action: 'notes', id, notes: document.getElementById('detail_notes').value })
+    ]);
+
+    const failed = responses.find((item) => !item.success);
+    if (failed) {
+        showToast(failed.message || 'Unable to save inquiry details.', true);
+        return;
+    }
+
+    showToast('Inquiry details updated successfully.');
+    closeModal('detailModal');
+    refreshData();
+});
+
+[searchInput, statusFilter, serviceFilter, sourceFilter, dateFrom, dateTo].forEach((element) => {
+    element.addEventListener('input', applyFilters);
+    element.addEventListener('change', applyFilters);
+});
+
+dateFilter.addEventListener('change', () => {
+    customRangeRow.classList.toggle('active', dateFilter.value === 'Custom');
+    if (dateFilter.value !== 'Custom') {
+        dateFrom.value = '';
+        dateTo.value = '';
+    }
+    applyFilters();
+});
+
+renderTable();
 </script>
 
 <?php require_once '../../includes/staff_layout_end.php'; ?>
