@@ -248,12 +248,6 @@ try {
     </div>
 </div>
 
-<a href="../shared/staff_messages.php" class="floating-message-btn" title="Messages" aria-label="Open messages">
-    <svg class="floating-message-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path fill="currentColor" d="M19 3H5a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h3.6l2.8 3.1c.3.3.8.3 1.1 0l2.8-3.1H19a3 3 0 0 0 3-3V6a3 3 0 0 0-3-3Z"/>
-    </svg>
-</a>
-
 <!-- Patient Record Modal -->
 <div id="patientRecordModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
     <div class="modal" style="background: white; border-radius: 12px; padding: 24px; width: 90%; max-width: 700px; max-height: 85vh; overflow-y: auto; position: relative; z-index: 100000;">
@@ -512,33 +506,6 @@ function getStaffTeethDisplayText(teethString) {
 
 
 <style>
-    .floating-message-btn {
-    position: fixed;
-    right: 24px;
-    bottom: 24px;
-    width: 58px;
-    height: 58px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #2563eb;
-    color: #fff;
-    text-decoration: none;
-    box-shadow: 0 14px 28px rgba(37,99,235,0.28);
-    z-index: 2000;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-}
-    .floating-message-icon {
-    width: 22px;
-    height: 22px;
-}
-    .floating-message-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 18px 32px rgba(37,99,235,0.34);
-    background: #1d4ed8;
-    color: #fff;
-}
     .view-section {
     display: none;
     flex: 1;

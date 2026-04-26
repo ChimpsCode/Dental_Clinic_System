@@ -5,6 +5,11 @@
             </div>
         </div>
     </main>
+    <?php if (basename($_SERVER['PHP_SELF']) !== 'staff_new_admission.php'): ?>
+    <a href="../shared/staff_messages.php" class="floating-message-btn" title="Messages" aria-label="Open messages">
+        <i class="fas fa-message"></i>
+    </a>
+    <?php endif; ?>
 
     <script>
         
