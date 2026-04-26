@@ -551,6 +551,11 @@ function closeViewAppointmentModal() {
 }
 
 function viewAppointmentDetails(id) {
+    // Close kebab dropdown first
+    if (typeof closeApptKebabDropdown === 'function') {
+        closeApptKebabDropdown();
+    }
+    
     // Get appointment data from table row data attributes
     const row = document.querySelector(`.appointment-row[data-id="${id}"]`);
     if (!row) {
@@ -915,7 +920,7 @@ function closeApptKebabDropdown() {
     min-width: 160px;
     max-width: 180px;
     width: auto;
-    z-index: 99999;
+    z-index: 100001;
     overflow: hidden;
 }
 
