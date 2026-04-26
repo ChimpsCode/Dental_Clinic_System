@@ -330,7 +330,7 @@ try {
                 <div class="card h-100">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <strong><i class="fa-solid fa-comments"></i> Patient Inbox</strong>
-                        <a href="<?php echo $role === 'admin' ? '../admin/admin_dashboard.php' : '../dentist/dentist_dashboard.php'; ?>" class="btn btn-sm btn-outline-secondary">Back</a>
+                        <a href="<?php echo $role === 'admin' ? '../admin/admin_dashboard.php' : '../staff/staff-dashboard.php'; ?>" class="btn btn-sm btn-outline-secondary">Back</a>
                     </div>
                     <div class="card-body thread-list">
                         <?php if (!empty($fatalError)): ?>

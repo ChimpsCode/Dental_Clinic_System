@@ -138,6 +138,7 @@ function isActivePage($page) {
     <title><?php echo htmlspecialchars($pageTitle); ?> - RF Dental Clinic Staff</title>
     <link rel="icon" type="image/png" href="../../assets/images/Logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../assets/css/staff_dashboard.css">
     <style>
         /* Smooth Page Transitions */
@@ -320,6 +321,34 @@ function isActivePage($page) {
         @keyframes loading {
             0% { transform: translateX(-100%); }
             100% { transform: translateX(100%); }
+        }
+
+        .floating-message-btn {
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            background: #2563eb !important;
+            color: #ffffff !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none !important;
+            box-shadow: 0 14px 28px rgba(37, 99, 235, 0.28);
+            z-index: 2000;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        }
+
+        .floating-message-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 32px rgba(37, 99, 235, 0.34);
+            background: #1d4ed8 !important;
+        }
+
+        .floating-message-btn i {
+            font-size: 22px;
         }
         
         /* Notification Tabs */
