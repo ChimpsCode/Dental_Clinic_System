@@ -303,9 +303,33 @@ const patients = <?php echo json_encode($patients); ?>;
 // Portal Pattern: Move modal to body level to escape stacking context
 // This ensures modal appears above sidebar and all other elements
 document.addEventListener('DOMContentLoaded', function() {
-    const modal = document.getElementById('patientModal');
-    if (modal) {
-        document.body.appendChild(modal);
+    // 1. Move Patient Modal
+    const patientModal = document.getElementById('patientModal');
+    if (patientModal) {
+        document.body.appendChild(patientModal);
+        
+        // Set up close handlers after modal is moved
+        patientModal.addEventListener('click', function(e) {
+            if (e.target === patientModal) closePatientModal();
+        });
+    }
+
+    // 2. Move Billing Modal (This fixes your issue)
+    const billingModal = document.getElementById('billingModal');
+    if (billingModal) {
+        document.body.appendChild(billingModal);
+    }
+
+    // 3. Move Appointment Modal (To prevent it from doing the same thing)
+    const appointmentModal = document.getElementById('appointmentModal');
+    if (appointmentModal) {
+        document.body.appendChild(appointmentModal);
+    }
+    
+    // 4. Move Treatment Plan Modal
+    const treatmentPlanModal = document.getElementById('treatmentPlanModal');
+    if (treatmentPlanModal) {
+        document.body.appendChild(treatmentPlanModal);
     }
 });
 
@@ -347,9 +371,16 @@ function sortPatients() {
 
 // View patient details - Full screen modal with medical history
 function viewPatientDetails(patientId) {
-    fetch('master/user-patient/patient_record_details.php?id=' + patientId)
-    .then(response => response.json())
+    console.log('View Details clicked for patient:', patientId);
+    closePatientKebabDropdown();
+    
+    fetch('../user-patient/patient_record_details.php?id=' + patientId)
+    .then(response => {
+        console.log('Response status:', response.status);
+        return response.json();
+    })
     .then(data => {
+        console.log('Response data:', data);
         if (data.success) {
             const p = data.patient;
             const m = data.medical_history || {};
@@ -497,18 +528,20 @@ function viewPatientDetails(patientId) {
             `;
             
             document.getElementById('patientModal').classList.add('active');
+        } else {
+            console.error('Error loading patient:', data.message);
+            alert('Error loading patient: ' + data.message);
         }
+    })
+    .catch(error => {
+        console.error('Fetch error:', error);
+        alert('Error loading patient details. Please check console for details.');
     });
 }
 
 function closePatientModal() {
     document.getElementById('patientModal').classList.remove('active');
 }
-
-// Close modal on outside click
-document.getElementById('patientModal').addEventListener('click', function(e) {
-    if (e.target === this) closePatientModal();
-});
 
 // ESC key to close modal
 document.addEventListener('keydown', function(e) {
@@ -536,21 +569,21 @@ function createPatientKebabDropdown() {
 
 function getPatientMenuItems(patientId) {
     return `
-        <a href="javascript:void(0)" data-action="view" data-id="${patientId}">
+        <a href="javascript:void(0)" onclick="viewPatientDetails(${patientId})">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11 8-11-8-11-8z"/>
                 <circle cx="12" cy="12" r="3"/>
             </svg>
             View Details
         </a>
-        <a href="javascript:void(0)" data-action="prescriptions" data-id="${patientId}">
+        <a href="javascript:void(0)" onclick="openPatientPrescriptionModal(${patientId})">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="6" y="4" width="4" height="16"/>
                 <rect x="14" y="4" width="4" height="16"/>
             </svg>
-            💊 Prescriptions
+            Prescriptions
         </a>
-        <a href="javascript:void(0)" data-action="billing" data-id="${patientId}">
+        <a href="javascript:void(0)" onclick="openBillingModal(${patientId})">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="2" y="4" width="20" height="16" rx="2"/>
                 <line x1="2" y1="10" x2="22" y2="10"/>
@@ -558,14 +591,14 @@ function getPatientMenuItems(patientId) {
             </svg>
             Billing
         </a>
-        <a href="../shared/quick_session.php?patient_id=${patientId}" data-action="session" data-id="${patientId}">
+        <a href="../shared/quick_session.php?patient_id=${patientId}">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
             New Session
         </a>
-        <a href="javascript:void(0)" data-action="appointment" data-id="${patientId}">
+        <a href="javascript:void(0)" onclick="openAddAppointmentModal(${patientId})">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
                 <line x1="16" y1="2" x2="16" y2="6"/>
@@ -573,6 +606,16 @@ function getPatientMenuItems(patientId) {
                 <line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
             Add Appointment
+        </a>
+        <a href="javascript:void(0)" onclick="openTreatmentPlanModal(${patientId})">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+            </svg>
+            📋 Treatment Plan
         </a>
     `;
 }
@@ -675,12 +718,15 @@ function handlePatientKebabClick(e) {
 
 // Open prescription modal for patient
 function openPatientPrescriptionModal(patientId) {
+    closePatientKebabDropdown();
+    document.body.style.overflow = 'hidden';
+    
     // Create prescription modal
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
     modal.style.display = 'flex';
     modal.innerHTML = `
-        <div class="modal" style="max-width: 600px;">
+        <div class="modal modal-prescription">
             <div class="modal-header">
                 <h2>💊 New Prescription</h2>
                 <button class="modal-close" onclick="closePatientPrescriptionModal()">&times;</button>
@@ -743,7 +789,7 @@ function openPatientPrescriptionModal(patientId) {
     document.body.appendChild(modal);
     
     // Load patient safety info
-    fetch('master/dentist/prescription_actions.php', {
+    fetch('prescription_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'get_patient_info', patient_id: patientId })
@@ -766,7 +812,12 @@ function openPatientPrescriptionModal(patientId) {
 function closePatientPrescriptionModal() {
     const modal = document.querySelector('.modal-overlay');
     if (modal) {
-        modal.remove();
+        modal.style.opacity = '0';
+        modal.style.transition = 'opacity 0.2s ease';
+        setTimeout(() => {
+            modal.remove();
+            document.body.style.overflow = '';
+        }, 200);
     }
 }
 
@@ -779,7 +830,7 @@ function savePatientPrescription() {
         return;
     }
     
-    fetch('master/dentist/prescription_actions.php', {
+    fetch('prescription_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'create_prescription', ...data })
@@ -836,6 +887,9 @@ window.addEventListener('resize', function() {
 let selectedPatientId = null;
 
 function openAddAppointmentModal(patientId) {
+    closePatientKebabDropdown();
+    document.body.style.overflow = 'hidden';
+    
     const patient = patients.find(p => p.id == patientId);
     
     if (patient) {
@@ -855,13 +909,20 @@ function openAddAppointmentModal(patientId) {
 
 function closeAddAppointmentModal() {
     document.getElementById('appointmentModal').classList.remove('active');
+    document.body.style.overflow = '';
     selectedPatientId = null;
     selectedPatientData = null;
 }
 
 document.getElementById('appointmentModal').addEventListener('click', function(e) {
-    if (e.target === this || e.target.classList.contains('modal-backdrop') || e.target.closest('.modal-container') === e.target) {
+    if (e.target === this) {
         closeAddAppointmentModal();
+    }
+});
+
+document.getElementById('treatmentPlanModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeTreatmentPlanModal();
     }
 });
 
@@ -869,7 +930,7 @@ document.getElementById('addAppointmentForm').addEventListener('submit', functio
     e.preventDefault();
     const formData = new FormData(this);
     
-    fetch('master/user-patient/process_patient_appointment.php', {
+    fetch('../user-patient/process_patient_appointment.php', {
         method: 'POST',
         body: formData
     })
@@ -928,10 +989,12 @@ function getDentistTeethDisplayText(teethString) {
 
 <!-- Add Appointment Modal -->
 <div id="appointmentModal" class="modal-overlay">
-    <div class="modal-backdrop"></div>
-    <div class="modal-container">
-        <div class="modal" style="max-width: 480px;">
-            <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Schedule Appointment</h2>
+    <div class="modal" style="max-width: 480px;">
+        <div class="modal-header">
+            <h2 style="margin: 0; font-size: 1.25rem; font-weight: 600;">📅 Schedule Appointment</h2>
+            <button onclick="closeAddAppointmentModal()" class="modal-close" style="background: none; border: none; font-size: 1.5rem; color: #6b7280; cursor: pointer; padding: 4px; line-height: 1;">&times;</button>
+        </div>
+        <div class="modal-body">
             
             <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 14px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #0369a1;">
@@ -979,7 +1042,7 @@ function getDentistTeethDisplayText(teethString) {
                     <textarea name="notes" rows="3" class="form-control" placeholder="Additional notes or instructions..."></textarea>
                 </div>
                 
-                <div class="modal-actions">
+                <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
                     <button type="button" onclick="closeAddAppointmentModal()" class="btn-cancel">Cancel</button>
                     <button type="submit" class="btn-primary">Schedule Appointment</button>
                 </div>
@@ -990,12 +1053,114 @@ function getDentistTeethDisplayText(teethString) {
 
 
 
+<!-- Treatment Plan Modal -->
+<div id="treatmentPlanModal" class="modal-overlay">
+    <div class="modal modal-billing" style="max-width: 600px;">
+        <div class="modal-header">
+            <h2 style="margin: 0; font-size: 1.25rem; font-weight: 600;">📋 Treatment Plan</h2>
+            <button onclick="closeTreatmentPlanModal()" class="modal-close" style="background: none; border: none; font-size: 1.5rem; color: #6b7280; cursor: pointer; padding: 4px; line-height: 1;">&times;</button>
+        </div>
+        <div class="modal-body">
+            
+            <div id="tpPatientInfo" style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 14px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0369a1" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                </svg>
+                <div>
+                    <div style="font-size: 0.75rem; color: #0369a1; font-weight: 600;">PATIENT</div>
+                    <div id="tpPatientName" style="font-weight: 600; color: #0c4a6e;"></div>
+                </div>
+            </div>
+            
+            <div id="tpLoading" style="text-align: center; padding: 40px; color: #6b7280;">
+                Loading treatment plans...
+            </div>
+            
+            <div id="tpPlansList" style="display: none;">
+                <!-- Plans will be loaded here -->
+            </div>
+            
+            <div id="tpNoPlans" style="text-align: center; padding: 40px; color: #6b7280; display: none;">
+                No treatment plans found for this patient.
+            </div>
+            
+            <!-- Create New Treatment Plan Form -->
+            <div id="tpCreateForm" style="display: none;">
+                <form id="tpNewPlanForm">
+                    <input type="hidden" name="patient_id" id="tpFormPatientId">
+                    
+                    <div class="form-group">
+                        <label>Treatment Name *</label>
+                        <select name="treatment_name" id="tpTreatmentName" class="form-control" required onchange="autoPopulateTreatmentType()">
+                            <option value="">Select Treatment</option>
+                            <option value="Root Canal">Root Canal</option>
+                            <option value="Tooth Extraction">Tooth Extraction</option>
+                            <option value="Teeth Cleaning">Teeth Cleaning</option>
+                            <option value="Dental Fillings">Dental Fillings</option>
+                            <option value="Braces Adjustment">Braces Adjustment</option>
+                            <option value="Denture Fitting">Denture Fitting</option>
+                            <option value="Oral Prophylaxis">Oral Prophylaxis</option>
+                            <option value="Crown & Bridge">Crown & Bridge</option>
+                            <option value="Teeth Whitening">Teeth Whitening</option>
+                            <option value="Checkup">Checkup</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Treatment Type</label>
+                        <input type="text" name="treatment_type" id="tpTreatmentType" class="form-control" placeholder="Auto-filled based on treatment" readonly style="background: #f9fafb;">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Teeth Numbers</label>
+                        <input type="text" name="teeth_numbers" class="form-control" placeholder="e.g., #18, #19">
+                    </div>
+                    
+                    <div style="display: flex; gap: 16px;">
+                        <div class="form-group" style="flex: 1;">
+                            <label>Total Sessions</label>
+                            <input type="number" name="total_sessions" class="form-control" value="1" min="1" max="20">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>Next Session Date</label>
+                            <input type="date" name="next_session_date" class="form-control">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Estimated Cost</label>
+                        <input type="number" name="estimated_cost" class="form-control" placeholder="0.00" step="0.01">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea name="notes" rows="3" class="form-control" placeholder="Treatment details, procedures, etc."></textarea>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+        <div class="modal-footer">
+            <button type="button" id="tpBtnCancel" onclick="closeTreatmentPlanModal()" class="btn-cancel">Close</button>
+            <button type="button" id="tpBtnCreate" onclick="showTpCreateForm()" class="btn-primary" style="display: none;">+ Create New Plan</button>
+            <button type="button" id="tpBtnSave" onclick="saveTreatmentPlan()" class="btn-primary" style="display: none;">Save Plan</button>
+            <button type="button" id="tpBtnBack" onclick="showTpPlansList()" class="btn-cancel" style="display: none;">Back</button>
+        </div>
+    </div>
+</div>
+
+
+
 <!-- Billing Modal -->
 <div id="billingModal" class="modal-overlay">
-    <div class="modal-backdrop"></div>
-    <div class="modal-container">
-        <div class="modal" style="max-width: 560px;">
-            <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">💰 Billing Details</h2>
+    <div class="modal modal-billing">
+        <div class="modal-header">
+            <h2 style="margin: 0; font-size: 1.25rem; font-weight: 600;">💰 Billing Details</h2>
+            <button onclick="closeBillingModal()" class="modal-close" style="background: none; border: none; font-size: 1.5rem; color: #6b7280; cursor: pointer; padding: 4px; line-height: 1;">&times;</button>
+        </div>
+        <div class="modal-body">
             
             <div id="billingLoading" style="text-align: center; padding: 40px; color: #6b7280;">
                 Loading billing information...
@@ -1078,11 +1243,10 @@ function getDentistTeethDisplayText(teethString) {
                     </div>
                 </div>
                 
-                <div class="billing-actions">
+                <div class="billing-actions" style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
                     <button type="button" onclick="closeBillingModal()" class="btn-cancel">Close</button>
-                    <button type="button" onclick="showEditAmountForm()" class="btn-edit">✏️ Edit Amount</button>
+                    <button type="button" onclick="showEditAmountForm()" class="btn-primary">✏️ Edit Amount</button>
                 </div>
-            </div>
         </div>
     </div>
 </div>
@@ -1093,26 +1257,35 @@ let billingQueueId = null;
 let billingPatientId = null;
 
 function openBillingModal(patientId) {
+    console.log('Opening billing for patient ID:', patientId);
+    
+    // Close kebab dropdown first
+    closePatientKebabDropdown();
+    document.body.style.overflow = 'hidden';
+    
     // Find the patient's queue record
     const patient = patients.find(p => p.id == patientId);
-    if (!patient) {
-        alert('Patient not found');
-        return;
-    }
+    console.log('Found patient:', patient);
     
     // Get the latest queue for this patient
-    fetch('master/dentist/dentist_billing_actions.php?action=get_billing&patient_id=' + patientId)
-    .then(response => response.json())
+    console.log('Fetching billing for patient_id:', patientId);
+    fetch('dentist_billing_actions.php?action=get_billing&patient_id=' + parseInt(patientId))
+    .then(response => {
+        console.log('Billing response status:', response.status);
+        return response.json();
+    })
     .then(data => {
+        console.log('Billing response data:', data);
         if (data.success) {
             showBillingModal(data.billing);
         } else {
-            alert(data.message || 'Error loading billing');
+            console.error('Billing API error:', data.message);
+            alert('Error: ' + (data.message || 'Could not load billing'));
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error loading billing information');
+        alert('Error loading billing information: ' + error.message);
     });
 }
 
@@ -1121,7 +1294,7 @@ function showBillingModal(billing) {
     billingPatientId = billing.patient_id;
     
     document.getElementById('billingPatientName').textContent = billing.patient_name || 'Unknown';
-    document.getElementById('billingTreatment').textContent = billing.treatment_type || 'Consultation';
+    document.getElementById('billingTreatment').textContent = billing.service_name || billing.treatment_type || 'General Consultation';
     document.getElementById('billingDate').textContent = billing.queue_date || 'N/A';
     document.getElementById('billingTeeth').textContent = billing.teeth_numbers ? getDentistTeethDisplayText(billing.teeth_numbers) : 'None';
     
@@ -1133,9 +1306,9 @@ function showBillingModal(billing) {
     const billingBalance = document.getElementById('billingBalance');
     const billingStatus = document.getElementById('billingStatus');
     
-    const totalAmount = billing.total_amount || 0;
+    const totalAmount = billing.total_amount || billing.estimated_amount || 0;
     const paidAmount = billing.paid_amount || 0;
-    const balance = billing.balance || 0;
+    const balance = billing.balance ?? (totalAmount - paidAmount);
     
     amountDisplay.textContent = '₱' + totalAmount.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     billingTotal.textContent = '₱' + totalAmount.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -1180,8 +1353,215 @@ function showBillingModal(billing) {
 
 function closeBillingModal() {
     document.getElementById('billingModal').classList.remove('active');
+    document.body.style.overflow = '';
     billingQueueId = null;
     billingPatientId = null;
+}
+
+// Treatment Plan Modal Functions
+let treatmentPlanPatientId = null;
+
+function openTreatmentPlanModal(patientId) {
+    closePatientKebabDropdown();
+    document.body.style.overflow = 'hidden';
+    
+    treatmentPlanPatientId = patientId;
+    const patient = patients.find(p => p.id == patientId);
+    
+    // Update patient name and link
+    document.getElementById('tpPatientName').textContent = patient ? 
+        ((patient.first_name || '') + ' ' + (patient.middle_name || '') + ' ' + (patient.last_name || '')).trim() : 'Unknown';
+    
+    // Reset form
+    document.getElementById('tpNewPlanForm').reset();
+    document.getElementById('tpCreateForm').style.display = 'none';
+    document.getElementById('tpPlansList').style.display = 'none';
+    document.getElementById('tpNoPlans').style.display = 'none';
+    document.getElementById('tpLoading').style.display = 'block';
+    
+    // Show/hide buttons
+    document.getElementById('tpBtnCreate').style.display = 'inline-flex';
+    document.getElementById('tpBtnSave').style.display = 'none';
+    document.getElementById('tpBtnBack').style.display = 'none';
+    document.getElementById('tpBtnCancel').style.display = 'inline-flex';
+    
+    // Show modal
+    document.getElementById('treatmentPlanModal').classList.add('active');
+    
+    // Fetch treatment plans
+    fetch('../shared/process_treatment_plan.php?patient_id=' + patientId)
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('tpLoading').style.display = 'none';
+        
+        if (data.success && data.plans && data.plans.length > 0) {
+            renderTreatmentPlans(data.plans);
+            document.getElementById('tpPlansList').style.display = 'block';
+            document.getElementById('tpBtnCreate').textContent = '+ Create New Plan';
+        } else {
+            document.getElementById('tpNoPlans').style.display = 'block';
+            document.getElementById('tpBtnCreate').textContent = '+ Create Treatment Plan';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('tpLoading').textContent = 'Error loading treatment plans';
+    });
+}
+
+function renderTreatmentPlans(plans) {
+    const container = document.getElementById('tpPlansList');
+    container.style.display = 'block';
+    
+    let html = '';
+    plans.forEach(plan => {
+        const total = plan.total_sessions || 1;
+        const completed = plan.completed_sessions || 0;
+        const percent = Math.round((completed / total) * 100);
+        const statusColor = plan.status === 'completed' ? '#22c55e' : plan.status === 'in_progress' ? '#f59e0b' : '#3b82f6';
+        const statusText = plan.status === 'completed' ? 'Completed' : plan.status === 'in_progress' ? 'In Progress' : 'Active';
+        
+        html += `
+            <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                    <div>
+                        <div style="font-weight: 600; font-size: 1rem;">${plan.treatment_name || plan.treatment_type || 'General'}</div>
+                        <div style="font-size: 0.85rem; color: #6b7280;">${plan.treatment_type || ''}</div>
+                    </div>
+                    <span style="background: ${statusColor}20; color: ${statusColor}; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">
+                        ${statusText}
+                    </span>
+                </div>
+                
+                <div style="margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                        <span style="font-size: 0.85rem; color: #6b7280;">Progress</span>
+                        <span style="font-size: 0.85rem; font-weight: 600;">${completed} / ${total} sessions (${percent}%)</span>
+                    </div>
+                    <div style="height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden;">
+                        <div style="width: ${percent}%; height: 100%; background: linear-gradient(90deg, #0ea5e9, #0284c7); border-radius: 4px;"></div>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 0.85rem;">
+                    <div>
+                        <div style="color: #6b7280;">Teeth</div>
+                        <div style="font-weight: 500;">${plan.teeth_numbers || 'Not specified'}</div>
+                    </div>
+                    <div>
+                        <div style="color: #6b7280;">Next Session</div>
+                        <div style="font-weight: 500;">${plan.next_session_date ? new Date(plan.next_session_date).toLocaleDateString() : 'Not scheduled'}</div>
+                    </div>
+                </div>
+                
+                ${plan.notes ? `
+                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
+                        <div style="color: #6b7280; font-size: 0.8rem; margin-bottom: 4px;">Notes</div>
+                        <div style="font-size: 0.9rem;">${plan.notes}</div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function closeTreatmentPlanModal() {
+    document.getElementById('treatmentPlanModal').classList.remove('active');
+    document.body.style.overflow = '';
+    treatmentPlanPatientId = null;
+    
+    // Reset form state
+    document.getElementById('tpNewPlanForm').reset();
+}
+
+function showTpCreateForm() {
+    document.getElementById('tpLoading').style.display = 'none';
+    document.getElementById('tpPlansList').style.display = 'none';
+    document.getElementById('tpNoPlans').style.display = 'none';
+    document.getElementById('tpCreateForm').style.display = 'block';
+    
+    // Reset form fields
+    document.getElementById('tpTreatmentName').value = '';
+    document.getElementById('tpTreatmentType').value = '';
+    document.getElementById('tpTreatmentType').readOnly = true;
+    document.getElementById('tpTreatmentType').style.background = '#f9fafb';
+    
+    // Show/hide buttons
+    document.getElementById('tpBtnCreate').style.display = 'none';
+    document.getElementById('tpBtnSave').style.display = 'inline-flex';
+    document.getElementById('tpBtnBack').style.display = 'inline-flex';
+    document.getElementById('tpBtnCancel').style.display = 'none';
+    
+    document.getElementById('tpFormPatientId').value = treatmentPlanPatientId;
+}
+
+function showTpPlansList() {
+    document.getElementById('tpCreateForm').style.display = 'none';
+    document.getElementById('tpPlansList').style.display = 'block';
+    
+    // Show/hide buttons
+    document.getElementById('tpBtnCreate').style.display = 'inline-flex';
+    document.getElementById('tpBtnSave').style.display = 'none';
+    document.getElementById('tpBtnBack').style.display = 'none';
+    document.getElementById('tpBtnCancel').style.display = 'inline-flex';
+}
+
+// Auto-populate Treatment Type based on Treatment Name
+function autoPopulateTreatmentType() {
+    const treatmentName = document.getElementById('tpTreatmentName').value;
+    const treatmentTypeInput = document.getElementById('tpTreatmentType');
+    
+    const treatmentMappings = {
+        'Root Canal': 'Endodontic',
+        'Tooth Extraction': 'Surgical',
+        'Teeth Cleaning': 'Preventive',
+        'Dental Fillings': 'Restorative',
+        'Braces Adjustment': 'Orthodontic',
+        'Denture Fitting': 'Prosthodontic',
+        'Oral Prophylaxis': 'Preventive',
+        'Crown & Bridge': 'Prosthodontic',
+        'Teeth Whitening': 'Cosmetic',
+        'Checkup': 'Diagnostic'
+    };
+    
+    if (treatmentMappings[treatmentName]) {
+        treatmentTypeInput.value = treatmentMappings[treatmentName];
+    } else {
+        treatmentTypeInput.value = '';
+    }
+}
+
+function saveTreatmentPlan() {
+    const form = document.getElementById('tpNewPlanForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    
+    if (!data.treatment_name) {
+        alert('Please select a treatment name');
+        return;
+    }
+    
+    fetch('../shared/process_treatment_plan.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert('Treatment plan created successfully!');
+            // Close modal and redirect to treatment plan page
+            closeTreatmentPlanModal();
+            window.location.href = 'dentist_treatments.php?patient_id=' + treatmentPlanPatientId;
+        } else {
+            alert(result.message || 'Error saving treatment plan');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error saving treatment plan');
+    });
 }
 
 function showEditAmountForm() {
@@ -1205,7 +1585,7 @@ function saveNewAmount() {
         return;
     }
     
-    fetch('master/dentist/dentist_billing_actions.php', {
+    fetch('dentist_billing_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1247,19 +1627,32 @@ document.addEventListener('keydown', function(e) {
 
 // Auto-refresh when a new patient is added
 setInterval(() => {
-    fetch('master/dentist/dentist_patients_poll.php')
+    fetch('dentist_patients_poll.php')
         .then(response => response.json())
         .then(data => {
             if (data && data.success) {
                 const newestId = parseInt(data.latest_id || 0, 10);
                 if (newestId > latestPatientId) {
-                    location.reload();
+                    // Check if we already showed the alert
+                    if (!document.getElementById('new-patient-alert')) {
+                        const alertDiv = document.createElement('div');
+                        alertDiv.id = 'new-patient-alert';
+                        alertDiv.innerHTML = `
+                            <div style="background: #eff6ff; border: 1px solid #3b82f6; color: #1e40af; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                                <span>A new patient has been added to the queue.</span>
+                                <button onclick="location.reload()" style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Refresh List</button>
+                            </div>
+                        `;
+                        // Insert it right above the search/filter row
+                        const searchRow = document.querySelector('.search-filter-row');
+                        if (searchRow) {
+                            searchRow.parentNode.insertBefore(alertDiv, searchRow);
+                        }
+                    }
                 }
             }
         })
-        .catch(() => {
-            // Silently ignore polling errors
-        });
+        .catch(() => {});
 }, 10000);
 </script>
 

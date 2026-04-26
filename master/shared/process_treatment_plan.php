@@ -13,6 +13,41 @@ if (!isset($_SESSION['user_id'])) {
 
 require_once '../../config/database.php';
 
+header('Content-Type: application/json');
+
+// Handle GET request - fetch treatment plans for a patient
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['patient_id'])) {
+    $patient_id = intval($_GET['patient_id']);
+    
+    try {
+        $stmt = $pdo->prepare("
+            SELECT tp.*, u.display_name as doctor_name
+            FROM treatment_plans tp
+            LEFT JOIN users u ON tp.doctor_id = u.id
+            WHERE tp.patient_id = ?
+            ORDER BY tp.created_at DESC
+        ");
+        $stmt->execute([$patient_id]);
+        $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Get patient info
+        $patientStmt = $pdo->prepare("SELECT first_name, middle_name, last_name FROM patients WHERE id = ?");
+        $patientStmt->execute([$patient_id]);
+        $patient = $patientStmt->fetch(PDO::FETCH_ASSOC);
+        
+        $patientName = trim(($patient['first_name'] ?? '') . ' ' . ($patient['middle_name'] ?? '') . ' ' . ($patient['last_name'] ?? ''));
+        
+        echo json_encode([
+            'success' => true,
+            'patient_name' => $patientName,
+            'plans' => $plans
+        ]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+    }
+    exit();
+}
+
 try {
     $plan_id = $_POST['plan_id'] ?? null;
     $patient_id = $_POST['patient_id'] ?? null;

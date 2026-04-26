@@ -18,6 +18,10 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
 
 require_once __DIR__ . '/../../config/database.php';
 
+// Turn off error display to prevent HTML breaking JSON, log them instead
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+
 header('Content-Type: application/json');
 
 // Handle GET requests (view billing details)
@@ -33,10 +37,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
         
         try {
-            // Get the latest queue item for this patient
+            // Get patient info first
+            $patientStmt = $pdo->prepare("SELECT first_name, middle_name, last_name, phone, email FROM patients WHERE id = ?");
+            $patientStmt->execute([$patientId]);
+            $patient = $patientStmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$patient) {
+                echo json_encode(['success' => false, 'message' => 'Patient not found (ID: ' . $patientId . ')']);
+                exit();
+            }
+            
+            $patientName = trim(($patient['first_name'] ?? '') . ' ' . ($patient['middle_name'] ?? '') . ' ' . ($patient['last_name'] ?? ''));
+            
+            // Get the latest appointment for this patient
+            $apptStmt = $pdo->prepare("
+                SELECT a.*, s.name as service_name, s.price as service_price
+                FROM appointments a
+                LEFT JOIN services s ON a.service_id = s.id
+                WHERE a.patient_id = ?
+                ORDER BY a.appointment_date DESC, a.created_at DESC
+                LIMIT 1
+            ");
+            $apptStmt->execute([$patientId]);
+            $appointment = $apptStmt->fetch(PDO::FETCH_ASSOC);
+            
+            // Get the latest queue item if exists
             $queueStmt = $pdo->prepare("
-                SELECT q.* 
-                FROM queue q
+                SELECT q.* FROM queue q
                 WHERE q.patient_id = ?
                 ORDER BY q.created_at DESC
                 LIMIT 1
@@ -44,105 +71,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             $queueStmt->execute([$patientId]);
             $queueItem = $queueStmt->fetch(PDO::FETCH_ASSOC);
             
-            if (!$queueItem) {
-                echo json_encode(['success' => false, 'message' => 'No queue record found for patient']);
-                exit();
+            // SAFELY extract queue data
+            $queueId = is_array($queueItem) ? ($queueItem['id'] ?? null) : null;
+            $queueStatus = is_array($queueItem) ? ($queueItem['status'] ?? null) : null;
+            $queueDate = (is_array($queueItem) && !empty($queueItem['created_at'])) ? date('F d, Y', strtotime($queueItem['created_at'])) : null;
+            $teethNumbers = is_array($queueItem) ? ($queueItem['teeth_numbers'] ?? null) : null;
+            
+            // Determine treatment and service from appointment
+            $serviceId = null;
+            $serviceName = null;
+            $estimatedAmount = 0;
+            
+            if (is_array($appointment) && !empty($appointment['service_id'])) {
+                $serviceId = $appointment['service_id'];
+                $serviceName = $appointment['service_name'];
+                $estimatedAmount = floatval($appointment['service_price'] ?? 0);
             }
             
-            $queueId = $queueItem['id'];
-            $treatmentType = $queueItem['treatment_type'];
-            $serviceId = $queueItem['service_id'] ?? null;
-            $teethNumbers = $queueItem['teeth_numbers'];
-            $queueStatus = $queueItem['status'];
-            $queueDate = date('F d, Y', strtotime($queueItem['created_at']));
+            // Fallback: if no appointment service, try queue
+            if (empty($serviceId) && is_array($queueItem) && !empty($queueItem['service_id'])) {
+                $serviceId = $queueItem['service_id'];
+                $svcStmt = $pdo->prepare("SELECT name, price FROM services WHERE id = ? AND is_active = 1");
+                $svcStmt->execute([$serviceId]);
+                $svc = $svcStmt->fetch(PDO::FETCH_ASSOC);
+                if ($svc) {
+                    $serviceName = $svc['name'];
+                    $estimatedAmount = floatval($svc['price']);
+                }
+            }
             
-            error_log("DEBUG billing - patient_id: $patientId, treatmentType: $treatmentType, serviceId: $serviceId");
+            // If still no service, try to find by treatment name from queue
+            if (empty($serviceId) && is_array($queueItem) && !empty($queueItem['treatment_type'])) {
+                $svcStmt = $pdo->prepare("SELECT id, name, price FROM services WHERE name LIKE ? LIMIT 1");
+                $svcStmt->execute(['%' . $queueItem['treatment_type'] . '%']);
+                $svc = $svcStmt->fetch(PDO::FETCH_ASSOC);
+                if ($svc) {
+                    $serviceId = $svc['id'];
+                    $serviceName = $svc['name'];
+                    $estimatedAmount = floatval($svc['price']);
+                }
+            }
             
-            // Get patient info
-            $patientStmt = $pdo->prepare("SELECT first_name, middle_name, last_name, phone, email FROM patients WHERE id = ?");
-            $patientStmt->execute([$patientId]);
-            $patient = $patientStmt->fetch(PDO::FETCH_ASSOC);
+            // Safe treatment type determination
+            $treatmentType = $serviceName;
+            if (!$treatmentType) {
+                if (is_array($appointment) && isset($appointment['treatment'])) {
+                    $treatmentType = $appointment['treatment'];
+                } elseif (is_array($queueItem) && isset($queueItem['treatment_type'])) {
+                    $treatmentType = $queueItem['treatment_type'];
+                } else {
+                    $treatmentType = 'General Consultation';
+                }
+            }
             
-            $patientName = trim(($patient['first_name'] ?? '') . ' ' . ($patient['middle_name'] ?? '') . ' ' . ($patient['last_name'] ?? ''));
+            error_log("DEBUG billing - patient_id: $patientId, serviceName: $serviceName, estimatedAmount: $estimatedAmount");
             
-            // Get billing record - use patient_id only (no date restriction)
+            // Get billing record
             $billingStmt = $pdo->prepare("
-                SELECT b.* 
-                FROM billing b
+                SELECT b.* FROM billing b
                 WHERE b.patient_id = ?
                 ORDER BY b.created_at DESC
                 LIMIT 1
             ");
             $billingStmt->execute([$patientId]);
             $billing = $billingStmt->fetch(PDO::FETCH_ASSOC);
-            
-            // Get service price directly using service_id (NEW APPROACH)
-            $estimatedAmount = 0;
-            $matchedServices = [];
-            if ($serviceId) {
-                // Direct JOIN - get price from services table using service_id
-                $serviceStmt = $pdo->prepare("
-                    SELECT s.id, s.name, s.price, s.mode 
-                    FROM services s 
-                    WHERE s.id = ? AND s.is_active = 1
-                ");
-                $serviceStmt->execute([$serviceId]);
-                $serviceData = $serviceStmt->fetch(PDO::FETCH_ASSOC);
-                
-                if ($serviceData) {
-                    $estimatedAmount = floatval($serviceData['price']);
-                    $matchedServices[] = [
-                        'id' => $serviceData['id'],
-                        'name' => $serviceData['name'],
-                        'price' => $estimatedAmount
-                    ];
-                    error_log("Found service by ID: " . $serviceData['name'] . " = ₱" . $estimatedAmount);
-                }
-            }
-
-            // Fallback: if queue doesn't store service_id, try to get it from appointment
-            if (empty($serviceId) && !empty($queueItem['appointment_id'])) {
-                try {
-                    $apptStmt = $pdo->prepare("SELECT service_id, treatment FROM appointments WHERE id = ? LIMIT 1");
-                    $apptStmt->execute([$queueItem['appointment_id']]);
-                    $appt = $apptStmt->fetch(PDO::FETCH_ASSOC);
-                    if ($appt && !empty($appt['service_id'])) {
-                        $serviceId = $appt['service_id'];
-                        $serviceStmt = $pdo->prepare("SELECT s.id, s.name, s.price FROM services s WHERE s.id = ? AND s.is_active = 1");
-                        $serviceStmt->execute([$serviceId]);
-                        $serviceData = $serviceStmt->fetch(PDO::FETCH_ASSOC);
-                        if ($serviceData) {
-                            $estimatedAmount = floatval($serviceData['price']);
-                            $matchedServices[] = [
-                                'id' => $serviceData['id'],
-                                'name' => $serviceData['name'],
-                                'price' => $estimatedAmount
-                            ];
-                            error_log("Found service by appointment_id: " . $serviceData['name'] . " = ₱" . $estimatedAmount);
-                        }
-                    } else {
-                        // Last resort: try to resolve service by treatment name text
-                        $treatmentName = $queueItem['treatment_type'] ?? $appt['treatment'] ?? null;
-                        if (!empty($treatmentName)) {
-                            $nameStmt = $pdo->prepare("SELECT id, name, price FROM services WHERE name = ? LIMIT 1");
-                            $nameStmt->execute([$treatmentName]);
-                            $byName = $nameStmt->fetch(PDO::FETCH_ASSOC);
-                            if ($byName) {
-                                $serviceId = $byName['id'];
-                                $estimatedAmount = floatval($byName['price']);
-                                $matchedServices[] = [
-                                    'id' => $byName['id'],
-                                    'name' => $byName['name'],
-                                    'price' => $estimatedAmount
-                                ];
-                                error_log("Resolved service by name: " . $byName['name'] . " = ₱" . $estimatedAmount);
-                            }
-                        }
-                    }
-                } catch (Exception $e) {
-                    // ignore and continue, we'll fallback to treatment_type text
-                }
-            }
             
             // If no billing record exists, create default values
             $totalAmount = 0;
@@ -152,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             $billingId = null;
             $billingNotes = '';
             
-            if ($billing) {
+            if (is_array($billing)) {
                 $totalAmount = floatval($billing['total_amount'] ?? 0);
                 $paidAmount = floatval($billing['paid_amount'] ?? 0);
                 $balance = floatval($billing['balance'] ?? 0);
@@ -179,21 +171,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                     'queue_id' => $queueId,
                     'patient_id' => $patientId,
                     'patient_name' => $patientName ?: 'Unknown',
-                    'treatment_type' => $treatmentType ?: 'Consultation',
+                    'treatment_type' => $treatmentType,
                     'service_id' => $serviceId,
-                    'service_name' => !empty($matchedServices[0]['name']) ? $matchedServices[0]['name'] : ($treatmentType ?: 'Consultation'),
+                    'service_name' => $serviceName ?: $treatmentType,
                     'teeth_numbers' => $teethNumbers,
                     'queue_status' => ucfirst($queueStatus ?? ''),
                     'queue_date' => $queueDate,
-                    'phone' => $patient['phone'] ?? '',
-                    'email' => $patient['email'] ?? '',
+                    'phone' => is_array($patient) ? ($patient['phone'] ?? '') : '',
+                    'email' => is_array($patient) ? ($patient['email'] ?? '') : '',
                     'estimated_amount' => $estimatedAmount,
                     'total_amount' => $totalAmount,
                     'paid_amount' => $paidAmount,
                     'balance' => $balance,
                     'payment_status' => $paymentStatus,
-                    'billing_notes' => $billingNotes,
-                    'matched_services' => $matchedServices
+                    'billing_notes' => $billingNotes
                 ]
             ]);
         } catch (Exception $e) {
@@ -241,18 +232,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $queueData = $queueStmt->fetch(PDO::FETCH_ASSOC);
             
             if (!$queueData) {
-                throw new Exception('Queue record not found');
+                // Modified: If no queue, allow setting a bill anyway using current date
+                $queueId = null;
+                $queueDate = date('Y-m-d');
+            } else {
+                $queueId = $queueData['id'];
+                $queueDate = $queueData['queue_date'];
             }
-            
-            $queueId = $queueData['id'];
-            $queueDate = $queueData['queue_date'];
             
             // Check if billing record already exists for this patient
             $checkStmt = $pdo->prepare("SELECT id, paid_amount, payment_status FROM billing WHERE patient_id = ? ORDER BY created_at DESC LIMIT 1");
             $checkStmt->execute([$patientId]);
             $existingBilling = $checkStmt->fetch(PDO::FETCH_ASSOC);
             
-            if ($existingBilling) {
+            if (is_array($existingBilling)) {
                 // Calculate new balance
                 $paidAmount = floatval($existingBilling['paid_amount']);
                 $newBalance = $newAmount - $paidAmount;

@@ -653,6 +653,18 @@ require_once '../../includes/dentist_layout_start.php';
                 }
             });
         });
+        
+        // Pre-select patient if provided in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const preselectedPatientId = urlParams.get('patient_id');
+        if (preselectedPatientId) {
+            const patientSelect = document.getElementById('patientSelect');
+            if (patientSelect) {
+                patientSelect.value = preselectedPatientId;
+                // Trigger change to populate services, etc.
+                patientSelect.dispatchEvent(new Event('change'));
+            }
+        }
     });
 </script>
 

@@ -20,9 +20,17 @@ if (!isset($_SESSION['user_id'])) {
 $userRole = $_SESSION['role'] ?? 'staff';
 $pageTitle = 'New Session';
 
-// Determine the patient list page to redirect back to
-$patientListPage = ($userRole === 'admin') ? 'admin_patients.php' : 'master/staff/staff_patient_records.php';
-$queuePage = ($userRole === 'admin') ? 'admin_queue.php' : 'master/staff/staff_queue.php';
+// Determine the patient list page to redirect back to based on role
+if ($userRole === 'admin') {
+    $patientListPage = 'admin_patients.php';
+    $queuePage = 'admin_queue.php';
+} elseif ($userRole === 'dentist') {
+    $patientListPage = '../dentist/dentist_patients.php';
+    $queuePage = '../dentist/dentist_queue.php';
+} else {
+    $patientListPage = 'master/staff/staff_patient_records.php';
+    $queuePage = 'master/staff/staff_queue.php';
+}
 
 try {
     require_once '../../config/database.php';
