@@ -165,17 +165,64 @@ try {
             break;
             
         case 'get_details':
-            // Used by staff_payment.php and staff_billing.php
+            // Used by staff_payment.php, staff_billing.php, dentist_appointments.php
             $queue_id = $_GET['queue_id'] ?? 0;
             $patient_id = $_GET['patient_id'] ?? 0;
+            $appointment_id = $_GET['appointment_id'] ?? 0;
             
-            if (!$queue_id && !$patient_id) {
-                $response['message'] = 'Queue ID or Patient ID is required';
+            if (!$queue_id && !$patient_id && !$appointment_id) {
+                $response['message'] = 'Queue ID, Patient ID, or Appointment ID is required';
                 echo json_encode($response);
                 exit;
             }
             
-            // Get queue details
+            // Handle appointment_id
+            if ($appointment_id && !$queue_id) {
+                $stmt = $pdo->prepare("
+                    SELECT a.*, CONCAT(p.first_name, ' ', p.last_name) as patient_name, p.phone
+                    FROM appointments a
+                    LEFT JOIN patients p ON a.patient_id = p.id
+                    WHERE a.id = ?
+                ");
+                $stmt->execute([$appointment_id]);
+                $appointment = $stmt->fetch();
+                
+                if ($appointment) {
+                    $patient_id = $appointment['patient_id'];
+                    $queue_id = $appointment_id; // Use appointment_id as fallback
+                    
+                    // Get billing for this patient on appointment date
+                    $stmt = $pdo->prepare("
+                        SELECT b.*, COALESCE(b.payment_status, 'unpaid') as payment_status
+                        FROM billing b
+                        WHERE b.patient_id = ? AND DATE(b.billing_date) = DATE(?)
+                    ");
+                    $stmt->execute([$patient_id, $appointment['appointment_date']]);
+                    $billing = $stmt->fetch();
+                    
+                    $treatment = strtolower(trim($appointment['treatment'] ?? 'consultation'));
+                    $stmt = $pdo->prepare("SELECT price FROM services WHERE LOWER(name) = ? AND is_active = 1 LIMIT 1");
+                    $stmt->execute([$treatment]);
+                    $service = $stmt->fetch();
+                    $amount = $billing ? ($billing['total_amount'] ?? 0) : ($service['price'] ?? 500);
+                    
+                    $response['success'] = true;
+                    $response['appointment_id'] = $appointment_id;
+                    $response['patient_id'] = $patient_id;
+                    $response['patient_name'] = $appointment['patient_name'];
+                    $response['phone'] = $appointment['phone'];
+                    $response['treatment_type'] = $appointment['treatment'];
+                    $response['queue_date'] = date('Y-m-d', strtotime($appointment['appointment_date']));
+                    $response['amount'] = $amount;
+                    $response['billing_id'] = $billing['id'] ?? 0;
+                    $response['payment_status'] = $billing['payment_status'] ?? 'unpaid';
+                    
+                    echo json_encode($response);
+                    exit;
+                }
+            }
+            
+            // Get queue details (existing logic)
             if ($queue_id) {
                 $stmt = $pdo->prepare("
                     SELECT q.*, CONCAT(p.first_name, ' ', p.last_name) as patient_name, p.phone

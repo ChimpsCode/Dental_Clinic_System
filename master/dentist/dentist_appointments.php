@@ -150,7 +150,7 @@ try {
                         }
                         $statusText = $status;
                     ?>
-                    <tr class="appointment-row" data-date="<?php echo $apt['appointment_date']; ?>" data-name="<?php echo strtolower($firstName . ' ' . $lastName); ?>">
+                    <tr class="appointment-row" data-id="<?php echo $apt['id']; ?>" data-date="<?php echo $apt['appointment_date']; ?>" data-time="<?php echo $appointmentTime; ?>" data-name="<?php echo strtolower($firstName . ' ' . $lastName); ?>" data-first-name="<?php echo htmlspecialchars($firstName); ?>" data-middle-name="<?php echo htmlspecialchars($middleName); ?>" data-last-name="<?php echo htmlspecialchars($lastName); ?>" data-phone="<?php echo htmlspecialchars($apt['phone'] ?? ''); ?>" data-status="<?php echo $statusText; ?>" data-type="<?php echo htmlspecialchars($apt['treatment'] ?? 'Consultation'); ?>" data-notes="<?php echo htmlspecialchars($apt['notes'] ?? ''); ?>">
                         <td><?php echo $firstName ?: '-'; ?></td>
                         <td><?php echo $middleName ?: '-'; ?></td>
                         <td><?php echo $lastName ?: '-'; ?></td>
@@ -510,18 +510,8 @@ function editAppointment(id) {
     document.getElementById('edit_phone').value = appointment.phone || '';
     document.getElementById('edit_email').value = appointment.email || '';
     document.getElementById('edit_treatment').value = appointment.treatment || 'Consultation';
-    document.getElementById('edit_status').value = appointment.status || 'scheduled';
-    document.getElementById('edit_notes').value = appointment.notes || '';
-    
-    // Format date and time for input fields
-    if (appointment.appointment_date) {
-        document.getElementById('edit_appointment_date').value = appointment.appointment_date;
-    }
-    if (appointment.appointment_time) {
-        document.getElementById('edit_appointment_time').value = appointment.appointment_time;
-    }
-    
-    document.getElementById('editAppointmentModal').style.display = 'flex';
+pointment.treatment || 'General Checkup';
+etElementById('editAppointmentModal').style.display = 'flex';
 }
 
 function closeEditAppointmentModal() {
@@ -560,6 +550,103 @@ function closeViewAppointmentModal() {
     document.getElementById('viewAppointmentModal').style.display = 'none';
 }
 
+function viewAppointmentDetails(id) {
+    // Get appointment data from table row data attributes
+    const row = document.querySelector(`.appointment-row[data-id="${id}"]`);
+    if (!row) {
+        alert('Appointment not found');
+        return;
+    }
+    
+    const firstName = row.getAttribute('data-first-name') || row.cells[0].textContent.trim();
+    const middleName = row.getAttribute('data-middle-name') || row.cells[1].textContent.trim();
+    const lastName = row.getAttribute('data-last-name') || row.cells[2].textContent.trim();
+    const phone = row.getAttribute('data-phone') || 'N/A';
+    const date = row.getAttribute('data-date') || '';
+    const time = row.getAttribute('data-time') || '';
+    const treatment = row.getAttribute('data-type') || 'Consultation';
+    const status = row.getAttribute('data-status') || 'Scheduled';
+    const notes = row.getAttribute('data-notes') || '';
+    
+    const appointmentDate = new Date(date + ' ' + time);
+    const dateStr = appointmentDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const timeStr = appointmentDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    
+    let statusBg, statusColor;
+    switch(status) {
+        case 'Completed':
+            statusBg = '#d1fae5'; statusColor = '#065f46'; break;
+        case 'Cancelled':
+            statusBg = '#fee2e2'; statusColor = '#991b1b'; break;
+        case 'In Queue':
+            statusBg = '#fef3c7'; statusColor = '#92400e'; break;
+        case 'Pending Payment':
+            statusBg = '#fed7aa'; statusColor = '#c2410c'; break;
+        default:
+            statusBg = '#e0f2fe'; statusColor = '#0369a1';
+    }
+    
+    // Fetch billing info
+    fetch('../shared/billing_actions.php?action=get_details&appointment_id=' + id)
+    .then(r => r.json())
+    .then(billingData => {
+        const amount = billingData.success && billingData.amount ? parseFloat(billingData.amount) : 0;
+        const paymentStatus = billingData.payment_status || 'unpaid';
+        const amountDisplay = amount.toLocaleString('en-PH', { minimumFractionDigits: 2 });
+        const paymentBg = paymentStatus === 'paid' ? '#d1fae5' : '#fef3c7';
+        const paymentColor = paymentStatus === 'paid' ? '#065f46' : '#92400e';
+        
+        document.getElementById('viewAppointmentContent').innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <div><span style="color: #6b7280;">Patient:</span> 
+                    <span style="font-weight: 600; margin-left: 8px;">${firstName}</span>
+                    ${middleName && middleName !== '-' ? `<span style="color: #6b7280; margin-left: 4px;">${middleName}</span>` : ''}
+                    <span style="font-weight: 600; margin-left: 4px;">${lastName}</span>
+                </div>
+                <div><span style="color: #6b7280;">Phone:</span> <span style="font-weight: 500; margin-left: 8px;">${phone}</span></div>
+                <div><span style="color: #6b7280;">Date:</span> <span style="font-weight: 500; margin-left: 8px;">${dateStr}</span></div>
+                <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${timeStr}</span></div>
+                <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${treatment}</span></div>
+                <div style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #92400e; font-weight: 600;">Unpaid Amount:</span>
+                        <span style="font-size: 1.25rem; font-weight: 700; color: #111827;">₱${amountDisplay}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                        <span style="color: #92400e;">Payment Status:</span>
+                        <span class="status-badge" style="background: ${paymentBg}; color: ${paymentColor}; padding: 4px 12px; border-radius: 9999px; font-size: 0.875rem; text-transform: uppercase;">${paymentStatus}</span>
+                    </div>
+                </div>
+                <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${statusBg}; color: ${statusColor}; padding: 4px 12px; border-radius: 9999px; font-size: 0.875rem;">${status}</span></div>
+                ${notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${notes}</p></div>` : '<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0; color: #9ca3af;">No notes</p></div>'}
+            </div>
+        `;
+        
+        document.getElementById('viewAppointmentModal').style.display = 'flex';
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        // Show without billing if fetch fails
+        document.getElementById('viewAppointmentContent').innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <div><span style="color: #6b7280;">Patient:</span> 
+                    <span style="font-weight: 600; margin-left: 8px;">${firstName}</span>
+                    ${middleName && middleName !== '-' ? `<span style="color: #6b7280; margin-left: 4px;">${middleName}</span>` : ''}
+                    <span style="font-weight: 600; margin-left: 4px;">${lastName}</span>
+                </div>
+                <div><span style="color: #6b7280;">Phone:</span> <span style="font-weight: 500; margin-left: 8px;">${phone}</span></div>
+                <div><span style="color: #6b7280;">Date:</span> <span style="font-weight: 500; margin-left: 8px;">${dateStr}</span></div>
+                <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${timeStr}</span></div>
+                <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${treatment}</span></div>
+                <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${statusBg}; color: ${statusColor}; padding: 4px 12px; border-radius: 9999px; font-size: 0.875rem;">${status}</span></div>
+                ${notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${notes}</p></div>` : '<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0; color: #9ca3af;">No notes</p></div>'}
+            </div>
+        `;
+        
+        document.getElementById('viewAppointmentModal').style.display = 'flex';
+    });
+}
+
 // Close view modal when clicking outside
 document.addEventListener('DOMContentLoaded', function() {
     const viewModal = document.getElementById('viewAppointmentModal');
@@ -581,6 +668,101 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.appendChild(viewModalPortal);
     }
 });
+</script>
+
+<!-- Kebab Menu Functions -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize kebab menu
+    initApptKebabMenu();
+});
+
+let apptKebabDropdown = null;
+let apptKebabBackdrop = null;
+let apptActiveButton = null;
+
+function initApptKebabMenu() {
+    apptKebabDropdown = document.createElement('div');
+    apptKebabDropdown.className = 'appt-kebab-dropdown-portal';
+    apptKebabDropdown.id = 'apptKebabDropdown';
+    document.body.appendChild(apptKebabDropdown);
+    
+    apptKebabBackdrop = document.createElement('div');
+    apptKebabBackdrop.className = 'appt-kebab-backdrop';
+    apptKebabBackdrop.id = 'apptKebabBackdrop';
+    document.body.appendChild(apptKebabBackdrop);
+    
+    apptKebabBackdrop.addEventListener('click', closeApptKebabDropdown);
+    
+    // Click handler for kebab buttons
+    document.addEventListener('click', function(e) {
+        const button = e.target.closest('.appt-kebab-btn');
+        if (button) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (apptActiveButton === button) {
+                closeApptKebabDropdown();
+            } else {
+                closeApptKebabDropdown();
+                openApptKebabDropdown(button);
+            }
+        } else if (!e.target.closest('.appt-kebab-dropdown-portal')) {
+            closeApptKebabDropdown();
+        }
+    });
+}
+
+function openApptKebabDropdown(button) {
+    const apptId = button.getAttribute('data-appt-id');
+    const status = button.getAttribute('data-status') || 'scheduled';
+    
+    apptKebabDropdown.innerHTML = `
+        <a href="javascript:void(0)" onclick="viewAppointmentDetails(${apptId})">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+            </svg>
+            View Details
+        </a>
+    `;
+    
+    // Position dropdown
+    const rect = button.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const padding = 12;
+    
+    let left = rect.right + 8;
+    let top = rect.top;
+    
+    if (left + 200 > viewportWidth - padding) {
+        left = rect.left - 200 - 8;
+    }
+    if (top + 100 > viewportHeight - padding) {
+        top = viewportHeight - padding - 100;
+    }
+    
+    apptKebabDropdown.style.left = left + 'px';
+    apptKebabDropdown.style.top = top + 'px';
+    
+    apptKebabDropdown.classList.add('show');
+    apptKebabBackdrop.classList.add('show');
+    apptActiveButton = button;
+    button.classList.add('active');
+}
+
+function closeApptKebabDropdown() {
+    if (apptKebabDropdown) {
+        apptKebabDropdown.classList.remove('show');
+    }
+    if (apptKebabBackdrop) {
+        apptKebabBackdrop.classList.remove('show');
+    }
+    if (apptActiveButton) {
+        apptActiveButton.classList.remove('active');
+        apptActiveButton = null;
+    }
+}
 </script>
 
 <style>
@@ -640,7 +822,6 @@ document.addEventListener('DOMContentLoaded', function() {
 .form-row {
     display: flex;
     gap: 16px;
-    margin-bottom: 16px;
 }
 
 .form-group {
