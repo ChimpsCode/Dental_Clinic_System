@@ -87,6 +87,9 @@ function ensureMessagesTable(PDO $pdo): void
     if (!isset($columns['auto_reply_for_message_id'])) {
         $pdo->exec("ALTER TABLE `messages` ADD COLUMN `auto_reply_for_message_id` INT NULL AFTER `sender_type`");
     }
+    if (!isset($columns['is_read'])) {
+        $pdo->exec("ALTER TABLE `messages` ADD COLUMN `is_read` TINYINT(1) NOT NULL DEFAULT 0 AFTER `auto_reply_for_message_id`");
+    }
 
     // Backfill sender_type for older rows.
     $pdo->exec("
@@ -162,6 +165,34 @@ function fetchMessageById(PDO $pdo, array $columns, int $id): ?array
     $stmt->execute([$id]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     return $row ?: null;
+}
+
+function markPatientInboxAsRead(PDO $pdo, int $patientId, array $columns): void
+{
+    if ($patientId <= 0 || !isset($columns['is_read'])) {
+        return;
+    }
+
+    $stmt = $pdo->prepare("
+        UPDATE messages
+        SET is_read = 1
+        WHERE patient_id = ? AND sender_type != 'patient' AND is_read = 0
+    ");
+    $stmt->execute([$patientId]);
+}
+
+function getPatientUnreadCount(PDO $pdo, int $patientId, array $columns): int
+{
+    if ($patientId <= 0 || !isset($columns['is_read'])) {
+        return 0;
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*) FROM messages
+        WHERE patient_id = ? AND sender_type != 'patient' AND is_read = 0
+    ");
+    $stmt->execute([$patientId]);
+    return (int)$stmt->fetchColumn();
 }
 
 try {
@@ -255,11 +286,30 @@ try {
     $isAjaxTyping = $_SERVER['REQUEST_METHOD'] === 'POST'
         && (($_POST['ajax'] ?? '0') === '1')
         && (($_POST['action'] ?? '') === 'set_typing');
+    $isAjaxUnreadCount = $_SERVER['REQUEST_METHOD'] === 'POST'
+        && (($_POST['ajax'] ?? '0') === '1')
+        && (($_POST['action'] ?? '') === 'get_unread_count');
+    $isAjaxMarkRead = $_SERVER['REQUEST_METHOD'] === 'POST'
+        && (($_POST['ajax'] ?? '0') === '1')
+        && (($_POST['action'] ?? '') === 'mark_read');
+
+    // AJAX: Get unread message count for patient
+    if ($isAjaxUnreadCount) {
+        jsonResponse(['success' => true, 'unread_count' => getPatientUnreadCount($pdo, (int)$patient_id, $messageColumns)]);
+    }
+
+    // AJAX: Mark messages as read
+    if ($isAjaxMarkRead) {
+        markPatientInboxAsRead($pdo, (int)$patient_id, $messageColumns);
+        jsonResponse(['success' => true, 'unread_count' => getPatientUnreadCount($pdo, (int)$patient_id, $messageColumns)]);
+    }
 
     if ($isAjaxPoll) {
         $lastId = (int)($_POST['last_id'] ?? 0);
+        $hasIsRead = isset($messageColumns['is_read']);
+        $isReadExpr = $hasIsRead ? 'is_read' : '0';
         $pollStmt = $pdo->prepare("
-            SELECT id, message, created_at, {$senderExpr} AS sender_type
+            SELECT id, message, created_at, {$senderExpr} AS sender_type, {$isReadExpr} AS is_read
             FROM messages
             WHERE patient_id = ? AND id > ?
             ORDER BY id ASC
@@ -282,7 +332,8 @@ try {
         jsonResponse([
             'success' => true,
             'messages' => $newMessages,
-            'staff_typing' => $staffTyping
+            'staff_typing' => $staffTyping,
+            'unread_count' => getPatientUnreadCount($pdo, (int)$patient_id, $messageColumns)
         ]);
     }
 
@@ -369,8 +420,10 @@ try {
         }
     }
 
+    $hasIsRead = isset($messageColumns['is_read']);
+    $isReadExpr = $hasIsRead ? 'is_read' : '0';
     $stmt = $pdo->prepare("
-        SELECT id, message, created_at, {$senderExpr} AS sender_type
+        SELECT id, message, created_at, {$senderExpr} AS sender_type, {$isReadExpr} AS is_read
         FROM messages
         WHERE patient_id = ?
         ORDER BY created_at ASC, id ASC
@@ -387,6 +440,16 @@ try {
     }
     $patient = [];
     $messages = [];
+}
+
+// Calculate initial unread count for patient
+$initialUnreadCount = 0;
+if (!empty($patient_id) && isset($messageColumns['is_read'])) {
+    try {
+        $initialUnreadCount = getPatientUnreadCount($pdo, (int)$patient_id, $messageColumns);
+    } catch (Exception $e) {
+        $initialUnreadCount = 0;
+    }
 }
 
 $pageTitle = 'Messages';
@@ -414,6 +477,22 @@ $pageTitle = 'Messages';
         .menu-item { display: flex; align-items: center; gap: 12px; padding: 14px 16px; color: rgba(255,255,255,0.7); text-decoration: none; border-radius: 8px; transition: all 0.2s; cursor: pointer; font-size: 14px; font-weight: 500; }
         .menu-item:hover { background: rgba(255,255,255,0.1); color: white; }
         .menu-item.active { background: rgba(255,255,255,0.2); color: white; font-weight: 600; }
+        .menu-item-with-badge { justify-content: space-between; }
+        .menu-item-main { display: inline-flex; align-items: center; gap: 12px; }
+        .nav-unread-badge, .floating-unread-badge, .section-title-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: #dc2626;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1;
+        }
         .menu-item i { width: 18px; text-align: center; }
         .main-wrapper { flex: 1; margin-left: 220px; display: flex; flex-direction: column; min-height: 100vh; }
         .dashboard-header { background: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 50; height: 70px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
@@ -436,6 +515,8 @@ $pageTitle = 'Messages';
         .grid-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
         .section { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
         .section-title { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 20px; }
+        .section-title-with-badge { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .section-title-badge { min-width: 24px; height: 24px; padding: 0 8px; font-size: 12px; }
         .form-group { margin-bottom: 16px; }
         .form-label { display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px; }
         .form-input, .form-textarea { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; font-family: inherit; transition: border-color 0.2s; }
@@ -445,6 +526,9 @@ $pageTitle = 'Messages';
         .btn-primary { background: #005daa; color: white; }
         .btn-primary:hover { background: #004080; }
         .message-card { padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 12px; }
+        .message-card.unread-message { border-color: #fecaca; background: #fff5f5; }
+        .message-card.unread-message .message-body,
+        .message-card.unread-message .message-date { font-weight: 600; }
         .message-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
         .message-date { font-size: 12px; color: #6b7280; }
         .message-body { font-size: 14px; color: #374151; line-height: 1.5; }
@@ -463,6 +547,7 @@ $pageTitle = 'Messages';
         .chat-bubble { max-width: 82%; padding: 12px 14px; border-radius: 18px; line-height: 1.5; font-size: 14px; }
         .chat-bubble.sent { align-self: flex-end; background: linear-gradient(135deg, #8b5cf6, #2563eb); color: #ffffff; border-bottom-right-radius: 6px; }
         .chat-bubble.received { align-self: flex-start; background: #f3f4f6; color: #111827; border-bottom-left-radius: 6px; }
+        .chat-bubble.received.unread-message { background: #fff1f2; border: 1px solid #fecdd3; font-weight: 600; }
         .chat-meta { font-size: 11px; opacity: 0.72; margin-top: 6px; }
         .chat-compose { padding: 14px; border-top: 1px solid #e5e7eb; background: #ffffff; }
         .chat-compose .form-input,
@@ -535,7 +620,7 @@ $pageTitle = 'Messages';
 
             <?php if (!empty($messages)): ?>
                 <?php foreach ($messages as $msg): ?>
-                    <div class="chat-bubble <?php echo ($msg['sender_type'] === 'patient') ? 'sent' : 'received'; ?>" data-message-id="<?php echo (int)$msg['id']; ?>">
+                    <div class="chat-bubble <?php echo ($msg['sender_type'] === 'patient') ? 'sent' : 'received'; ?> <?php echo ($msg['sender_type'] !== 'patient' && (int)($msg['is_read'] ?? 1) === 0) ? 'unread-message' : ''; ?>" data-message-id="<?php echo (int)$msg['id']; ?>">
                         <div><?php echo nl2br(htmlspecialchars($msg['message'])); ?></div>
                         <div class="chat-meta"><?php echo date('M j, g:i A', strtotime($msg['created_at'])); ?></div>
                     </div>
@@ -571,6 +656,7 @@ $pageTitle = 'Messages';
             const chatHistory = document.getElementById('chatHistory');
             const form = document.querySelector('.js-chat-form');
             const AUTO_REPLY_TEXT = <?php echo json_encode(AUTO_REPLY_TEXT); ?>;
+            let lastUnreadCount = <?php echo (int)$initialUnreadCount; ?>;
 
             function escapeHtml(value) {
                 const div = document.createElement('div');
@@ -589,11 +675,42 @@ $pageTitle = 'Messages';
                 chatHistory.scrollTop = chatHistory.scrollHeight;
             }
 
+            function scrollToLatestMessage() {
+                scrollToBottom();
+                window.requestAnimationFrame(scrollToBottom);
+                window.setTimeout(scrollToBottom, 80);
+            }
+
             const renderedMessageIds = new Set(
                 Array.from(document.querySelectorAll('[data-message-id]'))
                     .map((el) => Number(el.getAttribute('data-message-id')))
                     .filter((id) => Number.isFinite(id) && id > 0)
             );
+
+            function playNotificationSound() {
+                if (!window.AudioContext && !window.webkitAudioContext) return;
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                const audioCtx = new Ctx();
+                const oscillator = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                oscillator.type = 'sine';
+                oscillator.frequency.value = 988;
+                gain.gain.value = 0.03;
+                oscillator.connect(gain);
+                gain.connect(audioCtx.destination);
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.12);
+            }
+
+            function updateParentUnread(count) {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: 'patient-chat-unread', count }, window.location.origin);
+                }
+            }
+
+            function clearUnreadStyles() {
+                document.querySelectorAll('.unread-message').forEach((el) => el.classList.remove('unread-message'));
+            }
 
             function getLastMessageId() {
                 if (renderedMessageIds.size === 0) return 0;
@@ -608,7 +725,8 @@ $pageTitle = 'Messages';
                 if (empty) empty.remove();
                 const isPatient = msg.sender_type === 'patient';
                 const bubble = document.createElement('div');
-                bubble.className = `chat-bubble ${isPatient ? 'sent' : 'received'}`;
+                const isUnreadClinicMessage = !isPatient && Number(msg.is_read || 0) === 0;
+                bubble.className = `chat-bubble ${isPatient ? 'sent' : 'received'} ${isUnreadClinicMessage ? 'unread-message' : ''}`;
                 if (messageId > 0) {
                     bubble.setAttribute('data-message-id', String(messageId));
                     renderedMessageIds.add(messageId);
@@ -618,7 +736,7 @@ $pageTitle = 'Messages';
                     <div class="chat-meta">${escapeHtml(formatDate(msg.created_at))}</div>
                 `;
                 chatHistory.appendChild(bubble);
-                scrollToBottom();
+                scrollToLatestMessage();
             }
 
             function appendSendResultMessages(msgs) {
@@ -649,7 +767,7 @@ $pageTitle = 'Messages';
                 }
                 if (el) {
                     el.style.display = visible ? 'block' : 'none';
-                    if (visible) scrollToBottom();
+                    if (visible) scrollToLatestMessage();
                 }
             }
 
@@ -686,7 +804,15 @@ $pageTitle = 'Messages';
                     });
                     const data = await response.json();
                     if (!response.ok || !data.success) return;
-                    (data.messages || []).forEach(appendMessage);
+                    let hasNewClinicMessage = false;
+                    (data.messages || []).forEach((msg) => {
+                        if (msg.sender_type !== 'patient') hasNewClinicMessage = true;
+                        appendMessage(msg);
+                    });
+                    if (hasNewClinicMessage) playNotificationSound();
+                    clearUnreadStyles();
+                    lastUnreadCount = Number(data.unread_count || 0);
+                    updateParentUnread(lastUnreadCount);
                     ensureTypingIndicator(!!data.staff_typing);
                 } catch (_err) {
                     // Ignore poll errors and retry on next interval.
@@ -772,8 +898,33 @@ $pageTitle = 'Messages';
                 }
             }
 
-            scrollToBottom();
+            scrollToLatestMessage();
             setInterval(pollMessages, 3000);
+            async function markMessagesAsRead() {
+                const payload = new FormData();
+                payload.append('ajax', '1');
+                payload.append('action', 'mark_read');
+                try {
+                    await fetch(form.getAttribute('action') || window.location.href, {
+                        method: 'POST',
+                        body: payload,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    clearUnreadStyles();
+                    lastUnreadCount = 0;
+                    updateParentUnread(0);
+                } catch (_e) {}
+            }
+            updateParentUnread(lastUnreadCount);
+
+            window.addEventListener('message', function (event) {
+                if (event.origin !== window.location.origin) return;
+                if (event.data && event.data.type === 'patient-chat-opened') {
+                    scrollToLatestMessage();
+                    markMessagesAsRead();
+                }
+            });
+            
             window.addEventListener('beforeunload', function () { sendTypingState(0); });
         })();
     </script>
@@ -824,6 +975,15 @@ $pageTitle = 'Messages';
             <a href="settings.php" class="menu-item">
                 <i class="fas fa-cog"></i>
                 <span>Account settings</span>
+            </a>
+            <a href="messages.php" class="menu-item active menu-item-with-badge">
+                <span class="menu-item-main">
+                    <i class="fas fa-message"></i>
+                    <span>Messages</span>
+                </span>
+                <span class="nav-unread-badge" id="sidebarUnreadBadge" style="display: <?php echo $initialUnreadCount > 0 ? 'inline-flex' : 'none'; ?>;">
+                    <?php echo $initialUnreadCount > 99 ? '99+' : $initialUnreadCount; ?>
+                </span>
             </a>
         </nav>
     </aside>
@@ -898,11 +1058,16 @@ $pageTitle = 'Messages';
                 </div>
 
                 <div class="section">
-                    <h2 class="section-title"><i class="fas fa-inbox"></i> Message History</h2>
+                    <h2 class="section-title section-title-with-badge">
+                        <span><i class="fas fa-inbox"></i> Message History</span>
+                        <span class="section-title-badge" id="panelUnreadBadge" style="display: <?php echo $initialUnreadCount > 0 ? 'inline-flex' : 'none'; ?>;">
+                            <?php echo $initialUnreadCount > 99 ? '99+' : $initialUnreadCount; ?>
+                        </span>
+                    </h2>
                     <div id="pageMessageHistory">
                     <?php if (!empty($messages)): ?>
                         <?php foreach ($messages as $msg): ?>
-                            <div class="message-card" data-message-id="<?php echo (int)$msg['id']; ?>">
+                            <div class="message-card <?php echo ($msg['sender_type'] !== 'patient' && (int)($msg['is_read'] ?? 1) === 0) ? 'unread-message' : ''; ?>" data-message-id="<?php echo (int)$msg['id']; ?>">
                                 <div class="message-header">
                                     <div class="message-date"><?php echo date('M j, Y g:i A', strtotime($msg['created_at'])); ?></div>
                                 </div>
@@ -928,6 +1093,9 @@ $pageTitle = 'Messages';
     </div>
     <a href="messages.php" class="floating-message-btn" data-chat-launcher aria-label="Open messages" title="Messages">
         <i class="fas fa-message"></i>
+        <span class="floating-unread-badge unread-badge" id="floatingUnreadBadge" style="display: <?php echo $initialUnreadCount > 0 ? 'inline-flex' : 'none'; ?>;">
+            <?php echo $initialUnreadCount > 99 ? '99+' : $initialUnreadCount; ?>
+        </span>
     </a>
     <script>
         (function () {
@@ -948,6 +1116,7 @@ $pageTitle = 'Messages';
             const chatHistory = document.getElementById('chatHistory');
             const pageHistory = document.getElementById('pageMessageHistory');
             const AUTO_REPLY_TEXT = <?php echo json_encode(AUTO_REPLY_TEXT); ?>;
+            let lastUnreadCount = <?php echo (int)$initialUnreadCount; ?>;
 
             function escapeHtml(value) {
                 const div = document.createElement('div');
@@ -968,6 +1137,19 @@ $pageTitle = 'Messages';
                 el.scrollTop = el.scrollHeight;
             }
 
+            function scrollToLatestMessages() {
+                scrollToBottom(chatHistory);
+                scrollToBottom(pageHistory);
+                window.requestAnimationFrame(() => {
+                    scrollToBottom(chatHistory);
+                    scrollToBottom(pageHistory);
+                });
+                window.setTimeout(() => {
+                    scrollToBottom(chatHistory);
+                    scrollToBottom(pageHistory);
+                }, 80);
+            }
+
             function removeEmptyStates() {
                 const chatEmpty = document.querySelector('.chat-empty');
                 if (chatEmpty) chatEmpty.remove();
@@ -975,46 +1157,92 @@ $pageTitle = 'Messages';
                 if (pageEmpty) pageEmpty.remove();
             }
 
-            const renderedMessageIds = new Set(
-                Array.from(document.querySelectorAll('[data-message-id]'))
+            const embedRenderedIds = new Set(
+                Array.from(document.querySelectorAll('#chatHistory [data-message-id]'))
+                    .map((el) => Number(el.getAttribute('data-message-id')))
+                    .filter((id) => Number.isFinite(id) && id > 0)
+            );
+            const pageRenderedIds = new Set(
+                Array.from(document.querySelectorAll('#pageMessageHistory [data-message-id]'))
                     .map((el) => Number(el.getAttribute('data-message-id')))
                     .filter((id) => Number.isFinite(id) && id > 0)
             );
 
+            function playNotificationSound() {
+                if (!window.AudioContext && !window.webkitAudioContext) return;
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                const audioCtx = new Ctx();
+                const oscillator = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                oscillator.type = 'sine';
+                oscillator.frequency.value = 988;
+                gain.gain.value = 0.03;
+                oscillator.connect(gain);
+                gain.connect(audioCtx.destination);
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.12);
+            }
+
+            function updateUnreadBadges(count) {
+                ['sidebarUnreadBadge', 'panelUnreadBadge', 'floatingUnreadBadge', 'unreadBadge'].forEach((id) => {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    if (count > 0) {
+                        el.textContent = count > 99 ? '99+' : String(count);
+                        el.style.display = 'inline-flex';
+                    } else {
+                        el.style.display = 'none';
+                    }
+                });
+            }
+
+            function notifyParentUnread(count) {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: 'patient-chat-unread', count }, window.location.origin);
+                }
+            }
+
+            function clearUnreadStyles() {
+                document.querySelectorAll('.unread-message').forEach((el) => el.classList.remove('unread-message'));
+            }
+
             function getLastMessageId() {
-                if (renderedMessageIds.size === 0) return 0;
-                return Math.max(...renderedMessageIds);
+                const allIds = [...embedRenderedIds, ...pageRenderedIds];
+                if (allIds.length === 0) return 0;
+                return Math.max(...allIds);
             }
 
             function appendEmbedMessage(msg) {
                 if (!chatHistory) return;
                 const messageId = Number(msg.id || 0);
-                if (messageId > 0 && renderedMessageIds.has(messageId)) return;
+                if (messageId > 0 && embedRenderedIds.has(messageId)) return;
                 const bubble = document.createElement('div');
                 const isPatient = msg.sender_type === 'patient';
-                bubble.className = `chat-bubble ${isPatient ? 'sent' : 'received'}`;
+                const isUnreadClinicMessage = !isPatient && Number(msg.is_read || 0) === 0;
+                bubble.className = `chat-bubble ${isPatient ? 'sent' : 'received'} ${isUnreadClinicMessage ? 'unread-message' : ''}`;
                 if (messageId > 0) {
                     bubble.setAttribute('data-message-id', String(messageId));
-                    renderedMessageIds.add(messageId);
+                    embedRenderedIds.add(messageId);
                 }
                 bubble.innerHTML = `
                     <div>${escapeHtml(msg.message).replace(/\n/g, '<br>')}</div>
                     <div class="chat-meta">${escapeHtml(formatDate(msg.created_at, true))}</div>
                 `;
                 chatHistory.appendChild(bubble);
-                scrollToBottom(chatHistory);
+                scrollToLatestMessages();
             }
 
             function appendPageMessage(msg) {
                 if (!pageHistory) return;
                 const messageId = Number(msg.id || 0);
-                if (messageId > 0 && renderedMessageIds.has(messageId)) return;
+                if (messageId > 0 && pageRenderedIds.has(messageId)) return;
                 const card = document.createElement('div');
                 const isPatient = msg.sender_type === 'patient';
-                card.className = 'message-card';
+                const isUnreadClinicMessage = !isPatient && Number(msg.is_read || 0) === 0;
+                card.className = `message-card ${isUnreadClinicMessage ? 'unread-message' : ''}`;
                 if (messageId > 0) {
                     card.setAttribute('data-message-id', String(messageId));
-                    renderedMessageIds.add(messageId);
+                    pageRenderedIds.add(messageId);
                 }
                 card.innerHTML = `
                     <div class="message-header">
@@ -1060,8 +1288,7 @@ $pageTitle = 'Messages';
                 if (el) {
                     el.style.display = visible ? 'block' : 'none';
                     if (visible) {
-                        scrollToBottom(chatHistory);
-                        scrollToBottom(pageHistory);
+                        scrollToLatestMessages();
                     }
                 }
             }
@@ -1099,14 +1326,39 @@ $pageTitle = 'Messages';
                     const data = await response.json();
                     if (!response.ok || !data.success) return;
                     removeEmptyStates();
+                    let hasNewClinicMessage = false;
                     (data.messages || []).forEach((msg) => {
+                        if (msg.sender_type !== 'patient') hasNewClinicMessage = true;
                         appendEmbedMessage(msg);
                         appendPageMessage(msg);
                     });
+                    if (hasNewClinicMessage) playNotificationSound();
+                    clearUnreadStyles();
+                    lastUnreadCount = Number(data.unread_count || 0);
+                    updateUnreadBadges(lastUnreadCount);
+                    notifyParentUnread(lastUnreadCount);
                     ensureTypingIndicator(!!data.staff_typing);
                 } catch (_err) {
                     // Ignore poll errors and continue polling.
                 }
+            }
+
+            async function refreshUnreadCount() {
+                const payload = new FormData();
+                payload.append('ajax', '1');
+                payload.append('action', 'get_unread_count');
+                try {
+                    const response = await fetch(window.location.pathname + window.location.search, {
+                        method: 'POST',
+                        body: payload,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    const data = await response.json();
+                    if (!response.ok || !data.success) return;
+                    lastUnreadCount = Number(data.unread_count || 0);
+                    updateUnreadBadges(lastUnreadCount);
+                    notifyParentUnread(lastUnreadCount);
+                } catch (_err) {}
             }
 
             function bindQuickReplies() {
@@ -1197,8 +1449,29 @@ $pageTitle = 'Messages';
             });
             bindQuickReplies();
 
-            scrollToBottom(chatHistory);
-            scrollToBottom(pageHistory);
+            scrollToLatestMessages();
+            updateUnreadBadges(lastUnreadCount);
+            notifyParentUnread(lastUnreadCount);
+            async function markMessagesRead() {
+                const payload = new FormData();
+                payload.append('ajax', '1');
+                payload.append('action', 'mark_read');
+                try {
+                    const response = await fetch(window.location.pathname + window.location.search, {
+                        method: 'POST',
+                        body: payload,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    const data = await response.json();
+                    if (!response.ok || !data.success) return;
+                    clearUnreadStyles();
+                    lastUnreadCount = Number(data.unread_count || 0);
+                    updateUnreadBadges(lastUnreadCount);
+                    notifyParentUnread(lastUnreadCount);
+                } catch (_err) {}
+            }
+            markMessagesRead();
+            refreshUnreadCount();
             setInterval(pollMessages, 3000);
             window.addEventListener('beforeunload', function () { sendTypingState(0); });
         })();

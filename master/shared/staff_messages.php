@@ -74,6 +74,9 @@ function ensureMessagesTable(PDO $pdo): void
     if (!isset($columns['auto_reply_for_message_id'])) {
         $pdo->exec("ALTER TABLE `messages` ADD COLUMN `auto_reply_for_message_id` INT NULL AFTER `sender_type`");
     }
+    if (!isset($columns['is_read'])) {
+        $pdo->exec("ALTER TABLE `messages` ADD COLUMN `is_read` TINYINT(1) NOT NULL DEFAULT 0 AFTER `auto_reply_for_message_id`");
+    }
 
     $pdo->exec("
         UPDATE `messages`
@@ -136,6 +139,52 @@ function senderExpr(array $columns): string
     return "'patient'";
 }
 
+function hasUnreadColumn(array $columns): bool
+{
+    return isset($columns['is_read']);
+}
+
+function markPatientThreadAsRead(PDO $pdo, int $patientId, array $columns): void
+{
+    if ($patientId <= 0 || !hasUnreadColumn($columns)) {
+        return;
+    }
+
+    $stmt = $pdo->prepare("
+        UPDATE messages
+        SET is_read = 1
+        WHERE patient_id = ? AND sender_type = 'patient' AND is_read = 0
+    ");
+    $stmt->execute([$patientId]);
+}
+
+function getStaffUnreadSummary(PDO $pdo, array $columns): array
+{
+    if (!hasUnreadColumn($columns)) {
+        return ['total_unread' => 0, 'thread_counts' => []];
+    }
+
+    $stmt = $pdo->query("
+        SELECT patient_id, COUNT(*) AS unread_count
+        FROM messages
+        WHERE sender_type = 'patient' AND is_read = 0
+        GROUP BY patient_id
+    ");
+
+    $threadCounts = [];
+    $totalUnread = 0;
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $patientId = (int)($row['patient_id'] ?? 0);
+        $count = (int)($row['unread_count'] ?? 0);
+        if ($patientId > 0 && $count > 0) {
+            $threadCounts[$patientId] = $count;
+            $totalUnread += $count;
+        }
+    }
+
+    return ['total_unread' => $totalUnread, 'thread_counts' => $threadCounts];
+}
+
 try {
     ensureMessagesTable($pdo);
     ensureTypingTable($pdo);
@@ -152,6 +201,12 @@ try {
     $isAjaxTyping = $_SERVER['REQUEST_METHOD'] === 'POST'
         && (($_POST['ajax'] ?? '0') === '1')
         && (($_POST['action'] ?? '') === 'set_typing');
+    $isAjaxUnreadSummary = $_SERVER['REQUEST_METHOD'] === 'POST'
+        && (($_POST['ajax'] ?? '0') === '1')
+        && (($_POST['action'] ?? '') === 'get_unread_summary');
+    $isAjaxMarkRead = $_SERVER['REQUEST_METHOD'] === 'POST'
+        && (($_POST['ajax'] ?? '0') === '1')
+        && (($_POST['action'] ?? '') === 'mark_read');
 
     if ($isAjaxSend) {
         $patientId = (int)($_POST['patient_id'] ?? 0);
@@ -181,6 +236,20 @@ try {
         jsonResponse(['success' => true, 'message' => $msg]);
     }
 
+    if ($isAjaxUnreadSummary) {
+        jsonResponse(['success' => true] + getStaffUnreadSummary($pdo, $messageColumns));
+    }
+
+    if ($isAjaxMarkRead) {
+        $patientId = (int)($_POST['patient_id'] ?? 0);
+        if ($patientId <= 0) {
+            jsonResponse(['success' => false, 'message' => 'Invalid patient.'], 422);
+        }
+
+        markPatientThreadAsRead($pdo, $patientId, $messageColumns);
+        jsonResponse(['success' => true] + getStaffUnreadSummary($pdo, $messageColumns));
+    }
+
     if ($isAjaxTyping) {
         $patientId = (int)($_POST['patient_id'] ?? 0);
         if ($patientId <= 0) {
@@ -203,13 +272,17 @@ try {
             jsonResponse(['success' => false, 'message' => 'Invalid patient.'], 422);
         }
         $pollStmt = $pdo->prepare("
-            SELECT id, patient_id, message, created_at, {$senderSqlExpr} AS sender_type
+            SELECT id, patient_id, message, created_at, {$senderSqlExpr} AS sender_type, is_read
             FROM messages
             WHERE patient_id = ? AND id > ?
             ORDER BY id ASC
         ");
         $pollStmt->execute([$patientId, $lastId]);
-        $newMessages = $pollStmt->fetchAll(PDO::FETCH_ASSOC);
+        $newMessages = array_values(array_filter(
+            $pollStmt->fetchAll(PDO::FETCH_ASSOC),
+            static fn(array $message): bool => (($message['sender_type'] ?? '') !== 'system')
+        ));
+        markPatientThreadAsRead($pdo, $patientId, $messageColumns);
 
         $typingStmt = $pdo->prepare("
             SELECT is_typing, updated_at
@@ -236,7 +309,8 @@ try {
         SELECT t.patient_id,
                t.last_at,
                COALESCE(CONCAT(p.first_name, ' ', p.last_name), CONCAT('Patient #', t.patient_id)) AS patient_name,
-               t.last_message
+               t.last_message,
+               COALESCE(um.unread_count, 0) AS unread_count
         FROM (
             SELECT m1.patient_id, m1.created_at AS last_at, m1.message AS last_message
             FROM messages m1
@@ -247,6 +321,12 @@ try {
             ) m2 ON m1.id = m2.max_id
         ) t
         LEFT JOIN patients p ON p.id = t.patient_id
+        LEFT JOIN (
+            SELECT patient_id, COUNT(*) AS unread_count
+            FROM messages
+            WHERE sender_type = 'patient' AND is_read = 0
+            GROUP BY patient_id
+        ) um ON um.patient_id = t.patient_id
         ORDER BY t.last_at DESC
     ");
     $threads = $threadsStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -256,16 +336,30 @@ try {
         $selectedPatientId = (int)$threads[0]['patient_id'];
     }
 
+    if ($selectedPatientId > 0) {
+        markPatientThreadAsRead($pdo, $selectedPatientId, $messageColumns);
+        foreach ($threads as &$thread) {
+            if ((int)$thread['patient_id'] === $selectedPatientId) {
+                $thread['unread_count'] = 0;
+                break;
+            }
+        }
+        unset($thread);
+    }
+
     $messages = [];
     if ($selectedPatientId > 0) {
         $msgStmt = $pdo->prepare("
-            SELECT id, patient_id, message, created_at, {$senderSqlExpr} AS sender_type
+            SELECT id, patient_id, message, created_at, {$senderSqlExpr} AS sender_type, is_read
             FROM messages
             WHERE patient_id = ?
             ORDER BY created_at ASC, id ASC
         ");
         $msgStmt->execute([$selectedPatientId]);
-        $messages = $msgStmt->fetchAll(PDO::FETCH_ASSOC);
+        $messages = array_values(array_filter(
+            $msgStmt->fetchAll(PDO::FETCH_ASSOC),
+            static fn(array $message): bool => (($message['sender_type'] ?? '') !== 'system')
+        ));
     }
 } catch (Exception $e) {
     if (($_POST['ajax'] ?? '0') === '1') {
@@ -282,29 +376,300 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Staff Messages</title>
+    <title>Messages</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { background: #f4f6fb; }
-        .chat-wrap { height: calc(100vh - 24px); margin: 12px; }
-        .thread-list { height: 100%; overflow-y: auto; }
-        .thread-item { text-decoration: none; color: inherit; display: block; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; background: #fff; }
-        .thread-item.active { border-color: #3b82f6; background: #eff6ff; }
-        .chat-card { height: 100%; display: flex; flex-direction: column; }
-        .chat-history { flex: 1; overflow-y: auto; padding: 14px; background: #fff; border-radius: 12px 12px 0 0; border: 1px solid #e5e7eb; border-bottom: 0; }
-        .bubble { max-width: 76%; border-radius: 14px; padding: 10px 12px; margin-bottom: 8px; font-size: 14px; }
+        * { box-sizing: border-box; }
+        html, body { height: 100%; }
+        body { margin: 0; background: #f4f6fb; font-family: Arial, sans-serif; overflow: hidden; }
+        .thread-badge, .fab-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: #dc2626;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1;
+        }
+        .fab-wrap { position: fixed; right: 18px; bottom: 18px; z-index: 20; }
+        .fab-badge { position: absolute; top: -3px; right: -3px; min-width: 22px; height: 22px; border: 2px solid #fff; }
+        .staff-message-container {
+            display: flex;
+            height: 100vh;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        .staff-message-sidebar {
+            display: flex;
+            flex: 0 0 300px;
+            width: 300px;
+            min-width: 300px;
+            flex-direction: column;
+            border-right: 1px solid #dbe1ea;
+            background: #fff;
+            overflow: hidden;
+        }
+        .staff-message-chat {
+            display: flex;
+            flex: 1;
+            min-width: 0;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .staff-message-header,
+        .staff-message-search,
+        .staff-message-tabs,
+        .staff-message-chat-header,
+        .staff-message-input {
+            flex-shrink: 0;
+            padding: 16px;
+        }
+        .staff-message-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            border-bottom: 1px solid #eef2f7;
+        }
+        .staff-message-header h1 {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+        .staff-message-back {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border: 1px solid #d7dde8;
+            border-radius: 999px;
+            color: #111827;
+            text-decoration: none;
+            flex-shrink: 0;
+            transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .staff-message-back:hover,
+        .staff-message-back:focus-visible {
+            background: #eff6ff;
+            border-color: #3b82f6;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+        }
+        .staff-message-container {
+            transition: opacity 0.34s cubic-bezier(0.22, 1, 0.36, 1), transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), filter 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+            transform-origin: center;
+            will-change: opacity, transform, filter;
+        }
+        .staff-message-container.is-leaving {
+            opacity: 0;
+            transform: scale(0.985);
+            filter: blur(2px);
+            pointer-events: none;
+        }
+        .staff-message-back.is-leaving {
+            transform: scale(0.94);
+        }
+        .staff-message-search {
+            border-bottom: 1px solid #eef2f7;
+        }
+        .staff-message-search input,
+        .staff-message-composer-input textarea {
+            width: 100%;
+            min-width: 0;
+            border: 1px solid #d7dde8;
+            border-radius: 10px;
+            padding: 10px 12px;
+            resize: none;
+        }
+        .staff-message-tabs {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            border-bottom: 1px solid #eef2f7;
+        }
+        .staff-message-tab {
+            border: 1px solid #d7dde8;
+            background: #fff;
+            border-radius: 999px;
+            padding: 8px 12px;
+            font-size: 0.875rem;
+            white-space: nowrap;
+        }
+        .staff-message-tab.is-active {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+        .staff-message-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+        .thread-item {
+            display: flex;
+            gap: 12px;
+            text-decoration: none;
+            color: inherit;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #fff;
+        }
+        .thread-item.active { border-color: #3b82f6; }
+        .thread-item.thread-unread { border-color: #fecaca; }
+        .staff-message-avatar {
+            width: 44px;
+            height: 44px;
+            flex: 0 0 44px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            font-weight: 700;
+        }
+        .staff-message-conversation-body {
+            display: flex;
+            flex: 1;
+            min-width: 0;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .staff-message-conversation-main {
+            flex: 1;
+            min-width: 0;
+        }
+        .thread-topline {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+        .staff-message-name {
+            font-weight: 600;
+        }
+        .staff-message-role {
+            font-size: 0.8rem;
+            color: #6b7280;
+            white-space: nowrap;
+        }
+        .staff-message-preview {
+            font-size: 0.875rem;
+            color: #4b5563;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .staff-message-conversation-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+            white-space: nowrap;
+        }
+        .staff-message-time {
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+        .staff-message-chat-header {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            background: #fff;
+            border-bottom: 1px solid #dbe1ea;
+        }
+        .staff-message-chat-user {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        .staff-message-chat-role {
+            margin-top: 4px;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        .staff-message-action {
+            border: 1px solid #d7dde8;
+            border-radius: 10px;
+            background: #fff;
+            padding: 8px 12px;
+        }
+        .staff-message-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .staff-message-empty {
+            margin: auto 0;
+            text-align: center;
+            color: #6b7280;
+        }
+        .staff-message-row {
+            display: flex;
+            width: 100%;
+        }
+        .staff-message-row.is-received { justify-content: flex-start; }
+        .staff-message-row.is-sent { justify-content: flex-end; }
+        .staff-message-bubble-wrap {
+            max-width: min(76%, 680px);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .bubble {
+            border-radius: 14px;
+            padding: 12px 14px;
+            font-size: 14px;
+            line-height: 1.45;
+            word-break: break-word;
+        }
         .bubble.patient { background: #f3f4f6; color: #111827; border-bottom-left-radius: 6px; }
-        .bubble.staff { margin-left: auto; background: #2563eb; color: #fff; border-bottom-right-radius: 6px; }
-        .meta { font-size: 11px; opacity: 0.75; margin-top: 5px; }
-        .composer { border: 1px solid #e5e7eb; border-top: 0; border-radius: 0 0 12px 12px; background: #fff; padding: 10px; }
+        .bubble.staff { background: #2563eb; color: #fff; border-bottom-right-radius: 6px; }
+        .bubble.unread-patient { background: #fee2e2; border: 1px solid #fecaca; font-weight: 600; }
+        .meta { font-size: 11px; opacity: 0.75; }
+        .staff-message-row.is-sent .meta { text-align: right; }
+        .staff-message-input {
+            position: sticky;
+            bottom: 0;
+            z-index: 2;
+            background: #fff;
+            border-top: 1px solid #dbe1ea;
+        }
+        .composer {
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+        }
+        .staff-message-composer-input {
+            flex: 1;
+            min-width: 0;
+        }
+        .staff-message-send {
+            padding: 10px 16px;
+            border: 0;
+            border-radius: 10px;
+            background: #2563eb;
+            color: #fff;
+            white-space: nowrap;
+        }
         .typing-indicator {
             display: inline-flex;
             align-items: center;
             gap: 8px;
             font-size: 12px;
             color: #6b7280;
-            margin: 4px 0 0 2px;
         }
         .typing-dots { display: inline-flex; gap: 4px; align-items: center; }
         .typing-dots span {
@@ -321,75 +686,214 @@ try {
             0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
             30% { transform: translateY(-4px); opacity: 1; }
         }
+        @media (max-width: 768px) {
+            body { overflow: auto; }
+            .staff-message-container {
+                flex-direction: column;
+                height: auto;
+                min-height: 100vh;
+            }
+            .staff-message-sidebar {
+                width: 100%;
+                min-width: 0;
+                flex-basis: auto;
+                max-height: 42vh;
+            }
+            .staff-message-chat {
+                min-height: 58vh;
+            }
+            .staff-message-bubble-wrap {
+                max-width: 92%;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="chat-wrap">
-        <div class="row g-3 h-100">
-            <div class="col-lg-4 h-100">
-                <div class="card h-100">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <strong><i class="fa-solid fa-comments"></i> Patient Inbox</strong>
-                        <a href="<?php echo $role === 'admin' ? '../admin/admin_dashboard.php' : '../staff/staff-dashboard.php'; ?>" class="btn btn-sm btn-outline-secondary">Back</a>
-                    </div>
-                    <div class="card-body thread-list">
-                        <?php if (!empty($fatalError)): ?>
-                            <div class="alert alert-danger"><?php echo htmlspecialchars($fatalError); ?></div>
-                        <?php elseif (empty($threads)): ?>
-                            <div class="text-muted">No messages yet.</div>
-                        <?php else: ?>
-                            <?php foreach ($threads as $t): ?>
-                                <a class="thread-item <?php echo ((int)$t['patient_id'] === (int)$selectedPatientId) ? 'active' : ''; ?>"
-                                   href="?patient_id=<?php echo (int)$t['patient_id']; ?>">
-                                    <div class="fw-semibold"><?php echo htmlspecialchars($t['patient_name']); ?></div>
-                                    <div class="small text-muted text-truncate"><?php echo htmlspecialchars($t['last_message'] ?? ''); ?></div>
-                                </a>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
-                </div>
+    <a href="staff_messages.php" class="fab-wrap text-decoration-none" aria-label="Open staff messages">
+        <span class="fab-badge" id="staffFabBadge" style="display:none;">0</span>
+    </a>
+    <?php
+        $selectedThread = null;
+        foreach ($threads as $thread) {
+            if ((int)($thread['patient_id'] ?? 0) === (int)$selectedPatientId) {
+                $selectedThread = $thread;
+                break;
+            }
+        }
+    ?>
+    <div class="staff-message-container">
+        <aside class="staff-message-sidebar">
+            <header class="staff-message-header">
+                <h1>Chats</h1>
+                <a href="<?php echo $role === 'admin' ? '../admin/admin_dashboard.php' : '../staff/staff-dashboard.php'; ?>" class="staff-message-back" aria-label="Back to dashboard">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </a>
+            </header>
+
+            <div class="staff-message-search">
+                <input type="text" placeholder="Search conversations" aria-label="Search conversations">
             </div>
-            <div class="col-lg-8 h-100">
-                <div class="chat-card">
-                    <div class="chat-history" id="chatHistory">
-                        <?php if ($selectedPatientId <= 0): ?>
-                            <div class="text-muted">Select a patient thread.</div>
-                        <?php else: ?>
-                            <?php foreach ($messages as $m): ?>
-                                <?php $isPatient = (($m['sender_type'] ?? 'patient') === 'patient'); ?>
-                                <div class="bubble <?php echo $isPatient ? 'patient' : 'staff'; ?>" data-message-id="<?php echo (int)$m['id']; ?>">
-                                    <div><?php echo nl2br(htmlspecialchars($m['message'])); ?></div>
-                                    <div class="meta"><?php echo date('M j, Y g:i A', strtotime($m['created_at'])); ?></div>
+
+            <nav class="staff-message-tabs" aria-label="Conversation filters">
+                <button type="button" class="staff-message-tab is-active" data-filter="all">All</button>
+                <button type="button" class="staff-message-tab" data-filter="unread">Unread</button>
+                <button type="button" class="staff-message-tab" data-filter="patients">Patients</button>
+            </nav>
+
+            <div class="staff-message-list">
+                <?php if (!empty($fatalError)): ?>
+                    <div class="alert alert-danger mb-0"><?php echo htmlspecialchars($fatalError); ?></div>
+                <?php elseif (empty($threads)): ?>
+                    <div class="staff-message-empty">No messages yet.</div>
+                <?php else: ?>
+                    <?php foreach ($threads as $t): ?>
+                        <?php
+                            $threadUnread = (int)($t['unread_count'] ?? 0);
+                            $patientName = trim((string)($t['patient_name'] ?? 'Patient'));
+                            $initials = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $patientName), 0, 2));
+                            if ($initials === '') {
+                                $initials = 'PT';
+                            }
+                        ?>
+                        <a class="thread-item <?php echo ((int)$t['patient_id'] === (int)$selectedPatientId) ? 'active' : ''; ?> <?php echo $threadUnread > 0 ? 'thread-unread' : ''; ?>"
+                           data-thread-patient-id="<?php echo (int)$t['patient_id']; ?>"
+                           data-thread-role="patient"
+                           data-thread-name="<?php echo htmlspecialchars(strtolower($patientName), ENT_QUOTES); ?>"
+                           data-thread-preview="<?php echo htmlspecialchars(strtolower((string)($t['last_message'] ?? '')), ENT_QUOTES); ?>"
+                           data-thread-unread="<?php echo $threadUnread > 0 ? '1' : '0'; ?>"
+                           href="?patient_id=<?php echo (int)$t['patient_id']; ?>">
+                            <div class="staff-message-avatar" aria-hidden="true"><?php echo htmlspecialchars($initials); ?></div>
+                            <div class="staff-message-conversation-body">
+                                <div class="staff-message-conversation-main">
+                                    <div class="thread-topline">
+                                        <span class="staff-message-name"><?php echo htmlspecialchars($patientName); ?></span>
+                                        <span class="staff-message-role">Patient</span>
+                                    </div>
+                                    <div class="staff-message-preview"><?php echo htmlspecialchars($t['last_message'] ?? ''); ?></div>
                                 </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
-                    <?php if ($selectedPatientId > 0): ?>
-                    <form class="composer" id="replyForm">
-                        <input type="hidden" name="patient_id" value="<?php echo (int)$selectedPatientId; ?>">
-                        <div class="input-group">
-                            <textarea class="form-control" name="message" rows="2" placeholder="Reply to patient..." required></textarea>
-                            <button class="btn btn-primary" type="submit"><i class="fa-solid fa-paper-plane"></i> Send</button>
-                        </div>
-                    </form>
-                    <?php endif; ?>
-                </div>
+                                <div class="staff-message-conversation-meta">
+                                    <span class="staff-message-time"><?php echo !empty($t['last_at']) ? date('M j, g:i A', strtotime($t['last_at'])) : ''; ?></span>
+                                    <span class="thread-badge" data-thread-badge="<?php echo (int)$t['patient_id']; ?>" style="<?php echo $threadUnread > 0 ? '' : 'display:none;'; ?>">
+                                        <?php echo $threadUnread; ?>
+                                    </span>
+                                </div>
+                            </div>
+                        </a>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </div>
-        </div>
+        </aside>
+
+        <section class="staff-message-chat">
+            <header class="staff-message-chat-header">
+                <div>
+                    <div class="staff-message-chat-user"><?php echo htmlspecialchars($selectedThread['patient_name'] ?? 'Select a conversation'); ?></div>
+                    <div class="staff-message-chat-role"><?php echo $selectedThread ? 'Patient' : 'No active thread'; ?></div>
+                </div>
+            </header>
+
+            <div class="staff-message-messages" id="chatHistory">
+                <?php if ($selectedPatientId <= 0): ?>
+                    <div class="staff-message-empty">Select a conversation to view messages.</div>
+                <?php else: ?>
+                    <?php foreach ($messages as $m): ?>
+                        <?php $isPatient = (($m['sender_type'] ?? 'patient') === 'patient'); ?>
+                        <div class="staff-message-row <?php echo $isPatient ? 'is-received' : 'is-sent'; ?>">
+                            <div class="staff-message-bubble-wrap">
+                                <div class="bubble <?php echo $isPatient ? 'patient' : 'staff'; ?> <?php echo ($isPatient && (int)($m['is_read'] ?? 1) === 0) ? 'unread-patient' : ''; ?>" data-message-id="<?php echo (int)$m['id']; ?>">
+                                    <div><?php echo nl2br(htmlspecialchars($m['message'])); ?></div>
+                                </div>
+                                <div class="meta"><?php echo date('M j, Y g:i A', strtotime($m['created_at'])); ?></div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
+
+            <div class="staff-message-input">
+                <?php if ($selectedPatientId > 0): ?>
+                <form class="composer" id="replyForm">
+                    <input type="hidden" name="patient_id" value="<?php echo (int)$selectedPatientId; ?>">
+                    <div class="staff-message-composer-input">
+                        <textarea name="message" rows="2" placeholder="Type a message" required></textarea>
+                    </div>
+                    <button class="staff-message-send" type="submit"><i class="fa-solid fa-paper-plane"></i> Send</button>
+                </form>
+                <?php else: ?>
+                    <div class="staff-message-empty">Choose a conversation from the sidebar to start replying.</div>
+                <?php endif; ?>
+            </div>
+        </section>
     </div>
 
     <script>
         (function () {
             const history = document.getElementById('chatHistory');
             const form = document.getElementById('replyForm');
+            const backLink = document.querySelector('.staff-message-back');
+            const pageContainer = document.querySelector('.staff-message-container');
+            const searchInput = document.querySelector('.staff-message-search input');
+            const filterButtons = Array.from(document.querySelectorAll('.staff-message-tab'));
+            let activeFilter = 'all';
             if (history) history.scrollTop = history.scrollHeight;
-            if (!form) return;
-            const patientId = form.querySelector('input[name="patient_id"]')?.value || '';
+            const patientId = form ? (form.querySelector('input[name="patient_id"]')?.value || '') : '';
             const renderedMessageIds = new Set(
                 Array.from(document.querySelectorAll('.bubble'))
                     .map((el) => Number(el.getAttribute('data-message-id')))
                     .filter((id) => Number.isFinite(id) && id > 0)
             );
+            let lastKnownUnreadTotal = 0;
+
+            function normalizeText(value) {
+                return String(value || '').toLowerCase().trim();
+            }
+
+            function applySidebarFilters() {
+                const query = normalizeText(searchInput ? searchInput.value : '');
+                document.querySelectorAll('.thread-item').forEach((item) => {
+                    const name = normalizeText(item.getAttribute('data-thread-name'));
+                    const preview = normalizeText(item.getAttribute('data-thread-preview'));
+                    const role = normalizeText(item.getAttribute('data-thread-role'));
+                    const isUnread = item.getAttribute('data-thread-unread') === '1';
+                    const matchesSearch = !query || name.includes(query) || preview.includes(query) || role.includes(query);
+                    const matchesFilter = activeFilter === 'all'
+                        || (activeFilter === 'unread' && isUnread)
+                        || (activeFilter === 'patients' && role === 'patient');
+                    item.style.display = (matchesSearch && matchesFilter) ? 'flex' : 'none';
+                });
+            }
+
+            filterButtons.forEach((button) => {
+                button.addEventListener('click', function () {
+                    activeFilter = button.getAttribute('data-filter') || 'all';
+                    filterButtons.forEach((btn) => btn.classList.toggle('is-active', btn === button));
+                    applySidebarFilters();
+                });
+            });
+
+            if (searchInput) {
+                searchInput.addEventListener('input', applySidebarFilters);
+            }
+
+            applySidebarFilters();
+
+            if (backLink && pageContainer) {
+                backLink.addEventListener('click', function (event) {
+                    const targetHref = backLink.getAttribute('href');
+                    if (!targetHref) return;
+                    event.preventDefault();
+                    backLink.classList.add('is-leaving');
+                    pageContainer.classList.add('is-leaving');
+                    window.setTimeout(function () {
+                        window.location.href = targetHref;
+                    }, 300);
+                });
+            }
+
+            if (!form) {
+                refreshUnreadSummary();
+                return;
+            }
 
             function esc(v) {
                 const d = document.createElement('div');
@@ -414,12 +918,12 @@ try {
                 if (!el && visible) {
                     el = document.createElement('div');
                     el.id = 'patientTypingIndicator';
-                    el.className = 'typing-indicator';
-                    el.innerHTML = '<span class="typing-dots" aria-label="Patient is typing" title="Patient is typing"><span></span><span></span><span></span></span>';
+                    el.className = 'staff-message-row is-received';
+                    el.innerHTML = '<div class="staff-message-bubble-wrap"><div class="typing-indicator"><span class="typing-dots" aria-label="Patient is typing" title="Patient is typing"><span></span><span></span><span></span></span></div></div>';
                     history.appendChild(el);
                 }
                 if (el) {
-                    el.style.display = visible ? 'block' : 'none';
+                    el.style.display = visible ? 'flex' : 'none';
                     if (visible) history.scrollTop = history.scrollHeight;
                 }
             }
@@ -428,15 +932,80 @@ try {
                 const messageId = Number(msg.id || 0);
                 if (messageId > 0 && renderedMessageIds.has(messageId)) return;
                 const isPatient = (msg.sender_type === 'patient');
-                const box = document.createElement('div');
-                box.className = isPatient ? 'bubble patient' : 'bubble staff';
+                const emptyState = history.querySelector('.staff-message-empty');
+                if (emptyState) emptyState.remove();
+                const row = document.createElement('div');
+                row.className = isPatient ? 'staff-message-row is-received' : 'staff-message-row is-sent';
+                const unreadClass = isPatient ? ' unread-patient' : '';
                 if (messageId > 0) {
-                    box.setAttribute('data-message-id', String(messageId));
                     renderedMessageIds.add(messageId);
                 }
-                box.innerHTML = '<div>' + esc(msg.message).replace(/\n/g, '<br>') + '</div><div class="meta">' + esc(fmt(msg.created_at)) + '</div>';
-                history.appendChild(box);
+                row.innerHTML = '<div class="staff-message-bubble-wrap"><div class="bubble ' + (isPatient ? 'patient' : 'staff') + unreadClass + '"' + (messageId > 0 ? ' data-message-id="' + String(messageId) + '"' : '') + '><div>' + esc(msg.message).replace(/\n/g, '<br>') + '</div></div><div class="meta">' + esc(fmt(msg.created_at)) + '</div></div>';
+                history.appendChild(row);
                 history.scrollTop = history.scrollHeight;
+            }
+
+            function playNotificationSound() {
+                if (!window.AudioContext && !window.webkitAudioContext) return;
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                const audioCtx = new Ctx();
+                const oscillator = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                oscillator.type = 'sine';
+                oscillator.frequency.value = 880;
+                gain.gain.value = 0.03;
+                oscillator.connect(gain);
+                gain.connect(audioCtx.destination);
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.12);
+            }
+
+            function updateFabBadge(totalUnread) {
+                const badge = document.getElementById('staffFabBadge');
+                if (!badge) return;
+                if (totalUnread > 0) {
+                    badge.textContent = totalUnread > 99 ? '99+' : String(totalUnread);
+                    badge.style.display = 'inline-flex';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+
+            function updateThreadBadges(threadCounts) {
+                document.querySelectorAll('[data-thread-badge]').forEach((badgeEl) => {
+                    const patientKey = badgeEl.getAttribute('data-thread-badge');
+                    const count = Number(threadCounts?.[patientKey] ?? 0);
+                    const link = badgeEl.closest('.thread-item');
+                    if (count > 0) {
+                        badgeEl.textContent = count > 99 ? '99+' : String(count);
+                        badgeEl.style.display = 'inline-flex';
+                        link?.classList.add('thread-unread');
+                        link?.setAttribute('data-thread-unread', '1');
+                    } else {
+                        badgeEl.style.display = 'none';
+                        link?.classList.remove('thread-unread');
+                        link?.setAttribute('data-thread-unread', '0');
+                    }
+                });
+                applySidebarFilters();
+            }
+
+            async function refreshUnreadSummary(playSound = false) {
+                const fd = new FormData();
+                fd.append('ajax', '1');
+                fd.append('action', 'get_unread_summary');
+                try {
+                    const r = await fetch(window.location.pathname + '?patient_id=' + encodeURIComponent(patientId), { method: 'POST', body: fd });
+                    const data = await r.json();
+                    if (!r.ok || !data.success) return;
+                    const nextTotal = Number(data.total_unread || 0);
+                    updateFabBadge(nextTotal);
+                    updateThreadBadges(data.thread_counts || {});
+                    if (playSound && nextTotal > lastKnownUnreadTotal) {
+                        playNotificationSound();
+                    }
+                    lastKnownUnreadTotal = nextTotal;
+                } catch (_e) {}
             }
 
             let typingTimer = null;
@@ -519,12 +1088,40 @@ try {
                     const r = await fetch(window.location.pathname + '?patient_id=' + encodeURIComponent(patientId), { method: 'POST', body: fd });
                     const data = await r.json();
                     if (!r.ok || !data.success) return;
-                    (data.messages || []).forEach(appendMessage);
+                    let hasNewPatientMessage = false;
+                    (data.messages || []).forEach((msg) => {
+                        if (msg.sender_type === 'patient') hasNewPatientMessage = true;
+                        appendMessage(msg);
+                    });
+                    if (hasNewPatientMessage) {
+                        playNotificationSound();
+                    }
+                    markCurrentThreadRead();
+                    refreshUnreadSummary();
                     ensureTypingIndicator(!!data.patient_typing);
                 } catch (_e) {}
             }
 
+            async function markCurrentThreadRead() {
+                if (!patientId) return;
+                const fd = new FormData();
+                fd.append('ajax', '1');
+                fd.append('action', 'mark_read');
+                fd.append('patient_id', patientId);
+                try {
+                    const r = await fetch(window.location.pathname + '?patient_id=' + encodeURIComponent(patientId), { method: 'POST', body: fd });
+                    const data = await r.json();
+                    if (!r.ok || !data.success) return;
+                    document.querySelectorAll('.bubble.unread-patient').forEach((el) => el.classList.remove('unread-patient'));
+                    updateFabBadge(Number(data.total_unread || 0));
+                    updateThreadBadges(data.thread_counts || {});
+                    lastKnownUnreadTotal = Number(data.total_unread || 0);
+                } catch (_e) {}
+            }
+
             setInterval(pollMessages, 3000);
+            refreshUnreadSummary();
+            markCurrentThreadRead();
             window.addEventListener('beforeunload', function () { sendTypingState(0); });
         })();
     </script>

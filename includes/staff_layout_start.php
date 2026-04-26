@@ -350,6 +350,24 @@ function isActivePage($page) {
         .floating-message-btn i {
             font-size: 22px;
         }
+        .staff-unread-badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            min-width: 22px;
+            height: 22px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: #dc2626;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #ffffff;
+            line-height: 1;
+        }
         
         /* Notification Tabs */
         .notification-tabs {

@@ -1493,11 +1493,13 @@ $pageTitle = 'Patient Dashboard';
     </script>
     <a href="messages.php" class="floating-message-btn" data-chat-launcher aria-label="Open messages" title="Messages">
         <i class="fas fa-message"></i>
+        <span class="unread-badge" id="unreadBadge" style="display: none;">0</span>
     </a>
     <script>
         (function () {
             const launcher = document.querySelector('[data-chat-launcher]');
             if (!launcher) return;
+            const unreadBadge = document.getElementById('unreadBadge');
 
             let overlay = document.getElementById('floatingChatOverlay');
             let panel = document.getElementById('floatingChatPanel');
@@ -1535,12 +1537,54 @@ $pageTitle = 'Patient Dashboard';
                 event.preventDefault();
                 overlay.classList.add('is-open');
                 panel.classList.add('is-open');
+                const frame = panel.querySelector('.floating-chat-frame');
+                if (frame && frame.contentWindow) {
+                    window.setTimeout(() => {
+                        frame.contentWindow.postMessage({ type: 'patient-chat-opened' }, window.location.origin);
+                    }, 120);
+                }
+            }
+
+            function updateUnreadBadge(count) {
+                if (!unreadBadge) return;
+                if (count > 0) {
+                    unreadBadge.textContent = count > 99 ? '99+' : String(count);
+                    unreadBadge.style.display = 'inline-flex';
+                } else {
+                    unreadBadge.style.display = 'none';
+                }
+            }
+
+            async function pollUnreadCount() {
+                try {
+                    const payload = new FormData();
+                    payload.append('ajax', '1');
+                    payload.append('action', 'get_unread_count');
+                    const response = await fetch('messages.php', {
+                        method: 'POST',
+                        body: payload,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    const data = await response.json();
+                    if (!response.ok || !data.success) return;
+                    updateUnreadBadge(Number(data.unread_count || 0));
+                } catch (_err) {}
             }
 
             launcher.addEventListener('click', openChat);
             overlay.addEventListener('click', closeChat);
             panel.querySelector('[data-chat-close]').addEventListener('click', closeChat);
             panel.querySelector('[data-chat-minimize]').addEventListener('click', closeChat);
+
+            window.addEventListener('message', function (event) {
+                if (event.origin !== window.location.origin) return;
+                if (event.data && event.data.type === 'patient-chat-unread') {
+                    updateUnreadBadge(Number(event.data.count || 0));
+                }
+            });
+
+            pollUnreadCount();
+            setInterval(pollUnreadCount, 3000);
         })();
     </script>
     <script>
