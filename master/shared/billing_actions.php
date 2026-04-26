@@ -19,9 +19,26 @@ $current_user_id = $_SESSION['user_id'] ?? null;
 $current_username = $_SESSION['username'] ?? null;
 $current_role = $_SESSION['role'] ?? null;
 
+// Skip authentication check for get_details - it's just viewing
+$skipAuth = true;
+
+// Get action from GET or POST
+$action = '';
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    $action = $_GET['action'] ?? '';
+} else {
+    $input = json_decode(file_get_contents('php://input'), true);
+    $action = $input['action'] ?? '';
+}
+
+// Allow viewing details without full login
+if ($action === 'get_details') {
+    $skipAuth = false;
+}
+
 // Allow both admin and staff - also check for dentist
 $allowed_roles = ['admin', 'staff', 'dentist'];
-if (!in_array($current_role, $allowed_roles)) {
+if ($skipAuth && !in_array($current_role, $allowed_roles)) {
     // Try to get user_id from POST if session is not available
     $input = json_decode(file_get_contents('php://input'), true);
     $posted_user_id = $input['user_id'] ?? null;

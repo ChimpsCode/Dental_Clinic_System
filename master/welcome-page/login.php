@@ -195,7 +195,7 @@ if (
                 . '<p style="font-size:22px;font-weight:bold;letter-spacing:4px;">' . htmlspecialchars($resetCode) . '</p>'
                 . '<p>Enter this code to continue resetting your password.</p>';
 
-            $phpMailerBase = __DIR__ . '/PHPMailer/src';
+            $phpMailerBase = __DIR__ . '/../../PHPMailer/src';
             if (!file_exists($phpMailerBase . '/PHPMailer.php')) {
                 echo json_encode(['success' => false, 'message' => 'Email service is not configured.']);
                 exit();
