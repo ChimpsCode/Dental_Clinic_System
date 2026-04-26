@@ -31,17 +31,206 @@ $patient_id = $_SESSION['patient_id'] ?? null;
 $message = '';
 $messageType = '';
 $isEmbed = isset($_GET['embed']) && $_GET['embed'] === '1';
+$isAjaxRequest = $_SERVER['REQUEST_METHOD'] === 'POST'
+    && (($_POST['ajax'] ?? '0') === '1' || (($_POST['action'] ?? '') === 'send_message'));
 
 require_once '../../config/database.php';
 
-try {
-    $stmt = $pdo->prepare("
-        SELECT p.*, u.first_name, u.middle_name, u.last_name, u.email, u.phone
-        FROM patients p 
-        LEFT JOIN users u ON u.id = p.user_id 
-        WHERE p.user_id = ?
+const AUTO_REPLY_TEXT = "Thank you for your message! Please wait for our staff to respond your message. We appreciate your patience.";
+
+function jsonResponse(array $payload, int $status = 200): void
+{
+    http_response_code($status);
+    header('Content-Type: application/json; charset=UTF-8');
+    echo json_encode($payload);
+    exit;
+}
+
+function tableColumns(PDO $pdo, string $table): array
+{
+    $cols = [];
+    $stmt = $pdo->query("SHOW COLUMNS FROM `$table`");
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $cols[$row['Field']] = true;
+    }
+    return $cols;
+}
+
+function ensureMessagesTable(PDO $pdo): void
+{
+    // Create base table if it does not exist yet.
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS `messages` (
+            `id` INT(11) NOT NULL AUTO_INCREMENT,
+            `patient_id` INT(11) NOT NULL,
+            `subject` VARCHAR(255) DEFAULT NULL,
+            `message` TEXT NOT NULL,
+            `sent_by` ENUM('patient','admin') NOT NULL DEFAULT 'patient',
+            `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            KEY `idx_messages_patient_id` (`patient_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
     ");
-    $stmt->execute([$user_id]);
+
+    $columns = tableColumns($pdo, 'messages');
+
+    // Add missing columns needed by auto-reply flow (safe idempotent checks).
+    if (!isset($columns['sender_id'])) {
+        $pdo->exec("ALTER TABLE `messages` ADD COLUMN `sender_id` INT NULL AFTER `id`");
+    }
+    if (!isset($columns['receiver_id'])) {
+        $pdo->exec("ALTER TABLE `messages` ADD COLUMN `receiver_id` INT NULL AFTER `sender_id`");
+    }
+    if (!isset($columns['sender_type'])) {
+        $pdo->exec("ALTER TABLE `messages` ADD COLUMN `sender_type` ENUM('patient','admin','system') NOT NULL DEFAULT 'patient' AFTER `message`");
+    }
+    if (!isset($columns['auto_reply_for_message_id'])) {
+        $pdo->exec("ALTER TABLE `messages` ADD COLUMN `auto_reply_for_message_id` INT NULL AFTER `sender_type`");
+    }
+
+    // Backfill sender_type for older rows.
+    $pdo->exec("
+        UPDATE `messages`
+        SET `sender_type` = CASE
+            WHEN `sent_by` = 'patient' THEN 'patient'
+            WHEN `sent_by` = 'admin' THEN 'admin'
+            ELSE 'system'
+        END
+        WHERE `sender_type` IS NULL OR `sender_type` = ''
+    ");
+
+    // Add unique index for duplicate auto-reply protection if missing.
+    $idxStmt = $pdo->query("SHOW INDEX FROM `messages` WHERE Key_name = 'uq_messages_auto_reply_for_message_id'");
+    $indexExists = (bool)$idxStmt->fetch(PDO::FETCH_ASSOC);
+    if (!$indexExists) {
+        $pdo->exec("CREATE UNIQUE INDEX `uq_messages_auto_reply_for_message_id` ON `messages` (`auto_reply_for_message_id`)");
+    }
+}
+
+function ensureTypingTable(PDO $pdo): void
+{
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS `chat_typing_status` (
+            `id` INT(11) NOT NULL AUTO_INCREMENT,
+            `patient_id` INT(11) NOT NULL,
+            `sender_type` ENUM('patient','staff') NOT NULL,
+            `is_typing` TINYINT(1) NOT NULL DEFAULT 0,
+            `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `uq_chat_typing` (`patient_id`, `sender_type`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+    ");
+}
+
+function buildMessageInsert(PDO $pdo, array $columns, array $data): int
+{
+    $insertCols = [];
+    $placeholders = [];
+    $values = [];
+
+    foreach ($data as $col => $val) {
+        if (isset($columns[$col])) {
+            $insertCols[] = "`$col`";
+            $placeholders[] = '?';
+            $values[] = $val;
+        }
+    }
+
+    if (isset($columns['created_at'])) {
+        $insertCols[] = '`created_at`';
+        $placeholders[] = 'NOW()';
+    }
+
+    $sql = "INSERT INTO messages (" . implode(', ', $insertCols) . ") VALUES (" . implode(', ', $placeholders) . ")";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($values);
+    return (int)$pdo->lastInsertId();
+}
+
+function fetchMessageById(PDO $pdo, array $columns, int $id): ?array
+{
+    $senderExpr = isset($columns['sender_type'])
+        ? "sender_type"
+        : (isset($columns['sent_by']) ? "CASE WHEN sent_by='patient' THEN 'patient' WHEN sent_by='admin' THEN 'admin' ELSE 'system' END" : "'patient'");
+
+    $stmt = $pdo->prepare("
+        SELECT id, message, created_at, {$senderExpr} AS sender_type
+        FROM messages
+        WHERE id = ?
+        LIMIT 1
+    ");
+    $stmt->execute([$id]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $row ?: null;
+}
+
+try {
+    ensureMessagesTable($pdo);
+    ensureTypingTable($pdo);
+    $messageColumns = tableColumns($pdo, 'messages');
+
+    $userStmt = $pdo->prepare("
+        SELECT id, first_name, middle_name, last_name, email, phone
+        FROM users
+        WHERE id = ?
+        LIMIT 1
+    ");
+    $userStmt->execute([$user_id]);
+    $user = $userStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    $hasPatientUserId = (bool)$pdo->query("SHOW COLUMNS FROM patients LIKE 'user_id'")->fetch(PDO::FETCH_ASSOC);
+
+    if ($hasPatientUserId) {
+        $stmt = $pdo->prepare("
+            SELECT p.*, u.first_name, u.middle_name, u.last_name, u.email, u.phone
+            FROM patients p
+            LEFT JOIN users u ON u.id = p.user_id
+            WHERE p.user_id = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$user_id]);
+    } elseif (!empty($patient_id)) {
+        $stmt = $pdo->prepare("
+            SELECT p.*,
+                   ? AS first_name,
+                   ? AS middle_name,
+                   ? AS last_name,
+                   ? AS email,
+                   ? AS phone
+            FROM patients p
+            WHERE p.id = ?
+            LIMIT 1
+        ");
+        $stmt->execute([
+            $user['first_name'] ?? null,
+            $user['middle_name'] ?? null,
+            $user['last_name'] ?? null,
+            $user['email'] ?? null,
+            $user['phone'] ?? null,
+            (int)$patient_id,
+        ]);
+    } else {
+        $stmt = $pdo->prepare("
+            SELECT p.*,
+                   ? AS first_name,
+                   ? AS middle_name,
+                   ? AS last_name,
+                   ? AS email,
+                   ? AS phone
+            FROM patients p
+            WHERE p.email = ?
+            LIMIT 1
+        ");
+        $stmt->execute([
+            $user['first_name'] ?? null,
+            $user['middle_name'] ?? null,
+            $user['last_name'] ?? null,
+            $user['email'] ?? null,
+            $user['phone'] ?? null,
+            $user['email'] ?? '',
+        ]);
+    }
+
     $patient = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$patient && !$patient_id) {
@@ -52,31 +241,150 @@ try {
         $patient_id = $patient['id'];
         $_SESSION['patient_id'] = $patient_id;
     }
-    
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_message'])) {
-        $subject = trim($_POST['subject'] ?? '');
+
+    $senderExpr = isset($messageColumns['sender_type'])
+        ? "sender_type"
+        : (isset($messageColumns['sent_by']) ? "CASE WHEN sent_by='patient' THEN 'patient' WHEN sent_by='admin' THEN 'admin' ELSE 'system' END" : "'patient'");
+
+    $isAjaxSend = $_SERVER['REQUEST_METHOD'] === 'POST'
+        && (($_POST['ajax'] ?? '0') === '1')
+        && (($_POST['action'] ?? '') === 'send_message');
+    $isAjaxPoll = $_SERVER['REQUEST_METHOD'] === 'POST'
+        && (($_POST['ajax'] ?? '0') === '1')
+        && (($_POST['action'] ?? '') === 'poll_messages');
+    $isAjaxTyping = $_SERVER['REQUEST_METHOD'] === 'POST'
+        && (($_POST['ajax'] ?? '0') === '1')
+        && (($_POST['action'] ?? '') === 'set_typing');
+
+    if ($isAjaxPoll) {
+        $lastId = (int)($_POST['last_id'] ?? 0);
+        $pollStmt = $pdo->prepare("
+            SELECT id, message, created_at, {$senderExpr} AS sender_type
+            FROM messages
+            WHERE patient_id = ? AND id > ?
+            ORDER BY id ASC
+        ");
+        $pollStmt->execute([$patient_id, $lastId]);
+        $newMessages = $pollStmt->fetchAll(PDO::FETCH_ASSOC);
+        $typingStmt = $pdo->prepare("
+            SELECT is_typing, updated_at
+            FROM chat_typing_status
+            WHERE patient_id = ? AND sender_type = 'staff'
+            LIMIT 1
+        ");
+        $typingStmt->execute([$patient_id]);
+        $typingRow = $typingStmt->fetch(PDO::FETCH_ASSOC) ?: null;
+        $staffTyping = false;
+        if ($typingRow) {
+            $recent = (time() - strtotime($typingRow['updated_at'])) <= 8;
+            $staffTyping = ((int)$typingRow['is_typing'] === 1) && $recent;
+        }
+        jsonResponse([
+            'success' => true,
+            'messages' => $newMessages,
+            'staff_typing' => $staffTyping
+        ]);
+    }
+
+    if ($isAjaxTyping) {
+        $isTyping = (int)($_POST['is_typing'] ?? 0) === 1 ? 1 : 0;
+        $typingUpsert = $pdo->prepare("
+            INSERT INTO chat_typing_status (patient_id, sender_type, is_typing, updated_at)
+            VALUES (?, 'patient', ?, NOW())
+            ON DUPLICATE KEY UPDATE is_typing = VALUES(is_typing), updated_at = NOW()
+        ");
+        $typingUpsert->execute([$patient_id, $isTyping]);
+        jsonResponse(['success' => true]);
+    }
+
+    if ($isAjaxSend) {
+        // AJAX endpoint: send patient message, then immediately insert one system auto-reply.
         $message_text = trim($_POST['message'] ?? '');
-        
-        if (!empty($subject) && !empty($message_text)) {
-            $stmt = $pdo->prepare("INSERT INTO messages (patient_id, subject, message, sent_by, created_at) VALUES (?, ?, ?, 'patient', NOW())");
-            $stmt->execute([$patient_id, $subject, $message_text]);
-            $message = 'Message sent successfully!';
-            $messageType = 'success';
-        } else {
-            $message = 'Please fill in all fields.';
-            $messageType = 'error';
+        if ($message_text === '') {
+            jsonResponse(['success' => false, 'message' => 'Please enter a message.'], 422);
+        }
+
+        try {
+            $pdo->beginTransaction();
+
+            // 1) Save patient message first.
+            $patientMessageId = buildMessageInsert($pdo, $messageColumns, [
+                'patient_id' => $patient_id,
+                'sender_id' => $user_id,
+                'receiver_id' => null,
+                'subject' => '',
+                'message' => $message_text,
+                'sent_by' => 'patient',
+                'sender_type' => 'patient',
+            ]);
+
+            // 2) Prevent duplicate auto-reply for the same patient message when linkage column exists.
+            $autoReplyExists = false;
+            if (isset($messageColumns['auto_reply_for_message_id'])) {
+                $dupStmt = $pdo->prepare("SELECT id FROM messages WHERE auto_reply_for_message_id = ? LIMIT 1");
+                $dupStmt->execute([$patientMessageId]);
+                $autoReplyExists = (bool)$dupStmt->fetchColumn();
+            }
+
+            $autoReply = null;
+            if (!$autoReplyExists) {
+                // 3) Insert clinic/system auto-reply as a separate message record.
+                $systemMessageId = buildMessageInsert($pdo, $messageColumns, [
+                    'patient_id' => $patient_id,
+                    'sender_id' => null,
+                    'receiver_id' => $user_id,
+                    'subject' => '',
+                    'message' => AUTO_REPLY_TEXT,
+                    'sent_by' => 'admin',
+                    'sender_type' => 'system',
+                    'auto_reply_for_message_id' => $patientMessageId,
+                ]);
+                $autoReply = fetchMessageById($pdo, $messageColumns, $systemMessageId);
+            }
+
+            $pdo->commit();
+
+            $patientMsg = fetchMessageById($pdo, $messageColumns, $patientMessageId);
+            $responseMessages = [];
+            if ($patientMsg) {
+                $responseMessages[] = $patientMsg;
+            }
+            if ($autoReply) {
+                $responseMessages[] = $autoReply;
+            }
+
+            jsonResponse([
+                'success' => true,
+                'message' => 'Message sent successfully.',
+                'messages' => $responseMessages
+            ]);
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            jsonResponse([
+                'success' => false,
+                'message' => 'Unable to send message right now.'
+            ], 500);
         }
     }
-    
+
     $stmt = $pdo->prepare("
-        SELECT * FROM messages 
+        SELECT id, message, created_at, {$senderExpr} AS sender_type
+        FROM messages
         WHERE patient_id = ?
-        ORDER BY created_at DESC
+        ORDER BY created_at ASC, id ASC
     ");
     $stmt->execute([$patient_id]);
     $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
 } catch (Exception $e) {
+    if ($isAjaxRequest) {
+        jsonResponse([
+            'success' => false,
+            'message' => 'Chat error: ' . $e->getMessage()
+        ], 500);
+    }
     $patient = [];
     $messages = [];
 }
@@ -138,7 +446,6 @@ $pageTitle = 'Messages';
         .btn-primary:hover { background: #004080; }
         .message-card { padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 12px; }
         .message-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
-        .message-subject { font-weight: 600; color: #1a1a2e; }
         .message-date { font-size: 12px; color: #6b7280; }
         .message-body { font-size: 14px; color: #374151; line-height: 1.5; }
         .message-footer { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; }
@@ -157,7 +464,6 @@ $pageTitle = 'Messages';
         .chat-bubble.sent { align-self: flex-end; background: linear-gradient(135deg, #8b5cf6, #2563eb); color: #ffffff; border-bottom-right-radius: 6px; }
         .chat-bubble.received { align-self: flex-start; background: #f3f4f6; color: #111827; border-bottom-left-radius: 6px; }
         .chat-meta { font-size: 11px; opacity: 0.72; margin-top: 6px; }
-        .chat-subject { font-weight: 700; margin-bottom: 6px; }
         .chat-compose { padding: 14px; border-top: 1px solid #e5e7eb; background: #ffffff; }
         .chat-compose .form-input,
         .chat-compose .form-textarea { background: #ffffff; border-color: #d1d5db; color: #111827; }
@@ -168,6 +474,42 @@ $pageTitle = 'Messages';
         .chat-send-row .form-group { flex: 1; margin-bottom: 0; }
         .chat-send-row .btn { min-width: 120px; }
         .chat-empty { text-align: center; color: #6b7280; padding: 40px 20px; }
+        .typing-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #6b7280;
+            padding: 4px 8px;
+            margin-top: 4px;
+        }
+        .typing-dots { display: inline-flex; gap: 4px; align-items: center; }
+        .typing-dots span {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #9ca3af;
+            display: inline-block;
+            animation: typingWave 1.1s infinite ease-in-out;
+        }
+        .typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes typingWave {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+            30% { transform: translateY(-4px); opacity: 1; }
+        }
+        .quick-replies { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+        .quick-reply-btn {
+            border: 1px solid #c7d2fe;
+            background: #eef2ff;
+            color: #1f3a8a;
+            border-radius: 999px;
+            padding: 6px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .quick-reply-btn:hover { background: #dbeafe; border-color: #93c5fd; }
         @media (max-width: 1024px) {
             .grid-layout { grid-template-columns: 1fr; }
         }
@@ -192,11 +534,8 @@ $pageTitle = 'Messages';
             <?php endif; ?>
 
             <?php if (!empty($messages)): ?>
-                <?php foreach (array_reverse($messages) as $msg): ?>
-                    <div class="chat-bubble <?php echo $msg['sent_by'] === 'patient' ? 'sent' : 'received'; ?>">
-                        <?php if (!empty($msg['subject'])): ?>
-                            <div class="chat-subject"><?php echo htmlspecialchars($msg['subject']); ?></div>
-                        <?php endif; ?>
+                <?php foreach ($messages as $msg): ?>
+                    <div class="chat-bubble <?php echo ($msg['sender_type'] === 'patient') ? 'sent' : 'received'; ?>" data-message-id="<?php echo (int)$msg['id']; ?>">
                         <div><?php echo nl2br(htmlspecialchars($msg['message'])); ?></div>
                         <div class="chat-meta"><?php echo date('M j, g:i A', strtotime($msg['created_at'])); ?></div>
                     </div>
@@ -210,10 +549,11 @@ $pageTitle = 'Messages';
         </div>
 
         <div class="chat-compose">
-            <form method="POST" action="?embed=1">
-                <input type="hidden" name="send_message" value="1">
-                <div class="form-group" style="margin-bottom: 10px;">
-                    <input type="text" name="subject" class="form-input" placeholder="Subject" required>
+            <form method="POST" action="?embed=1" class="js-chat-form">
+                <div class="quick-replies">
+                    <button type="button" class="quick-reply-btn" data-quick-reply="Hi clinic, I need to schedule a consultation.">Schedule consultation</button>
+                    <button type="button" class="quick-reply-btn" data-quick-reply="Hello, I would like to ask about my upcoming appointment.">Ask about appointment</button>
+                    <button type="button" class="quick-reply-btn" data-quick-reply="Good day, can I request my billing details?">Request billing details</button>
                 </div>
                 <div class="chat-send-row">
                     <div class="form-group">
@@ -227,10 +567,215 @@ $pageTitle = 'Messages';
         </div>
     </div>
     <script>
-        const chatHistory = document.getElementById('chatHistory');
-        if (chatHistory) {
-            chatHistory.scrollTop = chatHistory.scrollHeight;
-        }
+        (function () {
+            const chatHistory = document.getElementById('chatHistory');
+            const form = document.querySelector('.js-chat-form');
+            const AUTO_REPLY_TEXT = <?php echo json_encode(AUTO_REPLY_TEXT); ?>;
+
+            function escapeHtml(value) {
+                const div = document.createElement('div');
+                div.textContent = value || '';
+                return div.innerHTML;
+            }
+
+            function formatDate(dateStr) {
+                const d = new Date(dateStr.replace(' ', 'T'));
+                if (Number.isNaN(d.getTime())) return dateStr;
+                return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+            }
+
+            function scrollToBottom() {
+                if (!chatHistory) return;
+                chatHistory.scrollTop = chatHistory.scrollHeight;
+            }
+
+            const renderedMessageIds = new Set(
+                Array.from(document.querySelectorAll('[data-message-id]'))
+                    .map((el) => Number(el.getAttribute('data-message-id')))
+                    .filter((id) => Number.isFinite(id) && id > 0)
+            );
+
+            function getLastMessageId() {
+                if (renderedMessageIds.size === 0) return 0;
+                return Math.max(...renderedMessageIds);
+            }
+
+            function appendMessage(msg) {
+                if (!chatHistory) return;
+                const messageId = Number(msg.id || 0);
+                if (messageId > 0 && renderedMessageIds.has(messageId)) return;
+                const empty = document.querySelector('.chat-empty');
+                if (empty) empty.remove();
+                const isPatient = msg.sender_type === 'patient';
+                const bubble = document.createElement('div');
+                bubble.className = `chat-bubble ${isPatient ? 'sent' : 'received'}`;
+                if (messageId > 0) {
+                    bubble.setAttribute('data-message-id', String(messageId));
+                    renderedMessageIds.add(messageId);
+                }
+                bubble.innerHTML = `
+                    <div>${escapeHtml(msg.message).replace(/\n/g, '<br>')}</div>
+                    <div class="chat-meta">${escapeHtml(formatDate(msg.created_at))}</div>
+                `;
+                chatHistory.appendChild(bubble);
+                scrollToBottom();
+            }
+
+            function appendSendResultMessages(msgs) {
+                (msgs || []).forEach((msg) => {
+                    const isAutoReply = (msg.sender_type === 'system' || msg.sender_type === 'admin')
+                        && (msg.message || '').trim() === AUTO_REPLY_TEXT;
+                    if (isAutoReply) {
+                        ensureTypingIndicator(true);
+                        setTimeout(() => {
+                            appendMessage(msg);
+                            ensureTypingIndicator(false);
+                        }, 1200);
+                    } else {
+                        appendMessage(msg);
+                    }
+                });
+            }
+
+            function ensureTypingIndicator(visible) {
+                if (!chatHistory) return;
+                let el = document.getElementById('staffTypingIndicator');
+                if (!el && visible) {
+                    el = document.createElement('div');
+                    el.id = 'staffTypingIndicator';
+                    el.className = 'typing-indicator';
+                    el.innerHTML = '<span class="typing-dots" aria-label="Staff is typing" title="Staff is typing"><span></span><span></span><span></span></span>';
+                    chatHistory.appendChild(el);
+                }
+                if (el) {
+                    el.style.display = visible ? 'block' : 'none';
+                    if (visible) scrollToBottom();
+                }
+            }
+
+            let typingTimer = null;
+            let typingState = 0;
+            async function sendTypingState(isTyping) {
+                if (!form || typingState === isTyping) return;
+                typingState = isTyping;
+                const payload = new FormData();
+                payload.append('ajax', '1');
+                payload.append('action', 'set_typing');
+                payload.append('is_typing', isTyping ? '1' : '0');
+                try {
+                    await fetch(form.getAttribute('action') || window.location.href, {
+                        method: 'POST',
+                        body: payload,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                } catch (_e) {}
+            }
+
+            async function pollMessages() {
+                if (!form) return;
+                const payload = new FormData();
+                payload.append('ajax', '1');
+                payload.append('action', 'poll_messages');
+                payload.append('last_id', String(getLastMessageId()));
+
+                try {
+                    const response = await fetch(form.getAttribute('action') || window.location.href, {
+                        method: 'POST',
+                        body: payload,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    const data = await response.json();
+                    if (!response.ok || !data.success) return;
+                    (data.messages || []).forEach(appendMessage);
+                    ensureTypingIndicator(!!data.staff_typing);
+                } catch (_err) {
+                    // Ignore poll errors and retry on next interval.
+                }
+            }
+
+            function bindQuickReplies(scope) {
+                scope.querySelectorAll('.quick-reply-btn').forEach((btn) => {
+                    btn.addEventListener('click', function () {
+                        const text = btn.getAttribute('data-quick-reply') || '';
+                        const input = scope.querySelector('textarea[name="message"]');
+                        if (!input) return;
+                        input.value = text;
+                        scope.requestSubmit();
+                    });
+                });
+            }
+
+            if (form) {
+                bindQuickReplies(form);
+                form.addEventListener('submit', async function (event) {
+                    event.preventDefault();
+                    const messageInput = form.querySelector('textarea[name="message"]');
+                    const submitBtn = form.querySelector('button[type="submit"]');
+                    const text = (messageInput?.value || '').trim();
+                    if (!text) return;
+
+                    const payload = new FormData();
+                    payload.append('ajax', '1');
+                    payload.append('action', 'send_message');
+                    payload.append('message', text);
+
+                    if (submitBtn) submitBtn.disabled = true;
+                    try {
+                        const response = await fetch(form.getAttribute('action') || window.location.href, {
+                            method: 'POST',
+                            body: payload,
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        });
+                        const raw = await response.text();
+                        let data = null;
+                        try {
+                            data = JSON.parse(raw);
+                        } catch (parseError) {
+                            throw new Error('Server returned invalid response. Please run DB migration first.');
+                        }
+                        if (!response.ok || !data.success) {
+                            throw new Error(data.message || 'Failed to send message.');
+                        }
+
+                        appendSendResultMessages(data.messages || []);
+                        if (messageInput) {
+                            messageInput.value = '';
+                            messageInput.focus();
+                        }
+                        sendTypingState(0);
+                    } catch (err) {
+                        alert(err.message || 'Failed to send message.');
+                    } finally {
+                        if (submitBtn) submitBtn.disabled = false;
+                    }
+                });
+
+                const messageInput = form.querySelector('textarea[name="message"]');
+                if (messageInput) {
+                    messageInput.addEventListener('keydown', function (event) {
+                        if (event.key === 'Enter' && !event.shiftKey) {
+                            event.preventDefault();
+                            form.requestSubmit();
+                        }
+                    });
+                    messageInput.addEventListener('input', function () {
+                        const hasText = (messageInput.value || '').trim().length > 0;
+                        if (!hasText) {
+                            if (typingTimer) clearTimeout(typingTimer);
+                            sendTypingState(0);
+                            return;
+                        }
+                        sendTypingState(1);
+                        if (typingTimer) clearTimeout(typingTimer);
+                        typingTimer = setTimeout(() => sendTypingState(0), 1500);
+                    });
+                }
+            }
+
+            scrollToBottom();
+            setInterval(pollMessages, 3000);
+            window.addEventListener('beforeunload', function () { sendTypingState(0); });
+        })();
     </script>
     </body>
     </html>
@@ -322,11 +867,11 @@ $pageTitle = 'Messages';
             <div class="grid-layout">
                 <div class="section">
                     <h2 class="section-title"><i class="fas fa-paper-plane"></i> Send a Message</h2>
-                    <form method="POST" action="">
-                        <input type="hidden" name="send_message" value="1">
-                        <div class="form-group">
-                            <label class="form-label">Subject</label>
-                            <input type="text" name="subject" class="form-input" placeholder="Enter subject" required>
+                    <form method="POST" action="" class="js-chat-form">
+                        <div class="quick-replies">
+                            <button type="button" class="quick-reply-btn" data-quick-reply="Hi clinic, I need to schedule a consultation.">Schedule consultation</button>
+                            <button type="button" class="quick-reply-btn" data-quick-reply="Hello, I would like to ask about my upcoming appointment.">Ask about appointment</button>
+                            <button type="button" class="quick-reply-btn" data-quick-reply="Good day, can I request my billing details?">Request billing details</button>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Message</label>
@@ -340,28 +885,29 @@ $pageTitle = 'Messages';
 
                 <div class="section">
                     <h2 class="section-title"><i class="fas fa-inbox"></i> Message History</h2>
+                    <div id="pageMessageHistory">
                     <?php if (!empty($messages)): ?>
                         <?php foreach ($messages as $msg): ?>
-                            <div class="message-card">
+                            <div class="message-card" data-message-id="<?php echo (int)$msg['id']; ?>">
                                 <div class="message-header">
-                                    <div class="message-subject"><?php echo htmlspecialchars($msg['subject']); ?></div>
                                     <div class="message-date"><?php echo date('M j, Y g:i A', strtotime($msg['created_at'])); ?></div>
                                 </div>
                                 <div class="message-body"><?php echo nl2br(htmlspecialchars($msg['message'])); ?></div>
                                 <div class="message-footer">
-                                    <span class="message-type <?php echo $msg['sent_by'] === 'patient' ? 'type-sent' : 'type-received'; ?>">
-                                        <?php echo $msg['sent_by'] === 'patient' ? 'Sent' : 'Received'; ?>
+                                    <span class="message-type <?php echo $msg['sender_type'] === 'patient' ? 'type-sent' : 'type-received'; ?>">
+                                        <?php echo $msg['sender_type'] === 'patient' ? 'Sent' : 'Clinic'; ?>
                                     </span>
                                 </div>
                             </div>
                         <?php endforeach; ?>
                     <?php else: ?>
-                        <div class="empty-state">
+                        <div class="empty-state" id="pageEmptyState">
                             <i class="fas fa-envelope-open"></i>
                             <h3>No Messages Yet</h3>
                             <p>Send a message to the clinic using the form.</p>
                         </div>
                     <?php endif; ?>
+                    </div>
                 </div>
             </div>
         </main>
@@ -382,6 +928,265 @@ $pageTitle = 'Messages';
             overlay.addEventListener('click', closeChat);
             panel.querySelector('[data-chat-close]').addEventListener('click', closeChat);
             panel.querySelector('[data-chat-minimize]').addEventListener('click', closeChat);
+        })();
+
+        (function () {
+            const chatHistory = document.getElementById('chatHistory');
+            const pageHistory = document.getElementById('pageMessageHistory');
+            const AUTO_REPLY_TEXT = <?php echo json_encode(AUTO_REPLY_TEXT); ?>;
+
+            function escapeHtml(value) {
+                const div = document.createElement('div');
+                div.textContent = value || '';
+                return div.innerHTML;
+            }
+
+            function formatDate(dateStr, isEmbed) {
+                const d = new Date(dateStr.replace(' ', 'T'));
+                if (Number.isNaN(d.getTime())) return dateStr;
+                return d.toLocaleString(undefined, isEmbed
+                    ? { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }
+                    : { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+            }
+
+            function scrollToBottom(el) {
+                if (!el) return;
+                el.scrollTop = el.scrollHeight;
+            }
+
+            function removeEmptyStates() {
+                const chatEmpty = document.querySelector('.chat-empty');
+                if (chatEmpty) chatEmpty.remove();
+                const pageEmpty = document.getElementById('pageEmptyState');
+                if (pageEmpty) pageEmpty.remove();
+            }
+
+            const renderedMessageIds = new Set(
+                Array.from(document.querySelectorAll('[data-message-id]'))
+                    .map((el) => Number(el.getAttribute('data-message-id')))
+                    .filter((id) => Number.isFinite(id) && id > 0)
+            );
+
+            function getLastMessageId() {
+                if (renderedMessageIds.size === 0) return 0;
+                return Math.max(...renderedMessageIds);
+            }
+
+            function appendEmbedMessage(msg) {
+                if (!chatHistory) return;
+                const messageId = Number(msg.id || 0);
+                if (messageId > 0 && renderedMessageIds.has(messageId)) return;
+                const bubble = document.createElement('div');
+                const isPatient = msg.sender_type === 'patient';
+                bubble.className = `chat-bubble ${isPatient ? 'sent' : 'received'}`;
+                if (messageId > 0) {
+                    bubble.setAttribute('data-message-id', String(messageId));
+                    renderedMessageIds.add(messageId);
+                }
+                bubble.innerHTML = `
+                    <div>${escapeHtml(msg.message).replace(/\n/g, '<br>')}</div>
+                    <div class="chat-meta">${escapeHtml(formatDate(msg.created_at, true))}</div>
+                `;
+                chatHistory.appendChild(bubble);
+                scrollToBottom(chatHistory);
+            }
+
+            function appendPageMessage(msg) {
+                if (!pageHistory) return;
+                const messageId = Number(msg.id || 0);
+                if (messageId > 0 && renderedMessageIds.has(messageId)) return;
+                const card = document.createElement('div');
+                const isPatient = msg.sender_type === 'patient';
+                card.className = 'message-card';
+                if (messageId > 0) {
+                    card.setAttribute('data-message-id', String(messageId));
+                    renderedMessageIds.add(messageId);
+                }
+                card.innerHTML = `
+                    <div class="message-header">
+                        <div class="message-date">${escapeHtml(formatDate(msg.created_at, false))}</div>
+                    </div>
+                    <div class="message-body">${escapeHtml(msg.message).replace(/\n/g, '<br>')}</div>
+                    <div class="message-footer">
+                        <span class="message-type ${isPatient ? 'type-sent' : 'type-received'}">${isPatient ? 'Sent' : 'Clinic'}</span>
+                    </div>
+                `;
+                pageHistory.appendChild(card);
+            }
+
+            function appendSendResultMessages(msgs) {
+                (msgs || []).forEach((msg) => {
+                    const isAutoReply = (msg.sender_type === 'system' || msg.sender_type === 'admin')
+                        && (msg.message || '').trim() === AUTO_REPLY_TEXT;
+                    if (isAutoReply) {
+                        ensureTypingIndicator(true);
+                        setTimeout(() => {
+                            appendEmbedMessage(msg);
+                            appendPageMessage(msg);
+                            ensureTypingIndicator(false);
+                        }, 1200);
+                    } else {
+                        appendEmbedMessage(msg);
+                        appendPageMessage(msg);
+                    }
+                });
+            }
+
+            function ensureTypingIndicator(visible) {
+                const container = chatHistory || pageHistory;
+                if (!container) return;
+                let el = document.getElementById('staffTypingIndicator');
+                if (!el && visible) {
+                    el = document.createElement('div');
+                    el.id = 'staffTypingIndicator';
+                    el.className = 'typing-indicator';
+                    el.innerHTML = '<span class="typing-dots" aria-label="Staff is typing" title="Staff is typing"><span></span><span></span><span></span></span>';
+                    container.appendChild(el);
+                }
+                if (el) {
+                    el.style.display = visible ? 'block' : 'none';
+                    if (visible) {
+                        scrollToBottom(chatHistory);
+                        scrollToBottom(pageHistory);
+                    }
+                }
+            }
+
+            let typingTimer = null;
+            let typingState = 0;
+            async function sendTypingState(isTyping) {
+                if (typingState === isTyping) return;
+                typingState = isTyping;
+                const payload = new FormData();
+                payload.append('ajax', '1');
+                payload.append('action', 'set_typing');
+                payload.append('is_typing', isTyping ? '1' : '0');
+                try {
+                    await fetch(window.location.pathname + window.location.search, {
+                        method: 'POST',
+                        body: payload,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                } catch (_e) {}
+            }
+
+            async function pollMessages() {
+                const payload = new FormData();
+                payload.append('ajax', '1');
+                payload.append('action', 'poll_messages');
+                payload.append('last_id', String(getLastMessageId()));
+
+                try {
+                    const response = await fetch(window.location.pathname + window.location.search, {
+                        method: 'POST',
+                        body: payload,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    const data = await response.json();
+                    if (!response.ok || !data.success) return;
+                    removeEmptyStates();
+                    (data.messages || []).forEach((msg) => {
+                        appendEmbedMessage(msg);
+                        appendPageMessage(msg);
+                    });
+                    ensureTypingIndicator(!!data.staff_typing);
+                } catch (_err) {
+                    // Ignore poll errors and continue polling.
+                }
+            }
+
+            function bindQuickReplies() {
+                document.querySelectorAll('.js-chat-form').forEach((form) => {
+                    form.querySelectorAll('.quick-reply-btn').forEach((btn) => {
+                        btn.addEventListener('click', function () {
+                            const text = btn.getAttribute('data-quick-reply') || '';
+                            const input = form.querySelector('textarea[name="message"]');
+                            if (!input) return;
+                            input.value = text;
+                            form.requestSubmit();
+                        });
+                    });
+                });
+            }
+
+            async function sendMessage(form) {
+                const messageInput = form.querySelector('textarea[name="message"]');
+                const submitBtn = form.querySelector('button[type="submit"]');
+                const text = (messageInput?.value || '').trim();
+                if (!text) return;
+
+                const payload = new FormData();
+                payload.append('ajax', '1');
+                payload.append('action', 'send_message');
+                payload.append('message', text);
+
+                if (submitBtn) submitBtn.disabled = true;
+                try {
+                    const actionUrl = form.getAttribute('action') || window.location.href;
+                    const response = await fetch(actionUrl, {
+                        method: 'POST',
+                        body: payload,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+
+                    const raw = await response.text();
+                    let data = null;
+                    try {
+                        data = JSON.parse(raw);
+                    } catch (parseError) {
+                        throw new Error('Server returned invalid response. Please run DB migration first.');
+                    }
+                    if (!response.ok || !data.success) {
+                        throw new Error(data.message || 'Failed to send message.');
+                    }
+
+                    removeEmptyStates();
+                    appendSendResultMessages(data.messages || []);
+
+                    if (messageInput) {
+                        messageInput.value = '';
+                        messageInput.focus();
+                    }
+                    sendTypingState(0);
+                } catch (err) {
+                    alert(err.message || 'Failed to send message.');
+                } finally {
+                    if (submitBtn) submitBtn.disabled = false;
+                }
+            }
+
+            document.querySelectorAll('.js-chat-form').forEach((form) => {
+                form.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    sendMessage(form);
+                });
+                const messageInput = form.querySelector('textarea[name="message"]');
+                if (messageInput) {
+                    messageInput.addEventListener('keydown', function (event) {
+                        if (event.key === 'Enter' && !event.shiftKey) {
+                            event.preventDefault();
+                            form.requestSubmit();
+                        }
+                    });
+                    messageInput.addEventListener('input', function () {
+                        const hasText = (messageInput.value || '').trim().length > 0;
+                        if (!hasText) {
+                            if (typingTimer) clearTimeout(typingTimer);
+                            sendTypingState(0);
+                            return;
+                        }
+                        sendTypingState(1);
+                        if (typingTimer) clearTimeout(typingTimer);
+                        typingTimer = setTimeout(() => sendTypingState(0), 1500);
+                    });
+                }
+            });
+            bindQuickReplies();
+
+            scrollToBottom(chatHistory);
+            scrollToBottom(pageHistory);
+            setInterval(pollMessages, 3000);
+            window.addEventListener('beforeunload', function () { sendTypingState(0); });
         })();
     </script>
 </body>

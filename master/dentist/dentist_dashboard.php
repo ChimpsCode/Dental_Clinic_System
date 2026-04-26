@@ -928,6 +928,7 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 .tooth-wrapper.editing .tooth-face { border-color: #3b82f6; border-width: 2px; animation: toothPulse 1.5s infinite; }
 @keyframes toothPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.5); } 50% { box-shadow: 0 0 0 8px rgba(59,130,246,0); } }
+
 </style>
 
 <?php require_once '../../includes/dentist_layout_end.php'; ?>

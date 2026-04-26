@@ -390,6 +390,9 @@ try {
             </aside>
 
 
+<a href="../shared/staff_messages.php" class="staff-message-fab" title="Staff Messages" aria-label="Open staff messages">
+    <span>💬</span>
+</a>
 
 <?php
 // Include the layout end
@@ -408,6 +411,28 @@ require_once __DIR__ . '/../../includes/admin_layout_end.php';
 .chart-placeholder {
     min-height: 170px;
     width: 100%;
+}
+
+.staff-message-fab {
+    position: fixed;
+    right: 22px;
+    bottom: 22px;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #2563eb;
+    color: #fff;
+    text-decoration: none;
+    box-shadow: 0 10px 24px rgba(37,99,235,0.35);
+    z-index: 9999;
+    font-size: 24px;
+}
+.staff-message-fab:hover {
+    background: #1d4ed8;
+    color: #fff;
 }
 
 </style>
