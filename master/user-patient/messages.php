@@ -777,7 +777,21 @@ $pageTitle = 'Messages';
             window.addEventListener('beforeunload', function () { sendTypingState(0); });
         })();
     </script>
-    </body>
+        <script>
+        (function() {
+            const LOGOUT_AFTER_MS = 10 * 60 * 1000;
+            let timer;
+            const reset = () => {
+                clearTimeout(timer);
+                timer = setTimeout(() => window.location.href = '../../logout.php', LOGOUT_AFTER_MS);
+            };
+            ['click','mousemove','keydown','scroll','touchstart'].forEach(evt =>
+                document.addEventListener(evt, reset, { passive: true })
+            );
+            reset();
+        })();
+    </script>
+</body>
     </html>
     <?php exit; endif; ?>
 
@@ -1187,6 +1201,20 @@ $pageTitle = 'Messages';
             scrollToBottom(pageHistory);
             setInterval(pollMessages, 3000);
             window.addEventListener('beforeunload', function () { sendTypingState(0); });
+        })();
+    </script>
+    <script>
+        (function() {
+            const LOGOUT_AFTER_MS = 10 * 60 * 1000;
+            let timer;
+            const reset = () => {
+                clearTimeout(timer);
+                timer = setTimeout(() => window.location.href = '../../logout.php', LOGOUT_AFTER_MS);
+            };
+            ['click','mousemove','keydown','scroll','touchstart'].forEach(evt =>
+                document.addEventListener(evt, reset, { passive: true })
+            );
+            reset();
         })();
     </script>
 </body>

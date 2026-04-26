@@ -393,6 +393,7 @@ try {
                         $bcols = array_column($stmt->fetchAll(), 'Field');
                         $bupdates = [];
                         if (in_array('payment_status_id', $bcols)) { $bupdates[] = "payment_status_id = 1"; }
+                        if (in_array('payment_status', $bcols)) { $bupdates[] = "payment_status = 'paid'"; }
                         if (in_array('paid_amount', $bcols)) { $bupdates[] = "paid_amount = COALESCE(paid_amount, 0) + " . $amount; }
                         if (in_array('balance', $bcols)) { $bupdates[] = "balance = 0"; }
                         if (in_array('updated_at', $bcols)) { $bupdates[] = "updated_at = NOW()"; }
@@ -417,6 +418,7 @@ try {
                         $bcols = array_column($stmt->fetchAll(), 'Field');
                         $bupdates = [];
                         if (in_array('payment_status_id', $bcols)) { $bupdates[] = "payment_status_id = 1"; }
+                        if (in_array('payment_status', $bcols)) { $bupdates[] = "payment_status = 'paid'"; }
                         if (in_array('paid_amount', $bcols)) { $bupdates[] = "paid_amount = COALESCE(paid_amount, 0) + " . $amount; }
                         if (in_array('balance', $bcols)) { $bupdates[] = "balance = 0"; }
                         if (in_array('updated_at', $bcols)) { $bupdates[] = "updated_at = NOW()"; }
@@ -435,6 +437,7 @@ try {
                         if (in_array('paid_amount', $bcols)) { $bcolsList[] = "paid_amount"; $bvals[] = $amount; }
                         if (in_array('balance', $bcols)) { $bcolsList[] = "balance"; $bvals[] = 0; }
                         if (in_array('payment_status_id', $bcols)) { $bcolsList[] = "payment_status_id"; $bvals[] = 1; }
+                        if (in_array('payment_status', $bcols)) { $bcolsList[] = "payment_status"; $bvals[] = 'paid'; }
                         if (in_array('billing_date', $bcols)) { $bcolsList[] = "billing_date"; $bvals[] = $queueDate; }
                         if (in_array('due_date', $bcols)) { $bcolsList[] = "due_date"; $bvals[] = date('Y-m-d', strtotime($queueDate . ' +7 days')); }
                         if (in_array('created_at', $bcols)) { $bcolsList[] = "created_at"; $bvals[] = 'NOW()'; }

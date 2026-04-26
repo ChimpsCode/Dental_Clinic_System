@@ -468,11 +468,11 @@ elseif ($appointmentId) {
                     <span class="text-sm font-medium">Back to Dashboard</span>
                 </a>
             </div>
-            <!-- Logo -->
-            <div class="mb-10 flex items-center gap-2">
-                <img src="assets/images/Logo.png" alt="RF Dental Clinic Logo" class="w-8 h-8 rounded-md">
-                <h1 class="text-xl font-bold text-slate-800">New Patient</h1>
-            </div>
+             <!-- Logo -->
+             <div class="mb-10 flex items-center gap-2">
+                 <img src="../../assets/images/Logo.png" alt="RF Dental Clinic Logo" class="w-8 h-8 rounded-md">
+                 <h1 class="text-xl font-bold text-slate-800">New Patient</h1>
+             </div>
 
             <!-- Vertical Stepper -->
             <div class="relative">

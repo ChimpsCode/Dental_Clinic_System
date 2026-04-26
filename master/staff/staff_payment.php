@@ -37,8 +37,7 @@ try {
     $statusFilter = isset($_GET['status']) ? trim($_GET['status']) : '';
     $dateFilter = isset($_GET['date']) ? trim($_GET['date']) : 'all';
     
-    // We removed the is_archived and status restrictions! 
-    // The front desk needs to see completed/archived patients so they can pay.
+    // Billing-based listing so staff can see all billed patients, not only active queue rows.
     $whereClause = "WHERE 1=1";
     $params = [];
     
@@ -53,32 +52,32 @@ try {
     // Apply payment status filter
     if (!empty($statusFilter)) {
         if ($statusFilter === 'paid') {
-            $whereClause .= " AND b.payment_status = 'paid'";
+            $whereClause .= " AND (b.payment_status = 'paid' OR b.payment_status_id = 1)";
         } elseif ($statusFilter === 'unpaid') {
-            $whereClause .= " AND (b.payment_status IS NULL OR b.payment_status IN ('pending', 'unpaid'))";
+            $whereClause .= " AND (b.id IS NULL OR ((b.payment_status IS NULL OR b.payment_status IN ('pending', 'unpaid')) AND (b.payment_status_id IS NULL OR b.payment_status_id <> 1)))";
         }
     }
     
     // Apply date filter
     switch ($dateFilter) {
         case 'today':
-            $whereClause .= " AND DATE(q.created_at) = CURDATE()";
+            $whereClause .= " AND DATE(b.billing_date) = CURDATE()";
             break;
         case 'week':
-            $whereClause .= " AND q.created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
+            $whereClause .= " AND b.billing_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
             break;
         case 'month':
-            $whereClause .= " AND q.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
+            $whereClause .= " AND b.billing_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
             break;
         default:
             // All time - no filter
             break;
     }
     
-    // Get total count for pagination (FIXED: Using billing_date instead of created_at)
-    $countSql = "SELECT COUNT(*) FROM queue q
-                 LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id
-                 LEFT JOIN billing b ON b.patient_id = CAST(q.patient_id AS UNSIGNED) AND DATE(b.billing_date) = DATE(q.created_at)
+    // Get total count for pagination
+    $countSql = "SELECT COUNT(*) FROM billing b
+                 LEFT JOIN patients p ON b.patient_id = p.id
+                 LEFT JOIN queue q ON CAST(q.patient_id AS UNSIGNED) = b.patient_id AND DATE(q.created_at) = DATE(b.billing_date)
                  $whereClause";
     $countStmt = $conn->prepare($countSql);
     foreach ($params as $key => $value) {
@@ -96,30 +95,35 @@ try {
     $showingStart = $totalRecords > 0 ? $offset + 1 : 0;
     $showingEnd = min($offset + $itemsPerPage, $totalRecords);
     
-    // Build the query with pagination (FIXED: Using billing_date instead of created_at)
+    // Build the query with pagination
     $sql = "SELECT 
                 q.id as queue_id,
-                q.patient_id,
+                b.patient_id,
                 q.treatment_type,
                 q.teeth_numbers,
                 COALESCE(qs.status_name, 'Unknown') as queue_status,
-                q.created_at as queue_date,
+                COALESCE(q.created_at, b.billing_date) as queue_date,
                 q.notes as queue_notes,
                 CONCAT(p.first_name, ' ', p.last_name) as patient_name,
                 p.phone as patient_phone,
                 b.id as billing_id,
-                CONCAT('INV-', LPAD(COALESCE(b.id, q.id), 4, '0')) as invoice_number,
+                CONCAT('INV-', LPAD(b.id, 4, '0')) as invoice_number,
                 COALESCE(b.total_amount, 0) as amount,
                 COALESCE(b.payment_status, 'unpaid') as payment_status,
+                b.payment_status_id,
+                CASE
+                    WHEN b.payment_status_id = 1 OR b.payment_status = 'paid' THEN 'paid'
+                    ELSE 'unpaid'
+                END AS effective_payment_status,
                 b.billing_date,
                 b.paid_amount,
                 b.notes as billing_notes
-            FROM queue q
-            LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id
+            FROM billing b
+            LEFT JOIN patients p ON b.patient_id = p.id
+            LEFT JOIN queue q ON CAST(q.patient_id AS UNSIGNED) = b.patient_id AND DATE(q.created_at) = DATE(b.billing_date)
             LEFT JOIN queue_statuses qs ON q.status_id = qs.id
-            LEFT JOIN billing b ON b.patient_id = CAST(q.patient_id AS UNSIGNED) AND DATE(b.billing_date) = DATE(q.created_at)
             $whereClause
-            ORDER BY q.created_at DESC
+            ORDER BY b.billing_date DESC, b.id DESC
             LIMIT :limit OFFSET :offset";
     
     $stmt = $conn->prepare($sql);
@@ -138,27 +142,28 @@ try {
 
 
 
-    // Get summary statistics
+    // Get summary statistics with normalized status logic.
+    // "Paid" means payment_status_id = 1 OR payment_status = 'paid'.
     $statsSql = "
         SELECT 
-            (SELECT COALESCE(SUM(amount), 0)
-             FROM payments
-             WHERE DATE(payment_date) = CURDATE()) AS total_collected_today,
+            (SELECT COALESCE(SUM(p.amount), 0)
+             FROM payments p
+             WHERE DATE(p.payment_date) = CURDATE()) AS total_collected_today,
              
-            (SELECT COALESCE(SUM(total_amount), 0)
-             FROM billing
-             WHERE payment_status IN ('pending', 'unpaid')
-               AND DATE(billing_date) = CURDATE()) AS pending_today,
+            (SELECT COALESCE(SUM(b.total_amount), 0)
+             FROM billing b
+             WHERE DATE(b.billing_date) = CURDATE()
+               AND NOT (b.payment_status_id = 1 OR b.payment_status = 'paid')) AS pending_today,
                
             (SELECT COUNT(*)
-             FROM queue
-             WHERE status_id = 3
-               AND DATE(created_at) = CURDATE()) AS completed_today,
+             FROM queue q
+             WHERE q.status_id = 3
+               AND DATE(COALESCE(q.completed_at, q.created_at)) = CURDATE()) AS completed_today,
                
             (SELECT COUNT(*)
-             FROM billing
-             WHERE payment_status IN ('pending', 'unpaid')
-               AND DATE(billing_date) = CURDATE()) AS unpaid_today
+             FROM billing b
+             WHERE DATE(b.billing_date) = CURDATE()
+               AND NOT (b.payment_status_id = 1 OR b.payment_status = 'paid')) AS unpaid_today
     ";
     $statsStmt = $conn->query($statsSql);
     $stats = $statsStmt ? $statsStmt->fetch(PDO::FETCH_ASSOC) : [
@@ -312,11 +317,11 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                             <?php else: ?>
                             <?php foreach ($paymentRecords as $record): ?>
                             <?php 
-                                $isPaid = ($record['payment_status'] === 'paid');
+                                $isPaid = (($record['effective_payment_status'] ?? 'unpaid') === 'paid');
                                 $calculatedAmount = $record['amount'] > 0 ? $record['amount'] : calculateAmount($record['treatment_type'], $servicesMap);
                             ?>
-                            <tr data-queue-id="<?php echo $record['queue_id']; ?>" data-patient-id="<?php echo $record['patient_id']; ?>">
-                                <td><strong>Q-<?php echo str_pad($record['queue_id'], 4, '0', STR_PAD_LEFT); ?></strong></td>
+                            <tr data-queue-id="<?php echo (int)($record['queue_id'] ?? 0); ?>" data-patient-id="<?php echo (int)$record['patient_id']; ?>" data-billing-id="<?php echo (int)$record['billing_id']; ?>">
+                                <td><strong><?php echo !empty($record['queue_id']) ? ('Q-' . str_pad($record['queue_id'], 4, '0', STR_PAD_LEFT)) : ('INV-' . str_pad($record['billing_id'], 4, '0', STR_PAD_LEFT)); ?></strong></td>
                                 <td>
                                     <div class="patient-info">
                                         <span class="patient-name"><?php echo htmlspecialchars($record['patient_name']); ?></span>
@@ -354,8 +359,9 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                     <div class="pay-kebab-menu">
                                         <button
                                             class="pay-kebab-btn"
-                                            data-queue-id="<?php echo $record['queue_id']; ?>"
+                                            data-queue-id="<?php echo (int)($record['queue_id'] ?? 0); ?>"
                                             data-patient-id="<?php echo $record['patient_id']; ?>"
+                                            data-billing-id="<?php echo (int)$record['billing_id']; ?>"
                                             data-amount="<?php echo $calculatedAmount; ?>"
                                             data-treatment="<?php echo htmlspecialchars($record['treatment_type'] ?: 'General Checkup'); ?>"
                                             data-is-paid="<?php echo $isPaid ? '1' : '0'; ?>"
@@ -489,6 +495,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                         </div>
                         <input type="hidden" id="confirmPaymentQueueId">
                         <input type="hidden" id="confirmPaymentPatientId">
+                        <input type="hidden" id="confirmPaymentBillingId">
                         <input type="hidden" id="confirmPaymentAmountValue">
                         <input type="hidden" id="confirmPaymentTreatmentValue">
                     </div>
@@ -1040,6 +1047,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     const patientId = button.dataset.patientId;
                     const amount = button.dataset.amount;
                     const treatment = button.dataset.treatment;
+                    const billingId = button.dataset.billingId || '0';
                     const isPaid = button.dataset.isPaid === '1';
 
                     return `
@@ -1051,7 +1059,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                             View Details
                         </a>
                         ${!isPaid ? `
-                        <a href="javascript:void(0)" data-action="mark-paid" data-queue-id="${queueId}" data-patient-id="${patientId}" data-amount="${amount}" data-treatment="${treatment}">
+                        <a href="javascript:void(0)" data-action="mark-paid" data-billing-id="${billingId}" data-queue-id="${queueId}" data-patient-id="${patientId}" data-amount="${amount}" data-treatment="${treatment}">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
                                 <path fill="none" stroke="currentColor" stroke-width="2" d="M20 6 9 17l-5-5"/>
                             </svg>
@@ -1134,6 +1142,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     const action = link.dataset.action;
                     const queueId = link.dataset.queueId;
                     const patientId = link.dataset.patientId;
+                    const billingId = link.dataset.billingId;
                     const amount = link.dataset.amount;
                     const treatment = link.dataset.treatment;
 
@@ -1144,7 +1153,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                             viewPaymentDetails(queueId, patientId);
                             break;
                         case 'mark-paid':
-                            markAsPaid(queueId, patientId, amount, treatment);
+                            markAsPaid(queueId, patientId, amount, treatment, billingId);
                             break;
                     }
                 }
@@ -1233,13 +1242,14 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     document.getElementById('paymentModal').style.display = 'none';
                 }
 
-                function markAsPaid(queueId, patientId, amount, treatment) {
+                function markAsPaid(queueId, patientId, amount, treatment, billingId) {
                     // Close kebab menu
                     closePayKebabDropdown();
                     
                     // Set modal values
                     document.getElementById('confirmPaymentQueueId').value = queueId;
                     document.getElementById('confirmPaymentPatientId').value = patientId;
+                    document.getElementById('confirmPaymentBillingId').value = billingId || 0;
                     document.getElementById('confirmPaymentAmountValue').value = amount;
                     document.getElementById('confirmPaymentTreatmentValue').value = treatment;
                     document.getElementById('confirmPaymentAmount').textContent = 'P' + parseFloat(amount).toFixed(2);
@@ -1256,6 +1266,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                 function confirmPayment() {
                     const queueId = document.getElementById('confirmPaymentQueueId').value;
                     const patientId = document.getElementById('confirmPaymentPatientId').value;
+                    const billingId = document.getElementById('confirmPaymentBillingId').value;
                     const amount = document.getElementById('confirmPaymentAmountValue').value;
                     const treatment = document.getElementById('confirmPaymentTreatmentValue').value;
                     
@@ -1267,6 +1278,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                         },
                         body: JSON.stringify({
                             action: 'mark_paid',
+                            billing_id: billingId,
                             queue_id: queueId,
                             patient_id: patientId,
                             amount: amount,
