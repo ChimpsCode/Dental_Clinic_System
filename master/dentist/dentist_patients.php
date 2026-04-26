@@ -195,11 +195,12 @@ try {
                                 <?php 
                                     $statusId = $patient['appointment_status_id'] ?? 0;
                                     $statusColors = [
-                                        1 => '#fef3c7:#92400e',
-                                        2 => '#dbeafe:#1e40af',
-                                        3 => '#d1fae5:#065f46',
-                                        4 => '#fee2e2:#dc2626',
-                                        5 => '#f3f4f6:#6b7280'
+                                        0 => '#f3f4f6:#6b7280',  // -- (None) - Gray
+                                        1 => '#dbeafe:#1d4ed8', // Scheduled - Blue
+                                        2 => '#fef3c7:#92400e', // In Queue - Yellow
+                                        3 => '#fed7aa:#c2410c', // Unpaid - Orange
+                                        4 => '#d1fae5:#065f46', // Done - Green
+                                        5 => '#fee2e2:#dc2626'  // Cancelled - Red
                                     ];
                                     $bgColor = '#f3f4f6';
                                     $textColor = '#6b7280';
@@ -208,8 +209,15 @@ try {
                                         $bgColor = $bg;
                                         $textColor = $text;
                                     }
-                                    $statusLabels = [1 => 'Pending', 2 => 'Confirmed', 3 => 'Completed', 4 => 'Cancelled', 5 => 'No Show'];
-                                    $statusLabel = $statusLabels[$statusId] ?? 'No Appointment';
+                                    $statusLabels = [
+                                        0 => '--',
+                                        1 => 'Scheduled',
+                                        2 => 'In Queue',
+                                        3 => 'Unpaid',
+                                        4 => 'Done',
+                                        5 => 'Cancelled'
+                                    ];
+                                    $statusLabel = $statusLabels[$statusId] ?? '--';
                                 ?>
                                 <span class="status-badge" style="background: <?php echo $bgColor; ?>; color: <?php echo $textColor; ?>;">
                                     <?php echo $statusLabel; ?>
@@ -735,7 +743,7 @@ function openPatientPrescriptionModal(patientId) {
     document.body.appendChild(modal);
     
     // Load patient safety info
-    fetch('master/dentist/prescription_actions.php'), {
+    fetch('master/dentist/prescription_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'get_patient_info', patient_id: patientId })
@@ -771,7 +779,7 @@ function savePatientPrescription() {
         return;
     }
     
-    fetch('master/dentist/prescription_actions.php'), {
+    fetch('master/dentist/prescription_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'create_prescription', ...data })

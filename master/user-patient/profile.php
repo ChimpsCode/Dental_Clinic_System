@@ -360,5 +360,23 @@ $pageTitle = 'My Profile';
             </div>
         </main>
     </div>
+    <a href="messages.php" class="floating-message-btn" data-chat-launcher aria-label="Open messages" title="Messages">
+        <i class="fas fa-message"></i>
+    </a>
+    <script>
+        (function () {
+            const launcher = document.querySelector('[data-chat-launcher]');
+            if (!launcher) return;
+            let overlay = document.getElementById('floatingChatOverlay');
+            let panel = document.getElementById('floatingChatPanel');
+            if (!overlay) { overlay = document.createElement('div'); overlay.id = 'floatingChatOverlay'; overlay.className = 'floating-chat-overlay'; document.body.appendChild(overlay); }
+            if (!panel) { panel = document.createElement('div'); panel.id = 'floatingChatPanel'; panel.className = 'floating-chat-panel'; panel.innerHTML = `<div class="floating-chat-header"><div class="floating-chat-title"><i class="fas fa-comments"></i><span>Messages</span></div><div class="floating-chat-actions"><button type="button" class="floating-chat-control" data-chat-minimize aria-label="Minimize"><i class="fas fa-minus"></i></button><button type="button" class="floating-chat-control" data-chat-close aria-label="Close"><i class="fas fa-xmark"></i></button></div></div><iframe class="floating-chat-frame" src="messages.php?embed=1" title="Messages"></iframe>`; document.body.appendChild(panel); }
+            function closeChat() { overlay.classList.remove('is-open'); panel.classList.remove('is-open'); }
+            launcher.addEventListener('click', function (event) { event.preventDefault(); overlay.classList.add('is-open'); panel.classList.add('is-open'); });
+            overlay.addEventListener('click', closeChat);
+            panel.querySelector('[data-chat-close]').addEventListener('click', closeChat);
+            panel.querySelector('[data-chat-minimize]').addEventListener('click', closeChat);
+        })();
+    </script>
 </body>
 </html>

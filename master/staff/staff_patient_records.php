@@ -167,11 +167,12 @@ try {
                     <?php foreach ($patients as $patient): 
                         $statusId = $patient['appointment_status_id'] ?? 0;
                         $statusColors = [
-                            1 => '#fef3c7:#92400e',
-                            2 => '#dbeafe:#1d4ed8',
-                            3 => '#d1fae5:#065f46',
-                            4 => '#fee2e2:#dc2626',
-                            5 => '#f3f4f6:#6b7280'
+                            0 => '#f3f4f6:#6b7280',
+                            1 => '#dbeafe:#1d4ed8',
+                            2 => '#fef3c7:#92400e',
+                            3 => '#fed7aa:#c2410c',
+                            4 => '#d1fae5:#065f46',
+                            5 => '#fee2e2:#dc2626'
                         ];
                         $bgColor = '#f3f4f6';
                         $textColor = '#6b7280';
@@ -180,8 +181,15 @@ try {
                             $bgColor = $bg;
                             $textColor = $text;
                         }
-                        $statusLabels = [1 => 'Pending', 2 => 'Confirmed', 3 => 'Completed', 4 => 'Cancelled', 5 => 'No Show'];
-                        $statusLabel = $statusLabels[$statusId] ?? 'No Appointment';
+                        $statusLabels = [
+                            0 => '--',
+                            1 => 'Scheduled',
+                            2 => 'In Queue',
+                            3 => 'Unpaid',
+                            4 => 'Done',
+                            5 => 'Cancelled'
+                        ];
+                        $statusLabel = $statusLabels[$statusId] ?? '--';
                     ?>
                         <tr class="patient-row" 
                             data-name="<?php echo strtolower(htmlspecialchars($patient['first_name'] ?? 'Unknown')); ?>"

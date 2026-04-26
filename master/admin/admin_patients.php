@@ -166,7 +166,6 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                 <th>Last Name</th>
                                 <th>Contact</th>
                                 <th>Services</th>
-                                <th>Appointment</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -174,7 +173,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                         <tbody id="patientsTableBody">
                             <?php if (empty($patients)): ?>
                                 <tr>
-                                    <td colspan="9" style="text-align: center; padding: 60px; color: #6b7280;">
+                                    <td colspan="7" style="text-align: center; padding: 60px; color: #6b7280;">
                                         No patients found
                                     </td>
                                 </tr>
@@ -218,33 +217,31 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                         </td>
                                         <td><?php echo htmlspecialchars($patient['service_name'] ?? 'N/A'); ?></td>
                                         <td>
-                                            <div class="time-display">
-                                                <?php if ($dateDisplay): ?>
-                                                <span class="time-12hr"><?php echo $dateDisplay; ?></span>
-                                                <span class="time-24hr"><?php echo $time12hr; ?></span>
-                                                <?php else: ?>
-                                                <span class="time-12hr" style="color: #9ca3af;">No appointment</span>
-                                                <?php endif; ?>
-                                            </div>
-                                        </td>
-                                        <td>
                                             <?php 
-                                            $appStatus = $patient['appointment_status'] ?? '';
-                                            $statusId = $patient['appointment_status_id'] ?? 0;
-                                            if ($statusId == 1) {
-                                                echo '<span class="status-badge waiting">Pending</span>';
-                                            } elseif ($statusId == 2) {
-                                                echo '<span class="status-badge in-procedure">Confirmed</span>';
-                                            } elseif ($statusId == 3) {
-                                                echo '<span class="status-badge completed">Completed</span>';
-                                            } elseif ($statusId == 4) {
-                                                echo '<span class="status-badge on-hold">Cancelled</span>';
-                                            } elseif ($statusId == 5) {
-                                                echo '<span class="status-badge scheduled">No Show</span>';
-                                            } else {
-                                                echo '<span class="status-badge">No Appointment</span>';
-                                            }
+                                            $statusId = (int)($patient['appointment_status_id'] ?? 0);
+                                            $statusLabels = [
+                                                0 => '--',
+                                                1 => 'Scheduled',
+                                                2 => 'In Queue',
+                                                3 => 'Unpaid',
+                                                4 => 'Done',
+                                                5 => 'Cancelled'
+                                            ];
+                                            $statusColors = [
+                                                0 => '#f3f4f6:#6b7280',
+                                                1 => '#dbeafe:#1d4ed8',
+                                                2 => '#fef3c7:#92400e',
+                                                3 => '#fed7aa:#c2410c',
+                                                4 => '#d1fae5:#065f46',
+                                                5 => '#fee2e2:#dc2626'
+                                            ];
+                                            $statusLabel = $statusLabels[$statusId] ?? '--';
+                                            $colors = $statusColors[$statusId] ?? '#f3f4f6:#6b7280';
+                                            list($bg, $text) = explode(':', $colors);
                                             ?>
+                                            <span class="status-badge" style="background: <?php echo $bg; ?>; color: <?php echo $text; ?>;">
+                                                <?php echo $statusLabel; ?>
+                                            </span>
                                         </td>
                                         <td>
                                             <div class="patient-kebab-menu">

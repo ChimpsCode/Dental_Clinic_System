@@ -40,13 +40,13 @@ try {
     $stmt = $pdo->query("SELECT a.*, 
         p.first_name, p.middle_name, p.last_name,
         p.phone, p.email,
-        s.name as service_name,
+        s.name as service_name, s.price as service_price,
         st.status_name as status_label
     FROM appointments a 
     LEFT JOIN patients p ON a.patient_id = p.id
     LEFT JOIN services s ON a.service_id = s.id
     LEFT JOIN appointment_statuses st ON a.status_id = st.id
-    ORDER BY a.appointment_date DESC");
+    ORDER BY a.appointment_date DESC, a.appointment_time DESC");
     $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
     $appointments = [];
@@ -55,9 +55,58 @@ try {
 
 <!-- Add extra CSS for status badges -->
 <style>
-.status-badge.status-in-queue {
-    background-color: #fef3c7;
+.status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-badge.status-scheduled {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.status-badge.status-confirmed {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.status-badge.status-in-queue, .status-badge.status-in_queue {
+    background: #fef3c7;
     color: #92400e;
+}
+
+.status-badge.status-pending {
+    background: #fed7aa;
+    color: #c2410c;
+}
+
+.status-badge.status-pending_payment {
+    background: #fed7aa;
+    color: #c2410c;
+}
+
+.status-badge.status-completed {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-badge.status-cancelled, .status-badge.status-cancel {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.status-badge.status-no-show {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.status-badge.status-rescheduled {
+    background: #e0e7ff;
+    color: #4338ca;
 }
 </style>
 
@@ -150,7 +199,7 @@ try {
                         }
                         $statusText = $status;
                     ?>
-                    <tr class="appointment-row" data-id="<?php echo $apt['id']; ?>" data-date="<?php echo $apt['appointment_date']; ?>" data-time="<?php echo $appointmentTime; ?>" data-name="<?php echo strtolower($firstName . ' ' . $lastName); ?>" data-first-name="<?php echo htmlspecialchars($firstName); ?>" data-middle-name="<?php echo htmlspecialchars($middleName); ?>" data-last-name="<?php echo htmlspecialchars($lastName); ?>" data-phone="<?php echo htmlspecialchars($apt['phone'] ?? ''); ?>" data-status="<?php echo $statusText; ?>" data-type="<?php echo htmlspecialchars($apt['treatment'] ?? 'Consultation'); ?>" data-notes="<?php echo htmlspecialchars($apt['notes'] ?? ''); ?>">
+                    <tr class="appointment-row" data-id="<?php echo $apt['id']; ?>" data-date="<?php echo $apt['appointment_date']; ?>" data-time="<?php echo $appointmentTime; ?>" data-name="<?php echo strtolower($firstName . ' ' . $lastName); ?>" data-first-name="<?php echo htmlspecialchars($firstName); ?>" data-middle-name="<?php echo htmlspecialchars($middleName); ?>" data-last-name="<?php echo htmlspecialchars($lastName); ?>" data-phone="<?php echo htmlspecialchars($apt['phone'] ?? ''); ?>" data-status="<?php echo $statusText; ?>" data-type="<?php echo htmlspecialchars($apt['treatment'] ?? 'Consultation'); ?>" data-notes="<?php echo htmlspecialchars($apt['notes'] ?? ''); ?>" data-price="<?php echo htmlspecialchars($apt['service_price'] ?? '500'); ?>">
                         <td><?php echo $firstName ?: '-'; ?></td>
                         <td><?php echo $middleName ?: '-'; ?></td>
                         <td><?php echo $lastName ?: '-'; ?></td>
@@ -398,29 +447,35 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function filterAppointments() {
-    const search = document.getElementById('appointmentSearch')?.value?.toLowerCase() || '';
-    const activeFilter = document.querySelector('.filter-tabs span.active')?.dataset.filter || 'all';
-    const today = new Date().toISOString().split('T')[0];
-    const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const monthEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-    document.querySelectorAll('.appointment-row').forEach(row => {
-        const nameMatch = !search || (row.dataset.name || '').includes(search);
+        const search = document.getElementById('appointmentSearch').value.toLowerCase();
+        const rows = document.querySelectorAll('.appointment-row');
         
-        let dateMatch = true;
-        if (activeFilter === 'today') {
-            dateMatch = row.dataset.date === today;
-        } else if (activeFilter === 'week') {
-            dateMatch = row.dataset.date >= today && row.dataset.date <= weekEnd;
-        } else if (activeFilter === 'month') {
-            dateMatch = row.dataset.date >= today && row.dataset.date <= monthEnd;
+        rows.forEach(row => {
+            const name = row.dataset.name || '';
+            const date = row.dataset.date || '';
+            const status = row.dataset.status || '';
+            
+            const nameMatch = name.includes(search);
+            const today = new Date().toISOString().split('T')[0];
+            const dateMatch = date === today;
+            
+            row.style.display = (nameMatch || !search) ? '' : 'none';
+        });
+    }
+
+    function getStatusBadgeClass(statusId) {
+        const id = parseInt(statusId);
+        switch(id) {
+            case 1: return 'status-scheduled';
+            case 2: return 'status-in-queue';
+            case 3: return 'status-pending';
+            case 4: return 'status-completed';
+            case 5: return 'status-cancelled';
+            default: return 'status-scheduled';
         }
-        
-        row.style.display = (nameMatch && dateMatch) ? '' : 'none';
-    });
-}
+    }
 
-function openNewAppointmentModal() {
+    function openNewAppointmentModal() {
     document.getElementById('newAppointmentForm').reset();
     
     // Set default date to today
@@ -490,7 +545,7 @@ function viewAppointment(id) {
             <div><span style="color: #6b7280;">Date:</span> <span style="font-weight: 500; margin-left: 8px;">${dateStr}</span></div>
             <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${timeStr}</span></div>
             <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${appointment.treatment || 'Consultation'}</span></div>
-            <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${appointment.status === 'Completed' ? '#dcfce7' : appointment.status === 'Cancelled' ? '#fee2e2' : '#e0f2fe'}; color: ${appointment.status === 'Completed' ? '#15803d' : appointment.status === 'Cancelled' ? '#dc2626' : '#0369a1'}; padding: 4px 12px; border-radius: 9999px; font-size: 0.875rem;">${appointment.status ? appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1) : 'Pending'}</span></div>
+            <div><span style="color: #6b7280;">Status:</span> <span class="status-badge ${getStatusBadgeClass(appointment.status_id)}" style="margin-left: 8px;">${appointment.status || 'Pending'}</span></div>
             ${appointment.notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${appointment.notes}</p></div>` : ''}
         </div>
     `;
@@ -591,47 +646,85 @@ function viewAppointmentDetails(id) {
             statusBg = '#e0f2fe'; statusColor = '#0369a1';
     }
     
-    // Fetch billing info
+    // Store current values for editing
+    let currentAmount = 0;
+    let currentPaymentStatus = 'unpaid';
+    let isEditing = false;
+    const defaultPrice = 0;
+    
+    // Always fetch fresh price from services table (reflects admin changes)
     fetch('../shared/billing_actions.php?action=get_details&appointment_id=' + id)
     .then(r => r.json())
     .then(billingData => {
-        const amount = billingData.success && billingData.amount ? parseFloat(billingData.amount) : 0;
-        const paymentStatus = billingData.payment_status || 'unpaid';
-        const amountDisplay = amount.toLocaleString('en-PH', { minimumFractionDigits: 2 });
-        const paymentBg = paymentStatus === 'paid' ? '#d1fae5' : '#fef3c7';
-        const paymentColor = paymentStatus === 'paid' ? '#065f46' : '#92400e';
-        
-        document.getElementById('viewAppointmentContent').innerHTML = `
-            <div style="display: flex; flex-direction: column; gap: 16px;">
-                <div><span style="color: #6b7280;">Patient:</span> 
-                    <span style="font-weight: 600; margin-left: 8px;">${firstName}</span>
-                    ${middleName && middleName !== '-' ? `<span style="color: #6b7280; margin-left: 4px;">${middleName}</span>` : ''}
-                    <span style="font-weight: 600; margin-left: 4px;">${lastName}</span>
-                </div>
-                <div><span style="color: #6b7280;">Phone:</span> <span style="font-weight: 500; margin-left: 8px;">${phone}</span></div>
-                <div><span style="color: #6b7280;">Date:</span> <span style="font-weight: 500; margin-left: 8px;">${dateStr}</span></div>
-                <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${timeStr}</span></div>
-                <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${treatment}</span></div>
-                <div style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: #92400e; font-weight: 600;">Unpaid Amount:</span>
-                        <span style="font-size: 1.25rem; font-weight: 700; color: #111827;">₱${amountDisplay}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-                        <span style="color: #92400e;">Payment Status:</span>
-                        <span class="status-badge" style="background: ${paymentBg}; color: ${paymentColor}; padding: 4px 12px; border-radius: 9999px; font-size: 0.875rem; text-transform: uppercase;">${paymentStatus}</span>
-                    </div>
-                </div>
-                <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${statusBg}; color: ${statusColor}; padding: 4px 12px; border-radius: 9999px; font-size: 0.875rem;">${status}</span></div>
-                ${notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${notes}</p></div>` : '<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0; color: #9ca3af;">No notes</p></div>'}
-            </div>
-        `;
-        
-        document.getElementById('viewAppointmentModal').style.display = 'flex';
+        console.log('BillingData:', billingData);
+        // Use the amount from billing_actions.php (fetches from services table)
+        if (billingData.success && billingData.amount) {
+            currentAmount = parseFloat(billingData.amount);
+        } else {
+            // Fallback to row price if fetch fails
+            currentAmount = defaultPrice > 0 ? defaultPrice : getDefaultTreatmentPrice(treatment);
+        }
+        currentPaymentStatus = billingData.payment_status || 'unpaid';
+        renderModal();
     })
     .catch(error => {
         console.error('Error:', error);
-        // Show without billing if fetch fails
+        currentAmount = defaultPrice > 0 ? defaultPrice : getDefaultTreatmentPrice(treatment);
+        currentPaymentStatus = 'unpaid';
+        renderModal();
+    });
+    
+    function getDefaultTreatmentPrice(treat) {
+        // Default prices for common treatments
+        const defaultPrices = {
+            'consultation': 500,
+            'checkup': 500,
+            'cleaning': 1500,
+            'whitening': 5000,
+            'extraction': 1000,
+            'filling': 1500,
+            'root canal': 8000,
+            'crown': 15000,
+            'braces': 50000,
+            'implant': 25000
+        };
+        const lower = (treat || 'consultation').toLowerCase();
+        return defaultPrices[lower] || 500;
+    }
+    
+    function renderModal() {
+        const amountDisplay = currentAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 });
+        const paymentBg = currentPaymentStatus === 'paid' ? '#d1fae5' : '#fef3c7';
+        const paymentColor = currentPaymentStatus === 'paid' ? '#065f46' : '#92400e';
+        
+        const editSection = isEditing ? `
+            <div style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 12px;">
+                <div style="margin-bottom: 12px;">
+                    <span style="color: #92400e; font-weight: 600;">Adjust Amount:</span>
+                    <input type="number" id="editAmountInput" value="${currentAmount}" style="width: 100%; padding: 8px; border: 2px solid #f59e0b; border-radius: 6px; font-size: 1rem; margin-top: 4px;" step="0.01" min="0">
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="saveAppointmentAmount(${id}, ${currentAmount})" style="background: #059669; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600;">Save</button>
+                    <button onclick="renderModal()" style="background: #6b7280; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Cancel</button>
+                </div>
+            </div>
+        ` : `
+            <div style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: #92400e; font-weight: 600;">Unpaid Amount:</span>
+                    <span style="font-size: 1.25rem; font-weight: 700; color: #111827;">₱${amountDisplay}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                    <span style="color: #92400e;">Payment Status:</span>
+                    <span class="status-badge" style="background: ${paymentBg}; color: ${paymentColor}; padding: 4px 12px; border-radius: 9999px; font-size: 0.875rem; text-transform: uppercase;">${currentPaymentStatus}</span>
+                </div>
+                <div style="display: flex; gap: 8px; margin-top: 12px;">
+                    <button onclick="toggleEditAmount()" style="background: #f59e0b; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600;">Adjust Amount</button>
+                    ${currentPaymentStatus !== 'paid' ? `<button onclick="markAppointmentPaid(${id})" style="background: #059669; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600;">Mark as Paid</button>` : ''}
+                </div>
+            </div>
+        `;
+        
         document.getElementById('viewAppointmentContent').innerHTML = `
             <div style="display: flex; flex-direction: column; gap: 16px;">
                 <div><span style="color: #6b7280;">Patient:</span> 
@@ -643,13 +736,79 @@ function viewAppointmentDetails(id) {
                 <div><span style="color: #6b7280;">Date:</span> <span style="font-weight: 500; margin-left: 8px;">${dateStr}</span></div>
                 <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${timeStr}</span></div>
                 <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${treatment}</span></div>
+                ${editSection}
                 <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${statusBg}; color: ${statusColor}; padding: 4px 12px; border-radius: 9999px; font-size: 0.875rem;">${status}</span></div>
                 ${notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${notes}</p></div>` : '<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0; color: #9ca3af;">No notes</p></div>'}
             </div>
         `;
         
         document.getElementById('viewAppointmentModal').style.display = 'flex';
-    });
+    }
+    
+    window.toggleEditAmount = function() {
+        isEditing = true;
+        renderModal();
+    };
+    
+    window.saveAppointmentAmount = function(apptId, oldAmount) {
+        const newAmount = parseFloat(document.getElementById('editAmountInput').value) || 0;
+        
+        fetch('../shared/billing_actions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'update_amount',
+                appointment_id: apptId,
+                new_amount: newAmount,
+                reason: 'Dentist adjustment'
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert('Amount updated to ₱' + newAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 }));
+                isEditing = false;
+                currentAmount = newAmount;
+                renderModal();
+            } else {
+                alert('Error: ' + (data.message || 'Failed to save'));
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Error saving amount');
+        });
+    };
+    
+    window.markAppointmentPaid = function(apptId) {
+        if (!confirm('Mark this appointment as paid for ₱' + currentAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 }) + '?')) return;
+        
+        fetch('../shared/billing_actions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'mark_paid',
+                appointment_id: apptId,
+                amount: currentAmount,
+                treatment: treatment
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert('Payment marked as paid!');
+                currentPaymentStatus = 'paid';
+                renderModal();
+                location.reload();
+            } else {
+                alert('Error: ' + (data.message || 'Failed to mark as paid'));
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Error marking as paid');
+        });
+    };
 }
 
 // Close view modal when clicking outside
@@ -729,6 +888,14 @@ function openApptKebabDropdown(button) {
             </svg>
             View Details
         </a>
+        <a href="javascript:void(0)" onclick="openCancelReasonModal(${apptId})" style="color: #dc2626;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="15" y1="9" x2="9" y2="15"/>
+                <line x1="9" y1="9" x2="15" y2="15"/>
+            </svg>
+            Cancel Appointment
+        </a>
     `;
     
     // Position dropdown
@@ -768,6 +935,69 @@ function closeApptKebabDropdown() {
         apptActiveButton = null;
     }
 }
+
+    // Cancel Reason Modal
+    let cancelAppointmentId = null;
+    
+    function openCancelReasonModal(id) {
+        closeApptKebabDropdown();
+        
+        if (!document.getElementById('cancelReasonModal')) {
+            const modal = document.createElement('div');
+            modal.id = 'cancelReasonModal';
+            modal.className = 'modal-overlay';
+            modal.style.display = 'none';
+            modal.innerHTML = `
+                <div class="modal" style="width: 400px;">
+                    <h2 style="margin: 0 0 16px; font-size: 1.25rem; font-weight: 600;">Cancel Appointment</h2>
+                    <p style="color: #6b7280; margin-bottom: 16px;">Please provide a reason for cancelling:</p>
+                    <textarea id="cancelReasonText" class="form-control" rows="4" placeholder="Enter reason..." style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; resize: vertical;"></textarea>
+                    <div style="display: flex; gap: 12px; margin-top: 20px; justify-content: flex-end;">
+                        <button onclick="closeCancelReasonModal()" class="btn-cancel" style="padding: 10px 20px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
+                        <button onclick="confirmCancelAppointment()" class="btn-primary" style="padding: 10px 20px; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer;">Confirm</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        cancelAppointmentId = id;
+        document.getElementById('cancelReasonText').value = '';
+        document.getElementById('cancelReasonModal').style.display = 'flex';
+    }
+    
+    function closeCancelReasonModal() {
+        if (document.getElementById('cancelReasonModal')) {
+            document.getElementById('cancelReasonModal').style.display = 'none';
+        }
+        cancelAppointmentId = null;
+    }
+    
+    window.confirmCancelAppointment = function() {
+        if (!cancelAppointmentId) return;
+        
+        const cancel_reason = document.getElementById('cancelReasonText').value;
+        
+        fetch('cancel_appointment.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: cancelAppointmentId, cancel_reason: cancel_reason })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message || 'Error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error');
+        });
+        
+        closeCancelReasonModal();
+    }
 </script>
 
 <style>

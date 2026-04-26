@@ -118,6 +118,32 @@ try {
     if ($existingPatient) {
         $patient_id = $existingPatient['id'];
         
+        // CHECK: Prevent double booking - patient can't have appointment same day
+        $checkStmt = $pdo->prepare("
+            SELECT COUNT(*) FROM appointments 
+            WHERE patient_id = ? 
+            AND DATE(appointment_date) = ?
+            AND status_id IN (1, 2)
+            AND (status = 'scheduled' OR status = 'in_queue' OR status IS NULL)
+        ");
+        $checkStmt->execute([$patient_id, $appointment_date]);
+        $activeCount = $checkStmt->fetchColumn();
+        
+        if ($activeCount > 0) {
+            echo json_encode(['success' => false, 'message' => 'This patient already has an active appointment scheduled for ' . $appointment_date . '.']);
+            exit();
+        }
+        
+        // Also check if patient is in queue
+        $checkStmt = $pdo->prepare("SELECT COUNT(*) FROM queue WHERE patient_id = ? AND status_id IN (1, 2)");
+        $checkStmt->execute([$patient_id]);
+        $inQueueCount = $checkStmt->fetchColumn();
+        
+        if ($inQueueCount > 0) {
+            echo json_encode(['success' => false, 'message' => 'This patient is already in the dental queue.']);
+            exit();
+        }
+        
         // Update patient info if needed
         $stmt = $pdo->prepare("UPDATE patients SET 
             first_name = ?, 
@@ -135,10 +161,13 @@ try {
         $patient_id = $pdo->lastInsertId();
     }
     
+    // Always generate unique reference_code 
+    $refCode = 'DENT-' . strtoupper(substr(uniqid(), -6));
+    
     // Create appointment
     $stmt = $pdo->prepare("INSERT INTO appointments 
-        (patient_id, appointment_date, appointment_time, service_id, notes, status, status_id, created_by, created_at) 
-        VALUES (?, ?, ?, ?, ?, 'scheduled', 1, ?, NOW())");
+        (patient_id, appointment_date, appointment_time, service_id, notes, status, status_id, created_by, reference_code, created_at) 
+        VALUES (?, ?, ?, ?, ?, 'scheduled', 1, ?, ?, NOW())");
     
     // Resolve service_id
     $service_id = null;
@@ -154,7 +183,8 @@ try {
         $appointment_time,
         $service_id,
         $notes,
-        $_SESSION['user_id'] ?? null
+        $_SESSION['user_id'] ?? null,
+        $refCode
     ]);
     
     $appointment_id = $pdo->lastInsertId();

@@ -50,23 +50,88 @@ try {
     if (empty($appointment_time)) {
         throw new Exception('Appointment time is required');
     }
-
+    
     $pdo->beginTransaction();
 
     $patient_id = null;
 
-    // Search for existing patient by first name and last name
-    $stmt = $pdo->prepare("SELECT id FROM patients WHERE first_name = ? AND last_name = ? LIMIT 1");
-    $stmt->execute([$first_name, $last_name]);
-    $existing_patient = $stmt->fetch();
+    // Search for existing patient by phone (more reliable than name)
+    if ($phone) {
+        $stmt = $pdo->prepare("SELECT id FROM patients WHERE phone = ? LIMIT 1");
+        $stmt->execute([$phone]);
+        $existing_patient = $stmt->fetch();
+        
+        if ($existing_patient) {
+            $patient_id = $existing_patient['id'];
+        }
+    }
+    
+    // If not found by phone, search by name
+    if (!$patient_id) {
+        $stmt = $pdo->prepare("SELECT id FROM patients WHERE first_name = ? AND last_name = ? LIMIT 1");
+        $stmt->execute([$first_name, $last_name]);
+        $existing_patient = $stmt->fetch();
 
-    if ($existing_patient) {
-        // Existing patient - link the appointment
-        $patient_id = $existing_patient['id'];
+        if ($existing_patient) {
+            $patient_id = $existing_patient['id'];
+        }
+    }
+    
+    // If still not found, check by name partial match
+    if (!$patient_id) {
+        $stmt = $pdo->prepare("SELECT id FROM patients WHERE first_name LIKE ? AND last_name LIKE ? LIMIT 1");
+        $stmt->execute([$first_name . '%', $last_name . '%']);
+        $existing_patient = $stmt->fetch();
+        
+        if ($existing_patient) {
+            $patient_id = $existing_patient['id'];
+        }
+    }
+
+    if ($patient_id) {
+        // CHECK: Prevent double booking - patient can't be in queue today
+        $checkStmt = $pdo->prepare("
+            SELECT COUNT(*) FROM appointments 
+            WHERE patient_id = ? 
+            AND DATE(appointment_date) = ?
+            AND status_id IN (1, 2) 
+            AND (status = 'scheduled' OR status = 'in_queue' OR status IS NULL)
+        ");
+        $checkStmt->execute([$patient_id, $appointment_date]);
+        $activeCount = $checkStmt->fetchColumn();
+        
+        if ($activeCount > 0) {
+            throw new Exception('This patient already has an active appointment scheduled for ' . $appointment_date . '. A patient cannot have multiple appointments on the same day.');
+        }
+        
+        // Also check if patient is currently in queue (status_id = 2 = in_queue)
+        $checkStmt = $pdo->prepare("
+            SELECT COUNT(*) FROM queue 
+            WHERE patient_id = ? 
+            AND status_id IN (1, 2)
+        ");
+        $checkStmt->execute([$patient_id]);
+        $inQueueCount = $checkStmt->fetchColumn();
+        
+        if ($inQueueCount > 0) {
+            throw new Exception('This patient is already in the dental queue. A patient cannot have multiple queue tickets.');
+        }
+        
+        // Update patient info if exists
+        $stmt = $pdo->prepare("UPDATE patients SET 
+            first_name = ?, 
+            middle_name = ?, 
+            last_name = ?, 
+            email = COALESCE(NULLIF(?, ''), email),
+            phone = COALESCE(NULLIF(?, ''), phone),
+            updated_at = NOW() 
+            WHERE id = ?");
+        $stmt->execute([$first_name, $middle_name, $last_name, $email, $phone, $patient_id]);
     } else {
         // NEW PATIENT: Create patient record first
-        $stmt = $pdo->prepare("INSERT INTO patients (first_name, middle_name, last_name, phone, created_at) VALUES (?, ?, ?, ?, NOW())");
-        $stmt->execute([$first_name, $middle_name, $last_name, $phone]);
+        $stmt = $pdo->prepare("INSERT INTO patients (first_name, middle_name, last_name, phone, email, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
+        $emailToSave = $email ?: null;
+        $stmt->execute([$first_name, $middle_name, $last_name, $phone, $emailToSave]);
         $patient_id = $pdo->lastInsertId();
     }
 
@@ -80,10 +145,22 @@ try {
         // Silent fail - column might already exist
     }
     
+    // Check if booked_by_id column exists
+    try {
+        $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'booked_by_id'");
+        if ($checkCol->rowCount() == 0) {
+            $pdo->exec("ALTER TABLE appointments ADD COLUMN booked_by_id INT DEFAULT NULL");
+        }
+    } catch (Exception $e) {}
+    
+    // Determine who booked: staff = user_id, patient self = special value
+    $bookedById = $_SESSION['user_id'] ?? null;
+    $bookingType = $bookedById ? 'staff' : 'self';
+    
     // Correct columns for appointments table
     $stmt = $pdo->prepare("INSERT INTO appointments 
-        (patient_id, appointment_date, appointment_time, service_id, notes, status, status_id, created_by, created_at, is_archived) 
-        VALUES (?, ?, ?, ?, ?, 'scheduled', 1, ?, NOW(), 0)");
+        (patient_id, appointment_date, appointment_time, service_id, notes, status, status_id, created_by, booked_by_id, booking_type, created_at, is_archived) 
+        VALUES (?, ?, ?, ?, ?, 'scheduled', 1, ?, ?, ?, NOW(), 0)");
     
     // We need to resolve service_id from treatment string if possible, or use a default
     $service_id = null;
@@ -99,7 +176,9 @@ try {
         $appointment_time, 
         $service_id,
         $notes, 
-        $_SESSION['user_id'] ?? 1
+        $_SESSION['user_id'] ?? 1,
+        $bookedById,
+        $bookingType
     ]);
     
     if (!$result) {

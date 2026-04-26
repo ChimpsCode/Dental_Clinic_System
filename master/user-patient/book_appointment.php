@@ -134,6 +134,14 @@ try {
         $colList[] = 'created_by';
         $params[] = $_SESSION['user_id'] ?? null;
     }
+    if (in_array('booked_by_id', $columns)) {
+        $colList[] = 'booked_by_id';
+        $params[] = $patient_id; // Patient booked their own
+    }
+    if (in_array('booking_type', $columns)) {
+        $colList[] = 'booking_type';
+        $params[] = 'self-booking';
+    }
     if (in_array('reference_code', $columns)) {
         $colList[] = 'reference_code';
         $params[] = 'APT' . date('ymdHis') . mt_rand(10, 99);

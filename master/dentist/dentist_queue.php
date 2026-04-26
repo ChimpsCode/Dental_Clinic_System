@@ -538,27 +538,31 @@ div.main-content {
 
 .status-badge.in-procedure {
     background: #dbeafe;
-    color: #1e40af;
+    color: #1d4ed8;
+}
+
+.status-badge.in-procedure .status-dot {
+    background: #2563eb;
 }
 
 .status-badge.on-hold {
     background: #fed7aa;
-    color: #9a3412;
+    color: #c2410c;
 }
 
 .status-badge.pending-payment {
-    background: #fef3c7;
-    color: #d97706;
+    background: #fed7aa;
+    color: #c2410c;
 }
 
 .status-badge.completed {
-    background: #dcfce7;
-    color: #166534;
+    background: #d1fae5;
+    color: #065f46;
 }
 
 .status-badge.cancelled {
     background: #fee2e2;
-    color: #991b1b;
+    color: #dc2626;
 }
 
 .status-dot {
@@ -576,11 +580,11 @@ div.main-content {
 }
 
 .status-badge.on-hold .status-dot {
-    background: #ea580c;
+    background: #c2410c;
 }
 
 .status-badge.completed .status-dot {
-    background: #16a34a;
+    background: #15803d;
 }
 
 .status-badge.cancelled .status-dot {
@@ -1134,8 +1138,8 @@ div.main-content {
                         $time12hr = $queueTime->format('g:i A');
                         $time24hr = $queueTime->format('H:i');
                         $statusText = $item['status_text'] ?? 'waiting';
-                        $statusClass = str_replace(' ', '-', $statusText);
-                        $displayStatus = ucfirst($statusText);
+                        $statusClass = str_replace('_', '-', $statusText);
+                        $displayStatus = ucfirst(str_replace('_', ' ', $statusText));
                     ?>
                         <tr class="queue-row" data-status="<?php echo $statusText; ?>" data-name="<?php echo strtolower(htmlspecialchars($item['first_name'] ?? '')); ?>" data-treatment="<?php echo strtolower(htmlspecialchars($item['treatment_type'] ?? '')); ?>">
                             <td><?php echo $showingStart + $index; ?></td>

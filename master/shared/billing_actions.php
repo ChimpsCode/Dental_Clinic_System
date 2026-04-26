@@ -189,7 +189,7 @@ try {
                 
                 if ($appointment) {
                     $patient_id = $appointment['patient_id'];
-                    $queue_id = $appointment_id; // Use appointment_id as fallback
+                    $queue_id = $appointment_id;
                     
                     // Get billing for this patient on appointment date
                     $stmt = $pdo->prepare("
@@ -200,11 +200,27 @@ try {
                     $stmt->execute([$patient_id, $appointment['appointment_date']]);
                     $billing = $stmt->fetch();
                     
-                    $treatment = strtolower(trim($appointment['treatment'] ?? 'consultation'));
-                    $stmt = $pdo->prepare("SELECT price FROM services WHERE LOWER(name) = ? AND is_active = 1 LIMIT 1");
-                    $stmt->execute([$treatment]);
-                    $service = $stmt->fetch();
-                    $amount = $billing ? ($billing['total_amount'] ?? 0) : ($service['price'] ?? 500);
+                    // ALWAYS fetch price from services table first - admin can change prices anytime
+                    $treatment = trim($appointment['treatment'] ?? 'Consultation');
+                    $treatmentLower = strtolower($treatment);
+                    
+                    // Get price from services table - flexible match
+                    $stmt = $pdo->query("SELECT name, price FROM services WHERE is_active = 1 ORDER BY LENGTH(name)");
+                    $servicePrice = 500;
+                    while ($svc = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                        $svcName = strtolower($svc['name']);
+                        // Match if treatment contains service name OR service name contains treatment
+                        if (strpos($treatmentLower, $svcName) !== false || 
+                            strpos($svcName, $treatmentLower) !== false ||
+                            ($treatmentLower === 'crown' && strpos($svcName, 'crown') !== false) ||
+                            ($treatmentLower === 'consultation' && strpos($svcName, 'consultation') !== false)) {
+                            $servicePrice = (int)$svc['price'];
+                            break;
+                        }
+                    }
+                    
+                    // Use fresh service price (always from services table - reflects admin changes)
+                    $amount = $servicePrice;
                     
                     $response['success'] = true;
                     $response['appointment_id'] = $appointment_id;
@@ -304,11 +320,12 @@ try {
             break;
             
         case 'mark_paid':
-            // Used by admin_payment.php, staff_payment.php, staff_billing.php
+            // Used by admin_payment.php, staff_payment.php, staff_billing.php, dentist_appointments.php
             $input = json_decode(file_get_contents('php://input'), true);
             
             $billing_id = $input['billing_id'] ?? 0;
             $queue_id = $input['queue_id'] ?? 0;
+            $appointment_id = $input['appointment_id'] ?? 0;
             $patient_id = $input['patient_id'] ?? 0;
             $amount = $input['amount'] ?? 0;
             $treatment = $input['treatment'] ?? '';
@@ -325,6 +342,19 @@ try {
                     // prefer patient_id from queue to avoid mismatch
                     if (!$patient_id) {
                         $patient_id = $queueRow['patient_id'];
+                    }
+                }
+            }
+            
+            // Handle appointment_id
+            if (!$patient_id && $appointment_id) {
+                $stmt = $pdo->prepare("SELECT patient_id, DATE(appointment_date) as apt_date FROM appointments WHERE id = ?");
+                $stmt->execute([$appointment_id]);
+                $aptRow = $stmt->fetch();
+                if ($aptRow) {
+                    $queueDate = $aptRow['apt_date'] ?? date('Y-m-d');
+                    if (!$patient_id) {
+                        $patient_id = $aptRow['patient_id'];
                     }
                 }
             }
@@ -456,12 +486,13 @@ try {
             break;
             
         case 'update_amount':
-            // Used by admin_payment.php, dentist_dashboard.php
+            // Used by admin_payment.php, dentist_dashboard.php, dentist_appointments.php
             $input = json_decode(file_get_contents('php://input'), true);
             
             $billing_id = $input['billing_id'] ?? 0;
             $patient_id = $input['patient_id'] ?? 0;
             $queue_id = $input['queue_id'] ?? 0;
+            $appointment_id = $input['appointment_id'] ?? 0;
             $new_amount = $input['new_amount'] ?? 0;
             $reason = $input['reason'] ?? '';
             
@@ -472,6 +503,25 @@ try {
                     $stmt = $pdo->prepare("SELECT patient_id FROM queue WHERE id = ?");
                     $stmt->execute([$queue_id]);
                     $patient_id = $stmt->fetchColumn();
+                }
+                
+                // Handle appointment_id
+                if (!$patient_id && $appointment_id) {
+                    $stmt = $pdo->prepare("SELECT patient_id FROM appointments WHERE id = ?");
+                    $stmt->execute([$appointment_id]);
+                    $patient_id = $stmt->fetchColumn();
+                    if ($patient_id) {
+                        $queue_date = date('Y-m-d');
+                        $stmt = $pdo->prepare("SELECT id FROM billing WHERE patient_id = ? AND DATE(billing_date) = ? LIMIT 1");
+                        $stmt->execute([$patient_id, $queue_date]);
+                        $billing_id = $stmt->fetchColumn();
+                        
+                        if (!$billing_id) {
+                            $stmt = $pdo->prepare("INSERT INTO billing (patient_id, total_amount, payment_status, billing_date, created_at) VALUES (?, ?, 'pending', ?, NOW())");
+                            $stmt->execute([$patient_id, $new_amount, $queue_date]);
+                            $billing_id = $pdo->lastInsertId();
+                        }
+                    }
                 }
                 
                 if ($patient_id) {

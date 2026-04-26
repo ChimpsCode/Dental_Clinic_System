@@ -583,9 +583,15 @@ if (!$status) {
 .status-badge {
     display: inline-block;
     padding: 4px 12px;
-    border-radius: 16px;
-    font-size: 12px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
     font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-badge.status-scheduled {
+    background: #dbeafe;
+    color: #1d4ed8;
 }
 
 .status-badge.status-in-queue {
@@ -827,25 +833,69 @@ if (!$status) {
     }
 
     function cancelAppointment(id) {
-        if (confirm('Are you sure you want to cancel this appointment?')) {
-            fetch('cancel_appointment.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: id })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert(data.message || 'Error cancelling appointment');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error cancelling appointment');
-            });
+        // Open cancel reason modal
+        openCancelReasonModal(id);
+    }
+
+    // Cancel Reason Modal
+    let cancelAppointmentId = null;
+    
+    function openCancelReasonModal(id) {
+        if (!document.getElementById('cancelReasonModal')) {
+            const modal = document.createElement('div');
+            modal.id = 'cancelReasonModal';
+            modal.className = 'modal-overlay';
+            modal.style.display = 'none';
+            modal.innerHTML = `
+                <div class="modal" style="width: 400px;">
+                    <h2 style="margin: 0 0 16px; font-size: 1.25rem; font-weight: 600;">Cancel Appointment</h2>
+                    <p style="color: #6b7280; margin-bottom: 16px;">Please provide a reason for cancelling:</p>
+                    <textarea id="cancelReasonText" class="form-control" rows="4" placeholder="Enter reason..." style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; resize: vertical;"></textarea>
+                    <div style="display: flex; gap: 12px; margin-top: 20px; justify-content: flex-end;">
+                        <button onclick="closeCancelReasonModal()" class="btn-cancel" style="padding: 10px 20px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
+                        <button onclick="confirmCancelAppointment()" class="btn-primary" style="padding: 10px 20px; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer;">Confirm</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
         }
+        
+        cancelAppointmentId = id;
+        document.getElementById('cancelReasonText').value = '';
+        document.getElementById('cancelReasonModal').style.display = 'flex';
+    }
+    
+    function closeCancelReasonModal() {
+        if (document.getElementById('cancelReasonModal')) {
+            document.getElementById('cancelReasonModal').style.display = 'none';
+        }
+        cancelAppointmentId = null;
+    }
+    
+    window.confirmCancelAppointment = function() {
+        if (!cancelAppointmentId) return;
+        
+        const cancel_reason = document.getElementById('cancelReasonText').value;
+        
+        fetch('cancel_appointment.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: cancelAppointmentId, cancel_reason: cancel_reason })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message || 'Error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error');
+        });
+        
+        closeCancelReasonModal();
     }
 
     // Appointment Kebab Menu Functions - Portal Based
@@ -891,12 +941,13 @@ if (!$status) {
                 </svg>
                 Forward to Queue
             </a>
-            <a href="javascript:void(0)" data-action="delete" data-id="${apptId}" class="danger">
+            <a href="javascript:void(0)" onclick="openCancelReasonModal(${apptId})" class="danger">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="3 6 5 6 21 6"/>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="15" y1="9" x2="9" y2="15"/>
+                    <line x1="9" y1="9" x2="15" y2="15"/>
                 </svg>
-                Delete
+                Cancel Appointment
             </a>
         `;
     }

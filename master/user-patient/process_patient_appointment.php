@@ -29,6 +29,21 @@ try {
     }
 
     $pdo->beginTransaction();
+    
+    // CHECK: Prevent double booking - patient can't have appointment same day
+    $checkStmt = $pdo->prepare("
+        SELECT COUNT(*) FROM appointments 
+        WHERE patient_id = ? 
+        AND DATE(appointment_date) = ?
+        AND status_id IN (1, 2)
+        AND (status = 'scheduled' OR status = 'in_queue' OR status IS NULL)
+    ");
+    $checkStmt->execute([$patient_id, $appointment_date]);
+    $activeCount = $checkStmt->fetchColumn();
+    
+    if ($activeCount > 0) {
+        throw new Exception('You already have an appointment scheduled for ' . $appointment_date . '. Please choose a different date.');
+    }
 
     // Create the appointment
     $stmt = $pdo->prepare("INSERT INTO appointments 

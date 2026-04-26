@@ -61,6 +61,25 @@ try {
     $stmt = $pdo->query("SELECT COUNT(*) FROM patients WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)");
     $newPatientsMonth = $stmt->fetchColumn();
     
+    // Get today's appointments for overview
+    $apptStmt = $pdo->query("
+        SELECT a.id, a.appointment_date, a.appointment_time, a.status_id,
+               COALESCE(p.first_name, 'Unknown') as first_name, 
+               COALESCE(p.middle_name, '') as middle_name, 
+               COALESCE(p.last_name, '') as last_name,
+               s.name as service_name,
+               st.status_name
+        FROM appointments a
+        LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
+        LEFT JOIN services s ON a.service_id = s.id
+        LEFT JOIN appointment_statuses st ON a.status_id = st.id
+        WHERE DATE(a.appointment_date) = CURDATE()
+          AND (a.is_archived = 0 OR a.is_archived IS NULL)
+        ORDER BY a.appointment_time ASC
+        LIMIT 10
+    ");
+    $todayAppointments = $apptStmt->fetchAll(PDO::FETCH_ASSOC);
+    
 } catch (Exception $e) {
     $waitingCount = 0;
     $inProcedureCount = 0;
@@ -68,6 +87,7 @@ try {
     $onHoldCount = 0;
     $queuePatients = [];
     $newPatientsMonth = 0;
+    $todayAppointments = [];
 }
 ?>
 
@@ -315,12 +335,50 @@ if (($patient['status_text'] ?? '') === 'in_procedure') {
             </div>
         </div>
         
-        <div class="notification-box" style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <h3 style="font-size: 1rem; font-weight: 600; color: #111827; margin-bottom: 16px;">🚀 Quick Actions</h3>
-            <div style="display: flex; flex-direction: column; gap: 12px;">
-                <a href="dentist_patients.php" class="btn-primary" style="width: 100%; text-align: center; text-decoration: none; padding: 10px; display: block;">View All Patients</a>
-                <a href="dentist_appointments.php" class="btn-primary" style="width: 100%; text-align: center; text-decoration: none; padding: 10px; display: block;">View Appointments</a>
+        
+        
+        <!-- Today's Appointments Overview -->
+        <div class="notification-box" style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-top: 20px;">
+            <h3 style="font-size: 1rem; font-weight: 600; color: #111827; margin-bottom: 16px;">📅 Appointments Overview</h3>
+            <div style="max-height: 300px; overflow-y: auto;">
+                <?php if (empty($todayAppointments)): ?>
+                    <p style="color: #6b7280; text-align: center; padding: 20px;">No appointments today</p>
+                <?php else: ?>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <thead>
+                            <tr style="background: #f9fafb;">
+                                <th style="text-align: left; padding: 8px; color: #6b7280; font-weight: 600; font-size: 11px;">Time</th>
+                                <th style="text-align: left; padding: 8px; color: #6b7280; font-weight: 600; font-size: 11px;">Patient</th>
+                                <th style="text-align: left; padding: 8px; color: #6b7280; font-weight: 600; font-size: 11px;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($todayAppointments as $appt): 
+                                $apptPatientName = trim(($appt['first_name'] ?? '') . ' ' . ($appt['middle_name'] ?? '') . ' ' . ($appt['last_name'] ?? ''));
+                                $statusLabel = $appt['status_name'] ?? 'Scheduled';
+                                $statusId = (int)$appt['status_id'];
+                                
+                                $badgeStyle = 'background: #dbeafe; color: #1d4ed8;';
+                                if ($statusId === 2 || stripos($statusLabel, 'queue') !== false) { $badgeStyle = 'background: #fef3c7; color: #92400e;'; }
+                                if ($statusId === 3 || stripos($statusLabel, 'pending') !== false) { $badgeStyle = 'background: #fed7aa; color: #c2410c;'; }
+                                if ($statusId === 4 || stripos($statusLabel, 'complete') !== false) { $badgeStyle = 'background: #dcfce7; color: #15803d;'; }
+                                if ($statusId === 5 || stripos($statusLabel, 'cancel') !== false) { $badgeStyle = 'background: #fee2e2; color: #dc2626;'; }
+                            ?>
+                            <tr style="border-bottom: 1px solid #f3f4f6;">
+                                <td style="padding: 8px; color: #374151; font-size: 12px;"><?php echo date('h:i A', strtotime($appt['appointment_time'] ?? '')); ?></td>
+                                <td style="padding: 8px; color: #374151; font-size: 12px;"><?php echo htmlspecialchars($apptPatientName ?: 'Unknown'); ?></td>
+                                <td style="padding: 8px;">
+                                    <span style="display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; <?php echo $badgeStyle; ?>">
+                                        <?php echo htmlspecialchars($statusLabel); ?>
+                                    </span>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php endif; ?>
             </div>
+            <a href="dentist_appointments.php" style="display: block; text-align: center; margin-top: 12px; padding: 8px; background: #f3f4f6; border-radius: 6px; color: #374151; text-decoration: none; font-size: 13px;">View All Appointments</a>
         </div>
     </div>
 </div>
@@ -928,6 +986,7 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 .tooth-wrapper.editing .tooth-face { border-color: #3b82f6; border-width: 2px; animation: toothPulse 1.5s infinite; }
 @keyframes toothPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.5); } 50% { box-shadow: 0 0 0 8px rgba(59,130,246,0); } }
+
 </style>
 
 <?php require_once '../../includes/dentist_layout_end.php'; ?>

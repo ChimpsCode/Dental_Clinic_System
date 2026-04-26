@@ -23,8 +23,9 @@ $chartYear = (int)date('Y');
 $monthlyRevenueData = [];
 $chartYear = (int)date('Y');
 $topServices = [];
-$liveQueue = [];
-$today = new DateTime();
+    $liveQueue = [];
+    $todayAppointments = [];
+    $today = new DateTime();
 $startDate = new DateTime($today->format('Y-m-01'));
 $endDate = clone $today;
 $startStr = $startDate->format('Y-m-d');
@@ -46,8 +47,8 @@ try {
     $completedToday = (int)($pdo->query("
         SELECT COUNT(*)
         FROM queue
-        WHERE status = 'completed'
-          AND DATE(updated_at) = CURDATE()
+        WHERE status_id = 4
+          AND DATE(completed_at) = CURDATE()
     ")->fetchColumn() ?? 0);
 
     // Current 6 months data for dashboard revenue overview (current year only)
@@ -69,42 +70,32 @@ try {
     $chartYear = (int)date('Y');
 
     $stmt = $pdo->prepare("
-        SELECT procedure_name AS service_name, COUNT(*) AS total
-        FROM treatments
-        WHERE treatment_date BETWEEN ? AND ?
-        GROUP BY procedure_name
-        ORDER BY total DESC
-        LIMIT 4
-    ");
-    $stmt->execute([$startStr, $endStr]);
-    $topServices = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    if (empty($topServices)) {
-        $stmt = $pdo->prepare("
-            SELECT treatment AS service_name, COUNT(*) AS total
-            FROM appointments
-            WHERE appointment_date BETWEEN ? AND ?
-            GROUP BY treatment
+            SELECT s.name AS service_name, COUNT(*) AS total
+            FROM treatments t
+            LEFT JOIN services s ON t.service_id = s.id
+            WHERE t.treatment_date BETWEEN ? AND ?
+            GROUP BY s.name
             ORDER BY total DESC
             LIMIT 4
         ");
         $stmt->execute([$startStr, $endStr]);
         $topServices = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
 
     // Get live queue data (next 5 patients in line)
     try {
         $stmt = $pdo->query("
-            SELECT q.id, q.status, q.queue_time, q.treatment_type,
-                   COALESCE(CONCAT(p.first_name, ' ', COALESCE(p.middle_name, ''), ' ', p.last_name), 'Unknown') AS patient_name
+            SELECT q.id, q.status_id, q.queue_time, q.treatment_type,
+                   COALESCE(CONCAT(p.first_name, ' ', COALESCE(p.middle_name, ''), ' ', p.last_name), 'Unknown') AS patient_name,
+                   qs.status_name
             FROM queue q
             LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED)
-            WHERE q.status IN ('waiting', 'in_procedure', 'on_hold')
+            LEFT JOIN queue_statuses qs ON q.status_id = qs.id
+            WHERE q.status_id IN (1, 2)
               AND (q.is_archived = 0 OR q.is_archived IS NULL)
             ORDER BY 
-                CASE q.status 
-                    WHEN 'in_procedure' THEN 1 
-                    WHEN 'waiting' THEN 2 
+                CASE q.status_id 
+                    WHEN 2 THEN 1 
+                    WHEN 1 THEN 2 
                     ELSE 3 
                 END,
                 q.queue_time ASC
@@ -113,6 +104,29 @@ try {
         $liveQueue = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
         $liveQueue = [];
+    }
+    
+    // Get today's appointments for overview
+    try {
+        $apptStmt = $pdo->query("
+            SELECT a.id, a.appointment_date, a.appointment_time, a.status_id,
+                   COALESCE(p.first_name, 'Unknown') as first_name, 
+                   COALESCE(p.middle_name, '') as middle_name, 
+                   COALESCE(p.last_name, '') as last_name,
+                   s.name as service_name,
+                   st.status_name
+            FROM appointments a
+            LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
+            LEFT JOIN services s ON a.service_id = s.id
+            LEFT JOIN appointment_statuses st ON a.status_id = st.id
+            WHERE DATE(a.appointment_date) = CURDATE()
+              AND (a.is_archived = 0 OR a.is_archived IS NULL)
+            ORDER BY a.appointment_time ASC
+            LIMIT 10
+        ");
+        $todayAppointments = $apptStmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        $todayAppointments = [];
     }
 
 } catch (Exception $e) {
@@ -124,6 +138,9 @@ try {
     $totalCollected = 0;
     $topServices = [];
     $liveQueue = [];
+    $todayAppointments = [];
+    // Debug: log error
+    error_log("Admin Dashboard Error: " . $e->getMessage());
 }
 ?>
 
@@ -259,7 +276,6 @@ try {
                             </span>
                         </div>
                         <div class="queue-table-container">
-                            <!-- DEBUG: Queue count: <?php echo count($liveQueue); ?> -->
                             <?php if (!empty($liveQueue)): ?>
                                 <table class="queue-table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
                                     <thead>
@@ -278,25 +294,30 @@ try {
                                                 $waitingInterval = $queueTime->diff($now);
                                                 $waitingMinutes = $waitingInterval->h * 60 + $waitingInterval->i;
                                                 
-                                                $statusClass = '';
-                                                $statusLabel = '';
+                                                $statusId = (int)$queueItem['status_id'];
+                                                $statusLabel = $queueItem['status_name'] ?? 'Scheduled';
                                                 $badgeStyle = '';
-                                                switch($queueItem['status']) {
-                                                    case 'waiting':
-                                                        $statusClass = 'waiting';
+                                                
+                                                switch($statusId) {
+                                                    case 1:
                                                         $statusLabel = 'Waiting';
                                                         $badgeStyle = 'background: #fef3c7; color: #d97706;';
                                                         break;
-                                                    case 'in_procedure':
-                                                        $statusClass = 'in-progress';
+                                                    case 2:
                                                         $statusLabel = 'In Procedure';
                                                         $badgeStyle = 'background: #dbeafe; color: #2563eb;';
                                                         break;
-                                                    case 'on_hold':
-                                                        $statusClass = 'on-hold';
-                                                        $statusLabel = 'On Hold';
-                                                        $badgeStyle = 'background: #f3f4f6; color: #6b7280;';
+                                                    case 3:
+                                                        $statusLabel = 'Completed';
+                                                        $badgeStyle = 'background: #dcfce7; color: #15803d;';
                                                         break;
+                                                    case 4:
+                                                        $statusLabel = 'Cancelled';
+                                                        $badgeStyle = 'background: #fee2e2; color: #dc2626;';
+                                                        break;
+                                                    default:
+                                                        $statusLabel = 'Waiting';
+                                                        $badgeStyle = 'background: #fef3c7; color: #d97706;';
                                                 }
                                             ?>
                                             <tr style="border-bottom: 1px solid #f3f4f6;">
@@ -316,6 +337,9 @@ try {
                             <?php endif; ?>
                         </div>
                     </div>
+                    
+                    
+                                
                     <div class="section-card" style="margin-bottom: 40px;">
                     <h2 class="section-title">Top Services</h2>
                     <div class="stat-content">
@@ -371,25 +395,65 @@ try {
                     </div>
                 </div>
 
-                <!-- System Status -->
-                <div class="sidebar-section">
-                    <h3 class="sidebar-section-title">System Status</h3>
-                    <div class="status-item">
-                        <span class="status-label">Database</span>
-                        <span class="status-value online">Connected</span>
+                <!-- Today's Appointments Overview -->
+                    <div class="section-card" style="margin-top: 20px;">
+                        <h2 class="section-title">📅 Appointments Overview</h2>
+                        <div style="max-height: 300px; overflow-y: auto;">
+                            <?php if (empty($todayAppointments)): ?>
+                                <p style="text-align: center; color: #6b7280; padding: 20px;">No appointments today</p>
+                            <?php else: ?>
+                                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                    <thead>
+                                        <tr style="background: #f9fafb;">
+                                            <th style="text-align: left; padding: 10px 12px; color: #6b7280; font-weight: 600; font-size: 12px;">Time</th>
+                                            <th style="text-align: left; padding: 10px 12px; color: #6b7280; font-weight: 600; font-size: 12px;">Patient</th>
+                                            <th style="text-align: left; padding: 10px 12px; color: #6b7280; font-weight: 600; font-size: 12px;">Service</th>
+                                            <th style="text-align: left; padding: 10px 12px; color: #6b7280; font-weight: 600; font-size: 12px;">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($todayAppointments as $appt): 
+                                            $apptPatientName = trim(($appt['first_name'] ?? '') . ' ' . ($appt['middle_name'] ?? '') . ' ' . ($appt['last_name'] ?? ''));
+                                            $statusLabel = $appt['status_name'] ?? 'Scheduled';
+                                            $statusId = (int)$appt['status_id'];
+                                            
+                                            $badgeStyle = 'background: #dbeafe; color: #1d4ed8;';
+                                            if ($statusId === 2 || stripos($statusLabel, 'queue') !== false) { $badgeStyle = 'background: #fef3c7; color: #92400e;'; }
+                                            if ($statusId === 3 || stripos($statusLabel, 'pending') !== false) { $badgeStyle = 'background: #fed7aa; color: #c2410c;'; }
+                                            if ($statusId === 4 || stripos($statusLabel, 'complete') !== false) { $badgeStyle = 'background: #dcfce7; color: #15803d;'; }
+                                            if ($statusId === 5 || stripos($statusLabel, 'cancel') !== false) { $badgeStyle = 'background: #fee2e2; color: #dc2626;'; }
+                                        ?>
+                                        <tr style="border-bottom: 1px solid #f3f4f6;">
+                                            <td style="padding: 12px; color: #374151;"><?php echo date('h:i A', strtotime($appt['appointment_time'] ?? '')); ?></td>
+                                            <td style="padding: 12px; color: #374151;"><?php echo htmlspecialchars($apptPatientName ?: 'Unknown'); ?></td>
+                                            <td style="padding: 12px; color: #374151;"><?php echo htmlspecialchars($appt['service_name'] ?? 'General'); ?></td>
+                                            <td style="padding: 12px;">
+                                                <span style="display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; <?php echo $badgeStyle; ?>">
+                                                    <?php echo htmlspecialchars($statusLabel); ?>
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            <?php endif; ?>
+                        </div>
+                        <a href="admin_appointments.php" style="display: block; text-align: center; margin-top: 12px; padding: 10px; background: #f3f4f6; border-radius: 6px; color: #374151; text-decoration: none; font-size: 13px;">View All Appointments</a>
                     </div>
-                    <div class="status-item">
-                        <span class="status-label">Active Sessions</span>
-                        <span class="status-value">12</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="status-label">Last Backup</span>
-                        <span class="status-value">2 hours ago</span>
-                    </div>
-                </div>
+                
+
+
+
+
+
+
+
             </aside>
 
 
+<a href="../shared/staff_messages.php" class="staff-message-fab" title="Staff Messages" aria-label="Open staff messages">
+    <span>💬</span>
+</a>
 
 <?php
 // Include the layout end
@@ -408,6 +472,28 @@ require_once __DIR__ . '/../../includes/admin_layout_end.php';
 .chart-placeholder {
     min-height: 170px;
     width: 100%;
+}
+
+.staff-message-fab {
+    position: fixed;
+    right: 22px;
+    bottom: 22px;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #2563eb;
+    color: #fff;
+    text-decoration: none;
+    box-shadow: 0 10px 24px rgba(37,99,235,0.35);
+    z-index: 9999;
+    font-size: 24px;
+}
+.staff-message-fab:hover {
+    background: #1d4ed8;
+    color: #fff;
 }
 
 </style>
