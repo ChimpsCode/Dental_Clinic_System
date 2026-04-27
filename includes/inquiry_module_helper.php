@@ -34,6 +34,9 @@ function ensureInquiryModuleSchema(PDO $pdo): void
         'service_id' => "ALTER TABLE inquiries ADD COLUMN service_id INT NULL AFTER concern",
         'preferred_date' => "ALTER TABLE inquiries ADD COLUMN preferred_date DATE NULL AFTER service_id",
         'preferred_time' => "ALTER TABLE inquiries ADD COLUMN preferred_time TIME NULL AFTER preferred_date",
+        'confirmed_date' => "ALTER TABLE inquiries ADD COLUMN confirmed_date DATE NULL AFTER preferred_time",
+        'confirmed_time' => "ALTER TABLE inquiries ADD COLUMN confirmed_time TIME NULL AFTER confirmed_date",
+        'assigned_dentist' => "ALTER TABLE inquiries ADD COLUMN assigned_dentist VARCHAR(150) NULL AFTER assigned_staff_id",
         'pain_level' => "ALTER TABLE inquiries ADD COLUMN pain_level VARCHAR(30) NULL AFTER preferred_time",
         'urgency' => "ALTER TABLE inquiries ADD COLUMN urgency ENUM('Low','Medium','High') NOT NULL DEFAULT 'Low' AFTER pain_level",
         'assigned_staff_id' => "ALTER TABLE inquiries ADD COLUMN assigned_staff_id INT NULL AFTER status",
@@ -123,7 +126,7 @@ function ensureInquiryModuleSchema(PDO $pdo): void
 
 function getInquiryStatuses(): array
 {
-    return ['Pending', 'Contacted', 'Scheduled', 'Completed', 'Cancelled'];
+    return ['Pending', 'Contacted', 'Awaiting Confirmation', 'Scheduled', 'Completed', 'Cancelled'];
 }
 
 function normalizeInquiryStatus(?string $status): string

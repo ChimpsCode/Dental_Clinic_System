@@ -7,6 +7,7 @@ header('Content-Type: application/json; charset=utf-8');
 try {
     $date = $_GET['date'] ?? '';
     $service_id = isset($_GET['service_id']) ? (int)$_GET['service_id'] : null;
+    $exclude_inquiry_id = isset($_GET['exclude_inquiry_id']) ? (int)$_GET['exclude_inquiry_id'] : 0;
     
     if (empty($date)) {
         echo json_encode(['success' => false, 'message' => 'Date is required']);
@@ -71,9 +72,27 @@ try {
         FROM appointments a
         LEFT JOIN services s ON a.service_id = s.id
         WHERE a.appointment_date = ?
+          AND COALESCE(a.is_archived, 0) = 0
+          AND LOWER(COALESCE(a.status, 'scheduled')) NOT IN ('cancelled', 'completed', 'no_show')
     ");
     $stmt->execute([$date]);
     $existingBookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $inqStmt = $pdo->prepare("
+        SELECT
+            TIME_FORMAT(i.confirmed_time, '%H:%i') as start_time,
+            COALESCE(s.duration_minutes, 30) as duration_minutes
+        FROM inquiries i
+        LEFT JOIN services s ON s.id = i.service_id
+        WHERE i.confirmed_date = ?
+          AND COALESCE(i.is_archived, 0) = 0
+          AND i.confirmed_time IS NOT NULL
+          AND i.confirmed_time <> ''
+          AND i.id <> ?
+          AND LOWER(COALESCE(i.status, 'pending')) IN ('scheduled', 'awaiting confirmation', 'contacted')
+    ");
+    $inqStmt->execute([$date, $exclude_inquiry_id]);
+    $existingBookings = array_merge($existingBookings, $inqStmt->fetchAll(PDO::FETCH_ASSOC));
     
     // Calculate end time for each existing booking
     $bookedSlots = [];

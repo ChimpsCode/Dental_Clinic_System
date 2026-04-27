@@ -24,7 +24,7 @@ $inquiries = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $services = fetchInquiryServices($pdo);
 $staffMembers = fetchAssignableStaff($pdo);
-$statuses = ['Pending', 'Contacted', 'Scheduled', 'Completed', 'Cancelled'];
+$statuses = ['Pending', 'Contacted', 'Awaiting Confirmation', 'Scheduled', 'Completed', 'Cancelled'];
 
 require_once '../../includes/staff_layout_start.php';
 ?>
@@ -256,6 +256,7 @@ require_once '../../includes/staff_layout_start.php';
 }
 .status-Pending { background: #fef3c7; color: #92400e; }
 .status-Contacted { background: #dbeafe; color: #1d4ed8; }
+.status-Awaiting-Confirmation { background: #ede9fe; color: #6d28d9; }
 .status-Scheduled { background: #dcfce7; color: #166534; }
 .status-Completed { background: #e5e7eb; color: #475569; }
 .status-Cancelled { background: #fee2e2; color: #b91c1c; }
@@ -418,6 +419,40 @@ require_once '../../includes/staff_layout_start.php';
     border-radius: 20px;
     padding: 20px;
     background: #fcfdff;
+}
+.section-block {
+    border-top: 1px solid #e5e7eb;
+    margin-top: 18px;
+    padding-top: 18px;
+}
+.section-title {
+    margin: 0 0 14px;
+    color: #0f172a;
+    font-size: 0.95rem;
+    font-weight: 800;
+}
+.form-section {
+    border: 1px solid #e5e7eb;
+    border-radius: 20px;
+    padding: 20px;
+    background: #fcfdff;
+}
+.readonly-select {
+    background-color: #f8fafc;
+    color: #475569;
+}
+.readonly-note {
+    margin: -4px 0 0;
+    color: #64748b;
+    font-size: 0.83rem;
+}
+.schedule-fields {
+    display: none;
+    gap: 16px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.schedule-fields.active {
+    display: grid;
 }
 .detail-grid,
 .form-grid {
@@ -616,73 +651,110 @@ require_once '../../includes/staff_layout_start.php';
         <form id="inquiryForm">
             <div class="modal-body">
                 <input type="hidden" id="form_id" name="id">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="form_full_name">Full Name</label>
-                        <input id="form_full_name" name="full_name" class="form-input" required>
+                <div class="detail-layout">
+                    <div class="form-section">
+                        <h4 class="section-title">Patient Submission</h4>
+                        <p class="readonly-note">Original patient-submitted details are preserved as read-only records.</p>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="form_full_name">Full Name</label>
+                                <input id="form_full_name" name="full_name" class="form-input" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label for="form_phone">Phone Number</label>
+                                <input id="form_phone" name="phone" class="form-input" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label for="form_email">Email</label>
+                                <input id="form_email" name="email" type="email" class="form-input" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label for="form_service_id">Service Needed</label>
+                                <select id="form_service_id" name="service_id" class="form-select readonly-select" disabled>
+                                    <option value="">Select service</option>
+                                    <?php foreach ($services as $service): ?>
+                                        <option value="<?php echo (int)$service['id']; ?>"><?php echo htmlspecialchars($service['name']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="form_preferred_date">Patient Requested Schedule Date</label>
+                                <input id="form_preferred_date" name="preferred_date" type="date" class="form-input" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label for="form_preferred_time">Patient Requested Schedule Time</label>
+                                <input id="form_preferred_time" name="preferred_time" type="time" class="form-input" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label for="form_source">Source</label>
+                                <select id="form_source" name="source" class="form-select readonly-select" disabled>
+                                    <option value="Website">Website</option>
+                                    <option value="Facebook">Facebook</option>
+                                    <option value="Walk-in">Walk-in</option>
+                                    <option value="Referral">Referral</option>
+                                    <option value="Patient Portal">Patient Portal</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="form_pain_level">Pain Level</label>
+                                <select id="form_pain_level" name="pain_level" class="form-select readonly-select" disabled>
+                                    <option value="">Select pain level</option>
+                                    <?php for ($i = 1; $i <= 10; $i++): ?>
+                                        <option value="<?php echo $i; ?>"><?php echo $i; ?></option>
+                                    <?php endfor; ?>
+                                </select>
+                            </div>
+                            <div class="form-group full-span">
+                                <label for="form_concern">Full Concern Description</label>
+                                <textarea id="form_concern" name="concern" class="form-textarea" readonly></textarea>
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="form_phone">Phone Number</label>
-                        <input id="form_phone" name="phone" class="form-input" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="form_email">Email</label>
-                        <input id="form_email" name="email" type="email" class="form-input">
-                    </div>
-                    <div class="form-group">
-                        <label for="form_service_id">Service Needed</label>
-                        <select id="form_service_id" name="service_id" class="form-select">
-                            <option value="">Select service</option>
-                            <?php foreach ($services as $service): ?>
-                                <option value="<?php echo (int)$service['id']; ?>"><?php echo htmlspecialchars($service['name']); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="form_preferred_date">Preferred Date</label>
-                        <input id="form_preferred_date" name="preferred_date" type="date" class="form-input">
-                    </div>
-                    <div class="form-group">
-                        <label for="form_preferred_time">Preferred Time</label>
-                        <input id="form_preferred_time" name="preferred_time" type="time" class="form-input">
-                    </div>
-                    <div class="form-group">
-                        <label for="form_source">Source</label>
-                        <select id="form_source" name="source" class="form-select">
-                            <option value="Website">Website</option>
-                            <option value="Facebook">Facebook</option>
-                            <option value="Walk-in">Walk-in</option>
-                            <option value="Referral">Referral</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="form_urgency">Urgency Level</label>
-                        <select id="form_urgency" name="urgency" class="form-select">
-                            <option value="Low">Low</option>
-                            <option value="Medium" selected>Medium</option>
-                            <option value="High">High</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="form_pain_level">Pain Level</label>
-                        <select id="form_pain_level" name="pain_level" class="form-select">
-                            <option value="">Select pain level</option>
-                            <?php for ($i = 1; $i <= 10; $i++): ?>
-                                <option value="<?php echo $i; ?>"><?php echo $i; ?></option>
-                            <?php endfor; ?>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="form_status">Status</label>
-                        <select id="form_status" name="status" class="form-select">
-                            <?php foreach ($statuses as $status): ?>
-                                <option value="<?php echo htmlspecialchars($status); ?>" <?php echo $status === 'Pending' ? 'selected' : ''; ?>><?php echo htmlspecialchars($status); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="form-group full-span">
-                        <label for="form_concern">Full Concern Description</label>
-                        <textarea id="form_concern" name="concern" class="form-textarea" required></textarea>
+                    <div class="form-section">
+                        <h4 class="section-title">Staff Processing</h4>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="form_status">Inquiry Status</label>
+                                <select id="form_status" name="status" class="form-select">
+                                    <?php foreach ($statuses as $status): ?>
+                                        <option value="<?php echo htmlspecialchars($status); ?>" <?php echo $status === 'Pending' ? 'selected' : ''; ?>><?php echo htmlspecialchars($status); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="form_urgency">Urgency Level</label>
+                                <select id="form_urgency" name="urgency" class="form-select">
+                                    <option value="Low">Low</option>
+                                    <option value="Medium" selected>Medium</option>
+                                    <option value="High">High</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="form_confirmed_date">Confirmed Date</label>
+                                <input id="form_confirmed_date" name="confirmed_date" type="date" class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="form_confirmed_time">Confirmed Time</label>
+                                <select id="form_confirmed_time" name="confirmed_time" class="form-select">
+                                    <option value="">Select confirmed time</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="form_assigned_staff_id">Assign Staff</label>
+                                <select id="form_assigned_staff_id" name="assigned_staff_id" class="form-select">
+                                    <option value="">Unassigned</option>
+                                    <?php foreach ($staffMembers as $member): ?>
+                                        <option value="<?php echo (int)$member['id']; ?>">
+                                            <?php echo htmlspecialchars(trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? '')) ?: ($member['username'] ?? 'Staff')); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="form-group full-span">
+                                <label for="form_notes">Internal Notes</label>
+                                <textarea id="form_notes" name="notes" class="form-textarea" placeholder="Add internal notes for follow-up, coordination, or scheduling."></textarea>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -716,22 +788,42 @@ require_once '../../includes/staff_layout_start.php';
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label for="detail_assigned_staff_id">Assign Staff</label>
-                            <select id="detail_assigned_staff_id" class="form-select">
-                                <option value="">Unassigned</option>
-                                <?php foreach ($staffMembers as $member): ?>
-                                    <option value="<?php echo (int)$member['id']; ?>">
-                                        <?php echo htmlspecialchars(trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? '')) ?: ($member['username'] ?? 'Staff')); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
+                        <div class="section-block">
+                            <h4 class="section-title">Final Schedule (Staff Confirmation)</h4>
+                            <div id="detailScheduleFields" class="schedule-fields">
+                                <div class="form-group">
+                                    <label for="detail_confirmed_date">Confirmed Appointment Date</label>
+                                    <input id="detail_confirmed_date" type="date" class="form-input">
+                                </div>
+                                <div class="form-group">
+                                    <label for="detail_confirmed_time">Confirmed Appointment Time</label>
+                                    <select id="detail_confirmed_time" class="form-select">
+                                        <option value="">Select confirmed time</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="detail_assigned_dentist">Assigned Dentist (optional)</label>
+                                    <input id="detail_assigned_dentist" type="text" class="form-input" placeholder="Enter dentist name">
+                                </div>
+                                <div class="form-group">
+                                    <label for="detail_assigned_staff_id">Assign Staff</label>
+                                    <select id="detail_assigned_staff_id" class="form-select">
+                                        <option value="">Unassigned</option>
+                                        <?php foreach ($staffMembers as $member): ?>
+                                            <option value="<?php echo (int)$member['id']; ?>">
+                                                <?php echo htmlspecialchars(trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? '')) ?: ($member['username'] ?? 'Staff')); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="detail_notes">Add Internal Notes</label>
                             <textarea id="detail_notes" class="form-textarea" placeholder="Add internal notes for follow-up, coordination, or scheduling."></textarea>
                         </div>
                         <div class="modal-footer" style="padding:0;margin-top:8px;">
+                            <button type="button" id="detailConvertBtn" class="btn-secondary">Convert to Appointment</button>
                             <button type="submit" class="btn-primary">Save</button>
                         </div>
                     </form>
@@ -761,6 +853,10 @@ const customRangeRow = document.getElementById('customRangeRow');
 const tableBody = document.getElementById('inquiryTableBody');
 const emptyTableState = document.getElementById('emptyTableState');
 const resultsSummary = document.getElementById('resultsSummary');
+const formConfirmedDate = document.getElementById('form_confirmed_date');
+const formConfirmedTime = document.getElementById('form_confirmed_time');
+const detailConfirmedDate = document.getElementById('detail_confirmed_date');
+const detailConfirmedTime = document.getElementById('detail_confirmed_time');
 
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (character) => ({
@@ -792,6 +888,10 @@ function formatCreatedAt(value) {
     if (!value) return 'N/A';
     const date = new Date(value.replace(' ', 'T'));
     return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
+function getStatusClass(status) {
+    return `status-${String(status || 'Pending').replace(/\s+/g, '-')}`;
 }
 
 function getAssignedName(inquiry) {
@@ -895,7 +995,7 @@ function renderTable() {
                 </td>
                 <td>${escapeHtml(formatDateTime(inquiry.preferred_date, inquiry.preferred_time))}</td>
                 <td><span class="source-chip">${escapeHtml(source)}</span></td>
-                <td><span class="status-badge status-${escapeHtml(status)}">${escapeHtml(status)}</span></td>
+                <td><span class="status-badge ${escapeHtml(getStatusClass(status))}">${escapeHtml(status)}</span></td>
                 <td>${escapeHtml(getAssignedName(inquiry))}</td>
                 <td>${escapeHtml(formatCreatedAt(inquiry.created_at))}</td>
                 <td class="actions-cell">
@@ -938,6 +1038,65 @@ function showToast(message, isError = false) {
     toast.style.background = isError ? '#b91c1c' : '#0f172a';
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 2800);
+}
+
+function formatTimeLabel(timeValue) {
+    if (!timeValue) return '';
+    const normalized = String(timeValue).slice(0, 5);
+    const date = new Date(`1970-01-01T${normalized}`);
+    return Number.isNaN(date.getTime())
+        ? normalized
+        : date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function setConfirmedTimeOptions(selectEl, slots, selectedTime = '') {
+    if (!selectEl) return;
+    const normalizedSelected = String(selectedTime || '').slice(0, 5);
+    const normalizedSlots = Array.from(new Set((slots || []).map((slot) => String(slot || '').slice(0, 5)).filter(Boolean)));
+    if (normalizedSelected && !normalizedSlots.includes(normalizedSelected)) {
+        normalizedSlots.push(normalizedSelected);
+    }
+    normalizedSlots.sort();
+
+    selectEl.innerHTML = '<option value="">Select confirmed time</option>';
+    normalizedSlots.forEach((slot) => {
+        const option = document.createElement('option');
+        option.value = slot;
+        option.textContent = formatTimeLabel(slot);
+        selectEl.appendChild(option);
+    });
+    selectEl.value = normalizedSelected;
+}
+
+async function loadConfirmedTimeOptions(dateValue, serviceId, selectEl, selectedTime = '', excludeInquiryId = '') {
+    setConfirmedTimeOptions(selectEl, [], selectedTime);
+    if (!dateValue) return;
+
+    const url = new URL('../user-patient/get_slots.php', window.location.href);
+    url.searchParams.set('date', dateValue);
+    if (serviceId) {
+        url.searchParams.set('service_id', serviceId);
+    }
+    if (excludeInquiryId) {
+        url.searchParams.set('exclude_inquiry_id', excludeInquiryId);
+    }
+
+    try {
+        const response = await fetch(url.toString());
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            showToast(data.message || 'Unable to load available time slots.', true);
+            return;
+        }
+        if (data.is_open === false) {
+            setConfirmedTimeOptions(selectEl, [], '');
+            showToast(data.message || 'Clinic is closed on the selected date.', true);
+            return;
+        }
+        setConfirmedTimeOptions(selectEl, data.available_slots || [], selectedTime);
+    } catch (_error) {
+        showToast('Unable to load available time slots.', true);
+    }
 }
 
 let inquiryKebabDropdown = null;
@@ -1152,15 +1311,46 @@ function openEditModal(id) {
     document.getElementById('form_full_name').value = inquiry.full_name || '';
     document.getElementById('form_phone').value = inquiry.phone || inquiry.contact_info || '';
     document.getElementById('form_email').value = inquiry.email || '';
-    document.getElementById('form_service_id').value = inquiry.service_id || '';
+    setSelectValue(document.getElementById('form_service_id'), inquiry.service_id || inquiry.topic_service_id || '', inquiry.service_name || '');
     document.getElementById('form_preferred_date').value = inquiry.preferred_date || '';
     document.getElementById('form_preferred_time').value = inquiry.preferred_time || '';
-    document.getElementById('form_source').value = inquiry.source || 'Website';
+    setSelectValue(document.getElementById('form_source'), inquiry.source || 'Website');
     document.getElementById('form_urgency').value = inquiry.urgency || 'Medium';
-    document.getElementById('form_pain_level').value = inquiry.pain_level || '';
+    setSelectValue(document.getElementById('form_pain_level'), inquiry.pain_level || '');
     document.getElementById('form_status').value = inquiry.status || 'Pending';
     document.getElementById('form_concern').value = inquiry.concern || inquiry.inquiry_message || '';
+    document.getElementById('form_assigned_staff_id').value = inquiry.assigned_staff_id || '';
+    document.getElementById('form_confirmed_date').value = inquiry.confirmed_date || '';
+    setConfirmedTimeOptions(document.getElementById('form_confirmed_time'), [], inquiry.confirmed_time || '');
+    document.getElementById('form_notes').value = inquiry.notes || '';
+    loadConfirmedTimeOptions(
+        inquiry.confirmed_date || '',
+        inquiry.service_id || inquiry.topic_service_id || '',
+        document.getElementById('form_confirmed_time'),
+        inquiry.confirmed_time || '',
+        inquiry.id || ''
+    );
     openModal('formModal');
+}
+
+function setSelectValue(selectEl, value, fallbackLabel = '') {
+    if (!selectEl) return;
+    const stringValue = String(value ?? '');
+    const hasValue = Array.from(selectEl.options).some((option) => option.value === stringValue);
+    if (hasValue) {
+        selectEl.value = stringValue;
+        return;
+    }
+    if (stringValue !== '' && fallbackLabel !== '') {
+        const fallbackOption = document.createElement('option');
+        fallbackOption.value = stringValue;
+        fallbackOption.textContent = fallbackLabel;
+        fallbackOption.dataset.injected = '1';
+        selectEl.appendChild(fallbackOption);
+        selectEl.value = stringValue;
+        return;
+    }
+    selectEl.value = '';
 }
 
 function openDetailModal(id) {
@@ -1174,7 +1364,18 @@ function openDetailModal(id) {
     document.getElementById('detail_id').value = inquiry.id;
     document.getElementById('detail_status').value = inquiry.status || 'Pending';
     document.getElementById('detail_assigned_staff_id').value = inquiry.assigned_staff_id || '';
+    document.getElementById('detail_confirmed_date').value = inquiry.confirmed_date || '';
+    setConfirmedTimeOptions(document.getElementById('detail_confirmed_time'), [], inquiry.confirmed_time || '');
+    document.getElementById('detail_assigned_dentist').value = inquiry.assigned_dentist || '';
     document.getElementById('detail_notes').value = inquiry.notes || '';
+    toggleDetailScheduleFields();
+    loadConfirmedTimeOptions(
+        inquiry.confirmed_date || '',
+        inquiry.service_id || inquiry.topic_service_id || '',
+        document.getElementById('detail_confirmed_time'),
+        inquiry.confirmed_time || '',
+        inquiry.id || ''
+    );
 
     const fullName = inquiry.full_name || [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown Patient';
     document.getElementById('detailFields').innerHTML = `
@@ -1199,12 +1400,20 @@ function openDetailModal(id) {
             <div class="value">${escapeHtml(inquiry.pain_level || 'Not specified')}</div>
         </div>
         <div class="detail-field">
-            <label>Preferred Date & Time</label>
+            <label>Patient Requested Schedule</label>
             <div class="value">${escapeHtml(formatDateTime(inquiry.preferred_date, inquiry.preferred_time))}</div>
         </div>
         <div class="detail-field">
             <label>Source</label>
             <div class="value">${escapeHtml(inquiry.source || 'Website')}</div>
+        </div>
+        <div class="detail-field">
+            <label>Confirmed Appointment</label>
+            <div class="value">${escapeHtml(formatDateTime(inquiry.confirmed_date, inquiry.confirmed_time))}</div>
+        </div>
+        <div class="detail-field">
+            <label>Assigned Dentist</label>
+            <div class="value">${escapeHtml(inquiry.assigned_dentist || 'Not assigned')}</div>
         </div>
         <div class="detail-field full-span">
             <label>Notes</label>
@@ -1213,6 +1422,13 @@ function openDetailModal(id) {
     `;
 
     openModal('detailModal');
+}
+
+function toggleDetailScheduleFields() {
+    const status = document.getElementById('detail_status').value;
+    const scheduleFields = document.getElementById('detailScheduleFields');
+    const shouldShow = status === 'Scheduled' || status === 'Awaiting Confirmation';
+    scheduleFields.classList.toggle('active', shouldShow);
 }
 
 async function postAction(payload) {
@@ -1227,13 +1443,14 @@ async function refreshData() {
 }
 
 async function quickSchedule(id) {
-    const data = await postAction({ action: 'status', id, status: 'Scheduled' });
-    if (!data.success) {
-        showToast(data.message || 'Unable to mark inquiry as scheduled.', true);
+    const inquiry = inquiryMap[String(id)];
+    if (!inquiry) {
+        showToast('Unable to load inquiry details.', true);
         return;
     }
-    showToast(data.message || 'Inquiry marked as scheduled.');
-    refreshData();
+    openDetailModal(id);
+    document.getElementById('detail_status').value = 'Scheduled';
+    toggleDetailScheduleFields();
 }
 
 async function quickCancel(id) {
@@ -1275,19 +1492,83 @@ document.getElementById('detailControlForm').addEventListener('submit', async (e
         return;
     }
 
-    const responses = await Promise.all([
-        postAction({ action: 'status', id, status: document.getElementById('detail_status').value }),
-        postAction({ action: 'assign', id, assigned_staff_id: document.getElementById('detail_assigned_staff_id').value }),
-        postAction({ action: 'notes', id, notes: document.getElementById('detail_notes').value })
-    ]);
+    const status = document.getElementById('detail_status').value;
+    const payload = {
+        action: 'update_staff_schedule',
+        id,
+        status,
+        assigned_staff_id: document.getElementById('detail_assigned_staff_id').value,
+        confirmed_date: document.getElementById('detail_confirmed_date').value,
+        confirmed_time: document.getElementById('detail_confirmed_time').value,
+        assigned_dentist: document.getElementById('detail_assigned_dentist').value,
+        notes: document.getElementById('detail_notes').value
+    };
 
-    const failed = responses.find((item) => !item.success);
-    if (failed) {
-        showToast(failed.message || 'Unable to save inquiry details.', true);
+    const response = await postAction(payload);
+    if (!response.success) {
+        showToast(response.message || 'Unable to save inquiry details.', true);
         return;
     }
 
     showToast('Inquiry details updated successfully.');
+    closeModal('detailModal');
+    refreshData();
+});
+
+document.getElementById('detail_status').addEventListener('change', toggleDetailScheduleFields);
+formConfirmedDate?.addEventListener('change', () => {
+    const inquiryId = document.getElementById('form_id').value;
+    const inquiry = inquiryMap[String(inquiryId)] || {};
+    loadConfirmedTimeOptions(
+        formConfirmedDate.value,
+        inquiry.service_id || inquiry.topic_service_id || '',
+        formConfirmedTime,
+        '',
+        inquiryId
+    );
+});
+detailConfirmedDate?.addEventListener('change', () => {
+    const inquiryId = document.getElementById('detail_id').value;
+    const inquiry = inquiryMap[String(inquiryId)] || {};
+    loadConfirmedTimeOptions(
+        detailConfirmedDate.value,
+        inquiry.service_id || inquiry.topic_service_id || '',
+        detailConfirmedTime,
+        '',
+        inquiryId
+    );
+});
+
+document.getElementById('detailConvertBtn').addEventListener('click', async () => {
+    const id = document.getElementById('detail_id').value;
+    if (!id) {
+        showToast('Invalid inquiry selected.', true);
+        return;
+    }
+
+    const appointmentDate = document.getElementById('detail_confirmed_date').value;
+    const appointmentTime = document.getElementById('detail_confirmed_time').value;
+    if (!appointmentDate || !appointmentTime) {
+        showToast('Set the confirmed appointment date and time first.', true);
+        return;
+    }
+
+    const response = await postAction({
+        action: 'convert_to_appointment',
+        id,
+        appointment_date: appointmentDate,
+        appointment_time: appointmentTime,
+        assigned_staff_id: document.getElementById('detail_assigned_staff_id').value,
+        assigned_dentist: document.getElementById('detail_assigned_dentist').value,
+        notes: document.getElementById('detail_notes').value
+    });
+
+    if (!response.success) {
+        showToast(response.message || 'Unable to convert inquiry.', true);
+        return;
+    }
+
+    showToast(response.message || 'Inquiry converted successfully.');
     closeModal('detailModal');
     refreshData();
 });

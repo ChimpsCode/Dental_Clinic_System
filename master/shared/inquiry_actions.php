@@ -101,6 +101,86 @@ function resolveAppointmentStatusId(PDO $pdo, string $statusName): ?int
     return $statusId !== false ? (int)$statusId : null;
 }
 
+function inquiryTimeToMinutes(?string $timeValue): ?int
+{
+    $timeValue = trim((string)$timeValue);
+    if ($timeValue === '' || !preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $timeValue)) {
+        return null;
+    }
+
+    [$hours, $minutes] = array_map('intval', explode(':', substr($timeValue, 0, 5)));
+    return ($hours * 60) + $minutes;
+}
+
+function inquiryResolveServiceDuration(PDO $pdo, ?int $serviceId): int
+{
+    if ($serviceId === null || $serviceId <= 0) {
+        return 30;
+    }
+
+    $stmt = $pdo->prepare("SELECT duration_minutes FROM services WHERE id = ? LIMIT 1");
+    $stmt->execute([$serviceId]);
+    $duration = (int)$stmt->fetchColumn();
+    return $duration > 0 ? $duration : 30;
+}
+
+function inquiryScheduleConflictExists(PDO $pdo, string $date, string $time, ?int $serviceId, int $excludeInquiryId = 0): bool
+{
+    $targetStart = inquiryTimeToMinutes($time);
+    if ($targetStart === null) {
+        return false;
+    }
+
+    $targetEnd = $targetStart + inquiryResolveServiceDuration($pdo, $serviceId);
+
+    $apptStmt = $pdo->prepare("
+        SELECT a.appointment_time,
+               COALESCE(a.duration_minutes, s.duration_minutes, 30) AS duration_minutes
+        FROM appointments a
+        LEFT JOIN services s ON s.id = a.service_id
+        WHERE a.appointment_date = ?
+          AND COALESCE(a.is_archived, 0) = 0
+          AND LOWER(COALESCE(a.status, 'scheduled')) NOT IN ('cancelled', 'completed', 'no_show')
+    ");
+    $apptStmt->execute([$date]);
+    foreach ($apptStmt->fetchAll(PDO::FETCH_ASSOC) as $appointment) {
+        $start = inquiryTimeToMinutes((string)($appointment['appointment_time'] ?? ''));
+        if ($start === null) {
+            continue;
+        }
+        $end = $start + max(1, (int)($appointment['duration_minutes'] ?? 30));
+        if ($targetStart < $end && $targetEnd > $start) {
+            return true;
+        }
+    }
+
+    $inquiryStmt = $pdo->prepare("
+        SELECT i.confirmed_time,
+               COALESCE(s.duration_minutes, 30) AS duration_minutes
+        FROM inquiries i
+        LEFT JOIN services s ON s.id = i.service_id
+        WHERE i.confirmed_date = ?
+          AND COALESCE(i.is_archived, 0) = 0
+          AND i.confirmed_time IS NOT NULL
+          AND i.confirmed_time <> ''
+          AND i.id <> ?
+          AND LOWER(COALESCE(i.status, 'pending')) IN ('scheduled', 'awaiting confirmation', 'contacted')
+    ");
+    $inquiryStmt->execute([$date, $excludeInquiryId]);
+    foreach ($inquiryStmt->fetchAll(PDO::FETCH_ASSOC) as $existingInquiry) {
+        $start = inquiryTimeToMinutes((string)($existingInquiry['confirmed_time'] ?? ''));
+        if ($start === null) {
+            continue;
+        }
+        $end = $start + max(1, (int)($existingInquiry['duration_minutes'] ?? 30));
+        if ($targetStart < $end && $targetEnd > $start) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function fetchCurrentPatient(PDO $pdo, int $userId): ?array
 {
     $userStmt = $pdo->prepare("
@@ -510,18 +590,47 @@ if (!$inquiry) {
 }
 
 if ($action === 'update') {
-    $fullName = trim($_POST['full_name'] ?? $inquiry['resolved_full_name']);
-    $phone = trim($_POST['phone'] ?? ($inquiry['resolved_phone'] ?? ''));
-    $email = trim($_POST['email'] ?? ($inquiry['email'] ?? ''));
-    $concern = trim($_POST['concern'] ?? ($inquiry['resolved_concern'] ?? ''));
-    $serviceId = !empty($_POST['service_id']) ? (int)$_POST['service_id'] : null;
-    $preferredDate = trim($_POST['preferred_date'] ?? '') ?: null;
-    $preferredTime = trim($_POST['preferred_time'] ?? '') ?: null;
-    $painLevel = trim($_POST['pain_level'] ?? '') ?: null;
+    $fullName = trim((string)($inquiry['resolved_full_name'] ?? $inquiry['full_name'] ?? ''));
+    $phone = trim((string)($inquiry['resolved_phone'] ?? $inquiry['phone'] ?? ''));
+    $email = trim((string)($inquiry['email'] ?? ''));
+    $concern = trim((string)($inquiry['resolved_concern'] ?? $inquiry['concern'] ?? ''));
+    $serviceId = !empty($inquiry['service_id']) ? (int)$inquiry['service_id'] : (!empty($inquiry['topic_service_id']) ? (int)$inquiry['topic_service_id'] : null);
+    $preferredDate = trim((string)($inquiry['preferred_date'] ?? '')) ?: null;
+    $preferredTime = trim((string)($inquiry['preferred_time'] ?? '')) ?: null;
+    $painLevel = trim((string)($inquiry['pain_level'] ?? '')) ?: null;
     $urgency = in_array($_POST['urgency'] ?? '', ['Low', 'Medium', 'High'], true) ? $_POST['urgency'] : ($inquiry['urgency'] ?? 'Low');
+    $status = normalizeInquiryStatus($_POST['status'] ?? ($inquiry['status'] ?? 'Pending'));
+    $assignedStaffId = !empty($_POST['assigned_staff_id']) ? (int)$_POST['assigned_staff_id'] : null;
+    $confirmedDate = trim($_POST['confirmed_date'] ?? '') ?: null;
+    $confirmedTime = trim($_POST['confirmed_time'] ?? '') ?: null;
+    $notes = trim($_POST['notes'] ?? ($inquiry['notes'] ?? ''));
 
     if ($fullName === '' || $concern === '') {
         inquiryJson(['success' => false, 'message' => 'Full name and concern are required.']);
+    }
+
+    if ($status === 'Scheduled' && ($confirmedDate === null || $confirmedTime === null)) {
+        inquiryJson(['success' => false, 'message' => 'Confirmed date and time are required when status is Scheduled.']);
+    }
+
+    if ($confirmedDate !== null && $confirmedTime !== null && inquiryScheduleConflictExists($pdo, $confirmedDate, $confirmedTime, $serviceId, $id)) {
+        inquiryJson(['success' => false, 'message' => 'The selected confirmed date and time is already reserved. Please choose a different slot.']);
+    }
+
+    if ($assignedStaffId !== null) {
+        $staffStmt = $pdo->prepare("
+            SELECT 1
+            FROM users u
+            LEFT JOIN roles r ON r.id = u.role_id
+            WHERE u.id = ?
+              AND LOWER(COALESCE(r.role_name, '')) IN ('staff', 'admin', 'dentist')
+              AND COALESCE(u.status, 'Active') = 'Active'
+            LIMIT 1
+        ");
+        $staffStmt->execute([$assignedStaffId]);
+        if (!$staffStmt->fetchColumn()) {
+            inquiryJson(['success' => false, 'message' => 'Selected staff member is not available for assignment.']);
+        }
     }
 
     [$firstName, $middleName, $lastName] = splitInquiryFullName($fullName);
@@ -536,6 +645,11 @@ if ($action === 'update') {
         'preferred_time' => $preferredTime,
         'pain_level' => $painLevel,
         'urgency' => $urgency,
+        'status' => $status,
+        'assigned_staff_id' => $assignedStaffId,
+        'confirmed_date' => $confirmedDate,
+        'confirmed_time' => $confirmedTime,
+        'notes' => $notes,
         'first_name' => $firstName,
         'middle_name' => $middleName,
         'last_name' => $lastName,
@@ -544,6 +658,9 @@ if ($action === 'update') {
         'topic' => $serviceId,
         'topic_service_id' => $serviceId,
     ];
+    if (inquiryColumnExists($pdo, 'inquiries', 'status_id')) {
+        $updateData['status_id'] = resolveInquiryStatusId($pdo, $status);
+    }
     updateInquiryRecord($pdo, $id, $updateData);
 
     inquiryJson(['success' => true, 'message' => 'Inquiry updated successfully.']);
@@ -557,6 +674,55 @@ if ($action === 'status') {
     }
     updateInquiryRecord($pdo, $id, $statusUpdate);
     inquiryJson(['success' => true, 'message' => 'Status updated successfully.']);
+}
+
+if ($action === 'update_staff_schedule') {
+    $status = normalizeInquiryStatus($_POST['status'] ?? ($inquiry['status'] ?? 'Pending'));
+    $assignedStaffId = !empty($_POST['assigned_staff_id']) ? (int)$_POST['assigned_staff_id'] : null;
+    $confirmedDate = trim($_POST['confirmed_date'] ?? '') ?: null;
+    $confirmedTime = trim($_POST['confirmed_time'] ?? '') ?: null;
+    $assignedDentist = trim($_POST['assigned_dentist'] ?? '') ?: null;
+    $notes = trim($_POST['notes'] ?? '');
+
+    if ($status === 'Scheduled' && ($confirmedDate === null || $confirmedTime === null)) {
+        inquiryJson(['success' => false, 'message' => 'Confirmed appointment date and time are required when status is Scheduled.']);
+    }
+
+    $serviceId = !empty($inquiry['service_id']) ? (int)$inquiry['service_id'] : (!empty($inquiry['topic_service_id']) ? (int)$inquiry['topic_service_id'] : null);
+    if ($confirmedDate !== null && $confirmedTime !== null && inquiryScheduleConflictExists($pdo, $confirmedDate, $confirmedTime, $serviceId, $id)) {
+        inquiryJson(['success' => false, 'message' => 'The selected confirmed date and time is already reserved. Please choose a different slot.']);
+    }
+
+    if ($assignedStaffId !== null) {
+        $staffStmt = $pdo->prepare("
+            SELECT 1
+            FROM users u
+            LEFT JOIN roles r ON r.id = u.role_id
+            WHERE u.id = ?
+              AND LOWER(COALESCE(r.role_name, '')) IN ('staff', 'admin', 'dentist')
+              AND COALESCE(u.status, 'Active') = 'Active'
+            LIMIT 1
+        ");
+        $staffStmt->execute([$assignedStaffId]);
+        if (!$staffStmt->fetchColumn()) {
+            inquiryJson(['success' => false, 'message' => 'Selected staff member is not available for assignment.']);
+        }
+    }
+
+    $updateData = [
+        'status' => $status,
+        'assigned_staff_id' => $assignedStaffId,
+        'confirmed_date' => $confirmedDate,
+        'confirmed_time' => $confirmedTime,
+        'assigned_dentist' => $assignedDentist,
+        'notes' => $notes,
+    ];
+    if (inquiryColumnExists($pdo, 'inquiries', 'status_id')) {
+        $updateData['status_id'] = resolveInquiryStatusId($pdo, $status);
+    }
+
+    updateInquiryRecord($pdo, $id, $updateData);
+    inquiryJson(['success' => true, 'message' => 'Inquiry details updated successfully.']);
 }
 
 if ($action === 'assign') {
@@ -600,9 +766,17 @@ if ($action === 'delete') {
 if ($action === 'convert_to_appointment') {
     $appointmentDate = trim($_POST['appointment_date'] ?? '');
     $appointmentTime = trim($_POST['appointment_time'] ?? '');
+    $assignedStaffId = !empty($_POST['assigned_staff_id']) ? (int)$_POST['assigned_staff_id'] : null;
+    $assignedDentist = trim($_POST['assigned_dentist'] ?? '') ?: null;
+    $notes = trim($_POST['notes'] ?? '');
 
     if ($appointmentDate === '' || $appointmentTime === '') {
         inquiryJson(['success' => false, 'message' => 'Appointment date and time are required.']);
+    }
+
+    $serviceId = !empty($inquiry['service_id']) ? (int)$inquiry['service_id'] : (!empty($inquiry['topic_service_id']) ? (int)$inquiry['topic_service_id'] : null);
+    if (inquiryScheduleConflictExists($pdo, $appointmentDate, $appointmentTime, $serviceId, $id)) {
+        inquiryJson(['success' => false, 'message' => 'The selected appointment slot is already reserved. Please choose a different date or time.']);
     }
 
     if (inquiryColumnExists($pdo, 'appointments', 'inquiry_id')) {
@@ -632,10 +806,12 @@ if ($action === 'convert_to_appointment') {
         'appointment_date' => $appointmentDate,
         'appointment_time' => $appointmentTime,
         'treatment' => $inquiry['service_name'] ?: 'Consultation',
-        'notes' => trim("Converted from inquiry #{$id}. " . ($inquiry['resolved_concern'] ?? '')),
+        'notes' => trim("Converted from inquiry #{$id}. " . ($inquiry['resolved_concern'] ?? '') . ' ' . $notes),
         'status' => 'scheduled',
         'created_by' => (int)$_SESSION['user_id'],
         'is_registered_patient' => !empty($inquiry['patient_id']) ? 1 : 0,
+        'booked_by_id' => $assignedStaffId ?: (int)$_SESSION['user_id'],
+        'booking_type' => 'staff',
     ];
     $appointmentColumns = [];
     $appointmentPlaceholders = [];
@@ -670,8 +846,11 @@ if ($action === 'convert_to_appointment') {
 
     $inquiryStatusUpdate = [
         'status' => 'Scheduled',
-        'preferred_date' => $appointmentDate,
-        'preferred_time' => $appointmentTime,
+        'confirmed_date' => $appointmentDate,
+        'confirmed_time' => $appointmentTime,
+        'assigned_staff_id' => $assignedStaffId,
+        'assigned_dentist' => $assignedDentist,
+        'notes' => $notes !== '' ? $notes : ($inquiry['notes'] ?? null),
     ];
     if (inquiryColumnExists($pdo, 'inquiries', 'status_id')) {
         $inquiryStatusUpdate['status_id'] = resolveInquiryStatusId($pdo, 'Scheduled');

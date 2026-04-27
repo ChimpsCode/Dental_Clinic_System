@@ -329,6 +329,50 @@ $pageTitle = 'Inquiry / Consultation';
         .detail-block.full { grid-column: 1 / -1; }
         .detail-label { font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: 700; margin-bottom: 6px; }
         .detail-value { color: #0f172a; line-height: 1.6; }
+        .detail-section-title {
+            grid-column: 1 / -1;
+            margin: 4px 0 0;
+            padding-top: 10px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #334155;
+        }
+        .progress-tracker {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .progress-step {
+            padding: 12px 14px;
+            border: 1px solid #dbe1ea;
+            border-radius: 14px;
+            background: #f8fafc;
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 700;
+            text-align: center;
+        }
+        .progress-step.is-active,
+        .progress-step.is-complete {
+            border-color: #93c5fd;
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+        .progress-step.is-active {
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
+        }
+        .progress-step span {
+            display: block;
+            margin-top: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            color: inherit;
+            opacity: 0.82;
+        }
         @media (max-width: 1180px) {
             .top-layout { grid-template-columns: 1fr; }
         }
@@ -448,7 +492,9 @@ $pageTitle = 'Inquiry / Consultation';
                                 </div>
                                 <div class="field-group">
                                     <label class="field-label" for="preferred_time">Preferred Time</label>
-                                    <input type="time" id="preferred_time" name="preferred_time" class="field-input">
+                                    <select id="preferred_time" name="preferred_time" class="field-select">
+                                        <option value="">Select preferred time</option>
+                                    </select>
                                 </div>
                             </div>
 
@@ -591,6 +637,158 @@ $pageTitle = 'Inquiry / Consultation';
         const formAlert = document.getElementById('formAlert');
         const detailModal = document.getElementById('detailModal');
         const detailModalBody = document.getElementById('detailModalBody');
+        const serviceSelect = document.getElementById('service_id');
+        const preferredDateInput = document.getElementById('preferred_date');
+        const preferredTimeSelect = document.getElementById('preferred_time');
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[character]));
+        }
+
+        function nl2brSafe(value, fallback = 'N/A') {
+            const text = value && String(value).trim() !== '' ? value : fallback;
+            return escapeHtml(text).replace(/\n/g, '<br>');
+        }
+
+        function formatSchedule(dateValue, timeValue, fallback = 'No schedule provided') {
+            const parts = [];
+            if (dateValue) {
+                const date = new Date(`${dateValue}T00:00:00`);
+                parts.push(Number.isNaN(date.getTime()) ? dateValue : date.toLocaleDateString());
+            }
+            if (timeValue) {
+                const time = new Date(`1970-01-01T${String(timeValue).slice(0, 5)}`);
+                parts.push(Number.isNaN(time.getTime()) ? timeValue : time.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
+            }
+            return parts.length ? parts.join(' at ') : fallback;
+        }
+
+        function getProgressStages(currentStatus) {
+            const order = ['Pending', 'Contacted', 'Scheduled', 'Completed'];
+            const normalizedStatus = String(currentStatus || 'Pending');
+            let activeIndex = order.indexOf(normalizedStatus);
+            if (normalizedStatus === 'Awaiting Confirmation') activeIndex = 1;
+            if (normalizedStatus === 'Cancelled') activeIndex = 0;
+            if (activeIndex < 0) activeIndex = 0;
+            return order.map((stage, index) => {
+                let className = 'progress-step';
+                if (index < activeIndex) className += ' is-complete';
+                if (index === activeIndex) className += ' is-active';
+                return `<div class="${className}">${escapeHtml(stage)}<span>${index < activeIndex ? 'Completed' : index === activeIndex ? 'Current stage' : 'Pending'}</span></div>`;
+            }).join('');
+        }
+
+        function getClinicUpdate(inquiry, confirmedSchedule) {
+            const status = String(inquiry.status || 'Pending');
+            if (status === 'Completed') {
+                return 'Your inquiry has been completed by the clinic.';
+            }
+            if (status === 'Scheduled' && inquiry.confirmed_date && inquiry.confirmed_time) {
+                return `Your consultation has been scheduled for ${confirmedSchedule}.`;
+            }
+            if (status === 'Awaiting Confirmation' && inquiry.confirmed_date && inquiry.confirmed_time) {
+                return `Your requested consultation slot is being finalized for ${confirmedSchedule}.`;
+            }
+            if (status === 'Contacted') {
+                return 'The clinic has reviewed your inquiry and will contact you soon.';
+            }
+            if (status === 'Cancelled') {
+                return 'This inquiry is currently marked as cancelled. Please contact the clinic if you need further assistance.';
+            }
+            return 'Your inquiry has been received and is awaiting clinic confirmation.';
+        }
+
+        function formatSlotTimeLabel(timeValue) {
+            if (!timeValue) return '';
+            const normalized = String(timeValue).slice(0, 5);
+            const date = new Date(`1970-01-01T${normalized}`);
+            return Number.isNaN(date.getTime())
+                ? normalized
+                : date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        }
+
+        function getBaseInquirySlots() {
+            const slots = [];
+            let totalMinutes = 9 * 60;
+            const endMinutes = (16 * 60) + 30;
+            while (totalMinutes <= endMinutes) {
+                const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+                const minutes = String(totalMinutes % 60).padStart(2, '0');
+                slots.push(`${hours}:${minutes}`);
+                totalMinutes += 30;
+            }
+            return slots;
+        }
+
+        function setPreferredTimeOptions(slots, selectedValue = '', placeholder = 'Select preferred time') {
+            const normalizedSelected = String(selectedValue || '').slice(0, 5);
+            preferredTimeSelect.innerHTML = `<option value="">${placeholder}</option>`;
+            (slots || []).forEach((slot) => {
+                const normalized = String(slot || '').slice(0, 5);
+                if (!normalized) return;
+                const option = document.createElement('option');
+                option.value = normalized;
+                option.textContent = formatSlotTimeLabel(normalized);
+                preferredTimeSelect.appendChild(option);
+            });
+            if (normalizedSelected) {
+                preferredTimeSelect.value = normalizedSelected;
+            }
+        }
+
+        async function loadPreferredTimeSlots() {
+            const dateValue = preferredDateInput.value;
+            const serviceId = serviceSelect.value;
+            preferredTimeSelect.disabled = false;
+
+            if (!dateValue) {
+                setPreferredTimeOptions(getBaseInquirySlots(), '', 'Select preferred time');
+                return;
+            }
+
+            setPreferredTimeOptions([], '', 'Loading available slots...');
+
+            try {
+                const url = new URL('./get_slots.php', window.location.href);
+                url.searchParams.set('date', dateValue);
+                if (serviceId) {
+                    url.searchParams.set('service_id', serviceId);
+                }
+
+                const response = await fetch(url.toString());
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    setPreferredTimeOptions([], '', 'No available slots');
+                    showFormAlert('error', data.message || 'Unable to load preferred time slots.');
+                    return;
+                }
+
+                if (data.is_open === false) {
+                    setPreferredTimeOptions([], '', 'Clinic closed on selected date');
+                    showFormAlert('error', data.message || 'Clinic is closed on the selected date.');
+                    return;
+                }
+
+                const slots = data.available_slots || [];
+                if (!slots.length) {
+                    setPreferredTimeOptions([], '', 'No available slots');
+                    showFormAlert('error', 'No available preferred time slots for the selected date.');
+                    return;
+                }
+
+                preferredTimeSelect.disabled = false;
+                setPreferredTimeOptions(slots);
+            } catch (_error) {
+                setPreferredTimeOptions([], '', 'No available slots');
+                showFormAlert('error', 'Unable to load preferred time slots.');
+            }
+        }
 
         function showFormAlert(type, message) {
             formAlert.className = `alert show ${type}`;
@@ -622,12 +820,18 @@ $pageTitle = 'Inquiry / Consultation';
 
                 form.reset();
                 document.getElementById('urgency').value = 'Medium';
+                preferredTimeSelect.disabled = false;
+                setPreferredTimeOptions(getBaseInquirySlots(), '', 'Select preferred time');
                 showFormAlert('success', data.message || 'Inquiry submitted successfully.');
                 setTimeout(() => window.location.reload(), 700);
             } catch (error) {
                 showFormAlert('error', 'Something went wrong while submitting your inquiry.');
             }
         });
+
+        setPreferredTimeOptions(getBaseInquirySlots(), '', 'Select preferred time');
+        preferredDateInput.addEventListener('change', loadPreferredTimeSlots);
+        serviceSelect.addEventListener('change', loadPreferredTimeSlots);
 
         async function openDetailModal(id) {
             detailModalBody.innerHTML = '<div class="detail-block full"><div class="detail-value">Loading details...</div></div>';
@@ -642,12 +846,23 @@ $pageTitle = 'Inquiry / Consultation';
                 }
 
                 const inquiry = data.inquiry;
-                const schedule = [
-                    inquiry.preferred_date ? new Date(inquiry.preferred_date).toLocaleDateString() : '',
-                    inquiry.preferred_time ? new Date(`1970-01-01T${inquiry.preferred_time}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''
-                ].filter(Boolean).join(' at ') || 'No preferred schedule';
+                const requestedSchedule = formatSchedule(inquiry.preferred_date, inquiry.preferred_time, 'No preferred schedule');
+                const confirmedSchedule = (inquiry.confirmed_date && inquiry.confirmed_time)
+                    ? formatSchedule(inquiry.confirmed_date, inquiry.confirmed_time, 'Awaiting clinic confirmation')
+                    : 'Awaiting clinic confirmation';
+                const assignedName = [
+                    inquiry.assigned_first_name,
+                    inquiry.assigned_last_name
+                ].filter(Boolean).join(' ').trim() || inquiry.assigned_username || inquiry.assigned_dentist || '';
+                const referenceNumber = inquiry.reference_code || inquiry.reference_number || `INQ-${String(inquiry.id).padStart(5, '0')}`;
+                const concernHtml = nl2brSafe(inquiry.resolved_concern || inquiry.concern || '', 'No concern provided.');
+                const clinicUpdate = getClinicUpdate(inquiry, confirmedSchedule);
 
                 detailModalBody.innerHTML = `
+                    <div class="detail-section-title">Inquiry Progress</div>
+                    <div class="progress-tracker">
+                        ${getProgressStages(inquiry.status)}
+                    </div>
                     <div class="detail-block">
                         <div class="detail-label">Date Submitted</div>
                         <div class="detail-value">${new Date(inquiry.created_at).toLocaleString()}</div>
@@ -658,27 +873,41 @@ $pageTitle = 'Inquiry / Consultation';
                     </div>
                     <div class="detail-block">
                         <div class="detail-label">Service</div>
-                        <div class="detail-value">${inquiry.service_name || 'General Consultation'}</div>
+                        <div class="detail-value">${escapeHtml(inquiry.service_name || 'General Consultation')}</div>
                     </div>
                     <div class="detail-block">
-                        <div class="detail-label">Preferred Schedule</div>
-                        <div class="detail-value">${schedule}</div>
+                        <div class="detail-label">Inquiry Reference Number</div>
+                        <div class="detail-value">${escapeHtml(referenceNumber)}</div>
                     </div>
                     <div class="detail-block">
                         <div class="detail-label">Pain Level</div>
-                        <div class="detail-value">${inquiry.pain_level || 'Not specified'}</div>
+                        <div class="detail-value">${escapeHtml(inquiry.pain_level || 'Not specified')}</div>
                     </div>
                     <div class="detail-block">
                         <div class="detail-label">Urgency</div>
-                        <div class="detail-value">${inquiry.urgency || 'Low'}</div>
+                        <div class="detail-value">${escapeHtml(inquiry.urgency || 'Low')}</div>
+                    </div>
+                    <div class="detail-block">
+                        <div class="detail-label">Assigned Staff / Dentist</div>
+                        <div class="detail-value">${escapeHtml(assignedName || 'Not yet assigned')}</div>
+                    </div>
+                    <div class="detail-section-title">Your Request</div>
+                    <div class="detail-block full">
+                        <div class="detail-label">Requested Schedule</div>
+                        <div class="detail-value">${escapeHtml(requestedSchedule)}</div>
+                    </div>
+                    <div class="detail-section-title">Clinic Confirmation</div>
+                    <div class="detail-block full">
+                        <div class="detail-label">Confirmed Schedule</div>
+                        <div class="detail-value">${escapeHtml(confirmedSchedule)}</div>
                     </div>
                     <div class="detail-block full">
                         <div class="detail-label">Concern / Message</div>
-                        <div class="detail-value">${(inquiry.resolved_concern || inquiry.concern || '').replace(/\n/g, '<br>') || 'No concern provided.'}</div>
+                        <div class="detail-value">${concernHtml}</div>
                     </div>
                     <div class="detail-block full">
-                        <div class="detail-label">Internal Notes</div>
-                        <div class="detail-value">${inquiry.notes ? inquiry.notes.replace(/\n/g, '<br>') : 'No internal notes yet.'}</div>
+                        <div class="detail-label">Clinic Update</div>
+                        <div class="detail-value">${escapeHtml(clinicUpdate)}</div>
                     </div>
                 `;
             } catch (error) {
