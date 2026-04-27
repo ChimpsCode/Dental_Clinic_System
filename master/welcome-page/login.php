@@ -395,9 +395,9 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
                 logAudit($pdo, $user['id'], $user['username'], $role, 'login', 'users', 'Successful login from ' . ($_SERVER['HTTP_USER_AGENT'] ? 'web browser' : 'unknown device'));
             }
             
-            // Update last_active timestamp
-            $upd = $pdo->prepare("UPDATE users SET last_active = NOW() WHERE id = ?");
-            $upd->execute([$user['id']]);
+             // Update last_active timestamp and clear last_logout when user logs in, mark as logged in
+             $upd = $pdo->prepare("UPDATE users SET last_active = UTC_TIMESTAMP(), last_logout = NULL, is_logged_in = 1 WHERE id = ?");
+             $upd->execute([$user['id']]);
             
             // Redirect based on role
             if ($role === 'admin') {

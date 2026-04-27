@@ -16,7 +16,7 @@ try {
     // If role_id is NULL, treat as Patient
     $stmt = $pdo->query("
         SELECT u.id, u.username, u.first_name, u.middle_name, u.last_name, u.email, u.status, u.is_archived,
-               u.role_id, u.last_active,
+               u.role_id, u.last_active, u.last_logout, u.is_logged_in,
                CASE 
                    WHEN u.role_id IS NULL THEN 'Patient'
                    ELSE r.role_name
@@ -96,11 +96,20 @@ try {
                                 <td><span class="role-badge <?php echo strtolower($user['role_name'] ?? ''); ?>"><?php echo htmlspecialchars($user['role_name'] ?? 'N/A'); ?></span></td>
                                 <td><span class="status-badge <?php echo strtolower($user['status']); ?>"><?php 
                                     $lastActive = $user['last_active'] ?? null;
-                                    if ($lastActive) {
-                                        // Output placeholder for JS to update
-                                        ?><span class="user-status" data-last-active="<?php echo htmlspecialchars($lastActive); ?>">checking...</span><?php
+                                    $lastLogout = $user['last_logout'] ?? null;
+                                    $isLoggedIn = $user['is_logged_in'] ?? null;
+                                    
+                                    if ($isLoggedIn == 1 || ($isLoggedIn === null && $lastActive !== null && $lastLogout === null)) {
+                                        // User is logged in (is_logged_in = 1) OR legacy user (is_logged_in = NULL but has last_active and no last_logout)
+                                        ?><span class="user-status" data-logged-in="true">Active</span><?php
+                                    } elseif ($lastLogout !== null) {
+                                        // User logged out, show time since logout
+                                        ?><span class="user-status" data-last-logout="<?php echo htmlspecialchars($lastLogout); ?>">checking...</span><?php
+                                    } elseif ($lastActive !== null) {
+                                        // Has logged in before but not currently logged in, use last_active as fallback
+                                        ?><span class="user-status" data-last-logout="<?php echo htmlspecialchars($lastActive); ?>">checking...</span><?php
                                     } else {
-                                        // No last_active - show as offline with styling
+                                        // Never logged in
                                         ?><span style="color:#dc2626;font-weight:bold;">Offline</span><?php
                                     }
                                     ?></span></td>
@@ -213,46 +222,50 @@ try {
                     }
                 </style>
 
-                <script>
+<script>
                 document.addEventListener('DOMContentLoaded', function() {
-                    // Get timezone offset between browser and server
-                    const serverTime = new Date("<?php echo date('Y-m-d H:i:s'); ?>");
-                    const clientTime = new Date();
-                    const timeOffset = (serverTime - clientTime) / 60000; // offset in minutes
-                    
                     function getTimeAgo(timestamp) {
                         if (!timestamp) return '';
-                        const serverTs = new Date(timestamp);
+                        const [datePart, timePart] = timestamp.split(' ');
+                        const [year, month, day] = datePart.split('-');
+                        const [hour, minute, second] = timePart.split(':');
+                        const serverTs = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
                         const now = new Date();
-                        const adjustedNow = new Date(now.getTime() + timeOffset * 60000);
-                        const diffMs = adjustedNow - serverTs;
+                        const diffMs = now - serverTs;
                         const diffSec = Math.floor(diffMs / 1000);
                         const diffMin = Math.floor(diffSec / 60);
                         const diffHour = Math.floor(diffMin / 60);
                         const diffDay = Math.floor(diffHour / 24);
+                        const diffWeek = Math.floor(diffDay / 7);
+                        const diffMonth = Math.floor(diffDay / 30);
                         if (diffSec < 60) return 'just now';
                         if (diffMin < 60) return diffMin + 'm ago';
                         if (diffHour < 24) return diffHour + 'h ago';
                         if (diffDay < 7) return diffDay + 'd ago';
-                        return Math.floor(diffDay / 365) + 'y ago';
+                        if (diffWeek < 4) return diffWeek + 'w ago';
+                        if (diffMonth < 12 && diffWeek >= 4) {
+                            return diffMonth + ' month' + (diffMonth === 1 ? '' : 's') + ' ago';
+                        }
+                        return 'long time ago';
                     }
-                    
+
                     function updateStatuses() {
-                        document.querySelectorAll('.user-status[data-last-active]').forEach(function(el) {
-                            const lastActive = el.dataset.lastActive;
-                            if (lastActive) {
-                                const ago = getTimeAgo(lastActive);
-                                if (ago === 'just now' || ago.endsWith('m ago')) {
-                                    el.textContent = 'Active';
-                                    el.style.color = '#065f46';
-                                } else {
-                                    el.textContent = ago;
-                                    el.style.color = '#6b7280';
-                                }
+                        // Handle logged in users (green Active)
+                        document.querySelectorAll('.user-status[data-logged-in]').forEach(function(el) {
+                            el.textContent = 'Active';
+                            el.style.color = '#065f46';
+                        });
+                        
+                        // Handle logged out users with time since logout
+                        document.querySelectorAll('.user-status[data-last-logout]').forEach(function(el) {
+                            const lastLogout = el.dataset.lastLogout;
+                            if (lastLogout) {
+                                el.textContent = getTimeAgo(lastLogout);
+                                el.style.color = '#6b7280';
                             }
                         });
                     }
-                    
+
                     updateStatuses();
                     setInterval(updateStatuses, 30000);
                 });

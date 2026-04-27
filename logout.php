@@ -12,7 +12,9 @@ if (isset($_SESSION['user_id'])) {
     require_once 'includes/audit_helper.php';
     logAudit($pdo, $user_id, $username, $role, 'logout', 'users', 'User logged out');
     
-    // last_active keeps the timestamp so it shows when they were last online
+    // Set last_logout timestamp to track when userlogged out, mark as logged out
+    $stmt = $pdo->prepare("UPDATE users SET last_logout = UTC_TIMESTAMP(), is_logged_in = 0 WHERE id = ?");
+    $stmt->execute([$user_id]);
 }
 
 session_destroy();
