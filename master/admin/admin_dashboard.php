@@ -12,7 +12,6 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
 // Dashboard statistics
-$totalUsers = 15;
 $totalPatients = 0;
 $totalAppointments = 0;
 $totalRevenue = 0;
@@ -32,22 +31,28 @@ $startStr = $startDate->format('Y-m-d');
 $endStr = $endDate->format('Y-m-d');
 
 try {
-    $totalPatients = (int)($pdo->query("SELECT COUNT(*) FROM patients")->fetchColumn() ?? 0);
+    // Total Patients (only active, not archived)
+    $totalPatients = (int)($pdo->query("SELECT COUNT(*) FROM patients WHERE is_archived = 0")->fetchColumn() ?? 0);
+    
+    // Total Appointments (all appointments)
     $totalAppointments = (int)($pdo->query("SELECT COUNT(*) FROM appointments")->fetchColumn() ?? 0);
-
-    $totalRevenue = (float)($pdo->query("SELECT COALESCE(SUM(amount), 0) FROM payments")->fetchColumn() ?? 0);
-
+    
+    // Total Revenue - sum of all paid amounts from billing
+    $totalRevenue = (float)($pdo->query("SELECT COALESCE(SUM(paid_amount), 0) FROM billing")->fetchColumn() ?? 0);
+    
+    // Pending Payments - billing records with outstanding balance
     $pendingPayments = (int)($pdo->query("
         SELECT COUNT(*)
         FROM billing
-        WHERE payment_status IN ('pending', 'unpaid', 'partial')
-           OR (balance IS NOT NULL AND balance > 0)
+        WHERE payment_status NOT IN ('paid', 'Paid')
+           AND (balance IS NOT NULL AND balance > 0)
     ")->fetchColumn() ?? 0);
-
+    
+    // Completed Today - queue items marked as completed today
     $completedToday = (int)($pdo->query("
         SELECT COUNT(*)
         FROM queue
-        WHERE status_id = 4
+        WHERE status_id = 3
           AND DATE(completed_at) = CURDATE()
     ")->fetchColumn() ?? 0);
 
@@ -139,8 +144,19 @@ try {
     $topServices = [];
     $liveQueue = [];
     $todayAppointments = [];
-    // Debug: log error
     error_log("Admin Dashboard Error: " . $e->getMessage());
+}
+
+// Get total collected today
+try {
+    $totalCollected = (float)($pdo->query("
+        SELECT COALESCE(SUM(paid_amount), 0) 
+        FROM billing 
+        WHERE DATE(billing_date) = CURDATE() 
+          AND payment_status NOT IN ('unpaid', 'pending')
+    ")->fetchColumn() ?? 0);
+} catch (Exception $e) {
+    $totalCollected = 0;
 }
 ?>
 
@@ -163,7 +179,7 @@ try {
                             <p>Appointments</p>
                         </div>
                     </div>
-                    
+
                     <div class="summary-card">
                         <div class="summary-icon green">💰</div>
                         <div class="summary-info">
@@ -171,10 +187,7 @@ try {
                             <p>Total Revenue</p>
                         </div>
                     </div>
-                </div>
-
-                <!-- Quick Stats Row -->
-                <div class="summary-cards">
+                    
                     <div class="summary-card">
                         <div class="summary-icon yellow">⏳</div>
                         <div class="summary-info">
@@ -190,15 +203,16 @@ try {
                             <p>Completed Today</p>
                         </div>
                     </div>
-
+                    
                     <div class="summary-card">
                         <div class="summary-icon blue">💵</div>
                         <div class="summary-info">
-                            <h3>₱<?php echo number_format($totalRevenue); ?></h3>
-                            <p>Total Collected</p>
+                            <h3>₱<?php echo number_format($totalCollected); ?></h3>
+                            <p>Collected Today</p>
                         </div>
                     </div>
                 </div>
+
 
                 <!-- Revenue Overview & Live Queue Side by Side -->
                 <div class="dashboard-row" style="display: flex; flex-direction: row; gap: 20px; width: 100%;">
