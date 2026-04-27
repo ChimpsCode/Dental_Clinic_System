@@ -34,6 +34,23 @@ function tableHasColumn(PDO $pdo, string $table, string $column): bool {
     return $cache[$key];
 }
 
+function updateUserSessionColumns(PDO $pdo, int $userId, array $columnAssignments): void {
+    $updates = [];
+
+    foreach ($columnAssignments as $column => $expression) {
+        if (tableHasColumn($pdo, 'users', $column)) {
+            $updates[] = $column . ' = ' . $expression;
+        }
+    }
+
+    if (empty($updates)) {
+        return;
+    }
+
+    $stmt = $pdo->prepare("UPDATE users SET " . implode(', ', $updates) . " WHERE id = ? LIMIT 1");
+    $stmt->execute([$userId]);
+}
+
 function verifyAndUpgradePassword($pdo, array $user, string $inputPassword): bool {
     $storedPassword = (string)($user['password'] ?? '');
     if ($storedPassword === '') {
@@ -395,9 +412,16 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
                 logAudit($pdo, $user['id'], $user['username'], $role, 'login', 'users', 'Successful login from ' . ($_SERVER['HTTP_USER_AGENT'] ? 'web browser' : 'unknown device'));
             }
             
-             // Update last_active timestamp and clear last_logout when user logs in, mark as logged in
-             $upd = $pdo->prepare("UPDATE users SET last_active = UTC_TIMESTAMP(), last_logout = NULL, is_logged_in = 1 WHERE id = ?");
-             $upd->execute([$user['id']]);
+            // Update optional session-tracking columns only when they exist in this schema.
+            try {
+                updateUserSessionColumns($pdo, (int)$user['id'], [
+                    'last_active' => 'UTC_TIMESTAMP()',
+                    'last_logout' => 'NULL',
+                    'is_logged_in' => '1',
+                ]);
+            } catch (Exception $e) {
+                // Do not block login when optional tracking columns are missing.
+            }
             
             // Redirect based on role
             if ($role === 'admin') {
