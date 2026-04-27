@@ -15,8 +15,8 @@
 session_start();
 header('Content-Type: application/json');
 
-// Check admin access
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+// Check admin access - accept admin or dentist role
+if (!isset($_SESSION['user_id']) || (strtolower($_SESSION['role']) !== 'admin' && strtolower($_SESSION['role']) !== 'dentist')) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
     exit;
 }
@@ -139,7 +139,7 @@ function handleGetArchivedAppointments($pdo, $page, $limit, $offset, $search, $d
     
     // Search by patient name
     if (!empty($search)) {
-        $where .= " AND (a.first_name LIKE ? OR a.last_name LIKE ? OR CONCAT(a.first_name, ' ', a.last_name) LIKE ?)";
+        $where .= " AND (p.first_name LIKE ? OR p.last_name LIKE ? OR CONCAT(p.first_name, ' ', p.last_name) LIKE ?)";
         $searchParam = "%$search%";
         $params[] = $searchParam;
         $params[] = $searchParam;
@@ -158,24 +158,19 @@ function handleGetArchivedAppointments($pdo, $page, $limit, $offset, $search, $d
     }
     
     // Get total count
-    $countSql = "SELECT COUNT(*) FROM appointments a WHERE $where";
+    $countSql = "SELECT COUNT(*) FROM appointments a LEFT JOIN patients p ON a.patient_id = p.id WHERE $where";
     $countStmt = $pdo->prepare($countSql);
     $countStmt->execute($params);
     $total = $countStmt->fetchColumn();
     
     // Get records with patient info
     $sql = "SELECT a.*, 
-            CONCAT(a.first_name, ' ', IFNULL(a.middle_name, ''), ' ', a.last_name) as patient_name,
-            a.appointment_date,
-            a.appointment_time,
-            a.treatment,
-            a.status,
-            a.deleted_at,
+            CONCAT(p.first_name, ' ', IFNULL(p.middle_name, ''), ' ', p.last_name) as patient_name,
             p.phone as patient_phone
             FROM appointments a
             LEFT JOIN patients p ON a.patient_id = p.id
             WHERE $where
-            ORDER BY a.deleted_at DESC
+            ORDER BY a.is_archived DESC, a.id DESC
             LIMIT $limit OFFSET $offset";
     
     $stmt = $pdo->prepare($sql);

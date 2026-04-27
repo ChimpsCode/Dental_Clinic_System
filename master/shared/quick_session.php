@@ -51,20 +51,20 @@ if (!$patientId) {
 }
 
 try {
-    // Get patient details
-    $stmt = $pdo->prepare("SELECT * FROM patients WHERE id = ?");
-    $stmt->execute([$patientId]);
-    $patient = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$patient) {
-        header('Location: ' . $patientListPage);
-        exit;
-    }
-} catch (Exception $e) {
-    $patient = null;
-    header('Location: ' . $patientListPage);
-    exit;
-}
+     // Get patient details with calculated age
+     $stmt = $pdo->prepare("SELECT *, TIMESTAMPDIFF(YEAR, date_of_birth, CURDATE()) AS age FROM patients WHERE id = ?");
+     $stmt->execute([$patientId]);
+     $patient = $stmt->fetch(PDO::FETCH_ASSOC);
+     
+     if (!$patient) {
+         header('Location: ' . $patientListPage);
+         exit;
+     }
+ } catch (Exception $e) {
+     $patient = null;
+     header('Location: ' . $patientListPage);
+     exit;
+ }
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -504,7 +504,11 @@ try {
 
         <!-- Page Header -->
         <div class="page-header">
-            <h2>New Session - <?php echo htmlspecialchars($patientFullName ?: 'Patient'); ?></h2>
+            <h2>New Session - <?php echo htmlspecialchars($patientFullName ?: 'Patient'); ?> 
+                <span style="font-size: 0.9em; color: #64748b; font-weight: normal;">
+                    (<?php echo $patient['age'] ?? 'N/A'; ?> years old)
+                </span>
+            </h2>
             <p class="page-subtitle">Quick queue entry for returning patient</p>
         </div>
 

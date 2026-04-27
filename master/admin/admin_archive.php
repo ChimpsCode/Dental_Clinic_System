@@ -23,7 +23,7 @@ require_once __DIR__ . '/../../config/database.php';
 
 // Check if archive columns exist
 $archiveReady = true;
-$tables = ['patients', 'appointments', 'queue', 'treatment_plans', 'services', 'inquiries', 'users'];
+$tables = ['patients', 'users'];
 
 foreach ($tables as $table) {
     $checkColumn = $pdo->query("SHOW COLUMNS FROM $table LIKE 'is_archived'");
@@ -36,11 +36,6 @@ foreach ($tables as $table) {
 // Get archived counts if ready
 $archivedCounts = [
     'patients' => 0,
-    'appointments' => 0,
-    'queue' => 0,
-    'treatment_plans' => 0,
-    'services' => 0,
-    'inquiries' => 0,
     'users' => 0
 ];
 
@@ -286,10 +281,10 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* Summary Cards - 7 columns */
+/* Summary Cards - 2 columns */
 .summary-cards.archive-stats {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: 1fr 1fr;
     gap: 12px;
     margin-bottom: 0px;
 }
@@ -300,7 +295,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
     border-radius: 12px;
     border: 1px solid #e5e7eb;
     text-align: center;
-    transition: all 0.2s;
+    transition: all .2s;
 }
 
 .summary-card.archive-card:hover {
@@ -320,11 +315,6 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
 /* Color coding for each module */
 .summary-card.patients .count { color: #667eea; }
-.summary-card.appointments .count { color: #f093fb; }
-.summary-card.queue .count { color: #4facfe; }
-.summary-card.treatment_plans .count { color: #43e97b; }
-.summary-card.services .count { color: #fa709a; }
-.summary-card.inquiries .count { color: #30cfd0; }
 .summary-card.users .count { color: #a8edea; }
 
 /* Responsive */
@@ -440,12 +430,12 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         <p><strong>Steps:</strong></p>
         <ol style="color: #78350f; margin-bottom: 15px;">
             <li>Open phpMyAdmin</li>
-            <li>Select <code>dental_management</code> database</li>
+            <li>Select <code>master_rf</code> database</li>
             <li>Go to SQL tab</li>
             <li>Paste contents of <code>config/add_archive_columns.sql</code></li>
             <li>Click "Go"</li>
         </ol>
-        <p style="margin-bottom: 0;">Or run via MySQL CLI: <code>mysql -u root -p dental_management &lt; config/add_archive_columns.sql</code></p>
+        <p style="margin-bottom: 0;">Or run via MySQL CLI: <code>mysql -u root -p master_rf &lt; config/add_archive_columns.sql</code></p>
     </div>
     <?php endif; ?>
 
@@ -454,26 +444,6 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         <div class="summary-card archive-card patients">
             <div class="count"><?php echo $archivedCounts['patients']; ?></div>
             <div class="label">Patient Records</div>
-        </div>
-        <div class="summary-card archive-card appointments">
-            <div class="count"><?php echo $archivedCounts['appointments']; ?></div>
-            <div class="label">Appointments</div>
-        </div>
-        <div class="summary-card archive-card queue">
-            <div class="count"><?php echo $archivedCounts['queue']; ?></div>
-            <div class="label">Queue Management</div>
-        </div>
-        <div class="summary-card archive-card treatment_plans">
-            <div class="count"><?php echo $archivedCounts['treatment_plans']; ?></div>
-            <div class="label">Treatment Plans</div>
-        </div>
-        <div class="summary-card archive-card services">
-            <div class="count"><?php echo $archivedCounts['services']; ?></div>
-            <div class="label">Services/Procedures</div>
-        </div>
-        <div class="summary-card archive-card inquiries">
-            <div class="count"><?php echo $archivedCounts['inquiries']; ?></div>
-            <div class="label">Inquiries</div>
         </div>
         <div class="summary-card archive-card users">
             <div class="count"><?php echo $archivedCounts['users']; ?></div>
@@ -485,21 +455,6 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
     <div class="tab-navigation">
         <button class="tab-btn active" data-tab="patients" onclick="switchTab('patients')">
             Patient Records
-        </button>
-        <button class="tab-btn" data-tab="appointments" onclick="switchTab('appointments')">
-            Appointments
-        </button>
-        <button class="tab-btn" data-tab="queue" onclick="switchTab('queue')">
-            Queue Management
-        </button>
-        <button class="tab-btn" data-tab="treatment_plans" onclick="switchTab('treatment_plans')">
-            Treatment Plans
-        </button>
-        <button class="tab-btn" data-tab="services" onclick="switchTab('services')">
-            Services/Procedures
-        </button>
-        <button class="tab-btn" data-tab="inquiries" onclick="switchTab('inquiries')">
-            Inquiries
         </button>
         <button class="tab-btn" data-tab="users" onclick="switchTab('users')">
             Dentist/Doctor Records
@@ -569,158 +524,22 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         <?php endif; ?>
     </div>
 
-    <!-- APPOINTMENTS TAB -->
-    <div id="appointments-content" class="tab-content">
-        <?php if (!$archiveReady): ?>
-        <div style="text-align: center; padding: 60px; color: #6b7280;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 20px; opacity: 0.5;">
-                <path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5z"/>
-            </svg>
-            <h3 style="margin-bottom: 10px;">Archive Not Configured</h3>
-            <p>Please run the database migration to enable archive functionality.</p>
-        </div>
-        <?php else: ?>
-        <!-- Search & Filters -->
-        <div class="search-filters" style="margin-bottom: 16px;">
-            <input type="text" id="appointments-search" placeholder="Search by patient name..." class="search-input" style="min-width: 300px;">
-            <input type="date" id="appointments-dateFrom" class="filter-select" title="Appointment Date From">
-            <input type="date" id="appointments-dateTo" class="filter-select" title="Appointment Date To">
-            <button class="btn-filter" onclick="loadArchivedAppointments(1)">Filter</button>
-            <button class="btn-reset" onclick="resetFilters('appointments')">Reset</button>
-        </div>
-
-        <!-- Bulk Actions -->
-        <div class="bulk-actions">
-            <button id="bulk-restore-appointments" class="btn-restore" onclick="bulkAction('appointments', 'restore')" disabled>
-                Restore Selected
-            </button>
-            <button id="bulk-delete-appointments" class="btn-delete-forever" onclick="bulkAction('appointments', 'delete_forever')" disabled>
-                Delete Forever
-            </button>
-        </div>
-
-        <!-- Table -->
-        <div class="table-container">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th style="width: 40px; text-align: center;">
-                            <input type="checkbox" id="select-all-appointments" onchange="toggleSelectAll('appointments', this.checked)">
-                        </th>
-                        <th>Patient</th>
-                        <th>Appointment Date & Time</th>
-                        <th>Service</th>
-                        <th>Status</th>
-                        <th>Archived Date</th>
-                        <th style="width: 200px; text-align: center;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="appointments-table-body">
-                    <tr>
-                        <td colspan="7" style="text-align: center; padding: 60px; color: #6b7280;">
-                            Loading archived appointments...
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Pagination -->
-        <div class="pagination" id="appointments-pagination"></div>
-        <?php endif; ?>
-    </div>
-
-    <!-- QUEUE TAB (Placeholder) -->
-    <div id="queue-content" class="tab-content">
-        <div style="text-align: center; padding: 60px; color: #6b7280;">
-            <h3>Queue Management Archive</h3>
-            <p>This feature will be implemented in Phase 3.</p>
-        </div>
-    </div>
-
-    <!-- TREATMENT PLANS TAB (Placeholder) -->
-    <div id="treatment_plans-content" class="tab-content">
-        <div style="text-align: center; padding: 60px; color: #6b7280;">
-            <h3>Treatment Plans Archive</h3>
-            <p>This feature will be implemented in Phase 4.</p>
-        </div>
-    </div>
-
-    <!-- SERVICES TAB (Placeholder) -->
-    <div id="services-content" class="tab-content">
-        <div style="text-align: center; padding: 60px; color: #6b7280;">
-            <h3>Services/Procedures Archive</h3>
-            <p>This feature will be implemented in Phase 5.</p>
-        </div>
-    </div>
-
-    <!-- INQUIRIES TAB -->
-    <div id="inquiries-content" class="tab-content">
-        <?php if (!$archiveReady): ?>
-        <div style="text-align: center; padding: 60px; color: #6b7280;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 20px; opacity: 0.5;">
-                <path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5z"/>
-            </svg>
-            <h3 style="margin-bottom: 10px;">Archive Not Configured</h3>
-            <p>Please run the database migration to enable archive functionality.</p>
-        </div>
-        <?php else: ?>
-        <!-- Search & Filters -->
-        <div class="search-filters" style="margin-bottom: 16px;">
-            <input type="text" id="inquiries-search" placeholder="Search by name..." class="search-input" style="min-width: 300px;">
-            <input type="date" id="inquiries-dateFrom" class="filter-select" title="Submission Date From">
-            <input type="date" id="inquiries-dateTo" class="filter-select" title="Submission Date To">
-            <button class="btn-filter" onclick="loadArchivedInquiries(1)">Filter</button>
-            <button class="btn-reset" onclick="resetFilters('inquiries')">Reset</button>
-        </div>
-
-        <!-- Bulk Actions -->
-        <div class="bulk-actions">
-            <button id="bulk-restore-inquiries" class="btn-restore" onclick="bulkAction('inquiries', 'restore')" disabled>
-                Restore Selected
-            </button>
-            <button id="bulk-delete-inquiries" class="btn-delete-forever" onclick="bulkAction('inquiries', 'delete_forever')" disabled>
-                Delete Forever
-            </button>
-        </div>
-
-        <!-- Table -->
-        <div class="table-container">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th style="width: 40px; text-align: center;">
-                            <input type="checkbox" id="select-all-inquiries" onchange="toggleSelectAll('inquiries', this.checked)">
-                        </th>
-                        <th>Name</th>
-                        <th>Contact</th>
-                        <th>Subject</th>
-                        <th>Submission Date</th>
-                        <th>Archived Date</th>
-                        <th style="width: 200px; text-align: center;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="inquiries-table-body">
-                    <tr>
-                        <td colspan="7" style="text-align: center; padding: 60px; color: #6b7280;">
-                            Loading archived inquiries...
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Pagination -->
-        <div class="pagination" id="inquiries-pagination"></div>
-        <?php endif; ?>
-    </div>
-
-    <!-- USERS TAB (Placeholder) -->
+    <!-- USERS TAB -->
     <div id="users-content" class="tab-content">
+        <?php if (!$archiveReady): ?>
+        <div style="text-align: center; padding: 60px; color: #6b7280;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 20px; opacity: 0.5;">
+                <path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5z"/>
+            </svg>
+            <h3 style="margin-bottom: 10px;">Archive Not Configured</h3>
+            <p>Please run the database migration to enable archive functionality.</p>
+        </div>
+        <?php else: ?>
         <div style="text-align: center; padding: 60px; color: #6b7280;">
             <h3>Dentist/Doctor Records Archive</h3>
-            <p>This feature will be implemented in Phase 7.</p>
+            <p>Coming soon.</p>
         </div>
+        <?php endif; ?>
     </div>
 
     <!-- Archive meatball menu portal -->

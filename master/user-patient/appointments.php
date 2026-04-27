@@ -619,11 +619,39 @@ function selectDate(selDate, el) {
         }
         
         function selectTime(time, el) {
-            document.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
-            el.classList.add('selected');
-            selectedTime = time;
-            updateBookBtn();
+    // 1. Clear previous selections
+    document.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
+    
+    // 2. Get the duration of the selected service from the dropdown
+    const select = document.getElementById('serviceSelect');
+    const option = select.options[select.selectedIndex];
+    
+    // Fallback to 15 mins if it can't find the duration
+    const duration = parseInt(option.getAttribute('data-duration')) || 15; 
+    
+    // 3. Calculate how many 15-minute blocks this service takes
+    const blocksNeeded = Math.ceil(duration / 15);
+    
+    // 4. Get all slot elements as an array to find where we clicked
+    const allSlots = Array.from(document.querySelectorAll('.time-slot'));
+    const startIndex = allSlots.indexOf(el);
+    
+    // 5. Visually highlight the consecutive blocks
+    if (startIndex !== -1) {
+        for (let i = 0; i < blocksNeeded; i++) {
+            const currentSlot = allSlots[startIndex + i];
+            
+            // Only add the highlight if the slot exists in the grid
+            if (currentSlot) {
+                currentSlot.classList.add('selected');
+            }
         }
+    }
+    
+    // 6. Set the selected time for the form submission
+    selectedTime = time;
+    updateBookBtn();
+}
         
         function updateBookBtn() {
             document.getElementById('bookBtn').disabled = !(selectedDate && selectedTime && document.getElementById('serviceSelect').value);

@@ -12,22 +12,12 @@
 let currentModule = 'patients';
 let currentPage = {
     patients: 1,
-    appointments: 1,
-    queue: 1,
-    treatment_plans: 1,
-    services: 1,
-    inquiries: 1,
     users: 1
 };
 
 // Selected records
 let selectedRecords = {
     patients: [],
-    appointments: [],
-    queue: [],
-    treatment_plans: [],
-    services: [],
-    inquiries: [],
     users: []
 };
 
@@ -78,10 +68,6 @@ function switchTab(tab) {
     // Load data for active tab
     if (tab === 'patients') {
         loadArchivedPatients(currentPage.patients);
-    } else if (tab === 'appointments') {
-        loadArchivedAppointments(currentPage.appointments);
-    } else if (tab === 'inquiries') {
-        loadArchivedInquiries(currentPage.inquiries);
     }
 }
 
@@ -111,7 +97,7 @@ function loadArchivedPatients(page) {
     `;
     
     // Fetch data
-    fetch('../../archive_actions.php', {
+    fetch('../../master/shared/archive_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
@@ -259,7 +245,7 @@ function loadArchivedAppointments(page) {
     `;
     
     // Fetch data
-    fetch('../../archive_actions.php', {
+    fetch('../../master/shared/archive_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
@@ -463,7 +449,7 @@ function loadArchivedInquiries(page) {
     `;
 
     // Fetch data
-    fetch('../../archive_actions.php', {
+    fetch('../../master/shared/archive_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
@@ -805,30 +791,162 @@ function bulkAction(module, action) {
     if (action === 'restore') {
         message = `Restore ${ids.length} ${module}(s)? They will reappear in the main list.`;
     } else {
-        message = `WARNING: Permanently delete ${ids.length} ${module}(s)? This CANNOT be undone!`;
+        message = `⚠️ WARNING: Permanently delete ${ids.length} ${module}(s)?\n\nThis action CANNOT be undone!\n\nAll patient data will be permanently removed from the system.`;
     }
     
     if (!confirm(message)) return;
     
-    performAction(module, action, ids);
+    // Require password for delete_forever
+    if (action === 'delete_forever') {
+        showVerifyPasswordModal((verified) => {
+            if (verified) {
+                performAction(module, action, ids);
+            }
+        });
+    } else {
+        performAction(module, action, ids);
+    }
+}
+
+/**
+ * Verify admin password via custom modal
+ */
+function showVerifyPasswordModal(count, callback) {
+    // Remove existing modal if any
+    const existingModal = document.getElementById('verify-password-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Create modal elements
+    const overlay = document.createElement('div');
+    overlay.id = 'verify-password-modal';
+    overlay.className = 'modal-overlay active';
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.maxWidth = '400px';
+    modal.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0; color: #dc2626; font-size: 18px;">⚠️ Confirm Permanent Delete</h3>
+            <button onclick="closeVerifyPasswordModal(false)" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280;">&times;</button>
+        </div>
+        <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+            <p style="color: #991b1b; font-size: 14px; margin: 0; font-weight: 600;">
+                ⚠️ WARNING: Permanently delete ${count} record(s)?
+            </p>
+            <p style="color: #b91c1c; font-size: 13px; margin: 8px 0 0 0;">
+                This action CANNOT be undone! All patient data will be permanently removed from the system.
+            </p>
+        </div>
+        <p style="color: #374151; margin-bottom: 16px; font-size: 14px;">Enter admin password to confirm:</p>
+        <input type="password" id="verify-password-input" 
+            placeholder="Enter admin password"
+            style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 16px; font-size: 14px; box-sizing: border-box;"
+            autocomplete="off">
+        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+            <button onclick="closeVerifyPasswordModal(false)" 
+                style="padding: 10px 20px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                Cancel
+            </button>
+            <button onclick="submitVerifyPassword()" 
+                style="padding: 10px 20px; background: #dc2626; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                Delete Forever
+            </button>
+        </div>
+        <p id="verify-password-error" style="color: #dc2626; font-size: 13px; margin-top: 12px; display: none;"></p>
+    `;
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    document.body.classList.add('modal-open');
+
+    // Store callback
+    window._verifyPasswordCallback = callback;
+
+    // Enable enter key
+    const input = document.getElementById('verify-password-input');
+    input.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            submitVerifyPassword();
+        }
+    });
+    input.focus();
+}
+
+function submitVerifyPassword() {
+    const password = document.getElementById('verify-password-input').value;
+    const errorMsg = document.getElementById('verify-password-error');
+    
+    if (!password) {
+        errorMsg.textContent = 'Please enter password';
+        errorMsg.style.display = 'block';
+        return;
+    }
+
+    fetch('../../master/shared/verify_password.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'password=' + encodeURIComponent(password)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            closeVerifyPasswordModal(true);
+        } else {
+            errorMsg.textContent = data.message || 'Incorrect password';
+            errorMsg.style.display = 'block';
+            document.getElementById('verify-password-input').value = '';
+            document.getElementById('verify-password-input').focus();
+        }
+    })
+    .catch(() => {
+        errorMsg.textContent = 'Failed to verify password';
+        errorMsg.style.display = 'block';
+    });
+}
+
+function closeVerifyPasswordModal(verified) {
+    const modal = document.getElementById('verify-password-modal');
+    if (modal) {
+        modal.remove();
+    }
+    document.body.classList.remove('modal-open');
+    if (window._verifyPasswordCallback) {
+        window._verifyPasswordCallback(verified);
+        window._verifyPasswordCallback = null;
+    }
+}
+
+function bulkAction(module, action) {
+    const ids = selectedRecords[module];
+    
+    if (ids.length === 0) return;
+    
+    // Show password modal directly with warning message
+    showVerifyPasswordModal(ids.length, (verified) => {
+        if (verified) {
+            performAction(module, action, ids);
+        }
+    });
 }
 
 /**
  * Perform single action
  */
 function singleAction(module, id, action) {
-    let message = '';
-    if (action === 'restore') {
-        message = 'Restore this record? It will reappear in the main list.';
-    } else if (action === 'delete_forever') {
-        message = 'WARNING: Permanently delete this record? This CANNOT be undone!';
-    } else {
-        message = 'Proceed with this action?';
+    if (action === 'delete_forever') {
+        // Show password modal for single delete
+        showVerifyPasswordModal(1, (verified) => {
+            if (verified) {
+                performAction(module, action, [id]);
+            }
+        });
+    } else if (action === 'restore') {
+        if (confirm('Restore this record? It will reappear in the main list.')) {
+            performAction(module, action, [id]);
+        }
     }
-    
-    if (!confirm(message)) return;
-    
-    performAction(module, action, [id]);
 }
 
 /**
@@ -963,7 +1081,7 @@ function performAction(module, action, ids) {
     formData.append('module', module);
     ids.forEach(id => formData.append('ids[]', id));
     
-    fetch('../../archive_actions.php', {
+    fetch('../../master/shared/archive_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: formData

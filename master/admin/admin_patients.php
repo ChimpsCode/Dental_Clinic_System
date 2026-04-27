@@ -381,6 +381,13 @@ function getPatientMenuItems(patientId) {
             </svg>
             View
         </a>
+        <a href="javascript:void(0)" data-action="edit" data-id="${patientId}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            Edit Info
+        </a>
         <a href="../shared/quick_session.php?patient_id=${patientId}" data-action="session" data-id="${patientId}">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -487,6 +494,9 @@ switch(action) {
         case 'view':
             viewPatientDetails(id);
             break;
+        case 'edit':
+            editPatientInfo(id);
+            break;
         case 'session':
             window.location.href = 'quick_session.php?patient_id=' + id;
             break;
@@ -535,41 +545,350 @@ window.addEventListener('resize', function() {
     }
 });
 
-// View Patient Details
+// View Patient Details - Modal
 function viewPatientDetails(patientId) {
     const patient = patients.find(p => p.id == patientId);
     if (!patient) return;
     
     const fullName = `${patient.first_name || ''} ${patient.middle_name || ''} ${patient.last_name || ''} ${patient.suffix || ''}`.trim();
-    alert('Patient: ' + (fullName || 'Unknown') + '\nPhone: ' + (patient.phone || 'N/A') + '\nEmail: ' + (patient.email || 'N/A'));
+    const membershipStatus = patient.email ? 'Registered' : 'Guest';
+    const membershipBadge = patient.email ? 
+        '<span style="background: #d1fae5; color: #065f46; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">✓ Web Account</span>' :
+        '<span style="background: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">Guest</span>';
+    
+    // Remove existing modal
+    const existingModal = document.getElementById('view-patient-modal');
+    if (existingModal) existingModal.remove();
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'view-patient-modal';
+    overlay.className = 'modal-overlay active';
+    
+    overlay.innerHTML = `
+        <div class="modal" style="max-width: 500px; max-height: 90vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #e5e7eb; padding-bottom: 16px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 50px; height: 50px; background: #0ea5e9; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; font-weight: 700;">
+                        ${(patient.first_name || 'P').charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; color: #111827; font-size: 18px;">${fullName || 'Unknown Patient'}</h3>
+                        <p style="margin: 4px 0 0 0; color: #6b7280; font-size: 13px;">Patient ID: ${patient.id}</p>
+                    </div>
+                </div>
+                <button onclick="closeViewPatientModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280;">&times;</button>
+            </div>
+            
+            <div style="display: flex; gap: 8px; margin-bottom: 20px;">
+                ${membershipBadge}
+            </div>
+            
+            <!-- Personal Info -->
+            <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 14px; font-weight: 600;">👤 Personal Information</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <p style="margin: 0; color: #6b7280; font-size: 12px;">First Name</p>
+                        <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${patient.first_name || '-'}</p>
+                    </div>
+                    <div>
+                        <p style="margin: 0; color: #6b7280; font-size: 12px;">Middle Name</p>
+                        <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${patient.middle_name || '-'}</p>
+                    </div>
+                    <div>
+                        <p style="margin: 0; color: #6b7280; font-size: 12px;">Last Name</p>
+                        <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${patient.last_name || '-'}</p>
+                    </div>
+                    <div>
+                        <p style="margin: 0; color: #6b7280; font-size: 12px;">Suffix</p>
+                        <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${patient.suffix || '-'}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Contact Info -->
+            <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 14px; font-weight: 600;">📞 Contact Information</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <p style="margin: 0; color: #6b7280; font-size: 12px;">Phone</p>
+                        <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${patient.phone || '-'}</p>
+                    </div>
+                    <div>
+                        <p style="margin: 0; color: #6b7280; font-size: 12px;">Email</p>
+                        <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${patient.email || '-'}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Additional Info -->
+            <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 14px; font-weight: 600;">📋 Additional Information</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <p style="margin: 0; color: #6b7280; font-size: 12px;">Date of Birth</p>
+                        <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${patient.date_of_birth || '-'}</p>
+                    </div>
+                    <div>
+                        <p style="margin: 0; color: #6b7280; font-size: 12px;">Gender</p>
+                        <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${patient.gender || '-'}</p>
+                    </div>
+                    <div>
+                        <p style="margin: 0; color: #6b7280; font-size: 12px;">Registered Date</p>
+                        <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${patient.created_at ? new Date(patient.created_at).toLocaleDateString() : '-'}</p>
+                    </div>
+                    <div>
+                        <p style="margin: 0; color: #6b7280; font-size: 12px;">Address ID</p>
+                        <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${patient.address_id || '-'}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Actions -->
+            <div style="display: flex; gap: 12px; justify-content: flex-end; border-top: 1px solid #e5e7eb; padding-top: 16px;">
+                <button onclick="closeViewPatientModal()" 
+                    style="padding: 10px 20px; background: #0ea5e9; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                    Close
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    document.body.classList.add('modal-open');
 }
 
-// Archive Patient (Soft Delete)
+function closeViewPatientModal() {
+    const modal = document.getElementById('view-patient-modal');
+    if (modal) modal.remove();
+    document.body.classList.remove('modal-open');
+}
+
+// Edit Patient Info - Modal
+function editPatientInfo(patientId) {
+    const patient = patients.find(p => p.id == patientId);
+    if (!patient) return;
+    
+    const fullName = `${patient.first_name || ''} ${patient.middle_name || ''} ${patient.last_name || ''} ${patient.suffix || ''}`.trim();
+    
+    // Remove existing modal
+    const existingModal = document.getElementById('edit-patient-modal');
+    if (existingModal) existingModal.remove();
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'edit-patient-modal';
+    overlay.className = 'modal-overlay active';
+    
+    overlay.innerHTML = `
+        <div class="modal" style="max-width: 550px; max-height: 90vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #e5e7eb; padding-bottom: 16px;">
+                <h3 style="margin: 0; color: #111827; font-size: 18px;">✏️ Edit Patient Information</h3>
+                <button onclick="closeEditPatientModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280;">&times;</button>
+            </div>
+            
+            <form id="edit-patient-form">
+                <input type="hidden" name="patient_id" value="${patient.id}">
+                
+                <!-- Name Section -->
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 14px; font-weight: 600;">Personal Information</h4>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">First Name *</label>
+                            <input type="text" name="first_name" value="${patient.first_name || ''}" required
+                                style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Middle Name</label>
+                            <input type="text" name="middle_name" value="${patient.middle_name || ''}"
+                                style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Last Name *</label>
+                            <input type="text" name="last_name" value="${patient.last_name || ''}" required
+                                style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Suffix</label>
+                            <input type="text" name="suffix" value="${patient.suffix || ''}" placeholder="Jr., Sr., III, etc."
+                                style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Contact Section -->
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 14px; font-weight: 600;">Contact Information</h4>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Phone</label>
+                            <input type="text" name="phone" value="${patient.phone || ''}" placeholder="09XXXXXXXXX"
+                                style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Email</label>
+                            <input type="email" name="email" value="${patient.email || ''}" placeholder="email@example.com"
+                                style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Additional Info -->
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 14px; font-weight: 600;">Additional Information</h4>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div>
+                            <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Date of Birth</label>
+                            <input type="date" name="date_of_birth" value="${patient.date_of_birth || ''}"
+                                style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Gender</label>
+                            <select name="gender" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
+                                <option value="">-- Select --</option>
+                                <option value="Male" ${patient.gender === 'Male' ? 'selected' : ''}>Male</option>
+                                <option value="Female" ${patient.gender === 'Female' ? 'selected' : ''}>Female</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Buttons -->
+                <div style="display: flex; gap: 12px; justify-content: flex-end; border-top: 1px solid #e5e7eb; padding-top: 16px; margin-top: 8px;">
+                    <button type="button" onclick="closeEditPatientModal()" 
+                        style="padding: 10px 20px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                        style="padding: 10px 20px; background: #0ea5e9; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    document.body.classList.add('modal-open');
+    
+    // Handle form submit
+    document.getElementById('edit-patient-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        savePatientChanges();
+    });
+}
+
+function closeEditPatientModal() {
+    const modal = document.getElementById('edit-patient-modal');
+    if (modal) modal.remove();
+    document.body.classList.remove('modal-open');
+}
+
+function savePatientChanges() {
+    const form = document.getElementById('edit-patient-form');
+    const formData = new FormData(form);
+    
+    fetch('../../master/shared/update_patient_info.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert('Patient information updated successfully!');
+            closeEditPatientModal();
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Failed to save changes');
+    });
+}
+
+// Archive Patient (Soft Delete) - with modal confirmation
 function deletePatient(patientId) {
     const patient = patients.find(p => p.id == patientId);
     if (!patient) return;
     
     const fullName = `${patient.first_name || ''} ${patient.middle_name || ''} ${patient.last_name || ''} ${patient.suffix || ''}`.trim();
-    if (confirm(`Are you sure you want to archive this patient?\n\nPatient: ${fullName || 'Unknown'}\nPhone: ${patient.phone || 'N/A'}\n\nYou can restore archived patients from the Archive page.`)) {
-        fetch('../../master/user-patient/patient_actions.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'action=archive&patient_id=' + patientId
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Patient archived successfully');
-                location.reload();
-            } else {
-                alert('Error: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Failed to archive patient');
-        });
-    }
+    
+    // Create modal
+    const existingModal = document.getElementById('archive-patient-modal');
+    if (existingModal) existingModal.remove();
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'archive-patient-modal';
+    overlay.className = 'modal-overlay active';
+    overlay.innerHTML = `
+        <div class="modal" style="max-width: 400px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; color: #92400e; font-size: 18px;">📦 Archive Patient</h3>
+                <button onclick="closeArchivePatientModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280;">&times;</button>
+            </div>
+            <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <p style="color: #92400e; font-size: 14px; margin: 0; font-weight: 600;">
+                    Archive this patient?
+                </p>
+                <p style="color: #b45309; font-size: 13px; margin: 8px 0 0 0;">
+                    Patient: <strong>${fullName || 'Unknown'}</strong><br>
+                    Phone: ${patient.phone || 'N/A'}
+                </p>
+                <p style="color: #a16207; font-size: 13px; margin: 8px 0 0 0;">
+                    You can restore archived patients from the Archive page.
+                </p>
+            </div>
+            <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                <button onclick="closeArchivePatientModal()" 
+                    style="padding: 10px 20px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                    Cancel
+                </button>
+                <button onclick="confirmArchivePatient(${patientId})" 
+                    style="padding: 10px 20px; background: #92400e; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                    Archive
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    document.body.classList.add('modal-open');
+}
+
+function closeArchivePatientModal() {
+    const modal = document.getElementById('archive-patient-modal');
+    if (modal) modal.remove();
+    document.body.classList.remove('modal-open');
+}
+
+function confirmArchivePatient(patientId) {
+    closeArchivePatientModal();
+    
+    fetch('../../master/user-patient/patient_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'action=archive&patient_id=' + patientId
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Patient archived successfully');
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to archive patient');
+    });
 }
 
 // Add Appointment Modal Functions

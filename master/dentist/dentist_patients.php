@@ -615,7 +615,7 @@ function getPatientMenuItems(patientId) {
                 <line x1="16" y1="17" x2="8" y2="17"/>
                 <polyline points="10 9 9 9 8 9"/>
             </svg>
-            📋 Treatment Plan
+            Treatment Plan
         </a>
     `;
 }
@@ -1011,30 +1011,25 @@ function getDentistTeethDisplayText(teethString) {
                 <input type="hidden" id="appointmentPatientId" name="patient_id">
                 <input type="hidden" id="appointmentPatientPhone" name="patient_phone">
                 
-                <div style="display: flex; gap: 16px;">
-                    <div class="form-group" style="flex: 1;">
-                        <label>Date *</label>
-                        <input type="date" name="appointment_date" required class="form-control" min="<?php echo date('Y-m-d'); ?>">
-                    </div>
-                    <div class="form-group" style="flex: 1;">
-                        <label>Time *</label>
-                        <input type="time" name="appointment_time" required class="form-control">
-                    </div>
+                <div class="form-group">
+                    <label>Treatment *</label>
+                    <select name="treatment" id="addAptTreatment" class="form-control" required>
+                        <option value="">Select Treatment</option>
+                        </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Date *</label>
+                    <input type="date" name="appointment_date" id="addAptDate" required class="form-control" min="<?php echo date('Y-m-d'); ?>">
                 </div>
                 
                 <div class="form-group">
-                    <label>Treatment</label>
-                    <select name="treatment" class="form-control">
-                        <option value="Consultation">Consultation</option>
-                        <option value="Teeth Cleaning">Teeth Cleaning</option>
-                        <option value="Root Canal">Root Canal</option>
-                        <option value="Tooth Extraction">Tooth Extraction</option>
-                        <option value="Dental Fillings">Dental Fillings</option>
-                        <option value="Braces Adjustment">Braces Adjustment</option>
-                        <option value="Denture Fitting">Denture Fitting</option>
-                        <option value="Oral Prophylaxis">Oral Prophylaxis</option>
-                        <option value="Other">Other</option>
-                    </select>
+                    <label>Time *</label>
+                    <div id="addAptTimePrompt" style="padding: 15px; text-align: center; background: #f9fafb; border-radius: 8px; color: #6b7280; font-size: 0.85rem;">
+                        Select a treatment and date to see available times.
+                    </div>
+                    <div id="addAptTimeSlots" class="time-slots" style="display: none; grid-template-columns: repeat(4, 1fr); gap: 6px;"></div>
+                    <input type="hidden" name="appointment_time" id="addAptTime" required>
                 </div>
                 
                 <div class="form-group">
@@ -1055,7 +1050,7 @@ function getDentistTeethDisplayText(teethString) {
 
 <!-- Treatment Plan Modal -->
 <div id="treatmentPlanModal" class="modal-overlay">
-    <div class="modal modal-billing" style="max-width: 600px;">
+    <div class="modal modal-billing" style="max-width: 800px;">
         <div class="modal-header">
             <h2 style="margin: 0; font-size: 1.25rem; font-weight: 600;">📋 Treatment Plan</h2>
             <button onclick="closeTreatmentPlanModal()" class="modal-close" style="background: none; border: none; font-size: 1.5rem; color: #6b7280; cursor: pointer; padding: 4px; line-height: 1;">&times;</button>
@@ -1109,13 +1104,66 @@ function getDentistTeethDisplayText(teethString) {
                     </div>
                     
                     <div class="form-group">
-                        <label>Treatment Type</label>
-                        <input type="text" name="treatment_type" id="tpTreatmentType" class="form-control" placeholder="Auto-filled based on treatment" readonly style="background: #f9fafb;">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Teeth Numbers</label>
-                        <input type="text" name="teeth_numbers" class="form-control" placeholder="e.g., #18, #19">
+                        <label>Teeth Numbers (click to select)</label>
+                        <input type="hidden" name="teeth_numbers" id="tpTeethNumbers" value="">
+                        <input type="hidden" id="tp TeethType" value="adult">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div id="teethTypeToggle" style="display: flex; gap: 8px;">
+                                <button type="button" id="btnAdult" onclick="switchTeethType('adult')" class="btn-primary" style="padding: 8px 16px; font-size: 0.8rem; font-weight: 600;">Adult</button>
+                                <button type="button" id="btnPrimary" onclick="switchTeethType('primary')" class="btn-cancel" style="padding: 8px 16px; font-size: 0.8rem; font-weight: 600;">Primary</button>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button type="button" id="btnSelectUpper" onclick="selectAllUpper()" style="padding: 6px 12px; font-size: 0.75rem; background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); color: #0369a1; border: 1px solid #7dd3fc; border-radius: 6px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: none;">Upper Arch</button>
+                                <button type="button" id="btnSelectLower" onclick="selectAllLower()" style="padding: 6px 12px; font-size: 0.75rem; background: linear-gradient(135deg, #fef3c7 0%, #fcd34d 100%); color: #92400e; border: 1px solid #fde68a; border-radius: 6px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: none;">Lower Arch</button>
+                            </div>
+                        </div>
+                        <div class="tooth-chart-modal" id="toothChartContainer">
+                            <!-- Adult Teeth - Upper Arch (Right to Left) -->
+                            <div id="adultTeeth">
+                            <div style="text-align: center; margin-bottom: 10px;">
+                                <span style="font-size: 0.7rem; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Upper Arch</span>
+                            </div>
+                            <div style="display: flex; justify-content: center; gap: 4px; margin-bottom: 16px;">
+                                <div id="adultUpperRight" style="display: flex; gap: 4px; justify-content: flex-end;"></div>
+                                <div style="width: 24px;"></div>
+                                <div id="adultUpperLeft" style="display: flex; gap: 4px; justify-content: flex-start;"></div>
+                            </div>
+                            <!-- Adult Teeth - Lower Arch (Right to Left) -->
+                            <div style="text-align: center; margin-bottom: 10px;">
+                                <span style="font-size: 0.7rem; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Lower Arch</span>
+                            </div>
+                            <div style="display: flex; justify-content: center; gap: 4px; margin-bottom: 12px;">
+                                <div id="adultLowerRight" style="display: flex; gap: 4px; justify-content: flex-end;"></div>
+                                <div style="width: 24px;"></div>
+                                <div id="adultLowerLeft" style="display: flex; gap: 4px; justify-content: flex-start;"></div>
+                            </div>
+                            </div>
+                            
+                            <!-- Primary Teeth - Upper Arch -->
+                            <div id="primaryTeeth" style="display: none;">
+                                <div style="text-align: center; margin-bottom: 10px;">
+                                    <span style="font-size: 0.7rem; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Upper Arch (Primary)</span>
+                                </div>
+                                <div style="display: flex; justify-content: center; gap: 4px; margin-bottom: 16px;">
+                                    <div id="primaryUpperRight" style="display: flex; gap: 4px; justify-content: flex-end;"></div>
+                                    <div style="width: 24px;"></div>
+                                    <div id="primaryUpperLeft" style="display: flex; gap: 4px; justify-content: flex-start;"></div>
+                                </div>
+                                <!-- Primary Teeth - Lower Arch -->
+                                <div style="text-align: center; margin-bottom: 10px;">
+                                    <span style="font-size: 0.7rem; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Lower Arch (Primary)</span>
+                                </div>
+                                <div style="display: flex; justify-content: center; gap: 2px; margin-bottom: 16px;">
+                                    <div id="primaryLowerRight" style="display: flex; gap: 2px; justify-content: flex-end;"></div>
+                                    <div style="width: 20px;"></div>
+                                    <div id="primaryLowerLeft" style="display: flex; gap: 2px; justify-content: flex-start;"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+                            <div style="font-size: 0.85rem; color: #374151;">Selected: <span id="selectedTeethText" style="font-weight: 600;">None</span></div>
+                            <button type="button" onclick="clearTeeth()" style="font-size: 0.75rem; color: #6b7280; background: none; border: none; cursor: pointer; text-decoration: underline;">Clear All</button>
+</div>
                     </div>
                     
                     <div style="display: flex; gap: 16px;">
@@ -1125,7 +1173,9 @@ function getDentistTeethDisplayText(teethString) {
                         </div>
                         <div class="form-group" style="flex: 1;">
                             <label>Next Session Date</label>
-                            <input type="date" name="next_session_date" class="form-control">
+                            <input type="date" name="next_session_date" id="tpNextSessionDate" class="form-control">
+                            <div id="tpTimeSlots" class="time-slots" style="display: none; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px;"></div>
+                            <input type="hidden" name="next_session_time" id="tpNextSessionTime" value="">
                         </div>
                     </div>
                     
@@ -1378,6 +1428,11 @@ function openTreatmentPlanModal(patientId) {
     document.getElementById('tpPlansList').style.display = 'none';
     document.getElementById('tpNoPlans').style.display = 'none';
     document.getElementById('tpLoading').style.display = 'block';
+    document.getElementById('tpTimeSlots').style.display = 'none';
+    document.getElementById('tpNextSessionTime').value = '';
+    
+    // Add date listener
+    addTpDateListener();
     
     // Show/hide buttons
     document.getElementById('tpBtnCreate').style.display = 'inline-flex';
@@ -1484,9 +1539,31 @@ function showTpCreateForm() {
     
     // Reset form fields
     document.getElementById('tpTreatmentName').value = '';
-    document.getElementById('tpTreatmentType').value = '';
-    document.getElementById('tpTreatmentType').readOnly = true;
-    document.getElementById('tpTreatmentType').style.background = '#f9fafb';
+    document.querySelector('input[name="estimated_cost"]').value = '';
+    
+    // Hide Upper/Lower Arch buttons initially until a treatment is selected
+    const btnUpper = document.getElementById('btnSelectUpper');
+    const btnLower = document.getElementById('btnSelectLower');
+    if (btnUpper) btnUpper.style.display = 'none';
+    if (btnLower) btnLower.style.display = 'none';
+    
+    // Load services from database
+    loadTpServices();
+    
+    // Clear teeth and set default based on patient age
+    clearTeeth();
+    const patient = patients.find(p => p.id == treatmentPlanPatientId);
+    if (patient) {
+        const age = parseInt(patient.age) || 0;
+        // Default to primary teeth for children under 12
+        if (age < 12) {
+            switchTeethType('primary');
+        } else {
+            switchTeethType('adult');
+        }
+    } else {
+        switchTeethType('adult');
+    }
     
     // Show/hide buttons
     document.getElementById('tpBtnCreate').style.display = 'none';
@@ -1509,27 +1586,416 @@ function showTpPlansList() {
 }
 
 // Auto-populate Treatment Type based on Treatment Name
-function autoPopulateTreatmentType() {
-    const treatmentName = document.getElementById('tpTreatmentName').value;
-    const treatmentTypeInput = document.getElementById('tpTreatmentType');
+let selectedTeeth = [];
+
+function toggleToothTp(element) {
+    const toothNumber = element.dataset.tooth;
     
-    const treatmentMappings = {
-        'Root Canal': 'Endodontic',
-        'Tooth Extraction': 'Surgical',
-        'Teeth Cleaning': 'Preventive',
-        'Dental Fillings': 'Restorative',
-        'Braces Adjustment': 'Orthodontic',
-        'Denture Fitting': 'Prosthodontic',
-        'Oral Prophylaxis': 'Preventive',
-        'Crown & Bridge': 'Prosthodontic',
-        'Teeth Whitening': 'Cosmetic',
-        'Checkup': 'Diagnostic'
-    };
-    
-    if (treatmentMappings[treatmentName]) {
-        treatmentTypeInput.value = treatmentMappings[treatmentName];
+    if (selectedTeeth.includes(toothNumber)) {
+        selectedTeeth = selectedTeeth.filter(t => t !== toothNumber);
+        element.classList.remove('selected');
     } else {
-        treatmentTypeInput.value = '';
+        selectedTeeth.push(toothNumber);
+        element.classList.add('selected');
+    }
+    
+    // Sort teeth numerically
+    selectedTeeth.sort((a, b) => parseInt(a) - parseInt(b));
+    
+    // Update hidden input and display
+    document.getElementById('tpTeethNumbers').value = selectedTeeth.join(', ');
+    document.getElementById('selectedTeethText').textContent = selectedTeeth.length > 0 ? selectedTeeth.join(', ') : 'None';
+}
+
+function clearTeeth() {
+    selectedTeeth = [];
+    document.querySelectorAll('.tooth-wrapper.selected').forEach(el => el.classList.remove('selected'));
+    document.getElementById('tpTeethNumbers').value = '';
+    document.getElementById('selectedTeethText').textContent = 'None';
+}
+
+// Switch between Adult and Primary teeth
+let currentTeethType = 'adult';
+
+function switchTeethType(type) {
+    currentTeethType = type;
+    clearTeeth();
+    
+    if (type === 'adult') {
+        document.getElementById('adultTeeth').style.display = 'block';
+        document.getElementById('primaryTeeth').style.display = 'none';
+        document.getElementById('btnAdult').className = 'btn-primary';
+        document.getElementById('btnPrimary').className = 'btn-cancel';
+    } else {
+        document.getElementById('adultTeeth').style.display = 'none';
+        document.getElementById('primaryTeeth').style.display = 'block';
+        document.getElementById('btnAdult').className = 'btn-cancel';
+        document.getElementById('btnPrimary').className = 'btn-primary';
+    }
+}
+
+// Initialize teeth on load
+document.addEventListener('DOMContentLoaded', function() {
+    const adultUpperRight = [18,17,16,15,14,13,12,11].map(n => `<div class="tooth-wrapper" data-tooth="${n}" onclick="toggleToothTp(this)"><div class="tooth-face">${n}</div></div>`).join('');
+    const adultUpperLeft = [21,22,23,24,25,26,27,28].map(n => `<div class="tooth-wrapper" data-tooth="${n}" onclick="toggleToothTp(this)"><div class="tooth-face">${n}</div></div>`).join('');
+    const adultLowerRight = [48,47,46,45,44,43,42,41].map(n => `<div class="tooth-wrapper" data-tooth="${n}" onclick="toggleToothTp(this)"><div class="tooth-face">${n}</div></div>`).join('');
+    const adultLowerLeft = [31,32,33,34,35,36,37,38].map(n => `<div class="tooth-wrapper" data-tooth="${n}" onclick="toggleToothTp(this)"><div class="tooth-face">${n}</div></div>`).join('');
+    
+    if (document.getElementById('adultUpperRight')) document.getElementById('adultUpperRight').innerHTML = adultUpperRight;
+    if (document.getElementById('adultUpperLeft')) document.getElementById('adultUpperLeft').innerHTML = adultUpperLeft;
+    if (document.getElementById('adultLowerRight')) document.getElementById('adultLowerRight').innerHTML = adultLowerRight;
+    if (document.getElementById('adultLowerLeft')) document.getElementById('adultLowerLeft').innerHTML = adultLowerLeft;
+    
+    const primaryUpperRight = [55,54,53,52,51].map(n => `<div class="tooth-wrapper" data-tooth="${n}" onclick="toggleToothTp(this)"><div class="tooth-face">${n}</div></div>`).join('');
+    const primaryUpperLeft = [61,62,63,64,65].map(n => `<div class="tooth-wrapper" data-tooth="${n}" onclick="toggleToothTp(this)"><div class="tooth-face">${n}</div></div>`).join('');
+    const primaryLowerRight = [85,84,83,82,81].map(n => `<div class="tooth-wrapper" data-tooth="${n}" onclick="toggleToothTp(this)"><div class="tooth-face">${n}</div></div>`).join('');
+    const primaryLowerLeft = [71,72,73,74,75].map(n => `<div class="tooth-wrapper" data-tooth="${n}" onclick="toggleToothTp(this)"><div class="tooth-face">${n}</div></div>`).join('');
+    
+    if (document.getElementById('primaryUpperRight')) document.getElementById('primaryUpperRight').innerHTML = primaryUpperRight;
+    if (document.getElementById('primaryUpperLeft')) document.getElementById('primaryUpperLeft').innerHTML = primaryUpperLeft;
+    if (document.getElementById('primaryLowerRight')) document.getElementById('primaryLowerRight').innerHTML = primaryLowerRight;
+    if (document.getElementById('primaryLowerLeft')) document.getElementById('primaryLowerLeft').innerHTML = primaryLowerLeft;
+    
+    // Add time slot listener
+    const nextSessionDateInput = document.getElementById('tpNextSessionDate');
+    if (nextSessionDateInput) {
+        nextSessionDateInput.addEventListener('change', function() {
+            const date = this.value;
+            if (date) {
+                loadTpTimeSlots(date);
+            } else {
+                document.getElementById('tpTimeSlots').style.display = 'none';
+            }
+        });
+    }
+    
+    // Also add treatment change listener to update time slots when treatment changes
+    const treatmentSelect = document.getElementById('tpTreatmentName');
+    if (treatmentSelect) {
+        treatmentSelect.addEventListener('change', function() {
+            const dateInput = document.getElementById('tpNextSessionDate');
+            if (dateInput && dateInput.value) {
+                loadTpTimeSlots(dateInput.value);
+            }
+        });
+    }
+});
+
+
+
+
+
+
+// 1. Fetch Services and attach the 'data-duration' for highlighting
+function loadTpServices() {
+    fetch('../admin/get_services.php')
+    .then(response => response.json())
+    .then(data => {
+        const selectTP = document.getElementById('tpTreatmentName');
+        const selectApt = document.getElementById('addAptTreatment');
+        
+        let optionsHTML = '<option value="">Select Treatment</option>';
+        
+        if (data.services && data.services.length > 0) {
+            data.services.forEach(service => {
+                const duration = service.duration_minutes || 15;
+                // Notice the data-duration attribute added here
+                optionsHTML += `<option value="${service.id}" data-mode="${service.mode || ''}" data-price="${service.price || ''}" data-duration="${duration}">${service.name} (${duration} min)</option>`;
+            });
+        }
+        
+        if (selectTP) selectTP.innerHTML = optionsHTML;
+        if (selectApt) selectApt.innerHTML = optionsHTML;
+    })
+    .catch(() => console.error("Failed to load services"));
+}
+
+// 2. A Universal Function to fetch and render slots for ANY modal
+function loadTimeSlotsGrid(date, serviceId, gridId, hiddenInputId, selectId, promptId) {
+    const slotsContainer = document.getElementById(gridId);
+    const prompt = document.getElementById(promptId);
+    
+    if (!date || !serviceId) {
+        if (prompt) prompt.style.display = 'block';
+        slotsContainer.style.display = 'none';
+        return;
+    }
+
+    if (prompt) prompt.style.display = 'none';
+    slotsContainer.style.display = 'grid';
+    slotsContainer.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 10px;"><i class="fas fa-spinner fa-spin"></i> Loading slots...</div>';
+    
+    fetch(`../user-patient/get_slots.php?date=${encodeURIComponent(date)}&service_id=${encodeURIComponent(serviceId)}`)
+    .then(res => res.json())
+    .then(data => {
+        slotsContainer.innerHTML = '';
+        
+        if (!data.success || !data.is_open || data.is_past) {
+            const msg = data.is_past ? 'Cannot schedule on past dates' : (data.message || 'Unavailable');
+            slotsContainer.innerHTML = `<div style="color: #dc2626; grid-column: 1/-1; text-align: center;">${msg}</div>`;
+            return;
+        }
+        
+        const available = data.available_slots || [];
+        const booked = data.booked_slots || [];
+        
+        if (available.length === 0) {
+            slotsContainer.innerHTML = '<div style="color: #dc2626; grid-column: 1/-1; text-align: center;">No available time slots</div>';
+            return;
+        }
+        
+        // Render Available Slots
+        available.forEach(slot => {
+            const btn = document.createElement('div');
+            btn.className = 'time-slot available';
+            btn.textContent = formatTime12h(slot); // Using your existing 12h formatter
+            btn.dataset.time = slot;
+            btn.onclick = function() {
+                handleSlotSelection(this, gridId, hiddenInputId, selectId);
+            };
+            slotsContainer.appendChild(btn);
+        });
+        
+        // Render Booked Slots (Visual cue only)
+        booked.forEach(slot => {
+            const btn = document.createElement('div');
+            btn.className = 'time-slot unavailable';
+            btn.textContent = formatTime12h(slot);
+            btn.style.cursor = 'not-allowed';
+            btn.style.opacity = '0.5';
+            slotsContainer.appendChild(btn);
+        });
+    })
+    .catch(() => {
+        slotsContainer.innerHTML = '<div style="color: #dc2626; grid-column: 1/-1;">Error loading time slots</div>';
+    });
+}
+
+// 3. The Highlight Logic (Calculates duration and highlights blocks)
+function handleSlotSelection(btn, gridId, hiddenInputId, selectId) {
+    const grid = document.getElementById(gridId);
+    
+    // Clear old selections
+    grid.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
+    
+    // Get service duration
+    const select = document.getElementById(selectId);
+    const option = select.options[select.selectedIndex];
+    const duration = parseInt(option.getAttribute('data-duration')) || 15;
+    const blocksNeeded = Math.ceil(duration / 15);
+    
+    // Highlight consecutive blocks
+    const allSlots = Array.from(grid.querySelectorAll('.time-slot'));
+    const startIndex = allSlots.indexOf(btn);
+    
+    if (startIndex !== -1) {
+        for (let i = 0; i < blocksNeeded; i++) {
+            const currentSlot = allSlots[startIndex + i];
+            if (currentSlot && !currentSlot.classList.contains('unavailable')) {
+                currentSlot.classList.add('selected');
+            }
+        }
+    }
+    
+    // Save to hidden input
+    document.getElementById(hiddenInputId).value = btn.dataset.time;
+}
+
+// --- EVENT LISTENERS FOR THE ADD APPOINTMENT MODAL ---
+document.getElementById('addAptDate').addEventListener('change', function() {
+    loadTimeSlotsGrid(this.value, document.getElementById('addAptTreatment').value, 'addAptTimeSlots', 'addAptTime', 'addAptTreatment', 'addAptTimePrompt');
+});
+
+document.getElementById('addAptTreatment').addEventListener('change', function() {
+    loadTimeSlotsGrid(document.getElementById('addAptDate').value, this.value, 'addAptTimeSlots', 'addAptTime', 'addAptTreatment', 'addAptTimePrompt');
+});
+
+// --- EVENT LISTENERS FOR THE TREATMENT PLAN MODAL ---
+document.getElementById('tpNextSessionDate').addEventListener('change', function() {
+    loadTimeSlotsGrid(this.value, document.getElementById('tpTreatmentName').value, 'tpTimeSlots', 'tpNextSessionTime', 'tpTreatmentName', null);
+});
+
+document.getElementById('tpTreatmentName').addEventListener('change', function() {
+    loadTimeSlotsGrid(document.getElementById('tpNextSessionDate').value, this.value, 'tpTimeSlots', 'tpNextSessionTime', 'tpTreatmentName', null);
+    autoPopulateTreatmentType(); // Keeps your existing auto-fill logic intact
+});
+
+// Important: When you open the Add Appointment Modal, reset the form and trigger the service load
+const originalOpenAptModal = openAddAppointmentModal;
+openAddAppointmentModal = function(patientId) {
+    originalOpenAptModal(patientId);
+    document.getElementById('addAppointmentForm').reset();
+    document.getElementById('addAptTimeSlots').style.display = 'none';
+    document.getElementById('addAptTimePrompt').style.display = 'block';
+    loadTpServices(); // Load services into the dropdown
+};
+
+
+
+function formatTime12h(time24) {
+    const [hours, minutes] = time24.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const hour12 = hours % 12 || 12;
+    return `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`;
+}
+
+function loadTpTimeSlots(date) {
+    const treatmentSelect = document.getElementById('tpTreatmentName');
+    const serviceId = treatmentSelect.value;
+    
+    let url = '../user-patient/get_slots.php?date=' + encodeURIComponent(date);
+    if (serviceId) {
+        url += '&service_id=' + encodeURIComponent(serviceId);
+    }
+    
+    fetch(url)
+    .then(res => res.json())
+    .then(data => {
+        const slotsContainer = document.getElementById('tpTimeSlots');
+        slotsContainer.innerHTML = '';
+        slotsContainer.style.display = 'grid';
+        
+        if (!data.success) {
+            slotsContainer.innerHTML = '<div style="color: #dc2626; grid-column: 1/-1;">' + (data.message || 'Error loading slots') + '</div>';
+            return;
+        }
+        
+        if (!data.is_open) {
+            slotsContainer.innerHTML = '<div style="color: #dc2626; grid-column: 1/-1;">' + data.message + '</div>';
+            return;
+        }
+        
+        if (data.is_past) {
+            slotsContainer.innerHTML = '<div style="color: #dc2626; grid-column: 1/-1;">Cannot schedule on past dates</div>';
+            return;
+        }
+        
+        const available = data.available_slots || [];
+        const booked = data.booked_slots || [];
+        
+        if (available.length === 0) {
+            slotsContainer.innerHTML = '<div style="color: #dc2626; grid-column: 1/-1;">No available time slots</div>';
+            return;
+        }
+        
+        available.forEach(slot => {
+            const btn = document.createElement('div');
+            btn.className = 'time-slot available';
+            btn.textContent = slot;
+            btn.dataset.time = slot;
+            btn.onclick = function() {
+                document.querySelectorAll('#tpTimeSlots .time-slot').forEach(s => s.classList.remove('selected'));
+                this.classList.add('selected');
+                document.getElementById('tpNextSessionTime').value = this.dataset.time;
+            };
+            slotsContainer.appendChild(btn);
+        });
+        
+        booked.forEach(slot => {
+            const btn = document.createElement('div');
+            btn.className = 'time-slot unavailable';
+            btn.textContent = slot;
+            btn.style.cursor = 'not-allowed';
+            btn.style.opacity = '0.6';
+            slotsContainer.appendChild(btn);
+        });
+    })
+    .catch(err => {
+        const slotsContainer = document.getElementById('tpTimeSlots');
+        slotsContainer.innerHTML = '<div style="color: #dc2626; grid-column: 1/-1;">Error loading time slots</div>';
+    });
+}
+
+function selectAllUpper() {
+    const isAdult = currentTeethType === 'adult';
+    let upperTeeth = [];
+    if (isAdult) {
+        upperTeeth = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28];
+    } else {
+        upperTeeth = [55, 54, 53, 52, 51, 61, 62, 63, 64, 65];
+    }
+    
+    upperTeeth.forEach(num => {
+        const el = document.querySelector(`.tooth-wrapper[data-tooth="${num}"]`);
+        if (el && !selectedTeeth.includes(num.toString())) {
+            selectedTeeth.push(num.toString());
+            el.classList.add('selected');
+        }
+    });
+    selectedTeeth.sort((a, b) => parseInt(a) - parseInt(b));
+    document.getElementById('tpTeethNumbers').value = selectedTeeth.join(', ');
+    document.getElementById('selectedTeethText').textContent = selectedTeeth.length > 0 ? selectedTeeth.join(', ') : 'None';
+}
+
+function selectAllLower() {
+    const isAdult = currentTeethType === 'adult';
+    let lowerTeeth = [];
+    if (isAdult) {
+        lowerTeeth = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38];
+    } else {
+        lowerTeeth = [85, 84, 83, 82, 81, 71, 72, 73, 74, 75];
+    }
+    
+    lowerTeeth.forEach(num => {
+        const el = document.querySelector(`.tooth-wrapper[data-tooth="${num}"]`);
+        if (el && !selectedTeeth.includes(num.toString())) {
+            selectedTeeth.push(num.toString());
+            el.classList.add('selected');
+        }
+    });
+    selectedTeeth.sort((a, b) => parseInt(a) - parseInt(b));
+    document.getElementById('tpTeethNumbers').value = selectedTeeth.join(', ');
+    document.getElementById('selectedTeethText').textContent = selectedTeeth.length > 0 ? selectedTeeth.join(', ') : 'None';
+}
+
+function addTpDateListener() {
+    const nextSessionDateInput = document.getElementById('tpNextSessionDate');
+    if (nextSessionDateInput) {
+        nextSessionDateInput.addEventListener('change', function() {
+            const date = this.value;
+            if (date) {
+                loadTpTimeSlots(date);
+            } else {
+                document.getElementById('tpTimeSlots').style.display = 'none';
+            }
+        });
+    }
+}
+
+function autoPopulateTreatmentType() {
+    const select = document.getElementById('tpTreatmentName');
+    const selectedOption = select.options[select.selectedIndex];
+    const treatmentName = select.value;
+    
+    // Get mode from database (could be 'bulk', 'single', 'non', or empty)
+    const mode = selectedOption.getAttribute('data-mode') || '';
+    const lowerMode = mode.toLowerCase();
+    
+    // Show/hide Upper/Lower Arch buttons based on mode
+    const btnUpper = document.getElementById('btnSelectUpper');
+    const btnLower = document.getElementById('btnSelectLower');
+    
+    // If no treatment selected, hide buttons
+    if (!treatmentName) {
+        if (btnUpper) btnUpper.style.display = 'none';
+        if (btnLower) btnLower.style.display = 'none';
+        return;
+    }
+    
+    // For single mode, hide the buttons (single tooth)
+    // For bulk or other modes, show buttons for multi-tooth selection
+    if (lowerMode === 'single') {
+        if (btnUpper) btnUpper.style.display = 'none';
+        if (btnLower) btnLower.style.display = 'none';
+    } else {
+        if (btnUpper) btnUpper.style.display = 'inline-block';
+        if (btnLower) btnLower.style.display = 'inline-block';
+    }
+    
+    // Auto-fill estimated cost
+    const price = selectedOption.getAttribute('data-price');
+    if (price && price !== 'null' && price !== '') {
+        document.querySelector('input[name="estimated_cost"]').value = price;
     }
 }
 
@@ -1664,6 +2130,40 @@ setInterval(() => {
 <!-- styles -->
 
 <style>
+/* Tooth Chart Styles */
+.tooth-box {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    color: #374151;
+}
+.tooth-box:hover {
+    border-color: #2563eb;
+    background: #eff6ff;
+}
+.tooth-box.selected {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: white;
+}
+
+@media (max-width: 480px) {
+    .tooth-box {
+        width: 22px;
+        height: 22px;
+        font-size: 0.6rem;
+    }
+}
+
 /* Table Styles - Match admin_patients */
 .table-container {
     overflow-x: visible;

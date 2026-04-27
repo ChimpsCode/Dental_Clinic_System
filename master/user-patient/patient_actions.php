@@ -15,7 +15,8 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $role = $_SESSION['role'] ?? '';
-if ($role !== 'admin') {
+// Accept Admin or admin from the roles table
+if (strtolower($role) !== 'admin' && strtolower($role) !== 'dentist') {
     ob_end_clean();
     header('Content-Type: application/json');
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
