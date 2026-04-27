@@ -32,36 +32,12 @@ function buildReportTable($headers, $rows) {
     return '<table class="print-table"><thead>' . $thead . '</thead><tbody>' . $tbody . '</tbody></table>';
 }
 
-function buildReportHtml($title, $tableHtml) {
-    $generated = date('M d, Y h:i A');
-    return '
-        <div class="print-report">
-            <div class="print-header">
-                <div class="print-brand">
-                    <div class="print-logo">RF</div>
-                    <div>
-                        <div class="print-title">RF Dental Clinic</div>
-                        <div class="print-subtitle">' . htmlspecialchars($title) . '</div>
-                    </div>
-                </div>
-                <div class="print-meta">
-                    <div>Generated: ' . htmlspecialchars($generated) . '</div>
-                </div>
-            </div>
-            <div class="print-body">' . $tableHtml . '</div>
-            <div class="print-footer">
-                <div>Confidential - For internal use only</div>
-                <div>RF Dental Clinic</div>
-            </div>
-        </div>
-    ';
-}
-
 try {
+    // Patient Report - fetch all patient data
     $patientsReport = $pdo->query("
-        SELECT id, full_name, phone, email, created_at
+        SELECT *
         FROM patients
-        ORDER BY created_at DESC
+        ORDER BY id ASC
     ")->fetchAll(PDO::FETCH_ASSOC);
 
     $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'is_archived'");
@@ -69,16 +45,10 @@ try {
     $whereClause = $hasArchiveColumn ? "WHERE (a.is_archived = 0 OR a.is_archived IS NULL)" : "";
 
     $appointmentsReport = $pdo->query("
-        SELECT a.id,
-               TRIM(CONCAT(
-                    COALESCE(p.first_name, a.first_name, ''), ' ',
-                    COALESCE(p.middle_name, a.middle_name, ''), ' ',
-                    COALESCE(p.last_name, a.last_name, '')
-               )) AS patient,
-               a.appointment_date, a.appointment_time, a.treatment, a.status
+        SELECT a.id, p.first_name, p.middle_name, p.last_name,
+               a.appointment_date, a.appointment_time, a.status
         FROM appointments a
         LEFT JOIN patients p ON p.id = a.patient_id
-        $whereClause
         ORDER BY a.appointment_date DESC, a.appointment_time DESC
     ")->fetchAll(PDO::FETCH_ASSOC);
 
@@ -101,7 +71,6 @@ try {
         ORDER BY total DESC
     ")->fetchAll(PDO::FETCH_ASSOC);
 
-    // Recently printed invoices (last 7 days)
     $printedInvoices = $pdo->query("
         SELECT b.id, CONCAT(p.first_name, ' ', p.last_name) AS patient,
                b.total_amount, b.payment_status, b.printed_at
@@ -112,7 +81,6 @@ try {
         LIMIT 20
     ")->fetchAll(PDO::FETCH_ASSOC);
 
-    // Printed counts per day (last 7 days)
     $printedDaily = $pdo->query("
         SELECT DATE(printed_at) AS day, COUNT(*) AS printed_count
         FROM billing
@@ -137,17 +105,6 @@ try {
             ORDER BY total DESC
         ")->fetchAll(PDO::FETCH_ASSOC);
     }
-
-    // Recently printed invoices (last 7 days)
-    $printedInvoices = $pdo->query("
-        SELECT b.id, CONCAT(p.first_name, ' ', p.last_name) AS patient,
-               b.total_amount, b.payment_status, b.printed_at
-        FROM billing b
-        LEFT JOIN patients p ON p.id = b.patient_id
-        WHERE b.printed_at IS NOT NULL
-        ORDER BY b.printed_at DESC
-        LIMIT 20
-    ")->fetchAll(PDO::FETCH_ASSOC);
 
     $dailySummaryReport = $pdo->query("
         SELECT
@@ -180,24 +137,15 @@ try {
         ORDER BY day ASC
     ")->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
-    $patientsReport = [];
-    $appointmentsReport = [];
-    $billingReport = [];
-    $revenueReport = [];
-    $servicesReport = [];
-    $dailySummaryReport = [];
-    $printedInvoices = [];
-    $printedDaily = [];
+    error_log('Reports page error: ' . $e->getMessage());
 }
 ?>
             <div class="content-main">
-                <!-- Page Header -->
                 <div class="page-header">
                     <h2>Reports</h2>
                     <p class="page-subtitle">Generate and print printable reports</p>
                 </div>
 
-                <!-- Report Generator -->
                 <div class="section-card">
                     <h2 class="section-title">&#128203; Custom Report Generator</h2>
                     <div class="report-form">
@@ -215,32 +163,29 @@ try {
                             <option value="month" selected>This Month</option>
                         </select>
                         
-                        <button class="btn-secondary" onclick="generateCustomReport()">Generate</button>
-                        <button class="btn-primary" onclick="printCustomReport()">Print</button>
-                        <button class="btn-secondary" onclick="exportToPDF()">Export PDF</button>
-                        
-                    
+                        <button class="btn-secondary" onclick="rfGenerateCustomReport()">Generate</button>
+                        <button class="btn-primary" onclick="rfPrintCustomReport()">Print</button>
+                        <button class="btn-secondary" onclick="rfExportToPDF()">Export PDF</button>
                     </div>
                 </div>
                 
-                <!-- Report Types Grid -->
                 <div class="reports-grid">
                     <div class="report-card">
                         <div class="report-icon">&#128101;</div>
                         <h3>Patient Report</h3>
                         <p>Complete list of all registered patients with contact information and visit history.</p>
                         <div class="report-actions">
-                            <button class="btn-secondary" onclick="previewReport('patients')">Preview</button>
-                            <button class="btn-primary" onclick="printReport('patients')">&#128424; Print</button>
+                            <button class="btn-secondary" onclick="rfPreviewReport('patients')">Preview</button>
+                            <button class="btn-primary" onclick="rfPrintReport('patients')">Print</button>
                         </div>
-                    </div>
+                    </div>      
                     <div class="report-card">
                         <div class="report-icon">&#128197;</div>
                         <h3>Appointments Report</h3>
                         <p>Detailed appointments log including completed, pending, and cancelled appointments.</p>
                         <div class="report-actions">
-                            <button class="btn-secondary" onclick="previewReport('appointments')">Preview</button>
-                            <button class="btn-primary" onclick="printReport('appointments')">&#128424; Print</button>
+                            <button class="btn-secondary" onclick="rfPreviewReport('appointments')">Preview</button>
+                            <button class="btn-primary" onclick="rfPrintReport('appointments')">&#128424; Print</button>
                         </div>
                     </div>
                     <div class="report-card">
@@ -248,8 +193,8 @@ try {
                         <h3>Payment Report</h3>
                         <p>Financial summary including all transactions, payments received, and pending amounts.</p>
                         <div class="report-actions">
-                            <button class="btn-secondary" onclick="previewReport('billing')">Preview</button>
-                            <button class="btn-primary" onclick="printReport('billing')">&#128424; Print</button>
+                            <button class="btn-secondary" onclick="rfPreviewReport('billing')">Preview</button>
+                            <button class="btn-primary" onclick="rfPrintReport('billing')">&#128424; Print</button>
                         </div>
                     </div>
                     <div class="report-card">
@@ -257,8 +202,8 @@ try {
                         <h3>Revenue Report</h3>
                         <p>Revenue breakdown by service type, time period, and payment status.</p>
                         <div class="report-actions">
-                            <button class="btn-secondary" onclick="previewReport('revenue')">Preview</button>
-                            <button class="btn-primary" onclick="printReport('revenue')">&#128424; Print</button>
+                            <button class="btn-secondary" onclick="rfPreviewReport('revenue')">Preview</button>
+                            <button class="btn-primary" onclick="rfPrintReport('revenue')">&#128424; Print</button>
                         </div>
                     </div>
                     <div class="report-card">
@@ -266,8 +211,8 @@ try {
                         <h3>Services Report</h3>
                         <p>Summary of services rendered, frequency, and revenue by service type.</p>
                         <div class="report-actions">
-                            <button class="btn-secondary" onclick="previewReport('services')">Preview</button>
-                            <button class="btn-primary" onclick="printReport('services')">&#128424; Print</button>
+                            <button class="btn-secondary" onclick="rfPreviewReport('services')">Preview</button>
+                            <button class="btn-primary" onclick="rfPrintReport('services')">&#128424; Print</button>
                         </div>
                     </div>
                     <div class="report-card">
@@ -275,8 +220,8 @@ try {
                         <h3>Daily Summary</h3>
                         <p>Day-by-day summary of patients, appointments, and revenue.</p>
                         <div class="report-actions">
-                            <button class="btn-secondary" onclick="previewReport('daily')">Preview</button>
-                            <button class="btn-primary" onclick="printReport('daily')">&#128424; Print</button>
+                            <button class="btn-secondary" onclick="rfPreviewReport('daily')">Preview</button>
+                            <button class="btn-primary" onclick="rfPrintReport('daily')">&#128424; Print</button>
                         </div>
                     </div>
                     <div class="report-card">
@@ -284,8 +229,8 @@ try {
                         <h3>Printed Invoices</h3>
                         <p>Recently printed payment invoices with amount, status, and timestamp.</p>
                         <div class="report-actions">
-                            <button class="btn-secondary" onclick="previewReport('printed')">Preview</button>
-                            <button class="btn-primary" onclick="printReport('printed')">&#128424; Print</button>
+                            <button class="btn-secondary" onclick="rfPreviewReport('printed')">Preview</button>
+                            <button class="btn-primary" onclick="rfPrintReport('printed')">&#128424; Print</button>
                         </div>
                     </div>
                     <div class="report-card">
@@ -293,23 +238,21 @@ try {
                         <h3>Print Activity</h3>
                         <p>Daily count of invoices printed in the last 7 days.</p>
                         <div class="report-actions">
-                            <button class="btn-secondary" onclick="previewReport('printed_daily')">Preview</button>
-                            <button class="btn-primary" onclick="printReport('printed_daily')">&#128424; Print</button>
+                            <button class="btn-secondary" onclick="rfPreviewReport('printed_daily')">Preview</button>
+                            <button class="btn-primary" onclick="rfPrintReport('printed_daily')">&#128424; Print</button>
                         </div>
                     </div>
                 </div>
 
-
             </div>
 
-            <!-- Print Preview Modal -->
             <div id="printPreviewModal" class="modal-overlay">
                 <div class="modal" style="max-width: 900px;">
                     <div class="modal-header">
                         <h2>Report Preview</h2>
                         <div class="modal-actions">
-                            <button class="btn-secondary" onclick="closePreviewModal()">Close</button>
-                            <button class="btn-primary" onclick="printCurrentReport()">&#128424; Print</button>
+                            <button class="btn-secondary" onclick="rfClosePreviewModal()">Close</button>
+                            <button class="btn-primary" onclick="rfPrintCurrentReport()">&#128424; Print</button>
                         </div>
                     </div>
                     <div class="print-preview-content" id="printPreviewContent"></div>
@@ -329,92 +272,18 @@ $reportPayload = [
     'printed_daily' => $printedDaily
 ];
 $reportJson = json_encode($reportPayload, $jsonFlags);
-
-$reportHtmlPayload = [
-    'patients' => buildReportHtml('Patient Report', buildReportTable(
-        ['ID', 'Full Name', 'Phone', 'Email', 'Registered'],
-        array_map(fn($p) => [
-            $p['id'] ?? '',
-            $p['full_name'] ?? '',
-            $p['phone'] ?? '',
-            $p['email'] ?? '',
-            isset($p['created_at']) ? date('M d, Y', strtotime($p['created_at'])) : ''
-        ], $patientsReport)
-    )),
-    'appointments' => buildReportHtml('Appointments Report', buildReportTable(
-        ['ID', 'Patient', 'Date', 'Time', 'Treatment', 'Status'],
-        array_map(fn($a) => [
-            $a['id'] ?? '',
-            $a['patient'] ?? '',
-            $a['appointment_date'] ?? '',
-            $a['appointment_time'] ?? '',
-            $a['treatment'] ?? '',
-            $a['status'] ?? ''
-        ], $appointmentsReport)
-    )),
-    'billing' => buildReportHtml('Payment Report', buildReportTable(
-        ['Invoice', 'Patient', 'Total', 'Paid', 'Balance', 'Status', 'Date', 'Due'],
-        array_map(fn($b) => [
-            'INV-' . str_pad((string)($b['id'] ?? 0), 4, '0', STR_PAD_LEFT),
-            $b['patient'] ?? '',
-            '₱' . number_format((float)($b['total_amount'] ?? 0), 2),
-            '₱' . number_format((float)($b['paid_amount'] ?? 0), 2),
-            '₱' . number_format((float)($b['balance'] ?? 0), 2),
-            $b['payment_status'] ?? '',
-            $b['payment_date'] ?? $b['billing_date'] ?? '',
-            $b['due_date'] ?? ''
-        ], $billingReport)
-    )),
-    'revenue' => buildReportHtml('Revenue Report', buildReportTable(
-        ['Service', 'Total Revenue'],
-        array_map(fn($r) => [
-            $r['service'] ?? 'General Service',
-            '₱' . number_format((float)($r['total'] ?? 0), 2)
-        ], $revenueReport)
-    )),
-    'services' => buildReportHtml('Services Report', buildReportTable(
-        ['Service', 'Frequency'],
-        array_map(fn($s) => [
-            $s['service'] ?? 'Service',
-            $s['total'] ?? 0
-        ], $servicesReport)
-    )),
-    'printed' => buildReportHtml('Recently Printed Invoices', buildReportTable(
-        ['Invoice #', 'Patient', 'Amount', 'Status', 'Printed At'],
-        array_map(fn($p) => [
-            'INV-' . str_pad($p['id'] ?? 0, 3, '0', STR_PAD_LEFT),
-            $p['patient'] ?? 'Unknown',
-            '₱' . number_format((float)($p['total_amount'] ?? 0), 2),
-            ucfirst($p['payment_status'] ?? 'unpaid'),
-            $p['printed_at'] ?? ''
-        ], $printedInvoices)
-    )),
-    'printed_daily' => buildReportHtml('Print Activity (Last 7 Days)', buildReportTable(
-        ['Date', 'Invoices Printed'],
-        array_map(fn($d) => [
-            $d['day'] ?? '',
-            $d['printed_count'] ?? 0
-        ], $printedDaily)
-    )),
-    'daily' => buildReportHtml('Daily Summary', buildReportTable(
-        ['Date', 'New Patients', 'Appointments', 'Revenue'],
-        array_map(fn($d) => [
-            $d['day'] ?? '',
-            $d['new_patients'] ?? 0,
-            $d['appointments'] ?? 0,
-            '₱' . number_format((float)($d['revenue'] ?? 0), 2)
-        ], $dailySummaryReport)
-    ))
-];
-$reportHtmlJson = json_encode($reportHtmlPayload, $jsonFlags);
 ?>
 <script id="reportData" type="application/json"><?php echo $reportJson; ?></script>
-<script id="reportHtml" type="application/json"><?php echo $reportHtmlJson; ?></script>
-<?php
-$pageScript = <<<'SCRIPT'
+
 <script>
-const reportData = JSON.parse(document.getElementById('reportData')?.textContent || '{}');
-const reportHtml = JSON.parse(document.getElementById('reportHtml')?.textContent || '{}');
+let reportData = {};
+try {
+    const rawData = document.getElementById('reportData')?.textContent || '{}';
+    reportData = JSON.parse(rawData);
+} catch (error) {
+    console.error("JSON Parse Error", error);
+}
+
 const reportTitles = {
     patients: 'Patient Report',
     appointments: 'Appointments Report',
@@ -437,66 +306,40 @@ function buildTable(headers, rows) {
     return `<table class="print-table"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
 }
 
-function renderReport(type) {
-    if (reportHtml[type]) {
-        return reportHtml[type];
-    }
-
+function renderNewReport(type) {
     const data = reportData[type] || [];
     let headers = [];
     let rows = [];
 
     if (type === 'patients') {
-        headers = ['ID', 'Full Name', 'Phone', 'Email', 'Registered'];
+        headers = ['No', 'First Name', 'Middle Name', 'Last Name', 'Suffix', 'Gender', 'Phone', 'Email', 'DOB', 'Archived', 'Created'];
         rows = data.map(p => [
-            p.id ?? '',
-            p.full_name ?? '',
-            p.phone ?? '',
-            p.email ?? '',
-            p.created_at ? new Date(p.created_at).toLocaleDateString() : ''
+            p.id ?? '', p.first_name ?? '', p.middle_name ?? '', p.last_name ?? '', p.suffix ?? '',
+            p.gender ?? '', p.phone ?? '', p.email ?? '', p.date_of_birth ?? '',
+            p.is_archived ? 'Yes' : 'No', p.created_at ? new Date(p.created_at).toLocaleDateString() : ''
         ]);
     } else if (type === 'appointments') {
-        headers = ['ID', 'Patient', 'Date', 'Time', 'Treatment', 'Status'];
+        headers = ['ID', 'First Name', 'Middle Name', 'Last Name', 'Date', 'Time', 'Status'];
         rows = data.map(a => [
-            a.id ?? '',
-            a.patient ?? '',
-            a.appointment_date ?? '',
-            a.appointment_time ?? '',
-            a.treatment ?? '',
-            a.status ?? ''
+            a.id ?? '', a.first_name ?? '', a.middle_name ?? '', a.last_name ?? '',
+            a.appointment_date ?? '', a.appointment_time ?? '', a.status ?? ''
         ]);
     } else if (type === 'billing') {
         headers = ['Invoice', 'Patient', 'Total', 'Paid', 'Balance', 'Status', 'Date', 'Due'];
         rows = data.map(b => [
-            `INV-${String(b.id).padStart(4, '0')}`,
-            b.patient ?? '',
-            `₱${Number(b.total_amount || 0).toLocaleString()}`,
-            `₱${Number(b.paid_amount || 0).toLocaleString()}`,
-            `₱${Number(b.balance || 0).toLocaleString()}`,
-            b.payment_status ?? '',
-            b.billing_date ?? '',
-            b.due_date ?? ''
+            `INV-${String(b.id).padStart(4, '0')}`, b.patient ?? '',
+            `₱${Number(b.total_amount || 0).toLocaleString()}`, `₱${Number(b.paid_amount || 0).toLocaleString()}`,
+            `₱${Number(b.balance || 0).toLocaleString()}`, b.payment_status ?? '', b.billing_date ?? '', b.due_date ?? ''
         ]);
     } else if (type === 'revenue') {
         headers = ['Service', 'Total Revenue'];
-        rows = data.map(r => [
-            r.service ?? 'General Service',
-            `₱${Number(r.total || 0).toLocaleString()}`
-        ]);
+        rows = data.map(r => [r.service ?? 'General Service', `₱${Number(r.total || 0).toLocaleString()}`]);
     } else if (type === 'services') {
         headers = ['Service', 'Frequency'];
-        rows = data.map(s => [
-            s.service ?? 'Service',
-            s.total ?? 0
-        ]);
+        rows = data.map(s => [s.service ?? 'Service', s.total ?? 0]);
     } else if (type === 'daily') {
         headers = ['Date', 'New Patients', 'Appointments', 'Revenue'];
-        rows = data.map(d => [
-            d.day ?? '',
-            d.new_patients ?? 0,
-            d.appointments ?? 0,
-            `₱${Number(d.revenue || 0).toLocaleString()}`
-        ]);
+        rows = data.map(d => [d.day ?? '', d.new_patients ?? 0, d.appointments ?? 0, `₱${Number(d.revenue || 0).toLocaleString()}`]);
     }
 
     const table = buildTable(headers, rows);
@@ -514,9 +357,7 @@ function renderReport(type) {
                     <div>Generated: ${new Date().toLocaleString()}</div>
                 </div>
             </div>
-            <div class="print-body">
-                ${table}
-            </div>
+            <div class="print-body">${table}</div>
             <div class="print-footer">
                 <div>Confidential - For internal use only</div>
                 <div>RF Dental Clinic</div>
@@ -525,15 +366,16 @@ function renderReport(type) {
     `;
 }
 
-window.previewReport = function(type) {
+// Renamed all functions with 'rf' prefix to bypass hidden scripts
+window.rfPreviewReport = function(type) {
     lastPreviewType = type;
-    const content = renderReport(type);
+    const content = renderNewReport(type);
     document.getElementById('printPreviewContent').innerHTML = content;
     document.getElementById('printPreviewModal').classList.add('active');
 };
 
-window.printReport = function(type) {
-    const html = renderReport(type);
+window.rfPrintReport = function(type) {
+    const html = renderNewReport(type);
     const win = window.open('', '_blank');
     const doc = `
 <!DOCTYPE html>
@@ -561,71 +403,24 @@ window.printReport = function(type) {
     win.document.open();
     win.document.write(doc);
     win.document.close();
-    win.focus();
-    win.print();
+    setTimeout(() => { win.focus(); win.print(); }, 250);
 };
 
-window.printCurrentReport = function() {
-    window.printReport(lastPreviewType);
-};
-
-window.closePreviewModal = function() {
-    document.getElementById('printPreviewModal').classList.remove('active');
-};
-
-window.generateCustomReport = function() {
-    const type = document.getElementById('customReportType').value;
-    window.previewReport(type);
-};
-
-window.printCustomReport = function() {
-    const type = document.getElementById('customReportType').value;
-    window.printReport(type);
-};
-
-window.exportToPDF = function() {
-    const type = document.getElementById('customReportType').value;
-    window.printReport(type);
-};
+window.rfPrintCurrentReport = function() { window.rfPrintReport(lastPreviewType); };
+window.rfClosePreviewModal = function() { document.getElementById('printPreviewModal').classList.remove('active'); };
+window.rfGenerateCustomReport = function() { window.rfPreviewReport(document.getElementById('customReportType').value); };
+window.rfPrintCustomReport = function() { window.rfPrintReport(document.getElementById('customReportType').value); };
+window.rfExportToPDF = function() { window.rfPrintReport(document.getElementById('customReportType').value); };
 </script>
-SCRIPT;
-?>
 
-<?php
-require_once __DIR__ . '/../../includes/admin_layout_end.php';
-?>
-
-
+<?php require_once __DIR__ . '/../../includes/admin_layout_end.php'; ?>
 
 <style>
-    .report-form {
-        display: flex;
-        align-items: center;
-        justify-content: stretch;
-        gap: 10px;
-        padding: 16px 0;
-    }
-    .report-form .form-control {
-        flex: 1;
-        min-width: 0;
-    }
-    .report-form button {
-        flex: 1;
-        min-width: 0;
-        max-width: 120px;
-    }
-    .section-card {
-        height: auto;
-    }
-
-    .reports-grid {
-        margin-bottom: 40px;
-        padding-bottom: 40px;
-    }
-    .content-main {
-        padding-bottom: 40px;
-    }
+    .report-form { display: flex; align-items: center; justify-content: stretch; gap: 10px; padding: 16px 0; }
+    .report-form .form-control { flex: 1; min-width: 0; }
+    .report-form button { flex: 1; min-width: 0; max-width: 120px; }
+    .section-card { height: auto; }
+    .reports-grid { margin-bottom: 40px; padding-bottom: 40px; }
+    .content-main { padding-bottom: 40px; }
 </style>
-
-<!-- Admin Reports Custom CSS -->
 <link rel="stylesheet" href="../../assets/css/admin_reports.css">

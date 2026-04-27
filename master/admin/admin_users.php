@@ -66,7 +66,7 @@ try {
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>ID</th>
+                                <th>No.</th>
                                 <th>Username</th>
                                 <th>First Name</th>
                                 <th>Middle Name</th>
@@ -78,7 +78,7 @@ try {
                             </tr>
                         </thead>
                         <tbody id="usersTableBody">
-                            <?php foreach ($users as $user): ?>
+                            <?php $rowNum = 1; foreach ($users as $user): ?>
                             <?php
                                 $username = $user['username'] ?? '';
                                 $firstName = $user['first_name'] ?? '';
@@ -87,7 +87,7 @@ try {
                                 $email = $user['email'] ?? '';
                             ?>
                             <tr>
-                                <td><?php echo $user['id']; ?></td>
+                                <td><?php echo $rowNum++; ?></td>
                                 <td><?php echo htmlspecialchars($username); ?></td>
                                 <td><?php echo htmlspecialchars($firstName); ?></td>
                                 <td><?php echo htmlspecialchars($middleName); ?></td>
