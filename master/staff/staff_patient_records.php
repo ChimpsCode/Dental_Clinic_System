@@ -716,7 +716,7 @@ function filterPatients() {
 }
 
 function viewPatientRecord(patientId) {
-    fetch('master/user-patient/patient_record_details.php?id=' + patientId)
+    fetch('../user-patient/patient_record_details.php?id=' + encodeURIComponent(patientId))
     .then(response => response.json())
     .then(data => {
         if (data.success) {
@@ -1007,7 +1007,7 @@ function handlePatientKebabClick(e) {
             openAddAppointmentModal(id);
             break;
         case 'session':
-            window.location.href = 'quick_session.php?patient_id=' + id;
+            window.location.href = '../shared/quick_session.php?patient_id=' + id;
             break;
     }
 }
@@ -1059,7 +1059,7 @@ function openAddAppointmentModal(patientId) {
         selectedPatientId = patientId;
         
         // Build full name from patient data
-        const fullName = (patient.first_name || '') + ' ' + (patient.middle_name || '' + ' ') + (patient.last_name || '');
+        const fullName = [patient.first_name || '', patient.middle_name || '', patient.last_name || ''].filter(Boolean).join(' ');
         
         // Update modal content
         document.getElementById('appointmentPatientName').textContent = fullName.trim();
@@ -1088,7 +1088,7 @@ document.getElementById('addAppointmentForm').addEventListener('submit', functio
     e.preventDefault();
     const formData = new FormData(this);
     
-    fetch('master/user-patient/process_patient_appointment.php', {
+    fetch('../user-patient/process_patient_appointment.php', {
         method: 'POST',
         body: formData
     })

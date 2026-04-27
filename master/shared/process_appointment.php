@@ -29,17 +29,20 @@ try {
     $first_name = trim($_POST['first_name'] ?? '');
     $middle_name = trim($_POST['middle_name'] ?? '');
     $last_name = trim($_POST['last_name'] ?? '');
+    $email = trim($_POST['email'] ?? '');
     $phone = trim($_POST['phone'] ?? '');
+    $patient_id = isset($_POST['patient_id']) && $_POST['patient_id'] !== '' ? (int)$_POST['patient_id'] : null;
+    $appointment_id = isset($_POST['appointment_id']) && $_POST['appointment_id'] !== '' ? (int)$_POST['appointment_id'] : null;
     $appointment_date = $_POST['appointment_date'] ?? '';
     $appointment_time = $_POST['appointment_time'] ?? '';
     $treatment = $_POST['treatment'] ?? 'General Checkup';
     $notes = trim($_POST['notes'] ?? '');
 
-    if (empty($first_name)) {
+    if (!$patient_id && empty($first_name)) {
         throw new Exception('First name is required');
     }
 
-    if (empty($last_name)) {
+    if (!$patient_id && empty($last_name)) {
         throw new Exception('Last name is required');
     }
 
@@ -53,7 +56,21 @@ try {
     
     $pdo->beginTransaction();
 
-    $patient_id = null;
+    $existingAppointment = null;
+
+    if ($appointment_id) {
+        $stmt = $pdo->prepare("SELECT * FROM appointments WHERE id = ? LIMIT 1");
+        $stmt->execute([$appointment_id]);
+        $existingAppointment = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$existingAppointment) {
+            throw new Exception('Appointment not found');
+        }
+
+        if (!$patient_id) {
+            $patient_id = (int)$existingAppointment['patient_id'];
+        }
+    }
 
     // Search for existing patient by phone (more reliable than name)
     if ($phone) {
@@ -96,8 +113,9 @@ try {
             AND DATE(appointment_date) = ?
             AND status_id IN (1, 2) 
             AND (status = 'scheduled' OR status = 'in_queue' OR status IS NULL)
+            AND id <> ?
         ");
-        $checkStmt->execute([$patient_id, $appointment_date]);
+        $checkStmt->execute([$patient_id, $appointment_date, $appointment_id ?: 0]);
         $activeCount = $checkStmt->fetchColumn();
         
         if ($activeCount > 0) {
@@ -158,10 +176,6 @@ try {
     $bookingType = $bookedById ? 'staff' : 'self';
     
     // Correct columns for appointments table
-    $stmt = $pdo->prepare("INSERT INTO appointments 
-        (patient_id, appointment_date, appointment_time, service_id, notes, status, status_id, created_by, booked_by_id, booking_type, created_at, is_archived) 
-        VALUES (?, ?, ?, ?, ?, 'scheduled', 1, ?, ?, ?, NOW(), 0)");
-    
     // We need to resolve service_id from treatment string if possible, or use a default
     $service_id = null;
     try {
@@ -170,25 +184,53 @@ try {
         $service_id = $svcStmt->fetchColumn() ?: null;
     } catch (Exception $e) {}
 
-    $result = $stmt->execute([
-        $patient_id, 
-        $appointment_date, 
-        $appointment_time, 
-        $service_id,
-        $notes, 
-        $_SESSION['user_id'] ?? 1,
-        $bookedById,
-        $bookingType
-    ]);
-    
-    if (!$result) {
-        throw new Exception("Failed to insert appointment. PDO Error: " . implode(", ", $stmt->errorInfo()));
-    }
-    
-    $appointment_id = $pdo->lastInsertId();
-    
-    if (!$appointment_id) {
-        throw new Exception("Failed to get appointment ID");
+    if ($appointment_id) {
+        $stmt = $pdo->query("SHOW COLUMNS FROM appointments");
+        $appointmentColumns = array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'Field');
+        $updates = [
+            'appointment_date = ?',
+            'appointment_time = ?',
+            'service_id = ?',
+            'notes = ?'
+        ];
+        $params = [$appointment_date, $appointment_time, $service_id, $notes];
+
+        if (in_array('updated_at', $appointmentColumns, true)) {
+            $updates[] = 'updated_at = NOW()';
+        }
+
+        $params[] = $appointment_id;
+        $stmt = $pdo->prepare("UPDATE appointments SET " . implode(', ', $updates) . " WHERE id = ?");
+        $result = $stmt->execute($params);
+
+        if (!$result) {
+            throw new Exception("Failed to update appointment. PDO Error: " . implode(", ", $stmt->errorInfo()));
+        }
+    } else {
+        $stmt = $pdo->prepare("INSERT INTO appointments 
+            (patient_id, appointment_date, appointment_time, service_id, notes, status, status_id, created_by, booked_by_id, booking_type, created_at, is_archived) 
+            VALUES (?, ?, ?, ?, ?, 'scheduled', 1, ?, ?, ?, NOW(), 0)");
+
+        $result = $stmt->execute([
+            $patient_id, 
+            $appointment_date, 
+            $appointment_time, 
+            $service_id,
+            $notes, 
+            $_SESSION['user_id'] ?? 1,
+            $bookedById,
+            $bookingType
+        ]);
+
+        if (!$result) {
+            throw new Exception("Failed to insert appointment. PDO Error: " . implode(", ", $stmt->errorInfo()));
+        }
+
+        $appointment_id = $pdo->lastInsertId();
+
+        if (!$appointment_id) {
+            throw new Exception("Failed to get appointment ID");
+        }
     }
 
     $pdo->commit();
@@ -207,7 +249,7 @@ try {
 
     echo json_encode([
         'success' => true,
-        'message' => 'Appointment scheduled successfully!'
+        'message' => $existingAppointment ? 'Appointment updated successfully!' : 'Appointment scheduled successfully!'
     ]);
 
 } catch (Exception $e) {

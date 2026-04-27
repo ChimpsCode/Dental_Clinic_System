@@ -61,6 +61,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const completeBtn = document.getElementById('completeTreatmentBtn');
     if (completeBtn) {
         completeBtn.addEventListener('click', function() {
+            // Staff dashboard now provides its own in-page modal flow.
+            if (typeof window.completeCurrentPatient === 'function' && completeBtn.getAttribute('onclick')) {
+                return;
+            }
             if (confirm('Mark this treatment as completed?')) {
                 alert('Treatment marked as completed!');
                 location.reload();

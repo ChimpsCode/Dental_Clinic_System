@@ -114,7 +114,7 @@ try {
                                 <div class="patient-treatment"><?php echo htmlspecialchars($item['treatment_type'] ?? ''); ?></div>
                             </div>
                             <div class="patient-actions">
-                                <button class="action-btn icon view-btn">👁️</button>
+                                <button class="action-btn icon view-btn" onclick="viewPatientDashboard(<?php echo (int)$item['patient_id']; ?>)">👁️</button>
                                 <button class="action-btn" style="background: #84cc16; color: white; padding: 8px 12px; border-radius: 6px; border: none; font-size: 12px; cursor: pointer;" onclick="requeuePatientDashboard(<?php echo $item['id']; ?>)">Re-queue</button>
                                 <button class="action-btn icon delete-btn">🗑️</button>
                             </div>
@@ -214,7 +214,7 @@ try {
                                 <div class="patient-treatment"><?php echo htmlspecialchars($item['treatment_type'] ?? ''); ?></div>
                             </div>
                             <div class="patient-actions">
-                                <button class="action-btn icon view-btn">👁️</button>
+                                <button class="action-btn icon view-btn" onclick="viewPatientDashboard(<?php echo (int)$item['patient_id']; ?>)">👁️</button>
                                 <button class="action-btn" style="background: #84cc16; color: white; padding: 8px 12px; border-radius: 6px; border: none; font-size: 12px; cursor: pointer;" onclick="requeuePatientDashboard(<?php echo $item['id']; ?>)">Re-queue</button>
                                 <button class="action-btn icon delete-btn">🗑️</button>
                             </div>
@@ -259,14 +259,88 @@ try {
     </div>
 </div>
 
+<!-- Complete Treatment Modal -->
+<div id="completeTreatmentModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
+    <div class="modal complete-treatment-modal" style="position: relative; z-index: 100000;">
+        <div class="complete-treatment-bg-orb complete-treatment-bg-orb-a"></div>
+        <div class="complete-treatment-bg-orb complete-treatment-bg-orb-b"></div>
+        <div class="complete-treatment-banner">
+            <div class="complete-treatment-icon-wrap">
+                <span class="complete-treatment-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M9.2 16.2 5.5 12.5l-1.4 1.4 5.1 5.1L20 8.2l-1.4-1.4z"></path>
+                    </svg>
+                </span>
+            </div>
+            <div>
+                <div class="complete-treatment-kicker">Live Queue Controller</div>
+                <h2 style="font-size: 1.55rem; font-weight: 700; margin: 6px 0 0;">Complete Treatment</h2>
+            </div>
+            <button onclick="closeCompleteTreatmentModal()" class="complete-treatment-close">×</button>
+        </div>
+        <div class="complete-treatment-body">
+            <p class="complete-treatment-text">Mark treatment as complete and move this patient to payment?</p>
+            <div class="complete-treatment-highlight">
+                <div class="complete-treatment-highlight-icon">🦷</div>
+                <div>
+                    <div class="complete-treatment-highlight-label">Patient Care Flow</div>
+                    <div class="complete-treatment-highlight-value">Treatment finishes here, billing continues next.</div>
+                </div>
+            </div>
+            <div class="complete-treatment-note">
+                <span class="complete-treatment-note-dot"></span>
+                The dashboard and payment list will refresh after confirmation.
+            </div>
+        </div>
+        <input type="hidden" id="completeTreatmentQueueId">
+        <div class="complete-treatment-actions">
+            <button type="button" onclick="closeCompleteTreatmentModal()" class="complete-treatment-cancel">Keep Open</button>
+            <button type="button" onclick="confirmCompleteTreatment()" class="complete-treatment-confirm">Yes, Complete</button>
+        </div>
+    </div>
+</div>
+
+<!-- Dashboard Confirm Modal -->
+<div id="dashboardConfirmModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
+    <div class="modal" style="background: white; border-radius: 12px; padding: 24px; width: 90%; max-width: 460px; position: relative; z-index: 100000;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h2 id="dashboardConfirmTitle" style="font-size: 1.25rem; font-weight: 600; margin: 0;">Confirm Action</h2>
+            <button onclick="closeDashboardConfirmModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">×</button>
+        </div>
+        <p id="dashboardConfirmMessage" style="color: #374151; margin: 0 0 20px;"></p>
+        <div style="display: flex; justify-content: flex-end; gap: 12px;">
+            <button type="button" onclick="closeDashboardConfirmModal()" style="padding: 10px 20px; background: #f3f4f6; color: #374151; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">Cancel</button>
+            <button type="button" id="dashboardConfirmButton" style="padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<!-- Dashboard Message Modal -->
+<div id="dashboardMessageModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
+    <div class="modal" style="background: white; border-radius: 12px; padding: 24px; width: 90%; max-width: 460px; position: relative; z-index: 100000;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h2 id="dashboardMessageTitle" style="font-size: 1.25rem; font-weight: 600; margin: 0;">Notice</h2>
+            <button onclick="closeDashboardMessageModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">×</button>
+        </div>
+        <p id="dashboardMessageText" style="color: #374151; margin: 0 0 20px;"></p>
+        <div style="display: flex; justify-content: flex-end;">
+            <button type="button" onclick="closeDashboardMessageModal()" style="padding: 10px 20px; background: #f3f4f6; color: #374151; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">Close</button>
+        </div>
+    </div>
+</div>
+
 <script>
 const queueItems = <?php echo json_encode($queueItems); ?>;
+let dashboardConfirmHandler = null;
 
 // Portal Pattern: Move modals to body level to escape stacking context
 // This ensures modals appear above sidebar and all other elements
 (function() {
     const cancelledModal = document.getElementById('cancelledModal');
     const patientRecordModal = document.getElementById('patientRecordModal');
+    const completeTreatmentModal = document.getElementById('completeTreatmentModal');
+    const dashboardConfirmModal = document.getElementById('dashboardConfirmModal');
+    const dashboardMessageModal = document.getElementById('dashboardMessageModal');
     
     if (cancelledModal) {
         document.body.appendChild(cancelledModal);
@@ -274,13 +348,63 @@ const queueItems = <?php echo json_encode($queueItems); ?>;
     if (patientRecordModal) {
         document.body.appendChild(patientRecordModal);
     }
+    if (completeTreatmentModal) {
+        document.body.appendChild(completeTreatmentModal);
+    }
+    if (dashboardConfirmModal) {
+        document.body.appendChild(dashboardConfirmModal);
+    }
+    if (dashboardMessageModal) {
+        document.body.appendChild(dashboardMessageModal);
+    }
 })();
+
+function showDashboardMessage(message, title = 'Notice') {
+    document.getElementById('dashboardMessageTitle').textContent = title;
+    document.getElementById('dashboardMessageText').textContent = message;
+    document.getElementById('dashboardMessageModal').style.display = 'flex';
+}
+
+function closeDashboardMessageModal() {
+    document.getElementById('dashboardMessageModal').style.display = 'none';
+}
+
+function openDashboardConfirmModal(message, onConfirm, title = 'Confirm Action') {
+    document.getElementById('dashboardConfirmTitle').textContent = title;
+    document.getElementById('dashboardConfirmMessage').textContent = message;
+    dashboardConfirmHandler = onConfirm;
+    document.getElementById('dashboardConfirmModal').style.display = 'flex';
+}
+
+function closeDashboardConfirmModal() {
+    document.getElementById('dashboardConfirmModal').style.display = 'none';
+    dashboardConfirmHandler = null;
+}
+
+document.getElementById('dashboardConfirmButton').addEventListener('click', function() {
+    if (typeof dashboardConfirmHandler === 'function') {
+        const handler = dashboardConfirmHandler;
+        closeDashboardConfirmModal();
+        handler();
+    }
+});
 
 // Dashboard Queue Actions
 function completeCurrentPatient(queueId) {
-    if (!confirm('Mark treatment as complete?')) return;
-    
-    fetch('queue_actions.php', {
+    document.getElementById('completeTreatmentQueueId').value = queueId;
+    document.getElementById('completeTreatmentModal').style.display = 'flex';
+}
+
+function closeCompleteTreatmentModal() {
+    document.getElementById('completeTreatmentModal').style.display = 'none';
+    document.getElementById('completeTreatmentQueueId').value = '';
+}
+
+function confirmCompleteTreatment() {
+    const queueId = document.getElementById('completeTreatmentQueueId').value;
+    if (!queueId) return;
+
+    fetch('../shared/queue_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'complete', queue_id: queueId })
@@ -288,51 +412,61 @@ function completeCurrentPatient(queueId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            closeCompleteTreatmentModal();
             location.reload();
         } else {
-            alert(data.message);
+            showDashboardMessage(data.message || 'Unable to complete treatment', 'Treatment Status');
         }
+    })
+    .catch(() => {
+        showDashboardMessage('Unable to complete treatment', 'Treatment Status');
     });
 }
 
 function moveToOnHoldDashboard(queueId) {
-    if (!confirm('Put patient on hold?')) return;
-    
-    fetch('queue_actions.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'on_hold', queue_id: queueId })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert(data.message);
-        }
+    openDashboardConfirmModal('Put patient on hold?', function() {
+        fetch('../shared/queue_actions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'on_hold', queue_id: queueId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                showDashboardMessage(data.message || 'Unable to update queue status', 'Queue Status');
+            }
+        })
+        .catch(() => {
+            showDashboardMessage('Unable to update queue status', 'Queue Status');
+        });
     });
 }
 
 function cancelPatientDashboard(queueId) {
-    if (!confirm('Cancel this patient?')) return;
-    
-    fetch('queue_actions.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'cancel', queue_id: queueId })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert(data.message);
-        }
+    openDashboardConfirmModal('Cancel this patient?', function() {
+        fetch('../shared/queue_actions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'cancel', queue_id: queueId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                showDashboardMessage(data.message || 'Unable to cancel patient', 'Queue Status');
+            }
+        })
+        .catch(() => {
+            showDashboardMessage('Unable to cancel patient', 'Queue Status');
+        });
     });
 }
 
 function requeuePatientDashboard(queueId) {
-    fetch('queue_actions.php', {
+    fetch('../shared/queue_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'requeue', queue_id: queueId })
@@ -342,8 +476,11 @@ function requeuePatientDashboard(queueId) {
         if (data.success) {
             location.reload();
         } else {
-            alert(data.message);
+            showDashboardMessage(data.message || 'Unable to re-queue patient', 'Queue Status');
         }
+    })
+    .catch(() => {
+        showDashboardMessage('Unable to re-queue patient', 'Queue Status');
     });
 }
 
@@ -381,11 +518,7 @@ function filterCancelled(filter) {
 
 // Patient Record Modal
 function viewPatientDashboard(patientId) {
-    fetch('queue_actions.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'get_patient_record', patient_id: patientId })
-    })
+    fetch('../user-patient/patient_record_details.php?id=' + encodeURIComponent(patientId))
     .then(response => response.json())
     .then(data => {
         if (data.success) {
@@ -440,7 +573,12 @@ function viewPatientDashboard(patientId) {
             `;
             
             document.getElementById('patientRecordModal').style.display = 'flex';
+        } else {
+            showDashboardMessage(data.message || 'Unable to load patient record', 'Patient Record');
         }
+    })
+    .catch(() => {
+        showDashboardMessage('Unable to load patient record', 'Patient Record');
     });
 }
 
@@ -452,8 +590,14 @@ function closePatientRecordModal() {
 window.onclick = function(event) {
     const cancelledModal = document.getElementById('cancelledModal');
     const patientModal = document.getElementById('patientRecordModal');
+    const completeTreatmentModal = document.getElementById('completeTreatmentModal');
+    const dashboardConfirmModal = document.getElementById('dashboardConfirmModal');
+    const dashboardMessageModal = document.getElementById('dashboardMessageModal');
     if (event.target == cancelledModal) closeCancelledModal();
     if (event.target == patientModal) closePatientRecordModal();
+    if (event.target == completeTreatmentModal) closeCompleteTreatmentModal();
+    if (event.target == dashboardConfirmModal) closeDashboardConfirmModal();
+    if (event.target == dashboardMessageModal) closeDashboardMessageModal();
 }
 
 // Reminder functionality
@@ -512,6 +656,230 @@ function getStaffTeethDisplayText(teethString) {
     overflow-y: auto;
     padding: 0;
     animation: fadeIn 0.3s ease;
+}
+
+.complete-treatment-modal {
+    background:
+        radial-gradient(circle at top right, rgba(14, 165, 233, 0.18), transparent 32%),
+        radial-gradient(circle at bottom left, rgba(34, 197, 94, 0.14), transparent 28%),
+        linear-gradient(180deg, #ffffff 0%, #f7fcff 100%);
+    border-radius: 22px;
+    padding: 0;
+    width: 90%;
+    max-width: 560px;
+    overflow: hidden;
+    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.24);
+    border: 1px solid rgba(14, 165, 233, 0.12);
+}
+
+.complete-treatment-bg-orb {
+    position: absolute;
+    border-radius: 999px;
+    pointer-events: none;
+    filter: blur(8px);
+    opacity: 0.55;
+}
+
+.complete-treatment-bg-orb-a {
+    width: 140px;
+    height: 140px;
+    right: -30px;
+    top: 88px;
+    background: radial-gradient(circle, rgba(14, 165, 233, 0.2) 0%, rgba(14, 165, 233, 0) 72%);
+}
+
+.complete-treatment-bg-orb-b {
+    width: 160px;
+    height: 160px;
+    left: -40px;
+    bottom: -30px;
+    background: radial-gradient(circle, rgba(34, 197, 94, 0.16) 0%, rgba(34, 197, 94, 0) 74%);
+}
+
+.complete-treatment-banner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 24px 26px 18px;
+    background:
+        linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0) 42%),
+        linear-gradient(135deg, #0b7db3 0%, #0891b2 38%, #0f9f53 100%);
+    color: white;
+    position: relative;
+}
+
+.complete-treatment-icon-wrap {
+    width: 54px;
+    height: 54px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    backdrop-filter: blur(6px);
+    flex-shrink: 0;
+}
+
+.complete-treatment-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.complete-treatment-icon svg {
+    width: 26px;
+    height: 26px;
+    fill: currentColor;
+}
+
+.complete-treatment-kicker {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    opacity: 0.9;
+    font-weight: 700;
+}
+
+.complete-treatment-close {
+    margin-left: auto;
+    background: rgba(255, 255, 255, 0.12);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    font-size: 1.5rem;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+}
+
+.complete-treatment-body {
+    padding: 24px 26px 12px;
+    position: relative;
+}
+
+.complete-treatment-text {
+    color: #1f2937;
+    font-size: 1.06rem;
+    line-height: 1.6;
+    margin: 0 0 16px;
+    font-weight: 500;
+}
+
+.complete-treatment-highlight {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #ecfeff 0%, #f0fdf4 100%);
+    border: 1px solid #d9f99d;
+    margin-bottom: 14px;
+}
+
+.complete-treatment-highlight-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    box-shadow: 0 10px 24px rgba(8, 145, 178, 0.12);
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.complete-treatment-highlight-label {
+    color: #0f766e;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    margin-bottom: 3px;
+}
+
+.complete-treatment-highlight-value {
+    color: #1f2937;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.complete-treatment-note {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: #f0fdf4;
+    color: #166534;
+    font-size: 0.92rem;
+    border: 1px solid #dcfce7;
+}
+
+.complete-treatment-note-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: #22c55e;
+    box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.14);
+    flex-shrink: 0;
+}
+
+.complete-treatment-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 18px 26px 26px;
+}
+
+.complete-treatment-cancel,
+.complete-treatment-confirm {
+    border: none;
+    border-radius: 14px;
+    padding: 13px 20px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.97rem;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.complete-treatment-cancel {
+    background: #eef6fb;
+    color: #315266;
+    border: 1px solid #d8e9f4;
+}
+
+.complete-treatment-confirm {
+    background: linear-gradient(135deg, #0891b2 0%, #0f9f53 100%);
+    color: white;
+    box-shadow: 0 14px 28px rgba(8, 145, 178, 0.24);
+}
+
+.complete-treatment-cancel:hover,
+.complete-treatment-confirm:hover,
+.complete-treatment-close:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+@media (max-width: 640px) {
+    .complete-treatment-banner,
+    .complete-treatment-body,
+    .complete-treatment-actions {
+        padding-left: 18px;
+        padding-right: 18px;
+    }
+
+    .complete-treatment-actions {
+        flex-direction: column-reverse;
+    }
+
+    .complete-treatment-cancel,
+    .complete-treatment-confirm {
+        width: 100%;
+    }
 }
 
 </style>

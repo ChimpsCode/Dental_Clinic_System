@@ -142,8 +142,8 @@ try {
 
 
 
-    // Get summary statistics with normalized status logic.
-    // "Paid" means payment_status_id = 1 OR payment_status = 'paid'.
+    // Get summary statistics from the same billing/payment data source used by the table.
+    // This keeps the cards in sync after staff marks payments as paid.
     $statsSql = "
         SELECT 
             (SELECT COALESCE(SUM(p.amount), 0)
@@ -156,9 +156,9 @@ try {
                AND NOT (b.payment_status_id = 1 OR b.payment_status = 'paid')) AS pending_today,
                
             (SELECT COUNT(*)
-             FROM queue q
-             WHERE q.status_id = 3
-               AND DATE(COALESCE(q.completed_at, q.created_at)) = CURDATE()) AS completed_today,
+             FROM billing b
+             WHERE DATE(b.billing_date) = CURDATE()
+               AND (b.payment_status_id = 1 OR b.payment_status = 'paid')) AS completed_today,
                
             (SELECT COUNT(*)
              FROM billing b
@@ -1051,7 +1051,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     const isPaid = button.dataset.isPaid === '1';
 
                     return `
-                        <a href="javascript:void(0)" data-action="view" data-queue-id="${queueId}" data-patient-id="${patientId}">
+                        <a href="javascript:void(0)" data-action="view" data-queue-id="${queueId}" data-patient-id="${patientId}" data-billing-id="${billingId}">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
                                 <path fill="none" stroke="currentColor" stroke-width="2" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                                 <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -1150,7 +1150,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
 
                     switch (action) {
                         case 'view':
-                            viewPaymentDetails(queueId, patientId);
+                            viewPaymentDetails(queueId, patientId, billingId);
                             break;
                         case 'mark-paid':
                             markAsPaid(queueId, patientId, amount, treatment, billingId);
@@ -1176,7 +1176,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     }
                 });
 
-                function viewPaymentDetails(queueId, patientId) {
+                function viewPaymentDetails(queueId, patientId, billingId) {
                     // Close kebab menu
                     closePayKebabDropdown();
                     
@@ -1188,11 +1188,53 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                         </div>
                     `;
                     
-                    // Fetch details via AJAX
-                    fetch('../shared/billing_actions.php?action=get_details&queue_id=' + queueId + '&patient_id=' + patientId)
+                    const endpoint = billingId && billingId !== '0'
+                        ? '../shared/billing_actions.php?action=get_billing&billing_id=' + encodeURIComponent(billingId)
+                        : '../shared/billing_actions.php?action=get_details&queue_id=' + encodeURIComponent(queueId || 0) + '&patient_id=' + encodeURIComponent(patientId || 0);
+
+                    fetch(endpoint)
                         .then(response => response.json())
                         .then(data => {
-                            if (data.success) {
+                            if (data.success && data.billing) {
+                                const billing = data.billing;
+                                const patientName = [billing.first_name || '', billing.middle_name || '', billing.last_name || '', billing.suffix || ''].filter(Boolean).join(' ') || 'N/A';
+                                document.getElementById('paymentModalContent').innerHTML = `
+                                    <div class="billing-detail-view">
+                                        <div class="detail-row">
+                                            <span class="detail-label">Invoice:</span>
+                                            <span class="detail-value">INV-${String(billing.id).padStart(4, '0')}</span>
+                                        </div>
+                                        <div class="detail-row">
+                                            <span class="detail-label">Patient:</span>
+                                            <span class="detail-value">${patientName}</span>
+                                        </div>
+                                        <div class="detail-row">
+                                            <span class="detail-label">Phone:</span>
+                                            <span class="detail-value">${billing.phone || 'N/A'}</span>
+                                        </div>
+                                        <div class="detail-row">
+                                            <span class="detail-label">Amount:</span>
+                                            <span class="detail-value">P${parseFloat(billing.total_amount || 0).toFixed(2)}</span>
+                                        </div>
+                                        <div class="detail-row">
+                                            <span class="detail-label">Paid Amount:</span>
+                                            <span class="detail-value">P${parseFloat(billing.paid_amount || 0).toFixed(2)}</span>
+                                        </div>
+                                        <div class="detail-row">
+                                            <span class="detail-label">Payment Status:</span>
+                                            <span class="detail-value">${billing.payment_status || 'unpaid'}</span>
+                                        </div>
+                                        <div class="detail-row">
+                                            <span class="detail-label">Billing Date:</span>
+                                            <span class="detail-value">${billing.billing_date || 'N/A'}</span>
+                                        </div>
+                                        <div class="detail-row">
+                                            <span class="detail-label">Notes:</span>
+                                            <span class="detail-value">${billing.notes || 'N/A'}</span>
+                                        </div>
+                                    </div>
+                                `;
+                            } else if (data.success) {
                                 document.getElementById('paymentModalContent').innerHTML = `
                                     <div class="billing-detail-view">
                                         <div class="detail-row">

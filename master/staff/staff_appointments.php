@@ -171,7 +171,7 @@ require_once '../../includes/staff_layout_start.php';
     <input type="text" class="search-input" id="searchAppointment" placeholder="Search appointments...">
     <div class="section-title">
         
-        <button class="btn-primary" onclick="closeApptKebabDropdown(); openAppointmentModal()">+ New Appointment</button>
+        <button class="btn-primary" onclick="closeApptKebabDropdown(); prepareNewAppointmentModal()">+ New Appointment</button>
     </div>
 </div>
 
@@ -369,6 +369,8 @@ if (!$status) {
     <div class="modal" style="width: 550px;">
         <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Schedule New Appointment</h2>
         <form id="appointmentForm">
+            <input type="hidden" name="appointment_id" id="appointmentId">
+            <input type="hidden" name="patient_id" id="appointmentPatientId">
             <div class="form-row">
                 <div class="form-group" style="flex: 1;">
                     <label>First Name *</label>
@@ -387,6 +389,10 @@ if (!$status) {
                 <div class="form-group" style="flex: 1;">
                     <label>Phone Number</label>
                     <input type="text" name="phone" class="form-control" placeholder="0912-345-6789" value="<?php echo htmlspecialchars($inquiryData['contact_info'] ?? ''); ?>">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Email</label>
+                    <input type="email" name="email" class="form-control" placeholder="example@email.com">
                 </div>
             </div>
             <div class="form-row">
@@ -750,11 +756,28 @@ if (!$status) {
         document.getElementById('appointmentModal').style.display = 'flex';
     }
 
+    function prepareNewAppointmentModal() {
+        const form = document.getElementById('appointmentForm');
+        if (form) {
+            form.reset();
+        }
+        document.getElementById('appointmentId').value = '';
+        document.getElementById('appointmentPatientId').value = '';
+        document.querySelector('#appointmentModal h2').textContent = 'Schedule New Appointment';
+        document.querySelector('#appointmentForm button[type="submit"]').textContent = 'Schedule Appointment';
+        openAppointmentModal();
+    }
+
     function closeAppointmentModal() {
+        document.getElementById('appointmentId').value = '';
+        document.getElementById('appointmentPatientId').value = '';
+        document.querySelector('#appointmentModal h2').textContent = 'Schedule New Appointment';
+        document.querySelector('#appointmentForm button[type="submit"]').textContent = 'Schedule Appointment';
         document.getElementById('appointmentModal').style.display = 'none';
     }
 
     function closeViewAppointmentModal() {
+        document.getElementById('viewAppointmentModal').dataset.appointmentId = '';
         document.getElementById('viewAppointmentModal').style.display = 'none';
     }
 
@@ -819,17 +842,22 @@ if (!$status) {
                 <div><span style="color: #6b7280;">Date:</span> <span style="font-weight: 500; margin-left: 8px;">${new Date(appt.appointment_date).toLocaleDateString()}</span></div>
                 <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.appointment_time ? new Date('1970-01-01 ' + appt.appointment_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'N/A'}</span></div>
                 <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.service_name || appt.treatment || 'General'}</span></div>
-                <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${appt.status === 'Completed' ? '#dcfce7' : appt.status === 'Cancelled' ? '#fee2e2' : '#e0f2fe'}; color: ${appt.status === 'Completed' ? '#15803d' : appt.status === 'Cancelled' ? '#dc2626' : '#0369a1'};">${appt.status ? appt.status.charAt(0).toUpperCase() + appt.status.slice(1) : 'Pending'}</span></div>
+                <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${getAppointmentDisplayStatus(appt) === 'Completed' ? '#dcfce7' : getAppointmentDisplayStatus(appt) === 'Cancelled' ? '#fee2e2' : '#e0f2fe'}; color: ${getAppointmentDisplayStatus(appt) === 'Completed' ? '#15803d' : getAppointmentDisplayStatus(appt) === 'Cancelled' ? '#dc2626' : '#0369a1'};">${getAppointmentDisplayStatus(appt)}</span></div>
                 ${appt.notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${appt.notes}</p></div>` : ''}
             </div>
         `;
         
+        document.getElementById('viewAppointmentModal').dataset.appointmentId = id;
         document.getElementById('viewAppointmentModal').style.display = 'flex';
     }
 
     function editAppointmentFromView() {
+        const openViewModal = document.getElementById('viewAppointmentModal');
+        const activeId = openViewModal ? openViewModal.dataset.appointmentId : '';
         closeViewAppointmentModal();
-        // Could open edit modal here
+        if (activeId) {
+            editAppointment(activeId);
+        }
     }
 
     function cancelAppointment(id) {
@@ -1066,9 +1094,32 @@ if (!$status) {
     function editAppointment(id) {
         const appt = appointments.find(a => a.id == id);
         if (!appt) return;
-        
-        // For now, show alert - you can implement edit modal later
-        alert('Edit functionality for appointment #' + id + ' - Coming soon!');
+
+        const form = document.getElementById('appointmentForm');
+        if (!form) return;
+
+        document.getElementById('appointmentId').value = appt.id || '';
+        document.getElementById('appointmentPatientId').value = appt.patient_id || '';
+        form.elements.first_name.value = appt.first_name || '';
+        form.elements.middle_name.value = appt.middle_name || '';
+        form.elements.last_name.value = appt.last_name || '';
+        form.elements.phone.value = appt.phone || '';
+        if (form.elements.email) {
+            form.elements.email.value = appt.email || '';
+        }
+        form.elements.appointment_date.value = appt.appointment_date ? String(appt.appointment_date).split(' ')[0] : '';
+        form.elements.appointment_time.value = appt.appointment_time ? String(appt.appointment_time).slice(0, 5) : '';
+        form.elements.treatment.value = appt.service_name || appt.treatment || 'General Checkup';
+        form.elements.notes.value = appt.notes || '';
+
+        document.querySelector('#appointmentModal h2').textContent = 'Edit Appointment';
+        document.querySelector('#appointmentForm button[type="submit"]').textContent = 'Save Changes';
+        openAppointmentModal();
+    }
+
+    function getAppointmentDisplayStatus(appt) {
+        if (!appt) return 'Pending';
+        return appt.status_label || appt.status || 'Scheduled';
     }
 
     function forwardToQueue(id) {

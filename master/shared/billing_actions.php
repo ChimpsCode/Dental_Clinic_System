@@ -116,9 +116,20 @@ try {
             }
             
             $stmt = $pdo->prepare("
-                SELECT b.*, p.first_name, p.middle_name, p.last_name, p.suffix, p.phone, p.address
+                SELECT 
+                    b.*, 
+                    p.first_name, 
+                    p.middle_name, 
+                    p.last_name, 
+                    p.suffix, 
+                    p.phone,
+                    a.street_address,
+                    a.city,
+                    a.province,
+                    a.zip_code
                 FROM billing b
                 LEFT JOIN patients p ON b.patient_id = p.id
+                LEFT JOIN addresses a ON p.address_id = a.id
                 WHERE b.id = ?
             ");
             $stmt->execute([$billing_id]);
