@@ -11,6 +11,8 @@ if (isset($_SESSION['user_id'])) {
     require_once 'config/database.php';
     require_once 'includes/audit_helper.php';
     logAudit($pdo, $user_id, $username, $role, 'logout', 'users', 'User logged out');
+    
+    // last_active keeps the timestamp so it shows when they were last online
 }
 
 session_destroy();

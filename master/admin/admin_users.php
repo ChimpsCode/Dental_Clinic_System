@@ -10,14 +10,13 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
 $users = [];
 $totalUsers = 0;
-$hasStatusColumn = false;
 
 try {
     // Get users with role names from roles table
     // If role_id is NULL, treat as Patient
     $stmt = $pdo->query("
         SELECT u.id, u.username, u.first_name, u.middle_name, u.last_name, u.email, u.status, u.is_archived,
-               u.role_id,
+               u.role_id, u.last_active,
                CASE 
                    WHEN u.role_id IS NULL THEN 'Patient'
                    ELSE r.role_name
@@ -95,7 +94,16 @@ try {
                                 <td><?php echo htmlspecialchars($lastName); ?></td>
                                 <td><?php echo htmlspecialchars($email); ?></td>
                                 <td><span class="role-badge <?php echo strtolower($user['role_name'] ?? ''); ?>"><?php echo htmlspecialchars($user['role_name'] ?? 'N/A'); ?></span></td>
-                                <td><span class="status-badge <?php echo strtolower($user['status']); ?>"><?php echo htmlspecialchars($user['status']); ?></span></td>
+                                <td><span class="status-badge <?php echo strtolower($user['status']); ?>"><?php 
+                                    $lastActive = $user['last_active'] ?? null;
+                                    if ($lastActive) {
+                                        // Output placeholder for JS to update
+                                        ?><span class="user-status" data-last-active="<?php echo htmlspecialchars($lastActive); ?>">checking...</span><?php
+                                    } else {
+                                        // No last_active - show as offline with styling
+                                        ?><span style="color:#dc2626;font-weight:bold;">Offline</span><?php
+                                    }
+                                    ?></span></td>
                                 <td class="action-buttons">
                                     <button
                                         class="user-kebab-btn"
@@ -204,6 +212,51 @@ try {
                         to { opacity: 1; transform: translateY(0); }
                     }
                 </style>
+
+                <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Get timezone offset between browser and server
+                    const serverTime = new Date("<?php echo date('Y-m-d H:i:s'); ?>");
+                    const clientTime = new Date();
+                    const timeOffset = (serverTime - clientTime) / 60000; // offset in minutes
+                    
+                    function getTimeAgo(timestamp) {
+                        if (!timestamp) return '';
+                        const serverTs = new Date(timestamp);
+                        const now = new Date();
+                        const adjustedNow = new Date(now.getTime() + timeOffset * 60000);
+                        const diffMs = adjustedNow - serverTs;
+                        const diffSec = Math.floor(diffMs / 1000);
+                        const diffMin = Math.floor(diffSec / 60);
+                        const diffHour = Math.floor(diffMin / 60);
+                        const diffDay = Math.floor(diffHour / 24);
+                        if (diffSec < 60) return 'just now';
+                        if (diffMin < 60) return diffMin + 'm ago';
+                        if (diffHour < 24) return diffHour + 'h ago';
+                        if (diffDay < 7) return diffDay + 'd ago';
+                        return Math.floor(diffDay / 365) + 'y ago';
+                    }
+                    
+                    function updateStatuses() {
+                        document.querySelectorAll('.user-status[data-last-active]').forEach(function(el) {
+                            const lastActive = el.dataset.lastActive;
+                            if (lastActive) {
+                                const ago = getTimeAgo(lastActive);
+                                if (ago === 'just now' || ago.endsWith('m ago')) {
+                                    el.textContent = 'Active';
+                                    el.style.color = '#065f46';
+                                } else {
+                                    el.textContent = ago;
+                                    el.style.color = '#6b7280';
+                                }
+                            }
+                        });
+                    }
+                    
+                    updateStatuses();
+                    setInterval(updateStatuses, 30000);
+                });
+                </script>
 
                 <!-- Pagination -->
                 <div class="pagination">

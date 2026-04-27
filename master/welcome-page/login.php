@@ -385,9 +385,19 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             }
             $_SESSION['first_login'] = $isFirstLogin ? 1 : 0;
             
-            // Log successful login
+            // Log successful login (only if not logged in recent session to prevent duplicates)
             require_once '../../includes/audit_helper.php';
-            logAudit($pdo, $user['id'], $user['username'], $role, 'login', 'users', 'Successful login from ' . ($_SERVER['HTTP_USER_AGENT'] ? 'web browser' : 'unknown device'));
+            
+            // Check if user has a recent login (within 5 seconds) to prevent double logging
+            $recentCheck = $pdo->prepare("SELECT id FROM audit_logs WHERE username = ? AND action_type = 'login' AND created_at > DATE_SUB(NOW(), INTERVAL 5 SECOND) ORDER BY id DESC LIMIT 1");
+            $recentCheck->execute([$user['username']]);
+            if (!$recentCheck->fetch()) {
+                logAudit($pdo, $user['id'], $user['username'], $role, 'login', 'users', 'Successful login from ' . ($_SERVER['HTTP_USER_AGENT'] ? 'web browser' : 'unknown device'));
+            }
+            
+            // Update last_active timestamp
+            $upd = $pdo->prepare("UPDATE users SET last_active = NOW() WHERE id = ?");
+            $upd->execute([$user['id']]);
             
             // Redirect based on role
             if ($role === 'admin') {
@@ -504,11 +514,8 @@ if ($role === 'dentist') {
                 }
                 $_SESSION['first_login'] = $isFirstLogin ? 1 : 0;
                 
-                // Log successful login
-                require_once '../../includes/audit_helper.php';
-                logAudit($pdo, $user['id'], $user['username'], $role, 'login', 'users', 'Successful login');
-                
-                // Redirect based on role
+// Skip duplicate login logging - already logged at line 390
+            // Redirect based on role
                 if ($role === 'admin') {
                     header('Location: ../admin/admin_dashboard.php');
                 } elseif ($role === 'staff') {
@@ -522,14 +529,7 @@ if ($role === 'dentist') {
                 }
                 exit();
             } else {
-                // Log failed login attempt
-                require_once '../../includes/audit_helper.php';
-                if ($user) {
-                    logFailedLogin($pdo, $username, 'invalid_password');
-                } else {
-                    logFailedLogin($pdo, $username, 'user_not_found');
-                }
-                
+                // Skip duplicate failed login logging - already logged at line 410
                 $error = 'Wrong username or password. Please try again.';
             }
         } catch (PDOException $e) {

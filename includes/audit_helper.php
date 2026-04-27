@@ -47,24 +47,28 @@ function getUserInfo($pdo, $user_id, $username) {
  * @param string $action_type Action type (login, logout, create, read, update, delete, payment, status_change, failed_login)
  * @param string $module Module/section (users, patients, appointments, queue, treatments, billing, payments, inquiries, treatment_plans)
  * @param string $description Human-readable description
- * @param int|null $record_id ID of affected record
- * @param string|null $record_type Table name affected
+ * @param int|null $affected_id ID of affected record
+ * @param string|null $affected_table Table name affected
  * @param string|null $old_value Previous value (for updates)
  * @param string|null $new_value New value (for updates)
  * @return bool Success status
  */
-function logAudit($pdo, $user_id, $username, $user_role, $action_type, $module, $description, $record_id = null, $record_type = null, $old_value = null, $new_value = null) {
+function logAudit($pdo, $user_id, $username, $user_role, $action_type, $module, $description, $affected_id = null, $affected_table = null, $old_value = null, $new_value = null) {
     try {
         $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
         $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
         
         $stmt = $pdo->prepare("
             INSERT INTO audit_logs (
-                user_id, username, user_role, action_type, module, record_id, record_type,
-                description, old_value, new_value, affected_table, affected_id,
+                user_id, username, user_role, action_type, module, 
+                affected_id, affected_table,
+                description, old_value, new_value, 
                 ip_address, user_agent, status
             ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'success'
+                ?, ?, ?, ?, ?, 
+                ?, ?,
+                ?, ?, ?, 
+                ?, ?, 'success'
             )
         ");
         
@@ -74,13 +78,11 @@ function logAudit($pdo, $user_id, $username, $user_role, $action_type, $module, 
             $user_role,
             $action_type,
             $module,
-            $record_id,
-            $record_type,
+            $affected_id,
+            $affected_table,
             $description,
             $old_value,
             $new_value,
-            $record_type,
-            $record_id,
             $ip_address,
             $user_agent
         ]);
@@ -115,12 +117,14 @@ function logFailedLogin($pdo, $username, $reason = 'invalid_password') {
         
         $stmt = $pdo->prepare("
             INSERT INTO audit_logs (
-                user_id, username, user_role, action_type, module, record_id, record_type,
-                description, old_value, new_value, affected_table, affected_id,
+                user_id, username, user_role, action_type, module, 
+                affected_id, affected_table,
+                description, old_value, new_value, 
                 ip_address, user_agent, status
             ) VALUES (
-                NULL, ?, NULL, 'failed_login', 'users', NULL, 'users',
-                ?, NULL, NULL, 'users', NULL,
+                NULL, ?, NULL, 'failed_login', 'users', 
+                NULL, 'users',
+                ?, NULL, NULL, 
                 ?, ?, 'failed'
             )
         ");
