@@ -10,7 +10,6 @@ if ($currentPage < 1) $currentPage = 1;
 
 try {
     // Get ALL queue data for counts (without pagination)
-    // Use only status_id column (no 'status' text column exists)
     $allStmt = $pdo->query("
         SELECT q.*, 
                COALESCE(p.first_name, 'Unknown') as first_name, 
@@ -18,21 +17,79 @@ try {
                COALESCE(p.last_name, '') as last_name, 
                COALESCE(p.suffix, '') as suffix, 
                COALESCE(p.phone, '') as phone,
-               COALESCE(qs.status_name, 'waiting') as status_text
+               COALESCE(qs.status_name, 'waiting') as status_text,
+               'queue' as source_type,
+               NULL as appointment_id,
+               NULL as assigned_doctor,
+               q.queue_time as display_time
         FROM queue q 
         LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id
         LEFT JOIN queue_statuses qs ON qs.id = q.status_id
         WHERE q.status_id IN (1, 2, 3, 4, 5, 6) AND q.is_archived = 0
-        ORDER BY 
-            CASE COALESCE(qs.status_name, 'waiting')
-                WHEN 'in_procedure' THEN 1 
-                WHEN 'waiting' THEN 2 
-                WHEN 'completed' THEN 3 
-                ELSE 2
-            END,
-            q.queue_time ASC
     ");
     $allQueueItems = $allStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $appointmentStmt = $pdo->query("
+        SELECT 
+            NULL as id,
+            a.patient_id,
+            a.status_id,
+            a.created_at,
+            a.notes,
+            COALESCE(p.first_name, 'Unknown') as first_name,
+            COALESCE(p.middle_name, '') as middle_name,
+            COALESCE(p.last_name, '') as last_name,
+            COALESCE(p.suffix, '') as suffix,
+            COALESCE(p.phone, '') as phone,
+            CASE
+                WHEN a.status_id = 2 THEN 'waiting'
+                WHEN a.status_id = 1 THEN 'waiting'
+                ELSE LOWER(COALESCE(st.status_name, 'waiting'))
+            END as status_text,
+            'appointment' as source_type,
+            a.id as appointment_id,
+            COALESCE(s.name, 'General Checkup') as treatment_type,
+            '' as teeth_numbers,
+            COALESCE(a.appointment_time, '') as queue_time,
+            'Unassigned' as assigned_doctor,
+            COALESCE(a.appointment_time, '') as display_time
+        FROM appointments a
+        LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
+        LEFT JOIN appointment_statuses st ON st.id = a.status_id
+        LEFT JOIN services s ON s.id = a.service_id
+        WHERE a.status_id IN (1, 2)
+          AND NOT EXISTS (
+              SELECT 1
+              FROM queue q
+              WHERE CAST(q.patient_id AS UNSIGNED) = CAST(a.patient_id AS UNSIGNED)
+                AND q.is_archived = 0
+                AND q.status_id IN (1, 2, 3, 4, 5, 6)
+          )
+    ");
+    $appointmentQueueItems = $appointmentStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $allQueueItems = array_merge($allQueueItems, $appointmentQueueItems);
+
+    usort($allQueueItems, function ($a, $b) {
+        $priorityMap = [
+            'in_procedure' => 1,
+            'waiting' => 2,
+            'completed' => 3,
+            'on_hold' => 4,
+            'cancelled' => 5
+        ];
+
+        $statusA = $a['status_text'] ?? 'waiting';
+        $statusB = $b['status_text'] ?? 'waiting';
+        $priorityA = $priorityMap[$statusA] ?? 9;
+        $priorityB = $priorityMap[$statusB] ?? 9;
+
+        if ($priorityA !== $priorityB) {
+            return $priorityA <=> $priorityB;
+        }
+
+        return strcmp((string)($a['display_time'] ?? ''), (string)($b['display_time'] ?? ''));
+    });
     
     // Calculate counts - use status_text
     $waitingCount = count(array_filter($allQueueItems, fn($q) => ($q['status_text'] ?? '') === 'waiting'));
@@ -879,7 +936,7 @@ div.main-content {
         <!-- Tabbed Navigation -->
         <div class="tabs-navigation">
             <div class="tab-item active" data-tab="all">
-                All <span class="tab-count"><?php echo count($queueItems); ?></span>
+                All <span class="tab-count"><?php echo $totalQueueItems; ?></span>
             </div>
             <div class="tab-item" data-tab="waiting">
                 Waiting <span class="tab-count"><?php echo $waitingCount; ?></span>
@@ -927,15 +984,27 @@ div.main-content {
                         </tr>
                     <?php else: ?>
                         <?php foreach ($queueItems as $index => $item):
-                            $queueTime = new DateTime($item['queue_time']);
-                            $time12hr = $queueTime->format('g:i A');
-                            $time24hr = $queueTime->format('H:i');
+                            $rawTime = $item['display_time'] ?? $item['queue_time'] ?? '';
+                            $time12hr = 'N/A';
+                            $time24hr = '--:--';
+                            if (!empty($rawTime)) {
+                                try {
+                                    $queueTime = new DateTime($rawTime);
+                                    $time12hr = $queueTime->format('g:i A');
+                                    $time24hr = $queueTime->format('H:i');
+                                } catch (Exception $e) {
+                                    $time12hr = htmlspecialchars((string)$rawTime);
+                                    $time24hr = '';
+                                }
+                            }
                             $statusText = $item['status_text'] ?? 'waiting';
                             $statusClass = strtolower(str_replace(' ', '-', $statusText));
                             $statusLabel = ucwords($statusText);
+                            $rowNumber = $item['id'] ?? $item['appointment_id'] ?? ($index + 1);
+                            $fullNameSearch = strtolower(trim(($item['first_name'] ?? '') . ' ' . ($item['middle_name'] ?? '') . ' ' . ($item['last_name'] ?? '')));
                         ?>
-                            <tr class="queue-row" data-status="<?php echo $statusText; ?>" data-name="<?php echo strtolower(($item['first_name'] ?? '')); ?>">
-                                <td><?php echo str_pad($item['id'], 3, '0', STR_PAD_LEFT); ?></td>
+                            <tr class="queue-row" data-status="<?php echo $statusText; ?>" data-name="<?php echo htmlspecialchars($fullNameSearch); ?>">
+                                <td><?php echo str_pad((string)$rowNumber, 3, '0', STR_PAD_LEFT); ?></td>
                                 <td>
                                     <div class="patient-name"><?php echo htmlspecialchars($item['first_name'] ?: 'Unknown'); ?></div>
                                 </td>
@@ -955,7 +1024,7 @@ div.main-content {
                                     </span>
                                 </td>
                                 <td><?php echo htmlspecialchars($item['treatment_type'] ?? 'General Checkup'); ?></td>
-                                <td>Dr. Rex</td>
+                                <td><?php echo htmlspecialchars($item['assigned_doctor'] ?? 'Dr. Rex'); ?></td>
                                 <td>
                                     <div class="time-display">
                                         <span class="time-12hr"><?php echo $time12hr; ?></span>
@@ -964,7 +1033,7 @@ div.main-content {
                                 </td>
 <td>
                                     <div class="queue-kebab-menu">
-                                        <button class="queue-kebab-btn" data-queue-id="<?php echo $item['id']; ?>" data-patient-id="<?php echo $item['patient_id']; ?>" data-status="<?php echo $statusText; ?>">
+                                    <button class="queue-kebab-btn" data-queue-id="<?php echo htmlspecialchars((string)($item['id'] ?? '')); ?>" data-appointment-id="<?php echo htmlspecialchars((string)($item['appointment_id'] ?? '')); ?>" data-patient-id="<?php echo $item['patient_id']; ?>" data-status="<?php echo $statusText; ?>" data-source-type="<?php echo htmlspecialchars($item['source_type'] ?? 'queue'); ?>">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                                                 <circle cx="12" cy="6" r="2"/>
                                                 <circle cx="12" cy="12" r="2"/>
@@ -1084,7 +1153,19 @@ function createQueueKebabDropdown() {
     queueKebabBackdrop.addEventListener('click', closeQueueKebabDropdown);
 }
 
-function getQueueMenuItems(queueId, patientId, status) {
+function getQueueMenuItems(queueId, patientId, status, appointmentId = '', sourceType = 'queue') {
+    if (sourceType === 'appointment' || !queueId) {
+        return `
+        <a href="javascript:void(0)" data-action="view" data-queue-id="${queueId}" data-appointment-id="${appointmentId}" data-patient-id="${patientId}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+            </svg>
+            View
+        </a>
+        `;
+    }
+
     // In Procedure: Show only View
     if (status === 'in_procedure') {
         return `
@@ -1232,10 +1313,12 @@ function openQueueKebabDropdown(button) {
     }
 
     const queueId = button.dataset.queueId;
+    const appointmentId = button.dataset.appointmentId || '';
     const patientId = button.dataset.patientId;
     const status = button.dataset.status;
+    const sourceType = button.dataset.sourceType || 'queue';
 
-    queueKebabDropdown.innerHTML = getQueueMenuItems(queueId, patientId, status);
+    queueKebabDropdown.innerHTML = getQueueMenuItems(queueId, patientId, status, appointmentId, sourceType);
     positionQueueKebabDropdown(button);
 
     queueKebabDropdown.classList.add('show');
@@ -1268,7 +1351,8 @@ function handleQueueKebabClick(e) {
     e.stopPropagation();
 
     const action = link.dataset.action;
-    const queueId = parseInt(link.dataset.queueId);
+    const rawQueueId = link.dataset.queueId;
+    const queueId = rawQueueId ? parseInt(rawQueueId, 10) : null;
     const patientId = parseInt(link.dataset.patientId);
 
     closeQueueKebabDropdown();
