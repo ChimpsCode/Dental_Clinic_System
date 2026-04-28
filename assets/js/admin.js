@@ -227,12 +227,32 @@ function initFilters() {
                         const selects = container.querySelectorAll('.filter-select');
                         selects.forEach(s => {
                             if (s.value && s.value !== '') {
-                                const cell = row.cells[Array.from(row.parentNode.querySelectorAll('th')).findIndex(th => 
-                                    th.textContent.toLowerCase().includes(s.id.replace('Filter', '').toLowerCase())
-                                )];
-                                if (cell) {
-                                    const cellText = cell.textContent.toLowerCase();
-                                    if (!cellText.includes(s.value.toLowerCase())) {
+                                const filterId = s.id.replace('Filter', '').toLowerCase();
+                                let cellMatch = false;
+                                let cellText = '';
+                                
+                                // Special handling for role filter - find role-badge element
+                                if (filterId === 'role') {
+                                    const roleBadge = row.querySelector('.role-badge');
+                                    if (roleBadge) {
+                                        cellText = roleBadge.textContent.trim().toLowerCase();
+                                        cellMatch = true;
+                                    }
+                                } else {
+                                    // Default: find column by header name
+                                    const headers = row.parentNode.querySelectorAll('th');
+                                    const headerIndex = Array.from(headers).findIndex(th => 
+                                        th.textContent.toLowerCase().includes(filterId)
+                                    );
+                                    if (headerIndex >= 0 && row.cells[headerIndex]) {
+                                        cellText = row.cells[headerIndex].textContent.toLowerCase();
+                                        cellMatch = true;
+                                    }
+                                }
+                                
+                                if (cellMatch) {
+                                    const filterVal = s.value.toLowerCase();
+                                    if (!cellText.includes(filterVal)) {
                                         showRow = false;
                                     }
                                 }

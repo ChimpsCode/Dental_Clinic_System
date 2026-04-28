@@ -508,7 +508,7 @@ try {
                         }
                     };
 
-                    // Toggle User Status
+// Toggle User Status
                     window.toggleUserStatus = function(userId, newStatus) {
                         closeKebabDropdown();
                         if (!confirm(`Are you sure you want to ${newStatus === 'active' ? 'activate' : 'deactivate'} this user?`)) return;
@@ -528,29 +528,6 @@ try {
                         })
                         .catch(() => {
                             alert('Error updating user status');
-                        });
-                    };
-
-                    // Delete User
-                    window.deleteUser = function(userId) {
-                        closeKebabDropdown();
-                        if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
-                        
-                        fetch('admin_users_actions.php', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                            body: 'action=delete&id=' + userId
-                        })
-                        .then(res => res.json())
-                        .then(data => {
-                            if (data.success) {
-                                location.reload();
-                            } else {
-                                alert(data.message || 'Failed to delete user');
-                            }
-                        })
-                        .catch(() => {
-                            alert('Error deleting user');
                         });
                     };
                 });
