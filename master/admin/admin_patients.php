@@ -340,14 +340,25 @@ function filterPatients() {
     document.querySelectorAll('.patient-row').forEach(row => {
         const name = (row.dataset.name || '').toLowerCase();
         const phone = (row.dataset.phone || '').toLowerCase();
-        const patientId = row.querySelector('.patient-kebab-btn')?.dataset.patientId;
         
-        // Get patient object from our data
-        const patient = patients.find(p => p.id == patientId);
-        const appointmentStatusId = patient?.appointment_status_id || 0;
+        // Get status text directly from the status badge in this row
+        const statusBadge = row.querySelector('.status-badge');
+        const rowStatus = statusBadge ? statusBadge.textContent.trim().toLowerCase() : '';
         
         const matchSearch = !search || name.includes(search) || phone.includes(search);
-        const matchStatus = !statusFilter || String(appointmentStatusId) === statusFilter || statusFilter === '';
+        
+        // Map dropdown values to the actual status texts displayed
+        let matchStatus = true;
+        if (statusFilter && statusFilter !== '') {
+            const statusMap = {
+                '1': ['scheduled', 'pending'],
+                '2': ['in queue', 'confirmed'],
+                '3': ['unpaid'],
+                '4': ['done'],
+                '5': ['cancelled']
+            };
+            matchStatus = statusMap[statusFilter]?.includes(rowStatus) || false;
+        }
         
         row.style.display = (matchSearch && matchStatus) ? '' : 'none';
     });
