@@ -227,7 +227,10 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                         </td>
                                         <td>
                                             <div class="appt-kebab-menu">
-                                                <button class="appt-kebab-btn" data-appt-id="<?php echo $appt['id']; ?>">
+                                                <button class="appt-kebab-btn"
+                                                        data-appt-id="<?php echo $appt['id']; ?>"
+                                                        data-status-id="<?php echo $appt['status_id']; ?>"
+                                                        data-status="<?php echo htmlspecialchars($status); ?>">
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                                                         <circle cx="12" cy="6" r="2"/>
                                                         <circle cx="12" cy="12" r="2"/>
@@ -846,7 +849,13 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
     }
 
     function getApptMenuItems(apptId) {
-        return `
+        // Get status from the button's data attributes
+        const button = document.querySelector(`.appt-kebab-btn[data-appt-id="${apptId}"]`);
+        const statusId = button ? parseInt(button.getAttribute('data-status-id')) : 0;
+        const status = button ? button.getAttribute('data-status') : '';
+        const isCancelled = (statusId == 5 || (status && status.toLowerCase().includes('cancel')));
+
+        let menuItems = `
             <a href="javascript:void(0)" data-action="view" data-id="${apptId}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -869,15 +878,33 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 </svg>
                 Forward to Admission
             </a>
-            <a href="javascript:void(0)" onclick="openCancelReasonModal(${apptId})" class="danger">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="15" y1="9" x2="9" y2="15"/>
-                    <line x1="9" y1="9" x2="15" y2="15"/>
-                </svg>
-                Cancel Appointment
-            </a>
         `;
+
+        // Show Cancel button if not cancelled, Delete button if cancelled
+        if (isCancelled) {
+            menuItems += `
+                <a href="javascript:void(0)" onclick="deleteAppointment(${apptId})" class="danger">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                    Delete Appointment
+                </a>
+            `;
+        } else {
+            menuItems += `
+                <a href="javascript:void(0)" onclick="openCancelReasonModal(${apptId})" class="danger">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="15" y1="9" x2="9" y2="15"/>
+                        <line x1="9" y1="9" x2="15" y2="15"/>
+                    </svg>
+                    Cancel Appointment
+                </a>
+            `;
+        }
+
+        return menuItems;
     }
 
     function positionApptKebabDropdown(button) {
@@ -1008,7 +1035,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
     function deleteAppointment(id) {
         if (confirm('Are you sure you want to archive this appointment?\n\nIt will be moved to the Archive page where you can restore or permanently delete it.')) {
-            fetch('../../delete_appointment.php', {
+            fetch('../api/delete_appointment.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: id, action: 'archive' })

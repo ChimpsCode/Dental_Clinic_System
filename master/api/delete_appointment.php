@@ -58,7 +58,7 @@ try {
         if ($columnExists) {
             $stmt = $pdo->prepare("UPDATE appointments SET is_archived = 1, deleted_at = NOW() WHERE id = ?");
             $stmt->execute([$id]);
-            
+
             echo json_encode([
                 'success' => true,
                 'message' => 'Appointment archived successfully. You can restore it from the Archive page.'

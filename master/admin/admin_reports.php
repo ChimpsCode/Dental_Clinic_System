@@ -61,15 +61,29 @@ try {
         ORDER BY b.billing_date DESC
     ")->fetchAll(PDO::FETCH_ASSOC);
 
+    // Revenue Report - Calculate revenue by service from billing (total and paid)
     $revenueReport = $pdo->query("
-        SELECT COALESCE(t.procedure_name, a.treatment, 'General Service') AS service,
-               COALESCE(SUM(b.total_amount), 0) AS total
-        FROM billing b
-        LEFT JOIN treatments t ON t.id = b.treatment_id
-        LEFT JOIN appointments a ON a.id = b.appointment_id
-        GROUP BY service
-        ORDER BY total DESC
+        SELECT 
+            COALESCE(s.name, 'Other Services') AS service,
+            COUNT(t.id) AS treatment_count,
+            COALESCE(SUM(t.cost), 0) AS treatment_cost,
+            COALESCE(SUM(b.total_amount), 0) AS billing_total,
+            COALESCE(SUM(b.paid_amount), 0) AS paid_amount
+        FROM treatments t
+        LEFT JOIN services s ON t.service_id = s.id
+        LEFT JOIN billing b ON b.patient_id = t.patient_id
+        GROUP BY s.name
+        ORDER BY paid_amount DESC
     ")->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Also get total summary
+    $revenueTotal = $pdo->query("
+        SELECT 
+            COALESCE(SUM(paid_amount), 0) AS total_paid,
+            COALESCE(SUM(total_amount), 0) AS total_billed,
+            COALESCE(SUM(balance), 0) AS total_balance
+        FROM billing
+    ")->fetch(PDO::FETCH_ASSOC);
 
     $printedInvoices = $pdo->query("
         SELECT b.id, CONCAT(p.first_name, ' ', p.last_name) AS patient,
@@ -90,19 +104,63 @@ try {
         ORDER BY day ASC
     ")->fetchAll(PDO::FETCH_ASSOC);
 
-    $servicesReport = $pdo->query("
-        SELECT procedure_name AS service, COUNT(*) AS total
-        FROM treatments
-        GROUP BY procedure_name
-        ORDER BY total DESC
+    // Services Report - Summary of services rendered with frequency and revenue
+    $servicesReport = [];
+
+    // Get treatments grouped by service
+    $treatments = $pdo->query("
+        SELECT
+            t.id,
+            COALESCE(s.name, t.procedure_name) AS service,
+            t.cost
+        FROM treatments t
+        LEFT JOIN services s ON t.service_id = s.id
     ")->fetchAll(PDO::FETCH_ASSOC);
 
+    if (!empty($treatments)) {
+        // Group by service
+        $grouped = [];
+        foreach ($treatments as $t) {
+            $svc = $t['service'] ?? 'Unknown Service';
+            if (!isset($grouped[$svc])) {
+                $grouped[$svc] = ['frequency' => 0, 'treatment_cost' => 0, 'revenue' => 0];
+            }
+            $grouped[$svc]['frequency']++;
+            $grouped[$svc]['treatment_cost'] += $t['cost'];
+        }
+
+        // Get revenue for each service from billing
+        foreach ($grouped as $service => &$stats) {
+            $stmt = $pdo->prepare("
+                SELECT COALESCE(SUM(b.paid_amount), 0)
+                FROM billing b
+                WHERE b.treatment_id IN (
+                    SELECT t.id FROM treatments t
+                    LEFT JOIN services s ON t.service_id = s.id
+                    WHERE COALESCE(s.name, t.procedure_name) = ?
+                )
+            ");
+            $stmt->execute([$service]);
+            $stats['revenue'] = $stmt->fetchColumn();
+        }
+
+        // Convert to indexed array
+        foreach ($grouped as $service => $stats) {
+            $servicesReport[] = array_merge(['service' => $service], $stats);
+        }
+
+        // Sort by frequency descending
+        usort($servicesReport, fn($a, $b) => $b['frequency'] - $a['frequency']);
+    }
+
+    // Fallback to appointments table if no treatments found
     if (empty($servicesReport)) {
         $servicesReport = $pdo->query("
-            SELECT treatment AS service, COUNT(*) AS total
+            SELECT treatment AS service, COUNT(*) AS frequency, 0 AS treatment_cost, 0 AS revenue
             FROM appointments
+            WHERE treatment IS NOT NULL AND treatment != ''
             GROUP BY treatment
-            ORDER BY total DESC
+            ORDER BY frequency DESC
         ")->fetchAll(PDO::FETCH_ASSOC);
     }
 
@@ -332,11 +390,25 @@ function renderNewReport(type) {
             `₱${Number(b.balance || 0).toLocaleString()}`, b.payment_status ?? '', b.billing_date ?? '', b.due_date ?? ''
         ]);
     } else if (type === 'revenue') {
-        headers = ['Service', 'Total Revenue'];
-        rows = data.map(r => [r.service ?? 'General Service', `₱${Number(r.total || 0).toLocaleString()}`]);
+        headers = ['Service', 'Treatments', 'Treatment Cost', 'Billing Total', 'Paid Amount'];
+        rows = data.map(r => [
+            r.service ?? 'Unknown',
+            r.treatment_count ?? 0,
+            `₱${Number(r.treatment_cost || 0).toLocaleString()}`,
+            `₱${Number(r.billing_total || 0).toLocaleString()}`,
+            `₱${Number(r.paid_amount || 0).toLocaleString()}`
+        ]);
+        // Add total row
+        const totalPaid = rows.reduce((sum, r) => sum + (parseFloat((r[4] || '₱0').replace(/[₱,]/g, '')) || 0), 0);
+        rows.push(['', '', '', 'TOTAL:', `₱${totalPaid.toLocaleString()}`]);
     } else if (type === 'services') {
-        headers = ['Service', 'Frequency'];
-        rows = data.map(s => [s.service ?? 'Service', s.total ?? 0]);
+        headers = ['Service', 'Frequency', 'Treatment Cost', 'Revenue'];
+        rows = data.map(s => [
+            s.service ?? 'Service',
+            s.frequency ?? 0,
+            `₱${Number(s.treatment_cost || 0).toLocaleString()}`,
+            `₱${Number(s.revenue || 0).toLocaleString()}`
+        ]);
     } else if (type === 'daily') {
         headers = ['Date', 'New Patients', 'Appointments', 'Revenue'];
         rows = data.map(d => [d.day ?? '', d.new_patients ?? 0, d.appointments ?? 0, `₱${Number(d.revenue || 0).toLocaleString()}`]);

@@ -1306,10 +1306,6 @@ function getQueueMenuItems(queueId, status) {
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
             Session
         </a>
-        <a href="javascript:void(0)" onclick="removeFromQueue(${queueId})" class="danger">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-            Remove
-        </a>
     `;
     
     return menuHTML;
@@ -1576,31 +1572,6 @@ function updateQueueStatus(queueId, status) {
     .catch(error => {
         console.error('Error:', error);
         alert('Error updating status');
-    });
-}
-
-// Remove from Queue
-function removeFromQueue(queueId) {
-    if (!confirm('Remove this patient from the queue?')) return;
-    
-    fetch('../shared/queue_actions.php', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: 'action=remove&queue_id=' + queueId
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert('Error: ' + data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error removing from queue');
     });
 }
 

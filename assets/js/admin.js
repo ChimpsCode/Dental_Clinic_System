@@ -492,27 +492,7 @@ function initUserKebabMenu() {
     window.addEventListener('scroll', closeUserKebabDropdown, true);
 }
 
-function handleUserKebabToggle(e) {
-    const button = e.target.closest('.user-kebab-btn');
-    const isKebabButton = Boolean(button);
 
-    if (!isKebabButton) {
-        if (!e.target.closest('.user-kebab-dropdown')) {
-            closeUserKebabDropdown();
-        }
-        return;
-    }
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (activeUserKebabButton === button) {
-        closeUserKebabDropdown();
-        return;
-    }
-
-    openUserKebabDropdown(button);
-}
 
 function openUserKebabDropdown(button) {
     if (!userKebabDropdown || !userKebabBackdrop) return;

@@ -111,12 +111,21 @@ try {
         $liveQueue = [];
     }
     
-    // Get today's appointments for overview
+    // Get upcoming appointments for overview (limit to 3 for dashboard)
     try {
+        // Get total count of upcoming appointments
+        $totalUpcomingAppts = (int)($pdo->query("
+            SELECT COUNT(*)
+            FROM appointments
+            WHERE appointment_date >= CURDATE()
+              AND (is_archived = 0 OR is_archived IS NULL)
+        ")->fetchColumn() ?? 0);
+
+        // Get only 3 upcoming appointments for overview
         $apptStmt = $pdo->query("
             SELECT a.id, a.appointment_date, a.appointment_time, a.status_id,
-                   COALESCE(p.first_name, 'Unknown') as first_name, 
-                   COALESCE(p.middle_name, '') as middle_name, 
+                   COALESCE(p.first_name, 'Unknown') as first_name,
+                   COALESCE(p.middle_name, '') as middle_name,
                    COALESCE(p.last_name, '') as last_name,
                    s.name as service_name,
                    st.status_name
@@ -124,14 +133,15 @@ try {
             LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
             LEFT JOIN services s ON a.service_id = s.id
             LEFT JOIN appointment_statuses st ON a.status_id = st.id
-            WHERE DATE(a.appointment_date) = CURDATE()
+            WHERE a.appointment_date >= CURDATE()
               AND (a.is_archived = 0 OR a.is_archived IS NULL)
-            ORDER BY a.appointment_time ASC
-            LIMIT 10
+            ORDER BY a.appointment_date ASC, a.appointment_time ASC
+            LIMIT 3
         ");
         $todayAppointments = $apptStmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
         $todayAppointments = [];
+        $totalUpcomingAppts = 0;
     }
 
 } catch (Exception $e) {
@@ -410,11 +420,11 @@ try {
                 </div>
 
                 <!-- Today's Appointments Overview -->
-                    <div class="section-card" style="margin-top: 20px;">
-                        <h2 class="section-title">📅 Appointments Overview</h2>
+                    <div class="section-card" >
+                        <h2 class="section-title">📅 Upcoming Appointments</h2>
                         <div style="max-height: 300px; overflow-y: auto;">
                             <?php if (empty($todayAppointments)): ?>
-                                <p style="text-align: center; color: #6b7280; padding: 20px;">No appointments today</p>
+                                <p style="text-align: center; color: #6b7280; padding: 20px;">No upcoming appointments</p>
                             <?php else: ?>
                                 <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                                     <thead>
@@ -452,7 +462,9 @@ try {
                                 </table>
                             <?php endif; ?>
                         </div>
-                        <a href="admin_appointments.php" style="display: block; text-align: center; margin-top: 12px; padding: 10px; background: #f3f4f6; border-radius: 6px; color: #374151; text-decoration: none; font-size: 13px;">View All Appointments</a>
+                        <a href="admin_appointments.php" style="display: block; text-align: center; margin-top: 12px; padding: 10px; background: #f3f4f6; border-radius: 6px; color: #374151; text-decoration: none; font-size: 13px;">
+                            View All Appointments (<?php echo $totalUpcomingAppts; ?> upcoming)
+                        </a>
                     </div>
                 
 

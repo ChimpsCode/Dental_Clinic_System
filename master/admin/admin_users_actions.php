@@ -78,7 +78,7 @@ try {
             jsonError('Please fill in all required fields.');
         }
 
-        if (!in_array($role, ['admin', 'dentist', 'staff'], true)) {
+        if (!in_array($role, ['admin', 'dentist', 'staff', 'patient'], true)) {
             jsonError('Invalid role selected.');
         }
 
@@ -113,11 +113,26 @@ try {
 
             $hashed = password_hash($password, PASSWORD_DEFAULT);
 
-            // Convert role name to role_id
-            $roleIdMap = ['admin' => 1, 'dentist' => 2, 'staff' => 3];
+            // Convert role name to role_id - patient uses NULL (as per existing db design)
+            $roleIdMap = ['admin' => 1, 'dentist' => 2, 'staff' => 3, 'patient' => null];
             $roleId = $roleIdMap[strtolower($role)] ?? 3; // default to staff
             
-            if ($hasStatusColumn && $hasFirstLoginColumn) {
+            if ($role === 'patient') {
+                // Patients have NULL role_id (as per existing design)
+                if ($hasStatusColumn && $hasFirstLoginColumn) {
+                    $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, middle_name, last_name, role_id, status, first_login) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, 1)");
+                    $stmt->execute([$username, $hashed, $email, $firstName, $middleName, $lastName, $status]);
+                } elseif ($hasStatusColumn) {
+                    $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, middle_name, last_name, role_id, status) VALUES (?, ?, ?, ?, ?, ?, NULL, ?)");
+                    $stmt->execute([$username, $hashed, $email, $firstName, $middleName, $lastName, $status]);
+                } elseif ($hasFirstLoginColumn) {
+                    $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, middle_name, last_name, role_id, first_login) VALUES (?, ?, ?, ?, ?, ?, NULL, 1)");
+                    $stmt->execute([$username, $hashed, $email, $firstName, $middleName, $lastName]);
+                } else {
+                    $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, middle_name, last_name, role_id) VALUES (?, ?, ?, ?, ?, ?, NULL)");
+                    $stmt->execute([$username, $hashed, $email, $firstName, $middleName, $lastName]);
+                }
+            } elseif ($hasStatusColumn && $hasFirstLoginColumn) {
                 $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, middle_name, last_name, role_id, status, first_login) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)");
                 $stmt->execute([$username, $hashed, $email, $firstName, $middleName, $lastName, $roleId, $status]);
             } elseif ($hasStatusColumn) {
@@ -127,7 +142,7 @@ try {
                 $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, middle_name, last_name, role_id, first_login) VALUES (?, ?, ?, ?, ?, ?, ?, 1)");
                 $stmt->execute([$username, $hashed, $email, $firstName, $middleName, $lastName, $roleId]);
             } else {
-                $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, middle_name, last_name, role_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, middle_name, last_name, role_id) VALUES (?, ?, ?, ?, ?, ?, ?)");
                 $stmt->execute([$username, $hashed, $email, $firstName, $middleName, $lastName, $roleId]);
             }
 

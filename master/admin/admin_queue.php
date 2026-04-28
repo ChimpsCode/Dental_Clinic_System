@@ -737,6 +737,82 @@ div.main-content {
     margin: 0;
 }
 
+/* Delete Confirmation Modal */
+.modal-overlay-delete {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 100000;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-overlay-delete.show {
+    display: flex;
+}
+
+.modal-content-delete {
+    background: white;
+    border-radius: 12px;
+    padding: 32px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-content-delete h3 {
+    margin: 0 0 12px 0;
+    font-size: 1.25rem;
+    color: #111827;
+}
+
+.modal-content-delete p {
+    margin: 0 0 24px 0;
+    color: #6b7280;
+    font-size: 0.95rem;
+}
+
+.modal-buttons-delete {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.modal-buttons-delete button {
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.modal-buttons-delete .btn-cancel-delete {
+    background: white;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+.modal-buttons-delete .btn-cancel-delete:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.modal-buttons-delete .btn-confirm-delete {
+    background: #dc2626;
+    color: white;
+    border: none;
+}
+
+.modal-buttons-delete .btn-confirm-delete:hover {
+    background: #b91c1c;
+}
+
 </style>
 
 
@@ -987,6 +1063,18 @@ div.main-content {
 
 
 
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal-overlay-delete">
+    <div class="modal-content-delete">
+        <h3>Delete Patient Queue Record</h3>
+        <p id="deleteModalMessage">Delete this patient record from the queue?</p>
+        <div class="modal-buttons-delete">
+            <button class="btn-cancel-delete" onclick="closeDeleteModal()">Cancel</button>
+            <button class="btn-confirm-delete" id="confirmDeleteBtn">Delete</button>
+        </div>
+    </div>
+</div>
 
 <script>
 // Queue Kebab Menu - Portal Based (same as patient-records)
@@ -1254,7 +1342,7 @@ function viewPatientQueue(patientId) {
 function holdPatientQueue(queueId) {
     if (!confirm('Put this patient on hold?')) return;
     
-    fetch('../../queue_actions.php', {
+    fetch('../shared/queue_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'on_hold', queue_id: queueId })
@@ -1276,7 +1364,7 @@ function holdPatientQueue(queueId) {
 function requeuePatientQueue(queueId) {
     if (!confirm('Re-queue this patient?')) return;
     
-    fetch('../../queue_actions.php', {
+    fetch('../shared/queue_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'requeue', queue_id: queueId })
@@ -1298,7 +1386,7 @@ function requeuePatientQueue(queueId) {
 function cancelPatientQueue(queueId) {
     if (!confirm('Cancel this patient from the queue?')) return;
     
-    fetch('../../queue_actions.php', {
+    fetch('../shared/queue_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'cancel', queue_id: queueId })
@@ -1317,16 +1405,29 @@ function cancelPatientQueue(queueId) {
 }
 
 // Delete Queue Item
+let pendingDeleteQueueId = null;
+
 function deleteQueueItem(queueId) {
-    if (!confirm('Delete this patient record from the queue? This action cannot be undone.')) return;
+    pendingDeleteQueueId = queueId;
+    document.getElementById('deleteModal').classList.add('show');
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteModal').classList.remove('show');
+    pendingDeleteQueueId = null;
+}
+
+document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+    if (!pendingDeleteQueueId) return;
     
-    fetch('../../queue_actions.php', {
+    fetch('../shared/queue_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete', queue_id: queueId })
+        body: JSON.stringify({ action: 'delete', queue_id: pendingDeleteQueueId })
     })
     .then(response => response.json())
     .then(data => {
+        closeDeleteModal();
         if (data.success) {
             location.reload();
         } else {
@@ -1334,9 +1435,20 @@ function deleteQueueItem(queueId) {
         }
     })
     .catch(() => {
+        closeDeleteModal();
         alert('Error deleting patient record');
     });
-}
+});
+
+// Close modal on backdrop click
+document.getElementById('deleteModal').addEventListener('click', function(e) {
+    if (e.target === this) closeDeleteModal();
+});
+
+// Close modal on ESC key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeDeleteModal();
+});
 
 // Tab switching functionality
 document.querySelectorAll('.tab-item').forEach(tab => {

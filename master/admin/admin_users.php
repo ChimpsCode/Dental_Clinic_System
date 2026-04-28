@@ -119,6 +119,12 @@ try {
                                         type="button"
                                         data-user-id="<?php echo (int)$user['id']; ?>"
                                         data-user-status="<?php echo htmlspecialchars($user['status']); ?>"
+                                        data-user-username="<?php echo htmlspecialchars($user['username'] ?? ''); ?>"
+                                        data-user-first="<?php echo htmlspecialchars($user['first_name'] ?? ''); ?>"
+                                        data-user-middle="<?php echo htmlspecialchars($user['middle_name'] ?? ''); ?>"
+                                        data-user-last="<?php echo htmlspecialchars($user['last_name'] ?? ''); ?>"
+                                        data-user-email="<?php echo htmlspecialchars($user['email'] ?? ''); ?>"
+                                        data-user-role="<?php echo htmlspecialchars($user['role_name'] ?? ''); ?>"
                                         aria-label="User actions"
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -160,22 +166,26 @@ try {
                     .user-kebab-dropdown {
                         position: fixed;
                         display: none;
-                        background: #fff;
+                        background: #ffffff;
                         border: 1px solid #e5e7eb;
                         border-radius: 10px;
                         box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.2);
-                        min-width: 170px;
-                        z-index: 10000;
-                        overflow: hidden;
+                        min-width: 180px;
+                        z-index: 100000;
+                        overflow: visible;
+                        max-height: none;
                     }
 
                     .user-kebab-dropdown.show {
-                        display: block;
+                        display: flex !important;
+                        flex-direction: column;
                         animation: fadeInKebab 0.16s ease;
+                        visibility: visible !important;
+                        opacity: 1 !important;
                     }
 
                     .user-kebab-dropdown a {
-                        display: flex;
+                        display: flex !important;
                         align-items: center;
                         gap: 10px;
                         padding: 10px 14px;
@@ -183,6 +193,9 @@ try {
                         text-decoration: none;
                         font-size: 0.95rem;
                         transition: background 0.15s ease, color 0.15s ease;
+                        white-space: nowrap;
+                        visibility: visible !important;
+                        opacity: 1 !important;
                     }
 
                     .user-kebab-dropdown a:hover {
@@ -226,6 +239,10 @@ try {
                 document.addEventListener('DOMContentLoaded', function() {
                     function getTimeAgo(timestamp) {
                         if (!timestamp) return '';
+                        
+                        // FIX 3 IS HERE: Added safety check to prevent fatal JS error
+                        if (!timestamp.includes(' ')) return 'checking...';
+                        
                         const [datePart, timePart] = timestamp.split(' ');
                         const [year, month, day] = datePart.split('-');
                         const [hour, minute, second] = timePart.split(':');
@@ -268,6 +285,274 @@ try {
 
                     updateStatuses();
                     setInterval(updateStatuses, 30000);
+
+                    // Kebab Menu Functionality
+                    const kebabDropdown = document.getElementById('userKebabDropdown');
+                    const kebabBackdrop = document.getElementById('userKebabBackdrop');
+                    let activeKebabBtn = null;
+
+                    function getUserMenuItems(userId, status) {
+                        return `
+                            <a href="javascript:void(0)" onclick="viewUserDetails(${userId})">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                    <circle cx="12" cy="12" r="3"/>
+                                </svg>
+                                View
+                            </a>
+                            <a href="javascript:void(0)" onclick="editUser(${userId})">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                </svg>
+                                Edit
+                            </a>
+                            <a href="javascript:void(0)" class="danger" onclick="deleteUser(${userId})">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"/>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                </svg>
+                                Delete
+                            </a>
+                        `;
+                    }
+
+                    function positionKebabDropdown(button) {
+                        if (!kebabDropdown || !button) return;
+                        const rect = button.getBoundingClientRect();
+                        const viewportWidth = window.innerWidth;
+                        const viewportHeight = window.innerHeight;
+                        const padding = 15;
+                        const dropdownWidth = 170;
+                        const dropdownHeight = 220;
+                        
+                        let left = rect.right + 5;
+                        let top = rect.top;
+                        
+                        if (left + dropdownWidth > viewportWidth - padding) {
+                            left = rect.left - dropdownWidth - 5;
+                        }
+                        if (left < padding) left = padding;
+                        
+                        if (top + dropdownHeight > viewportHeight - padding) {
+                            top = rect.top - dropdownHeight;
+                        }
+                        if (top < padding) {
+                            top = padding;
+                        }
+                        
+                        kebabDropdown.style.left = left + 'px';
+                        kebabDropdown.style.top = top + 'px';
+                    }
+
+                    function openKebabDropdown(button) {
+                        const userId = button.dataset.userId;
+                        const status = button.dataset.userStatus;
+                        
+                        kebabDropdown.innerHTML = getUserMenuItems(userId, status);
+                        positionKebabDropdown(button);
+                        
+                        kebabDropdown.classList.add('show');
+                        kebabBackdrop.classList.add('show');
+                        activeKebabBtn = button;
+                        button.classList.add('active');
+                    }
+
+                    function closeKebabDropdown() {
+                        kebabDropdown.classList.remove('show');
+                        kebabDropdown.innerHTML = '';
+                        kebabBackdrop.classList.remove('show');
+                        if (activeKebabBtn) {
+                            activeKebabBtn.classList.remove('active');
+                            activeKebabBtn = null;
+                        }
+                    }
+
+                    // Kebab button click handler
+                    document.addEventListener('click', function(e) {
+                        const button = e.target.closest('.user-kebab-btn');
+                        if (button) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            
+                            if (activeKebabBtn === button && kebabDropdown.classList.contains('show')) {
+                                closeKebabDropdown();
+                            } else {
+                                if (activeKebabBtn) closeKebabDropdown();
+                                openKebabDropdown(button);
+                            }
+                            return;
+                        }
+                        
+                        if (!e.target.closest('.user-kebab-dropdown')) {
+                            closeKebabDropdown();
+                        }
+                    });
+
+                    // ESC key to close
+                    document.addEventListener('keydown', function(e) {
+                        if (e.key === 'Escape') closeKebabDropdown();
+                    });
+
+                    // View User Details Modal
+                    window.viewUserDetails = function(userId) {
+                            const btn = document.querySelector(`.user-kebab-btn[data-user-id="${userId}"]`);
+                            if (!btn) return;
+                            
+                            const fullName = `${btn.dataset.userFirst || ''} ${btn.dataset.userMiddle || ''} ${btn.dataset.userLast || ''}`.trim();
+                            const roleDisplay = btn.dataset.userRole || 'N/A';
+                            const roleClass = roleDisplay.toLowerCase();
+                            
+                            // FIX 2 IS HERE: Added .toLowerCase() to handle capital "Active" from PHP
+                            const statusDisplay = (btn.dataset.userStatus || '').toLowerCase() === 'active' ? 
+                                '<span style="background: #d1fae5; color: #065f46; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">✓ Active</span>' :
+                                '<span style="background: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">✕ Inactive</span>';
+                            
+                            const existingModal = document.getElementById('view-user-modal');
+                            if (existingModal) existingModal.remove();
+                            
+                            const overlay = document.createElement('div');
+                            overlay.id = 'view-user-modal';
+                            overlay.className = 'modal-overlay active';
+                            
+                            // FIX 1 IS HERE: Added position fixed and z-index to make it float
+                            overlay.style.position = 'fixed';
+                            overlay.style.inset = '0';
+                            overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                            overlay.style.zIndex = '100001'; 
+                            
+                            overlay.style.display = 'flex';
+                            overlay.style.alignItems = 'center';
+                            overlay.style.justifyContent = 'center';
+                        
+                        overlay.innerHTML = `
+    <div style="width: 100%; max-width: 500px; margin: 0 20px; max-height: 90vh; overflow-y: auto; background: white; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #e5e7eb; padding: 20px 20px 16px;">
+                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                        <div style="width: 50px; height: 50px; background: #6366f1; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; font-weight: 700;">
+                                            ${(btn.dataset.userFirst || 'U').charAt(0).toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <h3 style="margin: 0; color: #111827; font-size: 18px;">${fullName || 'Unknown User'}</h3>
+                                            <p style="margin: 4px 0 0 0; color: #6b7280; font-size: 13px;">User ID: ${userId}</p>
+                                        </div>
+                                    </div>
+                                    <button onclick="closeViewUserModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280;">&times;</button>
+                                </div>
+                                
+                                <div style="display: flex; gap: 8px; margin-bottom: 20px; padding: 0 20px;">
+                                    ${statusDisplay}
+                                    <span style="background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">${roleDisplay}</span>
+                                </div>
+                                
+                                <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin: 0 20px 16px;">
+                                    <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 14px; font-weight: 600;">👤 Account Information</h4>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                        <div>
+                                            <p style="margin: 0; color: #6b7280; font-size: 12px;">Username</p>
+                                            <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${btn.dataset.userUsername || '-'}</p>
+                                        </div>
+                                        <div>
+                                            <p style="margin: 0; color: #6b7280; font-size: 12px;">Email</p>
+                                            <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${btn.dataset.userEmail || '-'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin: 0 20px 16px;">
+                                    <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 14px; font-weight: 600;">📝 Personal Information</h4>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                        <div>
+                                            <p style="margin: 0; color: #6b7280; font-size: 12px;">First Name</p>
+                                            <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${btn.dataset.userFirst || '-'}</p>
+                                        </div>
+                                        <div>
+                                            <p style="margin: 0; color: #6b7280; font-size: 12px;">Middle Name</p>
+                                            <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${btn.dataset.userMiddle || '-'}</p>
+                                        </div>
+                                        <div>
+                                            <p style="margin: 0; color: #6b7280; font-size: 12px;">Last Name</p>
+                                            <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${btn.dataset.userLast || '-'}</p>
+                                        </div>
+                                        <div>
+                                            <p style="margin: 0; color: #6b7280; font-size: 12px;">Role</p>
+                                            <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${roleDisplay}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div style="padding: 0 20px 20px;">
+                                    <button onclick="closeViewUserModal()" style="width: 100%; padding: 12px; background: #f3f4f6; border: none; border-radius: 8px; color: #374151; font-size: 14px; font-weight: 600; cursor: pointer;">Close</button>
+                                </div>
+                            </div>
+                        `;
+                        
+                        document.body.appendChild(overlay);
+                        closeKebabDropdown();
+                        
+                        overlay.addEventListener('click', function(e) {
+                            if (e.target === overlay) closeViewUserModal();
+                        });
+                    };
+
+                    window.closeViewUserModal = function() {
+                        const modal = document.getElementById('view-user-modal');
+                        if (modal) modal.remove();
+                    };
+
+                    // Edit User
+                    window.editUser = function(userId) {
+                        closeKebabDropdown();
+                        if (typeof openUserModal === 'function') {
+                            openUserModal(userId);
+                        }
+                    };
+
+                    // Toggle User Status
+                    window.toggleUserStatus = function(userId, newStatus) {
+                        closeKebabDropdown();
+                        if (!confirm(`Are you sure you want to ${newStatus === 'active' ? 'activate' : 'deactivate'} this user?`)) return;
+                        
+                        fetch('admin_users_actions.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: 'action=toggle_status&id=' + userId + '&status=' + newStatus
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                location.reload();
+                            } else {
+                                alert(data.message || 'Failed to update status');
+                            }
+                        })
+                        .catch(() => {
+                            alert('Error updating user status');
+                        });
+                    };
+
+                    // Delete User
+                    window.deleteUser = function(userId) {
+                        closeKebabDropdown();
+                        if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+                        
+                        fetch('admin_users_actions.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: 'action=delete&id=' + userId
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                location.reload();
+                            } else {
+                                alert(data.message || 'Failed to delete user');
+                            }
+                        })
+                        .catch(() => {
+                            alert('Error deleting user');
+                        });
+                    };
                 });
                 </script>
 
@@ -287,3 +572,4 @@ try {
 <?php
 require_once __DIR__ . '/../../includes/admin_layout_end.php';
 ?>
+    

@@ -209,8 +209,10 @@ function isActivePage($page) {
 
                 <select id="role" class="form-control" required>
                     <option value="">Select Role</option>
+                    <option value="admin">Admin</option>
                     <option value="dentist">Dentist</option>
                     <option value="staff">Staff</option>
+                    <option value="patient">Patient</option>
                 </select>
 
                 <select id="status" class="form-control" required data-edit-only="true">
