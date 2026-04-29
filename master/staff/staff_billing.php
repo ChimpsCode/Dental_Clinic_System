@@ -422,13 +422,12 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                 <div class="modal">
                     <div class="modal-header">
                         <h2>Billing Details</h2>
-                        <button class="modal-close" onclick="closeBillingModal()">&times;</button>
                     </div>
                     <div class="modal-body" id="billingModalContent">
                         <!-- Content loaded dynamically -->
                     </div>
                     <div class="modal-actions">
-                        <button type="button" class="btn-cancel" onclick="closeBillingModal()">Close</button>
+                        <button type="button" class="btn-close-primary" onclick="closeBillingModal()">Close</button>
                     </div>
                 </div>
             </div>
@@ -897,6 +896,20 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
 
                 .btn-cancel:hover {
                     background: #e5e7eb;
+                }
+
+                .btn-close-primary {
+                    padding: 0.5rem 1rem;
+                    background: #0ea5e9;
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-weight: 500;
+                }
+
+                .btn-close-primary:hover {
+                    background: #0284c7;
                 }
 
                 .btn-primary {

@@ -271,8 +271,15 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                 <!-- Search and Filter -->
                 
                     <form method="GET" class="filter-form" id="filterForm">
-                        <input type="text" class="search-input" placeholder="Search by patient name or treatment..." 
-                               name="search" id="paymentSearch" value="<?php echo htmlspecialchars($searchQuery); ?>">
+                        <div class="search-input-wrap">
+                            <span class="search-input-icon" aria-hidden="true">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="m19.6 21l-6.3-6.3q-.75.6-1.725.95T9.5 16q-2.725 0-4.612-1.888T3 9.5t1.888-4.612T9.5 3t4.613 1.888T16 9.5q0 1.1-.35 2.075T14.7 13.3l6.3 6.3zM9.5 14q1.875 0 3.188-1.312T14 9.5t-1.312-3.187T9.5 5T6.313 6.313T5 9.5t1.313 3.188T9.5 14"/>
+                                </svg>
+                            </span>
+                            <input type="text" class="search-input" placeholder="Search" 
+                                   name="search" id="paymentSearch" value="<?php echo htmlspecialchars($searchQuery); ?>">
+                        </div>
                         <select class="filter-select" name="status" id="paymentStatus" onchange="document.getElementById('filterForm').submit()">
                             <option value="">All Status</option>
                             <option value="paid" <?php echo $statusFilter === 'paid' ? 'selected' : ''; ?>>Paid</option>
@@ -463,7 +470,6 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                 <div class="modal">
                     <div class="modal-header">
                         <h2>Payment Details</h2>
-                        <button class="modal-close" onclick="closePaymentModal()">&times;</button>
                     </div>
                     <div class="modal-body" id="paymentModalContent">
                         <!-- Content loaded dynamically -->
@@ -566,10 +572,26 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     margin-bottom: 20px;
                 }
 
-                .search-input {
+                .search-input-wrap {
+                    position: relative;
                     flex: 1;
                     min-width: 200px;
-                    padding: 0.5rem 1rem;
+                }
+
+                .search-input-icon {
+                    position: absolute;
+                    left: 14px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    color: #6b7280;
+                    display: flex;
+                    align-items: center;
+                    pointer-events: none;
+                }
+
+                .search-input {
+                    width: 100%;
+                    padding: 0.5rem 1rem 0.5rem 2.75rem;
                     border: 1px solid #e5e7eb;
                     border-radius: 8px;
                     font-size: 0.9rem;
@@ -732,9 +754,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     display: none;
                     position: fixed;
                     background: white;
-                    border: 1px solid #e5e7eb;
                     border-radius: 8px;
-                    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
                     min-width: 200px;
                     max-width: 220px;
                     width: auto;
@@ -967,7 +987,8 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
 
                 .btn-cancel {
                     padding: 0.5rem 1rem;
-                    background: #f3f4f6;
+                    background: #0ea5e9;
+                    color: white;
                     border: none;
                     border-radius: 8px;
                     cursor: pointer;
@@ -975,7 +996,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                 }
 
                 .btn-cancel:hover {
-                    background: #e5e7eb;
+                    background: #0284c7;
                 }
 
                 .btn-primary {
@@ -1124,6 +1145,8 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                 function closePayKebabDropdown() {
                     if (payKebabDropdown) {
                         payKebabDropdown.classList.remove('show');
+                        payKebabDropdown.style.display = 'none';
+                        payKebabDropdown.style.visibility = 'hidden';
                     }
                     if (payKebabBackdrop) {
                         payKebabBackdrop.classList.remove('show');
@@ -1355,12 +1378,55 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     }
                 });
 
-                // Submit form on Enter key in search input
-                document.getElementById('paymentSearch').addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') {
-                        document.getElementById('filterForm').submit();
+                // Filter visible rows locally while typing to avoid page reload flicker
+                const paymentSearchInput = document.getElementById('paymentSearch');
+                const paymentTableBody = document.getElementById('paymentTableBody');
+
+                if (paymentSearchInput && paymentTableBody) {
+                    const paymentRows = Array.from(paymentTableBody.querySelectorAll('tr[data-queue-id]'));
+                    const emptyStateRow = paymentTableBody.querySelector('.no-records')?.closest('tr') || null;
+                    let noMatchRow = document.getElementById('paymentNoMatchRow');
+
+                    if (!noMatchRow && paymentRows.length > 0) {
+                        noMatchRow = document.createElement('tr');
+                        noMatchRow.id = 'paymentNoMatchRow';
+                        noMatchRow.hidden = true;
+                        noMatchRow.innerHTML = `
+                            <td colspan="7" class="no-records">
+                                <div class="empty-state">
+                                    <p>No matching payment records found</p>
+                                </div>
+                            </td>
+                        `;
+                        paymentTableBody.appendChild(noMatchRow);
                     }
-                });
+
+                    function filterPaymentRows() {
+                        const query = paymentSearchInput.value.trim().toLowerCase();
+                        let visibleCount = 0;
+
+                        paymentRows.forEach(function(row) {
+                            const rowText = row.textContent.toLowerCase();
+                            const matches = !query || rowText.includes(query);
+                            row.hidden = !matches;
+
+                            if (matches) {
+                                visibleCount++;
+                            }
+                        });
+
+                        if (emptyStateRow) {
+                            emptyStateRow.hidden = paymentRows.length > 0 || !!query;
+                        }
+
+                        if (noMatchRow) {
+                            noMatchRow.hidden = !(paymentRows.length > 0 && query && visibleCount === 0);
+                        }
+                    }
+
+                    paymentSearchInput.addEventListener('input', filterPaymentRows);
+                    filterPaymentRows();
+                }
             </script>
 
 <?php

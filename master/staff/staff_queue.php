@@ -168,9 +168,7 @@ try {
     display: none;
     position: fixed;
     background: white;
-    border: 1px solid #e5e7eb;
     border-radius: 8px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
     min-width: 160px;
     max-width: 200px;
     width: auto;

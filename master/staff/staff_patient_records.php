@@ -316,7 +316,6 @@ try {
                 <h2 style="font-size: 1.5rem; font-weight: 600; margin: 0;">Patient Record Details</h2>
                 <p id="staffModalPatientName" style="color: #6b7280; margin: 4px 0 0 0; font-size: 0.9rem;"></p>
             </div>
-            <button onclick="closePatientRecordModal()" class="fullscreen-modal-close">&times;</button>
         </div>
         <div class="fullscreen-modal-body" id="patientRecordContent">
         </div>
@@ -346,7 +345,7 @@ try {
     width: 95%;
     max-width: 900px;
     max-height: 90vh;
-    overflow-y: auto;
+    overflow: hidden;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     position: relative;
     z-index: 100000;
@@ -357,8 +356,6 @@ try {
     align-items: center;
     padding: 24px;
     border-bottom: 1px solid #e5e7eb;
-    position: sticky;
-    top: 0;
     background: white;
     z-index: 10;
 }
@@ -382,6 +379,13 @@ try {
 }
 .fullscreen-modal-body {
     padding: 24px;
+    max-height: calc(90vh - 97px);
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.fullscreen-modal-body::-webkit-scrollbar {
+    display: none;
 }
 .patient-info-grid {
     display: grid;
@@ -438,9 +442,7 @@ try {
     display: none;
     position: fixed;
     background: white;
-    border: 1px solid #e5e7eb;
     border-radius: 8px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
     min-width: 200px;
     max-width: 220px;
     width: auto;

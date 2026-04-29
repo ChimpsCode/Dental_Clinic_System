@@ -320,11 +320,10 @@ try {
     <div class="modal" style="background: white; border-radius: 12px; padding: 24px; width: 90%; max-width: 460px; position: relative; z-index: 100000;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <h2 id="dashboardMessageTitle" style="font-size: 1.25rem; font-weight: 600; margin: 0;">Notice</h2>
-            <button onclick="closeDashboardMessageModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">×</button>
         </div>
         <p id="dashboardMessageText" style="color: #374151; margin: 0 0 20px;"></p>
         <div style="display: flex; justify-content: flex-end;">
-            <button type="button" onclick="closeDashboardMessageModal()" style="padding: 10px 20px; background: #f3f4f6; color: #374151; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">Close</button>
+            <button type="button" onclick="closeDashboardMessageModal()" style="padding: 10px 20px; background: #0ea5e9; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">Close</button>
         </div>
     </div>
 </div>

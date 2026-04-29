@@ -358,7 +358,7 @@ if (!$status) {
         <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Appointment Details</h2>
         <div id="viewAppointmentContent"></div>
         <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px;">
-            <button onclick="closeViewAppointmentModal()" class="btn-cancel">Close</button>
+            <button onclick="closeViewAppointmentModal()" class="btn-primary">Close</button>
             <button onclick="editAppointmentFromView()" class="btn-primary">Edit</button>
         </div>
     </div>
@@ -528,9 +528,7 @@ if (!$status) {
     display: none;
     position: fixed;
     background: white;
-    border: 1px solid #e5e7eb;
     border-radius: 8px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
     min-width: 200px;
     max-width: 220px;
     width: auto;
