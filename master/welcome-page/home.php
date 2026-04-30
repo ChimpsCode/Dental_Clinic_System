@@ -1649,6 +1649,25 @@ $faqs = [
       </div>
       <div class="toast-loading-line"></div>
     </div>
+    </div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const faqItems = document.querySelectorAll('.faq-item');
+        
+        faqItems.forEach(item => {
+          item.addEventListener('toggle', function() {
+            if (this.open) {
+              faqItems.forEach(other => {
+                if (other !== this && other.open) {
+                  other.open = false;
+                }
+              });
+            }
+          });
+        });
+      });
+    </script>
 
   </body>
 </html>

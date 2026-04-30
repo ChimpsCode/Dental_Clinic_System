@@ -535,10 +535,58 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
             <p>Please run the database migration to enable archive functionality.</p>
         </div>
         <?php else: ?>
-        <div style="text-align: center; padding: 60px; color: #6b7280;">
-            <h3>Dentist/Doctor Records Archive</h3>
-            <p>Coming soon.</p>
+        <!-- Search & Filters -->
+        <div class="search-filters" style="margin-bottom: 16px;">
+            <input type="text" id="users-search" placeholder="Search by name..." class="search-input" style="min-width: 300px;">
+            <select id="users-role-filter" class="filter-select">
+                <option value="">All Roles</option>
+                <option value="patient">Patients</option>
+                <option value="dentist">Dentists</option>
+                <option value="staff">Staff</option>
+            </select>
+            <button class="btn-filter" onclick="loadArchivedUsers(1)">Filter</button>
+            <button class="btn-reset" onclick="resetFilters('users')">Reset</button>
         </div>
+
+        <!-- Bulk Actions -->
+        <div class="bulk-actions">
+            <button id="bulk-restore-users" class="btn-restore" onclick="bulkAction('users', 'restore')" disabled>
+                Restore Selected
+            </button>
+            <button id="bulk-delete-users" class="btn-delete-forever" onclick="bulkAction('users', 'delete_forever')" disabled>
+                Delete Forever
+            </button>
+        </div>
+
+        <!-- Table -->
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px; text-align: center;">
+                            <input type="checkbox" id="select-all-users" onchange="toggleSelectAll('users', this.checked)">
+                        </th>
+                        <th>First Name</th>
+                        <th>Middle Name</th>
+                        <th>Last Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Archived Date</th>
+                        <th style="width: 200px; text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="users-table-body">
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 60px; color: #6b7280;">
+                            Loading archived users...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination" id="users-pagination"></div>
         <?php endif; ?>
     </div>
 

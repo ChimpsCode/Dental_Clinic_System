@@ -22,14 +22,14 @@ $pageTitle = 'New Session';
 
 // Determine the patient list page to redirect back to based on role
 if ($userRole === 'admin') {
-    $patientListPage = 'admin_patients.php';
-    $queuePage = 'admin_queue.php';
+    $patientListPage = '../admin/admin_patients.php';
+    $queuePage = '../admin/admin_queue.php';
 } elseif ($userRole === 'dentist') {
     $patientListPage = '../dentist/dentist_patients.php';
     $queuePage = '../dentist/dentist_queue.php';
 } else {
-    $patientListPage = 'master/staff/staff_patient_records.php';
-    $queuePage = 'master/staff/staff_queue.php';
+    $patientListPage = 'staff_patient_records.php';
+    $queuePage = 'staff_queue.php';
 }
 
 try {

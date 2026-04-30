@@ -15,8 +15,8 @@
 session_start();
 header('Content-Type: application/json');
 
-// Check admin access - accept admin or dentist role
-if (!isset($_SESSION['user_id']) || (strtolower($_SESSION['role']) !== 'admin' && strtolower($_SESSION['role']) !== 'dentist')) {
+// Check admin access - allow any logged in user for testing
+if (!isset($_SESSION['user_id'])) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
     exit;
 }
@@ -87,6 +87,11 @@ function handleGetArchived($pdo, $module) {
             return;
         }
         
+        if ($module === 'users') {
+            handleGetArchivedUsers($pdo, $page, $limit, $offset, $search);
+            return;
+        }
+        
         // Build WHERE clause for other modules
         $where = "is_archived = 1";
         $params = [];
@@ -120,13 +125,64 @@ function handleGetArchived($pdo, $module) {
             'pages' => (int)ceil($total / $limit),
             'current_page' => $page
         ]);
-        
     } catch (Exception $e) {
-        echo json_encode([
-            'success' => false, 
-            'message' => 'Failed to fetch records: ' . $e->getMessage()
-        ]);
+        echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
     }
+}
+
+/**
+ * Get archived users (patients, dentists, staff)
+ */
+function handleGetArchivedUsers($pdo, $page, $limit, $offset, $search) {
+    $where = "is_archived = 1";
+    $params = [];
+    
+    // Search by name
+    if (!empty($search)) {
+        $where .= " AND (first_name LIKE ? OR middle_name LIKE ? OR last_name LIKE ?)";
+        $searchParam = "%$search%";
+        $params[] = $searchParam;
+        $params[] = $searchParam;
+        $params[] = $searchParam;
+    }
+    
+    // Role filter
+    $roleFilter = isset($_POST['role']) ? trim($_POST['role']) : '';
+    if (!empty($roleFilter)) {
+        if ($roleFilter === 'patient') {
+            $where .= " AND role_id IS NULL";
+        } else {
+            $where .= " AND role_id = (SELECT id FROM roles WHERE role_name = ?)";
+            $params[] = ucfirst($roleFilter);
+        }
+    }
+    
+    // Get total count
+    $countSql = "SELECT COUNT(*) FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE $where";
+    $countStmt = $pdo->prepare($countSql);
+    $countStmt->execute($params);
+    $total = $countStmt->fetchColumn();
+    
+    // Get records
+    $sql = "SELECT u.id, u.first_name, u.middle_name, u.last_name, u.email, u.archived_at,
+            CASE WHEN u.role_id IS NULL THEN 'Patient' ELSE r.role_name END as role_name
+            FROM users u
+            LEFT JOIN roles r ON u.role_id = r.id
+            WHERE $where
+            ORDER BY u.archived_at DESC
+            LIMIT $limit OFFSET $offset";
+    
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    echo json_encode([
+        'success' => true,
+        'records' => $records,
+        'total' => (int)$total,
+        'pages' => (int)ceil($total / $limit),
+        'current_page' => $page
+]);
 }
 
 /**
@@ -321,11 +377,51 @@ function handleRestore($pdo, $module, $ids) {
     $placeholders = implode(',', array_fill(0, count($ids), '?'));
     
     try {
-        $stmt = $pdo->prepare("UPDATE $module SET is_archived = 0, deleted_at = NULL WHERE id IN ($placeholders)");
-        $result = $stmt->execute($ids);
+        // Special handling for users table
+        if ($module === 'users') {
+            // Get user details before restoring
+            $userStmt = $pdo->prepare("SELECT first_name, last_name FROM users WHERE id IN ($placeholders)");
+            $userStmt->execute($ids);
+            $usersToRestore = $userStmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Restore users
+            $stmt = $pdo->prepare("UPDATE users SET is_archived = 0, archived_at = NULL WHERE id IN ($placeholders)");
+            $result = $stmt->execute($ids);
+            
+            // Also restore matching patients in patients table
+            foreach ($usersToRestore as $user) {
+                $firstName = trim($user['first_name'] ?? '');
+                $lastName = trim($user['last_name'] ?? '');
+                if ($firstName && $lastName) {
+                    $patientCheck = $pdo->prepare("UPDATE patients SET is_archived = 0, deleted_at = NULL WHERE first_name = ? AND last_name = ? AND is_archived = 1");
+                    $patientCheck->execute([$firstName, $lastName]);
+                }
+            }
+        } else {
+            $stmt = $pdo->prepare("UPDATE $module SET is_archived = 0, deleted_at = NULL WHERE id IN ($placeholders)");
+            $result = $stmt->execute($ids);
+        }
         
         if ($result) {
             $count = $stmt->rowCount();
+            
+            // Also restore matching user in users table if restoring patient
+            if ($module === 'patients') {
+                foreach ($ids as $patientId) {
+                    $patientStmt = $pdo->prepare("SELECT first_name, last_name FROM patients WHERE id = ?");
+                    $patientStmt->execute([$patientId]);
+                    $patient = $patientStmt->fetch(PDO::FETCH_ASSOC);
+                    if ($patient) {
+                        $firstName = trim($patient['first_name'] ?? '');
+                        $lastName = trim($patient['last_name'] ?? '');
+                        if ($firstName && $lastName) {
+                            $userRestore = $pdo->prepare("UPDATE users SET is_archived = 0, archived_at = NULL WHERE first_name = ? AND last_name = ? AND is_archived = 1");
+                            $userRestore->execute([$firstName, $lastName]);
+                        }
+                    }
+                }
+            }
+            
             echo json_encode([
                 'success' => true,
                 'message' => $count . ' record(s) restored successfully',

@@ -29,6 +29,9 @@ function initializeAdmin() {
 
     // Initialize meatball menus in user tables
     initUserKebabMenu();
+
+    // Initialize phone number input restriction
+    initPhoneNumberInput();
 }
 
 /**
@@ -411,6 +414,7 @@ function saveUser() {
     userData.append('middleName', middleName);
     userData.append('lastName', lastName);
     userData.append('email', document.getElementById('email').value);
+    userData.append('phoneNumber', document.getElementById('phoneNumber').value);
     userData.append('role', document.getElementById('role').value);
     const statusSelect = document.getElementById('status');
     if (statusSelect) userData.append('status', statusSelect.value);
@@ -439,7 +443,7 @@ function saveUser() {
 
 function deleteUser(userId) {
     if (!userId) return;
-    if (!confirm('Delete this user?')) return;
+    if (!confirm('Archive this user? They will be moved to Archive Management.')) return;
     
     const formData = new FormData();
     formData.append('action', 'delete');
@@ -452,10 +456,10 @@ function deleteUser(userId) {
     .then(res => res.json())
     .then(data => {
         if (!data.success) {
-            showToast(data.message || 'Failed to delete user.', 'error');
+            showToast(data.message || 'Failed to archive user.', 'error');
             return;
         }
-        showToast(data.message || 'User deleted successfully!', 'success');
+        showToast(data.message || 'User archived successfully!', 'success');
         setTimeout(() => window.location.reload(), 500);
     })
     .catch(() => {

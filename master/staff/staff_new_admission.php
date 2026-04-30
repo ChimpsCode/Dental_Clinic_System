@@ -9,23 +9,18 @@
 ob_start();
 session_start();
 
-// Strict role validation - only staff can access
+// Strict role validation - only staff and admin can access
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
-    header('Location: login.php');
+    header('Location: ../../login.php');
     exit();
 }
 
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'staff') {
-    // If admin, redirect to admin dashboard
-    if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
-        ob_end_clean();
-        header('Location: master/admin/admin_dashboard.php');
-        exit();
-    }
-    // If dentist or other role, redirect to main dashboard
+$allowedRoles = ['staff', 'admin', 'dentist'];
+if (!isset($_SESSION['role']) || !in_array($_SESSION['role'], $allowedRoles)) {
+    // If not allowed, redirect to main dashboard
     ob_end_clean();
-    header('Location: dashboard.php');
+    header('Location: ../../dashboard.php');
     exit();
 }
 
@@ -952,14 +947,25 @@ elseif ($appointmentId) {
     </div>
 
     <script>
-        // Go back to previous page (Staff Dashboard)
+        // Go back to dashboard based on user role
         function goBackToDashboard() {
-            // Try to go back in browser history
-            if (document.referrer.includes('staff-dashboard.php')) {
+            const userRole = '<?php echo $_SESSION['role'] ?? ''; ?>';
+            
+            // Try to go back in browser history first
+            if (document.referrer && document.referrer.includes('dashboard')) {
                 window.history.back();
-            } else {
-                // If no history, redirect to staff dashboard
+                return;
+            }
+            
+            // Redirect based on role
+            if (userRole === 'staff') {
                 window.location.href = 'staff-dashboard.php';
+            } else if (userRole === 'admin') {
+                window.location.href = '../admin/admin_dashboard.php';
+            } else if (userRole === 'dentist') {
+                window.location.href = '../dentist/dentist_dashboard.php';
+            } else {
+                window.location.href = '../../dashboard.php';
             }
         }
 
@@ -1970,9 +1976,21 @@ btn.classList.add('bg-blue-200', 'border-blue-400');
                     if (result.success) {
                         const debugInfo = 'Patient ID: ' + result.patient_id + ', Queue ID: ' + result.queue_id + ', Appointment: ' + (result.debug_appointment_id || 'None');
                         console.log('DEBUG:', result);
+                        const userRole = '<?php echo $_SESSION['role'] ?? ''; ?>';
+                        
+                        let queueUrl = 'staff_queue.php';
+                        let dashboardUrl = 'staff-dashboard.php';
+                        if (userRole === 'admin') {
+                            queueUrl = '../admin/admin_queue.php';
+                            dashboardUrl = '../admin/admin_dashboard.php';
+                        } else if (userRole === 'dentist') {
+                            queueUrl = '../dentist/dentist_queue.php';
+                            dashboardUrl = '../dentist/dentist_dashboard.php';
+                        }
+                        
                         showModal('success', 'Success!', 'Patient <strong>' + patientName + '</strong> has been admitted.<br><br>' + debugInfo, [
-                            { text: 'View Queue', onclick: () => { window.location.href = 'staff_queue.php'; } },
-                            { text: 'Go to Dashboard', onclick: () => { window.location.href = 'staff-dashboard.php'; } }
+                            { text: 'View Queue', onclick: () => { window.location.href = queueUrl; } },
+                            { text: 'Go to Dashboard', onclick: () => { window.location.href = dashboardUrl; } }
                         ]);
                     } else {
                         showModal('error', 'Error', result.message || 'Failed to save patient. Please try again.', [

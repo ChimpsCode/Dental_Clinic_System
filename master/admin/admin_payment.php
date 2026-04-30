@@ -63,7 +63,7 @@ try {
     // Fix: use payment_status_id
     $statsStmt = $pdo->query("
         SELECT
-            COALESCE(SUM(CASE WHEN payment_status_id = 1 THEN paid_amount ELSE 0 END), 0) AS total_collected,
+            COALESCE(SUM(CASE WHEN payment_status_id IN (1, 2) THEN paid_amount ELSE 0 END), 0) AS total_collected,
             COALESCE(SUM(CASE WHEN payment_status_id IN (2, 3, 4) THEN balance ELSE 0 END), 0) AS pending_payments,
             COUNT(*) AS total_transactions,
             SUM(CASE WHEN payment_status_id IN (3, 4) AND billing_date < CURDATE() THEN 1 ELSE 0 END) AS overdue_count

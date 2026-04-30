@@ -509,7 +509,7 @@ switch(action) {
             editPatientInfo(id);
             break;
         case 'session':
-            window.location.href = 'quick_session.php?patient_id=' + id;
+            window.location.href = '../shared/quick_session.php?patient_id=' + id;
             break;
         case 'appointment':
             openAddAppointmentModal(id);

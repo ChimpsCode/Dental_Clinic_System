@@ -17,6 +17,33 @@ $dailySummaryReport = [];
 $printedInvoices = [];
 $printedDaily = [];
 
+// Get date filter from GET parameter
+$dateFilter = $_GET['date_filter'] ?? 'all';
+$dateCondition = '';
+$groupBy = '';
+switch ($dateFilter) {
+    case 'today':
+        $dateCondition = " AND DATE(b.billing_date) = CURDATE()";
+        break;
+    case 'week':
+        $dateCondition = " AND b.billing_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
+        break;
+    case 'month':
+        $dateCondition = " AND b.billing_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
+        break;
+    case 'all':
+    default:
+        $dateCondition = "";
+        break;
+}
+
+// Check if filtering by specific month (format: 2026-01)
+$selectedMonth = $_GET['month'] ?? '';
+if (!empty($selectedMonth)) {
+    $dateCondition = " AND DATE_FORMAT(b.billing_date, '%Y-%m') = '" . $pdo->quote($selectedMonth) . "'";
+    $dateFilter = 'month';
+}
+
 function buildReportTable($headers, $rows) {
     $thead = '<tr>' . implode('', array_map(fn($h) => '<th>' . htmlspecialchars($h) . '</th>', $headers)) . '</tr>';
     if (empty($rows)) {
@@ -61,29 +88,62 @@ try {
         ORDER BY b.billing_date DESC
     ")->fetchAll(PDO::FETCH_ASSOC);
 
-    // Revenue Report - Calculate revenue by service from billing (total and paid)
-    $revenueReport = $pdo->query("
-        SELECT 
-            COALESCE(s.name, 'Other Services') AS service,
-            COUNT(t.id) AS treatment_count,
-            COALESCE(SUM(t.cost), 0) AS treatment_cost,
-            COALESCE(SUM(b.total_amount), 0) AS billing_total,
-            COALESCE(SUM(b.paid_amount), 0) AS paid_amount
-        FROM treatments t
-        LEFT JOIN services s ON t.service_id = s.id
-        LEFT JOIN billing b ON b.patient_id = t.patient_id
-        GROUP BY s.name
-        ORDER BY paid_amount DESC
-    ")->fetchAll(PDO::FETCH_ASSOC);
+    // Revenue Report - Direct from billing (same as Dashboard/Payment) with date filter
+$revenueReport = $pdo->prepare("
+    SELECT 
+        COALESCE(s.name, 'Other Services') AS service,
+        COUNT(b.id) AS treatment_count,
+        COALESCE(SUM(b.total_amount), 0) AS billing_total,
+        COALESCE(SUM(CASE WHEN b.payment_status_id IN (1, 2) THEN b.paid_amount ELSE 0 END), 0) AS paid_amount
+    FROM billing b
+    LEFT JOIN treatments t ON b.treatment_id = t.id
+    LEFT JOIN services s ON t.service_id = s.id
+    WHERE 1=1" . $dateCondition . "
+    GROUP BY s.name
+    ORDER BY paid_amount DESC
+");
+$revenueReport->execute();
+$revenueReport = $revenueReport->fetchAll(PDO::FETCH_ASSOC);
+
+// Get available months for dropdown
+$availableMonths = $pdo->query("
+    SELECT DISTINCT DATE_FORMAT(billing_date, '%Y-%m') AS month 
+    FROM billing 
+    WHERE billing_date IS NOT NULL 
+    ORDER BY month DESC
+")->fetchAll(PDO::FETCH_ASSOC);
+
+// Get monthly totals for overall summary
+$monthlyTotals = $pdo->query("
+    SELECT 
+        DATE_FORMAT(billing_date, '%Y-%m') AS month,
+        COALESCE(SUM(CASE WHEN payment_status_id IN (1, 2) THEN paid_amount ELSE 0 END), 0) AS total_paid,
+        COALESCE(SUM(total_amount), 0) AS total_billed
+    FROM billing
+    WHERE billing_date IS NOT NULL
+    GROUP BY DATE_FORMAT(billing_date, '%Y-%m')
+    ORDER BY month DESC
+")->fetchAll(PDO::FETCH_ASSOC);
     
-    // Also get total summary
-    $revenueTotal = $pdo->query("
-        SELECT 
-            COALESCE(SUM(paid_amount), 0) AS total_paid,
-            COALESCE(SUM(total_amount), 0) AS total_billed,
-            COALESCE(SUM(balance), 0) AS total_balance
-        FROM billing
-    ")->fetch(PDO::FETCH_ASSOC);
+// Overall total (all time)
+$overallTotal = $pdo->query("
+    SELECT 
+        COALESCE(SUM(CASE WHEN payment_status_id IN (1, 2) THEN paid_amount ELSE 0 END), 0) AS total_paid,
+        COALESCE(SUM(total_amount), 0) AS total_billed
+    FROM billing
+")->fetch(PDO::FETCH_ASSOC);
+
+// Also get total summary with date filter
+$revenueTotalStmt = $pdo->prepare("
+    SELECT 
+        COALESCE(SUM(CASE WHEN payment_status_id IN (1, 2) THEN paid_amount ELSE 0 END), 0) AS total_paid,
+        COALESCE(SUM(total_amount), 0) AS total_billed,
+        COALESCE(SUM(CASE WHEN payment_status_id IN (2, 3, 4) THEN balance ELSE 0 END), 0) AS total_balance
+    FROM billing
+    WHERE 1=1" . $dateCondition
+);
+$revenueTotalStmt->execute();
+$revenueTotal = $revenueTotalStmt->fetch(PDO::FETCH_ASSOC);
 
     $printedInvoices = $pdo->query("
         SELECT b.id, CONCAT(p.first_name, ' ', p.last_name) AS patient,
@@ -134,7 +194,8 @@ try {
             $stmt = $pdo->prepare("
                 SELECT COALESCE(SUM(b.paid_amount), 0)
                 FROM billing b
-                WHERE b.treatment_id IN (
+                WHERE b.payment_status_id IN (1, 2)
+                  AND b.treatment_id IN (
                     SELECT t.id FROM treatments t
                     LEFT JOIN services s ON t.service_id = s.id
                     WHERE COALESCE(s.name, t.procedure_name) = ?
@@ -215,10 +276,16 @@ try {
                             <option value="services">Services Report</option>
                             <option value="daily">Daily Summary</option>
                         </select>
-                        <select id="dateRange" class="form-control">
-                            <option value="today">Today</option>
-                            <option value="week">This Week</option>
-                            <option value="month" selected>This Month</option>
+                        <select id="dateRange" class="form-control" onchange="applyDateFilter()">
+                            <option value="all" <?php echo $dateFilter === 'all' ? 'selected' : ''; ?>>All Time</option>
+                            <option value="today" <?php echo $dateFilter === 'today' ? 'selected' : ''; ?>>Today</option>
+                            <option value="week" <?php echo $dateFilter === 'week' ? 'selected' : ''; ?>>This Week</option>
+                            <option value="month" <?php echo $dateFilter === 'month' && empty($selectedMonth) ? 'selected' : ''; ?>>This Month</option>
+                            <optgroup label="By Month">
+                                <?php foreach ($availableMonths as $m): ?>
+                                <option value="<?php echo $m['month']; ?>" <?php echo $selectedMonth === $m['month'] ? 'selected' : ''; ?>><?php echo date('F Y', strtotime($m['month'] . '-01')); ?></option>
+                                <?php endforeach; ?>
+                            </optgroup>
                         </select>
                         
                         <button class="btn-secondary" onclick="rfGenerateCustomReport()">Generate</button>
@@ -300,6 +367,34 @@ try {
                             <button class="btn-primary" onclick="rfPrintReport('printed_daily')">&#128424; Print</button>
                         </div>
                     </div>
+                </div>
+
+                <!-- Monthly Revenue Summary -->
+                <div class="section-card" style="margin-top: 30px;">
+                    <h2 class="section-title">&#128200; Monthly Revenue Summary</h2>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th style="text-align:right;">Total Billed</th>
+                                <th style="text-align:right;">Total Collected</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($monthlyTotals as $mt): ?>
+                            <tr>
+                                <td><?php echo date('F Y', strtotime($mt['month'] . '-01')); ?></td>
+                                <td style="text-align:right;"><?php echo '₱' . number_format($mt['total_billed']); ?></td>
+                                <td style="text-align:right;color:#16a34a;font-weight:600;"><?php echo '₱' . number_format($mt['total_paid']); ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                            <tr style="background:#f3f4f6;font-weight:700;">
+                                <td>OVERALL TOTAL</td>
+                                <td style="text-align:right;"><?php echo '₱' . number_format($overallTotal['total_billed']); ?></td>
+                                <td style="text-align:right;color:#16a34a;"><?php echo '₱' . number_format($overallTotal['total_paid']); ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
 
             </div>
@@ -390,17 +485,16 @@ function renderNewReport(type) {
             `₱${Number(b.balance || 0).toLocaleString()}`, b.payment_status ?? '', b.billing_date ?? '', b.due_date ?? ''
         ]);
     } else if (type === 'revenue') {
-        headers = ['Service', 'Treatments', 'Treatment Cost', 'Billing Total', 'Paid Amount'];
+        headers = ['Service', 'Billing Count', 'Billing Total', 'Paid Amount'];
         rows = data.map(r => [
             r.service ?? 'Unknown',
             r.treatment_count ?? 0,
-            `₱${Number(r.treatment_cost || 0).toLocaleString()}`,
             `₱${Number(r.billing_total || 0).toLocaleString()}`,
             `₱${Number(r.paid_amount || 0).toLocaleString()}`
         ]);
         // Add total row
-        const totalPaid = rows.reduce((sum, r) => sum + (parseFloat((r[4] || '₱0').replace(/[₱,]/g, '')) || 0), 0);
-        rows.push(['', '', '', 'TOTAL:', `₱${totalPaid.toLocaleString()}`]);
+        const totalPaid = rows.reduce((sum, r) => sum + (parseFloat((r[3] || '₱0').replace(/[₱,]/g, '')) || 0), 0);
+        rows.push(['', '', 'TOTAL:', `₱${totalPaid.toLocaleString()}`]);
     } else if (type === 'services') {
         headers = ['Service', 'Frequency', 'Treatment Cost', 'Revenue'];
         rows = data.map(s => [
@@ -483,6 +577,12 @@ window.rfClosePreviewModal = function() { document.getElementById('printPreviewM
 window.rfGenerateCustomReport = function() { window.rfPreviewReport(document.getElementById('customReportType').value); };
 window.rfPrintCustomReport = function() { window.rfPrintReport(document.getElementById('customReportType').value); };
 window.rfExportToPDF = function() { window.rfPrintReport(document.getElementById('customReportType').value); };
+window.applyDateFilter = function() {
+    const filter = document.getElementById('dateRange').value;
+    const url = new URL(window.location.href);
+    url.searchParams.set('date_filter', filter);
+    window.location.href = url.href;
+};
 </script>
 
 <?php require_once __DIR__ . '/../../includes/admin_layout_end.php'; ?>

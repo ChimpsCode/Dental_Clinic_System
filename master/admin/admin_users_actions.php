@@ -38,6 +38,8 @@ try {
     $hasStatusColumn = (bool)$colStmt->fetch(PDO::FETCH_ASSOC);
     $firstLoginStmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'first_login'");
     $hasFirstLoginColumn = (bool)$firstLoginStmt->fetch(PDO::FETCH_ASSOC);
+    $phoneColStmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'phone'");
+    $hasPhoneColumn = (bool)$phoneColStmt->fetch(PDO::FETCH_ASSOC);
 
     if ($action === 'get') {
         $id = (int)($_GET['id'] ?? 0);
@@ -45,7 +47,13 @@ try {
             jsonError('Invalid user ID');
         }
 
-        $stmt = $pdo->prepare("SELECT u.id, u.username, u.first_name, u.middle_name, u.last_name, u.email, u.status, r.role_name as role FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE u.id = ?");
+        $sql = "SELECT u.id, u.username, u.first_name, u.middle_name, u.last_name, u.email, u.status, r.role_name as role";
+        if ($hasPhoneColumn) {
+            $sql .= ", u.phone";
+        }
+        $sql .= " FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE u.id = ?";
+        
+        $stmt = $pdo->prepare($sql);
         $stmt->execute([$id]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -69,6 +77,7 @@ try {
         $middleName = trim($_POST['middleName'] ?? '');
         $lastName   = trim($_POST['lastName'] ?? '');
         $email    = trim($_POST['email'] ?? '');
+        $phoneNumber = trim($_POST['phoneNumber'] ?? '');
         $role     = trim($_POST['role'] ?? '');
         $password = trim($_POST['password'] ?? '');
         $status   = trim($_POST['status'] ?? 'active');
@@ -76,6 +85,10 @@ try {
 
         if ($username === '' || $firstName === '' || $lastName === '' || $email === '' || $role === '') {
             jsonError('Please fill in all required fields.');
+        }
+
+        if ($phoneNumber !== '' && !preg_match('/^[0-9]{0,11}$/', $phoneNumber)) {
+            jsonError('Phone number must be up to 11 digits.');
         }
 
         if (!in_array($role, ['admin', 'dentist', 'staff', 'patient'], true)) {
@@ -111,40 +124,24 @@ try {
                 jsonError('Password must be at least 8 chars, with upper, lower, number, and symbol.');
             }
 
-            $hashed = password_hash($password, PASSWORD_DEFAULT);
+$hashed = password_hash($password, PASSWORD_DEFAULT);
 
             // Convert role name to role_id - patient uses NULL (as per existing db design)
             $roleIdMap = ['admin' => 1, 'dentist' => 2, 'staff' => 3, 'patient' => null];
-            $roleId = $roleIdMap[strtolower($role)] ?? 3; // default to staff
+            $roleId = $roleIdMap[strtolower($role)] ?? 3;
             
-            if ($role === 'patient') {
-                // Patients have NULL role_id (as per existing design)
-                if ($hasStatusColumn && $hasFirstLoginColumn) {
-                    $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, middle_name, last_name, role_id, status, first_login) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, 1)");
-                    $stmt->execute([$username, $hashed, $email, $firstName, $middleName, $lastName, $status]);
-                } elseif ($hasStatusColumn) {
-                    $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, middle_name, last_name, role_id, status) VALUES (?, ?, ?, ?, ?, ?, NULL, ?)");
-                    $stmt->execute([$username, $hashed, $email, $firstName, $middleName, $lastName, $status]);
-                } elseif ($hasFirstLoginColumn) {
-                    $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, middle_name, last_name, role_id, first_login) VALUES (?, ?, ?, ?, ?, ?, NULL, 1)");
-                    $stmt->execute([$username, $hashed, $email, $firstName, $middleName, $lastName]);
-                } else {
-                    $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, middle_name, last_name, role_id) VALUES (?, ?, ?, ?, ?, ?, NULL)");
-                    $stmt->execute([$username, $hashed, $email, $firstName, $middleName, $lastName]);
-                }
-            } elseif ($hasStatusColumn && $hasFirstLoginColumn) {
-                $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, middle_name, last_name, role_id, status, first_login) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)");
-                $stmt->execute([$username, $hashed, $email, $firstName, $middleName, $lastName, $roleId, $status]);
-            } elseif ($hasStatusColumn) {
-                $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, middle_name, last_name, role_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$username, $hashed, $email, $firstName, $middleName, $lastName, $roleId, $status]);
-            } elseif ($hasFirstLoginColumn) {
-                $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, middle_name, last_name, role_id, first_login) VALUES (?, ?, ?, ?, ?, ?, ?, 1)");
-                $stmt->execute([$username, $hashed, $email, $firstName, $middleName, $lastName, $roleId]);
-            } else {
-                $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, middle_name, last_name, role_id) VALUES (?, ?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$username, $hashed, $email, $firstName, $middleName, $lastName, $roleId]);
+            // Build dynamic INSERT based on what we have
+            $fields = ['username', 'password', 'email', 'first_name', 'middle_name', 'last_name', 'role_id', 'status'];
+            $values = [$username, $hashed, $email, $firstName, $middleName, $lastName, $roleId, $status];
+            
+            if ($hasPhoneColumn && $phoneNumber !== '') {
+                $fields[] = 'phone';
+                $values[] = $phoneNumber;
             }
+            
+            $sql = "INSERT INTO users (" . implode(', ', $fields) . ") VALUES (?" . str_repeat(",?", count($fields) - 1) . ")";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($values);
 
             $newId = (int)$pdo->lastInsertId();
             $displayName = trim($firstName . ' ' . $lastName);
@@ -222,20 +219,51 @@ try {
             jsonError('Invalid user ID.');
         }
 
-        // Prevent deleting yourself
+        // Prevent archiving yourself
         if ($id === (int)$_SESSION['user_id']) {
-            jsonError('You cannot delete your own account.');
+            jsonError('You cannot archive your own account.');
         }
 
-        // Prevent deleting primary admin
+        // Prevent archiving primary admin
         if ($id === 1) {
-            jsonError('You cannot delete the primary admin account.');
+            jsonError('You cannot archive the primary admin account.');
         }
 
-        $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
+        // Check if is_archived column exists
+        $checkCol = $pdo->query("SHOW COLUMNS FROM users LIKE 'is_archived'");
+        if (!$checkCol->fetch(PDO::FETCH_ASSOC)) {
+            jsonError('Archive feature not configured.');
+        }
+
+        // Get user details first
+        $userStmt = $pdo->prepare("SELECT first_name, last_name, email FROM users WHERE id = ?");
+        $userStmt->execute([$id]);
+        $userData = $userStmt->fetch(PDO::FETCH_ASSOC);
+
+        // Soft delete - set is_archived = 1
+        $stmt = $pdo->prepare("UPDATE users SET is_archived = 1, archived_at = NOW() WHERE id = ?");
         $stmt->execute([$id]);
 
-        echo json_encode(['success' => true, 'message' => 'User deleted successfully.']);
+        // Also check if there's a matching patient in patients table to archive
+        if ($userData) {
+            // Try to find patient by name match
+            $firstName = trim($userData['first_name'] ?? '');
+            $lastName = trim($userData['last_name'] ?? '');
+            
+            if ($firstName && $lastName) {
+                // Find patient with same name
+                $patientCheck = $pdo->prepare("SELECT id FROM patients WHERE first_name = ? AND last_name = ? AND is_archived = 0 LIMIT 1");
+                $patientCheck->execute([$firstName, $lastName]);
+                $patientMatch = $patientCheck->fetch(PDO::FETCH_ASSOC);
+                
+                if ($patientMatch) {
+                    // Archive the patient too
+                    $pdo->prepare("UPDATE patients SET is_archived = 1, deleted_at = NOW() WHERE id = ?")->execute([$patientMatch['id']]);
+                }
+            }
+        }
+
+        echo json_encode(['success' => true, 'message' => 'User archived successfully.']);
         exit;
     }
 

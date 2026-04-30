@@ -29,7 +29,7 @@ try {
                 WHEN 'completed' THEN 3 
                 ELSE 2
             END,
-            q.queue_time DESC
+            q.queue_time ASC
     ");
     $allQueueItems = $allStmt->fetchAll(PDO::FETCH_ASSOC);
     
@@ -874,7 +874,7 @@ div.main-content {
         <option value="completed">Completed</option>
         <option value="cancelled">Cancelled</option>
     </select>
-    <a href="master/staff/staff_new_admission.php" class="btn-add-patient">
+    <a href="../staff/staff_new_admission.php" class="btn-add-patient">
         <span>+</span> Add New Patient
     </a>
 </div>
@@ -1067,10 +1067,10 @@ div.main-content {
 <!-- Delete Confirmation Modal -->
 <div id="deleteModal" class="modal-overlay-delete">
     <div class="modal-content-delete">
-        <h3>Delete Patient Queue Record</h3>
+        <h3 id="modalTitle">Delete Patient Queue Record</h3>
         <p id="deleteModalMessage">Delete this patient record from the queue?</p>
         <div class="modal-buttons-delete">
-            <button class="btn-cancel-delete" onclick="closeDeleteModal()">Cancel</button>
+            <button class="btn-cancel-delete" id="modalCancelBtn" onclick="closeDeleteModal()">Cancel</button>
             <button class="btn-confirm-delete" id="confirmDeleteBtn">Delete</button>
         </div>
     </div>
@@ -1338,70 +1338,127 @@ function viewPatientQueue(patientId) {
         });
 }
 
-// Hold Patient
+// Hold Patient using modal
+let pendingHoldQueueId = null;
+
 function holdPatientQueue(queueId) {
-    if (!confirm('Put this patient on hold?')) return;
+    pendingHoldQueueId = queueId;
     
-    fetch('../shared/queue_actions.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'on_hold', queue_id: queueId })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert(data.message || 'Failed to put patient on hold');
-        }
-    })
-    .catch(() => {
-        alert('Error putting patient on hold');
-    });
+    var modal = document.getElementById('deleteModal');
+    var modalContent = modal ? modal.querySelector('.modal-content-delete') : null;
+    var title = modalContent ? modalContent.querySelector('h3') : document.getElementById('modalTitle');
+    var msg = document.getElementById('deleteModalMessage');
+    var cancelBtn = document.getElementById('modalCancelBtn');
+    var confirmBtn = document.getElementById('confirmDeleteBtn');
+    
+    if (title) {
+        title.textContent = 'Put On Hold';
+    }
+    if (msg) {
+        msg.textContent = 'Put this patient on hold?';
+    }
+    if (cancelBtn) {
+        cancelBtn.textContent = 'No';
+    }
+    if (confirmBtn) {
+        confirmBtn.textContent = 'Yes, Put On Hold';
+    }
+    if (modal) {
+        modal.classList.add('show');
+    }
 }
 
-// Re-queue Patient
+// Re-queue Patient using modal
+let pendingRequeueQueueId = null;
+
 function requeuePatientQueue(queueId) {
-    if (!confirm('Re-queue this patient?')) return;
+    // Get modal elements specifically within deleteModal
+    var modal = document.getElementById('deleteModal');
+    var modalContent = modal ? modal.querySelector('.modal-content-delete') : null;
+    var title = modalContent ? modalContent.querySelector('h3') : document.getElementById('modalTitle');
+    var msg = document.getElementById('deleteModalMessage');
+    var cancelBtn = document.getElementById('modalCancelBtn');
+    var confirmBtn = document.getElementById('confirmDeleteBtn');
     
-    fetch('../shared/queue_actions.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'requeue', queue_id: queueId })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert(data.message || 'Failed to re-queue patient');
-        }
-    })
-    .catch(() => {
-        alert('Error re-queuing patient');
-    });
+    if (title) {
+        title.textContent = 'Re-queue Patient';
+    }
+    if (msg) {
+        msg.textContent = 'Re-queue this patient?';
+    }
+    if (cancelBtn) {
+        cancelBtn.textContent = 'No';
+    }
+    if (confirmBtn) {
+        confirmBtn.textContent = 'Yes, Re-queue';
+    }
+    if (modal) {
+        modal.classList.add('show');
+    }
+    
+    pendingRequeueQueueId = queueId;
+    window.currentModalAction = 'requeue';
 }
 
-// Cancel Patient
+// Cancel Patient using modal
+let pendingCancelQueueId = null;
+
 function cancelPatientQueue(queueId) {
-    if (!confirm('Cancel this patient from the queue?')) return;
+    pendingCancelQueueId = queueId;
     
-    fetch('../shared/queue_actions.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'cancel', queue_id: queueId })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert(data.message || 'Failed to cancel patient');
-        }
-    })
-    .catch(() => {
-        alert('Error cancelling patient');
-    });
+    var modal = document.getElementById('deleteModal');
+    var modalContent = modal ? modal.querySelector('.modal-content-delete') : null;
+    var title = modalContent ? modalContent.querySelector('h3') : document.getElementById('modalTitle');
+    var msg = document.getElementById('deleteModalMessage');
+    var cancelBtn = document.getElementById('modalCancelBtn');
+    var confirmBtn = document.getElementById('confirmDeleteBtn');
+    
+    if (title) {
+        title.textContent = 'Cancel Patient';
+    }
+    if (msg) {
+        msg.textContent = 'Cancel this patient from the queue?';
+    }
+    if (cancelBtn) {
+        cancelBtn.textContent = 'No';
+    }
+    if (confirmBtn) {
+        confirmBtn.textContent = 'Yes, Cancel';
+    }
+    if (modal) {
+        modal.classList.add('show');
+    }
+}
+
+function closeDeleteModal() {
+    var modal = document.getElementById('deleteModal');
+    var modalContent = modal ? modal.querySelector('.modal-content-delete') : null;
+    var title = modalContent ? modalContent.querySelector('h3') : null;
+    var msg = document.getElementById('deleteModalMessage');
+    var cancelBtn = document.getElementById('modalCancelBtn');
+    var confirmBtn = document.getElementById('confirmDeleteBtn');
+    
+    if (modal) {
+        modal.classList.remove('show');
+    }
+    pendingCancelQueueId = null;
+    pendingRequeueQueueId = null;
+    pendingDeleteQueueId = null;
+    pendingHoldQueueId = null;
+    
+    // Reset modal to default
+    if (title) {
+        title.textContent = 'Delete Patient Queue Record';
+    }
+    if (msg) {
+        msg.textContent = 'Delete this patient record from the queue?';
+    }
+    if (cancelBtn) {
+        cancelBtn.textContent = 'Cancel';
+    }
+    if (confirmBtn) {
+        confirmBtn.textContent = 'Delete';
+    }
 }
 
 // Delete Queue Item
@@ -1409,35 +1466,114 @@ let pendingDeleteQueueId = null;
 
 function deleteQueueItem(queueId) {
     pendingDeleteQueueId = queueId;
-    document.getElementById('deleteModal').classList.add('show');
-}
-
-function closeDeleteModal() {
-    document.getElementById('deleteModal').classList.remove('show');
-    pendingDeleteQueueId = null;
+    
+    var modal = document.getElementById('deleteModal');
+    var modalContent = modal ? modal.querySelector('.modal-content-delete') : null;
+    var title = modalContent ? modalContent.querySelector('h3') : document.getElementById('modalTitle');
+    var msg = document.getElementById('deleteModalMessage');
+    var cancelBtn = document.getElementById('modalCancelBtn');
+    var confirmBtn = document.getElementById('confirmDeleteBtn');
+    
+    if (title) {
+        title.textContent = 'Delete Patient Queue Record';
+    }
+    if (msg) {
+        msg.textContent = 'Delete this patient record from the queue?';
+    }
+    if (cancelBtn) {
+        cancelBtn.textContent = 'Cancel';
+    }
+    if (confirmBtn) {
+        confirmBtn.textContent = 'Delete';
+    }
+    if (modal) {
+        modal.classList.add('show');
+    }
 }
 
 document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
-    if (!pendingDeleteQueueId) return;
-    
-    fetch('../shared/queue_actions.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete', queue_id: pendingDeleteQueueId })
-    })
-    .then(response => response.json())
-    .then(data => {
-        closeDeleteModal();
-        if (data.success) {
-            location.reload();
-        } else {
-            alert(data.message || 'Failed to delete patient record');
-        }
-    })
-    .catch(() => {
-        closeDeleteModal();
-        alert('Error deleting patient record');
-    });
+    // Check if this is a cancel action, delete action, requeue action, or hold action
+    if (pendingHoldQueueId) {
+        // Hold action
+        fetch('../shared/queue_actions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'on_hold', queue_id: pendingHoldQueueId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            closeDeleteModal();
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message || 'Failed to put patient on hold');
+            }
+        })
+        .catch(() => {
+            closeDeleteModal();
+            alert('Error putting patient on hold');
+        });
+    } else if (pendingCancelQueueId) {
+        // Cancel action
+        fetch('../shared/queue_actions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'cancel', queue_id: pendingCancelQueueId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            closeDeleteModal();
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message || 'Failed to cancel patient');
+            }
+        })
+        .catch(() => {
+            closeDeleteModal();
+            alert('Error cancelling patient');
+        });
+    } else if (pendingRequeueQueueId) {
+        // Requeue action
+        fetch('../shared/queue_actions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'requeue', queue_id: pendingRequeueQueueId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            closeDeleteModal();
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message || 'Failed to re-queue patient');
+            }
+        })
+        .catch(() => {
+            closeDeleteModal();
+            alert('Error re-queuing patient');
+        });
+    } else if (pendingDeleteQueueId) {
+        // Delete action
+        fetch('../shared/queue_actions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'delete', queue_id: pendingDeleteQueueId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            closeDeleteModal();
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message || 'Failed to delete patient record');
+            }
+        })
+        .catch(() => {
+            closeDeleteModal();
+            alert('Error deleting patient record');
+        });
+    }
 });
 
 // Close modal on backdrop click

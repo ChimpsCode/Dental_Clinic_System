@@ -14,6 +14,7 @@ $totalUsers = 0;
 try {
     // Get users with role names from roles table
     // If role_id is NULL, treat as Patient
+    // Exclude archived users
     $stmt = $pdo->query("
         SELECT u.id, u.username, u.first_name, u.middle_name, u.last_name, u.email, u.status, u.is_archived,
                u.role_id, u.last_active, u.last_logout, u.is_logged_in,
@@ -23,6 +24,7 @@ try {
                END as role_name
         FROM users u
         LEFT JOIN roles r ON u.role_id = r.id
+        WHERE u.is_archived = 0 OR u.is_archived IS NULL
         ORDER BY u.id ASC
     ");
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -312,7 +314,7 @@ try {
                                     <polyline points="3 6 5 6 21 6"/>
                                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                                 </svg>
-                                Delete
+                                Archive
                             </a>
                         `;
                     }

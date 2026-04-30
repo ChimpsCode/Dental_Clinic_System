@@ -47,35 +47,10 @@ try {
         return trim(($item['first_name'] ?? '') . ' ' . ($item['middle_name'] ?? '') . ' ' . ($item['last_name'] ?? '') . ' ' . ($item['suffix'] ?? ''));
     }
 
-    // Helper to update queue status safely (handling both status and status_id columns)
+// Helper to update queue status safely (only status_id column)
     function updateQueueStatus($pdo, $id, $statusId, $statusName) {
-        // Get column names to see what's available
-        $stmt = $pdo->query("DESCRIBE queue");
-        $cols = array_column($stmt->fetchAll(), 'Field');
-        
-        $updates = [];
-        $params = [];
-        
-        if (in_array('status_id', $cols)) {
-            $updates[] = "status_id = ?";
-            $params[] = $statusId;
-        }
-        
-        if (in_array('status', $cols)) {
-            $updates[] = "status = ?";
-            $params[] = $statusName;
-        }
-        
-        if (in_array('updated_at', $cols)) {
-            $updates[] = "updated_at = NOW()";
-        }
-        
-        if (empty($updates)) return false;
-        
-        $params[] = $id;
-        $sql = "UPDATE queue SET " . implode(', ', $updates) . " WHERE id = ?";
-        $stmt = $pdo->prepare($sql);
-        return $stmt->execute($params);
+        $stmt = $pdo->prepare("UPDATE queue SET status_id = ? WHERE id = ?");
+        return $stmt->execute([$statusId, $id]);
     }
 
     switch ($action) {
@@ -159,16 +134,19 @@ try {
             
             $pdo->beginTransaction();
             
-            // Update to status_id 3 (pending_payment)
-            updateQueueStatus($pdo, $queueId, 3, 'pending_payment');
+            // Update to status_id 3 (completed)
+            updateQueueStatus($pdo, $queueId, 3, 'completed');
             
 // Update appointment status if exists
             $stmt = $pdo->query("DESCRIBE appointments");
             $aptCols = array_column($stmt->fetchAll(), 'Field');
             $aptUpdates = [];
-            if (in_array('status_id', $aptCols)) { $aptUpdates[] = "status_id = 3"; }
-            if (in_array('status', $aptCols)) { $aptUpdates[] = "status = 'pending_payment'"; }
-            if (in_array('updated_at', $aptCols)) { $aptUpdates[] = "updated_at = NOW()"; }
+            if (in_array('status_id', $aptCols)) { 
+                $aptUpdates[] = "status_id = 3"; // Mark appointment as completed
+            }
+            if (in_array('updated_at', $aptCols)) { 
+                $aptUpdates[] = "updated_at = NOW()"; 
+            }
             if (!empty($aptUpdates)) {
                 $stmt = $pdo->prepare("UPDATE appointments SET " . implode(', ', $aptUpdates) . " WHERE patient_id = ? AND status_id = 2");
                 $stmt->execute([$patientId]);
@@ -182,12 +160,14 @@ try {
             break;
             
         case 'on_hold':
-            updateQueueStatus($pdo, $queueId, 4, 'on_hold');
+            // Set back to waiting but add note for on hold
+            $stmt = $pdo->prepare("UPDATE queue SET status_id = 1, notes = CONCAT(COALESCE(notes, ''), '\n[On Hold] Patient put on hold at: ', NOW()) WHERE id = ?");
+            $stmt->execute([$queueId]);
             echo json_encode(['success' => true, 'message' => 'Patient put on hold']);
             break;
             
         case 'cancel':
-            updateQueueStatus($pdo, $queueId, 5, 'cancelled');
+            updateQueueStatus($pdo, $queueId, 4, 'cancelled');
             echo json_encode(['success' => true, 'message' => 'Patient cancelled']);
             break;
             

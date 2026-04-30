@@ -35,6 +35,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const module = this.id.replace('-search', '');
                 if (module === 'patients') {
                     loadArchivedPatients(1);
+                } else if (module === 'users') {
+                    loadArchivedUsers(1);
                 } else if (module === 'appointments') {
                     loadArchivedAppointments(1);
                 } else if (module === 'inquiries') {
@@ -68,7 +70,199 @@ function switchTab(tab) {
     // Load data for active tab
     if (tab === 'patients') {
         loadArchivedPatients(currentPage.patients);
+    } else if (tab === 'users') {
+        loadArchivedUsers(currentPage.users);
     }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Load initial data for patients tab
+    loadArchivedPatients(1);
+    
+    // Add enter key support for search
+    document.querySelectorAll('.search-input').forEach(input => {
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const module = this.id.replace('-search', '');
+                if (module === 'patients') {
+                    loadArchivedPatients(1);
+                } else if (module === 'users') {
+                    loadArchivedUsers(1);
+                } else if (module === 'appointments') {
+                    loadArchivedAppointments(1);
+                } else if (module === 'inquiries') {
+                    loadArchivedInquiries(1);
+                }
+            }
+        });
+    });
+
+    initArchiveKebabMenu();
+});
+
+/**
+ * Switch between tabs
+ */
+function switchTab(tab) {
+    currentModule = tab;
+    
+    // Update tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+    
+    // Update tab contents
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.getElementById(`${tab}-content`).classList.add('active');
+    
+    // Load data for active tab
+    if (tab === 'patients') {
+        loadArchivedPatients(currentPage.patients);
+    } else if (tab === 'users') {
+        loadArchivedUsers(currentPage.users);
+    }
+}
+
+/**
+ * Load archived users (dentists/staff/patients)
+ */
+function loadArchivedUsers(page) {
+    const tbody = document.getElementById('users-table-body');
+    
+    if (!records || records.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 60px; color: #6b7280;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 20px; opacity: 0.3;">
+                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                    </svg>
+                    <h3 style="margin-bottom: 10px;">No Archived Users</h3>
+                    <p>No users have been archived yet.</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = records.map(user => `
+        <tr>
+            <td style="text-align: center;">
+                <input type="checkbox" class="record-checkbox users-checkbox"
+                       value="${user.id}"
+                       onchange="updateSelection('users', ${user.id}, this.checked)">
+            </td>
+            <td>
+                <div style="font-weight: 500; color: #111827;">${escapeHtml(user.first_name || 'N/A')}</div>
+            </td>
+            <td>
+                <div style="color: #374151;">${escapeHtml(user.middle_name || '')}</div>
+            </td>
+            <td>
+                <div style="font-weight: 500; color: #111827;">${escapeHtml(user.last_name || 'N/A')}</div>
+            </td>
+            <td>
+                <div style="font-size: 0.85rem; color: #374151;">${escapeHtml(user.email || 'N/A')}</div>
+            </td>
+            <td>
+                <span class="role-badge ${(user.role_name || 'patient').toLowerCase()}">${escapeHtml(user.role_name || 'Patient')}</span>
+            </td>
+            <td>
+                <div style="font-size: 0.85rem; color: #374151;">${formatDate(user.archived_at)}</div>
+            </td>
+            <td style="text-align: center;">
+                <button class="archive-kebab-btn" type="button" data-module="users" data-id="${user.id}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="5" r="2"></circle>
+                        <circle cx="12" cy="12" r="2"></circle>
+                        <circle cx="12" cy="19" r="2"></circle>
+                    </svg>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+    
+    // Update select all checkbox
+    const selectAll = document.getElementById('select-all-users');
+    if (selectAll) {
+        selectAll.checked = false;
+    }
+    selectedRecords.users = [];
+    updateBulkButtons('users');
+}
+
+/**
+ * Render users pagination
+ */
+function renderUsersPagination(currentPage, totalPages, totalRecords) {
+    const container = document.getElementById('users-pagination');
+    
+    if (!container || totalPages <= 1) {
+        if (container) container.innerHTML = '';
+        return;
+    }
+    
+    const limit = 7;
+    const showingStart = ((currentPage - 1) * limit) + 1;
+    const showingEnd = Math.min(currentPage * limit, totalRecords);
+    
+    let html = `
+        <span class="pagination-info">
+            Showing ${showingStart}-${showingEnd} of ${totalRecords} archived users
+        </span>
+        <div class="pagination-buttons">
+    `;
+    
+    // Previous button
+    if (currentPage > 1) {
+        html += `<a href="#" onclick="loadArchivedUsers(${currentPage - 1}); return false;" class="pagination-btn">Previous</a>`;
+    } else {
+        html += `<button class="pagination-btn" disabled>Previous</button>`;
+    }
+    
+    // Page numbers (smart display)
+    const maxVisible = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+    
+    if (endPage - startPage + 1 < maxVisible) {
+        startPage = Math.max(1, endPage - maxVisible + 1);
+    }
+    
+    if (startPage > 1) {
+        html += `<a href="#" onclick="loadArchivedUsers(1); return false;" class="pagination-btn">1</a>`;
+        if (startPage > 2) {
+            html += `<span class="pagination-ellipsis">...</span>`;
+        }
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        if (i === currentPage) {
+            html += `<button class="pagination-btn active">${i}</button>`;
+        } else {
+            html += `<a href="#" onclick="loadArchivedUsers(${i}); return false;" class="pagination-btn">${i}</a>`;
+        }
+    }
+    
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            html += `<span class="pagination-ellipsis">...</span>`;
+        }
+        html += `<a href="#" onclick="loadArchivedUsers(${totalPages}); return false;" class="pagination-btn">${totalPages}</a>`;
+    }
+    
+    // Next button
+    if (currentPage < totalPages) {
+        html += `<a href="#" onclick="loadArchivedUsers(${currentPage + 1}); return false;" class="pagination-btn">Next</a>`;
+    } else {
+        html += `<button class="pagination-btn" disabled>Next</button>`;
+    }
+    
+    html += '</div>';
+    container.innerHTML = html;
 }
 
 /**
@@ -1093,6 +1287,8 @@ function performAction(module, action, ids) {
             // Reload current page based on module
             if (module === 'patients') {
                 loadArchivedPatients(currentPage.patients);
+            } else if (module === 'users') {
+                loadArchivedUsers(currentPage.users);
             } else if (module === 'appointments') {
                 loadArchivedAppointments(currentPage.appointments);
             } else if (module === 'inquiries') {

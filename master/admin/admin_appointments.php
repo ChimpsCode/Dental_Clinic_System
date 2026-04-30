@@ -153,7 +153,6 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     <h2>Appointments Management</h2>
                     <div style="display: flex; gap: 10px;">
                         <button class="btn-primary" onclick="openAppointmentModal()">+ New Appointment</button>
-                        <button class="btn-primary" onclick="exportAppointments()" style="background: #059669;">Export Report</button>
                     </div>
                 </div>
                 </div>
@@ -823,10 +822,6 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
     function cancelAppointment(id) {
         openCancelReasonModal(id);
-    }
-
-    function exportAppointments() {
-        alert('Export functionality - This would generate a report of all appointments');
     }
 
     // Appointment Kebab Menu Functions - Portal Based
