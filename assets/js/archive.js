@@ -128,9 +128,74 @@ function switchTab(tab) {
 }
 
 /**
- * Load archived users (dentists/staff/patients)
+ * Load archived users (dentists/staff/employees)
  */
 function loadArchivedUsers(page) {
+    currentPage.users = page;
+    
+    const search = document.getElementById('users-search')?.value || '';
+    const roleFilter = document.getElementById('users-role-filter')?.value || '';
+    
+    // Show loading state
+    const tbody = document.getElementById('users-table-body');
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="8" style="text-align: center; padding: 60px; color: #6b7280;">
+                <div style="display: inline-block; animation: spin 1s linear infinite;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                    </svg>
+                </div>
+                <p style="margin-top: 10px;">Loading archived users...</p>
+            </td>
+        </tr>
+    `;
+    
+    // Fetch data
+    fetch('../../master/shared/archive_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            action: 'get_archived',
+            module: 'users',
+            page: page,
+            search: search,
+            role: roleFilter
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            renderUsersTable(data.records);
+            renderUsersPagination(data.current_page, data.pages, data.total);
+        } else {
+            showError(data.message);
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 60px; color: #ef4444;">
+                        <p>Error: ${escapeHtml(data.message)}</p>
+                    </td>
+                </tr>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showError('Failed to load archived users');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 60px; color: #ef4444;">
+                    <p>Failed to load data. Please try again.</p>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+/**
+ * Render users table
+ */
+function renderUsersTable(records) {
     const tbody = document.getElementById('users-table-body');
     
     if (!records || records.length === 0) {
@@ -981,25 +1046,61 @@ function bulkAction(module, action) {
     
     if (ids.length === 0) return;
     
-    let message = '';
+    // Use modal for restore
     if (action === 'restore') {
-        message = `Restore ${ids.length} ${module}(s)? They will reappear in the main list.`;
-    } else {
-        message = `⚠️ WARNING: Permanently delete ${ids.length} ${module}(s)?\n\nThis action CANNOT be undone!\n\nAll patient data will be permanently removed from the system.`;
-    }
-    
-    if (!confirm(message)) return;
-    
-    // Require password for delete_forever
-    if (action === 'delete_forever') {
-        showVerifyPasswordModal((verified) => {
+        showBulkRestoreModal(module, ids);
+    } else if (action === 'delete_forever') {
+        // Show password modal for delete forever
+        showVerifyPasswordModal(ids.length, (verified) => {
             if (verified) {
                 performAction(module, action, ids);
             }
         });
-    } else {
-        performAction(module, action, ids);
     }
+}
+
+/**
+ * Show bulk restore confirmation modal
+ */
+function showBulkRestoreModal(module, ids) {
+    const count = ids.length;
+    const moduleName = module === 'patients' ? 'patient record' : (module === 'users' ? 'employee' : 'record');
+    const typeName = moduleName === 'patient record' ? 'Patient' : (moduleName === 'employee' ? 'Employee' : 'Record');
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('restore-modal');
+    if (existingModal) existingModal.remove();
+    
+    // Create modal
+    const overlay = document.createElement('div');
+    overlay.id = 'restore-modal';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:99999;';
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = 'background:white;border-radius:12px;padding:30px;max-width:400px;width:90%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,0.2);';
+    const label = count === 1 ? typeName : typeName + 's';
+    modal.innerHTML = `
+        <div style="margin-bottom: 20px;">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="48" height="48">
+                <path d="M4.52185 7H7C7.55229 7 8 7.44772 8 8C8 8.55229 7.55228 9 7 9H3C1.89543 9 1 8.10457 1 7V3C1 2.44772 1.44772 2 2 2C2.55228 2 3 2.44772 3 3V5.6754C4.26953 3.8688 6.06062 2.47676 8.14852 1.69631C10.6633 0.756291 13.435 0.768419 15.9415 1.73041C18.448 2.69239 20.5161 4.53782 21.7562 6.91897C22.9963 9.30013 23.3228 12.0526 22.6741 14.6578C22.0254 17.263 20.4464 19.541 18.2345 21.0626C16.0226 22.5842 13.3306 23.2444 10.6657 22.9188C8.00083 22.5931 5.54702 21.3041 3.76664 19.2946C2.20818 17.5356 1.25993 15.3309 1.04625 13.0078C0.995657 12.4579 1.45216 12.0088 2.00445 12.0084C2.55673 12.0079 3.00351 12.4566 3.06526 13.0055C3.27138 14.8374 4.03712 16.5706 5.27027 17.9625C6.7255 19.605 8.73118 20.6586 10.9094 20.9247C13.0876 21.1909 15.288 20.6513 17.0959 19.4075C18.9039 18.1638 20.1945 16.3018 20.7247 14.1724C21.2549 12.043 20.9881 9.79319 19.9745 7.8469C18.9608 5.90061 17.2704 4.3922 15.2217 3.6059C13.173 2.8196 10.9074 2.80968 8.8519 3.57803C7.11008 4.22911 5.62099 5.40094 4.57993 6.92229C4.56156 6.94914 4.54217 6.97505 4.52185 7Z" fill="#10b981"/>
+            </svg>
+        </div>
+        <h3 style="margin: 0 0 10px 0; color: #111827; font-size: 20px;">Restore ${count} ${label}?</h3>
+        <p style="margin: 0 0 25px 0; color: #6b7280; font-size: 15px;">They will reappear in the main list.</p>
+        <div style="display: flex; gap: 12px; justify-content: center;">
+            <button onclick="closeRestoreModal()" style="padding: 12px 24px; background: #f3f4f6; color: #374151; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500;">Cancel</button>
+            <button onclick="confirmBulkRestore('${module}')" style="padding: 12px 24px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500;">Restore</button>
+        </div>
+    `;
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
+}
+
+function confirmBulkRestore(module) {
+    closeRestoreModal();
+    performAction(module, 'restore', selectedRecords[module]);
 }
 
 /**
@@ -1130,17 +1231,71 @@ function bulkAction(module, action) {
  */
 function singleAction(module, id, action) {
     if (action === 'delete_forever') {
-        // Show password modal for single delete
         showVerifyPasswordModal(1, (verified) => {
             if (verified) {
                 performAction(module, action, [id]);
             }
         });
     } else if (action === 'restore') {
-        if (confirm('Restore this record? It will reappear in the main list.')) {
-            performAction(module, action, [id]);
-        }
+        showRestoreConfirmModal(module, id);
     }
+}
+
+/**
+ * Show restore confirmation modal
+ */
+function showRestoreConfirmModal(module, id) {
+    const moduleNames = module === 'patients' ? 'Patient' : (module === 'users' ? 'Employee' : 'Record');
+    const moduleName = module === 'patients' ? 'patient record' : (module === 'users' ? 'employee' : 'record');
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('restore-modal');
+    if (existingModal) existingModal.remove();
+    
+    // Create modal
+    const overlay = document.createElement('div');
+    overlay.id = 'restore-modal';
+    overlay.className = 'modal-overlay active';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:99999;';
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.cssText = 'background:white;border-radius:12px;padding:30px;max-width:400px;width:90%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,0.2);';
+    modal.innerHTML = `
+        <div style="margin-bottom: 20px;">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="48" height="48">
+                <path d="M4.52185 7H7C7.55229 7 8 7.44772 8 8C8 8.55229 7.55228 9 7 9H3C1.89543 9 1 8.10457 1 7V3C1 2.44772 1.44772 2 2 2C2.55228 2 3 2.44772 3 3V5.6754C4.26953 3.8688 6.06062 2.47676 8.14852 1.69631C10.6633 0.756291 13.435 0.768419 15.9415 1.73041C18.448 2.69239 20.5161 4.53782 21.7562 6.91897C22.9963 9.30013 23.3228 12.0526 22.6741 14.6578C22.0254 17.263 20.4464 19.541 18.2345 21.0626C16.0226 22.5842 13.3306 23.2444 10.6657 22.9188C8.00083 22.5931 5.54702 21.3041 3.76664 19.2946C2.20818 17.5356 1.25993 15.3309 1.04625 13.0078C0.995657 12.4579 1.45216 12.0088 2.00445 12.0084C2.55673 12.0079 3.00351 12.4566 3.06526 13.0055C3.27138 14.8374 4.03712 16.5706 5.27027 17.9625C6.7255 19.605 8.73118 20.6586 10.9094 20.9247C13.0876 21.1909 15.288 20.6513 17.0959 19.4075C18.9039 18.1638 20.1945 16.3018 20.7247 14.1724C21.2549 12.043 20.9881 9.79319 19.9745 7.8469C18.9608 5.90061 17.2704 4.3922 15.2217 3.6059C13.173 2.8196 10.9074 2.80968 8.8519 3.57803C7.11008 4.22911 5.62099 5.40094 4.57993 6.92229C4.56156 6.94914 4.54217 6.97505 4.52185 7Z" fill="#10b981"/>
+            </svg>
+        </div>
+        <h3 style="margin: 0 0 10px 0; color: #111827; font-size: 20px;">Restore ${moduleNames}?</h3>
+        <p style="margin: 0 0 25px 0; color: #6b7280; font-size: 15px;">It will reappear in the main list.</p>
+        <div style="display: flex; gap: 12px; justify-content: center;">
+            <button onclick="closeRestoreModal()" style="padding: 12px 24px; background: #f3f4f6; color: #374151; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500;">Cancel</button>
+            <button onclick="confirmRestoreById('${module}', ${id})" style="padding: 12px 24px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500;">Restore</button>
+        </div>
+    `;
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
+}
+
+function confirmRestoreById(module, id) {
+    closeRestoreModal();
+    performAction(module, 'restore', [id]);
+}
+
+function closeRestoreModal() {
+    const modal = document.getElementById('restore-modal');
+    if (modal) {
+        modal.remove();
+    }
+    document.body.style.overflow = '';
+}
+
+function confirmRestore(module, id) {
+    closeRestoreModal();
+    performAction(module, 'restore', [id]);
 }
 
 /**

@@ -40,13 +40,20 @@ $archivedCounts = [
 ];
 
 if ($archiveReady) {
-    foreach ($archivedCounts as $table => &$count) {
-        try {
-            $stmt = $pdo->query("SELECT COUNT(*) FROM $table WHERE is_archived = 1");
-            $count = $stmt->fetchColumn();
-        } catch (Exception $e) {
-            $count = 0;
-        }
+    // Patients count from patients table
+    try {
+        $stmt = $pdo->query("SELECT COUNT(*) FROM patients WHERE is_archived = 1");
+        $archivedCounts['patients'] = (int)$stmt->fetchColumn();
+    } catch (Exception $e) {
+        $archivedCounts['patients'] = 0;
+    }
+    
+    // Employees count from users table (only role_id NOT NULL = admin/dentist/staff)
+    try {
+        $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE is_archived = 1 AND role_id IS NOT NULL");
+        $archivedCounts['users'] = (int)$stmt->fetchColumn();
+    } catch (Exception $e) {
+        $archivedCounts['users'] = 0;
     }
 }
 
@@ -447,7 +454,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         </div>
         <div class="summary-card archive-card users">
             <div class="count"><?php echo $archivedCounts['users']; ?></div>
-            <div class="label">Dentist/Doctor Records</div>
+            <div class="label">Employees</div>
         </div>
     </div>
 
@@ -457,7 +464,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
             Patient Records
         </button>
         <button class="tab-btn" data-tab="users" onclick="switchTab('users')">
-            Dentist/Doctor Records
+            Employees
         </button>
     </div>
 

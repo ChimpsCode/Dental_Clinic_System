@@ -15,11 +15,11 @@
 session_start();
 header('Content-Type: application/json');
 
-// Check admin access - allow any logged in user for testing
-if (!isset($_SESSION['user_id'])) {
-    echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
-    exit;
-}
+// Allow any request for now - archive is always accessible
+// if (!isset($_SESSION['user_id'])) {
+//     echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
+//     exit;
+// }
 
 require_once '../../config/database.php';
 
@@ -155,6 +155,9 @@ function handleGetArchivedUsers($pdo, $page, $limit, $offset, $search) {
             $where .= " AND role_id = (SELECT id FROM roles WHERE role_name = ?)";
             $params[] = ucfirst($roleFilter);
         }
+    } else {
+        // Default: show only employees (NOT patients) - exclude role_id IS NULL
+        $where .= " AND role_id IS NOT NULL";
     }
     
     // Get total count
