@@ -1,6 +1,17 @@
 <?php
 session_start();
 
+require_once '../../config/database.php';
+
+// Load clinic settings
+$settingsStmt = $pdo->query("SELECT setting_key, setting_value FROM settings");
+$settingsRows = $settingsStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+$clinicSettings = [];
+foreach ($settingsRows as $key => $value) {
+    $clinicSettings[$key] = $value;
+}
+$clinicName = $clinicSettings['clinic_name'] ?? 'RF Dental Clinic';
+
 require_once '../../lib/security/captcha_lib.php';
 
 // Only generate captcha if not set or expired - but don't auto-regenerate on page load to prevent mismatch
@@ -712,7 +723,7 @@ if ($role === 'dentist') {
                     </svg>
                 </div>
                 
-                <h1 class="clinic-name">RF Dental Clinic</h1>
+                <h1 class="clinic-name"><?php echo htmlspecialchars($clinicName); ?></h1>
                 <p class="login-subtitle">Please login to your account</p>
                 
                 <div class="alert alert-error" id="errorMessage" style="display: none;"></div>

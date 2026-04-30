@@ -5,6 +5,16 @@
 
 $pageTitle = 'Settings';
 
+require_once __DIR__ . '/../../config/database.php';
+
+// Load settings from database
+$settings = [];
+$stmt = $pdo->query("SELECT setting_key, setting_value FROM settings");
+$rows = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+foreach ($rows as $key => $value) {
+    $settings[$key] = $value;
+}
+
 require_once __DIR__ . '/../../includes/admin_layout_start.php';
 ?>
             <div class="content-main">
@@ -19,23 +29,23 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     <!-- Clinic Information -->
                     <div class="settings-section">
                         <h3 class="section-title">🏥 Clinic Information</h3>
-                        <form class="settings-form">
+                        <form class="settings-form" id="clinicSettingsForm">
                             <div class="form-group">
                                 <label>Clinic Name</label>
-                                <input type="text" class="form-control" value="RF Dental Clinic">
+                                <input type="text" class="form-control" id="clinicName" value="<?php echo htmlspecialchars($settings['clinic_name'] ?? 'RF Dental Clinic'); ?>">
                             </div>
                             <div class="form-group">
                                 <label>Address</label>
-                                <textarea class="form-control" rows="2">123 Dental Street, City</textarea>
+                                <textarea class="form-control" id="clinicAddress" rows="2"><?php echo htmlspecialchars($settings['clinic_address'] ?? ''); ?></textarea>
                             </div>
                             <div class="form-row">
                                 <div class="form-group" style="flex:1;">
                                     <label>Phone</label>
-                                    <input type="text" class="form-control" value="(02) 123-4567">
+                                    <input type="text" class="form-control" id="clinicPhone" value="<?php echo htmlspecialchars($settings['clinic_phone'] ?? ''); ?>">
                                 </div>
                                 <div class="form-group" style="flex:1;">
                                     <label>Email</label>
-                                    <input type="email" class="form-control" value="contact@rfclinic.com">
+                                    <input type="email" class="form-control" id="clinicEmail" value="<?php echo htmlspecialchars($settings['clinic_email'] ?? ''); ?>">
                                 </div>
                             </div>
                             <button type="submit" class="btn-primary">Save Changes</button>
@@ -219,3 +229,32 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 <?php
 require_once __DIR__ . '/../../includes/admin_layout_end.php';
 ?>
+
+<script>
+document.getElementById('clinicSettingsForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData();
+    formData.append('action', 'save_settings');
+    formData.append('clinic_name', document.getElementById('clinicName').value);
+    formData.append('clinic_address', document.getElementById('clinicAddress').value);
+    formData.append('clinic_phone', document.getElementById('clinicPhone').value);
+    formData.append('clinic_email', document.getElementById('clinicEmail').value);
+    
+    fetch('settings_actions.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert('Settings saved successfully!');
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(() => {
+        alert('Failed to save settings');
+    });
+});
+</script>

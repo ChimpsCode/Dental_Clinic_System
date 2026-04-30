@@ -1,4 +1,18 @@
 <?php
+require_once '../../config/database.php';
+
+// Load settings from database
+$settingsStmt = $pdo->query("SELECT setting_key, setting_value FROM settings");
+$settingsRows = $settingsStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+$clinicSettings = [];
+foreach ($settingsRows as $key => $value) {
+    $clinicSettings[$key] = $value;
+}
+$clinicName = $clinicSettings['clinic_name'] ?? 'RF Dental Clinic';
+$clinicAddress = $clinicSettings['clinic_address'] ?? '';
+$clinicPhone = $clinicSettings['clinic_phone'] ?? '';
+$clinicEmail = $clinicSettings['clinic_email'] ?? '';
+
 $assets = [
   'logo' => 'https://www.figma.com/api/mcp/asset/0216bb5f-fd3d-487e-9d2c-5e8da91303ca',
   'hero' => '../../assets/images/Dentists.png',
@@ -96,7 +110,7 @@ $faqs = [
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>RF Dental Clinic</title>
+    <title><?php echo htmlspecialchars($clinicName); ?></title>
     <link rel="icon" type="image/png" href="../../assets/images/Logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -139,9 +153,9 @@ $faqs = [
     <div id="top" aria-hidden="true"></div>
       <header class="site-header">
         <div class="container header-inner">
-        <a class="brand" href="#home" aria-label="RF Dental Clinic home">
+        <a class="brand" href="#home" aria-label="<?php echo htmlspecialchars($clinicName); ?> home">
           <img class="brand-mark" src="../../assets/images/Logo.png" alt="" />
-          <span class="brand-text">RF Dental Clinic</span>
+          <span class="brand-text"><?php echo htmlspecialchars($clinicName); ?></span>
         </a>
 
         <nav class="nav" aria-label="Primary">
@@ -338,11 +352,11 @@ $faqs = [
               <div class="contact-meta">
                 <div class="meta-row">
                   <img src="<?= htmlspecialchars($assets['icon_phone']) ?>" alt="" class="meta-icon" />
-                  <span>0967 187 8603</span>
+                  <span><?php echo htmlspecialchars($clinicPhone ?: '0967 187 8603'); ?></span>
                 </div>
                 <div class="meta-row">
                   <img src="<?= htmlspecialchars($assets['icon_email']) ?>" alt="" class="meta-icon" />
-                  <a href="mailto:rfdc2023@gmail.com">rfdc2023@gmail.com</a>
+                  <a href="mailto:<?php echo htmlspecialchars($clinicEmail ?: 'rfdc2023@gmail.com'); ?>"><?php echo htmlspecialchars($clinicEmail ?: 'rfdc2023@gmail.com'); ?></a>
                 </div>
                 <div class="meta-row">
                   <img src="<?= htmlspecialchars($assets['icon_time']) ?>" alt="" class="meta-icon" />
@@ -404,7 +418,7 @@ $faqs = [
         <div class="footer-brand">
           <div class="footer-brand-top">
             <img class="footer-logo" src="../../assets/images/Logo.png" alt="" />
-            <div class="footer-brand-title">Dental Clinic</div>
+            <div class="footer-brand-title"><?php echo htmlspecialchars($clinicName); ?></div>
           </div>
           <p class="footer-text">Providing exceptional dental care with a commitment to your comfort and health.</p>
         </div>
@@ -438,14 +452,14 @@ $faqs = [
             <a href="https://m.me" target="_blank" rel="noreferrer" class="footer-icon-link" aria-label="Facebook Messenger">
               <img src="../../assets/images/icon-messenger.svg" alt="" class="footer-icon-img" aria-hidden="true" />
             </a>
-            <a href="tel:09671878603" class="footer-icon-link" aria-label="Call">
+            <a href="tel:<?php echo htmlspecialchars(str_replace([' ', '-', '(', ')'], '', $clinicPhone ?: '09671878603')); ?>" class="footer-icon-link" aria-label="Call">
               <span class="footer-icon footer-icon-phone" aria-hidden="true">☎</span>
             </a>
           </div>
           <div class="footer-location">
             <span class="footer-location-icon" aria-hidden="true">📍</span>
             <span class="footer-text small">
-              Celeste Bldg. MaxSuniel St. Brgy. Carmen, Cagayan de Oro, Philippines, 9000
+              <?php echo htmlspecialchars($clinicAddress) ?: 'Celeste Bldg. MaxSuniel St. Brgy. Carmen, Cagayan de Oro, Philippines, 9000'; ?>
             </span>
           </div>
         </div>
@@ -555,7 +569,7 @@ $faqs = [
 
         const CLINIC = {
           phone: '0967 187 8603',
-          email: 'rfdc2023@gmail.com',
+          email: '<?php echo htmlspecialchars($clinicEmail ?: 'rfdc2023@gmail.com'); ?>',
           hours: 'Mon - Sat 9:00 AM - 5:00 PM',
         };
 
