@@ -151,12 +151,19 @@ $faqs = [
   </head>
   <body>
     <div id="top" aria-hidden="true"></div>
-      <header class="site-header">
+      <div class="nav-overlay"></div>
+    <header class="site-header">
         <div class="container header-inner">
         <a class="brand" href="#home" aria-label="<?php echo htmlspecialchars($clinicName); ?> home">
           <img class="brand-mark" src="../../assets/images/Logo.png" alt="" />
           <span class="brand-text"><?php echo htmlspecialchars($clinicName); ?></span>
         </a>
+
+        <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+          <span class="nav-toggle-bar"></span>
+          <span class="nav-toggle-bar"></span>
+          <span class="nav-toggle-bar"></span>
+        </button>
 
         <nav class="nav" aria-label="Primary">
           <a href="#top" class="nav-link">Home</a>
@@ -164,6 +171,10 @@ $faqs = [
           <a href="#services" class="nav-link">Services</a>
           <a href="#faq" class="nav-link">FAQ</a>
           <a href="#contact" class="nav-link">Contact Us</a>
+          <div class="nav-actions">
+            <a class="btn btn-outline" href="login.php#register">Sign Up</a>
+            <a class="btn btn-primary" id="headerLoginBtn" href="login.php">Login</a>
+          </div>
         </nav>
 
         <div class="header-actions">
@@ -512,6 +523,32 @@ $faqs = [
     </section>
 
     <script>
+      // Mobile navigation toggle
+      (() => {
+        const navToggle = document.querySelector('.nav-toggle');
+        const nav = document.querySelector('.nav');
+        const overlay = document.querySelector('.nav-overlay');
+        
+        if (navToggle && nav) {
+          const toggleNav = (shouldOpen) => {
+            const isOpen = shouldOpen ?? !nav.classList.contains('open');
+            nav.classList.toggle('open', isOpen);
+            navToggle.classList.toggle('open', isOpen);
+            overlay?.classList.toggle('open', isOpen);
+            navToggle.setAttribute('aria-expanded', isOpen);
+            document.body.style.overflow = isOpen ? 'hidden' : '';
+          };
+          
+          navToggle.addEventListener('click', () => toggleNav());
+          overlay?.addEventListener('click', () => toggleNav(false));
+          
+          // Close nav when clicking a link
+          nav.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', () => toggleNav(false));
+          });
+        }
+      })();
+
       (() => {
         const targets = document.querySelectorAll([
           '.hero-copy',
@@ -1642,6 +1679,97 @@ $faqs = [
         }
         .modal-header h3 {
           font-size: 16px;
+        }
+      }
+      
+      @media (max-width: 480px) {
+        .modal-content {
+          width: 95%;
+          max-height: 85vh;
+          border-radius: 8px;
+        }
+        .modal-header {
+          padding: 14px;
+        }
+        .modal-header h3 {
+          font-size: 18px;
+        }
+        .modal-body {
+          padding: 16px;
+        }
+        .modal-intro {
+          font-size: 14px;
+        }
+        .form-section {
+          margin-bottom: 16px;
+          padding-bottom: 16px;
+        }
+        .form-section-title {
+          font-size: 14px;
+          margin-bottom: 12px;
+        }
+        .form-row {
+          flex-direction: column;
+          gap: 12px;
+        }
+        .form-group {
+          width: 100%;
+        }
+        .form-group label {
+          font-size: 13px;
+        }
+        .form-group input,
+        .form-group select {
+          padding: 10px;
+          font-size: 14px;
+        }
+        .btn-block {
+          padding: 14px;
+          font-size: 15px;
+        }
+        .modal-footer-text {
+          font-size: 11px;
+        }
+        .welcome-back-modal {
+          padding: 20px;
+        }
+        .welcome-back-logo img {
+          width: 60px;
+        }
+        .welcome-back-title {
+          font-size: 20px;
+        }
+        .welcome-back-message {
+          font-size: 14px;
+        }
+        .captcha-container {
+          flex-direction: column;
+          gap: 10px;
+        }
+        .captcha-wrapper {
+          justify-content: center;
+        }
+        .captcha-display {
+          font-size: 20px;
+          padding: 8px 12px;
+          min-width: 100px;
+        }
+        .captcha-input {
+          padding: 10px;
+          font-size: 14px;
+        }
+        .success-modal {
+          padding: 30px 20px;
+        }
+        .success-icon svg {
+          width: 48px;
+          height: 48px;
+        }
+        .success-modal h3 {
+          font-size: 20px;
+        }
+        .success-modal p {
+          font-size: 14px;
         }
       }
     </style>
