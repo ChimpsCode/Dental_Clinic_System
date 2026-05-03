@@ -1682,4 +1682,79 @@ document.addEventListener('keydown', function(e) {
 });
 </script>
 
+<style>
+@media (max-width: 768px) {
+    .summary-widgets {
+        grid-template-columns: 1fr 1fr !important;
+    }
+    .summary-widget {
+        padding: 16px !important;
+    }
+    .summary-widget .summary-icon {
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 1rem !important;
+    }
+    .summary-widget .summary-info h3 {
+        font-size: 1.1rem !important;
+    }
+    .summary-widget .summary-info p {
+        font-size: 0.75rem !important;
+    }
+
+    .control-bar {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .control-bar .search-input {
+        flex: 1 1 100%;
+    }
+    .control-bar .filter-select {
+        min-width: auto;
+    }
+}
+@media (max-width: 480px) {
+    .summary-widgets {
+        grid-template-columns: 1fr 1fr !important;
+    }
+    .summary-widget {
+        padding: 12px !important;
+    }
+    .summary-widget .summary-icon {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 0.9rem !important;
+    }
+    .summary-widget .summary-info h3 {
+        font-size: 1rem !important;
+    }
+    .summary-widget .summary-info p {
+        font-size: 0.65rem !important;
+    }
+
+    .control-bar {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .control-bar .search-input {
+        flex: 1 1 100%;
+        min-width: 100%;
+        padding: 10px 12px 10px 40px;
+        font-size: 0.85rem;
+    }
+    .control-bar .filter-select {
+        flex: 1;
+        min-width: auto;
+        padding: 10px 8px;
+        font-size: 0.8rem;
+    }
+    .control-bar .btn-add-patient {
+        flex: 1;
+        justify-content: center;
+        padding: 10px 12px;
+        font-size: 0.8rem;
+    }
+}
+</style>
+
 <?php require_once __DIR__ . '/../../includes/admin_layout_end.php'; ?>

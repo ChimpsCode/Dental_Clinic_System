@@ -124,11 +124,12 @@ img{max-width:100%;display:block}
 .nav-link{
   text-decoration:none;
   font-size:15px;
+  font-weight:500;
   color:#000;
   transition: color 0.2s ease;
 }
 .nav-link:hover{
-  text-decoration:underline;
+  text-decoration:none;
   color: rgb(5, 113, 202);
 }
 .nav-link.active,

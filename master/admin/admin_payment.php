@@ -1003,6 +1003,48 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 });
             </script>
 
+<style>
+@media (max-width: 768px) {
+    .summary-cards {
+        grid-template-columns: 1fr 1fr !important;
+    }
+    .summary-card {
+        padding: 16px !important;
+    }
+    .summary-card .summary-icon {
+        width: 40px !important;
+        height: 40px !important;
+        font-size: 1.2rem !important;
+    }
+    .summary-card .summary-info h3 {
+        font-size: 1.1rem !important;
+    }
+    .summary-card .summary-info p {
+        font-size: 0.75rem !important;
+    }
+}
+@media (max-width: 480px) {
+    .summary-cards {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 10px !important;
+    }
+    .summary-card {
+        padding: 12px !important;
+    }
+    .summary-card .summary-icon {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 1rem !important;
+    }
+    .summary-card .summary-info h3 {
+        font-size: 0.95rem !important;
+    }
+    .summary-card .summary-info p {
+        font-size: 0.65rem !important;
+    }
+}
+</style>
+
 <?php
 require_once __DIR__ . '/../../includes/admin_layout_end.php';
 ?>

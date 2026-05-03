@@ -1181,6 +1181,28 @@ body.modal-open {
     .modal.user-modal .form-grid {
         grid-template-columns: 1fr;
     }
+
+    .summary-cards {
+        grid-template-columns: 1fr 1fr 1fr !important;
+    }
+
+    .summary-card {
+        padding: 12px !important;
+    }
+
+    .summary-card .summary-icon {
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 1rem !important;
+    }
+
+    .summary-card .summary-info h3 {
+        font-size: 1.1rem !important;
+    }
+
+    .summary-card .summary-info p {
+        font-size: 0.7rem !important;
+    }
 }
 
 .modal h2 {
@@ -2011,6 +2033,28 @@ body.modal-open {
     .pagination-buttons {
         flex-wrap: wrap;
     }
+
+    .summary-cards {
+        grid-template-columns: 1fr 1fr 1fr !important;
+    }
+
+    .summary-card {
+        padding: 10px !important;
+    }
+
+    .summary-card .summary-icon {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 0.9rem !important;
+    }
+
+    .summary-card .summary-info h3 {
+        font-size: 1rem !important;
+    }
+
+    .summary-card .summary-info p {
+        font-size: 0.65rem !important;
+    }
 }
 
 @media (max-width: 480px) {
@@ -2033,6 +2077,28 @@ body.modal-open {
 
     .form-row {
         flex-direction: column;
+    }
+
+    .summary-cards {
+        grid-template-columns: 1fr 1fr 1fr !important;
+    }
+
+    .summary-card {
+        padding: 8px !important;
+    }
+
+    .summary-card .summary-icon {
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 0.8rem !important;
+    }
+
+    .summary-card .summary-info h3 {
+        font-size: 0.9rem !important;
+    }
+
+    .summary-card .summary-info p {
+        font-size: 0.6rem !important;
     }
 }
 
