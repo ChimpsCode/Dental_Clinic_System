@@ -117,15 +117,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // View Patient Buttons
-    const viewBtns = document.querySelectorAll('.view-btn');
-    viewBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const patientName = this.closest('.patient-item').querySelector('.patient-name').textContent;
-            alert(`Viewing details for ${patientName}`);
-        });
-    });
-
+    // View Patient Buttons - handled by onclick in staff-dashboard.php
+    // The viewPatientDashboard function is defined in staff-dashboard.php
+    
     // Add New Reminder
     const addReminderBtn = document.getElementById('addReminderBtn');
     if (addReminderBtn) {

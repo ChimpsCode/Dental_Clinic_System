@@ -3,6 +3,18 @@ $pageTitle = 'Appointments';
 require_once '../../config/database.php';
 require_once '../../includes/dentist_layout_start.php';
 
+// Load settings for business hours and unavailable dates
+try {
+    $stmt = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('business_hours', 'unavailable_dates')");
+    $settingsRows = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+    $businessHours = isset($settingsRows['business_hours']) ? json_decode($settingsRows['business_hours'], true) : [];
+    $unavailableDates = isset($settingsRows['unavailable_dates']) ? json_decode($settingsRows['unavailable_dates'], true) : [];
+    if (!$businessHours) $businessHours = [];
+    if (!$unavailableDates) $unavailableDates = [];
+} catch (Exception $e) {
+    $unavailableDates = [];
+}
+
 // Fetch appointment statistics
 try {
     // Check if status column exists
@@ -35,17 +47,20 @@ try {
     $totalAppointments = $todayAppointments = $completedAppointments = $cancelledAppointments = 0;
 }
 
-// Fetch all appointments
+// Fetch all appointments with treatment plan info
 try {
     $stmt = $pdo->query("SELECT a.*, 
         p.first_name, p.middle_name, p.last_name,
         p.phone, p.email,
         s.name as service_name, s.price as service_price,
-        st.status_name as status_label
+        st.status_name as status_label,
+        tp.id as treatment_plan_id, tp.plan_name as treatment_plan_name
     FROM appointments a 
     LEFT JOIN patients p ON a.patient_id = p.id
     LEFT JOIN services s ON a.service_id = s.id
     LEFT JOIN appointment_statuses st ON a.status_id = st.id
+    LEFT JOIN treatment_plans tp ON a.id = tp.appointment_id
+    WHERE (a.is_archived = 0 OR a.is_archived IS NULL)
     ORDER BY a.appointment_date DESC, a.appointment_time DESC");
     $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
@@ -142,7 +157,47 @@ try {
     </div>
 </div>
 
-<!-- Search & Filters -->
+<div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+    <button class="view-toggle-btn active" data-view="list">📋 List View</button>
+    <button class="view-toggle-btn" data-view="calendar">📅 Calendar View</button>
+</div>
+
+<style>
+.view-toggle-btn { padding: 8px 16px; border: 1px solid #d1d5db; background: white; cursor: pointer; font-size: 14px; font-weight: 500; color: #6b7280; border-radius: 6px; transition: all 0.2s; }
+.view-toggle-btn:hover { background: #f3f4f6; }
+.view-toggle-btn.active { background: #3f75ea; color: white; border-color: #3f75ea; }
+.calendar-view { display: none; }
+.calendar-view.active { display: block; }
+.list-view { display: block; }
+.list-view.hidden { display: none; }
+.dentist-cal { background: white; border-radius: 12px; padding: 24px; }
+.dentist-cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.dentist-cal-title { font-size: 20px; font-weight: 700; color: #1a1a2e; }
+.dentist-cal-nav { display: flex; gap: 8px; }
+.dentist-cal-nav button { background: #f3f4f6; border: none; width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.2s; }
+.dentist-cal-nav button:hover { background: #e5e7eb; }
+.dentist-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.dentist-cal-day-header { text-align: center; font-size: 12px; font-weight: 600; color: #6b7280; padding: 8px 0; text-transform: uppercase; }
+.dentist-cal-day { min-height: 100px; padding: 8px; border: 1px solid #e5e7eb; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s; }
+.dentist-cal-day:hover { border-color: #3f75ea; background: #f0f7ff; }
+.dentist-cal-day.today { background: #dcf0ff; border-color: #3f75ea; }
+.dentist-cal-day.empty { background: #f9fafb; cursor: default; border-color: #f3f4f6; }
+.dentist-cal-day.empty:hover { background: #f9fafb; border-color: #f3f4f6; }
+.dentist-cal-day.closed { background: #fef2f2; border-color: #fecaca; }
+.dentist-cal-day .day-num { font-weight: 500; font-size: 14px; color: #374151; margin-bottom: 4px; }
+.dentist-cal-day .appt-count { font-size: 11px; color: #3f75ea; background: #e0f2fe; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-bottom: 4px; }
+.dentist-cal-day .appt-mini { font-size: 10px; color: #6b7280; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dentist-cal-day .closed-label { font-size: 11px; color: #dc2626; font-weight: 500; }
+.dentist-day-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; justify-content: center; align-items: center; }
+.dentist-day-modal.active { display: flex; }
+.dentist-day-modal-content { background: white; border-radius: 12px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+.dentist-day-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.dentist-day-modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280; }
+.dentist-day-modal-item { padding: 12px; border-bottom: 1px solid #f3f4f6; }
+.dentist-day-modal-item:last-child { border-bottom: none; }
+</style>
+
+<div class="list-view" id="listView">
 <div class="search-filters">
     <div class="filter-tabs">
         <span class="active" data-filter="all">All</span>
@@ -157,7 +212,6 @@ try {
     <div style="display: flex; gap: 10px;">
         <button class="btn-primary" onclick="openNewAppointmentModal()">+ New Appointment</button>
     </div>
-</div>
 </div>
 
 <!-- Appointments Table -->
@@ -207,7 +261,12 @@ try {
                             <div><?php echo $appointmentDateStr; ?></div>
                             <div style="font-size: 0.85rem; color: #6b7280;"><?php echo $appointmentTime; ?></div>
                         </td>
-<td><?php echo htmlspecialchars($apt['service_name'] ?? 'Consultation'); ?></td>
+                        <td>
+                            <?php echo htmlspecialchars($apt['service_name'] ?? 'Consultation'); ?>
+                            <?php if (!empty($apt['treatment_plan_id'])): ?>
+                                <br><span class="status-badge" style="background: #fef3c7; color: #92400e; font-size: 0.7rem; margin-top: 4px; display: inline-block;">📋 Treatment Plan</span>
+                            <?php endif; ?>
+                        </td>
                          <?php 
                             $statusColor = match($status) {
                                 'Completed' => 'background: #d1fae5; color: #065f46;',
@@ -238,6 +297,31 @@ try {
             <?php endif; ?>
         </tbody>
     </table>
+</div>
+</div>
+</div>
+
+<div class="calendar-view" id="calendarView">
+    <div class="dentist-cal">
+        <div class="dentist-cal-header">
+            <h3 class="dentist-cal-title" id="dentistCalMonthYear"></h3>
+            <div class="dentist-cal-nav">
+                <button onclick="changeDentistCalMonth(-1)">&#9664;</button>
+                <button onclick="changeDentistCalMonth(1)">&#9654;</button>
+            </div>
+        </div>
+        <div class="dentist-cal-grid" id="dentistCalGrid"></div>
+    </div>
+</div>
+
+<div class="dentist-day-modal" id="dentistDayModal">
+    <div class="dentist-day-modal-content">
+        <div class="dentist-day-modal-header">
+            <h3 id="dentistDayTitle">Appointments</h3>
+            <button class="dentist-day-modal-close" onclick="closeDentistDayModal()">&times;</button>
+        </div>
+        <div id="dentistDayContent"></div>
+    </div>
 </div>
 
 <!-- New Appointment Modal -->
@@ -409,6 +493,150 @@ try {
 
 
 <script>
+const appointments = <?php echo json_encode($appointments); ?>;
+const unavailableDates = <?php echo json_encode($unavailableDates); ?>;
+
+let dentistCalYear, dentistCalMonth;
+
+function initDentistCalendar() {
+    const today = new Date();
+    dentistCalYear = today.getFullYear();
+    dentistCalMonth = today.getMonth();
+    renderDentistCalendar();
+}
+
+function changeDentistCalMonth(dir) {
+    dentistCalMonth += dir;
+    if (dentistCalMonth < 0) { dentistCalMonth = 11; dentistCalYear--; }
+    if (dentistCalMonth > 11) { dentistCalMonth = 0; dentistCalYear++; }
+    renderDentistCalendar();
+}
+
+function renderDentistCalendar() {
+    document.getElementById('dentistCalMonthYear').textContent = new Date(dentistCalYear, dentistCalMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    
+    const grid = document.getElementById('dentistCalGrid');
+    grid.innerHTML = '';
+    
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    days.forEach(d => {
+        const h = document.createElement('div');
+        h.className = 'dentist-cal-day-header';
+        h.textContent = d;
+        grid.appendChild(h);
+    });
+    
+    const firstDay = new Date(dentistCalYear, dentistCalMonth, 1).getDay();
+    const totalDays = new Date(dentistCalYear, dentistCalMonth + 1, 0).getDate();
+    const prevDays = new Date(dentistCalYear, dentistCalMonth, 0).getDate();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    for (let i = firstDay - 1; i >= 0; i--) {
+        const d = document.createElement('div');
+        d.className = 'dentist-cal-day empty';
+        d.textContent = prevDays - i;
+        grid.appendChild(d);
+    }
+    
+    const apptByDate = {};
+    appointments.forEach(appt => {
+        const date = String(appt.appointment_date).split(' ')[0];
+        if (!apptByDate[date]) apptByDate[date] = [];
+        apptByDate[date].push(appt);
+    });
+    
+    for (let i = 1; i <= totalDays; i++) {
+        const d = document.createElement('div');
+        const dateStr = `${dentistCalYear}-${String(dentistCalMonth + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+        const dateObj = new Date(dentistCalYear, dentistCalMonth, i);
+        
+        d.className = 'dentist-cal-day';
+        d.dataset.date = dateStr;
+        
+        if (dateObj.getTime() === today.getTime()) {
+            d.classList.add('today');
+        }
+        
+        const closedEntry = unavailableDates.find(e => e.date === dateStr);
+        if (closedEntry && closedEntry.status === 'closed') {
+            d.classList.add('closed');
+            d.innerHTML = `<div class="day-num">${i}</div><div class="closed-label">Closed</div>`;
+        } else {
+            const appts = apptByDate[dateStr] || [];
+            let html = `<div class="day-num">${i}</div>`;
+                if (appts.length > 0) {
+                    html += `<div class="appt-count">${appts.length} appointment${appts.length > 1 ? 's' : ''}</div>`;
+                    appts.slice(0, 3).forEach(appt => {
+                        const time = appt.appointment_time ? new Date('1970-01-01 ' + appt.appointment_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
+                        const name = (appt.first_name || '') + ' ' + (appt.last_name || '');
+                        const isTP = appt.treatment_plan_id ? ' <span style="color: #92400e; font-size: 0.7rem;">📋</span>' : '';
+                        html += `<div class="appt-mini">${time} - ${name.trim()}${isTP}</div>`;
+                    });
+                    if (appts.length > 3) {
+                        html += `<div class="appt-mini">+${appts.length - 3} more</div>`;
+                    }
+                }
+            d.innerHTML = html;
+        }
+        
+        d.addEventListener('click', () => openDentistDayModal(dateStr, apptByDate[dateStr] || [], closedEntry));
+        grid.appendChild(d);
+    }
+    
+    const remaining = 42 - (firstDay + totalDays);
+    for (let i = 1; i <= remaining; i++) {
+        const d = document.createElement('div');
+        d.className = 'dentist-cal-day empty';
+        d.textContent = i;
+        grid.appendChild(d);
+    }
+}
+
+function openDentistDayModal(dateStr, appts, closedEntry) {
+    const formatted = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    document.getElementById('dentistDayTitle').textContent = formatted;
+    
+    const content = document.getElementById('dentistDayContent');
+    
+    if (closedEntry && closedEntry.status === 'closed') {
+        content.innerHTML = `<p style="color: #dc2626; font-weight: 500;">Clinic is closed${closedEntry.note ? ' - ' + closedEntry.note : ''}</p>`;
+    } else if (appts.length === 0) {
+        content.innerHTML = '<p style="color: #6b7280;">No appointments for this day</p>';
+    } else {
+        let html = '';
+        appts.forEach(appt => {
+            const time = appt.appointment_time ? new Date('1970-01-01 ' + appt.appointment_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'N/A';
+            const name = [appt.first_name, appt.middle_name, appt.last_name].filter(n => n).join(' ') || 'Unknown';
+            const status = appt.status || appt.status_label || 'Scheduled';
+            const isTreatmentPlan = appt.treatment_plan_id ? true : false;
+            html += `<div class="dentist-day-modal-item">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-weight: 500;">${name}${isTreatmentPlan ? ' <span style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 9999px; font-size: 0.7rem;">📋 Treatment Plan</span>' : ''}</div>
+                        <div style="font-size: 14px; color: #6b7280;">${time} - ${appt.service_name || appt.treatment || 'General'}</div>
+                        ${isTreatmentPlan ? `<div style="font-size: 12px; color: #92400e; margin-top: 2px;">Plan: ${appt.treatment_plan_name || ''}</div>` : ''}
+                    </div>
+                    <span class="status-badge" style="background: ${status === 'Completed' ? '#d1fae5' : status === 'Cancelled' ? '#fee2e2' : '#e0f2fe'}; color: ${status === 'Completed' ? '#065f46' : status === 'Cancelled' ? '#dc2626' : '#1d4ed8'};">${status}</span>
+                </div>
+            </div>`;
+        });
+        content.innerHTML = html;
+    }
+    
+    document.getElementById('dentistDayModal').classList.add('active');
+}
+
+function closeDentistDayModal() {
+    document.getElementById('dentistDayModal').classList.remove('active');
+}
+
+document.addEventListener('click', function(e) {
+    if (e.target === document.getElementById('dentistDayModal')) {
+        closeDentistDayModal();
+    }
+});
+
 // Portal Pattern: Move modal to body level
 document.addEventListener('DOMContentLoaded', function() {
     const newModal = document.getElementById('newAppointmentModal');
@@ -444,6 +672,24 @@ document.addEventListener('DOMContentLoaded', function() {
     if (searchInput) {
         searchInput.addEventListener('input', filterAppointments);
     }
+    
+    // View toggle
+    document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            const view = this.dataset.view;
+            if (view === 'list') {
+                document.getElementById('listView').classList.remove('hidden');
+                document.getElementById('calendarView').classList.remove('active');
+            } else {
+                document.getElementById('listView').classList.add('hidden');
+                document.getElementById('calendarView').classList.add('active');
+                initDentistCalendar();
+            }
+        });
+    });
 });
 
 function filterAppointments() {

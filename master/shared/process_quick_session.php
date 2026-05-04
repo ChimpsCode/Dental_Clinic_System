@@ -47,12 +47,13 @@ try {
     $nextNum = $stmt->fetch();
     $queue_number = 'Q-' . str_pad($nextNum['next_num'] ?? 1, 3, '0', STR_PAD_LEFT);
 
-    // Insert into queue
+    // Insert into queue - status_id 1 = waiting
+    // Note: queue table doesn't have created_by column
     $stmt = $pdo->prepare("
-        INSERT INTO queue (patient_id, treatment_type, teeth_numbers, status, priority, queue_time, notes, created_by, created_at)
-        VALUES (?, ?, ?, 'waiting', ?, NOW(), ?, ?, NOW())
+        INSERT INTO queue (patient_id, treatment_type, teeth_numbers, status_id, priority, queue_time, notes, created_at)
+        VALUES (?, ?, ?, 1, ?, NOW(), ?, NOW())
     ");
-    $stmt->execute([$patient_id, $treatment_type, $teeth_numbers, $priority, $full_notes, $_SESSION['user_id'] ?? 1]);
+    $stmt->execute([$patient_id, $treatment_type, $teeth_numbers, $priority, $full_notes]);
     
     $queue_id = $pdo->lastInsertId();
 

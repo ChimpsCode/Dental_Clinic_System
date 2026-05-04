@@ -13,6 +13,49 @@ $clinicAddress = $clinicSettings['clinic_address'] ?? '';
 $clinicPhone = $clinicSettings['clinic_phone'] ?? '';
 $clinicEmail = $clinicSettings['clinic_email'] ?? '';
 
+// Parse business hours for display
+$defaultHours = [
+    'monday' => ['open' => '08:00', 'close' => '17:00', 'is_open' => true],
+    'tuesday' => ['open' => '08:00', 'close' => '17:00', 'is_open' => true],
+    'wednesday' => ['open' => '08:00', 'close' => '17:00', 'is_open' => true],
+    'thursday' => ['open' => '08:00', 'close' => '17:00', 'is_open' => true],
+    'friday' => ['open' => '08:00', 'close' => '17:00', 'is_open' => true],
+    'saturday' => ['open' => '09:00', 'close' => '13:00', 'is_open' => true],
+    'sunday' => ['open' => '', 'close' => '', 'is_open' => false]
+];
+$businessHours = isset($clinicSettings['business_hours']) ? json_decode($clinicSettings['business_hours'], true) : $defaultHours;
+if (!$businessHours) $businessHours = $defaultHours;
+
+function formatHoursForDisplay($hours) {
+    $weekdayHours = [];
+    $weekendHours = [];
+    
+    foreach (['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as $day) {
+        if ($hours[$day]['is_open']) {
+            $weekdayHours[] = $hours[$day]['open'] . '-' . $hours[$day]['close'];
+        }
+    }
+    
+    foreach (['saturday', 'sunday'] as $day) {
+        if ($hours[$day]['is_open']) {
+            $weekendHours[] = $hours[$day]['open'] . '-' . $hours[$day]['close'];
+        }
+    }
+    
+    $weekdayKey = implode(',', $weekdayHours);
+    $weekendKey = implode(',', $weekendHours);
+    
+    if ($weekdayKey && $weekendKey) {
+        return 'Mon - Fri ' . date('g:i A', strtotime($hours['monday']['open'])) . ' - ' . date('g:i A', strtotime($hours['monday']['close'])) . ' | Sat ' . date('g:i A', strtotime($hours['saturday']['open'])) . ' - ' . date('g:i A', strtotime($hours['saturday']['close']));
+    } elseif ($weekdayKey) {
+        return 'Mon - Fri ' . date('g:i A', strtotime($hours['monday']['open'])) . ' - ' . date('g:i A', strtotime($hours['monday']['close']));
+    }
+    
+    return 'Mon - Sat 9:00 AM - 5:00 PM';
+}
+
+$displayHours = formatHoursForDisplay($businessHours);
+
 $assets = [
   'logo' => 'https://www.figma.com/api/mcp/asset/0216bb5f-fd3d-487e-9d2c-5e8da91303ca',
   'hero' => '../../assets/images/Dentists.png',
@@ -371,7 +414,7 @@ $faqs = [
                 </div>
                 <div class="meta-row">
                   <img src="<?= htmlspecialchars($assets['icon_time']) ?>" alt="" class="meta-icon" />
-                  <span>Mon - Sat 9:00 AM - 5:00 PM</span>
+                  <span><?php echo htmlspecialchars($displayHours); ?></span>
                 </div>
               </div>
             </div>
@@ -605,9 +648,9 @@ $faqs = [
         ];
 
         const CLINIC = {
-          phone: '0967 187 8603',
+          phone: '<?php echo htmlspecialchars($clinicPhone ?: '0967 187 8603'); ?>',
           email: '<?php echo htmlspecialchars($clinicEmail ?: 'rfdc2023@gmail.com'); ?>',
-          hours: 'Mon - Sat 9:00 AM - 5:00 PM',
+          hours: '<?php echo addslashes(htmlspecialchars($displayHours)); ?>',
         };
 
         function addMsg(role, text) {

@@ -92,7 +92,7 @@ try {
 ?>
 
 <!-- Summary Cards -->
-<div class="summary-cards">
+<div class="summary-cards" style="margin-bottom: 0px;">
     <div class="summary-card">
         <div class="summary-icon yellow">⏰</div>
         <div class="summary-info">
@@ -286,37 +286,33 @@ if (($patient['status_text'] ?? '') === 'in_procedure') {
             </div>
         </div>
         <?php endif; ?>
+
+         
         
         <!-- UPCOMING PATIENTS -->
-        <?php if (!empty($upcomingPatients) || (!empty($queuePatients) && !$nextPatient)): ?>
         <div class="section-card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 class="section-title" style="margin: 0;">
-                    ⏰ Upcoming Patients
-                </h2>
-                <a href="dentist_queue.php" style="color: #2563eb; font-size: 0.9rem; text-decoration: none; font-weight: 500;">
-                    View Full Queue →
-                </a>
-            </div>
             
-            <div class="patient-list">
-                <?php foreach (array_slice($upcomingPatients, 0, 5) as $index => $patient): ?>
-                    <div class="patient-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #f3f4f6;">
-                        <div style="display: flex; align-items: center; gap: 16px; flex: 1;">
-                            <div style="width: 36px; height: 36px; background: #f3f4f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #6b7280;">
-                                <?php echo $index + 2; ?>
-                            </div>
-                            <div>
-                                <div style="font-weight: 600; color: #111827;"><?php echo htmlspecialchars($patient['full_name']); ?></div>
-                                <div style="font-size: 0.85rem; color: #6b7280;"><?php echo htmlspecialchars($patient['treatment_type']); ?></div>
-                            </div>
-                        </div>
-                        <button onclick="viewPatientDetails(<?php echo $patient['patient_id']; ?>)" style="background: #f3f4f6; color: #4b5563; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">View</button>
-                    </div>
-                <?php endforeach; ?>
+            
+            <!-- EMPTY STATE - When no patients in queue -->
+            <?php if (!$inProcedurePatient && !$nextPatient): ?>
+            <div class="section-card" style="text-align: center; padding: 60px 40px; background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%); border: 2px dashed #d1d5db;">
+            <div style="font-size: 4rem; margin-bottom: 20px;">🪑</div>
+            <h2 style="color: #374151; font-size: 1.5rem; margin-bottom: 12px;">No Patients in Queue</h2>
+            <p style="color: #6b7280; font-size: 1rem; margin-bottom: 24px;">
+                There are no patients waiting for treatment at the moment.<br>
+                Patients will appear here when they are added to the queue by staff.
+            </p>
+            <div style="display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;">
+                <a href="dentist_queue.php" style="background: #2563eb; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+                    View Full Queue
+                </a>
+                <a href="dentist_appointments.php" style="background: #6b7280; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+                    View Appointments
+                </a>
             </div>
         </div>
         <?php endif; ?>
+        </div>
     </div>
 
     <!-- Right Column: Notifications & Quick Actions -->

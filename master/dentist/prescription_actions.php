@@ -32,12 +32,35 @@ $action = $input['action'] ?? '';
 try {
     switch ($action) {
         case 'get_patients':
-            // Get all patients for dropdown
+            // Get all patients for dropdown (legacy)
             $stmt = $pdo->query("
                 SELECT id, CONCAT(first_name, ' ', last_name) as patient_name, age
                 FROM patients 
                 ORDER BY first_name, last_name
             ");
+            $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            $response['success'] = true;
+            $response['patients'] = $patients;
+            break;
+
+        case 'search_patients':
+            $search = $input['query'] ?? '';
+            if (strlen($search) < 2) {
+                $response['success'] = true;
+                $response['patients'] = [];
+                break;
+            }
+            
+            $stmt = $pdo->prepare("
+                SELECT id, CONCAT(first_name, ' ', last_name) as patient_name, age
+                FROM patients 
+                WHERE first_name LIKE ? OR last_name LIKE ? OR CONCAT(first_name, ' ', last_name) LIKE ?
+                ORDER BY first_name, last_name
+                LIMIT 10
+            ");
+            $searchTerm = "%$search%";
+            $stmt->execute([$searchTerm, $searchTerm, $searchTerm]);
             $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
             $response['success'] = true;

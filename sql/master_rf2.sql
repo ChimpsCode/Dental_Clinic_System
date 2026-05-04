@@ -182,19 +182,24 @@ CREATE TABLE `appointments` (
   `is_reminded` tinyint(1) DEFAULT 0,
   `check_in_time` timestamp NULL DEFAULT NULL,
   `created_by` int(11) DEFAULT NULL,
+  `booking_type` varchar(20) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `is_archived` tinyint(1) DEFAULT 0
+  `updated_at` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp(),
+  `is_archived` tinyint(1) DEFAULT 0,
+  `deleted_at` datetime DEFAULT NULL,
+  `cancelled_by` int(11) DEFAULT NULL,
+  `cancelled_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `appointments`
 --
 
-INSERT INTO `appointments` (`id`, `reference_code`, `patient_id`, `is_registered_patient`, `converted_patient_id`, `booked_by_id`, `relation_to_patient`, `service_id`, `status_id`, `appointment_date`, `appointment_time`, `duration_minutes`, `notes`, `is_reminded`, `check_in_time`, `created_by`, `created_at`, `is_archived`) VALUES
-(121, '', 121, 1, NULL, NULL, NULL, 1, 1, '2026-04-24', '09:00:00', NULL, '', 0, NULL, 13, '2026-04-23 05:14:36', 0),
-(130, 'APT2604240', 123, 1, NULL, NULL, NULL, 3, 1, '2026-04-24', '15:30:00', 30, '', 0, NULL, 15, '2026-04-24 07:39:48', 0),
-(133, 'APT2604241', 124, 1, NULL, NULL, NULL, 5, 2, '2026-04-24', '11:00:00', 120, '', 0, NULL, 16, '2026-04-24 08:00:31', 0),
-(135, 'APT2604250', 133, 1, NULL, NULL, NULL, 2, 1, '2026-04-25', '13:30:00', 90, '', 0, NULL, 17, '2026-04-25 05:34:17', 0);
+INSERT INTO `appointments` (`id`, `reference_code`, `patient_id`, `is_registered_patient`, `converted_patient_id`, `booked_by_id`, `relation_to_patient`, `service_id`, `status_id`, `appointment_date`, `appointment_time`, `duration_minutes`, `notes`, `is_reminded`, `check_in_time`, `created_by`, `booking_type`, `created_at`, `updated_at`, `is_archived`, `deleted_at`, `cancelled_by`, `cancelled_at`) VALUES
+(121, '', 121, 1, NULL, NULL, NULL, 1, 1, '2026-04-24', '09:00:00', NULL, '', 0, NULL, 13, NULL, '2026-04-23 05:14:36', NULL, 0, NULL, NULL, NULL),
+(130, 'APT2604240', 123, 1, NULL, NULL, NULL, 3, 1, '2026-04-24', '15:30:00', 30, '', 0, NULL, 15, NULL, '2026-04-24 07:39:48', NULL, 0, NULL, NULL, NULL),
+(133, 'APT2604241', 124, 1, NULL, NULL, NULL, 5, 2, '2026-04-24', '11:00:00', 120, '', 0, NULL, 16, NULL, '2026-04-24 08:00:31', NULL, 0, NULL, NULL, NULL),
+(135, 'APT2604250', 133, 1, NULL, NULL, NULL, 2, 1, '2026-04-25', '13:30:00', 90, '', 0, NULL, 17, NULL, '2026-04-25 05:34:17', NULL, 0, NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -933,7 +938,8 @@ INSERT INTO `queue_statuses` (`id`, `status_name`) VALUES
 (1, 'waiting'),
 (2, 'in_procedure'),
 (3, 'completed'),
-(4, 'cancelled');
+(4, 'cancelled')
+(5, 'on_hold');
 
 -- --------------------------------------------------------
 
@@ -1187,7 +1193,11 @@ CREATE TABLE `treatment_plans` (
   `plan_name` varchar(200) DEFAULT NULL,
   `total_estimated_cost` decimal(10,2) DEFAULT NULL,
   `overall_status` enum('Active','Completed','On-Hold','Cancelled') DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+  `next_session_date` DATE DEFAULT NULL,
+  `next_session_time` TIME DEFAULT NULL,
+  `appointment_id` INT(11) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -1883,7 +1893,8 @@ ALTER TABLE `treatments`
 --
 ALTER TABLE `treatment_plans`
   ADD CONSTRAINT `treatment_plans_ibfk_1` FOREIGN KEY (`patient_id`) REFERENCES `patients` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `treatment_plans_ibfk_2` FOREIGN KEY (`doctor_id`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+  ADD CONSTRAINT `treatment_plans_ibfk_2` FOREIGN KEY (`doctor_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `treatment_plans_ibfk_3` FOREIGN KEY (`appointment_id`) REFERENCES `appointments` (`id`) ON DELETE SET NULL;
 
 --
 -- Constraints for table `treatment_plan_details`

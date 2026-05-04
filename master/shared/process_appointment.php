@@ -175,6 +175,20 @@ try {
     $bookedById = $_SESSION['user_id'] ?? null;
     $bookingType = $bookedById ? 'staff' : 'self';
     
+    // Check if booking_type column exists
+    $bookingTypeExists = false;
+    $hasRefCode = false;
+    try {
+        $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'booking_type'");
+        $bookingTypeExists = $checkCol->rowCount() > 0;
+        
+        $checkRef = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'reference_code'");
+        $hasRefCode = $checkRef->rowCount() > 0;
+    } catch (Exception $e) {
+        $bookingTypeExists = false;
+        $hasRefCode = false;
+    }
+    
     // Correct columns for appointments table
     // We need to resolve service_id from treatment string if possible, or use a default
     $service_id = null;
@@ -207,20 +221,29 @@ try {
             throw new Exception("Failed to update appointment. PDO Error: " . implode(", ", $stmt->errorInfo()));
         }
     } else {
-        $stmt = $pdo->prepare("INSERT INTO appointments 
-            (patient_id, appointment_date, appointment_time, service_id, notes, status, status_id, created_by, booked_by_id, booking_type, created_at, is_archived) 
-            VALUES (?, ?, ?, ?, ?, 'scheduled', 1, ?, ?, ?, NOW(), 0)");
+        // Build INSERT query dynamically based on existing columns
+        $columns = ['patient_id', 'appointment_date', 'appointment_time', 'service_id', 'notes', 'status', 'status_id', 'created_by', 'created_at', 'is_archived'];
+        $placeholders = ['?', '?', '?', '?', '?', "'scheduled'", '1', '?', 'NOW()', '0'];
+        $params = [$patient_id, $appointment_date, $appointment_time, $service_id, $notes, $_SESSION['user_id'] ?? 1];
+        
+        if ($bookingTypeExists) {
+            $columns[] = 'booked_by_id';
+            $placeholders[] = '?';
+            $params[] = $bookedById;
+            
+            $columns[] = 'booking_type';
+            $placeholders[] = '?';
+            $params[] = $bookingType;
+        }
 
-        $result = $stmt->execute([
-            $patient_id, 
-            $appointment_date, 
-            $appointment_time, 
-            $service_id,
-            $notes, 
-            $_SESSION['user_id'] ?? 1,
-            $bookedById,
-            $bookingType
-        ]);
+        if ($hasRefCode) {
+            $columns[] = 'reference_code';
+            $placeholders[] = '?';
+            $params[] = 'APT' . date('ymdHis') . mt_rand(10, 99);
+        }
+        
+        $stmt = $pdo->prepare("INSERT INTO appointments (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $placeholders) . ")");
+        $result = $stmt->execute($params);
 
         if (!$result) {
             throw new Exception("Failed to insert appointment. PDO Error: " . implode(", ", $stmt->errorInfo()));

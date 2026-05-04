@@ -121,7 +121,7 @@ try {
               AND (is_archived = 0 OR is_archived IS NULL)
         ")->fetchColumn() ?? 0);
 
-        // Get only 3 upcoming appointments for overview
+        // Get only 2 upcoming appointments for overview
         $apptStmt = $pdo->query("
             SELECT a.id, a.appointment_date, a.appointment_time, a.status_id,
                    COALESCE(p.first_name, 'Unknown') as first_name,
@@ -136,7 +136,7 @@ try {
             WHERE a.appointment_date >= CURDATE()
               AND (a.is_archived = 0 OR a.is_archived IS NULL)
             ORDER BY a.appointment_date ASC, a.appointment_time ASC
-            LIMIT 3
+            LIMIT 2
         ");
         $todayAppointments = $apptStmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
@@ -422,7 +422,7 @@ try {
                 <!-- Today's Appointments Overview -->
                     <div class="section-card" >
                         <h2 class="section-title">📅 Upcoming Appointments</h2>
-                        <div style="max-height: 300px; overflow-y: auto;">
+                        <div style="max-height: 180px; overflow-y: auto;">
                             <?php if (empty($todayAppointments)): ?>
                                 <p style="text-align: center; color: #6b7280; padding: 20px;">No upcoming appointments</p>
                             <?php else: ?>
@@ -462,8 +462,8 @@ try {
                                 </table>
                             <?php endif; ?>
                         </div>
-                        <a href="admin_appointments.php" style="display: block; text-align: center; margin-top: 12px; padding: 10px; background: #f3f4f6; border-radius: 6px; color: #374151; text-decoration: none; font-size: 13px;">
-                            View All Appointments (<?php echo $totalUpcomingAppts; ?> upcoming)
+                        <a href="admin_appointments.php" style="display: block; text-align: center; margin-top: 12px; padding: 10px; background: #eff6ff; border-radius: 6px; color: #0284c7; text-decoration: none; font-size: 13px; font-weight: 500;">
+                            View All Appointments (<?php echo $totalUpcomingAppts; ?> upcoming) →
                         </a>
                     </div>
                 

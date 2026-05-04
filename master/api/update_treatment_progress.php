@@ -8,7 +8,7 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-require_once 'config/database.php';
+require_once '../../config/database.php';
 
 try {
     $plan_id = $_POST['progress_plan_id'] ?? null;
@@ -32,11 +32,11 @@ try {
     }
     
     // Determine status based on completed sessions
-    $status = 'active';
+    $status = 'Active';
     if ($completed_sessions >= $plan['total_sessions']) {
-        $status = 'completed';
+        $status = 'Completed';
     } elseif ($completed_sessions > 0) {
-        $status = 'in_progress';
+        $status = 'In-Progress';
     }
     
     // Append session notes to existing notes
@@ -49,7 +49,7 @@ try {
     $stmt = $pdo->prepare("
         UPDATE treatment_plans SET 
             completed_sessions = ?,
-            status = ?,
+            overall_status = ?,
             next_session_date = ?,
             notes = ?,
             updated_at = NOW()

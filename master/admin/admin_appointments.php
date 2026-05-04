@@ -13,6 +13,14 @@ if ($currentPage < 1) $currentPage = 1;
 try {
     require_once __DIR__ . '/../../config/database.php';
     
+    // Load settings for business hours and unavailable dates
+    $stmt = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('business_hours', 'unavailable_dates')");
+    $settingsRows = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+    $businessHours = isset($settingsRows['business_hours']) ? json_decode($settingsRows['business_hours'], true) : [];
+    $unavailableDates = isset($settingsRows['unavailable_dates']) ? json_decode($settingsRows['unavailable_dates'], true) : [];
+    if (!$businessHours) $businessHours = [];
+    if (!$unavailableDates) $unavailableDates = [];
+    
     // Check if is_archived column exists
     $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'is_archived'");
     $hasArchiveColumn = $checkCol->rowCount() > 0;
@@ -44,7 +52,7 @@ try {
                          LEFT JOIN patients p ON a.patient_id = p.id
                          LEFT JOIN services s ON a.service_id = s.id
                          LEFT JOIN appointment_statuses st ON a.status_id = st.id
-                         $whereClause");
+                         " . $whereClause);
     $allAppointments = $allStmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Get paginated appointments (exclude archived)
@@ -52,11 +60,13 @@ try {
                          p.first_name, p.middle_name, p.last_name,
                          COALESCE(p.phone, '') AS phone,
                          s.name as service_name,
-                         st.status_name as status_label
+                         st.status_name as status_label,
+                         tp.id as treatment_plan_id, tp.plan_name as treatment_plan_name
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id 
                          LEFT JOIN services s ON a.service_id = s.id
                          LEFT JOIN appointment_statuses st ON a.status_id = st.id
+                         LEFT JOIN treatment_plans tp ON a.id = tp.appointment_id
                          $whereClause
                          ORDER BY a.created_at DESC
                          LIMIT :limit OFFSET :offset");
@@ -71,6 +81,7 @@ try {
     $totalPages = 1;
     $showingStart = 0;
     $showingEnd = 0;
+    $unavailableDates = [];
 }
 
 $todayCount = 0;
@@ -139,8 +150,48 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     </div>
                 </div>
 
-                <!-- Search and Filter -->
-                <div class="search-filters">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button class="view-toggle-btn active" data-view="list">📋 List View</button>
+                    <button class="view-toggle-btn" data-view="calendar">📅 Calendar View</button>
+                </div>
+
+                <style>
+                .view-toggle-btn { padding: 8px 16px; border: 1px solid #d1d5db; background: white; cursor: pointer; font-size: 14px; font-weight: 500; color: #6b7280; border-radius: 6px; transition: all 0.2s; }
+                .view-toggle-btn:hover { background: #f3f4f6; }
+                .view-toggle-btn.active { background: #2563eb; color: white; border-color: #2563eb; }
+                .calendar-view { display: none; }
+                .calendar-view.active { display: block; }
+                .list-view { display: block; }
+                .list-view.hidden { display: none; }
+                .admin-cal { background: white; border-radius: 12px; padding: 24px; }
+                .admin-cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+                .admin-cal-title { font-size: 20px; font-weight: 700; color: #1a1a2e; }
+                .admin-cal-nav { display: flex; gap: 8px; }
+                .admin-cal-nav button { background: #f3f4f6; border: none; width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.2s; }
+                .admin-cal-nav button:hover { background: #e5e7eb; }
+                .admin-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+                .admin-cal-day-header { text-align: center; font-size: 12px; font-weight: 600; color: #6b7280; padding: 8px 0; text-transform: uppercase; }
+                .admin-cal-day { min-height: 100px; padding: 8px; border: 1px solid #e5e7eb; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s; }
+                .admin-cal-day:hover { border-color: #2563eb; background: #f0f7ff; }
+                .admin-cal-day.today { background: #dcf0ff; border-color: #2563eb; }
+                .admin-cal-day.empty { background: #f9fafb; cursor: default; border-color: #f3f4f6; }
+                .admin-cal-day.empty:hover { background: #f9fafb; border-color: #f3f4f6; }
+                .admin-cal-day.closed { background: #fef2f2; border-color: #fecaca; }
+                .admin-cal-day .day-num { font-weight: 500; font-size: 14px; color: #374151; margin-bottom: 4px; }
+                .admin-cal-day .appt-count { font-size: 11px; color: #2563eb; background: #e0f2fe; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-bottom: 4px; }
+                .admin-cal-day .appt-mini { font-size: 10px; color: #6b7280; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                .admin-cal-day .closed-label { font-size: 11px; color: #dc2626; font-weight: 500; }
+                .admin-day-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; justify-content: center; align-items: center; }
+                .admin-day-modal.active { display: flex; }
+                .admin-day-modal-content { background: white; border-radius: 12px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+                .admin-day-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+                .admin-day-modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280; }
+                .admin-day-modal-item { padding: 12px; border-bottom: 1px solid #f3f4f6; }
+                .admin-day-modal-item:last-child { border-bottom: none; }
+                </style>
+
+                <div class="list-view" id="listView">
+                <div class="search-filters" style="margin-bottom: 20px;">
                     <div class="filter-tabs">
                         <span class="active" data-filter="all">All</span>
                         <span data-filter="today">Today</span>
@@ -198,7 +249,12 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                             <div style="font-size: 0.85rem; color: #6b7280;"><?php echo date('h:i A', strtotime($appt['appointment_time'] ?? '')); ?></div>
                                             <div style="font-size: 0.85rem; color: #6b7280;">Phone: <?php echo htmlspecialchars($appt['phone'] ?? 'N/A'); ?></div>
                                         </td>
-                                        <td><?php echo htmlspecialchars($appt['service_name'] ?? 'General'); ?></td>
+                                        <td>
+                                            <?php echo htmlspecialchars($appt['service_name'] ?? 'General'); ?>
+                                            <?php if (!empty($appt['treatment_plan_id'])): ?>
+                                                <br><span class="status-badge" style="background: #fef3c7; color: #92400e; font-size: 0.7rem; margin-top: 4px; display: inline-block;">📋 Treatment Plan</span>
+                                            <?php endif; ?>
+                                        </td>
                                         <td>
                                             <?php 
                                                 // Robust status resolution
@@ -308,6 +364,29 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 </div>
             </div>
 
+            <div class="calendar-view" id="calendarView">
+                <div class="admin-cal">
+                    <div class="admin-cal-header">
+                        <h3 class="admin-cal-title" id="adminCalMonthYear"></h3>
+                        <div class="admin-cal-nav">
+                            <button onclick="changeAdminCalMonth(-1)">&#9664;</button>
+                            <button onclick="changeAdminCalMonth(1)">&#9654;</button>
+                        </div>
+                    </div>
+                    <div class="admin-cal-grid" id="adminCalGrid"></div>
+                </div>
+            </div>
+
+            <div class="admin-day-modal" id="adminDayModal">
+                <div class="admin-day-modal-content">
+                    <div class="admin-day-modal-header">
+                        <h3 id="adminDayTitle">Appointments</h3>
+                        <button class="admin-day-modal-close" onclick="closeAdminDayModal()">&times;</button>
+                    </div>
+                    <div id="adminDayContent"></div>
+                </div>
+            </div>
+
 <!-- View Appointment Modal -->
 <div id="viewAppointmentModal" class="modal-overlay">
     <div class="modal" style="width: 500px;">
@@ -343,6 +422,10 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 <div class="form-group" style="flex: 1;">
                     <label>Phone Number</label>
                     <input type="text" name="phone" class="form-control" placeholder="0912-345-6789">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Email Address</label>
+                    <input type="email" name="email" class="form-control" placeholder="patient@email.com">
                 </div>
             </div>
             <div class="form-row">
@@ -654,7 +737,146 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 </style>
 
 <script>
-    const appointments = <?php echo json_encode($appointments); ?>;
+    const appointments = <?php echo json_encode($allAppointments); ?>;
+    const unavailableDates = <?php echo json_encode($unavailableDates); ?>;
+    
+    let adminCalYear, adminCalMonth;
+
+    function initAdminCalendar() {
+        const today = new Date();
+        adminCalYear = today.getFullYear();
+        adminCalMonth = today.getMonth();
+        renderAdminCalendar();
+    }
+
+    function changeAdminCalMonth(dir) {
+        adminCalMonth += dir;
+        if (adminCalMonth < 0) { adminCalMonth = 11; adminCalYear--; }
+        if (adminCalMonth > 11) { adminCalMonth = 0; adminCalYear++; }
+        renderAdminCalendar();
+    }
+
+    function renderAdminCalendar() {
+        document.getElementById('adminCalMonthYear').textContent = new Date(adminCalYear, adminCalMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        
+        const grid = document.getElementById('adminCalGrid');
+        grid.innerHTML = '';
+        
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        days.forEach(d => {
+            const h = document.createElement('div');
+            h.className = 'admin-cal-day-header';
+            h.textContent = d;
+            grid.appendChild(h);
+        });
+        
+        const firstDay = new Date(adminCalYear, adminCalMonth, 1).getDay();
+        const totalDays = new Date(adminCalYear, adminCalMonth + 1, 0).getDate();
+        const prevDays = new Date(adminCalYear, adminCalMonth, 0).getDate();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        for (let i = firstDay - 1; i >= 0; i--) {
+            const d = document.createElement('div');
+            d.className = 'admin-cal-day empty';
+            d.textContent = prevDays - i;
+            grid.appendChild(d);
+        }
+        
+        const apptByDate = {};
+        appointments.forEach(appt => {
+            const date = String(appt.appointment_date).split(' ')[0];
+            if (!apptByDate[date]) apptByDate[date] = [];
+            apptByDate[date].push(appt);
+        });
+        
+        for (let i = 1; i <= totalDays; i++) {
+            const d = document.createElement('div');
+            const dateStr = `${adminCalYear}-${String(adminCalMonth + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+            const dateObj = new Date(adminCalYear, adminCalMonth, i);
+            
+            d.className = 'admin-cal-day';
+            d.dataset.date = dateStr;
+            
+            if (dateObj.getTime() === today.getTime()) {
+                d.classList.add('today');
+            }
+            
+            const closedEntry = unavailableDates.find(e => e.date === dateStr);
+            if (closedEntry && closedEntry.status === 'closed') {
+                d.classList.add('closed');
+                d.innerHTML = `<div class="day-num">${i}</div><div class="closed-label">Closed</div>`;
+            } else {
+                const appts = apptByDate[dateStr] || [];
+                let html = `<div class="day-num">${i}</div>`;
+                if (appts.length > 0) {
+                    html += `<div class="appt-count">${appts.length} appointment${appts.length > 1 ? 's' : ''}</div>`;
+                    appts.slice(0, 3).forEach(appt => {
+                        const time = appt.appointment_time ? new Date('1970-01-01 ' + appt.appointment_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
+                        const name = [appt.first_name, appt.middle_name, appt.last_name].filter(n => n).join(' ') || 'Unknown';
+                        html += `<div class="appt-mini">${time} - ${name.trim()}</div>`;
+                    });
+                    if (appts.length > 3) {
+                        html += `<div class="appt-mini">+${appts.length - 3} more</div>`;
+                    }
+                }
+                d.innerHTML = html;
+            }
+            
+            d.addEventListener('click', () => openAdminDayModal(dateStr, apptByDate[dateStr] || [], closedEntry));
+            grid.appendChild(d);
+        }
+        
+        const remaining = 42 - (firstDay + totalDays);
+        for (let i = 1; i <= remaining; i++) {
+            const d = document.createElement('div');
+            d.className = 'admin-cal-day empty';
+            d.textContent = i;
+            grid.appendChild(d);
+        }
+    }
+
+    function openAdminDayModal(dateStr, appts, closedEntry) {
+        const formatted = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        document.getElementById('adminDayTitle').textContent = formatted;
+        
+        const content = document.getElementById('adminDayContent');
+        
+        if (closedEntry && closedEntry.status === 'closed') {
+            content.innerHTML = `<p style="color: #dc2626; font-weight: 500;">Clinic is closed${closedEntry.note ? ' - ' + closedEntry.note : ''}</p>`;
+        } else if (appts.length === 0) {
+            content.innerHTML = '<p style="color: #6b7280;">No appointments for this day</p>';
+        } else {
+            let html = '';
+            appts.forEach(appt => {
+                const time = appt.appointment_time ? new Date('1970-01-01 ' + appt.appointment_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'N/A';
+                const name = [appt.first_name, appt.middle_name, appt.last_name].filter(n => n).join(' ') || 'Unknown';
+                const status = appt.status_label || appt.status || 'Scheduled';
+                html += `<div class="admin-day-modal-item">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 500;">${name}</div>
+                            <div style="font-size: 14px; color: #6b7280;">${time} - ${appt.service_name || 'General'}</div>
+                        </div>
+                        <span class="status-badge" style="background: ${status === 'Completed' ? '#d1fae5' : status === 'Cancelled' ? '#fee2e2' : '#e0f2fe'}; color: ${status === 'Completed' ? '#065f46' : status === 'Cancelled' ? '#dc2626' : '#1d4ed8'};">${status}</span>
+                    </div>
+                </div>`;
+            });
+            content.innerHTML = html;
+        }
+        
+        document.getElementById('adminDayModal').classList.add('active');
+    }
+
+    function closeAdminDayModal() {
+        document.getElementById('adminDayModal').classList.remove('active');
+    }
+
+    document.addEventListener('click', function(e) {
+        if (e.target === document.getElementById('adminDayModal')) {
+            closeAdminDayModal();
+        }
+    });
 
     document.addEventListener('DOMContentLoaded', function() {
         // Filter tabs click handler
@@ -668,6 +890,24 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
         // Search input handler
         document.getElementById('appointmentSearch').addEventListener('input', filterAppointments);
+        
+        // View toggle
+        document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                const view = this.dataset.view;
+                if (view === 'list') {
+                    document.getElementById('listView').classList.remove('hidden');
+                    document.getElementById('calendarView').classList.remove('active');
+                } else {
+                    document.getElementById('listView').classList.add('hidden');
+                    document.getElementById('calendarView').classList.add('active');
+                    initAdminCalendar();
+                }
+            });
+        });
     });
 
     function filterAppointments() {

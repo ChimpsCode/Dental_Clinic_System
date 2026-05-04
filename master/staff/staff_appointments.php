@@ -9,6 +9,14 @@ if ($currentPage < 1) $currentPage = 1;
 try {
     require_once '../../config/database.php';
     
+    // Load settings for business hours and unavailable dates
+    $stmt = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('business_hours', 'unavailable_dates')");
+    $settingsRows = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+    $businessHours = isset($settingsRows['business_hours']) ? json_decode($settingsRows['business_hours'], true) : [];
+    $unavailableDates = isset($settingsRows['unavailable_dates']) ? json_decode($settingsRows['unavailable_dates'], true) : [];
+    if (!$businessHours) $businessHours = [];
+    if (!$unavailableDates) $unavailableDates = [];
+    
     // Get total count
     $totalAppointments = (int)$pdo->query("SELECT COUNT(*) FROM appointments")->fetchColumn();
     $totalPages = max(1, ceil($totalAppointments / $itemsPerPage));
@@ -21,7 +29,8 @@ try {
     $showingStart = $totalAppointments > 0 ? $offset + 1 : 0;
     $showingEnd = min($offset + $itemsPerPage, $totalAppointments);
     
-    // Get all appointments - join with status table
+    // Get all appointments - join with status table and treatment plans
+    // Exclude archived appointments (is_archived = 1)
     $sql = "SELECT a.*, 
         COALESCE(p.first_name, 'Unknown') as first_name, 
         COALESCE(p.middle_name, '') as middle_name, 
@@ -35,12 +44,15 @@ try {
         COALESCE(addr.province, '') as province,
         COALESCE(addr.zip_code, '') as zip_code,
         s.name as service_name,
-        st.status_name as status_label
+        st.status_name as status_label,
+        tp.id as treatment_plan_id, tp.plan_name as treatment_plan_name
         FROM appointments a 
         LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
         LEFT JOIN addresses addr ON p.address_id = addr.id
         LEFT JOIN services s ON a.service_id = s.id
         LEFT JOIN appointment_statuses st ON a.status_id = st.id
+        LEFT JOIN treatment_plans tp ON a.id = tp.appointment_id
+        WHERE (a.is_archived = 0 OR a.is_archived IS NULL)
         ORDER BY a.appointment_date DESC, a.id DESC";
     $allAppointments = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     
@@ -53,6 +65,7 @@ try {
     $totalPages = 1;
     $showingStart = 0;
     $showingEnd = 0;
+    $unavailableDates = [];
     error_log("Staff Appointments Error: " . $e->getMessage());
 }
 
@@ -140,7 +153,6 @@ require_once '../../includes/staff_layout_start.php';
 </div>
 
 <style>
-/* Responsive grid for summary cards */
 @media (max-width: 1200px) {
     .summary-cards {
         grid-template-columns: repeat(3, 1fr) !important;
@@ -158,201 +170,262 @@ require_once '../../includes/staff_layout_start.php';
         grid-template-columns: 1fr !important;
     }
 }
+
+.view-toggle { display: flex; gap: 8px; margin-left: auto; }
+.view-toggle-btn { padding: 8px 16px; border: 1px solid #d1d5db; background: white; cursor: pointer; font-size: 14px; font-weight: 500; color: #6b7280; border-radius: 6px; transition: all 0.2s; }
+.view-toggle-btn:hover { background: #f3f4f6; }
+.view-toggle-btn.active { background: #005daa; color: white; border-color: #005daa; }
+
+.calendar-view { display: none; }
+.calendar-view.active { display: block; }
+.list-view { display: block; }
+.list-view.hidden { display: none; }
+
+.staff-cal { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.staff-cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.staff-cal-title { font-size: 20px; font-weight: 700; color: #1a1a2e; }
+.staff-cal-nav { display: flex; gap: 8px; }
+.staff-cal-nav button { background: #f3f4f6; border: none; width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.2s; }
+.staff-cal-nav button:hover { background: #e5e7eb; }
+.staff-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.staff-cal-day-header { text-align: center; font-size: 12px; font-weight: 600; color: #6b7280; padding: 8px 0; text-transform: uppercase; }
+.staff-cal-day { min-height: 100px; padding: 8px; border: 1px solid #e5e7eb; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s; }
+.staff-cal-day:hover { border-color: #005daa; background: #f0f7ff; }
+.staff-cal-day.today { background: #dcf0ff; border-color: #005daa; }
+.staff-cal-day.empty { background: #f9fafb; cursor: default; border-color: #f3f4f6; }
+.staff-cal-day.empty:hover { background: #f9fafb; border-color: #f3f4f6; }
+.staff-cal-day.closed { background: #fef2f2; border-color: #fecaca; }
+.staff-cal-day .day-num { font-weight: 500; font-size: 14px; color: #374151; margin-bottom: 4px; }
+.staff-cal-day .appt-count { font-size: 11px; color: #005daa; background: #e0f2fe; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-bottom: 4px; }
+.staff-cal-day .appt-mini { font-size: 10px; color: #6b7280; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.staff-cal-day .closed-label { font-size: 11px; color: #dc2626; font-weight: 500; }
+
+.staff-cal-day-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; justify-content: center; align-items: center; }
+.staff-cal-day-modal.active { display: flex; }
+.staff-cal-day-modal-content { background: white; border-radius: 12px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+.staff-cal-day-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.staff-cal-day-modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280; }
+.staff-cal-day-modal-item { padding: 12px; border-bottom: 1px solid #f3f4f6; }
+.staff-cal-day-modal-item:last-child { border-bottom: none; }
 </style>
 
-<!-- Search & Filters -->
-<div class="search-filters">
-    <div class="filter-tabs">
-        <span class="active" data-filter="all">All</span>
-        <span data-filter="today">Today</span>
-        <span data-filter="week">This Week</span>
-        <span data-filter="month">This Month</span>
-    </div>
-    <input type="text" class="search-input" id="searchAppointment" placeholder="Search appointments...">
-    <div class="section-title">
-        
-        <button class="btn-primary" onclick="closeApptKebabDropdown(); prepareNewAppointmentModal()">+ New Appointment</button>
-    </div>
+<div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+    <button class="view-toggle-btn active" data-view="list">📋 List View</button>
+    <button class="view-toggle-btn" data-view="calendar">📅 Calendar View</button>
 </div>
 
-<?php if ($inquiryData): ?>
-<div style="background: #dbeafe; border: 1px solid #3b82f6; border-radius: 8px; padding: 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600" viewBox="0 0" fill="none" stroke="currentColor" stroke-width="2" stroke 24 24-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-    <span style="color: #1e40af; font-size: 0.9rem;">
-        <strong>Forwarded from Inquiry:</strong> <?php echo htmlspecialchars(trim(($inquiryData['first_name'] ?? '') . ' ' . ($inquiryData['middle_name'] ?? '') . ' ' . ($inquiryData['last_name'] ?? ''))); ?> (<?php echo htmlspecialchars($inquiryData['source'] ?? ''); ?>)
-    </span>
-    <a href="staff_inquiries.php" style="margin-left: auto; color: #2563eb; font-size: 0.875rem; text-decoration: none;">View Original Inquiry</a>
-</div>
-<?php endif; ?>
+<div class="list-view" id="listView">
+    <div class="search-filters">
+        <div class="filter-tabs">
+            <span class="active" data-filter="all">All</span>
+            <span data-filter="today">Today</span>
+            <span data-filter="week">This Week</span>
+            <span data-filter="month">This Month</span>
+        </div>
+        <input type="text" class="search-input" id="searchAppointment" placeholder="Search appointments...">
+        <div class="section-title">
+            <button class="btn-primary" onclick="closeApptKebabDropdown(); prepareNewAppointmentModal()">+ New Appointment</button>
+        </div>
+    </div>
 
-<!-- Appointments Table -->
-<div class="section-card">
-    
-    
-    <div style="overflow-x: auto;">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>First Name</th>
-                    <th>Middle Name</th>
-                    <th>Last Name</th>
-                    <th>Date & Time</th>
-                    <th>Treatment</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="appointmentsTableBody">
-                <?php if (empty($appointments)): ?>
+    <?php if ($inquiryData): ?>
+    <div style="background: #dbeafe; border: 1px solid #3b82f6; border-radius: 8px; padding: 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600" viewBox="0 0" fill="none" stroke="currentColor" stroke-width="2" stroke 24 24-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+        <span style="color: #1e40af; font-size: 0.9rem;">
+            <strong>Forwarded from Inquiry:</strong> <?php echo htmlspecialchars(trim(($inquiryData['first_name'] ?? '') . ' ' . ($inquiryData['middle_name'] ?? '') . ' ' . ($inquiryData['last_name'] ?? ''))); ?> (<?php echo htmlspecialchars($inquiryData['source'] ?? ''); ?>)
+        </span>
+        <a href="staff_inquiries.php" style="margin-left: auto; color: #2563eb; font-size: 0.875rem; text-decoration: none;">View Original Inquiry</a>
+    </div>
+    <?php endif; ?>
+
+    <div class="section-card">
+        <div style="overflow-x: auto;">
+            <table class="data-table">
+                <thead>
                     <tr>
-                        <td colspan="7" style="text-align: center; padding: 60px; color: #6b7280;">
-                            <p style="font-size: 1.1rem; margin-bottom: 8px;">No appointments found</p>
-                        </td>
+                        <th>First Name</th>
+                        <th>Middle Name</th>
+                        <th>Last Name</th>
+                        <th>Date & Time</th>
+                        <th>Treatment</th>
+                        <th>Status</th>
+                        <th>Actions</th>
                     </tr>
-                <?php else: ?>
-                    <?php foreach ($appointments as $appt): 
-                        $firstName = htmlspecialchars($appt['first_name'] ?? '');
-                        $middleName = htmlspecialchars($appt['middle_name'] ?? '');
-                        $lastName = htmlspecialchars($appt['last_name'] ?? '');
-                        $fullName = trim("$firstName $middleName $lastName") ?: 'Unknown';
-                        
-                       // Robust status resolution
-$statusId = (int)($appt['status_id'] ?? 0);
-$status = $appt['status_label'];
-
-// FORCE "In Queue" if the ID matches or the database string contains it
-if ($statusId === 2 || stripos($appt['status'] ?? '', 'Queue') !== false) {
-    $status = 'In Queue';
-}
-
-// Fallback logic
-if (!$status) {
-    if ($statusId === 1) $status = 'Scheduled';
-    elseif ($statusId === 2) $status = 'In Queue';
-    elseif ($statusId === 3) $status = 'Pending Payment';
-    elseif ($statusId === 4) $status = 'Completed';
-    elseif ($statusId === 5) $status = 'Cancelled';
-    else $status = $appt['status'] ?? 'Scheduled';
-}
-                    ?>
-                        <tr class="appointment-row" 
-                            data-name="<?php echo strtolower($fullName); ?>"
-                            data-date="<?php echo date('Y-m-d', strtotime($appt['appointment_date'])); ?>"
-                            data-status="<?php echo strtolower($status); ?>">
-                            <td><?php echo $firstName ?: '-'; ?></td>
-                            <td><?php echo $middleName ?: '-'; ?></td>
-                            <td><?php echo $lastName ?: '-'; ?></td>
-                            <td>
-                                <div><?php echo date('M d, Y', strtotime($appt['appointment_date'])); ?></div>
-                                <div style="font-size: 0.85rem; color: #6b7280;">
-                                    <?php 
-                                    $time = $appt['appointment_time'] ?? '';
-                                    if ($time) {
-                                        echo date('h:i A', strtotime($time));
-                                    } else {
-                                        echo 'N/A';
-                                    }
-                                    ?>
-                                </div>
-                            </td>
-                            <td><?php echo htmlspecialchars($appt['service_name'] ?? 'General'); ?></td>
-                            <td>
-                                <?php 
-                                    $badgeClass = 'status-scheduled';
-                                    if (stripos($status, 'arrived') !== false) $badgeClass = 'status-in-queue';
-                                    if (stripos($status, 'queue') !== false) $badgeClass = 'status-in-queue';
-                                    if (stripos($status, 'pending') !== false) $badgeClass = 'status-pending-payment';
-                                    if (stripos($status, 'complete') !== false) $badgeClass = 'status-completed';
-                                    if (stripos($status, 'cancel') !== false) $badgeClass = 'status-cancelled';
-                                ?>
-                                <span class="status-badge <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($status); ?></span>
-                            </td>
-                            <td>
-                                <div class="appt-kebab-menu">
-                                    <button class="appt-kebab-btn" data-appt-id="<?php echo $appt['id']; ?>">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                            <circle cx="12" cy="6" r="2"/>
-                                            <circle cx="12" cy="12" r="2"/>
-                                            <circle cx="12" cy="18" r="2"/>
-                                        </svg>
-                                    </button>
-                                </div>
+                </thead>
+                <tbody id="appointmentsTableBody">
+                    <?php if (empty($appointments)): ?>
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 60px; color: #6b7280;">
+                                <p style="font-size: 1.1rem; margin-bottom: 8px;">No appointments found</p>
                             </td>
                         </tr>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </tbody>
-        </table>
+                    <?php else: ?>
+                        <?php foreach ($appointments as $appt): 
+                            $firstName = htmlspecialchars($appt['first_name'] ?? '');
+                            $middleName = htmlspecialchars($appt['middle_name'] ?? '');
+                            $lastName = htmlspecialchars($appt['last_name'] ?? '');
+                            $fullName = trim("$firstName $middleName $lastName") ?: 'Unknown';
+                            
+                           $statusId = (int)($appt['status_id'] ?? 0);
+                            $status = $appt['status_label'];
+
+                            if ($statusId === 2 || stripos($appt['status'] ?? '', 'Queue') !== false) {
+                                $status = 'In Queue';
+                            }
+
+                            if (!$status) {
+                                if ($statusId === 1) $status = 'Scheduled';
+                                elseif ($statusId === 2) $status = 'In Queue';
+                                elseif ($statusId === 3) $status = 'Pending Payment';
+                                elseif ($statusId === 4) $status = 'Completed';
+                                elseif ($statusId === 5) $status = 'Cancelled';
+                                else $status = $appt['status'] ?? 'Scheduled';
+                            }
+                        ?>
+                            <tr class="appointment-row" 
+                                data-name="<?php echo strtolower($fullName); ?>"
+                                data-date="<?php echo date('Y-m-d', strtotime($appt['appointment_date'])); ?>"
+                                data-status="<?php echo strtolower($status); ?>">
+                                <td><?php echo $firstName ?: '-'; ?></td>
+                                <td><?php echo $middleName ?: '-'; ?></td>
+                                <td><?php echo $lastName ?: '-'; ?></td>
+                                <td>
+                                    <div><?php echo date('M d, Y', strtotime($appt['appointment_date'])); ?></div>
+                                    <div style="font-size: 0.85rem; color: #6b7280;">
+                                        <?php 
+                                        $time = $appt['appointment_time'] ?? '';
+                                        if ($time) {
+                                            echo date('h:i A', strtotime($time));
+                                        } else {
+                                            echo 'N/A';
+                                        }
+                                        ?>
+                                    </div>
+                                </td>
+                                <td>
+                                    <?php echo htmlspecialchars($appt['service_name'] ?? 'General'); ?>
+                                    <?php if (!empty($appt['treatment_plan_id'])): ?>
+                                        <br><span class="status-badge" style="background: #fef3c7; color: #92400e; font-size: 0.7rem; margin-top: 4px; display: inline-block;">📋 Treatment Plan</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php 
+                                        $badgeClass = 'status-scheduled';
+                                        if (stripos($status, 'arrived') !== false) $badgeClass = 'status-in-queue';
+                                        if (stripos($status, 'queue') !== false) $badgeClass = 'status-in-queue';
+                                        if (stripos($status, 'pending') !== false) $badgeClass = 'status-pending-payment';
+                                        if (stripos($status, 'complete') !== false) $badgeClass = 'status-completed';
+                                        if (stripos($status, 'cancel') !== false) $badgeClass = 'status-cancelled';
+                                    ?>
+                                    <span class="status-badge <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($status); ?></span>
+                                </td>
+                                <td>
+                                    <div class="appt-kebab-menu">
+                                        <button class="appt-kebab-btn" 
+                                                data-appt-id="<?php echo $appt['id']; ?>"
+                                                data-status-id="<?php echo $appt['status_id'] ?? ''; ?>"
+                                                data-status="<?php echo htmlspecialchars($status); ?>">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                                <circle cx="12" cy="6" r="2"/>
+                                                <circle cx="12" cy="12" r="2"/>
+                                                <circle cx="12" cy="18" r="2"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="pagination">
+        <span class="pagination-info">Showing <?php echo $showingStart; ?>-<?php echo $showingEnd; ?> of <?php echo $totalAppointments; ?> appointments</span>
+        <div class="pagination-buttons">
+            <?php if ($currentPage > 1): ?>
+                <a href="?page=<?php echo $currentPage - 1; ?>" class="pagination-btn">Previous</a>
+            <?php else: ?>
+                <button class="pagination-btn" disabled>Previous</button>
+            <?php endif; ?>
+            
+            <?php
+            $maxVisiblePages = 5;
+            $startPage = max(1, $currentPage - floor($maxVisiblePages / 2));
+            $endPage = min($totalPages, $startPage + $maxVisiblePages - 1);
+            
+            if ($endPage - $startPage + 1 < $maxVisiblePages) {
+                $startPage = max(1, $endPage - $maxVisiblePages + 1);
+            }
+            
+            if ($startPage > 1) {
+                ?>
+                <a href="?page=1" class="pagination-btn">1</a>
+                <?php
+                if ($startPage > 2) {
+                    ?>
+                    <span class="pagination-ellipsis">...</span>
+                    <?php
+                }
+            }
+            
+            for ($i = $startPage; $i <= $endPage; $i++) {
+                if ($i == $currentPage) {
+                    ?>
+                    <button class="pagination-btn active"><?php echo $i; ?></button>
+                    <?php
+                } else {
+                    ?>
+                    <a href="?page=<?php echo $i; ?>" class="pagination-btn"><?php echo $i; ?></a>
+                    <?php
+                }
+            }
+            
+            if ($endPage < $totalPages) {
+                if ($endPage < $totalPages - 1) {
+                    ?>
+                    <span class="pagination-ellipsis">...</span>
+                    <?php
+                }
+                ?>
+                <a href="?page=<?php echo $totalPages; ?>" class="pagination-btn"><?php echo $totalPages; ?></a>
+                <?php
+            }
+            ?>
+            
+            <?php if ($currentPage < $totalPages): ?>
+                <a href="?page=<?php echo $currentPage + 1; ?>" class="pagination-btn">Next</a>
+            <?php else: ?>
+                <button class="pagination-btn" disabled>Next</button>
+            <?php endif; ?>
+        </div>
     </div>
 </div>
 
-<!-- Pagination -->
-<div class="pagination">
-    <span class="pagination-info">Showing <?php echo $showingStart; ?>-<?php echo $showingEnd; ?> of <?php echo $totalAppointments; ?> appointments</span>
-    <div class="pagination-buttons">
-        <?php if ($currentPage > 1): ?>
-            <a href="?page=<?php echo $currentPage - 1; ?>" class="pagination-btn">Previous</a>
-        <?php else: ?>
-            <button class="pagination-btn" disabled>Previous</button>
-        <?php endif; ?>
-        
-        <?php
-        // Smart page number display
-        $maxVisiblePages = 5;
-        $startPage = max(1, $currentPage - floor($maxVisiblePages / 2));
-        $endPage = min($totalPages, $startPage + $maxVisiblePages - 1);
-        
-        // Adjust start page if we're near the end
-        if ($endPage - $startPage + 1 < $maxVisiblePages) {
-            $startPage = max(1, $endPage - $maxVisiblePages + 1);
-        }
-        
-        // Always show page 1
-        if ($startPage > 1) {
-            ?>
-            <a href="?page=1" class="pagination-btn">1</a>
-            <?php
-            if ($startPage > 2) {
-                ?>
-                <span class="pagination-ellipsis">...</span>
-                <?php
-            }
-        }
-        
-        for ($i = $startPage; $i <= $endPage; $i++) {
-            if ($i == $currentPage) {
-                ?>
-                <button class="pagination-btn active"><?php echo $i; ?></button>
-                <?php
-            } else {
-                ?>
-                <a href="?page=<?php echo $i; ?>" class="pagination-btn"><?php echo $i; ?></a>
-                <?php
-            }
-        }
-        
-        // Always show last page
-        if ($endPage < $totalPages) {
-            if ($endPage < $totalPages - 1) {
-                ?>
-                <span class="pagination-ellipsis">...</span>
-                <?php
-            }
-            ?>
-            <a href="?page=<?php echo $totalPages; ?>" class="pagination-btn"><?php echo $totalPages; ?></a>
-            <?php
-        }
-        ?>
-        
-        <?php if ($currentPage < $totalPages): ?>
-            <a href="?page=<?php echo $currentPage + 1; ?>" class="pagination-btn">Next</a>
-        <?php else: ?>
-            <button class="pagination-btn" disabled>Next</button>
-        <?php endif; ?>
+<div class="calendar-view" id="calendarView">
+    <div class="staff-cal">
+        <div class="staff-cal-header">
+            <h3 class="staff-cal-title" id="staffCalMonthYear"></h3>
+            <div class="staff-cal-nav">
+                <button onclick="changeStaffCalMonth(-1)">&#9664;</button>
+                <button onclick="changeStaffCalMonth(1)">&#9654;</button>
+            </div>
+        </div>
+        <div class="staff-cal-grid" id="staffCalGrid"></div>
     </div>
 </div>
 
- <!-- View Appointment Modal -->
+<div class="staff-cal-day-modal" id="staffCalDayModal">
+    <div class="staff-cal-day-modal-content">
+        <div class="staff-cal-day-modal-header">
+            <h3 id="staffCalDayTitle">Appointments</h3>
+            <button class="staff-cal-day-modal-close" onclick="closeStaffCalDayModal()">&times;</button>
+        </div>
+        <div id="staffCalDayContent"></div>
+    </div>
+</div>
+
 <div id="viewAppointmentModal" class="modal-overlay">
     <div class="modal" style="width: 500px;">
         <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Appointment Details</h2>
@@ -364,7 +437,6 @@ if (!$status) {
     </div>
 </div>
 
-<!-- New Appointment Modal -->
 <div id="appointmentModal" class="modal-overlay">
     <div class="modal" style="width: 550px;">
         <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Schedule New Appointment</h2>
@@ -432,7 +504,6 @@ if (!$status) {
 </div>
 
 <style>
-/* Pagination Styles - Matching Admin Style */
 .pagination {
     display: flex;
     justify-content: space-between;
@@ -495,7 +566,6 @@ if (!$status) {
     padding: 0 4px;
 }
 
-/* Appointment Kebab Menu Styles - Portal Based */
 .appt-kebab-menu {
     position: relative;
     display: inline-block;
@@ -632,7 +702,6 @@ if (!$status) {
     display: block;
 }
 
-/* Modal Styles - Portal Pattern */
 .modal-overlay {
     display: none;
     position: fixed;
@@ -660,15 +729,12 @@ if (!$status) {
     position: relative;
     z-index: 100000;
 }
-
-
 </style>
 
 <script>
     const appointments = <?php echo json_encode($appointments); ?>;
+    const unavailableDates = <?php echo json_encode($unavailableDates); ?>;
 
-    // Portal Pattern: Move modals to body level to escape stacking context
-    // This ensures modals appear above sidebar and all other elements
     (function() {
         const viewAppointmentModal = document.getElementById('viewAppointmentModal');
         const appointmentModal = document.getElementById('appointmentModal');
@@ -682,10 +748,8 @@ if (!$status) {
     })();
 
     document.addEventListener('DOMContentLoaded', function() {
-        // Initialize kebab dropdown elements early
         createApptKebabDropdown();
         
-        // Add global click handler for kebab menu
         document.addEventListener('click', function(e) {
             const button = e.target.closest('.appt-kebab-btn');
             if (button) {
@@ -705,7 +769,6 @@ if (!$status) {
             }
         });
         
-        // Filter tabs click handler
         document.querySelectorAll('.filter-tabs span').forEach(tab => {
             tab.addEventListener('click', function() {
                 closeApptKebabDropdown();
@@ -715,16 +778,166 @@ if (!$status) {
             });
         });
 
-        // Search input handler
         document.getElementById('searchAppointment').addEventListener('input', function() {
             closeApptKebabDropdown();
             filterAppointments();
         });
         
-        // Auto-open modal if forwarded from inquiry
+        document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                const view = this.dataset.view;
+                if (view === 'list') {
+                    document.getElementById('listView').classList.remove('hidden');
+                    document.getElementById('calendarView').classList.remove('active');
+                } else {
+                    document.getElementById('listView').classList.add('hidden');
+                    document.getElementById('calendarView').classList.add('active');
+                    initStaffCalendar();
+                }
+            });
+        });
+        
         <?php if ($showModal): ?>
         openAppointmentModal();
         <?php endif; ?>
+    });
+
+    let staffCalYear, staffCalMonth;
+    function initStaffCalendar() {
+        const today = new Date();
+        staffCalYear = today.getFullYear();
+        staffCalMonth = today.getMonth();
+        renderStaffCalendar();
+    }
+
+    function changeStaffCalMonth(dir) {
+        staffCalMonth += dir;
+        if (staffCalMonth < 0) { staffCalMonth = 11; staffCalYear--; }
+        if (staffCalMonth > 11) { staffCalMonth = 0; staffCalYear++; }
+        renderStaffCalendar();
+    }
+
+    function renderStaffCalendar() {
+        document.getElementById('staffCalMonthYear').textContent = new Date(staffCalYear, staffCalMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        
+        const grid = document.getElementById('staffCalGrid');
+        grid.innerHTML = '';
+        
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        days.forEach(d => {
+            const h = document.createElement('div');
+            h.className = 'staff-cal-day-header';
+            h.textContent = d;
+            grid.appendChild(h);
+        });
+        
+        const firstDay = new Date(staffCalYear, staffCalMonth, 1).getDay();
+        const totalDays = new Date(staffCalYear, staffCalMonth + 1, 0).getDate();
+        const prevDays = new Date(staffCalYear, staffCalMonth, 0).getDate();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        for (let i = firstDay - 1; i >= 0; i--) {
+            const d = document.createElement('div');
+            d.className = 'staff-cal-day empty';
+            d.textContent = prevDays - i;
+            grid.appendChild(d);
+        }
+        
+        const apptByDate = {};
+        appointments.forEach(appt => {
+            const date = String(appt.appointment_date).split(' ')[0];
+            if (!apptByDate[date]) apptByDate[date] = [];
+            apptByDate[date].push(appt);
+        });
+        
+        for (let i = 1; i <= totalDays; i++) {
+            const d = document.createElement('div');
+            const dateStr = `${staffCalYear}-${String(staffCalMonth + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+            const dateObj = new Date(staffCalYear, staffCalMonth, i);
+            
+            d.className = 'staff-cal-day';
+            d.dataset.date = dateStr;
+            
+            if (dateObj.getTime() === today.getTime()) {
+                d.classList.add('today');
+            }
+            
+            const closedEntry = unavailableDates.find(e => e.date === dateStr);
+            if (closedEntry && closedEntry.status === 'closed') {
+                d.classList.add('closed');
+                d.innerHTML = `<div class="day-num">${i}</div><div class="closed-label">Closed</div>`;
+            } else {
+                const appts = apptByDate[dateStr] || [];
+                let html = `<div class="day-num">${i}</div>`;
+                if (appts.length > 0) {
+                    html += `<div class="appt-count">${appts.length} appointment${appts.length > 1 ? 's' : ''}</div>`;
+                    appts.slice(0, 3).forEach(appt => {
+                        const time = appt.appointment_time ? new Date('1970-01-01 ' + appt.appointment_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
+                        const name = (appt.first_name || '') + ' ' + (appt.last_name || '');
+                        html += `<div class="appt-mini">${time} - ${name.trim()}</div>`;
+                    });
+                    if (appts.length > 3) {
+                        html += `<div class="appt-mini">+${appts.length - 3} more</div>`;
+                    }
+                }
+                d.innerHTML = html;
+            }
+            
+            d.addEventListener('click', () => openStaffCalDayModal(dateStr, apptByDate[dateStr] || [], closedEntry));
+            grid.appendChild(d);
+        }
+        
+        const remaining = 42 - (firstDay + totalDays);
+        for (let i = 1; i <= remaining; i++) {
+            const d = document.createElement('div');
+            d.className = 'staff-cal-day empty';
+            d.textContent = i;
+            grid.appendChild(d);
+        }
+    }
+
+    function openStaffCalDayModal(dateStr, appts, closedEntry) {
+        const formatted = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        document.getElementById('staffCalDayTitle').textContent = formatted;
+        
+        const content = document.getElementById('staffCalDayContent');
+        
+        if (closedEntry && closedEntry.status === 'closed') {
+            content.innerHTML = `<p style="color: #dc2626; font-weight: 500;">Clinic is closed${closedEntry.note ? ' - ' + closedEntry.note : ''}</p>`;
+        } else if (appts.length === 0) {
+            content.innerHTML = '<p style="color: #6b7280;">No appointments for this day</p>';
+        } else {
+            let html = '';
+            appts.forEach(appt => {
+                const time = appt.appointment_time ? new Date('1970-01-01 ' + appt.appointment_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'N/A';
+                const name = [appt.first_name, appt.middle_name, appt.last_name].filter(n => n).join(' ') || 'Unknown';
+                const status = appt.status_label || appt.status || 'Scheduled';
+                html += `<div class="staff-cal-day-modal-item">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 500;">${name}</div>
+                            <div style="font-size: 14px; color: #6b7280;">${time} - ${appt.service_name || 'General'}</div>
+                        </div>
+                        <span class="status-badge status-${status.toLowerCase().replace(' ', '-')}">${status}</span>
+                    </div>
+                </div>`;
+            });
+            content.innerHTML = html;
+        }
+        
+        document.getElementById('staffCalDayModal').classList.add('active');
+    }
+
+    function closeStaffCalDayModal() {
+        document.getElementById('staffCalDayModal').classList.remove('active');
+    }
+
+    document.getElementById('staffCalDayModal').addEventListener('click', function(e) {
+        if (e.target === this) closeStaffCalDayModal();
     });
 
     function filterAppointments() {
@@ -791,7 +1004,6 @@ if (!$status) {
         e.preventDefault();
         const formData = new FormData(this);
         
-        // Debug: log form data
         for (var pair of formData.entries()) {
             console.log(pair[0]+ ', '+ pair[1]); 
         }
@@ -859,11 +1071,9 @@ if (!$status) {
     }
 
     function cancelAppointment(id) {
-        // Open cancel reason modal
         openCancelReasonModal(id);
     }
 
-    // Cancel Reason Modal
     let cancelAppointmentId = null;
     
     function openCancelReasonModal(id) {
@@ -924,7 +1134,6 @@ if (!$status) {
         closeCancelReasonModal();
     }
 
-    // Appointment Kebab Menu Functions - Portal Based
     let apptKebabDropdown = null;
     let apptKebabBackdrop = null;
     let apptActiveButtonId = null;
@@ -944,7 +1153,13 @@ if (!$status) {
     }
 
     function getApptMenuItems(apptId) {
-        return `
+        // Get status from the button's data attributes
+        const button = document.querySelector(`.appt-kebab-btn[data-appt-id="${apptId}"]`);
+        const statusId = button ? parseInt(button.getAttribute('data-status-id')) : 0;
+        const status = button ? button.getAttribute('data-status') : '';
+        const isCancelled = (statusId == 5 || (status && status.toLowerCase().includes('cancel')));
+        
+        let menuItems = `
             <a href="javascript:void(0)" data-action="view" data-id="${apptId}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -967,15 +1182,33 @@ if (!$status) {
                 </svg>
                 Forward to Queue
             </a>
-            <a href="javascript:void(0)" onclick="openCancelReasonModal(${apptId})" class="danger">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="15" y1="9" x2="9" y2="15"/>
-                    <line x1="9" y1="9" x2="15" y2="15"/>
-                </svg>
-                Cancel Appointment
-            </a>
         `;
+        
+        // Show Delete button if cancelled, Cancel button if not
+        if (isCancelled) {
+            menuItems += `
+                <a href="javascript:void(0)" onclick="deleteAppointment(${apptId})" class="danger">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                    Delete Appointment
+                </a>
+            `;
+        } else {
+            menuItems += `
+                <a href="javascript:void(0)" onclick="openCancelReasonModal(${apptId})" class="danger">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="15" y1="9" x2="9" y2="15"/>
+                        <line x1="9" y1="9" x2="15" y2="15"/>
+                    </svg>
+                    Cancel Appointment
+                </a>
+            `;
+        }
+        
+        return menuItems;
     }
 
     function positionApptKebabDropdown(button) {
@@ -986,23 +1219,19 @@ if (!$status) {
         const viewportHeight = window.innerHeight;
         const padding = 12;
 
-        // Measure dropdown size by temporarily showing it invisibly
         apptKebabDropdown.style.display = 'block';
         apptKebabDropdown.style.visibility = 'hidden';
         const dropdownRect = apptKebabDropdown.getBoundingClientRect();
         const dropdownWidth = dropdownRect.width || 200;
         const dropdownHeight = dropdownRect.height || 120;
 
-        // Prefer left side of the button, vertically centered
         let left = rect.left - dropdownWidth - 8;
         let top = rect.top + (rect.height / 2) - (dropdownHeight / 2);
 
-        // If it overflows on the left, place it on the right
         if (left < padding) {
             left = rect.right + 8;
         }
 
-        // Clamp vertical position
         if (top + dropdownHeight > viewportHeight - padding) {
             top = viewportHeight - padding - dropdownHeight;
         }
@@ -1023,7 +1252,6 @@ if (!$status) {
         const apptId = button.dataset.apptId;
         const btnId = 'appt-btn-' + apptId;
         
-        // Remove active class from previous button
         if (apptActiveButtonId) {
             const prevBtn = document.getElementById(apptActiveButtonId);
             if (prevBtn) prevBtn.classList.remove('active');
@@ -1070,7 +1298,6 @@ if (!$status) {
 
         closeApptKebabDropdown();
         
-        // Ensure dropdown is fully hidden before action
         setTimeout(() => {
             switch (action) {
                 case 'view':
@@ -1125,10 +1352,8 @@ if (!$status) {
         if (!appt) return;
         
         if (confirm('Forward this appointment to Queue?\n\nThis will open the admission form where you can select the service and teeth before adding to the queue.')) {
-            // Build URL with patient data in query params
             let url = 'staff_new_admission.php?appointment_id=' + id;
             
-            // Add all patient data to URL
             if (appt.first_name) url += '&first_name=' + encodeURIComponent(appt.first_name);
             if (appt.middle_name) url += '&middle_name=' + encodeURIComponent(appt.middle_name);
             if (appt.last_name) url += '&last_name=' + encodeURIComponent(appt.last_name);
@@ -1146,23 +1371,36 @@ if (!$status) {
     }
 
     function deleteAppointment(id) {
-        if (confirm('Are you sure you want to archive this appointment?\n\nIt will be moved to the Archive page where admin can restore or permanently delete it.')) {
-            fetch('delete_appointment.php', {
+        if (confirm('Are you sure you want to archive this appointment?\n\nThis will move it to the Archive page where admin can restore or permanently delete it.')) {
+            fetch('../api/delete_appointment.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: id, action: 'archive' })
+                body: JSON.stringify({ id: id, action: 'archive' }),
+                credentials: 'same-origin'
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('Delete response status:', response.status);
+                return response.text().then(text => {
+                    console.log('Delete response text:', text);
+                    try {
+                        const data = JSON.parse(text);
+                        return data;
+                    } catch (e) {
+                        throw new Error('Invalid JSON response: ' + text);
+                    }
+                });
+            })
             .then(data => {
+                console.log('Delete response data:', data);
                 if (data.success) {
                     location.reload();
                 } else {
-                    alert(data.message || 'Error deleting appointment');
+                    alert('Error: ' + (data.message || 'Unknown error'));
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
-                alert('Error deleting appointment');
+                console.error('Delete Error:', error);
+                alert('Error deleting appointment: ' + error.message);
             });
         }
     }

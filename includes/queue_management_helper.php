@@ -53,14 +53,26 @@ function ensureQueueManagementSchema(PDO $pdo): void
         'appointment_id' => "ALTER TABLE queue ADD COLUMN appointment_id INT NULL AFTER patient_id",
         'queue_number' => "ALTER TABLE queue ADD COLUMN queue_number INT NULL AFTER appointment_id",
         'queue_label' => "ALTER TABLE queue ADD COLUMN queue_label VARCHAR(20) NULL AFTER queue_number",
-        'queue_date' => "ALTER TABLE queue ADD COLUMN queue_date DATE NULL AFTER queue_label"
+        'queue_date' => "ALTER TABLE queue ADD COLUMN queue_date DATE NULL AFTER queue_label",
+        'status_id' => "ALTER TABLE queue ADD COLUMN status_id INT NULL DEFAULT 1 AFTER status"
     ];
 
     foreach ($requiredColumns as $field => $sql) {
         if (!isset($columns[$field])) {
-            $pdo->exec($sql);
-            $columns[$field] = ['Field' => $field];
+            try {
+                $pdo->exec($sql);
+                $columns[$field] = ['Field' => $field];
+            } catch (Exception $e) {
+                // Column might already exist or error, continue
+            }
         }
+    }
+    
+    // Add foreign key for status_id if it doesn't exist
+    try {
+        $pdo->exec("ALTER TABLE queue ADD CONSTRAINT fk_queue_status FOREIGN KEY (status_id) REFERENCES queue_statuses(id) ON DELETE SET NULL ON UPDATE CASCADE");
+    } catch (Exception $e) {
+        // FK might already exist
     }
 
     $indexes = [];

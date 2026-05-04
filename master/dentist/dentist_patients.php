@@ -281,16 +281,16 @@ try {
 
 
 <!-- Patient Details Modal - Full Screen -->
-<div id="patientModal" class="fullscreen-modal-overlay">
-    <div class="fullscreen-modal-content">
-        <div class="fullscreen-modal-header">
+<div id="patientModal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
             <div>
                 <h2 style="font-size: 1.5rem; font-weight: 600; margin: 0;">Patient Record Details</h2>
                 <p id="dentistModalPatientName" style="color: #6b7280; margin: 4px 0 0 0; font-size: 0.9rem;"></p>
             </div>
-            <button onclick="closePatientModal()" class="fullscreen-modal-close">&times;</button>
+            <button onclick="closePatientModal()" class="modal-close">&times;</button>
         </div>
-        <div class="fullscreen-modal-body" id="patientModalContent">
+        <div class="modal-body" id="patientModalContent">
             <!-- Content loaded dynamically -->
         </div>
     </div>
@@ -303,33 +303,53 @@ const patients = <?php echo json_encode($patients); ?>;
 // Portal Pattern: Move modal to body level to escape stacking context
 // This ensures modal appears above sidebar and all other elements
 document.addEventListener('DOMContentLoaded', function() {
-    // 1. Move Patient Modal
+    // Portal Pattern: Move modal to body level to escape stacking context
+    // This ensures modal appears above sidebar and all other elements
+
+    // 1. Move Patient Details Modal
     const patientModal = document.getElementById('patientModal');
     if (patientModal) {
         document.body.appendChild(patientModal);
-        
         // Set up close handlers after modal is moved
         patientModal.addEventListener('click', function(e) {
             if (e.target === patientModal) closePatientModal();
         });
     }
 
-    // 2. Move Billing Modal (This fixes your issue)
+    // 2. Move Billing Modal
     const billingModal = document.getElementById('billingModal');
     if (billingModal) {
         document.body.appendChild(billingModal);
+        billingModal.addEventListener('click', function(e) {
+            if (e.target === billingModal) closeBillingModal();
+        });
     }
 
-    // 3. Move Appointment Modal (To prevent it from doing the same thing)
+    // 3. Move Appointment Modal
     const appointmentModal = document.getElementById('appointmentModal');
     if (appointmentModal) {
         document.body.appendChild(appointmentModal);
+        appointmentModal.addEventListener('click', function(e) {
+            if (e.target === appointmentModal) closeAddAppointmentModal();
+        });
     }
     
     // 4. Move Treatment Plan Modal
     const treatmentPlanModal = document.getElementById('treatmentPlanModal');
     if (treatmentPlanModal) {
         document.body.appendChild(treatmentPlanModal);
+        treatmentPlanModal.addEventListener('click', function(e) {
+            if (e.target === treatmentPlanModal) closeTreatmentPlanModal();
+        });
+    }
+
+    // 5. Move Patient Prescription Modal
+    const patientPrescriptionModal = document.getElementById('patientPrescriptionModal');
+    if (patientPrescriptionModal) {
+        document.body.appendChild(patientPrescriptionModal);
+        patientPrescriptionModal.addEventListener('click', function(e) {
+            if (e.target === patientPrescriptionModal) closePatientPrescriptionModal();
+        });
     }
 });
 
@@ -374,19 +394,32 @@ function viewPatientDetails(patientId) {
     console.log('View Details clicked for patient:', patientId);
     closePatientKebabDropdown();
     
+    const modalContent = document.getElementById('patientModalContent');
+    modalContent.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280;">Loading patient records...</div>';
+    document.getElementById('patientModal').style.display = 'flex';
+    
     fetch('../user-patient/patient_record_details.php?id=' + patientId)
     .then(response => {
-        console.log('Response status:', response.status);
+        if (!response.ok) throw new Error('Network error');
         return response.json();
     })
     .then(data => {
-        console.log('Response data:', data);
-        if (data.success) {
-            const p = data.patient;
-            const m = data.medical_history || {};
-            const d = data.dental_history || {};
-            const q = data.queue_item || {};
+        if (!data.success) {
+            modalContent.innerHTML = `
+                <div style="text-align:center;padding:40px;color:#dc2626;">
+                    <p style="font-size:1.1rem;font-weight:600;">Error: ${data.message || 'Unable to load patient details'}</p>
+                    <button onclick="closePatientModal()" style="margin-top:16px;padding:10px 20px;background:#6b7280;color:white;border:none;border-radius:8px;cursor:pointer;">Close</button>
+                </div>`;
+            return;
+        }
+        
+        const p = data.patient;
+        const m = data.medical_history || {};
+        const dentalHistory = data.dental_history || [];
+        const completedPlans = data.completed_plans || [];
+        const q = data.queue_item || {};
             
+            {
             const allergies = m.allergies || 'None';
             const medications = m.current_medications || 'None';
             const medicalConditions = m.medical_conditions || 'None';
@@ -499,48 +532,65 @@ function viewPatientDetails(patientId) {
                 </div>
                 ` : ''}
 
-                <!-- Dental History -->
-                <div style="background: #f9fafb; border-radius: 12px; padding: 20px;">
-                    <h3 style="font-size: 1rem; font-weight: 600; color: #374151; margin-bottom: 16px;">📜 Dental History</h3>
-                    <div class="patient-info-grid">
-                        <div class="patient-info-item">
-                            <div class="patient-info-label">Previous Dentist</div>
-                            <div class="patient-info-value">${d.previous_dentist || 'N/A'}</div>
+                <!-- Dental History - Past Treatments -->
+                <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-top: 20px;">
+                    <h3 style="font-size: 1rem; font-weight: 600; color: #374151; margin-bottom: 16px;">📜 Dental History - Past Treatments</h3>
+                    ${dentalHistory.length > 0 ? `
+                        <div style="display:flex;flex-direction:column;gap:12px;">
+                            ${dentalHistory.map(treatment => {
+                                const dentistName = treatment.dentist_first_name && treatment.dentist_last_name 
+                                    ? `Dr. ${treatment.dentist_first_name} ${treatment.dentist_last_name}` 
+                                    : 'Unknown Dentist';
+                                const completedDate = treatment.completed_at ? new Date(treatment.completed_at) : null;
+                                const treatmentDate = completedDate 
+                                    ? completedDate.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
+                                    : (treatment.treatment_date || 'N/A');
+                                const treatmentTime = completedDate 
+                                    ? completedDate.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })
+                                    : (treatment.treatment_time || '');
+                                return `
+                                    <div style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:16px;">
+                                        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+                                            <div>
+                                                <div style="font-weight:600;color:#111827;font-size:1rem;">${treatment.treatment_type || 'Treatment'}</div>
+                                                <div style="font-size:0.85rem;color:#6b7280;margin-top:4px;">🦷 Teeth: ${treatment.teeth_numbers || 'N/A'}</div>
+                                            </div>
+                                            <div style="text-align:right;">
+                                                <div style="font-size:0.8rem;color:#6b7280;">${treatmentDate}</div>
+                                                ${treatmentTime ? `<div style="font-size:0.75rem;color:#0ea5e9;font-weight:500;">⏰ ${treatmentTime}</div>` : ''}
+                                            </div>
+                                        </div>
+                                        <div style="font-size:0.85rem;color:#059669;font-weight:500;padding-top:8px;border-top:1px solid #f3f4f6;">👨‍⚕️ ${dentistName}</div>
+                                    </div>
+                                `;
+                            }).join('')}
                         </div>
-                        <div class="patient-info-item">
-                            <div class="patient-info-label">Last Visit</div>
-                            <div class="patient-info-value">${d.last_visit_date || 'N/A'}</div>
-                        </div>
-                        <div class="patient-info-item" style="grid-column: 1 / -1;">
-                            <div class="patient-info-label">Current Complaints</div>
-                            <div class="patient-info-value">${d.current_complaints || 'None'}</div>
-                        </div>
-                        <div class="patient-info-item" style="grid-column: 1 / -1;">
-                            <div class="patient-info-label">Previous Treatments</div>
-                            <div class="patient-info-value">${d.previous_treatments || 'None'}</div>
-                        </div>
-                    </div>
+                    ` : `
+                        <p style="color:#6b7280;text-align:center;padding:20px;background:#f3f4f6;border-radius:8px;">No previous treatment records found.</p>
+                    `}
                 </div>
                 
                 <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px;">
                     <button onclick="closePatientModal()" class="btn-cancel">Close</button>
                 </div>
-            `;
-            
-            document.getElementById('patientModal').classList.add('active');
-        } else {
-            console.error('Error loading patient:', data.message);
-            alert('Error loading patient: ' + data.message);
-        }
+`;
+
+            document.getElementById('patientModal').style.display = 'flex';
+            }
     })
     .catch(error => {
         console.error('Fetch error:', error);
-        alert('Error loading patient details. Please check console for details.');
+        modalContent.innerHTML = `
+            <div style="text-align:center;padding:40px;color:#dc2626;">
+                <p style="font-size:1.1rem;font-weight:600;">Error loading patient details</p>
+                <p style="color:#6b7280;">Please try again later.</p>
+                <button onclick="closePatientModal()" style="margin-top:16px;padding:10px 20px;background:#6b7280;color:white;border:none;border-radius:8px;cursor:pointer;">Close</button>
+            </div>`;
     });
 }
 
 function closePatientModal() {
-    document.getElementById('patientModal').classList.remove('active');
+    document.getElementById('patientModal').style.display = 'none';
 }
 
 // ESC key to close modal
@@ -721,73 +771,18 @@ function openPatientPrescriptionModal(patientId) {
     closePatientKebabDropdown();
     document.body.style.overflow = 'hidden';
     
-    // Create prescription modal
-    const modal = document.createElement('div');
-    modal.className = 'modal-overlay';
+    const modal = document.getElementById('patientPrescriptionModal');
     modal.style.display = 'flex';
-    modal.innerHTML = `
-        <div class="modal modal-prescription">
-            <div class="modal-header">
-                <h2>💊 New Prescription</h2>
-                <button class="modal-close" onclick="closePatientPrescriptionModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div id="patientPrescriptionSafetyInfo" class="safety-info" style="display: none;">
-                    <h3>👤 Patient Information</h3>
-                    <div class="safety-grid">
-                        <div class="safety-item">
-                            <strong>Name:</strong>
-                            <span id="patientPrescriptionName"></span>
-                        </div>
-                        <div class="safety-item">
-                            <strong>Age:</strong>
-                            <span id="patientPrescriptionAge"></span>
-                        </div>
-                        <div class="safety-item">
-                            <strong>Allergies:</strong>
-                            <span id="patientPrescriptionAllergies" class="warning-text"></span>
-                        </div>
-                        <div class="safety-item">
-                            <strong>Current Medications:</strong>
-                            <span id="patientPrescriptionMeds" class="info-text"></span>
-                        </div>
-                    </div>
-                </div>
-                
-                <form id="patientPrescriptionForm">
-                    <input type="hidden" id="patientPrescriptionPatientId" name="patient_id" value="${patientId}">
-                    
-                    <div class="form-group">
-                        <label>Issue Date:</label>
-                        <input type="date" name="issue_date" value="${new Date().toISOString().split('T')[0]}" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Diagnosis:</label>
-                        <textarea name="diagnosis" rows="3" required placeholder="Reason for prescription..."></textarea>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Medications:</label>
-                        <textarea name="medications" rows="4" required placeholder="e.g., Amoxicillin 500mg - 3 times daily for 7 days"></textarea>
-                        <small>Enter medication details including dosage, frequency, and duration</small>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Instructions:</label>
-                        <textarea name="instructions" rows="3" placeholder="Additional patient instructions..."></textarea>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-cancel" onclick="closePatientPrescriptionModal()">Cancel</button>
-                <button type="button" class="btn-primary" onclick="savePatientPrescription()">Save Prescription</button>
-            </div>
-        </div>
-    `;
     
-    document.body.appendChild(modal);
+    // Reset form and populate fields
+    document.getElementById('patientPrescriptionForm').reset();
+    document.getElementById('patientPrescriptionId').value = '';
+    document.getElementById('patientPrescriptionPatientId').value = patientId;
+    document.getElementById('patientPrescriptionIssueDate').value = new Date().toISOString().split('T')[0];
     
+    // Clear safety info display
+    document.getElementById('patientPrescriptionSafetyInfo').style.display = 'none';
+
     // Load patient safety info
     fetch('prescription_actions.php', {
         method: 'POST',
@@ -810,14 +805,10 @@ function openPatientPrescriptionModal(patientId) {
 }
 
 function closePatientPrescriptionModal() {
-    const modal = document.querySelector('.modal-overlay');
+    const modal = document.getElementById('patientPrescriptionModal');
     if (modal) {
-        modal.style.opacity = '0';
-        modal.style.transition = 'opacity 0.2s ease';
-        setTimeout(() => {
-            modal.remove();
-            document.body.style.overflow = '';
-        }, 200);
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
     }
 }
 
@@ -901,14 +892,14 @@ function openAddAppointmentModal(patientId) {
         document.getElementById('appointmentPatientId').value = patientId;
         document.getElementById('appointmentPatientPhone').value = patient.phone || '';
         
-        document.getElementById('appointmentModal').classList.add('active');
+        document.getElementById('appointmentModal').style.display = 'flex';
     } else {
         alert('Patient not found');
     }
 }
 
 function closeAddAppointmentModal() {
-    document.getElementById('appointmentModal').classList.remove('active');
+    document.getElementById('appointmentModal').style.display = 'none';
     document.body.style.overflow = '';
     selectedPatientId = null;
     selectedPatientData = null;
@@ -1079,6 +1070,19 @@ function getDentistTeethDisplayText(teethString) {
             <div id="tpNoPlans" style="text-align: center; padding: 40px; color: #6b7280; display: none;">
                 No treatment plans found for this patient.
             </div>
+
+            <!-- Treatment History Section -->
+            <div id="tpHistorySection" style="margin-top: 24px; display: none;">
+                <h3 style="font-size: 0.9rem; font-weight: 600; color: #374151; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Past Treatment Records
+                </h3>
+                <div id="tpHistoryList">
+                    <!-- History will be loaded here -->
+                </div>
+            </div>
             
             <!-- Create New Treatment Plan Form -->
             <div id="tpCreateForm" style="display: none;">
@@ -1197,6 +1201,70 @@ function getDentistTeethDisplayText(teethString) {
             <button type="button" id="tpBtnCreate" onclick="showTpCreateForm()" class="btn-primary" style="display: none;">+ Create New Plan</button>
             <button type="button" id="tpBtnSave" onclick="saveTreatmentPlan()" class="btn-primary" style="display: none;">Save Plan</button>
             <button type="button" id="tpBtnBack" onclick="showTpPlansList()" class="btn-cancel" style="display: none;">Back</button>
+        </div>
+    </div>
+</div>
+
+<!-- Patient Prescription Modal -->
+<div id="patientPrescriptionModal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="patientPrescriptionModalTitle" style="margin: 0; font-size: 1.25rem; font-weight: 600;">💊 New Prescription</h2>
+            <button class="modal-close" onclick="closePatientPrescriptionModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="patientPrescriptionSafetyInfo" class="safety-info" style="display: none; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                <h3 style="font-size: 1rem; font-weight: 600; color: #15803d; margin: 0 0 12px 0;">Patient Safety Information</h3>
+                <div class="safety-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+                    <div class="safety-item">
+                        <div style="font-size: 0.85rem; color: #475569; margin-bottom: 4px;">Patient Name</div>
+                        <div id="patientPrescriptionName" style="font-weight: 500; color: #0f172a;"></div>
+                    </div>
+                    <div class="safety-item">
+                        <div style="font-size: 0.85rem; color: #475569; margin-bottom: 4px;">Age</div>
+                        <div id="patientPrescriptionAge" style="font-weight: 500; color: #0f172a;"></div>
+                    </div>
+                    <div class="safety-item">
+                        <div style="font-size: 0.85rem; color: #475569; margin-bottom: 4px;">Allergies</div>
+                        <div id="patientPrescriptionAllergies" style="color: #dc2626; font-weight: 500;"></div>
+                    </div>
+                    <div class="safety-item">
+                        <div style="font-size: 0.85rem; color: #475569; margin-bottom: 4px;">Medical History</div>
+                        <div id="patientPrescriptionMeds" style="color: #059669; font-weight: 500;"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <form id="patientPrescriptionForm">
+                <input type="hidden" id="patientPrescriptionId" name="prescription_id">
+                <input type="hidden" id="patientPrescriptionPatientId" name="patient_id">
+                
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 20px;">
+                    <div class="form-group">
+                        <label for="patientPrescriptionIssueDate" style="display: block; margin-bottom: 6px; font-weight: 500; color: #334155; font-size: 0.9rem;">Issue Date: *</label>
+                        <input type="date" id="patientPrescriptionIssueDate" name="issue_date" required style="width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px; box-sizing: border-box;">
+                    </div>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label for="patientPrescriptionDiagnosis" style="display: block; margin-bottom: 6px; font-weight: 500; color: #334155; font-size: 0.9rem;">Diagnosis: *</label>
+                    <textarea id="patientPrescriptionDiagnosis" name="diagnosis" rows="2" required placeholder="Reason for prescription..." style="width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px; box-sizing: border-box;"></textarea>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label for="patientPrescriptionMedications" style="display: block; margin-bottom: 6px; font-weight: 500; color: #334155; font-size: 0.9rem;">Medications: *</label>
+                    <textarea id="patientPrescriptionMedications" name="medications" rows="3" required placeholder="e.g., Amoxicillin 500mg - 3 times daily for 7 days" style="width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px; box-sizing: border-box;"></textarea>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 24px;">
+                    <label for="patientPrescriptionInstructions" style="display: block; margin-bottom: 6px; font-weight: 500; color: #334155; font-size: 0.9rem;">Instructions:</label>
+                    <textarea id="patientPrescriptionInstructions" name="instructions" rows="2" placeholder="Additional patient instructions..." style="width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px; box-sizing: border-box;"></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+            <button type="button" class="btn-cancel" onclick="closePatientPrescriptionModal()">Cancel</button>
+            <button type="button" class="btn-primary" onclick="savePatientPrescription()">Save Prescription</button>
         </div>
     </div>
 </div>
@@ -1398,11 +1466,11 @@ function showBillingModal(billing) {
     document.getElementById('editAmountForm').classList.remove('active');
     
     // Show modal
-    document.getElementById('billingModal').classList.add('active');
+    document.getElementById('billingModal').style.display = 'flex';
 }
 
 function closeBillingModal() {
-    document.getElementById('billingModal').classList.remove('active');
+    document.getElementById('billingModal').style.display = 'none';
     document.body.style.overflow = '';
     billingQueueId = null;
     billingPatientId = null;
@@ -1441,7 +1509,7 @@ function openTreatmentPlanModal(patientId) {
     document.getElementById('tpBtnCancel').style.display = 'inline-flex';
     
     // Show modal
-    document.getElementById('treatmentPlanModal').classList.add('active');
+    document.getElementById('treatmentPlanModal').style.display = 'flex';
     
     // Fetch treatment plans
     fetch('../shared/process_treatment_plan.php?patient_id=' + patientId)
@@ -1449,11 +1517,31 @@ function openTreatmentPlanModal(patientId) {
     .then(data => {
         document.getElementById('tpLoading').style.display = 'none';
         
-        if (data.success && data.plans && data.plans.length > 0) {
-            renderTreatmentPlans(data.plans);
-            document.getElementById('tpPlansList').style.display = 'block';
-            document.getElementById('tpBtnCreate').textContent = '+ Create New Plan';
+        if (data.success) {
+            // Render Plans
+            if (data.plans && data.plans.length > 0) {
+                renderTreatmentPlans(data.plans);
+                document.getElementById('tpPlansList').style.display = 'block';
+                document.getElementById('tpBtnCreate').textContent = '+ Create New Plan';
+            } else {
+                let debugInfo = '';
+                if (data.debug) {
+                    debugInfo = ` (Patient ID: ${data.debug.patient_id})`;
+                }
+                document.getElementById('tpNoPlans').textContent = 'No treatment plans found for this patient.' + debugInfo;
+                document.getElementById('tpNoPlans').style.display = 'block';
+                document.getElementById('tpBtnCreate').textContent = '+ Create Treatment Plan';
+            }
+
+            // Render History
+            if (data.history && data.history.length > 0) {
+                renderTreatmentHistory(data.history);
+                document.getElementById('tpHistorySection').style.display = 'block';
+            } else {
+                document.getElementById('tpHistorySection').style.display = 'none';
+            }
         } else {
+            document.getElementById('tpNoPlans').textContent = data.message || 'Error loading treatment plans';
             document.getElementById('tpNoPlans').style.display = 'block';
             document.getElementById('tpBtnCreate').textContent = '+ Create Treatment Plan';
         }
@@ -1522,8 +1610,39 @@ function renderTreatmentPlans(plans) {
     container.innerHTML = html;
 }
 
+function renderTreatmentHistory(history) {
+    const container = document.getElementById('tpHistoryList');
+    let html = '';
+    
+    history.forEach(item => {
+        const date = new Date(item.treatment_date).toLocaleDateString('en-PH', { 
+            year: 'numeric', month: 'short', day: 'numeric' 
+        });
+        const doctor = item.doctor_first && item.doctor_last ? `Dr. ${item.doctor_first} ${item.doctor_last}` : 'Dentist';
+        
+        html += `
+            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="font-weight: 600; font-size: 0.85rem; color: #111827;">${item.service_name || item.treatment_type || 'Treatment'}</div>
+                    <div style="font-size: 0.75rem; color: #6b7280; margin-top: 2px;">
+                        <span>🦷 ${item.teeth_numbers || 'N/A'}</span>
+                        <span style="margin: 0 8px; color: #e5e7eb;">|</span>
+                        <span>👨‍⚕️ ${doctor}</span>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 0.8rem; font-weight: 500; color: #374151;">${date}</div>
+                    <div style="font-size: 0.7rem; color: #059669; font-weight: 600; text-transform: uppercase; margin-top: 2px;">Completed</div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
 function closeTreatmentPlanModal() {
-    document.getElementById('treatmentPlanModal').classList.remove('active');
+    document.getElementById('treatmentPlanModal').style.display = 'none';
     document.body.style.overflow = '';
     treatmentPlanPatientId = null;
     
@@ -2009,6 +2128,15 @@ function saveTreatmentPlan() {
         return;
     }
     
+    // Validate date and time if provided
+    const sessionDate = document.getElementById('tpNextSessionDate').value;
+    const sessionTime = document.getElementById('tpNextSessionTime').value;
+    
+    if ((sessionDate && !sessionTime) || (!sessionDate && sessionTime)) {
+        alert('Please provide both date and time for the next session, or leave both empty.');
+        return;
+    }
+    
     fetch('../shared/process_treatment_plan.php', {
         method: 'POST',
         body: formData
@@ -2016,10 +2144,14 @@ function saveTreatmentPlan() {
     .then(response => response.json())
     .then(result => {
         if (result.success) {
-            alert('Treatment plan created successfully!');
-            // Close modal and redirect to treatment plan page
+            let message = 'Treatment plan created successfully!';
+            if (result.appointment_id) {
+                message += '\n\nAn appointment has been automatically scheduled.\nYou can view it in the Appointments page.';
+            }
+            alert(message);
+            // Close modal and redirect to appointments page to see the scheduled appointment
             closeTreatmentPlanModal();
-            window.location.href = 'dentist_treatments.php?patient_id=' + treatmentPlanPatientId;
+            window.location.href = 'dentist_appointments.php';
         } else {
             alert(result.message || 'Error saving treatment plan');
         }
@@ -2309,83 +2441,7 @@ setInterval(() => {
     font-weight: 500;
 }
 
-.modal-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    z-index: 99999;
-}
 
-.modal-overlay.active {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.modal-backdrop {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    animation: backdropFadeIn 0.3s ease;
-}
-
-.modal-overlay.active .modal-backdrop {
-    display: block;
-}
-
-@keyframes backdropFadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-.modal-container {
-    position: relative;
-    z-index: 100000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    padding: 20px;
-    pointer-events: none;
-}
-
-.modal-overlay.active .modal-container {
-    animation: modalSlideIn 0.3s ease;
-    pointer-events: auto;
-}
-
-@keyframes modalSlideIn {
-    from {
-        opacity: 0;
-        transform: scale(0.95) translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-    }
-}
-
-.modal {
-    background: white;
-    border-radius: 16px;
-    padding: 32px;
-    max-width: 520px;
-    width: 100%;
-    max-height: 85vh;
-    overflow-y: auto;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
-    pointer-events: auto;
-}
 
 /* Billing Modal Styles */
 .billing-section {
@@ -2603,71 +2659,7 @@ setInterval(() => {
 
 
 
-.fullscreen-modal-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 99999;
-    align-items: center;
-    justify-content: center;
-}
 
-.fullscreen-modal-overlay.active,
-.fullscreen-modal-overlay[style*="display: flex"] {
-    display: flex !important;
-}
-
-.fullscreen-modal-content {
-    background: white;
-    border-radius: 16px;
-    width: 95%;
-    max-width: 900px;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    position: relative;
-    z-index: 100000;
-}
-
-.fullscreen-modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 24px;
-    border-bottom: 1px solid #e5e7eb;
-    position: sticky;
-    top: 0;
-    background: white;
-    z-index: 10;
-}
-
-.fullscreen-modal-close {
-    background: none;
-    border: none;
-    font-size: 2rem;
-    cursor: pointer;
-    color: #6b7280;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    transition: all 0.2s;
-}
-
-.fullscreen-modal-close:hover {
-    background: #f3f4f6;
-    color: #111827;
-}
-
-.fullscreen-modal-body {
-    padding: 24px;
-}
 
 /* Patient Kebab Menu Styles */
 .patient-kebab-menu {

@@ -1,9 +1,12 @@
 <?php
 $pageTitle = 'Dashboard';
 require_once '../../config/database.php';
+require_once '../../includes/queue_management_helper.php';
 require_once '../../includes/staff_layout_start.php';
 
 try {
+    // Ensure queue table has proper schema
+    ensureQueueManagementSchema($pdo);
     // Get queue data
     $stmt = $pdo->query("
         SELECT q.*, COALESCE(p.first_name, 'Unknown') as first_name, COALESCE(p.middle_name, '') as middle_name, COALESCE(p.last_name, '') as last_name, COALESCE(p.suffix, '') as suffix, COALESCE(p.phone, '') as phone, COALESCE(qs.status_name, 'waiting') as status_text
@@ -116,7 +119,9 @@ try {
                             <div class="patient-actions">
                                 <button class="action-btn icon view-btn" onclick="viewPatientDashboard(<?php echo (int)$item['patient_id']; ?>)">👁️</button>
                                 <button class="action-btn" style="background: #84cc16; color: white; padding: 8px 12px; border-radius: 6px; border: none; font-size: 12px; cursor: pointer;" onclick="requeuePatientDashboard(<?php echo $item['id']; ?>)">Re-queue</button>
-                                <button class="action-btn icon delete-btn">🗑️</button>
+                                <button class="action-btn icon delete-btn">
+                                    <svg viewBox="-2.4 -2.4 28.80 28.80" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#000000" width="16" height="16"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round" stroke="#CCCCCC" stroke-width="0.144"></g><g id="SVGRepo_iconCarrier"> <path d="M5.82907 6.65808H18.6325V19.2906C18.6325 20.3951 17.7371 21.2906 16.6325 21.2906H7.82907C6.7245 21.2906 5.82907 20.3951 5.82907 19.2906V6.65808Z" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M4 5.74365L20.4615 5.74365" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M14.9134 3H9.54816L8.57266 5.74359H15.8889L14.9134 3Z" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></path> <line x1="12.3163" y1="10.4017" x2="12.3163" y2="17.547" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></line> <line x1="9.57266" y1="10.4017" x2="9.57266" y2="17.547" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></line> <line x1="15.0598" y1="10.4017" x2="15.0598" y2="17.547" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></line> </g></svg>
+                                </button>
                             </div>
                         </div>
                         <?php endforeach; ?>
@@ -135,7 +140,11 @@ try {
             <div class="live-queue">
                 <div class="live-queue-header">
                     <div class="live-queue-title">Live Queue Controller</div>
-                    <div class="now-serving-badge"><span>👁️</span><span>Now Serving</span></div>
+                    <div class="now-serving-badge">
+                        <span>
+                        
+                        </span>
+                        <span>In Procedure</span></div>
                 </div>
                 <div class="live-patient">
                     <?php $inProcedureName = $inProcedureItem ? buildPatientName($inProcedureItem) : ''; ?>
@@ -182,8 +191,13 @@ try {
                             </div>
                             <div class="patient-actions">
                                 <button class="action-btn text-btn" onclick="viewPatientDashboard(<?php echo $item['patient_id']; ?>)">View</button>
-                                <button class="action-btn text-btn" onclick="moveToOnHoldDashboard(<?php echo $item['id']; ?>)">On Hold</button>
-                                <button class="action-btn text-btn" onclick="cancelPatientDashboard(<?php echo $item['id']; ?>)">Cancel</button>
+                                <button class="action-btn text-btn" onclick="moveToOnHoldDashboard(<?php echo $item['id']; ?>)">Hold</button>
+                                <button 
+                                    class="action-btn text-btn" 
+                                    style="background-color: red; color: white; border: none; padding: 5px 10px; cursor: pointer;"
+                                    onclick="cancelPatientDashboard(<?php echo $item['id']; ?>)">
+                                    Cancel
+                                </button>
                             </div>
                         </div>
                         <?php endforeach; ?>
@@ -214,9 +228,13 @@ try {
                                 <div class="patient-treatment"><?php echo htmlspecialchars($item['treatment_type'] ?? ''); ?></div>
                             </div>
                             <div class="patient-actions">
-                                <button class="action-btn icon view-btn" onclick="viewPatientDashboard(<?php echo (int)$item['patient_id']; ?>)">👁️</button>
+                                <button class="action-btn icon view-btn" onclick="viewPatientDashboard(<?php echo (int)$item['patient_id']; ?>)">
+                                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="16" height="16"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path opacity="0.15" fill-rule="evenodd" clip-rule="evenodd" d="M12 5C5.63636 5 2 12 2 12C2 12 5.63636 19 12 19C18.3636 19 22 12 22 12C22 12 18.3636 5 12 5ZM15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" fill="#000000"></path> <path d="M12 5C5.63636 5 2 12 2 12C2 12 5.63636 19 12 19C18.3636 19 22 12 22 12C22 12 18.3636 5 12 5Z" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
+                                </button>
                                 <button class="action-btn" style="background: #84cc16; color: white; padding: 8px 12px; border-radius: 6px; border: none; font-size: 12px; cursor: pointer;" onclick="requeuePatientDashboard(<?php echo $item['id']; ?>)">Re-queue</button>
-                                <button class="action-btn icon delete-btn">🗑️</button>
+                                <button class="action-btn icon delete-btn">
+                                    <svg viewBox="-2.4 -2.4 28.80 28.80" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#000000" width="16" height="16"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round" stroke="#CCCCCC" stroke-width="0.144"></g><g id="SVGRepo_iconCarrier"> <path d="M5.82907 6.65808H18.6325V19.2906C18.6325 20.3951 17.7371 21.2906 16.6325 21.2906H7.82907C6.7245 21.2906 5.82907 20.3951 5.82907 19.2906V6.65808Z" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M4 5.74365L20.4615 5.74365" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M14.9134 3H9.54816L8.57266 5.74359H15.8889L14.9134 3Z" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></path> <line x1="12.3163" y1="10.4017" x2="12.3163" y2="17.547" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></line> <line x1="9.57266" y1="10.4017" x2="9.57266" y2="17.547" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></line> <line x1="15.0598" y1="10.4017" x2="15.0598" y2="17.547" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></line> </g></svg>
+                                </button>
                             </div>
                         </div>
                         <?php endforeach; ?>
@@ -235,14 +253,81 @@ try {
                 </div>
             </div>
               
+            <!-- Upcoming Appointments Overview -->
+            <?php 
+            $staffTodayAppointments = [];
+            $staffTotalUpcomingAppts = 0;
+            try {
+                $staffTotalUpcomingAppts = (int)($pdo->query("
+                    SELECT COUNT(*)
+                    FROM appointments
+                    WHERE appointment_date >= CURDATE()
+                      AND (is_archived = 0 OR is_archived IS NULL)
+                ")->fetchColumn() ?? 0);
+
+                $staffApptStmt = $pdo->query("
+                    SELECT a.id, a.appointment_date, a.appointment_time, a.status_id,
+                           COALESCE(p.first_name, 'Unknown') as first_name, 
+                           COALESCE(p.middle_name, '') as middle_name, 
+                           COALESCE(p.last_name, '') as last_name,
+                           s.name as service_name,
+                           st.status_name
+                    FROM appointments a
+                    LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
+                    LEFT JOIN services s ON a.service_id = s.id
+                    LEFT JOIN appointment_statuses st ON a.status_id = st.id
+                    WHERE a.appointment_date >= CURDATE()
+                      AND (a.is_archived = 0 OR a.is_archived IS NULL)
+                    ORDER BY a.appointment_date ASC, a.appointment_time ASC
+                    LIMIT 5
+                ");
+                $staffTodayAppointments = $staffApptStmt->fetchAll(PDO::FETCH_ASSOC);
+            } catch (Exception $e) {
+                $staffTodayAppointments = [];
+                $staffTotalUpcomingAppts = 0;
+            }
+            ?>
             <div class="notification-box">
-                <h3>✓ Daily Reminders / To-Do</h3>
-                <ul class="reminder-list" id="reminder-list">
-                    <li onclick="this.classList.toggle('checked')">Reply to Facebook inquiries from last night</li>
-                    <li onclick="this.classList.toggle('checked')">Print consent form for tomorrow</li>
-                    <li onclick="this.classList.toggle('checked')">Call inquiries for new stocks of Composites</li>
-                </ul>
-                <button class="add-reminder-btn" id="addReminderBtn">+ Add New Reminder</button>
+                <h3>📅 Appointments Overview</h3>
+                <div style="max-height: 250px; overflow-y: auto;">
+                    <?php if (empty($staffTodayAppointments)): ?>
+                        <p style="text-align: center; color: #6b7280; padding: 20px;">No upcoming appointments</p>
+                    <?php else: ?>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                            <thead>
+                                <tr style="background: #f9fafb;">
+                                    <th style="text-align: left; padding: 6px 8px; color: #6b7280; font-weight: 600; font-size: 10px;">Time</th>
+                                    <th style="text-align: left; padding: 6px 8px; color: #6b7280; font-weight: 600; font-size: 10px;">Patient</th>
+                                    <th style="text-align: left; padding: 6px 8px; color: #6b7280; font-weight: 600; font-size: 10px;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($staffTodayAppointments as $appt): 
+                                    $apptPatientName = trim(($appt['first_name'] ?? '') . ' ' . ($appt['middle_name'] ?? '') . ' ' . ($appt['last_name'] ?? ''));
+                                    $statusLabel = $appt['status_name'] ?? 'Scheduled';
+                                    $statusId = (int)$appt['status_id'];
+                                    
+                                    $badgeStyle = 'background: #dbeafe; color: #1d4ed8;';
+                                    if ($statusId === 2 || stripos($statusLabel, 'queue') !== false) { $badgeStyle = 'background: #fef3c7; color: #92400e;'; }
+                                    if ($statusId === 3 || stripos($statusLabel, 'pending') !== false) { $badgeStyle = 'background: #fed7aa; color: #c2410c;'; }
+                                    if ($statusId === 4 || stripos($statusLabel, 'complete') !== false) { $badgeStyle = 'background: #dcfce7; color: #15803d;'; }
+                                    if ($statusId === 5 || stripos($statusLabel, 'cancel') !== false) { $badgeStyle = 'background: #fee2e2; color: #dc2626;'; }
+                                ?>
+                                <tr style="border-bottom: 1px solid #f3f4f6;">
+                                    <td style="padding: 8px 6px; color: #374151; font-size: 11px;"><?php echo date('h:i A', strtotime($appt['appointment_time'] ?? '')); ?></td>
+                                    <td style="padding: 8px 6px; color: #374151; font-size: 11px;"><?php echo htmlspecialchars($apptPatientName ?: 'Unknown'); ?></td>
+                                    <td style="padding: 8px 6px;">
+                                        <span style="display: inline-block; padding: 2px 6px; border-radius: 8px; font-size: 9px; font-weight: 600; <?php echo $badgeStyle; ?>">
+                                            <?php echo htmlspecialchars($statusLabel); ?>
+                                        </span>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php endif; ?>
+                </div>
+                <a href="staff_appointments.php" style="display: block; text-align: center; margin-top: 12px; padding: 8px; background: #f3f4f6; border-radius: 6px; color: #374151; text-decoration: none; font-size: 12px;">View All (<?php echo $staffTotalUpcomingAppts; ?>)</a>
             </div>
         </div>
     </div>
@@ -523,7 +608,8 @@ function viewPatientDashboard(patientId) {
         if (data.success) {
             const p = data.patient;
             const m = data.medical_history || {};
-            const d = data.dental_history || {};
+            const dentalHistory = data.dental_history || [];
+            const completedPlans = data.completed_plans || [];
             const q = data.queue_item || {};
 
             const allergies = m.allergies || 'None';
@@ -531,6 +617,59 @@ function viewPatientDashboard(patientId) {
             const medicalConditions = m.medical_conditions || 'None';
 
             const patientFullName = `${p.first_name || ''} ${p.middle_name || ''} ${p.last_name || ''} ${p.suffix || ''}`.trim() || 'N/A';
+            
+            // Build dental history HTML
+            let dentalHistoryHTML = '';
+            if (dentalHistory.length > 0) {
+                dentalHistoryHTML = '<div style="display: flex; flex-direction: column; gap: 12px;">';
+                dentalHistory.forEach(treatment => {
+                    const dentistName = treatment.dentist_first_name && treatment.dentist_last_name 
+                        ? `Dr. ${treatment.dentist_first_name} ${treatment.dentist_last_name}` 
+                        : 'Unknown Dentist';
+                    const treatmentDate = treatment.completed_at 
+                        ? new Date(treatment.completed_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                        : (treatment.treatment_date || 'N/A');
+                    dentalHistoryHTML += `
+                        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                                <div>
+                                    <div style="font-weight: 600; color: #111827;">${treatment.treatment_type || 'Treatment'}</div>
+                                    <div style="font-size: 0.85rem; color: #6b7280;">Teeth: ${getStaffTeethDisplayText(treatment.teeth_numbers || '')}</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 0.85rem; color: #6b7280;">${treatmentDate}</div>
+                                    <div style="font-size: 0.8rem; color: #059669; font-weight: 500;">${dentistName}</div>
+                                </div>
+                            </div>
+                            ${treatment.procedure_notes ? `<div style="font-size: 0.85rem; color: #6b7280; border-top: 1px solid #f3f4f6; padding-top: 8px; margin-top: 8px;">${treatment.procedure_notes}</div>` : ''}
+                        </div>
+                    `;
+                });
+                dentalHistoryHTML += '</div>';
+            } else if (completedPlans.length > 0) {
+                dentalHistoryHTML = '<div style="display: flex; flex-direction: column; gap: 12px;">';
+                completedPlans.forEach(plan => {
+                    const planDate = new Date(plan.treatment_date).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
+                    dentalHistoryHTML += `
+                        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                                <div>
+                                    <div style="font-weight: 600; color: #111827;">${plan.treatment_name || plan.treatment_type || 'Treatment Plan'}</div>
+                                    <div style="font-size: 0.85rem; color: #6b7280;">Teeth: ${plan.teeth_numbers || 'N/A'}</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 0.85rem; color: #6b7280;">${planDate}</div>
+                                    <div style="font-size: 0.8rem; color: #059669; font-weight: 500;">Plan Completed</div>
+                                </div>
+                            </div>
+                            ${plan.notes ? `<div style="font-size: 0.85rem; color: #6b7280; border-top: 1px solid #f3f4f6; padding-top: 8px; margin-top: 8px;">${plan.notes}</div>` : ''}
+                        </div>
+                    `;
+                });
+                dentalHistoryHTML += '</div>';
+            } else {
+                dentalHistoryHTML = '<p style="color: #6b7280; text-align: center; padding: 20px;">No previous treatment records found.</p>';
+            }
 
             document.getElementById('patientRecordContent').innerHTML = `
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
@@ -569,6 +708,12 @@ function viewPatientDashboard(patientId) {
                         </div>
                     </div>
                 </div>
+                <div style="margin-top: 20px;">
+                    <h3 style="font-size: 0.875rem; font-weight: 600; color: #059669; margin-bottom: 12px;">📜 Dental History (Previous Treatments)</h3>
+                    <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 16px;">
+                        ${dentalHistoryHTML}
+                    </div>
+                </div>
             `;
             
             document.getElementById('patientRecordModal').style.display = 'flex';
@@ -599,15 +744,7 @@ window.onclick = function(event) {
     if (event.target == dashboardMessageModal) closeDashboardMessageModal();
 }
 
-// Reminder functionality
-document.getElementById('addReminderBtn')?.addEventListener('click', () => {
-    const reminders = ["Check inventory", "Verify insurance claims", "Sterilize tools", "Update patient records"];
-    const randomReminder = reminders[Math.floor(Math.random() * reminders.length)];
-    const li = document.createElement('li');
-    li.setAttribute('onclick', 'this.classList.toggle("checked")');
-    li.innerText = randomReminder;
-    document.getElementById('reminder-list').appendChild(li);
-});
+
 
 // Convert teeth numbers to arch labels (matches staff terminology)
 function getStaffTeethDisplayText(teethString) {

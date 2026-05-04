@@ -32,17 +32,90 @@ try {
     
     // Calculate day of week
     $dayOfWeek = (int)date('w', mktime(0, 0, 0, $month, $day, $year));
-    
-    // Sunday = 0, closed
-    if ($dayOfWeek === 0) {
-        echo json_encode(['success' => true, 'date' => $date, 'is_open' => false, 'message' => 'Clinic is closed on Sundays']);
-        exit;
-    }
+    $dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    $dayName = $dayNames[$dayOfWeek];
     
     require_once '../../config/database.php';
     
     if (!isset($pdo)) {
         echo json_encode(['success' => false, 'message' => 'Database connection failed']);
+        exit;
+    }
+    
+    // Load settings
+    $stmt = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('business_hours', 'unavailable_dates')");
+    $settingsRows = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+    
+    $businessHours = isset($settingsRows['business_hours']) ? json_decode($settingsRows['business_hours'], true) : [];
+    $unavailableDates = isset($settingsRows['unavailable_dates']) ? json_decode($settingsRows['unavailable_dates'], true) : [];
+    
+    // Default business hours
+    if (!$businessHours) {
+        $businessHours = [
+            'monday' => ['open' => '08:00', 'close' => '17:00', 'is_open' => true],
+            'tuesday' => ['open' => '08:00', 'close' => '17:00', 'is_open' => true],
+            'wednesday' => ['open' => '08:00', 'close' => '17:00', 'is_open' => true],
+            'thursday' => ['open' => '08:00', 'close' => '17:00', 'is_open' => true],
+            'friday' => ['open' => '08:00', 'close' => '17:00', 'is_open' => true],
+            'saturday' => ['open' => '09:00', 'close' => '13:00', 'is_open' => true],
+            'sunday' => ['open' => '', 'close' => '', 'is_open' => false]
+        ];
+    }
+    if (!$unavailableDates) $unavailableDates = [];
+    
+    // Check if date is in unavailable dates
+    $unavailableEntry = null;
+    foreach ($unavailableDates as $entry) {
+        if ($entry['date'] === $date) {
+            $unavailableEntry = $entry;
+            break;
+        }
+    }
+    
+    // If date is explicitly set to closed or holiday
+    if ($unavailableEntry && in_array($unavailableEntry['status'], ['closed', 'holiday'])) {
+        $note = $unavailableEntry['note'] ?? '';
+        $message = 'Clinic is closed';
+        if ($note) $message .= ' - ' . $note;
+        echo json_encode(['success' => true, 'date' => $date, 'is_open' => false, 'message' => $message]);
+        exit;
+    }
+    
+    // Get day hours from business_hours
+    $dayHours = $businessHours[$dayName] ?? null;
+    
+    // If date has custom hours, use those
+    if ($unavailableEntry && $unavailableEntry['status'] === 'custom') {
+        $dayHours = [
+            'open' => $unavailableEntry['custom_open'] ?? '08:00',
+            'close' => $unavailableEntry['custom_close'] ?? '17:00',
+            'is_open' => true
+        ];
+    }
+    
+    // If date is half day AM
+    if ($unavailableEntry && $unavailableEntry['status'] === 'half_am') {
+        $dayHours = [
+            'open' => $dayHours['open'] ?? '08:00',
+            'close' => '12:00',
+            'is_open' => true,
+            'is_half_day' => true
+        ];
+    }
+    
+    // If date is half day PM
+    if ($unavailableEntry && $unavailableEntry['status'] === 'half_pm') {
+        $dayHours = [
+            'open' => '13:00',
+            'close' => $dayHours['close'] ?? '17:00',
+            'is_open' => true,
+            'is_half_day' => true
+        ];
+    }
+    
+    // If day is closed
+    if (!$dayHours || !$dayHours['is_open']) {
+        echo json_encode(['success' => true, 'date' => $date, 'is_open' => false, 'message' => 'Clinic is closed on ' . ucfirst($dayName) . 's']);
         exit;
     }
     
@@ -114,26 +187,28 @@ try {
         ];
     }
     
-    // Generate potential time slots (9 AM to 5 PM) - fixed 15-minute intervals
-    $allSlots = [];
-    $hour = 9;
-    $minute = 0;
-    $clinicEnd = 17 * 60; // 5 PM in minutes
+    // Parse clinic open/close times
+    $openParts = explode(':', $dayHours['open']);
+    $closeParts = explode(':', $dayHours['close']);
+    $clinicOpen = (int)$openParts[0] * 60 + (int)$openParts[1];
+    $clinicClose = (int)$closeParts[0] * 60 + (int)$closeParts[1];
     
-    while (($hour * 60 + $minute) < $clinicEnd) {
+    // Generate potential time slots based on business hours
+    $allSlots = [];
+    $currentMinutes = $clinicOpen;
+    
+    while ($currentMinutes < $clinicClose) {
+        $hour = floor($currentMinutes / 60);
+        $minute = $currentMinutes % 60;
         $timeStr = sprintf('%02d:%02d', $hour, $minute);
-        $slotEndMinutes = $hour * 60 + $minute + $newServiceDuration;
+        $slotEndMinutes = $currentMinutes + $newServiceDuration;
         
         // Check if this slot would extend past clinic hours
-        if ($slotEndMinutes <= $clinicEnd) {
+        if ($slotEndMinutes <= $clinicClose) {
             $allSlots[] = $timeStr;
         }
         
-        $minute += 15; // 15-minute intervals
-        if ($minute >= 60) {
-            $hour += floor($minute / 60);
-            $minute = $minute % 60;
-        }
+        $currentMinutes += 15; // 15-minute intervals
     }
     
     // Check overlap for each slot
@@ -162,14 +237,25 @@ try {
         }
     }
     
-    echo json_encode([
+    $response = [
         'success' => true,
         'date' => $date,
         'is_open' => true,
         'service_duration' => $newServiceDuration,
         'available_slots' => $availableSlots,
-        'booked_slots' => $blockedSlots
-    ]);
+        'booked_slots' => $blockedSlots,
+        'business_hours' => [
+            'open' => $dayHours['open'],
+            'close' => $dayHours['close']
+        ]
+    ];
+    
+    if (!empty($unavailableEntry)) {
+        $response['date_status'] = $unavailableEntry['status'];
+        $response['date_note'] = $unavailableEntry['note'] ?? '';
+    }
+    
+    echo json_encode($response);
     
 } catch (Exception $e) {
     echo json_encode(['success' => false, 'message' => $e->getMessage()]);

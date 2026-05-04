@@ -1225,27 +1225,29 @@ header.top-header {
     inset: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.6) !important;
+    background: rgba(15, 23, 42, 0.5) !important; /* Use consistent background */
     display: none; 
     justify-content: center; 
     align-items: center; 
-    z-index: 999999 !important;
+    z-index: 999999 !important; /* Keep the very high z-index */
+    backdrop-filter: blur(2px);
+    padding: 24px;
     box-sizing: border-box;
 }
-.modal-overlay.active {
-    display: flex;
+.modal-overlay.active, .modal-overlay[style*="display: flex"] {
+    display: flex !important;
 }
 .modal {
     background: white; 
     width: 100%; 
-    max-width: 500px; 
-    padding: 0; 
-    border-radius: 16px;
+    max-width: 800px; /* Standardize max-width */
+    padding: 24px; 
+    border-radius: 12px;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     max-height: 90vh;
     overflow-y: auto;
     position: relative;
-    z-index: 1000000;
+    z-index: 1000000 !important; /* Ensure modal content is above overlay */
     margin: auto;
 }
 

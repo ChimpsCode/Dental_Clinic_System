@@ -111,6 +111,10 @@ try {
     gap: 16px;
     margin-bottom: 0px;
     padding-bottom: 25px;
+    
+    /* ADD THESE TWO LINES TO FIX UNCLICKABLE BUTTONS */
+    position: relative; 
+    z-index: 10;
 }
 
 .search-input-container {
@@ -297,27 +301,48 @@ try {
 .btn-print:hover { background: #e0e7ff; }
 
 /* Modal */
-.fullscreen-modal-overlay {
-    position: fixed;
-    inset: 0;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    background: rgba(15, 23, 42, 0.55);
-    backdrop-filter: blur(2px);
-    z-index: 9999;
-    padding: 24px;
-}
-.fullscreen-modal-content {
-    width: min(900px, 92vw);
-    max-height: 90vh;
+
+
+/* Patient Search Dropdown */
+.search-results-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    max-height: 200px;
     overflow-y: auto;
+    display: none;
 }
-.fullscreen-modal-close {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
+
+.search-result-item {
+    padding: 10px 12px;
     cursor: pointer;
+    transition: background 0.15s;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-item:hover {
+    background: #f8fafc;
+}
+
+.search-result-item .name {
+    font-weight: 500;
+    color: #0f172a;
+    font-size: 0.9rem;
+}
+
+.search-result-item .details {
+    font-size: 0.75rem;
     color: #64748b;
 }
 </style>
@@ -467,15 +492,13 @@ try {
     <?php endif; ?>
 
 
-<div id="prescriptionModal" class="fullscreen-modal-overlay" style="display: none;">
-    <div class="fullscreen-modal-content" style="max-width: 800px; background: white; margin: 5% auto; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 24px;">
-        <div class="fullscreen-modal-header">
-            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 20px;">
-                <h2 id="modalTitle" style="font-size: 1.25rem; font-weight: 600; margin: 0; color: #0f172a;">New Prescription</h2>
-                <button class="fullscreen-modal-close" onclick="closePrescriptionModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">&times;</button>
-            </div>
+<div id="prescriptionModal" class="modal-overlay" style="display: none; z-index: 999999 !important;">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="modalTitle" style="font-size: 1.25rem; font-weight: 600; margin: 0; color: #0f172a;">New Prescription</h2>
+            <button class="modal-close" onclick="closePrescriptionModal()">&times;</button>
         </div>
-        <div class="fullscreen-modal-body" id="prescriptionModalContent">
+        <div class="modal-body" id="prescriptionModalContent">
             <div id="patientSafetyInfo" class="safety-info" style="display: none; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
                 <h3 style="font-size: 1rem; font-weight: 600; color: #15803d; margin: 0 0 12px 0;">Patient Safety Information</h3>
                 <div class="safety-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
@@ -503,15 +526,14 @@ try {
                 <input type="hidden" id="patientId" name="patient_id">
                 
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 20px;">
-                    <div class="form-group">
-                        <label for="patientSelect" style="display: block; margin-bottom: 6px; font-weight: 500; color: #334155; font-size: 0.9rem;">Patient:</label>
-                        <select id="patientSelect" name="patient_id" required style="width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px;">
-                            <option value="">Select Patient...</option>
-                        </select>
+                    <div class="form-group" style="position: relative;">
+                        <label for="patientSearch" style="display: block; margin-bottom: 6px; font-weight: 500; color: #334155; font-size: 0.9rem;">Search Patient: *</label>
+                        <input type="text" id="patientSearch" placeholder="Type patient name..." autocomplete="off" style="width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px; box-sizing: border-box;">
+                        <div id="patientSearchResults" class="search-results-dropdown"></div>
                     </div>
                     
                     <div class="form-group">
-                        <label for="issueDate" style="display: block; margin-bottom: 6px; font-weight: 500; color: #334155; font-size: 0.9rem;">Issue Date:</label>
+                        <label for="issueDate" style="display: block; margin-bottom: 6px; font-weight: 500; color: #334155; font-size: 0.9rem;">Issue Date: *</label>
                         <input type="date" id="issueDate" name="issue_date" required style="width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px; box-sizing: border-box;">
                     </div>
                 </div>
@@ -532,46 +554,102 @@ try {
                 </div>
             </form>
         </div>
-        <div class="fullscreen-modal-footer" style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+        <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+            <button type="button" id="printPrescriptionBtn" class="btn-secondary" onclick="printPrescription()" style="padding: 10px 16px; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 6px; cursor: pointer; color: #334155; display: none;">Print Prescription</button>
             <button type="button" class="btn-cancel" onclick="closePrescriptionModal()" style="padding: 10px 16px; border: 1px solid #e2e8f0; background: white; border-radius: 6px; cursor: pointer; color: #334155;">Cancel</button>
             <button type="button" class="btn-primary" onclick="savePrescription()" style="padding: 10px 16px;">Save Prescription</button>
         </div>
     </div>
+    
 </div>
 
+
 <script>
+    // Fix: Add the missing function to clear the safety info box
+function resetPatientSafetyInfo() {
+    const safetyBox = document.getElementById('patientSafetyInfo');
+    if (safetyBox) {
+        safetyBox.style.display = 'none';
+    }
+    document.getElementById('patientName').textContent = '';
+    document.getElementById('patientAge').textContent = '';
+    document.getElementById('patientAllergies').textContent = '';
+    document.getElementById('patientMeds').innerHTML = '';
+}
+
+// Fix: Add the missing function to close the modal
+function closePrescriptionModal() {
+    const modal = document.getElementById('prescriptionModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+
+    
 // I kept your existing JS exactly as is, it will work perfectly with the new IDs and classes!
 let currentPrescriptionId = null;
+let searchTimeout = null;
 
-function loadPatients() {
-    fetch('master/dentist/prescription_actions.php'), {
+function searchPatients(query) {
+    if (query.length < 2) {
+        document.getElementById('patientSearchResults').style.display = 'none';
+        return;
+    }
+
+    fetch('prescription_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'get_patients' })
+        body: JSON.stringify({ action: 'search_patients', query: query })
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success) {
-            const select = document.getElementById('patientSelect');
-            select.innerHTML = '<option value="">Select Patient...</option>';
+        const resultsDiv = document.getElementById('patientSearchResults');
+        resultsDiv.innerHTML = '';
+        
+        if (data.success && data.patients.length > 0) {
             data.patients.forEach(patient => {
-                const option = document.createElement('option');
-                option.value = patient.id;
-                option.textContent = `${patient.patient_name}`;
-                select.appendChild(option);
+                const item = document.createElement('div');
+                item.className = 'search-result-item';
+                item.innerHTML = `
+                    <div class="name">${patient.patient_name}</div>
+                    <div class="details">Age: ${patient.age || 'N/A'}</div>
+                `;
+                item.onclick = () => selectPatient(patient);
+                resultsDiv.appendChild(item);
             });
+            resultsDiv.style.display = 'block';
+        } else {
+            resultsDiv.innerHTML = '<div style="padding: 10px; color: #64748b; font-size: 0.85rem;">No patients found</div>';
+            resultsDiv.style.display = 'block';
         }
     });
 }
+
+function selectPatient(patient) {
+    document.getElementById('patientId').value = patient.id;
+    document.getElementById('patientSearch').value = patient.patient_name;
+    document.getElementById('patientSearchResults').style.display = 'none';
+    loadPatientSafetyInfo(patient.id);
+}
+
+// Close search results when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.form-group')) {
+        const results = document.getElementById('patientSearchResults');
+        if (results) results.style.display = 'none';
+    }
+});
 
 function openNewPrescriptionModal() {
     currentPrescriptionId = null;
     document.getElementById('modalTitle').textContent = 'New Prescription';
     document.getElementById('prescriptionForm').reset();
     document.getElementById('prescriptionId').value = '';
+    document.getElementById('patientId').value = '';
+    document.getElementById('patientSearch').value = '';
     document.getElementById('issueDate').value = new Date().toISOString().split('T')[0];
     resetPatientSafetyInfo();
-    loadPatients();
     document.getElementById('printPrescriptionBtn').style.display = 'none';
     document.getElementById('prescriptionModal').style.display = 'flex';
 }
@@ -582,16 +660,28 @@ function openPatientPrescriptionModal(patientId) {
     document.getElementById('prescriptionForm').reset();
     document.getElementById('prescriptionId').value = '';
     document.getElementById('patientId').value = patientId;
-    document.getElementById('patientSelect').value = patientId;
+    
+    // Fetch patient name for the search box
+    fetch('prescription_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get_patient_info', patient_id: patientId })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('patientSearch').value = data.patient.patient_name;
+            loadPatientSafetyInfo(patientId);
+        }
+    });
+
     document.getElementById('issueDate').value = new Date().toISOString().split('T')[0];
-    resetPatientSafetyInfo();
-    loadPatientSafetyInfo(patientId);
     document.getElementById('printPrescriptionBtn').style.display = 'none';
     document.getElementById('prescriptionModal').style.display = 'flex';
 }
 
 function loadPatientSafetyInfo(patientId) {
-    fetch('master/dentist/prescription_actions.php'), {
+    fetch('prescription_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'get_patient_info', patient_id: patientId })
@@ -618,206 +708,36 @@ function loadPatientSafetyInfo(patientId) {
     });
 }
 
-document.getElementById('patientSelect').addEventListener('change', function() {
-    const patientId = this.value;
-    if (patientId) {
-        loadPatientSafetyInfo(patientId);
-        document.getElementById('patientId').value = patientId;
-    } else {
-        resetPatientSafetyInfo();
-    }
-});
-
-function viewPrescription(prescriptionId) {
-    fetch('master/dentist/prescription_actions.php'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'get_prescription', prescription_id: prescriptionId })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const prescription = data.prescription;
-            currentPrescriptionId = prescriptionId;
-            document.getElementById('modalTitle').textContent = 'Edit Prescription';
-            document.getElementById('prescriptionId').value = prescriptionId;
-            document.getElementById('patientId').value = prescription.patient_id;
-            document.getElementById('patientSelect').value = prescription.patient_id;
-            document.getElementById('issueDate').value = prescription.issue_date;
-            document.getElementById('diagnosis').value = prescription.diagnosis;
-            document.getElementById('medications').value = prescription.medications;
-            document.getElementById('instructions').value = prescription.instructions || '';
-            loadPatientSafetyInfo(prescription.patient_id);
-            document.getElementById('printPrescriptionBtn').style.display = 'inline-block';
-            document.getElementById('prescriptionModal').style.display = 'flex';
-        } else {
-            alert('Error: ' + data.message);
-        }
-    });
-}
-
-function editPrescription(prescriptionId) {
-    viewPrescription(prescriptionId);
-}
-
-function savePrescription() {
-    const formData = new FormData(document.getElementById('prescriptionForm'));
-    const data = Object.fromEntries(formData);
-    
-    if (!data.patient_id || !data.medications || !data.diagnosis) {
-        alert('Please fill in all required fields');
-        return;
-    }
-    
-    const action = currentPrescriptionId ? 'update_prescription' : 'create_prescription';
-    
-    fetch('master/dentist/prescription_actions.php'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, ...data })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert(data.message);
-            closePrescriptionModal();
-            location.reload();
-        } else {
-            alert('Error: ' + data.message);
-        }
-    });
-}
-
-function deletePrescription(prescriptionId) {
-    if (!confirm('Are you sure you want to delete this prescription?')) {
-        return;
-    }
-    
-    fetch('master/dentist/prescription_actions.php'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete_prescription', prescription_id: prescriptionId })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert(data.message);
-            location.reload();
-        } else {
-            alert('Error: ' + data.message);
-        }
-    });
-}
-
-function closePrescriptionModal() {
-    document.getElementById('prescriptionModal').style.display = 'none';
-}
-
-// Kebab menus
-function toggleKebab(id, evt) {
-    evt.stopPropagation();
-    const menu = document.getElementById('kebab-' + id);
-    document.querySelectorAll('.kebab-menu').forEach(m => { if (m !== menu) m.classList.remove('show'); });
-    if (menu) menu.classList.toggle('show');
-}
-document.addEventListener('click', () => {
-    document.querySelectorAll('.kebab-menu').forEach(m => m.classList.remove('show'));
-});
-
-function resetPatientSafetyInfo() {
-    document.getElementById('patientName').textContent = '';
-    document.getElementById('patientAge').textContent = '';
-    document.getElementById('patientAllergies').textContent = '';
-    document.getElementById('patientMeds').textContent = '';
-    document.getElementById('patientSafetyInfo').style.display = 'none';
-}
-
-function printPrescription(idOverride = null) {
-    const presId = idOverride || currentPrescriptionId;
-    if (!presId) {
-        alert('Save the prescription first to print.');
-        return;
-    }
-    fetch('master/dentist/prescription_actions.php'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'get_prescription', prescription_id: presId })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (!data.success) {
-            alert('Unable to load prescription for printing.');
-            return;
-        }
-        const p = data.prescription;
-        const patientInfo = `
-            <div style="font-weight:600;font-size:16px;color:#0f172a;">${p.patient_name || ''}</div>
-            <div style="color:#475569;font-size:13px;">Age: ${p.age || 'N/A'}</div>
-        `;
-        const html = `
-        <html>
-        <head>
-            <title>Prescription #${p.id}</title>
-            <style>
-                body { font-family: Arial, sans-serif; padding:24px; color:#0f172a; }
-                h2 { margin:0 0 6px 0; }
-                .muted { color:#64748b; font-size:13px; margin-bottom:12px; }
-                .section { margin-top:16px; }
-                .label { font-weight:600; margin-bottom:4px; }
-                .box { border:1px solid #e2e8f0; border-radius:8px; padding:12px; background:#f8fafc; }
-                .meds { white-space:pre-wrap; font-family: 'Courier New', monospace; font-size:14px; }
-            </style>
-        </head>
-        <body>
-            <h2>Prescription</h2>
-            <div class="muted">Issued: ${p.issue_date}</div>
-            <div class="section">
-                <div class="label">Patient</div>
-                <div class="box">${patientInfo}</div>
-            </div>
-            <div class="section">
-                <div class="label">Diagnosis</div>
-                <div class="box">${p.diagnosis || ''}</div>
-            </div>
-            <div class="section">
-                <div class="label">Medications</div>
-                <div class="box meds">${(p.medications || '').replace(/\\n/g,'<br>')}</div>
-            </div>
-            <div class="section">
-                <div class="label">Instructions</div>
-                <div class="box">${p.instructions ? p.instructions.replace(/\\n/g,'<br>') : 'None'}</div>
-            </div>
-            <div class="section">
-                <div class="label">Doctor</div>
-                <div class="box">${p.doctor_name || ''}</div>
-            </div>
-        </body>
-        </html>`;
-        const win = window.open('', '_blank');
-        win.document.write(html);
-        win.document.close();
-        win.focus();
-        win.print();
-        setTimeout(() => win.close(), 500);
-    });
-}
-
-document.getElementById('searchInput').addEventListener('input', function() {
-    const searchTerm = this.value.toLowerCase();
-    const rows = document.querySelectorAll('#prescriptionsTableBody tr');
-    
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        if (text.includes(searchTerm)) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
-    });
-});
-
+// Event listener for page load
 document.addEventListener('DOMContentLoaded', function() {
-    loadPatients();
+    // 1. Set up the patient search box inside the modal
+    const searchBox = document.getElementById('patientSearch');
+    if (searchBox) {
+        searchBox.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => searchPatients(e.target.value), 300);
+        });
+    }
+
+    // 2. Set up the main table search filter
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const rows = document.querySelectorAll('#prescriptionsTableBody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchTerm) ? '' : 'none';
+            });
+        });
+    }
+    
+    // 3. Portal Pattern: Move modal to body to escape container restrictions
+    const modal = document.getElementById('prescriptionModal');
+    if (modal) {
+        document.body.appendChild(modal);
+    }
 });
 </script>
 

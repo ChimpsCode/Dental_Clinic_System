@@ -5,16 +5,17 @@
  * - Admin only: Permanent delete from Archive page
  */
 
-header('Content-Type: application/json');
-
 session_start();
-require_once 'config/database.php';
+require_once __DIR__ . '/../../config/database.php';
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('Invalid request method');
     }
-
+    
+    // Log the request for debugging
+    error_log("Delete Appointment API called. INPUT: " . file_get_contents('php://input'));
+    
     $data = json_decode(file_get_contents('php://input'), true);
     $id = $data['id'] ?? null;
     $permanent = $data['permanent'] ?? false;

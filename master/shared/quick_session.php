@@ -28,8 +28,8 @@ if ($userRole === 'admin') {
     $patientListPage = '../dentist/dentist_patients.php';
     $queuePage = '../dentist/dentist_queue.php';
 } else {
-    $patientListPage = 'staff_patient_records.php';
-    $queuePage = 'staff_queue.php';
+    $patientListPage = '../staff/staff_patient_records.php';
+    $queuePage = '../staff/staff_queue.php';
 }
 
 try {
