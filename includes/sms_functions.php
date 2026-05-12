@@ -1,6 +1,6 @@
 <?php
 
-define('SMS_API_KEY', 'baf2528c5c5a1a80b123ef6114d21274d31e69f20df042db');
+define('SMS_API_KEY', '073fbf9a79ffc72ac784df4fb28f832690ac6aa519e01942');
 define('SMS_API_URL', 'https://api.smsmobileapi.com/sendsms/');
 define('SMS_SENDER_NAME', 'RF Dental');
 
@@ -55,6 +55,9 @@ function sendSMS($phone, $message) {
             case '52':
                 $errorMsg = 'Invalid phone number format.';
                 break;
+            case 'subscription_expire':
+                $errorMsg = 'Your SMSMobileAPI trial has expired. Please renew or purchase credits at smsmobileapi.com.';
+                break;
             default:
                 $errorMsg = 'SMS API error: ' . ($result['result']['error_message'] ?? $errorCode);
         }
@@ -77,6 +80,10 @@ function formatPhoneNumber($phone) {
     }
     
     if (substr($phone, 0, 1) == '9') {
+        return '63' . $phone;
+    }
+    
+    if (substr($phone, 0, 2) == '09') {
         return '63' . substr($phone, 1);
     }
     
@@ -88,6 +95,20 @@ function sendAppointmentConfirmationSMS($phone, $patientName, $appointmentDate, 
     $formattedTime = date('g:i A', strtotime($appointmentTime));
     
     $message = "Thanks for booking with us! Your schedule is {$formattedDate} at {$formattedTime} (Treatment: {$treatment}). See you soon! - RF Dental Clinic";
+    
+    return sendSMS($phone, $message);
+}
+
+function sendAppointmentCancellationSMS($phone, $patientName, $appointmentDate, $cancelReason) {
+    $formattedDate = date('F j, Y', strtotime($appointmentDate));
+    
+    $message = "Sorry to inform that your appointment on {$formattedDate} has been cancelled. Reason: {$cancelReason}. Please contact us if you have any questions. - RF Dental Clinic";
+    
+    return sendSMS($phone, $message);
+}
+
+function sendRegistrationWelcomeSMS($phone, $firstName) {
+    $message = "Welcome to RF Dental Clinic, {$firstName}! Your account has been created successfully. You can now book appointments online. See you soon!";
     
     return sendSMS($phone, $message);
 }

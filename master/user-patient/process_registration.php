@@ -58,8 +58,8 @@ try {
         throw new Exception('Passwords do not match');
     }
 
-    // Check if email already exists
-    $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
+    // Check if email already exists (exclude archived/deleted users)
+    $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND is_archived = 0");
     $stmt->execute([$email]);
     if ($stmt->fetch()) {
         throw new Exception('Email already registered. Please login instead.');
@@ -72,8 +72,8 @@ try {
     $pdo->beginTransaction();
 
     // Create user account (for patient users, role_id = NULL)
-    $stmt = $pdo->prepare("INSERT INTO users (first_name, middle_name, last_name, username, password, email) VALUES (?, ?, ?, ?, ?, ?)");
-    $stmt->execute([$first_name, $middle_name ?: null, $last_name, $email, $hashedPassword, $email]);
+    $stmt = $pdo->prepare("INSERT INTO users (first_name, middle_name, last_name, username, password, email, phone, gender, date_of_birth) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->execute([$first_name, $middle_name ?: null, $last_name, $email, $hashedPassword, $email, $phone, $gender, $date_of_birth ?: null]);
     $user_id = $pdo->lastInsertId();
 
     // Create patient record (without address - use addresses table separately if needed)
@@ -95,6 +95,10 @@ try {
     $patient_id = $pdo->lastInsertId();
 
     $pdo->commit();
+
+    // Send welcome SMS
+    require_once __DIR__ . '/../../includes/sms_functions.php';
+    sendRegistrationWelcomeSMS($phone, $first_name);
 
     // Set session for automatic login
     $_SESSION['user_id'] = $user_id;
