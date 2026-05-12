@@ -141,6 +141,30 @@ $services = [
   ],
 ];
 
+$featuredServices = [
+  [
+    'img' => '../../assets/images/pic1.jpg',
+    'title' => 'Tooth Extraction',
+    'desc' => 'Safe and comfortable tooth removal performed by our team.',
+    'price' => '₱800.00',
+    'duration' => '45 min'
+  ],
+  [
+    'img' => '../../assets/images/pic2.jpg',
+    'title' => 'Tooth Restoration',
+    'desc' => 'Restore decayed or damaged teeth using modern materials.',
+    'price' => '₱800.00',
+    'duration' => '45 min'
+  ],
+  [
+    'img' => '../../assets/images/pic3.jpg',
+    'title' => 'Teeth Cleaning',
+    'desc' => 'Professional cleaning to remove plaque and polish teeth.',
+    'price' => '₱800.00',
+    'duration' => '60 min'
+  ],
+];
+
 $faqs = [
   'What should I expect during my first visit?',
   'How often should I visit the dentist?',
@@ -189,6 +213,137 @@ $faqs = [
       .contact-form-card,
       .contact-info-box {
         transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease, color 0.25s ease;
+      }
+
+      /* Featured services grid (three cards) */
+      .featured-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        margin-top: 18px;
+        align-items: stretch;
+      }
+
+      .services-header {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 25px;
+      }
+
+      .services-title .section-title,
+      .services-title .section-subtitle {
+        text-align: left;
+      }
+
+      .services-actions .explore-all-btn {
+        white-space: nowrap;
+      }
+
+      /* Full services list (hidden by default) */
+      .all-services-list {
+        margin-top: 24px;
+        display: none;
+      }
+
+      .all-services-list[aria-hidden="false"] {
+        display: block;
+      }
+
+      /* Reuse existing services-grid style if present; otherwise define basic layout */
+      .services-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 18px;
+        margin-top: 12px;
+      }
+
+      .service-card {
+        background: #fff;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 6px 18px rgba(22,31,45,0.06);
+        display: flex;
+        flex-direction: column;
+        margin: 0; /* ensure no extra outer gap */
+        padding: 0; /* remove inherited padding from external stylesheet */
+      }
+
+      .service-card img {
+        width: 100%;
+        height: 160px;
+        object-fit: cover;
+        display: block;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        /* ensure image fills the rounded top corners */
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+      }
+
+      .service-card .service-body {
+        padding: 14px 16px;
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      .service-card .learn-more {
+        margin-top: 12px;
+        color: #0b5fff;
+        font-weight: 600;
+        text-decoration: none;
+      }
+
+      @media (max-width: 880px) {
+        .featured-grid,
+        .services-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .services-header {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .services-actions {
+          display: flex;
+          justify-content: flex-end;
+        }
+      }
+
+      .service-feature-card {
+        background: #ffffff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 6px 20px rgba(22, 31, 45, 0.06);
+        display: flex;
+        flex-direction: column;
+      }
+
+      .service-feature-card img {
+        width: 100%;
+        height: 160px;
+        object-fit: cover;
+        display: block;
+      }
+
+      .service-feature-body {
+        padding: 18px;
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      .service-feature-body .learn-more {
+        color: #0b5fff;
+        font-weight: 600;
+        text-decoration: none;
+        margin-top: 12px;
       }
     </style>
   </head>
@@ -328,25 +483,87 @@ $faqs = [
 
       <section id="services" class="section services" style="padding-top:30px">
         <div class="container">
-          <h2 class="section-title center">
-            Our <span class="accent">Services</span>
-          </h2>
-          <p class="section-subtitle center">
-            Comprehensive dental care tailored to your needs, delivered with expertise and compassion.
-          </p>
+          <div class="services-header">
+            <div class="services-title">
+              <h2 class="section-title">
+                Our <span class="accent">Services</span>
+              </h2>
+              <p class="section-subtitle">
+                Comprehensive dental care tailored to your needs, delivered with expertise and compassion.
+              </p>
+            </div>
 
-          <div class="services-grid">
-            <?php foreach ($services as $svc): ?>
-              <article class="service-card">
-                <h3 class="service-title"><?= htmlspecialchars($svc['title']) ?></h3>
-                <p class="service-desc"><?= htmlspecialchars($svc['desc']) ?></p>
-                <div class="service-meta">
-                  <span class="service-price"><?= htmlspecialchars($svc['price']) ?></span>
-                  <span class="service-dot" aria-hidden="true">•</span>
-                  <span class="service-duration"><?= htmlspecialchars($svc['duration']) ?></span>
+            <div class="services-actions">
+              <a id="exploreAllBtn" class="btn btn-primary explore-all-btn" href="#allServices">Explore All Services</a>
+            </div>
+          </div>
+
+          <div class="featured-grid" aria-label="Featured services">
+            <?php foreach ($featuredServices as $f): ?>
+              <article class="service-feature-card">
+                <img src="<?= htmlspecialchars($f['img']) ?>" alt="<?= htmlspecialchars($f['title']) ?>" />
+                <div class="service-feature-body">
+                  <div>
+                    <h3 class="service-title"><?= htmlspecialchars($f['title']) ?></h3>
+                    <p class="service-desc"><?= htmlspecialchars($f['desc']) ?></p>
+                  </div>
+                  <div>
+                    <div class="service-meta">
+                      <span class="service-price"><?= htmlspecialchars($f['price'] ?? '') ?></span>
+                      <span class="service-dot" aria-hidden="true">•</span>
+                      <span class="service-duration"><?= htmlspecialchars($f['duration'] ?? '') ?></span>
+                    </div>
+                    <a class="learn-more" href="#services">Learn more →</a>
+                  </div>
                 </div>
               </article>
             <?php endforeach; ?>
+          </div>
+
+          <div id="allServices" class="all-services-list" aria-hidden="true">
+            <div class="services-grid">
+              <?php
+                $imgIndex = 4; // start from pic4.jpg
+                $excludeTerms = ['tooth extraction', 'tooth restoration', 'teeth cleaning'];
+                foreach ($services as $svc):
+                  $lower = strtolower($svc['title']);
+                  $skip = false;
+                  foreach ($excludeTerms as $term) {
+                    if (strpos($lower, $term) !== false) { $skip = true; break; }
+                  }
+                  if ($skip) continue;
+                  $assetsDir = __DIR__ . '/../../assets/images/';
+                  $imgBase = 'pic' . $imgIndex;
+                  $jpgFile = $assetsDir . $imgBase . '.jpg';
+                  $pngFile = $assetsDir . $imgBase . '.png';
+                  if (file_exists($jpgFile)) {
+                    $imgPath = '../../assets/images/' . $imgBase . '.jpg';
+                  } elseif (file_exists($pngFile)) {
+                    $imgPath = '../../assets/images/' . $imgBase . '.png';
+                  } else {
+                    $imgPath = '../../assets/images/Logo.png';
+                  }
+                  $imgIndex++;
+              ?>
+                <article class="service-card">
+                  <img src="<?= htmlspecialchars($imgPath) ?>" alt="<?= htmlspecialchars($svc['title']) ?>" />
+                  <div class="service-body">
+                    <div>
+                      <h3 class="service-title"><?= htmlspecialchars($svc['title']) ?></h3>
+                      <p class="service-desc"><?= htmlspecialchars($svc['desc']) ?></p>
+                    </div>
+                    <div>
+                      <div class="service-meta">
+                        <span class="service-price"><?= htmlspecialchars($svc['price']) ?></span>
+                        <span class="service-dot" aria-hidden="true">•</span>
+                        <span class="service-duration"><?= htmlspecialchars($svc['duration']) ?></span>
+                      </div>
+                      <a class="learn-more" href="#services">Learn more →</a>
+                    </div>
+                  </div>
+                </article>
+              <?php endforeach; ?>
+            </div>
           </div>
         </div>
       </section>
@@ -756,6 +973,29 @@ $faqs = [
             }, 4000);
           }, 1000); // Wait 1 second after page load
         }
+      })();
+    </script>
+
+    <script>
+      // Toggle full services list when Explore All Services is clicked
+      (function() {
+        const btn = document.getElementById('exploreAllBtn');
+        const all = document.getElementById('allServices');
+        if (!btn || !all) return;
+
+        btn.addEventListener('click', function(e) {
+          e.preventDefault();
+          const isOpen = all.getAttribute('aria-hidden') === 'false';
+          if (isOpen) {
+            all.setAttribute('aria-hidden', 'true');
+            btn.textContent = 'Explore All Services';
+          } else {
+            all.setAttribute('aria-hidden', 'false');
+            btn.textContent = 'Hide Services';
+            // scroll into view
+            setTimeout(() => all.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
+          }
+        });
       })();
     </script>
 
