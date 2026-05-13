@@ -88,22 +88,50 @@ try {
         ORDER BY b.billing_date DESC
     ")->fetchAll(PDO::FETCH_ASSOC);
 
-    // Revenue Report - Direct from billing (same as Dashboard/Payment) with date filter
-$revenueReport = $pdo->prepare("
+    // Revenue Report - Grouped by month then service
+$revenueStmt = $pdo->prepare("
     SELECT 
+        DATE_FORMAT(b.billing_date, '%Y-%m') AS month,
         COALESCE(s.name, 'Other Services') AS service,
-        COUNT(b.id) AS treatment_count,
-        COALESCE(SUM(b.total_amount), 0) AS billing_total,
-        COALESCE(SUM(CASE WHEN b.payment_status_id IN (1, 2) THEN b.paid_amount ELSE 0 END), 0) AS paid_amount
+        COALESCE(s.price, 0) AS service_price,
+        COUNT(b.id) AS quantity,
+        COALESCE(SUM(CASE WHEN b.payment_status_id IN (1, 2) THEN b.paid_amount ELSE 0 END), 0) AS subtotal
     FROM billing b
     LEFT JOIN treatments t ON b.treatment_id = t.id
     LEFT JOIN services s ON t.service_id = s.id
     WHERE 1=1" . $dateCondition . "
-    GROUP BY s.name
-    ORDER BY paid_amount DESC
+    GROUP BY DATE_FORMAT(b.billing_date, '%Y-%m'), s.name, s.price
+    ORDER BY month DESC, s.name ASC
 ");
-$revenueReport->execute();
-$revenueReport = $revenueReport->fetchAll(PDO::FETCH_ASSOC);
+$revenueStmt->execute();
+$revenueRows = $revenueStmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Restructure into hierarchical array: month -> services
+$revenueByMonth = [];
+foreach ($revenueRows as $row) {
+    $month = $row['month'];
+    if (!isset($revenueByMonth[$month])) {
+        $revenueByMonth[$month] = [
+            'label' => date('F Y', strtotime($month . '-01')),
+            'services' => [],
+            'monthly_total' => 0
+        ];
+    }
+    $revenueByMonth[$month]['services'][] = [
+        'service' => $row['service'],
+        'service_price' => $row['service_price'],
+        'quantity' => $row['quantity'],
+        'subtotal' => $row['subtotal']
+    ];
+    $revenueByMonth[$month]['monthly_total'] += (float)$row['subtotal'];
+}
+krsort($revenueByMonth);
+$annualTotal = array_sum(array_column($revenueByMonth, 'monthly_total'));
+
+$revenueReport = [
+    'months' => $revenueByMonth,
+    'annual_total' => $annualTotal
+];
 
 // Get available months for dropdown
 $availableMonths = $pdo->query("
@@ -112,38 +140,6 @@ $availableMonths = $pdo->query("
     WHERE billing_date IS NOT NULL 
     ORDER BY month DESC
 ")->fetchAll(PDO::FETCH_ASSOC);
-
-// Get monthly totals for overall summary
-$monthlyTotals = $pdo->query("
-    SELECT 
-        DATE_FORMAT(billing_date, '%Y-%m') AS month,
-        COALESCE(SUM(CASE WHEN payment_status_id IN (1, 2) THEN paid_amount ELSE 0 END), 0) AS total_paid,
-        COALESCE(SUM(total_amount), 0) AS total_billed
-    FROM billing
-    WHERE billing_date IS NOT NULL
-    GROUP BY DATE_FORMAT(billing_date, '%Y-%m')
-    ORDER BY month DESC
-")->fetchAll(PDO::FETCH_ASSOC);
-    
-// Overall total (all time)
-$overallTotal = $pdo->query("
-    SELECT 
-        COALESCE(SUM(CASE WHEN payment_status_id IN (1, 2) THEN paid_amount ELSE 0 END), 0) AS total_paid,
-        COALESCE(SUM(total_amount), 0) AS total_billed
-    FROM billing
-")->fetch(PDO::FETCH_ASSOC);
-
-// Also get total summary with date filter
-$revenueTotalStmt = $pdo->prepare("
-    SELECT 
-        COALESCE(SUM(CASE WHEN payment_status_id IN (1, 2) THEN paid_amount ELSE 0 END), 0) AS total_paid,
-        COALESCE(SUM(total_amount), 0) AS total_billed,
-        COALESCE(SUM(CASE WHEN payment_status_id IN (2, 3, 4) THEN balance ELSE 0 END), 0) AS total_balance
-    FROM billing
-    WHERE 1=1" . $dateCondition
-);
-$revenueTotalStmt->execute();
-$revenueTotal = $revenueTotalStmt->fetch(PDO::FETCH_ASSOC);
 
     $printedInvoices = $pdo->query("
         SELECT b.id, CONCAT(p.first_name, ' ', p.last_name) AS patient,
@@ -369,34 +365,6 @@ $revenueTotal = $revenueTotalStmt->fetch(PDO::FETCH_ASSOC);
                     </div>
                 </div>
 
-                <!-- Monthly Revenue Summary -->
-                <div class="section-card" style="margin-top: 30px;">
-                    <h2 class="section-title">&#128200; Monthly Revenue Summary</h2>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Month</th>
-                                <th style="text-align:right;">Total Billed</th>
-                                <th style="text-align:right;">Total Collected</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($monthlyTotals as $mt): ?>
-                            <tr>
-                                <td><?php echo date('F Y', strtotime($mt['month'] . '-01')); ?></td>
-                                <td style="text-align:right;"><?php echo '₱' . number_format($mt['total_billed']); ?></td>
-                                <td style="text-align:right;color:#16a34a;font-weight:600;"><?php echo '₱' . number_format($mt['total_paid']); ?></td>
-                            </tr>
-                            <?php endforeach; ?>
-                            <tr style="background:#f3f4f6;font-weight:700;">
-                                <td>OVERALL TOTAL</td>
-                                <td style="text-align:right;"><?php echo '₱' . number_format($overallTotal['total_billed']); ?></td>
-                                <td style="text-align:right;color:#16a34a;"><?php echo '₱' . number_format($overallTotal['total_paid']); ?></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
             </div>
 
             <div id="printPreviewModal" class="modal-overlay">
@@ -485,16 +453,62 @@ function renderNewReport(type) {
             `₱${Number(b.balance || 0).toLocaleString()}`, b.payment_status ?? '', b.billing_date ?? '', b.due_date ?? ''
         ]);
     } else if (type === 'revenue') {
-        headers = ['Service', 'Billing Count', 'Billing Total', 'Paid Amount'];
-        rows = data.map(r => [
-            r.service ?? 'Unknown',
-            r.treatment_count ?? 0,
-            `₱${Number(r.billing_total || 0).toLocaleString()}`,
-            `₱${Number(r.paid_amount || 0).toLocaleString()}`
-        ]);
-        // Add total row
-        const totalPaid = rows.reduce((sum, r) => sum + (parseFloat((r[3] || '₱0').replace(/[₱,]/g, '')) || 0), 0);
-        rows.push(['', '', 'TOTAL:', `₱${totalPaid.toLocaleString()}`]);
+        const months = data.months || {};
+        const annualTotal = data.annual_total || 0;
+        const monthKeys = Object.keys(months);
+        if (monthKeys.length === 0) {
+            headers = ['Service Name', 'Service Price', 'Quantity', 'Subtotal'];
+            rows = [['No records found', '', '', '']];
+        } else {
+            let htmlParts = [];
+            monthKeys.forEach((monthKey, i) => {
+                const md = months[monthKey];
+                const svcHeaders = ['Service Name', 'Service Price', 'Quantity', 'Subtotal'];
+                const svcRows = md.services.map(s => [
+                    s.service || 'Unknown',
+                    `₱${Number(s.service_price || 0).toLocaleString()}`,
+                    s.quantity || 0,
+                    `₱${Number(s.subtotal || 0).toLocaleString()}`
+                ]);
+                svcRows.push([
+                    '<strong>TOTAL</strong>',
+                    '',
+                    '',
+                    `<strong>₱${Number(md.monthly_total || 0).toLocaleString()}</strong>`
+                ]);
+                const tbl = buildTable(svcHeaders, svcRows);
+                htmlParts.push(
+                    `<div style="margin-top:${i > 0 ? '28' : '0'}px;">`,
+                    `<div style="font-size:15px;font-weight:700;margin-bottom:8px;color:#1f2937;">${md.label}</div>`,
+                    tbl,
+                    `</div>`
+                );
+            });
+            htmlParts.push(
+                `<div style="text-align:right;margin-top:24px;padding-top:14px;border-top:3px double #111;font-size:16px;font-weight:800;">Total Annual Revenue: ₱${Number(annualTotal).toLocaleString()}</div>`
+            );
+            return `
+        <div class="print-report">
+            <div class="print-header">
+                <div class="print-brand">
+                    <div class="print-logo">RF</div>
+                    <div>
+                        <div class="print-title">RF Dental Clinic</div>
+                        <div class="print-subtitle">${reportTitles[type]}</div>
+                    </div>
+                </div>
+                <div class="print-meta">
+                    <div>Generated: ${new Date().toLocaleString()}</div>
+                </div>
+            </div>
+            <div class="print-body">${htmlParts.join('')}</div>
+            <div class="print-footer">
+                <div>Confidential - For internal use only</div>
+                <div>RF Dental Clinic</div>
+            </div>
+        </div>
+    `;
+        }
     } else if (type === 'services') {
         headers = ['Service', 'Frequency', 'Treatment Cost', 'Revenue'];
         rows = data.map(s => [
