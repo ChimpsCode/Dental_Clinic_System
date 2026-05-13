@@ -89,19 +89,32 @@ try {
     ")->fetchAll(PDO::FETCH_ASSOC);
 
     // Revenue Report - Grouped by month then service
+    // Service name resolved via 4 paths: treatments→services, appointments→services, notes field, amount fallback
 $revenueStmt = $pdo->prepare("
     SELECT 
         DATE_FORMAT(b.billing_date, '%Y-%m') AS month,
-        COALESCE(s.name, 'Other Services') AS service,
-        COALESCE(s.price, 0) AS service_price,
+        COALESCE(
+            NULLIF(s.name, ''),
+            NULLIF(sa.name, ''),
+            NULLIF(
+                IF(LOCATE('Services: ', b.notes) > 0,
+                   TRIM(SUBSTRING_INDEX(b.notes, 'Services: ', -1)),
+                   ''),
+                ''
+            ),
+            '—'
+        ) AS service,
+        COALESCE(s.price, sa.price, b.total_amount, 0) AS service_price,
         COUNT(b.id) AS quantity,
         COALESCE(SUM(CASE WHEN b.payment_status_id IN (1, 2) THEN b.paid_amount ELSE 0 END), 0) AS subtotal
     FROM billing b
     LEFT JOIN treatments t ON b.treatment_id = t.id
     LEFT JOIN services s ON t.service_id = s.id
+    LEFT JOIN appointments a ON b.appointment_id = a.id
+    LEFT JOIN services sa ON a.service_id = sa.id
     WHERE 1=1" . $dateCondition . "
-    GROUP BY DATE_FORMAT(b.billing_date, '%Y-%m'), s.name, s.price
-    ORDER BY month DESC, s.name ASC
+    GROUP BY month, service, service_price
+    ORDER BY month DESC, service ASC
 ");
 $revenueStmt->execute();
 $revenueRows = $revenueStmt->fetchAll(PDO::FETCH_ASSOC);
