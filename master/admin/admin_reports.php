@@ -176,11 +176,42 @@ $availableMonths = $pdo->query("
     // Services Report - Summary of services rendered with frequency and revenue
     $servicesReport = [];
 
+    // Revenue lookup by service name from billing (using same COALESCE logic as Revenue Report)
+    // Joined to treatments via patient_id + date since billing.treatment_id is always NULL
+    $revenueByService = [];
+    $revenueServiceStmt = $pdo->prepare("
+        SELECT 
+            COALESCE(
+                NULLIF(s.name, ''),
+                NULLIF(sa.name, ''),
+                NULLIF(
+                    IF(LOCATE('Services: ', b.notes) > 0,
+                       TRIM(SUBSTRING_INDEX(b.notes, 'Services: ', -1)),
+                       ''),
+                    ''
+                ),
+                '—'
+            ) AS service,
+            COALESCE(SUM(CASE WHEN b.payment_status_id IN (1, 2) THEN b.paid_amount ELSE 0 END), 0) AS revenue
+        FROM billing b
+        LEFT JOIN treatments t ON b.patient_id = t.patient_id AND DATE(b.billing_date) = t.treatment_date
+        LEFT JOIN services s ON t.service_id = s.id
+        LEFT JOIN appointments a ON b.appointment_id = a.id
+        LEFT JOIN services sa ON a.service_id = sa.id
+        WHERE 1=1" . $dateCondition . "
+        GROUP BY service
+    ");
+    $revenueServiceStmt->execute();
+    foreach ($revenueServiceStmt->fetchAll(PDO::FETCH_ASSOC) as $rs) {
+        $revenueByService[$rs['service']] = (float)$rs['revenue'];
+    }
+
     // Get treatments grouped by service
+
     $treatments = $pdo->query("
         SELECT
             t.id,
-            COALESCE(s.name, t.procedure_name) AS service,
+            s.name AS service,
             t.cost
         FROM treatments t
         LEFT JOIN services s ON t.service_id = s.id
@@ -190,29 +221,19 @@ $availableMonths = $pdo->query("
         // Group by service
         $grouped = [];
         foreach ($treatments as $t) {
-            $svc = $t['service'] ?? 'Unknown Service';
+            $svc = $t['service'] ?? 'Unknown';
             if (!isset($grouped[$svc])) {
                 $grouped[$svc] = ['frequency' => 0, 'treatment_cost' => 0, 'revenue' => 0];
             }
             $grouped[$svc]['frequency']++;
-            $grouped[$svc]['treatment_cost'] += $t['cost'];
+            $grouped[$svc]['treatment_cost'] += (float)$t['cost'];
         }
 
-        // Get revenue for each service from billing
+        // Merge revenue from billing
         foreach ($grouped as $service => &$stats) {
-            $stmt = $pdo->prepare("
-                SELECT COALESCE(SUM(b.paid_amount), 0)
-                FROM billing b
-                WHERE b.payment_status_id IN (1, 2)
-                  AND b.treatment_id IN (
-                    SELECT t.id FROM treatments t
-                    LEFT JOIN services s ON t.service_id = s.id
-                    WHERE COALESCE(s.name, t.procedure_name) = ?
-                )
-            ");
-            $stmt->execute([$service]);
-            $stats['revenue'] = $stmt->fetchColumn();
+            $stats['revenue'] = $revenueByService[$service] ?? 0;
         }
+        unset($stats);
 
         // Convert to indexed array
         foreach ($grouped as $service => $stats) {
@@ -226,44 +247,84 @@ $availableMonths = $pdo->query("
     // Fallback to appointments table if no treatments found
     if (empty($servicesReport)) {
         $servicesReport = $pdo->query("
-            SELECT treatment AS service, COUNT(*) AS frequency, 0 AS treatment_cost, 0 AS revenue
-            FROM appointments
-            WHERE treatment IS NOT NULL AND treatment != ''
-            GROUP BY treatment
+            SELECT COALESCE(s.name, 'Unknown') AS service, COUNT(*) AS frequency, 0 AS treatment_cost, 0 AS revenue
+            FROM appointments a
+            LEFT JOIN services s ON a.service_id = s.id
+            WHERE s.name IS NOT NULL
+            GROUP BY s.name
             ORDER BY frequency DESC
         ")->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    $dailySummaryReport = $pdo->query("
-        SELECT
-            DATE(d.day) AS day,
-            COALESCE(p.new_patients, 0) AS new_patients,
-            COALESCE(a.total_appointments, 0) AS appointments,
-            COALESCE(r.total_revenue, 0) AS revenue
-        FROM (
-            SELECT CURDATE() - INTERVAL (a.a) DAY AS day
-            FROM (SELECT 0 a UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6) a
-        ) d
-        LEFT JOIN (
-            SELECT DATE(created_at) AS day, COUNT(*) AS new_patients
-            FROM patients
-            WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-            GROUP BY DATE(created_at)
-        ) p ON p.day = DATE(d.day)
-        LEFT JOIN (
-            SELECT appointment_date AS day, COUNT(*) AS total_appointments
-            FROM appointments
-            WHERE appointment_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-            GROUP BY appointment_date
-        ) a ON a.day = DATE(d.day)
-        LEFT JOIN (
-            SELECT payment_date AS day, COALESCE(SUM(amount), 0) AS total_revenue
-            FROM payments
-            WHERE payment_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-            GROUP BY payment_date
-        ) r ON r.day = DATE(d.day)
-        ORDER BY day ASC
-    ")->fetchAll(PDO::FETCH_ASSOC);
+    // Daily Summary - dynamic date range based on filter, revenue from billing
+    $dailyStartDate = date('Y-m-d', strtotime('-29 days'));
+    $dailyEndDate = date('Y-m-d');
+
+    if (!empty($selectedMonth)) {
+        $dailyStartDate = $selectedMonth . '-01';
+        $dailyEndDate = date('Y-m-t', strtotime($dailyStartDate));
+    } else {
+        switch ($dateFilter) {
+            case 'today':
+                $dailyStartDate = date('Y-m-d');
+                break;
+            case 'week':
+                $dailyStartDate = date('Y-m-d', strtotime('-6 days'));
+                break;
+        }
+    }
+
+    // Build date series in PHP
+    $dailySummaryReport = [];
+    $dailyPeriod = new DatePeriod(
+        new DateTime($dailyStartDate),
+        new DateInterval('P1D'),
+        (new DateTime($dailyEndDate))->modify('+1 day')
+    );
+    foreach ($dailyPeriod as $dt) {
+        $dayKey = $dt->format('Y-m-d');
+        $dailySummaryReport[$dayKey] = [
+            'day' => $dayKey,
+            'new_patients' => 0,
+            'appointments' => 0,
+            'revenue' => 0
+        ];
+    }
+
+    // New patients per day
+    $stmt = $pdo->prepare("SELECT DATE(created_at) AS day, COUNT(*) AS total FROM patients WHERE DATE(created_at) BETWEEN ? AND ? GROUP BY DATE(created_at)");
+    $stmt->execute([$dailyStartDate, $dailyEndDate]);
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $np) {
+        if (isset($dailySummaryReport[$np['day']])) {
+            $dailySummaryReport[$np['day']]['new_patients'] = (int)$np['total'];
+        }
+    }
+
+    // Appointments per day
+    $stmt = $pdo->prepare("SELECT appointment_date AS day, COUNT(*) AS total FROM appointments WHERE appointment_date BETWEEN ? AND ? GROUP BY appointment_date");
+    $stmt->execute([$dailyStartDate, $dailyEndDate]);
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $ad) {
+        if (isset($dailySummaryReport[$ad['day']])) {
+            $dailySummaryReport[$ad['day']]['appointments'] = (int)$ad['total'];
+        }
+    }
+
+    // Revenue per day from billing (paid_amount, not payments table)
+    $stmt = $pdo->prepare("
+        SELECT DATE(billing_date) AS day, COALESCE(SUM(paid_amount), 0) AS total
+        FROM billing
+        WHERE payment_status_id IN (1, 2) AND billing_date BETWEEN ? AND ?
+        GROUP BY DATE(billing_date)
+    ");
+    $stmt->execute([$dailyStartDate, $dailyEndDate]);
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $rd) {
+        if (isset($dailySummaryReport[$rd['day']])) {
+            $dailySummaryReport[$rd['day']]['revenue'] = (float)$rd['total'];
+        }
+    }
+
+    // Re-index to sequential
+    $dailySummaryReport = array_values($dailySummaryReport);
 } catch (Exception $e) {
     error_log('Reports page error: ' . $e->getMessage());
 }
@@ -533,6 +594,18 @@ function renderNewReport(type) {
     } else if (type === 'daily') {
         headers = ['Date', 'New Patients', 'Appointments', 'Revenue'];
         rows = data.map(d => [d.day ?? '', d.new_patients ?? 0, d.appointments ?? 0, `₱${Number(d.revenue || 0).toLocaleString()}`]);
+    } else if (type === 'printed') {
+        headers = ['Invoice #', 'Patient', 'Total Amount', 'Payment Status', 'Printed At'];
+        rows = data.map(p => [
+            `INV-${String(p.id).padStart(4, '0')}`,
+            p.patient ?? '',
+            `₱${Number(p.total_amount || 0).toLocaleString()}`,
+            p.payment_status ?? '',
+            p.printed_at ? new Date(p.printed_at).toLocaleString() : ''
+        ]);
+    } else if (type === 'printed_daily') {
+        headers = ['Date', 'Printed Count'];
+        rows = data.map(d => [d.day ?? '', d.printed_count ?? 0]);
     }
 
     const table = buildTable(headers, rows);

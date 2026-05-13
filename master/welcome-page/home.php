@@ -352,7 +352,7 @@ $faqs = [
       <div class="nav-overlay"></div>
     <header class="site-header">
         <div class="container header-inner">
-        <a class="brand" href="#home" aria-label="<?php echo htmlspecialchars($clinicName); ?> home">
+        <a class="brand" href="#top" aria-label="<?php echo htmlspecialchars($clinicName); ?> home">
           <img class="brand-mark" src="../../assets/images/Logo.png" alt="" />
           <span class="brand-text"><?php echo htmlspecialchars($clinicName); ?></span>
         </a>
@@ -696,7 +696,7 @@ $faqs = [
 
         <div class="footer-col">
           <div class="footer-heading">Quick Links</div>
-          <a class="footer-link" href="#home">Home</a>
+          <a class="footer-link" href="#top">Home</a>
           <a class="footer-link" href="#about">About Us</a>
           <a class="footer-link" href="#services">Services</a>
           <a class="footer-link" href="#contact">Contact</a>
