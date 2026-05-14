@@ -115,21 +115,56 @@ body {
 .sidebar-nav {
     background-color: #ffffff;
     flex: 1;
-    padding: 21px 0;
 }
 
-.nav-section-label {
+.nav-dropdown {
+    border-top: 1px solid #e5e7eb;
+    margin-top: 8px;
+    padding-top: 0;
+}
+.nav-dropdown:first-child {
+    border-top: none;
+    margin-top: 0;
+}
+.nav-dropdown-toggle {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 16px 20px 8px;
+    width: 100%;
+    padding: 10px 20px;
     font-size: 11px;
     font-weight: 700;
-    color: #9ca3af;
+    color: rgba(0, 0, 0, 0.4);
     text-transform: uppercase;
     letter-spacing: 1.2px;
-    border-top: 1px solid #e5e7eb;
-    margin-top: 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+.nav-dropdown-toggle:hover {
+    color: rgba(0, 0, 0, 0.65);
+}
+.nav-dropdown-toggle .dropdown-arrow {
+    display: inline-block;
+    font-size: 11px;
+    transition: transform 0.2s ease;
+    line-height: 1;
+    margin-right: 2px;
+}
+.nav-dropdown-toggle[aria-expanded="true"] .dropdown-arrow {
+    transform: rotate(90deg);
+}
+.nav-dropdown-content {
+    overflow: hidden;
+    transition: max-height 0.25s ease;
+    max-height: 0;
+}
+.nav-dropdown-content.open {
+    max-height: 500px;
+}
+.nav-dropdown-item {
+    padding-left: 28px !important;
 }
 
 .nav-item {
