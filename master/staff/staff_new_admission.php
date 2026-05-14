@@ -27,6 +27,8 @@ if (!isset($_SESSION['role']) || !in_array($_SESSION['role'], $allowedRoles)) {
 // Fetch services from database for the services selection
 try {
     require_once '../../config/database.php';
+    $logoS = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'welcome_logo'")->fetchColumn();
+    $dynamicLogo = $logoS ? '../../' . $logoS : '../../assets/images/Logo.png';
     $stmt = $pdo->query("
         SELECT id, name, mode, price, duration_minutes
         FROM services 
@@ -465,7 +467,7 @@ elseif ($appointmentId) {
             </div>
              <!-- Logo -->
              <div class="mb-10 flex items-center gap-2">
-                 <img src="../../assets/images/Logo.png" alt="RF Dental Clinic Logo" class="w-8 h-8 rounded-md">
+                 <img src="<?php echo htmlspecialchars($dynamicLogo); ?>" alt="RF Dental Clinic Logo" class="w-8 h-8 rounded-md">
                  <h1 class="text-xl font-bold text-slate-800">New Patient</h1>
              </div>
 

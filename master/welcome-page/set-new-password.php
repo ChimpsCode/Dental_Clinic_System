@@ -2,6 +2,9 @@
 session_start();
 require_once '../../config/database.php';
 
+$logoS = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'welcome_logo'")->fetchColumn();
+$loginLogo = $logoS ? '../../' . $logoS : '../../assets/images/Logo.png';
+
 // Check if user came from forgot password
 if (!isset($_SESSION['reset_email']) || !isset($_SESSION['reset_user_id'])) {
     header('Location: forgot-password.php');

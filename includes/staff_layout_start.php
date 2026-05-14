@@ -129,6 +129,16 @@ function isActivePage($page) {
     $currentPage = basename($_SERVER['PHP_SELF']);
     return strpos($page, $currentPage) !== false || $currentPage === basename($page);
 }
+
+// Load dynamic logo
+try {
+    $logoStmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'welcome_logo'");
+    $logoStmt->execute();
+    $logoVal = $logoStmt->fetchColumn();
+    $dynamicLogo = $logoVal ? '../../' . $logoVal : '../../assets/images/Logo.png';
+} catch (Exception $e) {
+    $dynamicLogo = '../../assets/images/Logo.png';
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -136,7 +146,7 @@ function isActivePage($page) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($pageTitle); ?> - RF Dental Clinic Staff</title>
-    <link rel="icon" type="image/png" href="../../assets/images/Logo.png">
+    <link rel="icon" type="image/png" href="<?php echo htmlspecialchars($dynamicLogo); ?>">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../assets/css/staff_dashboard.css">
@@ -502,7 +512,7 @@ function isActivePage($page) {
 
     <aside class="sidebar" id="staffSidebar">
         <div class="sidebar-logo">
-            <img src="../../assets/images/Logo.png" alt="RF Logo">
+            <img src="<?php echo htmlspecialchars($dynamicLogo); ?>" alt="RF Logo">
             <span>RF Dental Clinic</span>
         </div>
         

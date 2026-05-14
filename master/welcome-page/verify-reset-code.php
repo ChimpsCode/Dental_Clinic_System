@@ -3,6 +3,9 @@ session_start();
 require_once '../../config/database.php';
 require_once '../../config/mailer_config.php';
 
+$logoS = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'welcome_logo'")->fetchColumn();
+$loginLogo = $logoS ? '../../' . $logoS : '../../assets/images/Logo.png';
+
 // Check if user came from forgot password
 if (!isset($_SESSION['reset_email']) || !isset($_SESSION['reset_user_id'])) {
     header('Location: forgot-password.php');
@@ -290,7 +293,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <div class="container">
         <div class="centered">
             <div class="login-box">
-                <img src="../../assets/images/Logo.png" class="logo" alt="RF Logo">
+                <img src="<?php echo htmlspecialchars($loginLogo); ?>" class="logo" alt="RF Logo">
                 <h2>Verify Code</h2>
 
                 <p class="description-text">Enter the verification code sent to your email.</p>

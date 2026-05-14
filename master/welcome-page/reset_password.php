@@ -6,6 +6,9 @@ $error = '';
 $success = '';
 $token = $_GET['token'] ?? '';
 
+$logoS = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'welcome_logo'")->fetchColumn();
+$loginLogo = $logoS ? '../../' . $logoS : '../../assets/images/Logo.png';
+
 if (empty($token)) {
     $error = 'Invalid or missing reset token';
 }
@@ -182,7 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <div class="container">
         <div class="centered">
             <div class="login-box">
-                <img src="../../assets/images/Logo.png" class="logo" alt="RF Logo">
+                <img src="<?php echo htmlspecialchars($loginLogo); ?>" class="logo" alt="RF Logo">
                 <h2>Reset Password</h2>
 
                 <p class="description-text">Enter your new password below.</p>

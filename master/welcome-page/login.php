@@ -11,6 +11,8 @@ foreach ($settingsRows as $key => $value) {
     $clinicSettings[$key] = $value;
 }
 $clinicName = $clinicSettings['clinic_name'] ?? 'RF Dental Clinic';
+$welcomeLogo = $clinicSettings['welcome_logo'] ?? '';
+$loginLogo = $welcomeLogo ? '../../' . $welcomeLogo : '../../assets/images/Logo.png';
 
 require_once '../../lib/security/captcha_lib.php';
 
@@ -581,7 +583,7 @@ if ($role === 'dentist') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RF Dental Clinic - Login</title>
-    <link rel="icon" type="image/png" href="../../assets/images/Logo.png">
+    <link rel="icon" type="image/png" href="<?php echo htmlspecialchars($loginLogo); ?>">
     <link rel="stylesheet" href="../../assets/css/login-new.css">
     <style>
         #registrationContainer {
@@ -715,7 +717,7 @@ if ($role === 'dentist') {
         <div class="form-section">
             <div class="login-form-container" id="loginContainer">
                 <div class="logo-container">
-                    <img src="../../assets/images/Logo.png" alt="RF Logo" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <img src="<?php echo htmlspecialchars($loginLogo); ?>" alt="RF Logo" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                     <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display:none;">
                         <path d="M50 20 L30 40 L30 60 L50 80 L70 60 L70 40 Z" fill="#2563eb" stroke="#2563eb" stroke-width="2"/>
                         <text x="50" y="45" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">R</text>
@@ -799,7 +801,7 @@ if ($role === 'dentist') {
             <!-- Forgot Password (inline) -->
             <div class="login-form-container" id="forgotContainer" style="display: none;">
                 <div class="logo-container">
-                    <img src="../../assets/images/Logo.png" alt="RF Logo" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <img src="<?php echo htmlspecialchars($loginLogo); ?>" alt="RF Logo" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                     <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display:none;">
                         <path d="M50 20 L30 40 L30 60 L50 80 L70 60 L70 40 Z" fill="#2563eb" stroke="#2563eb" stroke-width="2"/>
                         <text x="50" y="45" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">R</text>
@@ -868,7 +870,7 @@ if ($role === 'dentist') {
             <!-- Patient Registration (inline) -->
             <div class="login-form-container" id="registrationContainer" style="display: none;">
                 <div class="logo-container">
-                    <img src="../../assets/images/Logo.png" alt="RF Logo" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <img src="<?php echo htmlspecialchars($loginLogo); ?>" alt="RF Logo" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                     <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display:none;">
                         <path d="M50 20 L30 40 L30 60 L50 80 L70 60 L70 40 Z" fill="#2563eb" stroke="#2563eb" stroke-width="2"/>
                         <text x="50" y="45" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">R</text>

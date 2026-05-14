@@ -1,7 +1,6 @@
 <?php
 require_once '../../config/database.php';
 
-// Load settings from database
 $settingsStmt = $pdo->query("SELECT setting_key, setting_value FROM settings");
 $settingsRows = $settingsStmt->fetchAll(PDO::FETCH_KEY_PAIR);
 $clinicSettings = [];
@@ -13,7 +12,6 @@ $clinicAddress = $clinicSettings['clinic_address'] ?? '';
 $clinicPhone = $clinicSettings['clinic_phone'] ?? '';
 $clinicEmail = $clinicSettings['clinic_email'] ?? '';
 
-// Parse business hours for display
 $defaultHours = [
     'monday' => ['open' => '08:00', 'close' => '17:00', 'is_open' => true],
     'tuesday' => ['open' => '08:00', 'close' => '17:00', 'is_open' => true],
@@ -29,147 +27,63 @@ if (!$businessHours) $businessHours = $defaultHours;
 function formatHoursForDisplay($hours) {
     $weekdayHours = [];
     $weekendHours = [];
-    
     foreach (['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as $day) {
-        if ($hours[$day]['is_open']) {
-            $weekdayHours[] = $hours[$day]['open'] . '-' . $hours[$day]['close'];
-        }
+        if ($hours[$day]['is_open']) $weekdayHours[] = $hours[$day]['open'] . '-' . $hours[$day]['close'];
     }
-    
     foreach (['saturday', 'sunday'] as $day) {
-        if ($hours[$day]['is_open']) {
-            $weekendHours[] = $hours[$day]['open'] . '-' . $hours[$day]['close'];
-        }
+        if ($hours[$day]['is_open']) $weekendHours[] = $hours[$day]['open'] . '-' . $hours[$day]['close'];
     }
-    
-    $weekdayKey = implode(',', $weekdayHours);
-    $weekendKey = implode(',', $weekendHours);
-    
-    if ($weekdayKey && $weekendKey) {
+    if ($weekdayHours && $weekendHours) {
         return 'Mon - Fri ' . date('g:i A', strtotime($hours['monday']['open'])) . ' - ' . date('g:i A', strtotime($hours['monday']['close'])) . ' | Sat ' . date('g:i A', strtotime($hours['saturday']['open'])) . ' - ' . date('g:i A', strtotime($hours['saturday']['close']));
-    } elseif ($weekdayKey) {
+    } elseif ($weekdayHours) {
         return 'Mon - Fri ' . date('g:i A', strtotime($hours['monday']['open'])) . ' - ' . date('g:i A', strtotime($hours['monday']['close']));
     }
-    
     return 'Mon - Sat 9:00 AM - 5:00 PM';
 }
-
 $displayHours = formatHoursForDisplay($businessHours);
 
+// Load welcome content from settings
+$welcomeLogo    = $clinicSettings['welcome_logo'] ?? '';
+$heroTitle      = $clinicSettings['welcome_hero_title'] ?? 'Your <span class="accent">Best Dental</span> Care<br />In Town Awaits';
+$heroSubtitle   = $clinicSettings['welcome_hero_subtitle'] ?? 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas quam libero, malesuada sed lorem in, sodales dapibus ligula.';
+$heroImage      = $clinicSettings['welcome_hero_image'] ?? '';
+$heroBadgeBig   = $clinicSettings['welcome_hero_badge_big'] ?? '7+';
+$heroBadgeSmall = $clinicSettings['welcome_hero_badge_small'] ?? 'Years Experience';
+$heroNote1      = $clinicSettings['welcome_hero_note1'] ?? "Hi I'm Dr. Rex";
+$heroNote2      = $clinicSettings['welcome_hero_note2'] ?? "and I'm Dr. Floralyn";
+$aboutHeading   = $clinicSettings['welcome_about_heading'] ?? 'About <span class="accent">RF Dental</span>';
+$aboutParagraph1 = $clinicSettings['welcome_about_paragraph1'] ?? 'At RF Dental Clinic, we\'re committed to providing exceptional dental care in a comfortable and welcoming environment. Our experienced team uses the latest technology to ensure you receive the best treatment possible.';
+$aboutParagraph2 = $clinicSettings['welcome_about_paragraph2'] ?? 'We believe everyone deserves a healthy, beautiful smile. That\'s why we offer comprehensive services ranging from routine checkups to advanced cosmetic procedures, all delivered with personalized care and attention.';
+$aboutImage     = $clinicSettings['welcome_about_image'] ?? '';
+$aboutStats     = json_decode($clinicSettings['welcome_about_stats'] ?? '', true) ?: [['value' => '5,000+', 'label' => 'Happy Patients'], ['value' => '98%', 'label' => 'Satisfaction Rate']];
+$faqs           = json_decode($clinicSettings['welcome_faqs'] ?? '', true) ?: [];
+$featuredIds    = json_decode($clinicSettings['welcome_featured_services'] ?? '', true) ?: [9, 11, 12];
+
+$logoFull = $welcomeLogo ? '../../' . $welcomeLogo : '../../assets/images/Logo.png';
+$heroFull = $heroImage ? '../../' . $heroImage : '../../assets/images/Dentists.png';
+$aboutFull = $aboutImage ? '../../' . $aboutImage : '../../assets/images/2nd_Anniv.jpg';
+
+// Fetch all active services from DB
+$allServices = $pdo->query("SELECT id, name, price, duration_minutes, description FROM services WHERE is_active = 1 AND (is_archived = 0 OR is_archived IS NULL) ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
+
+// Fetch featured services
+$featuredServices = [];
+if (!empty($featuredIds)) {
+    $placeholders = implode(',', array_fill(0, count($featuredIds), '?'));
+    $stmt = $pdo->prepare("SELECT id, name, price, duration_minutes, description FROM services WHERE id IN ($placeholders) AND is_active = 1");
+    $stmt->execute($featuredIds);
+    $featuredServices = $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+$imgAssetsDir = __DIR__ . '/../../assets/images/';
 $assets = [
-  'logo' => 'https://www.figma.com/api/mcp/asset/0216bb5f-fd3d-487e-9d2c-5e8da91303ca',
-  'hero' => '../../assets/images/Dentists.png',
-  'about' => '../../assets/images/2nd_Anniv.jpg',
+  'logo' => $logoFull,
+  'hero' => $heroFull,
+  'about' => $aboutFull,
   'tooth' => 'https://www.figma.com/api/mcp/asset/e2ebbe80-7cbc-49ff-afcc-35ac70f56115',
   'icon_phone' => '../../assets/images/icon-phone.svg',
   'icon_email' => '../../assets/images/icon-email.svg',
   'icon_time' => '../../assets/images/icon-time.svg',
-];
-
-$services = [
-  [
-    'title' => 'Consultation',
-    'desc' => 'Professional oral health assessment and planning.',
-    'price' => '₱500.00',
-    'duration' => '30 min',
-  ],
-  [
-    'title' => 'Crowns (Jacket)',
-    'desc' => 'Protective cap to restore tooth shape and strength.',
-    'price' => '₱2,000.00',
-    'duration' => '90 min',
-  ],
-  [
-    'title' => 'Denture Adjustment',
-    'desc' => 'Reshaping of dentures to improve fit and comfort.',
-    'price' => '₱500.00',
-    'duration' => '30 min',
-  ],
-  [
-    'title' => 'Fixed Bridge',
-    'desc' => 'Permanent replacement for missing teeth anchored to adjacent teeth.',
-    'price' => '₱5,000.00',
-    'duration' => '90 min',
-  ],
-  [
-    'title' => 'Orthodontic Appliance',
-    'desc' => 'Devices like braces or retainers to align teeth.',
-    'price' => '₱35,000.00',
-    'duration' => '120 min',
-  ],
-  [
-    'title' => 'Periapical Xray',
-    'desc' => 'Single-tooth X-ray showing the root and surrounding bone.',
-    'price' => '₱500.00',
-    'duration' => '15 min',
-  ],
-  [
-    'title' => 'Removable Dentures',
-    'desc' => 'Custom-made removable replacement for missing teeth.',
-    'price' => '₱5,000.00',
-    'duration' => '30 min',
-  ],
-  [
-    'title' => 'Root Canal Treatment',
-    'desc' => 'Saves an infected tooth by removing the pulp.',
-    'price' => '₱5,000.00',
-    'duration' => '90 min',
-  ],
-  [
-    'title' => 'Teeth Cleaning',
-    'desc' => 'Case to case cleaning.',
-    'price' => '₱800.00',
-    'duration' => '60 min',
-  ],
-  [
-    'title' => 'Teeth Whitening',
-    'desc' => 'Cosmetic procedure to lighten teeth and remove stains.',
-    'price' => '₱5,000.00',
-    'duration' => '90 min',
-  ],
-  [
-    'title' => 'Tooth Extraction (Ibot)',
-    'desc' => 'Safe removal of a damaged or non-restorable tooth.',
-    'price' => '₱800.00',
-    'duration' => '45 min',
-  ],
-  [
-    'title' => 'Tooth Restoration (Pasta)',
-    'desc' => 'Restores decayed teeth using composite filling.',
-    'price' => '₱800.00',
-    'duration' => '45 min',
-  ],
-];
-
-$featuredServices = [
-  [
-    'img' => '../../assets/images/pic1.jpg',
-    'title' => 'Tooth Extraction',
-    'desc' => 'Safe and comfortable tooth removal performed by our team.',
-    'price' => '₱800.00',
-    'duration' => '45 min'
-  ],
-  [
-    'img' => '../../assets/images/pic2.jpg',
-    'title' => 'Tooth Restoration',
-    'desc' => 'Restore decayed or damaged teeth using modern materials.',
-    'price' => '₱800.00',
-    'duration' => '45 min'
-  ],
-  [
-    'img' => '../../assets/images/pic3.jpg',
-    'title' => 'Teeth Cleaning',
-    'desc' => 'Professional cleaning to remove plaque and polish teeth.',
-    'price' => '₱800.00',
-    'duration' => '60 min'
-  ],
-];
-
-$faqs = [
-  'What should I expect during my first visit?',
-  'How often should I visit the dentist?',
-  'Do you accept dental insurance?',
-  'What payment options do you offer?',
 ];
 ?>
 <!doctype html>
@@ -353,7 +267,7 @@ $faqs = [
     <header class="site-header">
         <div class="container header-inner">
         <a class="brand" href="#top" aria-label="<?php echo htmlspecialchars($clinicName); ?> home">
-          <img class="brand-mark" src="../../assets/images/Logo.png" alt="" />
+          <img class="brand-mark" src="<?php echo htmlspecialchars($logoFull); ?>" alt="" />
           <span class="brand-text"><?php echo htmlspecialchars($clinicName); ?></span>
         </a>
 
@@ -389,12 +303,10 @@ $faqs = [
         <div class="container hero-inner">
           <div class="hero-copy">
             <h1 class="hero-title">
-              Your <span class="accent">Best Dental</span> Care
-              <br />
-              In Town Awaits
+              <?php echo $heroTitle; ?>
             </h1>
             <p class="hero-subtitle">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas quam libero, malesuada sed lorem in, sodales dapibus ligula.
+              <?php echo htmlspecialchars($heroSubtitle); ?>
             </p>
 
             <div class="hero-ctas">
@@ -431,14 +343,14 @@ $faqs = [
               <img class="hero-photo" src="<?= htmlspecialchars($assets['hero']) ?>" alt="Dentists from RF Dental Clinic" />
 
               <div class="hero-note hero-note-1">
-                <div class="hero-note-text">Hi I’m Dr. Rex</div>
+                <div class="hero-note-text"><?php echo htmlspecialchars($heroNote1); ?></div>
               </div>
               <div class="hero-note hero-note-2">
-                <div class="hero-note-text">and I’m Dr. Floralyn</div>
+                <div class="hero-note-text"><?php echo htmlspecialchars($heroNote2); ?></div>
               </div>
               <div class="hero-badge">
-                <div class="hero-badge-big">7+</div>
-                <div class="hero-badge-small">Years Experience</div>
+                <div class="hero-badge-big"><?php echo htmlspecialchars($heroBadgeBig); ?></div>
+                <div class="hero-badge-small"><?php echo htmlspecialchars($heroBadgeSmall); ?></div>
               </div>
             </div>
           </div>
@@ -457,25 +369,23 @@ $faqs = [
 
           <div class="about-copy">
             <h2 class="section-title">
-              About <span class="accent">RF Dental</span>
+              <?php echo $aboutHeading; ?>
             </h2>
 
             <p class="about-text">
-              At RF Dental Clinic, we're committed to providing exceptional dental care in a comfortable and welcoming environment. Our experienced team uses the latest technology to ensure you receive the best treatment possible.
+              <?php echo htmlspecialchars($aboutParagraph1); ?>
             </p>
             <p class="about-text">
-              We believe everyone deserves a healthy, beautiful smile. That's why we offer comprehensive services ranging from routine checkups to advanced cosmetic procedures, all delivered with personalized care and attention.
+              <?php echo htmlspecialchars($aboutParagraph2); ?>
             </p>
 
             <div class="about-stats">
+              <?php foreach ($aboutStats as $stat): ?>
               <div class="stat">
-                <div class="stat-value accent">5,000+</div>
-                <div class="stat-label">Happy Patients</div>
+                <div class="stat-value accent"><?php echo htmlspecialchars($stat['value'] ?? ''); ?></div>
+                <div class="stat-label"><?php echo htmlspecialchars($stat['label'] ?? ''); ?></div>
               </div>
-              <div class="stat">
-                <div class="stat-value accent">98%</div>
-                <div class="stat-label">Satisfaction Rate</div>
-              </div>
+              <?php endforeach; ?>
             </div>
           </div>
         </div>
@@ -499,19 +409,24 @@ $faqs = [
           </div>
 
           <div class="featured-grid" aria-label="Featured services">
-            <?php foreach ($featuredServices as $f): ?>
+            <?php $fi = 1; foreach ($featuredServices as $f): ?>
+              <?php
+                $fp = $imgAssetsDir . 'pic' . $fi . '.jpg';
+                $fimg = file_exists($fp) ? '../../assets/images/pic' . $fi . '.jpg' : $logoFull;
+                $fi++;
+              ?>
               <article class="service-feature-card">
-                <img src="<?= htmlspecialchars($f['img']) ?>" alt="<?= htmlspecialchars($f['title']) ?>" />
+                <img src="<?= htmlspecialchars($fimg) ?>" alt="<?= htmlspecialchars($f['name']) ?>" />
                 <div class="service-feature-body">
                   <div>
-                    <h3 class="service-title"><?= htmlspecialchars($f['title']) ?></h3>
-                    <p class="service-desc"><?= htmlspecialchars($f['desc']) ?></p>
+                    <h3 class="service-title"><?= htmlspecialchars($f['name']) ?></h3>
+                    <p class="service-desc"><?= htmlspecialchars($f['description'] ?? '') ?></p>
                   </div>
                   <div>
                     <div class="service-meta">
-                      <span class="service-price"><?= htmlspecialchars($f['price'] ?? '') ?></span>
+                      <span class="service-price">₱<?= number_format((float)$f['price'], 2) ?></span>
                       <span class="service-dot" aria-hidden="true">•</span>
-                      <span class="service-duration"><?= htmlspecialchars($f['duration'] ?? '') ?></span>
+                      <span class="service-duration"><?= (int)$f['duration_minutes'] ?> min</span>
                     </div>
                     <a class="learn-more" href="#services">Learn more →</a>
                   </div>
@@ -523,40 +438,32 @@ $faqs = [
           <div id="allServices" class="all-services-list" aria-hidden="true">
             <div class="services-grid">
               <?php
-                $imgIndex = 4; // start from pic4.jpg
-                $excludeTerms = ['tooth extraction', 'tooth restoration', 'teeth cleaning'];
-                foreach ($services as $svc):
-                  $lower = strtolower($svc['title']);
-                  $skip = false;
-                  foreach ($excludeTerms as $term) {
-                    if (strpos($lower, $term) !== false) { $skip = true; break; }
-                  }
-                  if ($skip) continue;
-                  $assetsDir = __DIR__ . '/../../assets/images/';
+                $imgIndex = 1;
+                foreach ($allServices as $svc):
                   $imgBase = 'pic' . $imgIndex;
-                  $jpgFile = $assetsDir . $imgBase . '.jpg';
-                  $pngFile = $assetsDir . $imgBase . '.png';
+                  $jpgFile = $imgAssetsDir . $imgBase . '.jpg';
+                  $pngFile = $imgAssetsDir . $imgBase . '.png';
                   if (file_exists($jpgFile)) {
-                    $imgPath = '../../assets/images/' . $imgBase . '.jpg';
+                    $simg = '../../assets/images/' . $imgBase . '.jpg';
                   } elseif (file_exists($pngFile)) {
-                    $imgPath = '../../assets/images/' . $imgBase . '.png';
+                    $simg = '../../assets/images/' . $imgBase . '.png';
                   } else {
-                    $imgPath = '../../assets/images/Logo.png';
+                    $simg = $logoFull;
                   }
                   $imgIndex++;
               ?>
                 <article class="service-card">
-                  <img src="<?= htmlspecialchars($imgPath) ?>" alt="<?= htmlspecialchars($svc['title']) ?>" />
+                  <img src="<?= htmlspecialchars($simg) ?>" alt="<?= htmlspecialchars($svc['name']) ?>" />
                   <div class="service-body">
                     <div>
-                      <h3 class="service-title"><?= htmlspecialchars($svc['title']) ?></h3>
-                      <p class="service-desc"><?= htmlspecialchars($svc['desc']) ?></p>
+                      <h3 class="service-title"><?= htmlspecialchars($svc['name']) ?></h3>
+                      <p class="service-desc"><?= htmlspecialchars($svc['description'] ?? '') ?></p>
                     </div>
                     <div>
                       <div class="service-meta">
-                        <span class="service-price"><?= htmlspecialchars($svc['price']) ?></span>
+                        <span class="service-price">₱<?= number_format((float)$svc['price'], 2) ?></span>
                         <span class="service-dot" aria-hidden="true">•</span>
-                        <span class="service-duration"><?= htmlspecialchars($svc['duration']) ?></span>
+                        <span class="service-duration"><?= (int)$svc['duration_minutes'] ?> min</span>
                       </div>
                       <a class="learn-more" href="#services">Learn more →</a>
                     </div>
@@ -578,26 +485,16 @@ $faqs = [
           </p>
 
           <div class="faq-list" role="list">
-            <?php foreach ($faqs as $idx => $q): ?>
+            <?php foreach ($faqs as $faq): ?>
               <details class="faq-item">
                 <summary class="faq-summary">
-                  <span class="faq-q"><?= htmlspecialchars($q) ?></span>
+                  <span class="faq-q"><?= htmlspecialchars($faq['q'] ?? '') ?></span>
                   <span class="faq-chevron" aria-hidden="true"></span>
                 </summary>
                     <div class="faq-a">
-                      <?php if ($idx == 0): ?>
-                        <p>During your first visit, you'll meet our friendly team, discuss your dental history, and receive a thorough examination. We recommend bringing any previous dental records and a list of medications you're currently taking.</p>
-                      <?php elseif ($idx == 1): ?>
-                        <p>We recommend visiting the dentist every 6 months for regular check-ups and cleanings. However, if you have specific dental concerns or conditions, we may suggest more frequent visits to ensure optimal oral health.</p>
-                      <?php elseif ($idx == 2): ?>
-                        <p>Unfortunately, we do not accept dental insurance at this time. However, we offer competitive pricing and flexible payment options to make our services accessible to all patients.</p>
-                      <?php elseif ($idx == 3): ?>
-                        <p>We offer flexible payment options including cash, gcash e-wallet and bank transfers.</p>
-                      
-                      <?php endif; ?>
+                      <p><?= nl2br(htmlspecialchars($faq['a'] ?? '')) ?></p>
                     </div>
               </details>
-              
             <?php endforeach; ?>
           </div>
 
@@ -637,7 +534,7 @@ $faqs = [
             </div>
             <div class="contact-form-card">
               <div class="form-logo" aria-hidden="true">
-                <img src="../../assets/images/Logo.png" alt="" />
+                <img src="<?php echo htmlspecialchars($logoFull); ?>" alt="" />
               </div>
               <form class="contact-form" action="#" method="post">
                 <div class="form-row">
@@ -688,7 +585,7 @@ $faqs = [
       <div class="container footer-inner">
         <div class="footer-brand">
           <div class="footer-brand-top">
-            <img class="footer-logo" src="../../assets/images/Logo.png" alt="" />
+            <img class="footer-logo" src="<?php echo htmlspecialchars($logoFull); ?>" alt="" />
             <div class="footer-brand-title"><?php echo htmlspecialchars($clinicName); ?></div>
           </div>
           <p class="footer-text">Providing exceptional dental care with a commitment to your comfort and health.</p>
@@ -849,20 +746,15 @@ $faqs = [
         const body = document.getElementById('chatBody');
         const balloon = document.getElementById('chatBalloon');
 
-        const SERVICES = [
-          { name: 'Consultation', price: '₱500.00', duration: '30 min' },
-          { name: 'Crowns (Jacket)', price: '₱2,000.00', duration: '90 min' },
-          { name: 'Denture Adjustment', price: '₱500.00', duration: '30 min' },
-          { name: 'Fixed Bridge', price: '₱5,000.00', duration: '90 min' },
-          { name: 'Orthodontic Appliance', price: '₱35,000.00', duration: '120 min' },
-          { name: 'Periapical Xray', price: '₱500.00', duration: '15 min' },
-          { name: 'Removable Dentures', price: '₱5,000.00', duration: '30 min' },
-          { name: 'Root Canal Treatment', price: '₱5,000.00', duration: '90 min' },
-          { name: 'Teeth Cleaning', price: '₱800.00', duration: '60 min' },
-          { name: 'Teeth Whitening', price: '₱5,000.00', duration: '90 min' },
-          { name: 'Tooth Extraction (Ibot)', price: '₱800.00', duration: '45 min' },
-          { name: 'Tooth Restoration (Pasta)', price: '₱800.00', duration: '45 min' },
-        ];
+        const SERVICES = <?php
+          $chatServices = [];
+          foreach ($allServices as $svc) {
+              $price = '₱' . number_format((float)$svc['price'], 2);
+              $duration = (int)$svc['duration_minutes'] . ' min';
+              $chatServices[] = ['name' => $svc['name'], 'price' => $price, 'duration' => $duration];
+          }
+          echo json_encode($chatServices);
+        ?>;
 
         const CLINIC = {
           phone: '<?php echo htmlspecialchars($clinicPhone ?: '0967 187 8603'); ?>',
@@ -918,7 +810,7 @@ $faqs = [
           }
 
           if (/(services|offer|available)\b/.test(nq)) {
-            return "We offer Consultation, Crowns (Jacket), Denture Adjustment, Fixed Bridge, Orthodontic Appliance, Xray, Dentures, Root Canal, Cleaning, Whitening, Extraction, and Restoration. Ask me any one service for price and duration.";
+            return "We offer <?php echo implode(', ', array_map(function($s) { return $s['name']; }, $allServices)); ?>. Ask me any one service for price and duration.";
           }
 
           if (/(book|appointment|schedule)\b/.test(nq)) {
@@ -1107,7 +999,7 @@ $faqs = [
     <div id="welcomeBackModal" class="modal-overlay" style="display: none;">
       <div class="modal-content welcome-back-modal">
         <div class="welcome-back-logo">
-          <img src="../../assets/images/Logo.png" alt="Dental Clinic Logo" />
+          <img src="<?php echo htmlspecialchars($logoFull); ?>" alt="Dental Clinic Logo" />
         </div>
         <h2 class="welcome-back-title">Welcome Back, Patient!</h2>
         <p class="welcome-back-message" id="welcomeBackMessage">
