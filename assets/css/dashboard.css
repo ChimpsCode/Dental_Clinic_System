@@ -115,6 +115,25 @@ body {
 .sidebar-nav {
     background-color: #ffffff;
     flex: 1;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+}
+.sidebar-nav:hover {
+    scrollbar-color: #cbd5e1 transparent;
+}
+.sidebar-nav::-webkit-scrollbar {
+    width: 4px;
+}
+.sidebar-nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+.sidebar-nav::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 4px;
+}
+.sidebar-nav:hover::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
 }
 
 .nav-dropdown {
