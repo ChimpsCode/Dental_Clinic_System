@@ -1,8 +1,8 @@
 <?php
 $pageTitle = 'Services Management';
-require_once __DIR__ . '/../../includes/admin_layout_start.php';
-
 require_once __DIR__ . '/../../config/database.php';
+
+require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
 // Check and migrate services table schema if needed
 // This ensures your local database matches the expected schema
