@@ -173,4 +173,18 @@ if ($action === 'save_logo') {
     exit;
 }
 
+// ----- SAVE FOOTER -----
+if ($action === 'save_footer') {
+    $fields = [
+        'welcome_footer_tagline' => trim($_POST['footer_tagline'] ?? ''),
+        'welcome_footer_facebook' => trim($_POST['footer_facebook'] ?? ''),
+        'welcome_footer_messenger' => trim($_POST['footer_messenger'] ?? ''),
+    ];
+    foreach ($fields as $key => $value) {
+        upsertSetting($pdo, $key, $value);
+    }
+    echo json_encode(['success' => true, 'message' => 'Footer saved successfully']);
+    exit;
+}
+
 echo json_encode(['success' => false, 'message' => 'Invalid action']);

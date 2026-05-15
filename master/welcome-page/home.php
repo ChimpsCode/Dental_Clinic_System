@@ -61,6 +61,9 @@ $aboutStats     = json_decode($clinicSettings['welcome_about_stats'] ?? '', true
 $faqs           = json_decode($clinicSettings['welcome_faqs'] ?? '', true) ?: [];
 $featuredIds   = json_decode($clinicSettings['welcome_featured_services'] ?? '', true) ?? [];
 $serviceImages = json_decode($clinicSettings['welcome_service_images'] ?? '', true) ?? [];
+$footerTagline = $clinicSettings['welcome_footer_tagline'] ?? 'Providing exceptional dental care with a commitment to your comfort and health.';
+$footerFacebook = $clinicSettings['welcome_footer_facebook'] ?? 'https://www.facebook.com';
+$footerMessenger = $clinicSettings['welcome_footer_messenger'] ?? 'https://m.me';
 
 $logoFull = $welcomeLogo ? '../../' . $welcomeLogo : '../../assets/images/Logo.png';
 $heroFull = $heroImage ? '../../' . $heroImage : '../../assets/images/Dentists.png';
@@ -600,7 +603,7 @@ $assets = [
             <img class="footer-logo" src="<?php echo htmlspecialchars($logoFull); ?>" alt="" />
             <div class="footer-brand-title"><?php echo htmlspecialchars($clinicName); ?></div>
           </div>
-          <p class="footer-text">Providing exceptional dental care with a commitment to your comfort and health.</p>
+          <p class="footer-text"><?php echo htmlspecialchars($footerTagline); ?></p>
         </div>
 
         <div class="footer-col">
@@ -613,23 +616,24 @@ $assets = [
 
         <div class="footer-col">
           <div class="footer-heading">Services</div>
-          <a class="footer-link" href="#services">General Dentistry</a>
-          <a class="footer-link" href="#services">General Dentistry</a>
-          <a class="footer-link" href="#services">General Dentistry</a>
-          <a class="footer-link" href="#services">General Dentistry</a>
-          <a class="footer-link" href="#services">General Dentistry</a>
+          <?php
+          $footerServices = $pdo->query("SELECT id, name FROM services WHERE is_active = 1 AND (is_archived = 0 OR is_archived IS NULL) ORDER BY name LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
+          ?>
+          <?php foreach ($footerServices as $fs): ?>
+            <a class="footer-link" href="#services"><?php echo htmlspecialchars($fs['name']); ?></a>
+          <?php endforeach; ?>
         </div>
 
         <div class="footer-col footer-connect">
           <div class="footer-heading">Connect With Us</div>
           <div class="footer-icons" aria-label="Social and contact links">
-            <a href="https://www.facebook.com" target="_blank" rel="noreferrer" class="footer-icon-link" aria-label="Facebook">
+            <a href="<?php echo htmlspecialchars($footerFacebook); ?>" target="_blank" rel="noreferrer" class="footer-icon-link" aria-label="Facebook">
               <span class="footer-icon footer-icon-fb" aria-hidden="true">f</span>
             </a>
-            <a href="mailto:rfdc2023@gmail.com" class="footer-icon-link" aria-label="Email">
+            <a href="mailto:<?php echo htmlspecialchars($clinicEmail ?: 'rfdc2023@gmail.com'); ?>" class="footer-icon-link" aria-label="Email">
               <span class="footer-icon footer-icon-mail" aria-hidden="true">✉</span>
             </a>
-            <a href="https://m.me" target="_blank" rel="noreferrer" class="footer-icon-link" aria-label="Facebook Messenger">
+            <a href="<?php echo htmlspecialchars($footerMessenger); ?>" target="_blank" rel="noreferrer" class="footer-icon-link" aria-label="Facebook Messenger">
               <img src="../../assets/images/icon-messenger.svg" alt="" class="footer-icon-img" aria-hidden="true" />
             </a>
             <a href="tel:<?php echo htmlspecialchars(str_replace([' ', '-', '(', ')'], '', $clinicPhone ?: '09671878603')); ?>" class="footer-icon-link" aria-label="Call">

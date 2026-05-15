@@ -143,6 +143,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         <button class="content-tab" data-tab="faq" role="tab" aria-selected="false">FAQ</button>
         <button class="content-tab" data-tab="services" role="tab" aria-selected="false">Services</button>
         <button class="content-tab" data-tab="logo" role="tab" aria-selected="false">Logo</button>
+        <button class="content-tab" data-tab="footer" role="tab" aria-selected="false">Footer</button>
     </div>
 
     <div id="savedToast" class="saved-toast">Saved successfully!</div>
@@ -309,6 +310,28 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 <div style="margin-top:20px;">
                     <button class="save-btn" onclick="saveSection('logo')">Save Logo</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== TAB: FOOTER ===== -->
+    <div class="content-panel" id="panel-footer" role="tabpanel">
+        <div class="form-section">
+            <div class="form-section-title">Footer Content</div>
+            <div class="form-row">
+                <label for="footerTagline">Footer Tagline</label>
+                <textarea id="footerTagline" class="form-control" rows="3" placeholder="e.g. Providing exceptional dental care with a commitment to your comfort and health."><?php echo htmlspecialchars($settings['welcome_footer_tagline'] ?? ''); ?></textarea>
+            </div>
+            <div class="form-row">
+                <label for="footerFacebook">Facebook URL</label>
+                <input type="url" id="footerFacebook" class="form-control" value="<?php echo htmlspecialchars($settings['welcome_footer_facebook'] ?? 'https://www.facebook.com'); ?>" placeholder="https://www.facebook.com/...">
+            </div>
+            <div class="form-row">
+                <label for="footerMessenger">Messenger URL</label>
+                <input type="url" id="footerMessenger" class="form-control" value="<?php echo htmlspecialchars($settings['welcome_footer_messenger'] ?? 'https://m.me'); ?>" placeholder="https://m.me/...">
+            </div>
+            <div style="margin-top:16px;">
+                <button class="save-btn" onclick="saveSection('footer')">Save Footer</button>
             </div>
         </div>
     </div>
@@ -613,6 +636,10 @@ function saveSection(section) {
         formData.append('service_images', JSON.stringify(images));
     } else if (section === 'logo') {
         formData.append('logo', document.getElementById('logoPath').value);
+    } else if (section === 'footer') {
+        formData.append('footer_tagline', document.getElementById('footerTagline').value);
+        formData.append('footer_facebook', document.getElementById('footerFacebook').value);
+        formData.append('footer_messenger', document.getElementById('footerMessenger').value);
     }
 
     fetch('welcome_content_actions.php', {
