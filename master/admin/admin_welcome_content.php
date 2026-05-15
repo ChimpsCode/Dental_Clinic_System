@@ -21,6 +21,8 @@ if (!$faqs) $faqs = [];
 
 $featuredIds = isset($settings['welcome_featured_services']) ? json_decode($settings['welcome_featured_services'], true) : [];
 if (!$featuredIds) $featuredIds = [];
+$serviceImages = isset($settings['welcome_service_images']) ? json_decode($settings['welcome_service_images'], true) : [];
+if (!$serviceImages) $serviceImages = [];
 
 $servicesList = $pdo->query("SELECT id, name, price, duration_minutes, description FROM services WHERE is_active = 1 AND (is_archived = 0 OR is_archived IS NULL) ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
 
@@ -30,7 +32,7 @@ $uploadedImages = $stmt2->fetchAll(PDO::FETCH_ASSOC);
 require_once __DIR__ . '/../../includes/admin_layout_start.php';
 ?>
 <style>
-.content-layout { max-width: 960px; }
+.content-layout { width: 100%; }
 .content-tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 2px solid #e5e7eb; padding-bottom: 0; overflow-x: auto; }
 .content-tab { padding: 12px 22px; cursor: pointer; border: none; background: transparent; font-size: 14px; font-weight: 500; color: #6b7280; border-bottom: 3px solid transparent; transition: all 0.2s; white-space: nowrap; }
 .content-tab:hover { color: #005daa; }
@@ -81,11 +83,38 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 .logo-preview { max-width: 200px; max-height: 200px; margin: 0 auto 16px; display: block; border-radius: 12px; border: 2px solid #e5e7eb; padding: 8px; }
 .logo-placeholder { width: 200px; height: 200px; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; border-radius: 12px; border: 2px dashed #d1d5db; color: #9ca3af; font-size: 14px; background: #f9fafb; }
 
+.featured-img-slot { display: flex; align-items: center; gap: 16px; padding: 16px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb; margin-bottom: 12px; }
+.featured-img-slot .featured-slot-header { min-width: 180px; }
+.featured-img-slot .featured-slot-number { display: inline-block; width: 24px; height: 24px; line-height: 24px; text-align: center; background: #005daa; color: #fff; border-radius: 50%; font-size: 12px; font-weight: 700; margin-right: 8px; }
+.featured-img-slot .featured-slot-name { font-weight: 600; font-size: 14px; color: #1a1a2e; }
+.featured-img-slot .feat-remove-img { background: none; border: none; color: #ef4444; font-size: 18px; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+.featured-img-slot .feat-remove-img:hover { background: #fee2e2; }
+
+/* Service Images View Toggle */
+.svc-view-toggle { display:inline-flex; gap:2px; background:#f3f4f6; border-radius:6px; padding:2px; }
+.svc-view-btn { display:inline-flex; align-items:center; justify-content:center; width:32px; height:28px; border:none; background:transparent; border-radius:4px; cursor:pointer; color:#6b7280; transition:all 0.15s; }
+.svc-view-btn:hover { color:#374151; }
+.svc-view-btn.active { background:#fff; color:#005daa; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
+
+/* List view (default) */
+#allServiceImages.list-view .featured-img-slot { display:flex; flex-direction:row; align-items:center; gap:16px; padding:16px; background:#f9fafb; border-radius:8px; border:1px solid #e5e7eb; margin-bottom:12px; }
+#allServiceImages.list-view .featured-img-slot .image-upload-area { margin-left:auto; flex-shrink:0; }
+
+/* Grid view (2 columns) */
+#allServiceImages.grid-view { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+#allServiceImages.grid-view .featured-img-slot { display:flex; flex-direction:column; align-items:center; gap:10px; padding:20px 16px; margin-bottom:0; background:#f9fafb; border-radius:8px; border:1px solid #e5e7eb; text-align:center; }
+#allServiceImages.grid-view .featured-img-slot .featured-slot-header { min-width:0; width:100%; }
+#allServiceImages.grid-view .featured-img-slot .featured-slot-name { display:block; }
+#allServiceImages.grid-view .featured-img-slot .svc-meta { justify-content:center; }
+#allServiceImages.grid-view .featured-img-slot .image-upload-area { flex-direction:column; align-items:center; gap:8px; }
+#allServiceImages.grid-view .featured-img-slot .image-preview-sm { width:100px; height:80px; }
+
 @media (max-width: 640px) {
     .form-row-split { grid-template-columns: 1fr; }
     .content-tabs { gap: 0; }
     .content-tab { padding: 10px 14px; font-size: 13px; }
     .service-checklist { grid-template-columns: 1fr; }
+    #allServiceImages.grid-view { grid-template-columns:1fr; }
 }
 </style>
 
@@ -204,7 +233,8 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
     <div class="content-panel" id="panel-services" role="tabpanel">
         <div class="form-section">
             <div class="form-section-title">Featured Services</div>
-            <p style="font-size:13px;color:#6b7280;margin:-8px 0 16px;">Select which services appear in the featured cards on the welcome page.</p>
+            <p style="font-size:13px;color:#6b7280;margin:-8px 0 16px;">Select up to <strong>3 services</strong> to appear as featured cards on the welcome page.</p>
+            <div style="font-size:13px;color:#374151;margin-bottom:10px;">Selected: <span id="featuredCount">0</span>/3</div>
             <div class="service-checklist" id="serviceChecklist">
                 <?php foreach ($servicesList as $svc): ?>
                 <label class="service-check-item <?php echo in_array($svc['id'], $featuredIds) ? 'checked' : ''; ?>">
@@ -219,6 +249,22 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
             <div style="margin-top:16px;">
                 <button class="save-btn" onclick="saveSection('services')">Save Services Selection</button>
             </div>
+        </div>
+
+        <div class="form-section">
+            <div class="form-section-title" style="display:flex;align-items:center;justify-content:space-between;">
+                <span>Service Images</span>
+                <div class="svc-view-toggle">
+                    <button class="svc-view-btn active" data-view="list" title="List view" type="button">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                    </button>
+                    <button class="svc-view-btn" data-view="grid" title="Grid view" type="button">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                    </button>
+                </div>
+            </div>
+            <p style="font-size:13px;color:#6b7280;margin:-8px 0 16px;">Assign a custom image to each service. Used in both the featured cards and the "Explore All Services" section.</p>
+            <div id="allServiceImages"></div>
         </div>
     </div>
 
@@ -251,6 +297,10 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 <script>
 const STATS_DATA = <?php echo json_encode($aboutStats); ?>;
 const FAQS_DATA = <?php echo json_encode($faqs); ?>;
+const SERVICE_IMAGES = <?php echo json_encode($serviceImages); ?>;
+const SERVICES_DATA = <?php echo json_encode($servicesList); ?>;
+const FEATURED_IDS = <?php echo json_encode($featuredIds); ?>;
+let featuredOrder = FEATURED_IDS.slice();
 
 function renderStats() {
     const container = document.getElementById('statsList');
@@ -354,6 +404,60 @@ setupImageUpload('heroImageInput', 'heroImagePreview', 'heroImage');
 setupImageUpload('aboutImageInput', 'aboutImagePreview', 'aboutImage');
 setupImageUpload('logoInput', 'logoPreview', 'logoPath');
 
+function renderAllServiceImages() {
+    const container = document.getElementById('allServiceImages');
+    if (!container) return;
+    const savedView = localStorage.getItem('svcImageView') || 'list';
+    container.className = savedView === 'grid' ? 'grid-view' : 'list-view';
+    let html = '';
+    SERVICES_DATA.forEach(svc => {
+        const id = svc.id;
+        const currentImg = SERVICE_IMAGES[id] || '';
+        const previewSrc = currentImg ? '../../' + currentImg : '../../assets/images/Logo.png';
+        html += '<div class="featured-img-slot">';
+        html += '<div class="featured-slot-header"><span class="featured-slot-name">' + escapeHtml(svc.name) + '</span><div class="svc-meta" style="font-size:12px;color:#6b7280;margin-top:4px;">₱' + parseFloat(svc.price).toFixed(2) + ' &middot; ' + svc.duration_minutes + ' min</div></div>';
+        html += '<div class="image-upload-area">';
+        html += '<img id="svcPreview_' + id + '" class="image-preview image-preview-sm" src="' + previewSrc + '" alt="" onerror="this.src=\'../../assets/images/Logo.png\'">';
+        html += '<label class="upload-btn"><span>Choose Image</span><input type="file" class="svc-img-file" accept="image/*" data-service-id="' + id + '"></label>';
+        html += '<input type="hidden" id="svcPath_' + id +'" class="svc-img-path" value="' + escapeHtml(currentImg) + '">';
+        html += '</div></div>';
+    });
+    container.innerHTML = html;
+    document.querySelectorAll('.svc-img-file').forEach(input => {
+        input.addEventListener('change', function() {
+            const file = this.files[0];
+            if (!file) return;
+            const serviceId = this.dataset.serviceId;
+            const formData = new FormData();
+            formData.append('action', 'upload_image');
+            formData.append('image', file);
+            formData.append('section', 'services');
+            const btn = this.closest('.upload-btn');
+            if (btn) btn.style.opacity = '0.6';
+            fetch('welcome_content_actions.php', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(data => {
+                    if (btn) btn.style.opacity = '1';
+                    if (data.success) {
+                        const path = data.file_path;
+                        document.getElementById('svcPreview_' + serviceId).src = '../../' + path;
+                        document.getElementById('svcPath_' + serviceId).value = path;
+                        SERVICE_IMAGES[serviceId] = path;
+                        fetch('welcome_content_actions.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: 'action=save_service_image&service_id=' + encodeURIComponent(serviceId) + '&file_path=' + encodeURIComponent(path)
+                        });
+                        showToast('Image uploaded successfully');
+                    } else {
+                        alert('Upload failed: ' + (data.message || 'Unknown error'));
+                    }
+                })
+                .catch(e => { if (btn) btn.style.opacity = '1'; alert('Upload error: ' + e.message); });
+        });
+    });
+}
+
 function showToast(msg) {
     const toast = document.getElementById('savedToast');
     toast.textContent = msg;
@@ -403,11 +507,19 @@ function saveSection(section) {
         });
         formData.append('faqs', JSON.stringify(faqs));
     } else if (section === 'services') {
-        const checked = [];
-        document.querySelectorAll('#serviceChecklist input[type="checkbox"]:checked').forEach(cb => {
-            checked.push(parseInt(cb.value));
+        if (featuredOrder.length > 3) {
+            btn.disabled = false;
+            btn.textContent = 'Save Services Section';
+            showToast('Maximum of 3 featured services allowed.');
+            return;
+        }
+        formData.append('featured_services', JSON.stringify(featuredOrder));
+        const images = {};
+        document.querySelectorAll('.svc-img-path').forEach(hidden => {
+            const id = hidden.id.replace('svcPath_', '');
+            if (hidden.value) images[id] = hidden.value;
         });
-        formData.append('featured_services', JSON.stringify(checked));
+        formData.append('service_images', JSON.stringify(images));
     } else if (section === 'logo') {
         formData.append('logo', document.getElementById('logoPath').value);
     }
@@ -437,11 +549,47 @@ function saveSection(section) {
 renderStats();
 renderFaqs();
 
-// Service checklist toggle class
+// Service checklist: max 3 selection + counter
+function updateFeaturedCount() {
+    const checked = document.querySelectorAll('#serviceChecklist input[type="checkbox"]:checked').length;
+    document.getElementById('featuredCount').textContent = checked;
+}
 document.querySelectorAll('.service-check-item input[type="checkbox"]').forEach(cb => {
     cb.addEventListener('change', function() {
+        const checked = document.querySelectorAll('#serviceChecklist input[type="checkbox"]:checked');
+        if (checked.length > 3) {
+            this.checked = false;
+            showToast('You can only select up to 3 featured services.');
+            return;
+        }
         this.closest('.service-check-item').classList.toggle('checked');
+        const id = parseInt(this.value);
+        if (this.checked) {
+            if (featuredOrder.indexOf(id) === -1) featuredOrder.push(id);
+        } else {
+            const idx = featuredOrder.indexOf(id);
+            if (idx !== -1) featuredOrder.splice(idx, 1);
+        }
+        updateFeaturedCount();
     });
+});
+updateFeaturedCount();
+renderAllServiceImages();
+// View toggle for service images
+document.querySelectorAll('.svc-view-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const view = this.dataset.view;
+        document.querySelectorAll('.svc-view-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        localStorage.setItem('svcImageView', view);
+        const container = document.getElementById('allServiceImages');
+        container.className = view === 'grid' ? 'grid-view' : 'list-view';
+    });
+});
+// Sync toggle button state with saved preference
+const savedView = localStorage.getItem('svcImageView') || 'list';
+document.querySelectorAll('.svc-view-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.view === savedView);
 });
 </script>
 

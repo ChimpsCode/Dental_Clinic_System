@@ -118,6 +118,7 @@ body {
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: transparent transparent;
+    padding-bottom: 0px;
 }
 .sidebar-nav:hover {
     scrollbar-color: #cbd5e1 transparent;

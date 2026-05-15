@@ -114,15 +114,47 @@ if ($action === 'save_faq') {
     exit;
 }
 
+// ----- SAVE SINGLE SERVICE IMAGE (auto-save on upload) -----
+if ($action === 'save_service_image') {
+    $serviceId = $_POST['service_id'] ?? '';
+    $filePath = $_POST['file_path'] ?? '';
+    if (!$serviceId || !$filePath) {
+        echo json_encode(['success' => false, 'message' => 'Missing service_id or file_path']);
+        exit;
+    }
+    $current = [];
+    $stmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'welcome_service_images'");
+    $stmt->execute();
+    $val = $stmt->fetchColumn();
+    if ($val) $current = json_decode($val, true) ?: [];
+    $current[$serviceId] = $filePath;
+    upsertSetting($pdo, 'welcome_service_images', json_encode($current));
+    echo json_encode(['success' => true, 'message' => 'Service image saved']);
+    exit;
+}
+
 // ----- SAVE SERVICES -----
 if ($action === 'save_services') {
     $featured = $_POST['featured_services'] ?? '[]';
     if (is_string($featured)) {
         $decoded = json_decode($featured, true);
         if ($decoded === null) $decoded = [];
+        if (count($decoded) > 3) {
+            echo json_encode(['success' => false, 'message' => 'Maximum of 3 featured services allowed.']);
+            exit;
+        }
         $featured = json_encode(array_map('intval', $decoded));
     }
     upsertSetting($pdo, 'welcome_featured_services', $featured);
+
+    $serviceImages = $_POST['service_images'] ?? '{}';
+    if (is_string($serviceImages)) {
+        $decoded = json_decode($serviceImages, true);
+        if ($decoded === null) $decoded = [];
+        $serviceImages = json_encode($decoded);
+    }
+    upsertSetting($pdo, 'welcome_service_images', $serviceImages);
+
     echo json_encode(['success' => true, 'message' => 'Services selection saved successfully']);
     exit;
 }

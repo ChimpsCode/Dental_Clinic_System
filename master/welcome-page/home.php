@@ -2,10 +2,9 @@
 require_once '../../config/database.php';
 
 $settingsStmt = $pdo->query("SELECT setting_key, setting_value FROM settings");
-$settingsRows = $settingsStmt->fetchAll(PDO::FETCH_KEY_PAIR);
 $clinicSettings = [];
-foreach ($settingsRows as $key => $value) {
-    $clinicSettings[$key] = $value;
+while ($row = $settingsStmt->fetch(PDO::FETCH_ASSOC)) {
+    $clinicSettings[$row['setting_key']] = $row['setting_value'];
 }
 $clinicName = $clinicSettings['clinic_name'] ?? 'RF Dental Clinic';
 $clinicAddress = $clinicSettings['clinic_address'] ?? '';
@@ -57,22 +56,36 @@ $aboutParagraph2 = $clinicSettings['welcome_about_paragraph2'] ?? 'We believe ev
 $aboutImage     = $clinicSettings['welcome_about_image'] ?? '';
 $aboutStats     = json_decode($clinicSettings['welcome_about_stats'] ?? '', true) ?: [['value' => '5,000+', 'label' => 'Happy Patients'], ['value' => '98%', 'label' => 'Satisfaction Rate']];
 $faqs           = json_decode($clinicSettings['welcome_faqs'] ?? '', true) ?: [];
-$featuredIds    = json_decode($clinicSettings['welcome_featured_services'] ?? '', true) ?: [9, 11, 12];
+$featuredIds   = json_decode($clinicSettings['welcome_featured_services'] ?? '', true) ?? [];
+$serviceImages = json_decode($clinicSettings['welcome_service_images'] ?? '', true) ?? [];
 
 $logoFull = $welcomeLogo ? '../../' . $welcomeLogo : '../../assets/images/Logo.png';
 $heroFull = $heroImage ? '../../' . $heroImage : '../../assets/images/Dentists.png';
 $aboutFull = $aboutImage ? '../../' . $aboutImage : '../../assets/images/2nd_Anniv.jpg';
 
-// Fetch all active services from DB
-$allServices = $pdo->query("SELECT id, name, price, duration_minutes, description FROM services WHERE is_active = 1 AND (is_archived = 0 OR is_archived IS NULL) ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
+// Fetch all active services from DB (excluding featured ones, since they already appear above)
+$allServices = [];
+if (!empty($featuredIds)) {
+    $placeholders = implode(',', array_fill(0, count($featuredIds), '?'));
+    $stmt = $pdo->prepare("SELECT id, name, price, duration_minutes, description FROM services WHERE is_active = 1 AND (is_archived = 0 OR is_archived IS NULL) AND id NOT IN ($placeholders) ORDER BY name");
+    $stmt->execute($featuredIds);
+    $allServices = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} else {
+    $allServices = $pdo->query("SELECT id, name, price, duration_minutes, description FROM services WHERE is_active = 1 AND (is_archived = 0 OR is_archived IS NULL) ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
+}
 
-// Fetch featured services
+// Fetch featured services (preserving selection order)
 $featuredServices = [];
 if (!empty($featuredIds)) {
     $placeholders = implode(',', array_fill(0, count($featuredIds), '?'));
     $stmt = $pdo->prepare("SELECT id, name, price, duration_minutes, description FROM services WHERE id IN ($placeholders) AND is_active = 1");
     $stmt->execute($featuredIds);
-    $featuredServices = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $indexed = [];
+    foreach ($rows as $r) $indexed[$r['id']] = $r;
+    foreach ($featuredIds as $id) {
+        if (isset($indexed[$id])) $featuredServices[] = $indexed[$id];
+    }
 }
 
 $imgAssetsDir = __DIR__ . '/../../assets/images/';
@@ -409,11 +422,10 @@ $assets = [
           </div>
 
           <div class="featured-grid" aria-label="Featured services">
-            <?php $fi = 1; foreach ($featuredServices as $f): ?>
+            <?php foreach ($featuredServices as $f): ?>
               <?php
-                $fp = $imgAssetsDir . 'pic' . $fi . '.jpg';
-                $fimg = file_exists($fp) ? '../../assets/images/pic' . $fi . '.jpg' : $logoFull;
-                $fi++;
+                $customImg = $serviceImages[$f['id']] ?? '';
+                $fimg = ($customImg && file_exists(__DIR__ . '/../../' . $customImg)) ? '../../' . $customImg : $logoFull;
               ?>
               <article class="service-feature-card">
                 <img src="<?= htmlspecialchars($fimg) ?>" alt="<?= htmlspecialchars($f['name']) ?>" />
@@ -437,20 +449,13 @@ $assets = [
 
           <div id="allServices" class="all-services-list" aria-hidden="true">
             <div class="services-grid">
-              <?php
-                $imgIndex = 1;
-                foreach ($allServices as $svc):
-                  $imgBase = 'pic' . $imgIndex;
-                  $jpgFile = $imgAssetsDir . $imgBase . '.jpg';
-                  $pngFile = $imgAssetsDir . $imgBase . '.png';
-                  if (file_exists($jpgFile)) {
-                    $simg = '../../assets/images/' . $imgBase . '.jpg';
-                  } elseif (file_exists($pngFile)) {
-                    $simg = '../../assets/images/' . $imgBase . '.png';
+              <?php foreach ($allServices as $svc):
+                  $customImg = $serviceImages[$svc['id']] ?? '';
+                  if ($customImg && file_exists(__DIR__ . '/../../' . $customImg)) {
+                    $simg = '../../' . $customImg;
                   } else {
                     $simg = $logoFull;
                   }
-                  $imgIndex++;
               ?>
                 <article class="service-card">
                   <img src="<?= htmlspecialchars($simg) ?>" alt="<?= htmlspecialchars($svc['name']) ?>" />
