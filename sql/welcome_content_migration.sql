@@ -29,4 +29,6 @@ INSERT IGNORE INTO settings (setting_key, setting_value) VALUES
 ('welcome_about_image', ''),
 ('welcome_about_stats', '[{"value":"5,000+","label":"Happy Patients"},{"value":"98%","label":"Satisfaction Rate"}]'),
 ('welcome_faqs', '[{"q":"What should I expect during my first visit?","a":"During your first visit, you''ll meet our friendly team, discuss your dental history, and receive a thorough examination. We recommend bringing any previous dental records and a list of medications you''re currently taking."},{"q":"How often should I visit the dentist?","a":"We recommend visiting the dentist every 6 months for regular check-ups and cleanings. However, if you have specific dental concerns or conditions, we may suggest more frequent visits to ensure optimal oral health."},{"q":"Do you accept dental insurance?","a":"Unfortunately, we do not accept dental insurance at this time. However, we offer competitive pricing and flexible payment options to make our services accessible to all patients."},{"q":"What payment options do you offer?","a":"We offer flexible payment options including cash, gcash e-wallet and bank transfers."}]'),
-('welcome_featured_services', '[9,11,12]');
+('welcome_featured_services', '[9,11,12]'),
+('welcome_service_images', '{}'),
+('welcome_hero_title_blocks', '[{"text":"","color":"","fontSize":64,"fontWeight":700,"lineHeight":1.05,"newLine":true},{"text":"","color":"#005daa","fontSize":64,"fontWeight":700,"lineHeight":1.05,"newLine":true}]');

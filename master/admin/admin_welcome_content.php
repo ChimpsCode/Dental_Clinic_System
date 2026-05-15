@@ -24,6 +24,11 @@ if (!$featuredIds) $featuredIds = [];
 $serviceImages = isset($settings['welcome_service_images']) ? json_decode($settings['welcome_service_images'], true) : [];
 if (!$serviceImages) $serviceImages = [];
 
+$heroTitleBlocks = isset($settings['welcome_hero_title_blocks']) ? json_decode($settings['welcome_hero_title_blocks'], true) : null;
+if (!$heroTitleBlocks) {
+    $heroTitleBlocks = [['text' => '', 'color' => '', 'fontSize' => 64, 'fontWeight' => 700, 'lineHeight' => 1.05, 'newLine' => true], ['text' => '', 'color' => '#005daa', 'fontSize' => 64, 'fontWeight' => 700, 'lineHeight' => 1.05, 'newLine' => true]];
+}
+
 $servicesList = $pdo->query("SELECT id, name, price, duration_minutes, description FROM services WHERE is_active = 1 AND (is_archived = 0 OR is_archived IS NULL) ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
 
 $stmt2 = $pdo->query("SELECT id, file_path, section FROM content_images ORDER BY id DESC");
@@ -116,6 +121,19 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
     .service-checklist { grid-template-columns: 1fr; }
     #allServiceImages.grid-view { grid-template-columns:1fr; }
 }
+
+/* Hero Title Block Builder */
+.hero-block-row { display:flex; gap:12px; align-items:flex-start; margin-bottom:12px; padding:16px; background:#f9fafb; border-radius:8px; border:1px solid #e5e7eb; flex-wrap:wrap; }
+.hero-block-row .hb-fields { flex:1; display:flex; flex-direction:column; gap:8px; min-width:150px; }
+.hero-block-row .hb-fields input[type="text"] { width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; box-sizing:border-box; }
+.hero-block-row .hb-options { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.hero-block-row .hb-options label { font-size:11px; color:#6b7280; display:flex; flex-direction:column; gap:1px; align-items:center; }
+.hero-block-row .hb-options input[type="number"],
+.hero-block-row .hb-options input[type="color"],
+.hero-block-row .hb-options select { padding:3px 6px; border:1px solid #d1d5db; border-radius:4px; font-size:12px; }
+.hero-block-row .hb-options input[type="number"] { width:52px; }
+.hero-block-row .hb-options input[type="color"] { width:36px; height:28px; padding:1px; cursor:pointer; }
+.hero-block-row .hb-options select { width:80px; }
 </style>
 
 <div class="content-layout">
@@ -134,8 +152,10 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         <div class="form-section">
             <div class="form-section-title">Hero Section</div>
             <div class="form-row">
-                <label for="heroTitle">Hero Title (HTML allowed)</label>
-                <input type="text" id="heroTitle" class="form-control" value="<?php echo htmlspecialchars($settings['welcome_hero_title'] ?? 'Your Best Dental Care In Town Awaits'); ?>">
+                <label>Hero Title</label>
+                <p style="font-size:13px;color:#6b7280;margin:-8px 0 16px;">Add text blocks and style each one individually.</p>
+                <div id="heroTitleBlocks"></div>
+                <button class="add-btn" onclick="addHeroBlock()" type="button">+ Add Text Block</button>
             </div>
             <div class="form-row">
                 <label for="heroSubtitle">Hero Subtitle</label>
@@ -301,6 +321,77 @@ const SERVICE_IMAGES = <?php echo json_encode($serviceImages); ?>;
 const SERVICES_DATA = <?php echo json_encode($servicesList); ?>;
 const FEATURED_IDS = <?php echo json_encode($featuredIds); ?>;
 let featuredOrder = FEATURED_IDS.slice();
+let HERO_BLOCKS = <?php echo json_encode($heroTitleBlocks); ?>;
+
+function renderHeroBlocks() {
+    const container = document.getElementById('heroTitleBlocks');
+    if (!container) return;
+    container.innerHTML = '';
+    HERO_BLOCKS.forEach((block, i) => {
+        const div = document.createElement('div');
+        div.className = 'hero-block-row';
+        div.innerHTML = `
+            <div class="hb-fields">
+                <input type="text" class="hb-text" value="${escapeHtml(block.text)}" placeholder="Text content" data-index="${i}">
+            </div>
+            <div class="hb-options">
+                <label>Color
+                    <input type="color" class="hb-color" value="${block.color || '#000000'}" data-index="${i}">
+                </label>
+                <label>Size
+                    <input type="number" class="hb-font-size" value="${block.fontSize || 64}" min="10" max="120" data-index="${i}">
+                </label>
+                <label>Weight
+                    <select class="hb-font-weight" data-index="${i}">
+                        <option value="300" ${(block.fontWeight == 300) ? 'selected' : ''}>Light</option>
+                        <option value="400" ${(block.fontWeight == 400) ? 'selected' : ''}>Normal</option>
+                        <option value="600" ${(block.fontWeight == 600) ? 'selected' : ''}>Semi Bold</option>
+                        <option value="700" ${(block.fontWeight == 700) ? 'selected' : ''}>Bold</option>
+                        <option value="900" ${(block.fontWeight == 900) ? 'selected' : ''}>Black</option>
+                    </select>
+                </label>
+                <label>Line H
+                    <input type="number" class="hb-line-height" value="${block.lineHeight || 1.05}" min="0.5" max="3" step="0.05" data-index="${i}">
+                </label>
+                <label style="cursor:pointer;flex-direction:row;gap:4px;font-size:11px;color:#374151;">
+                    <input type="checkbox" class="hb-newline" data-index="${i}" ${block.newLine !== false ? 'checked' : ''}>
+                    New Line
+                </label>
+            </div>
+            <button class="remove-btn" onclick="removeHeroBlock(${i})" title="Remove" type="button">✕</button>
+        `;
+        container.appendChild(div);
+    });
+    // Attach live input events to sync HERO_BLOCKS
+    container.querySelectorAll('.hb-text').forEach(inp => {
+        inp.addEventListener('input', function() { HERO_BLOCKS[this.dataset.index].text = this.value; });
+    });
+    container.querySelectorAll('.hb-color').forEach(inp => {
+        inp.addEventListener('input', function() { HERO_BLOCKS[this.dataset.index].color = this.value; });
+    });
+    container.querySelectorAll('.hb-font-size').forEach(inp => {
+        inp.addEventListener('input', function() { HERO_BLOCKS[this.dataset.index].fontSize = parseFloat(this.value) || 64; });
+    });
+    container.querySelectorAll('.hb-font-weight').forEach(inp => {
+        inp.addEventListener('change', function() { HERO_BLOCKS[this.dataset.index].fontWeight = parseInt(this.value) || 400; });
+    });
+    container.querySelectorAll('.hb-line-height').forEach(inp => {
+        inp.addEventListener('input', function() { HERO_BLOCKS[this.dataset.index].lineHeight = parseFloat(this.value) || 1.05; });
+    });
+    container.querySelectorAll('.hb-newline').forEach(inp => {
+        inp.addEventListener('change', function() { HERO_BLOCKS[this.dataset.index].newLine = this.checked; });
+    });
+}
+
+function addHeroBlock() {
+    HERO_BLOCKS.push({ text: '', color: '#000000', fontSize: 64, fontWeight: 700, lineHeight: 1.05, newLine: true });
+    renderHeroBlocks();
+}
+
+function removeHeroBlock(index) {
+    HERO_BLOCKS.splice(index, 1);
+    renderHeroBlocks();
+}
 
 function renderStats() {
     const container = document.getElementById('statsList');
@@ -476,7 +567,7 @@ function saveSection(section) {
     formData.append('action', 'save_' + section);
 
     if (section === 'hero') {
-        formData.append('hero_title', document.getElementById('heroTitle').value);
+        formData.append('hero_title_blocks', JSON.stringify(HERO_BLOCKS));
         formData.append('hero_subtitle', document.getElementById('heroSubtitle').value);
         formData.append('hero_image', document.getElementById('heroImage').value);
         formData.append('hero_badge_big', document.getElementById('heroBadgeBig').value);
@@ -546,6 +637,7 @@ function saveSection(section) {
 }
 
 // Initial render
+renderHeroBlocks();
 renderStats();
 renderFaqs();
 

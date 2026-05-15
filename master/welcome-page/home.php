@@ -43,7 +43,10 @@ $displayHours = formatHoursForDisplay($businessHours);
 
 // Load welcome content from settings
 $welcomeLogo    = $clinicSettings['welcome_logo'] ?? '';
-$heroTitle      = $clinicSettings['welcome_hero_title'] ?? 'Your <span class="accent">Best Dental</span> Care<br />In Town Awaits';
+$heroTitleBlocks = isset($clinicSettings['welcome_hero_title_blocks']) ? json_decode($clinicSettings['welcome_hero_title_blocks'], true) : null;
+if (!$heroTitleBlocks) {
+    $heroTitleBlocks = [['text' => '', 'color' => '', 'fontSize' => 64, 'fontWeight' => 700, 'lineHeight' => 1.05, 'newLine' => true], ['text' => '', 'color' => '#005daa', 'fontSize' => 64, 'fontWeight' => 700, 'lineHeight' => 1.05, 'newLine' => true]];
+}
 $heroSubtitle   = $clinicSettings['welcome_hero_subtitle'] ?? 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas quam libero, malesuada sed lorem in, sodales dapibus ligula.';
 $heroImage      = $clinicSettings['welcome_hero_image'] ?? '';
 $heroBadgeBig   = $clinicSettings['welcome_hero_badge_big'] ?? '7+';
@@ -316,7 +319,11 @@ $assets = [
         <div class="container hero-inner">
           <div class="hero-copy">
             <h1 class="hero-title">
-              <?php echo $heroTitle; ?>
+              <?php foreach ($heroTitleBlocks as $i => $block): ?>
+                <?php $isNewLine = isset($block['newLine']) ? $block['newLine'] : true; ?>
+                <?php if ($i > 0 && $isNewLine): ?><br><?php endif; ?>
+                <span style="color:<?php echo htmlspecialchars($block['color'] ?: 'inherit'); ?>;font-size:<?php echo (float)($block['fontSize'] ?? 64); ?>px;font-weight:<?php echo (int)($block['fontWeight'] ?? 700); ?>;line-height:<?php echo (float)($block['lineHeight'] ?? 1.05); ?>"><?php echo htmlspecialchars($block['text'] ?? ''); ?></span>
+              <?php endforeach; ?>
             </h1>
             <p class="hero-subtitle">
               <?php echo htmlspecialchars($heroSubtitle); ?>

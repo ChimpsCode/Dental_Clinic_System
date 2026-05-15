@@ -62,8 +62,14 @@ if ($action === 'upload_image') {
 
 // ----- SAVE HERO -----
 if ($action === 'save_hero') {
+    $blocks = $_POST['hero_title_blocks'] ?? '[]';
+    if (is_string($blocks)) {
+        $decoded = json_decode($blocks, true);
+        if ($decoded === null) $decoded = [];
+        $blocks = json_encode($decoded);
+    }
     $fields = [
-        'welcome_hero_title' => trim($_POST['hero_title'] ?? ''),
+        'welcome_hero_title_blocks' => $blocks,
         'welcome_hero_subtitle' => trim($_POST['hero_subtitle'] ?? ''),
         'welcome_hero_image' => trim($_POST['hero_image'] ?? ''),
         'welcome_hero_badge_big' => trim($_POST['hero_badge_big'] ?? ''),
