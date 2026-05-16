@@ -450,7 +450,7 @@ $assets = [
                       <span class="service-dot" aria-hidden="true">•</span>
                       <span class="service-duration"><?= (int)$f['duration_minutes'] ?> min</span>
                     </div>
-                    <a class="learn-more" href="#services">Learn more →</a>
+                    <a class="learn-more" href="service-detail.php?id=<?= $f['id'] ?>">Learn more →</a>
                   </div>
                 </div>
               </article>
@@ -480,7 +480,7 @@ $assets = [
                         <span class="service-dot" aria-hidden="true">•</span>
                         <span class="service-duration"><?= (int)$svc['duration_minutes'] ?> min</span>
                       </div>
-                      <a class="learn-more" href="#services">Learn more →</a>
+                      <a class="learn-more" href="service-detail.php?id=<?= $svc['id'] ?>">Learn more →</a>
                     </div>
                   </div>
                 </article>
@@ -620,7 +620,7 @@ $assets = [
           $footerServices = $pdo->query("SELECT id, name FROM services WHERE is_active = 1 AND (is_archived = 0 OR is_archived IS NULL) ORDER BY name LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
           ?>
           <?php foreach ($footerServices as $fs): ?>
-            <a class="footer-link" href="#services"><?php echo htmlspecialchars($fs['name']); ?></a>
+            <a class="footer-link" href="service-detail.php?id=<?= (int)$fs['id'] ?>"><?php echo htmlspecialchars($fs['name']); ?></a>
           <?php endforeach; ?>
         </div>
 
