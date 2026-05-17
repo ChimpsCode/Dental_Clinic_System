@@ -172,6 +172,102 @@ $assets = [
         .sd-info-box { padding: 20px 16px; }
         .sd-cta .btn { width: 100%; }
       }
+
+      .modal-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.7); display: flex; justify-content: center;
+        align-items: center; z-index: 9999;
+      }
+      .modal-content {
+        background: white; border-radius: 12px; width: 90%; max-width: 520px;
+        max-height: 90vh; padding: 0; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        animation: modalSlideIn 0.3s ease; overflow: hidden;
+        display: flex; flex-direction: column;
+      }
+      @keyframes modalSlideIn {
+        from { transform: translateY(-20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+      .modal-header {
+        padding: 20px 24px; border-bottom: 1px solid #eee;
+        display: flex; justify-content: space-between; align-items: center;
+        flex-shrink: 0;
+      }
+      .modal-header h3 { margin: 0; font-size: 18px; font-weight: 600; }
+      .modal-close {
+        background: none; border: none; font-size: 24px; cursor: pointer;
+        color: #666; padding: 0; line-height: 1;
+      }
+      .modal-close:hover { color: #333; }
+      .modal-body { padding: 24px; max-height: calc(90vh - 80px); overflow-y: auto; flex: 1; }
+      .modal-intro {
+        color: #666; margin-bottom: 20px; font-size: 14px;
+      }
+
+      .choice-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+      }
+      .choice-card {
+        border: 2px solid #e5e7eb; border-radius: 12px; padding: 32px 20px;
+        text-align: center; cursor: pointer; transition: all 0.25s ease;
+        background: #fff;
+      }
+      .choice-card:hover {
+        border-color: var(--primary); box-shadow: 0 8px 24px rgba(0,93,170,0.12);
+        transform: translateY(-2px);
+      }
+      .choice-card-icon { font-size: 40px; margin-bottom: 12px; line-height: 1; }
+      .choice-card-title {
+        font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 6px;
+      }
+      .choice-card-desc {
+        font-size: 13px; color: rgba(0,0,0,0.6); margin: 0; line-height: 1.4;
+      }
+
+      .success-modal { text-align: center; padding: 40px 30px; }
+      .success-icon { color: #28a745; margin-bottom: 16px; }
+      .success-icon svg { display: block; margin: 0 auto; }
+
+      .modal-form .form-group { margin-bottom: 16px; }
+      .modal-form label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px; }
+      .modal-form input, .modal-form select {
+        width: 100%; padding: 12px; border: 1px solid #ddd;
+        border-radius: 6px; font-size: 14px; box-sizing: border-box;
+      }
+      .modal-form input:focus, .modal-form select:focus {
+        outline: none; border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+      }
+      .btn-block { width: 100%; margin-top: 8px; }
+      .modal-footer-text {
+        margin-top: 16px; text-align: center; font-size: 12px; color: #666;
+      }
+      .modal-footer-text a { color: #007bff; text-decoration: none; }
+      .modal-footer-text a:hover { text-decoration: underline; }
+
+      .registration-modal { max-width: 520px; }
+      .form-section { margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #eee; }
+      .form-section:last-of-type { border-bottom: none; margin-bottom: 16px; }
+      .form-section-title {
+        font-size: 15px; font-weight: 600; color: #0059a3;
+        margin: 0 0 16px 0; padding-bottom: 8px;
+        border-bottom: 2px solid #0059a3; display: inline-block;
+      }
+      .modal-form .form-row { display: flex; gap: 12px; }
+      .modal-form .form-row .form-group { flex: 1; }
+      .modal-form select { background: white; cursor: pointer; }
+      .modal-form .form-group label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px; }
+
+      @media (max-width: 560px) {
+        .modal-content { width: 95%; max-width: 95%; max-height: 85vh; }
+        .modal-body { padding: 16px; }
+        .modal-form .form-row { flex-direction: column; gap: 0; }
+        .modal-header { padding: 16px; }
+        .modal-header h3 { font-size: 16px; }
+        .choice-grid { grid-template-columns: 1fr; }
+        .choice-card { padding: 24px 16px; }
+        .success-modal { padding: 30px 20px; }
+      }
     </style>
   </head>
   <body>
@@ -272,7 +368,7 @@ $assets = [
 
       <section class="sd-cta">
         <div class="container">
-          <a class="btn btn-primary btn-lg" href="login.php">Schedule <?= htmlspecialchars($service['name']) ?></a>
+          <button type="button" class="btn btn-primary btn-lg" id="scheduleBtn">Schedule <?= htmlspecialchars($service['name']) ?></button>
         </div>
       </section>
     </main>
@@ -328,6 +424,129 @@ $assets = [
       </div>
     </footer>
 
+    <div id="choiceModal" class="modal-overlay" style="display: none;">
+      <div class="modal-content" style="max-width: 480px;">
+        <div class="modal-header">
+          <h3>Schedule <?= htmlspecialchars($service['name']) ?></h3>
+          <button type="button" class="modal-close" id="choiceModalClose">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-intro">Are you a new patient or an existing patient?</p>
+          <div class="choice-grid">
+            <div class="choice-card" id="newPatientChoice">
+              <div class="choice-card-icon">&#128100;</div>
+              <div class="choice-card-title">New Patient</div>
+              <p class="choice-card-desc">First time visiting our clinic. Create an account to secure your appointment.</p>
+            </div>
+            <div class="choice-card" id="existingPatientChoice">
+              <div class="choice-card-icon">&#128104;</div>
+              <div class="choice-card-title">Existing Patient</div>
+              <p class="choice-card-desc">Already have an account? Log in to book your appointment.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="registrationModal" class="modal-overlay" style="display: none;">
+      <div class="modal-content registration-modal">
+        <div class="modal-header">
+          <h3>Secure Your Appointment</h3>
+          <button type="button" class="modal-close" id="regModalClose">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-intro">Almost done! Complete your information and create a password to secure your account.</p>
+          <form id="registrationForm" class="modal-form">
+            <input type="hidden" id="reg-first-name" name="first_name" />
+            <input type="hidden" id="reg-middle-name" name="middle_name" />
+            <input type="hidden" id="reg-last-name" name="last_name" />
+            <input type="hidden" id="reg-email-hidden" name="email_hidden" />
+
+            <div class="form-section">
+              <h4 class="form-section-title">Patient Information</h4>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="reg-first-name-display">First Name</label>
+                  <input type="text" id="reg-first-name-display" placeholder="First Name" required />
+                </div>
+                <div class="form-group">
+                  <label for="reg-middle-name-display">Middle Name</label>
+                  <input type="text" id="reg-middle-name-display" placeholder="Middle Name" />
+                </div>
+                <div class="form-group">
+                  <label for="reg-last-name-display">Last Name</label>
+                  <input type="text" id="reg-last-name-display" placeholder="Last Name" required />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="reg-phone">Phone Number</label>
+                  <input type="tel" id="reg-phone" name="phone" required placeholder="09123456789" maxlength="11" />
+                </div>
+                <div class="form-group">
+                  <label for="reg-gender">Gender</label>
+                  <select id="reg-gender" name="gender" required>
+                    <option value="">Select Gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="reg-dob">Date of Birth</label>
+                  <input type="date" id="reg-dob" name="date_of_birth" onchange="var d=new Date(this.value);var a=new Date().getFullYear()-d.getFullYear();if(new Date().getMonth()<d.getMonth()||(new Date().getMonth()==d.getMonth()&&new Date().getDate()<d.getDate()))a--;document.getElementById('reg-age').value=a>0&&a<120?a:''" />
+                </div>
+                <div class="form-group">
+                  <label for="reg-age">Age</label>
+                  <input type="number" id="reg-age" name="age" min="1" max="120" placeholder="Auto-calculated" readonly style="background-color: #f3f4f6;" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="reg-address">Address (Optional)</label>
+                <input type="text" id="reg-address" name="address" placeholder="Your complete address" />
+              </div>
+            </div>
+
+            <div class="form-section">
+              <h4 class="form-section-title">Account Information</h4>
+              <div class="form-group">
+                <label for="reg-email">Email (Username)</label>
+                <input type="email" id="reg-email" name="email" required placeholder="your@email.com" />
+              </div>
+              <div class="form-group">
+                <label for="reg-password">Create Password</label>
+                <input type="password" id="reg-password" name="password" required minlength="8" placeholder="At least 8 characters" />
+              </div>
+              <div class="form-group">
+                <label for="reg-confirm-password">Confirm Password</label>
+                <input type="password" id="reg-confirm-password" name="confirm_password" required placeholder="Re-enter password" />
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">Create Account &amp; Book Appointment</button>
+          </form>
+          <div class="modal-footer-text">
+            <p>By registering, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="successModal" class="modal-overlay" style="display: none;">
+      <div class="modal-content success-modal">
+        <div class="success-icon">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+        </div>
+        <h3>Registration Complete!</h3>
+        <p>Your account has been created successfully.</p>
+        <p>Redirecting to your dashboard...</p>
+      </div>
+    </div>
+
     <script>
       (() => {
         const navToggle = document.querySelector('.nav-toggle');
@@ -349,6 +568,138 @@ $assets = [
           });
         }
       })();
+
+      document.addEventListener('DOMContentLoaded', function() {
+        const choiceModal = document.getElementById('choiceModal');
+        const registrationModal = document.getElementById('registrationModal');
+        const successModal = document.getElementById('successModal');
+        const scheduleBtn = document.getElementById('scheduleBtn');
+        const choiceModalClose = document.getElementById('choiceModalClose');
+        const regModalClose = document.getElementById('regModalClose');
+        const body = document.body;
+
+        function openModal(modal) {
+          modal.style.display = 'flex';
+          body.style.overflow = 'hidden';
+        }
+
+        function closeModal(modal) {
+          modal.style.display = 'none';
+          body.style.overflow = '';
+        }
+
+        scheduleBtn.addEventListener('click', function() {
+          openModal(choiceModal);
+        });
+
+        choiceModalClose.addEventListener('click', function() {
+          closeModal(choiceModal);
+        });
+
+        choiceModal.addEventListener('click', function(e) {
+          if (e.target === choiceModal) closeModal(choiceModal);
+        });
+
+        document.getElementById('newPatientChoice').addEventListener('click', function() {
+          closeModal(choiceModal);
+          openModal(registrationModal);
+          document.getElementById('reg-email').focus();
+        });
+
+        document.getElementById('existingPatientChoice').addEventListener('click', function() {
+          window.location.href = 'login.php';
+        });
+
+        regModalClose.addEventListener('click', function() {
+          closeModal(registrationModal);
+        });
+
+        registrationModal.addEventListener('click', function(e) {
+          if (e.target === registrationModal) closeModal(registrationModal);
+        });
+
+        const regForm = document.getElementById('registrationForm');
+        regForm.addEventListener('submit', async function(e) {
+          e.preventDefault();
+
+          const password = document.getElementById('reg-password').value;
+          const confirmPassword = document.getElementById('reg-confirm-password').value;
+          const phone = document.getElementById('reg-phone').value;
+          const gender = document.getElementById('reg-gender').value;
+          const email = document.getElementById('reg-email').value;
+
+          if (!phone) { alert('Please enter your phone number'); return; }
+          if (!gender) { alert('Please select your gender'); return; }
+          if (!email) { alert('Please enter your email address'); return; }
+          if (password !== confirmPassword) { alert('Passwords do not match'); return; }
+          if (password.length < 8) { alert('Password must be at least 8 characters'); return; }
+
+          const formData = new FormData(regForm);
+
+          try {
+            const response = await fetch('../user-patient/process_registration.php', {
+              method: 'POST',
+              body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+              closeModal(registrationModal);
+              openModal(successModal);
+              setTimeout(function() {
+                window.location.href = '../user-patient/patient-dashboard.php';
+              }, 2000);
+            } else {
+              alert(result.message || 'Registration failed');
+            }
+          } catch (error) {
+            console.error('Registration error:', error);
+            alert('An error occurred. Please try again.');
+          }
+        });
+
+        const firstNameDisplay = document.getElementById('reg-first-name-display');
+        const middleNameDisplay = document.getElementById('reg-middle-name-display');
+        const lastNameDisplay = document.getElementById('reg-last-name-display');
+        const firstNameHidden = document.getElementById('reg-first-name');
+        const middleNameHidden = document.getElementById('reg-middle-name');
+        const lastNameHidden = document.getElementById('reg-last-name');
+
+        const capitalizeName = function(name) {
+          return name.replace(/\b\w/g, function(l) { return l.toUpperCase(); });
+        };
+
+        if (firstNameDisplay && firstNameHidden) {
+          firstNameDisplay.addEventListener('input', function() {
+            var val = capitalizeName(this.value);
+            this.value = val;
+            firstNameHidden.value = val;
+          });
+        }
+        if (middleNameDisplay && middleNameHidden) {
+          middleNameDisplay.addEventListener('input', function() {
+            var val = capitalizeName(this.value);
+            this.value = val;
+            middleNameHidden.value = val;
+          });
+        }
+        if (lastNameDisplay && lastNameHidden) {
+          lastNameDisplay.addEventListener('input', function() {
+            var val = capitalizeName(this.value);
+            this.value = val;
+            lastNameHidden.value = val;
+          });
+        }
+
+        var emailInput = document.getElementById('reg-email');
+        var emailHidden = document.getElementById('reg-email-hidden');
+        if (emailInput && emailHidden) {
+          emailInput.addEventListener('input', function() {
+            emailHidden.value = this.value;
+          });
+        }
+      });
     </script>
   </body>
 </html>

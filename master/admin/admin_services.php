@@ -547,7 +547,7 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
             <option value="1" <?php echo $statusFilter === '1' ? 'selected' : ''; ?>>Active</option>
             <option value="0" <?php echo $statusFilter === '0' ? 'selected' : ''; ?>>Inactive</option>
         </select>
-        <button class="add-btn" onclick="document.getElementById('addModal').style.display='flex'">
+        <button type="button" class="add-btn" onclick="document.getElementById('addModal').style.display='flex'">
             <span>+</span> Add New Service
         </button>
     </form>

@@ -1187,7 +1187,8 @@ $pageTitle = 'Patient Dashboard';
             <!-- Welcome Section -->
             <section class="welcome-section">
                 <div class="welcome-content">
-                    <h1>Welcome Back, <?php echo htmlspecialchars($patient['first_name'] ?? 'Patient'); ?>!</h1>
+                    <h1><?php echo !empty($_SESSION['new_registration']) ? 'Welcome' : 'Welcome Back'; ?>, <?php echo htmlspecialchars($patient['first_name'] ?? 'Patient'); ?>!</h1>
+                    <?php if (!empty($_SESSION['new_registration'])) unset($_SESSION['new_registration']); ?>
                     <p>Track your oral wellness journey and manage your dental plan details below.</p>
                 </div>
                 <a href="appointments.php" class="btn">

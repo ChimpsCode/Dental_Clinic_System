@@ -106,6 +106,8 @@ try {
     $_SESSION['user_role'] = 'user';
     $_SESSION['user_name'] = $first_name;
     $_SESSION['patient_id'] = $patient_id;
+    $_SESSION['display_name'] = $first_name;
+    $_SESSION['new_registration'] = true;
 
     echo json_encode([
         'success' => true,
