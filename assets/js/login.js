@@ -95,8 +95,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 if (fallback) {
-                    fallback.textContent = (code || '').trim();
-                    fallback.style.display = 'block';
+                    fallback.style.display = 'none';
                 }
             })
             .catch(() => {
