@@ -41,14 +41,30 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 .schedule-tab.active { color: #005daa; border-bottom-color: #005daa; }
                 .schedule-panel { display: none; }
                 .schedule-panel.active { display: block; }
-                .day-schedule { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
-                .day-label { font-weight: 500; min-width: 100px; color: #374151; }
-                .time-input { width: 120px; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
-                .time-separator { color: #6b7280; }
-                .day-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; color: #6b7280; font-size: 14px; }
-                .day-toggle input[type="checkbox"] { width: 16px; height: 16px; }
-                .weekend { background: #fafafa; padding: 8px; border-radius: 6px; }
-                .day-closed .time-input { opacity: 0.5; pointer-events: none; }
+                .day-schedule { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; padding: 12px; border-radius: 8px; transition: all 0.2s; background: #fff; border: 1px solid #f3f4f6; }
+                .day-schedule:hover { border-color: #e5e7eb; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+                .day-label { font-weight: 600; min-width: 100px; color: #374151; font-size: 15px; }
+                
+                /* Toggle Switch Styling */
+                .toggle-switch { position: relative; display: inline-block; width: 46px; height: 24px; margin-right: 8px; }
+                .toggle-switch input { opacity: 0; width: 0; height: 0; }
+                .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #e5e7eb; transition: .3s; border-radius: 24px; }
+                .toggle-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+                .toggle-switch input:checked + .toggle-slider { background-color: #005daa; }
+                .toggle-switch input:checked + .toggle-slider:before { transform: translateX(22px); }
+
+                .time-controls { display: flex; align-items: center; gap: 8px; flex: 1; }
+                .time-select { width: 130px; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; background-color: #fff; cursor: pointer; }
+                .time-input-manual { width: 130px; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; display: none; }
+                .time-separator { color: #9ca3af; font-weight: 500; }
+                
+                .manual-choice { display: flex; align-items: center; gap: 6px; cursor: pointer; color: #6b7280; font-size: 13px; margin-left: auto; padding: 4px 8px; border-radius: 4px; transition: 0.2s; }
+                .manual-choice:hover { background: #f3f4f6; color: #374151; }
+                .manual-choice input { cursor: pointer; }
+
+                .weekend { background: #f9fafb; }
+                .day-closed { opacity: 0.7; }
+                .day-closed .time-controls { pointer-events: none; opacity: 0.5; }
                 
                 .schedule-calendar { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
                 .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
@@ -154,6 +170,21 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                         <div class="schedule-panel active" id="panel-business-hours">
                             <form class="settings-form" id="businessHoursForm">
                                 <?php
+                                if (!function_exists('generateTimeOptions')) {
+                                    function generateTimeOptions($selectedTime) {
+                                        $options = '';
+                                        for ($h = 0; $h < 24; $h++) {
+                                            foreach (['00', '30'] as $m) {
+                                                $time24 = sprintf('%02d:%s', $h, $m);
+                                                $time12 = date('h:i A', strtotime($time24));
+                                                $selected = ($time24 == $selectedTime) ? 'selected' : '';
+                                                $options .= "<option value=\"$time24\" $selected>$time12</option>";
+                                            }
+                                        }
+                                        return $options;
+                                    }
+                                }
+
                                 $days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
                                 foreach ($days as $day):
                                     $hours = $businessHours[$day] ?? ['open' => '', 'close' => '', 'is_open' => false];
@@ -161,12 +192,29 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                 ?>
                                 <div class="day-schedule <?php echo $isWeekend ? 'weekend' : ''; ?> <?php echo !$hours['is_open'] ? 'day-closed' : ''; ?>" data-day="<?php echo $day; ?>">
                                     <label class="day-label"><?php echo ucfirst($day); ?></label>
-                                    <input type="time" class="form-control time-input time-open" value="<?php echo htmlspecialchars($hours['open'] ?? ''); ?>">
-                                    <span class="time-separator">to</span>
-                                    <input type="time" class="form-control time-input time-close" value="<?php echo htmlspecialchars($hours['close'] ?? ''); ?>">
-                                    <label class="day-toggle">
-                                        <input type="checkbox" class="is-open-checkbox" <?php echo $hours['is_open'] ? 'checked' : ''; ?>> Open
+                                    
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" class="is-open-checkbox" <?php echo $hours['is_open'] ? 'checked' : ''; ?>>
+                                        <span class="toggle-slider"></span>
                                     </label>
+
+                                    <div class="time-controls">
+                                        <select class="time-select time-open">
+                                            <?php echo generateTimeOptions($hours['open']); ?>
+                                        </select>
+                                        <input type="time" class="time-input-manual time-open-manual" value="<?php echo htmlspecialchars($hours['open'] ?? ''); ?>">
+                                        
+                                        <span class="time-separator">to</span>
+                                        
+                                        <select class="time-select time-close">
+                                            <?php echo generateTimeOptions($hours['close']); ?>
+                                        </select>
+                                        <input type="time" class="time-input-manual time-close-manual" value="<?php echo htmlspecialchars($hours['close'] ?? ''); ?>">
+                                        
+                                        <label class="manual-choice">
+                                            <input type="checkbox" class="manual-toggle-checkbox"> Manual
+                                        </label>
+                                    </div>
                                 </div>
                                 <?php endforeach; ?>
                                 <button type="submit" class="btn-primary">Save Hours</button>
@@ -401,6 +449,41 @@ document.querySelectorAll('.schedule-tab').forEach(tab => {
     });
 });
 
+// Initialize manual mode if needed
+document.querySelectorAll('.day-schedule').forEach(row => {
+    const openSelect = row.querySelector('select.time-open');
+    const openVal = row.querySelector('.time-open-manual').value;
+    const closeSelect = row.querySelector('select.time-close');
+    const closeVal = row.querySelector('.time-close-manual').value;
+    
+    let needsManual = false;
+    // Check if current values exist in dropdown options
+    if (openVal && !Array.from(openSelect.options).some(opt => opt.value === openVal)) needsManual = true;
+    if (closeVal && !Array.from(closeSelect.options).some(opt => opt.value === closeVal)) needsManual = true;
+    
+    if (needsManual) {
+        const manualCheckbox = row.querySelector('.manual-toggle-checkbox');
+        manualCheckbox.checked = true;
+        manualCheckbox.dispatchEvent(new Event('change'));
+    }
+});
+
+document.querySelectorAll('.manual-toggle-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        const row = this.closest('.day-schedule');
+        const selects = row.querySelectorAll('.time-select');
+        const manuals = row.querySelectorAll('.time-input-manual');
+        
+        if (this.checked) {
+            selects.forEach(s => s.style.display = 'none');
+            manuals.forEach(m => m.style.display = 'block');
+        } else {
+            selects.forEach(s => s.style.display = 'block');
+            manuals.forEach(m => m.style.display = 'none');
+        }
+    });
+});
+
 document.querySelectorAll('.is-open-checkbox').forEach(checkbox => {
     checkbox.addEventListener('change', function() {
         const row = this.closest('.day-schedule');
@@ -418,9 +501,13 @@ document.getElementById('businessHoursForm').addEventListener('submit', function
     const businessHours = {};
     document.querySelectorAll('.day-schedule').forEach(row => {
         const day = row.dataset.day;
+        const isManual = row.querySelector('.manual-toggle-checkbox').checked;
+        const openVal = isManual ? row.querySelector('.time-open-manual').value : row.querySelector('select.time-open').value;
+        const closeVal = isManual ? row.querySelector('.time-close-manual').value : row.querySelector('select.time-close').value;
+        
         businessHours[day] = {
-            open: row.querySelector('.time-open').value,
-            close: row.querySelector('.time-close').value,
+            open: openVal,
+            close: closeVal,
             is_open: row.querySelector('.is-open-checkbox').checked
         };
     });

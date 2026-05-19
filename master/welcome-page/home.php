@@ -24,20 +24,43 @@ $businessHours = isset($clinicSettings['business_hours']) ? json_decode($clinicS
 if (!$businessHours) $businessHours = $defaultHours;
 
 function formatHoursForDisplay($hours) {
-    $weekdayHours = [];
-    $weekendHours = [];
-    foreach (['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as $day) {
-        if ($hours[$day]['is_open']) $weekdayHours[] = $hours[$day]['open'] . '-' . $hours[$day]['close'];
+    $days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    $shortDays = ['monday' => 'Mon', 'tuesday' => 'Tue', 'wednesday' => 'Wed', 'thursday' => 'Thu', 'friday' => 'Fri', 'saturday' => 'Sat', 'sunday' => 'Sun'];
+    
+    $groups = [];
+    $currentGroup = null;
+
+    foreach ($days as $day) {
+        if ($hours[$day]['is_open']) {
+            $timeRange = date('g:i A', strtotime($hours[$day]['open'])) . ' - ' . date('g:i A', strtotime($hours[$day]['close']));
+            
+            if ($currentGroup && $currentGroup['time'] === $timeRange) {
+                $currentGroup['end'] = $day;
+            } else {
+                if ($currentGroup) $groups[] = $currentGroup;
+                $currentGroup = ['start' => $day, 'end' => $day, 'time' => $timeRange];
+            }
+        } else {
+            if ($currentGroup) {
+                $groups[] = $currentGroup;
+                $currentGroup = null;
+            }
+        }
     }
-    foreach (['saturday', 'sunday'] as $day) {
-        if ($hours[$day]['is_open']) $weekendHours[] = $hours[$day]['open'] . '-' . $hours[$day]['close'];
+    if ($currentGroup) $groups[] = $currentGroup;
+
+    if (empty($groups)) return 'Closed';
+
+    $displayParts = [];
+    foreach ($groups as $group) {
+        if ($group['start'] === $group['end']) {
+            $displayParts[] = $shortDays[$group['start']] . ' ' . $group['time'];
+        } else {
+            $displayParts[] = $shortDays[$group['start']] . ' - ' . $shortDays[$group['end']] . ' ' . $group['time'];
+        }
     }
-    if ($weekdayHours && $weekendHours) {
-        return 'Mon - Fri ' . date('g:i A', strtotime($hours['monday']['open'])) . ' - ' . date('g:i A', strtotime($hours['monday']['close'])) . ' | Sat ' . date('g:i A', strtotime($hours['saturday']['open'])) . ' - ' . date('g:i A', strtotime($hours['saturday']['close']));
-    } elseif ($weekdayHours) {
-        return 'Mon - Fri ' . date('g:i A', strtotime($hours['monday']['open'])) . ' - ' . date('g:i A', strtotime($hours['monday']['close']));
-    }
-    return 'Mon - Sat 9:00 AM - 5:00 PM';
+
+    return implode(' | ', $displayParts);
 }
 $displayHours = formatHoursForDisplay($businessHours);
 
