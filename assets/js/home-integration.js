@@ -351,4 +351,40 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
+
+  // Map modal functionality
+  const mapClickArea = document.querySelector('.contact-map-click-area');
+  const mapModal = document.getElementById('mapModal');
+  const mapModalBackdrop = document.getElementById('mapModalBackdrop');
+  const mapModalClose = document.getElementById('mapModalClose');
+
+  function openMapModal() {
+    if (!mapModal) return;
+    mapModal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeMapModal() {
+    if (!mapModal) return;
+    mapModal.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  if (mapClickArea) {
+    mapClickArea.addEventListener('click', openMapModal);
+  }
+
+  if (mapModalBackdrop) {
+    mapModalBackdrop.addEventListener('click', closeMapModal);
+  }
+
+  if (mapModalClose) {
+    mapModalClose.addEventListener('click', closeMapModal);
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && mapModal && mapModal.classList.contains('open')) {
+      closeMapModal();
+    }
+  });
 });

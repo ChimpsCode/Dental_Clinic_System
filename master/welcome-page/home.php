@@ -546,6 +546,27 @@ $assets = [
                   <span><?php echo htmlspecialchars($displayHours); ?></span>
                 </div>
               </div>
+
+              <div class="contact-map" id="clinicMap">
+                <div class="contact-map-preview">
+                  <iframe
+                    src="https://www.google.com/maps?q=<?= urlencode($clinicAddress ?: 'Celeste Bldg. MaxSuniel St. Brgy. Carmen, Cagayan de Oro, Philippines, 9000') ?>&output=embed"
+                    loading="lazy"
+                    referrerpolicy="no-referrer-when-downgrade"
+                    title="Clinic location map">
+                  </iframe>
+                  <div class="contact-map-click-area" tabindex="0" role="button" aria-label="Open map in larger view">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="11" cy="11" r="8"></circle>
+                      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                      <line x1="11" y1="8" x2="11" y2="14"></line>
+                      <line x1="8" y1="11" x2="14" y2="11"></line>
+                    </svg>
+                    <span>Click to enlarge</span>
+                  </div>
+                </div>
+              </div>
+
             </div>
             <div class="contact-form-card">
               <div class="form-logo" aria-hidden="true">
@@ -2001,6 +2022,22 @@ $assets = [
         });
       });
     </script>
+
+    <div class="map-modal" id="mapModal" role="dialog" aria-modal="true" aria-label="Clinic location map">
+      <div class="map-modal-backdrop" id="mapModalBackdrop"></div>
+      <div class="map-modal-content">
+        <button class="map-modal-close" id="mapModalClose" aria-label="Close map">&times;</button>
+        <div class="map-modal-iframe-wrap">
+          <iframe
+            src="https://www.google.com/maps?q=<?= urlencode($clinicAddress ?: 'Celeste Bldg. MaxSuniel St. Brgy. Carmen, Cagayan de Oro, Philippines, 9000') ?>&output=embed"
+            allowfullscreen
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+            title="Clinic location map (large view)">
+          </iframe>
+        </div>
+      </div>
+    </div>
 
   </body>
 </html>
