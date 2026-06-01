@@ -301,6 +301,8 @@ $assets = [
         text-decoration: none;
         margin-top: 12px;
       }
+
+      .typing-indicator { color: #666; font-style: italic; }
     </style>
   </head>
   <body>
@@ -694,7 +696,207 @@ $assets = [
       </div>
     </footer>
 
-    <?php include '../../includes/chatbot_widget.php'; ?>
+    <button
+      type="button"
+      class="chat-fab"
+      id="chatFab"
+      aria-label="Open AI chat"
+      aria-haspopup="dialog"
+      aria-controls="chatWidget"
+      aria-expanded="false"
+    >
+      <span class="chat-fab-icon" aria-hidden="true">💬</span>
+    </button>
+    
+    <!-- Chatbot greeting balloon -->
+    <div class="chat-balloon" id="chatBalloon">
+      <div class="chat-balloon-content">
+        <span class="chat-balloon-icon">🤖</span>
+        <span class="chat-balloon-text">Hi! I'm your RF Dental Clinic chatbot assistant.</span>
+      </div>
+      <div class="chat-balloon-arrow"></div>
+    </div>
+
+    <section class="chat-widget" id="chatWidget" role="dialog" aria-modal="false" aria-label="AI automated chat" hidden>
+      <header class="chat-header">
+        <div class="chat-title">
+          <div class="chat-title-main">RF Dental AI</div>
+          <div class="chat-title-sub">Automated inquiry assistant</div>
+        </div>
+        <button type="button" class="chat-close" id="chatClose" aria-label="Close chat">✕</button>
+      </header>
+
+      <div class="chat-body" id="chatBody" aria-live="polite" aria-relevant="additions"></div>
+
+      <form class="chat-input" id="chatForm" autocomplete="off">
+        <input
+          type="text"
+          id="chatText"
+          name="message"
+          placeholder="Type your question… (e.g., price for braces, clinic hours)"
+          aria-label="Chat message"
+          required
+        />
+        <button class="btn btn-primary" type="submit">Send</button>
+      </form>
+    </section>
+
+    <script>
+      // Mobile navigation toggle
+      (() => {
+        const navToggle = document.querySelector('.nav-toggle');
+        const nav = document.querySelector('.nav');
+        const overlay = document.querySelector('.nav-overlay');
+        
+        if (navToggle && nav) {
+          const toggleNav = (shouldOpen) => {
+            const isOpen = shouldOpen ?? !nav.classList.contains('open');
+            nav.classList.toggle('open', isOpen);
+            navToggle.classList.toggle('open', isOpen);
+            overlay?.classList.toggle('open', isOpen);
+            navToggle.setAttribute('aria-expanded', isOpen);
+            document.body.style.overflow = isOpen ? 'hidden' : '';
+          };
+          
+          navToggle.addEventListener('click', () => toggleNav());
+          overlay?.addEventListener('click', () => toggleNav(false));
+          
+          // Close nav when clicking a link
+          nav.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', () => toggleNav(false));
+          });
+        }
+      })();
+
+      (() => {
+        const targets = document.querySelectorAll([
+          '.hero-copy',
+          '.hero-visual',
+          '.appointment-card',
+          '.section-title',
+          '.section-subtitle',
+          '.service-card',
+          '.faq-item',
+          '.contact-wrapper'
+        ].join(','));
+
+        targets.forEach((el, idx) => {
+          el.classList.add('reveal-item');
+          el.style.transitionDelay = `${Math.min(idx * 35, 260)}ms`;
+        });
+
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('reveal-visible');
+              observer.unobserve(entry.target);
+            }
+          });
+        }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+        targets.forEach((el) => observer.observe(el));
+      })();
+    </script>
+
+    <script>
+      (() => {
+        const fab = document.getElementById('chatFab');
+        const widget = document.getElementById('chatWidget');
+        const closeBtn = document.getElementById('chatClose');
+        const form = document.getElementById('chatForm');
+        const input = document.getElementById('chatText');
+        const body = document.getElementById('chatBody');
+        const balloon = document.getElementById('chatBalloon');
+
+        function addMsg(role, text) {
+          const row = document.createElement('div');
+          row.className = `chat-msg chat-msg-${role}`;
+          const bubble = document.createElement('div');
+          bubble.className = 'chat-bubble';
+          bubble.textContent = text;
+          row.appendChild(bubble);
+          body.appendChild(row);
+          body.scrollTop = body.scrollHeight;
+          return bubble;
+        }
+
+        async function processChat(msg) {
+          const typingBubble = addMsg('bot', '...');
+          typingBubble.classList.add('typing-indicator');
+
+          try {
+            const response = await fetch('../api/ai_chat.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ message: msg })
+            });
+
+            if (!response.ok) {
+              const errorText = await response.text();
+              throw new Error(`Server returned ${response.status}: ${errorText.substring(0, 100)}`);
+            }
+
+            const data = await response.json();
+            const typingRow = typingBubble.closest('.chat-msg');
+            if (typingRow) typingRow.remove();
+
+            if (data.response) {
+              addMsg('bot', data.response);
+            } else if (data.error) {
+              addMsg('bot', "I'm sorry, I'm having an issue: " + data.error);
+            } else {
+              addMsg('bot', "I'm sorry, I encountered an unknown error. Please try again later.");
+            }
+          } catch (error) {
+            console.error('Chat Error:', error);
+            const typingRow = typingBubble.closest('.chat-msg');
+            if (typingRow) typingRow.remove();
+            addMsg('bot', "I'm having trouble connecting to my brain right now. (Error: " + error.message + ").");
+          }
+        }
+
+        function openChat() {
+          widget.hidden = false;
+          fab.setAttribute('aria-expanded', 'true');
+          setTimeout(() => input.focus(), 0);
+          if (!body.dataset.greeted) {
+            addMsg('bot', "Hi! I’m RF Dental AI. Ask me about services, prices, durations, clinic hours, or booking.");
+            body.dataset.greeted = '1';
+          }
+        }
+
+        function closeChat() {
+          widget.hidden = true;
+          fab.setAttribute('aria-expanded', 'false');
+          fab.focus();
+        }
+
+        fab.addEventListener('click', () => (widget.hidden ? openChat() : closeChat()));
+        closeBtn.addEventListener('click', closeChat);
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && !widget.hidden) closeChat();
+        });
+
+        form.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const text = input.value.trim();
+          if (!text) return;
+          addMsg('user', text);
+          input.value = '';
+          processChat(text);
+        });
+        // Show chat balloon greeting
+        if (balloon) {
+          setTimeout(() => {
+            balloon.classList.add('show');
+            // Hide balloon after 2 seconds
+            setTimeout(() => {
+              balloon.classList.remove('show');
+            }, 4000);
+          }, 1000); // Wait 1 second after page load
+        }
+      })();
+    </script>
 
     <script>
       // Toggle full services list when Explore All Services is clicked
@@ -1148,11 +1350,11 @@ $assets = [
           });
         }
 
+        // CAPTCHA functionality (JavaScript-based)
         const captchaDisplay = document.getElementById('captchaDisplay');
         const captchaInput = document.getElementById('captcha-code');
         const captchaError = document.getElementById('captchaError');
         const refreshCaptchaBtn = document.getElementById('refreshCaptchaBtn');
-        const captchaCanvas = document.getElementById('captchaCanvas'); // Ensure this is selected if it exists
         
         let currentCaptchaCode = '';
         

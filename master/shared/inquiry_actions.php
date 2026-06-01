@@ -496,21 +496,10 @@ if ($action === 'create') {
     }
 
     $concern = trim($_POST['concern'] ?? '');
-    $serviceId = !empty($_POST['service_id']) ? (int)$_POST['service_id'] : null;
-    $preferredDate = trim($_POST['preferred_date'] ?? '');
-    $preferredTime = trim($_POST['preferred_time'] ?? '');
-    $painLevel = trim($_POST['pain_level'] ?? '');
-    $urgency = $_POST['urgency'] ?? 'Low';
-    $status = normalizeInquiryStatus($_POST['status'] ?? 'Pending');
 
     if ($concern === '') {
         inquiryJson(['success' => false, 'message' => 'Concern / Message is required.']);
     }
-
-    $urgency = in_array($urgency, ['Low', 'Medium', 'High'], true) ? $urgency : 'Low';
-    $preferredDate = $preferredDate !== '' ? $preferredDate : null;
-    $preferredTime = $preferredTime !== '' ? $preferredTime : null;
-    $painLevel = $painLevel !== '' ? $painLevel : null;
 
     [$firstName, $middleName, $lastName] = splitInquiryFullName($fullName);
 
@@ -520,12 +509,7 @@ if ($action === 'create') {
         'phone' => $phone,
         'email' => $email,
         'concern' => $concern,
-        'service_id' => $serviceId,
-        'preferred_date' => $preferredDate,
-        'preferred_time' => $preferredTime,
-        'pain_level' => $painLevel,
-        'urgency' => $urgency,
-        'status' => $status,
+        'status' => 'Open',
         'assigned_staff_id' => null,
         'notes' => null,
         'source' => $source,
@@ -534,8 +518,6 @@ if ($action === 'create') {
         'last_name' => $lastName,
         'contact_info' => $phone,
         'inquiry_message' => $concern,
-        'topic' => $serviceId,
-        'topic_service_id' => $serviceId,
     ];
 
     $columns = [];
@@ -859,6 +841,97 @@ if ($action === 'convert_to_appointment') {
 
     $pdo->commit();
     inquiryJson(['success' => true, 'message' => 'Inquiry converted to appointment successfully.']);
+}
+
+if ($action === 'staff_reply') {
+    $replyMessage = trim($_POST['message'] ?? '');
+    if ($replyMessage === '') {
+        inquiryJson(['success' => false, 'message' => 'Reply message is required.']);
+    }
+
+    $fullName = $inquiry['resolved_full_name'] ?? $inquiry['full_name'] ?? 'Patient';
+    $timestamp = date('Y-m-d H:i:s');
+    $replyEntry = "\n[Staff replied on {$timestamp}]\n{$replyMessage}";
+    $existingNotes = $inquiry['notes'] ?? '';
+    $newNotes = $existingNotes . $replyEntry;
+
+    if (($inquiry['source'] ?? '') === 'Patient Portal' && !empty($inquiry['patient_id'])) {
+        $patientId = (int)$inquiry['patient_id'];
+        $staffUserId = (int)$_SESSION['user_id'];
+
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS `messages` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `patient_id` INT(11) NOT NULL,
+                `message` TEXT NOT NULL,
+                `sent_by` ENUM('patient','admin') NOT NULL DEFAULT 'patient',
+                `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                KEY `idx_messages_patient_id` (`patient_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+        ");
+        if (!inquiryColumnExists($pdo, 'messages', 'sender_type')) {
+            $pdo->exec("ALTER TABLE `messages` ADD COLUMN `sender_type` ENUM('patient','admin','system') NOT NULL DEFAULT 'patient'");
+        }
+        if (!inquiryColumnExists($pdo, 'messages', 'sender_id')) {
+            $pdo->exec("ALTER TABLE `messages` ADD COLUMN `sender_id` INT NULL");
+        }
+        if (!inquiryColumnExists($pdo, 'messages', 'is_read')) {
+            $pdo->exec("ALTER TABLE `messages` ADD COLUMN `is_read` TINYINT(1) NOT NULL DEFAULT 0");
+        }
+
+        $msgStmt = $pdo->prepare("
+            INSERT INTO messages (patient_id, sender_id, message, sender_type, sent_by, created_at)
+            VALUES (?, ?, ?, 'admin', 'admin', NOW())
+        ");
+        $msgStmt->execute([$patientId, $staffUserId, $replyMessage]);
+    } elseif (in_array($inquiry['source'] ?? '', ['Website', 'Facebook', 'Walk-in', 'Referral']) || empty($inquiry['patient_id'])) {
+        $recipientEmail = trim($inquiry['email'] ?? '');
+        if ($recipientEmail !== '') {
+            $mailerConfig = __DIR__ . '/../../config/mailer_config.php';
+            $phpMailerBase = __DIR__ . '/../../PHPMailer/src';
+            if (file_exists($mailerConfig) && file_exists($phpMailerBase . '/PHPMailer.php')) {
+                require_once $mailerConfig;
+                require_once $phpMailerBase . '/Exception.php';
+                require_once $phpMailerBase . '/PHPMailer.php';
+                require_once $phpMailerBase . '/SMTP.php';
+
+                try {
+                    $mailer = new \PHPMailer\PHPMailer\PHPMailer(true);
+                    $mailer->isSMTP();
+                    $mailer->Host = gethostbyname(SMTP_HOST);
+                    $mailer->SMTPAuth = true;
+                    $mailer->Username = SMTP_USER;
+                    $mailer->Password = SMTP_PASS;
+                    $mailer->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+                    $mailer->Port = SMTP_PORT;
+                    $mailer->SMTPOptions = ['ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true]];
+                    $mailer->setFrom(MAIL_FROM, MAIL_FROM_NAME);
+                    $mailer->addAddress($recipientEmail, $fullName);
+                    $mailer->isHTML(true);
+                    $mailer->Subject = 'Re: Your Inquiry - RF Dental Clinic';
+                    $mailer->Body = '<p>Dear ' . htmlspecialchars($fullName) . ',</p>'
+                        . '<p>' . nl2br(htmlspecialchars($replyMessage)) . '</p>'
+                        . '<hr><p style="color:#64748b;font-size:13px;">This is a reply to your inquiry submitted through our website.</p>';
+                    $mailer->AltBody = "Dear {$fullName},\n\n{$replyMessage}\n\n-- RF Dental Clinic";
+                    $mailer->send();
+                } catch (\Exception $e) {
+                    inquiryJson(['success' => false, 'message' => 'Failed to send email reply. ' . $e->getMessage()]);
+                }
+            }
+        }
+    }
+
+    updateInquiryRecord($pdo, $id, ['status' => 'Replied', 'notes' => $newNotes, 'assigned_staff_id' => (int)$_SESSION['user_id']]);
+    inquiryJson(['success' => true, 'message' => 'Reply sent successfully.']);
+}
+
+if ($action === 'staff_close') {
+    $existingNotes = $inquiry['notes'] ?? '';
+    $timestamp = date('Y-m-d H:i:s');
+    $newNotes = $existingNotes . "\n[Closed by staff on {$timestamp}]";
+    updateInquiryRecord($pdo, $id, ['status' => 'Closed', 'notes' => $newNotes]);
+    inquiryJson(['success' => true, 'message' => 'Inquiry closed.']);
 }
 
 inquiryJson(['success' => false, 'message' => 'Unknown action.']);

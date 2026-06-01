@@ -109,8 +109,6 @@ $displayFirstName = trim((string)preg_split('/\s+/', $fullName)[0]);
 $phone = $patient['phone'] ?: ($patient['user_phone'] ?? '');
 $email = $patient['email'] ?: ($patient['user_email'] ?? '');
 
-$services = fetchInquiryServices($pdo);
-
 $stmt = $pdo->prepare("
     SELECT i.*, s.name AS service_name
     FROM inquiries i
@@ -282,6 +280,9 @@ $pageTitle = 'Inquiry / Consultation';
         .guide-scheduled { background: #dcfce7; color: #166534; }
         .guide-completed { background: #e5e7eb; color: #475569; }
         .guide-cancelled { background: #fee2e2; color: #b91c1c; }
+        .guide-Open { background: #fef3c7; color: #92400e; }
+        .guide-Replied { background: #dbeafe; color: #1d4ed8; }
+        .guide-Closed { background: #e5e7eb; color: #475569; }
         .history-section {
             margin-top: 8px;
         }
@@ -291,10 +292,13 @@ $pageTitle = 'Inquiry / Consultation';
         .history-table td { padding: 18px 0; border-top: 1px solid #eef2f7; vertical-align: top; color: #0f172a; font-size: 14px; }
         .concern-preview { max-width: 240px; color: #475569; line-height: 1.5; }
         .status-badge { display: inline-flex; align-items: center; justify-content: center; padding: 7px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+        .status-Open { background: #fef3c7; color: #92400e; }
         .status-Pending { background: #fef3c7; color: #92400e; }
         .status-Contacted { background: #dbeafe; color: #1d4ed8; }
+        .status-Replied { background: #dbeafe; color: #1d4ed8; }
         .status-Scheduled { background: #dcfce7; color: #166534; }
         .status-Completed { background: #e0f2fe; color: #0369a1; }
+        .status-Closed { background: #e5e7eb; color: #475569; }
         .status-Cancelled { background: #fee2e2; color: #b91c1c; }
         .link-btn { background: none; border: none; color: #2563eb; font: inherit; font-weight: 700; cursor: pointer; padding: 0; }
         .empty-state { text-align: center; padding: 50px 24px; color: #64748b; }
@@ -469,58 +473,12 @@ $pageTitle = 'Inquiry / Consultation';
                                     <span class="readonly-label">Email</span>
                                     <div class="readonly-value"><?php echo htmlspecialchars($email ?: 'Not provided'); ?></div>
                                 </div>
-                                <div class="field-group" style="margin-bottom: 0;">
-                                    <label class="field-label" for="service_id">Service Needed</label>
-                                    <select id="service_id" name="service_id" class="field-select">
-                                        <option value="">Select a service</option>
-                                        <?php foreach ($services as $service): ?>
-                                            <option value="<?php echo (int)$service['id']; ?>"><?php echo htmlspecialchars($service['name']); ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
                             </div>
 
                             <div class="field-group">
                                 <label class="field-label" for="concern">Concern / Message</label>
                                 <textarea id="concern" name="concern" class="field-textarea" placeholder="Describe your concern, symptoms, or what you would like to ask." required></textarea>
                             </div>
-
-                            <div class="field-grid">
-                                <div class="field-group">
-                                    <label class="field-label" for="preferred_date">Preferred Date</label>
-                                    <input type="date" id="preferred_date" name="preferred_date" class="field-input">
-                                </div>
-                                <div class="field-group">
-                                    <label class="field-label" for="preferred_time">Preferred Time</label>
-                                    <select id="preferred_time" name="preferred_time" class="field-select">
-                                        <option value="">Select preferred time</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="field-grid">
-                                <div class="field-group">
-                                    <label class="field-label" for="pain_level">Pain Level</label>
-                                    <select id="pain_level" name="pain_level" class="field-select">
-                                        <option value="">Select pain level</option>
-                                        <option value="1 - Mild">1 - Mild</option>
-                                        <option value="2 - Noticeable">2 - Noticeable</option>
-                                        <option value="3 - Moderate">3 - Moderate</option>
-                                        <option value="4 - Strong">4 - Strong</option>
-                                        <option value="5 - Severe">5 - Severe</option>
-                                    </select>
-                                </div>
-                                <div class="field-group">
-                                    <label class="field-label" for="urgency">Urgency</label>
-                                    <select id="urgency" name="urgency" class="field-select">
-                                        <option value="Low">Low</option>
-                                        <option value="Medium" selected>Medium</option>
-                                        <option value="High">High</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <p class="helper-text">Preferred date and time are requests only. Staff will still confirm the final appointment schedule after reviewing your inquiry.</p>
 
                             <div class="actions-row">
                                 <button type="submit" class="btn-primary">Submit Inquiry</button>
@@ -541,19 +499,17 @@ $pageTitle = 'Inquiry / Consultation';
                             <div class="support-box">
                                 <h3>Inquiry details</h3>
                                 <div class="support-list">
-                                    <div class="support-item"><i class="fas fa-user-check"></i><span>Name, phone number, and email are prefilled from your account for this request.</span></div>
-                                    <div class="support-item"><i class="fas fa-calendar-days"></i><span>Preferred date, time, and pain level are optional, but they help staff review your request faster.</span></div>
-                                    <div class="support-item"><i class="fas fa-shield-heart"></i><span>Your request stays under your patient record automatically. It does not create a queue number.</span></div>
+                                    <div class="support-item"><i class="fas fa-user-check"></i><span>Name, phone number, and email are prefilled from your account.</span></div>
+                                    <div class="support-item"><i class="fas fa-reply"></i><span>Staff will review your message and reply directly to your account.</span></div>
+                                    <div class="support-item"><i class="fas fa-shield-heart"></i><span>Your request history stays under your patient record.</span></div>
                                 </div>
                             </div>
                             <div class="support-box">
                                 <h3>Status guide</h3>
                                 <div class="status-guide">
-                                    <span class="guide-pill guide-pending">Pending</span>
-                                    <span class="guide-pill guide-contacted">Contacted</span>
-                                    <span class="guide-pill guide-scheduled">Scheduled</span>
-                                    <span class="guide-pill guide-completed">Completed</span>
-                                    <span class="guide-pill guide-cancelled">Cancelled</span>
+                                    <span class="guide-pill guide-pending">Open</span>
+                                    <span class="guide-pill guide-contacted">Replied</span>
+                                    <span class="guide-pill guide-completed">Closed</span>
                                 </div>
                             </div>
                         </div>
@@ -572,9 +528,7 @@ $pageTitle = 'Inquiry / Consultation';
                             <thead>
                                 <tr>
                                     <th>Date Submitted</th>
-                                    <th>Service</th>
                                     <th>Concern Preview</th>
-                                    <th>Preferred Schedule</th>
                                     <th>Status</th>
                                     <th>Action</th>
                                 </tr>
@@ -582,7 +536,7 @@ $pageTitle = 'Inquiry / Consultation';
                             <tbody id="historyTableBody">
                                 <?php if (empty($inquiries)): ?>
                                     <tr>
-                                        <td colspan="6">
+                                        <td colspan="4">
                                             <div class="empty-state">
                                                 <i class="fas fa-comment-medical"></i>
                                                 <h3 style="margin-bottom: 8px; color: #0f172a;">No inquiries yet</h3>
@@ -595,19 +549,10 @@ $pageTitle = 'Inquiry / Consultation';
                                         <?php
                                         $concernText = $inquiry['concern'] ?: ($inquiry['inquiry_message'] ?? '');
                                         $preview = mb_strlen($concernText) > 70 ? mb_substr($concernText, 0, 70) . '...' : $concernText;
-                                        $scheduleParts = [];
-                                        if (!empty($inquiry['preferred_date'])) {
-                                            $scheduleParts[] = date('M d, Y', strtotime($inquiry['preferred_date']));
-                                        }
-                                        if (!empty($inquiry['preferred_time'])) {
-                                            $scheduleParts[] = date('g:i A', strtotime($inquiry['preferred_time']));
-                                        }
                                         ?>
                                         <tr data-inquiry='<?php echo htmlspecialchars(json_encode($inquiry), ENT_QUOTES, 'UTF-8'); ?>'>
                                             <td><?php echo date('M d, Y', strtotime($inquiry['created_at'])); ?></td>
-                                            <td><?php echo htmlspecialchars($inquiry['service_name'] ?: 'General Consultation'); ?></td>
                                             <td><div class="concern-preview"><?php echo htmlspecialchars($preview ?: 'No concern provided'); ?></div></td>
-                                            <td><?php echo htmlspecialchars($scheduleParts ? implode(' at ', $scheduleParts) : 'No preference'); ?></td>
                                             <td><span class="status-badge status-<?php echo htmlspecialchars($inquiry['status']); ?>"><?php echo htmlspecialchars($inquiry['status']); ?></span></td>
                                             <td><button type="button" class="link-btn" onclick="openDetailModal(<?php echo (int)$inquiry['id']; ?>)">View Details</button></td>
                                         </tr>
@@ -637,9 +582,6 @@ $pageTitle = 'Inquiry / Consultation';
         const formAlert = document.getElementById('formAlert');
         const detailModal = document.getElementById('detailModal');
         const detailModalBody = document.getElementById('detailModalBody');
-        const serviceSelect = document.getElementById('service_id');
-        const preferredDateInput = document.getElementById('preferred_date');
-        const preferredTimeSelect = document.getElementById('preferred_time');
 
         function escapeHtml(value) {
             return String(value ?? '').replace(/[&<>"']/g, (character) => ({
@@ -656,7 +598,7 @@ $pageTitle = 'Inquiry / Consultation';
             return escapeHtml(text).replace(/\n/g, '<br>');
         }
 
-        function formatSchedule(dateValue, timeValue, fallback = 'No schedule provided') {
+        function formatSchedule(dateValue, timeValue, fallback = 'N/A') {
             const parts = [];
             if (dateValue) {
                 const date = new Date(`${dateValue}T00:00:00`);
@@ -669,125 +611,15 @@ $pageTitle = 'Inquiry / Consultation';
             return parts.length ? parts.join(' at ') : fallback;
         }
 
-        function getProgressStages(currentStatus) {
-            const order = ['Pending', 'Contacted', 'Scheduled', 'Completed'];
-            const normalizedStatus = String(currentStatus || 'Pending');
-            let activeIndex = order.indexOf(normalizedStatus);
-            if (normalizedStatus === 'Awaiting Confirmation') activeIndex = 1;
-            if (normalizedStatus === 'Cancelled') activeIndex = 0;
-            if (activeIndex < 0) activeIndex = 0;
-            return order.map((stage, index) => {
-                let className = 'progress-step';
-                if (index < activeIndex) className += ' is-complete';
-                if (index === activeIndex) className += ' is-active';
-                return `<div class="${className}">${escapeHtml(stage)}<span>${index < activeIndex ? 'Completed' : index === activeIndex ? 'Current stage' : 'Pending'}</span></div>`;
-            }).join('');
-        }
-
-        function getClinicUpdate(inquiry, confirmedSchedule) {
-            const status = String(inquiry.status || 'Pending');
-            if (status === 'Completed') {
-                return 'Your inquiry has been completed by the clinic.';
+        function getClinicUpdate(inquiry) {
+            const status = String(inquiry.status || 'Open');
+            if (status === 'Closed') {
+                return 'This inquiry has been closed.';
             }
-            if (status === 'Scheduled' && inquiry.confirmed_date && inquiry.confirmed_time) {
-                return `Your consultation has been scheduled for ${confirmedSchedule}.`;
+            if (status === 'Replied') {
+                return 'The clinic has responded to your inquiry. Check your messages for the reply.';
             }
-            if (status === 'Awaiting Confirmation' && inquiry.confirmed_date && inquiry.confirmed_time) {
-                return `Your requested consultation slot is being finalized for ${confirmedSchedule}.`;
-            }
-            if (status === 'Contacted') {
-                return 'The clinic has reviewed your inquiry and will contact you soon.';
-            }
-            if (status === 'Cancelled') {
-                return 'This inquiry is currently marked as cancelled. Please contact the clinic if you need further assistance.';
-            }
-            return 'Your inquiry has been received and is awaiting clinic confirmation.';
-        }
-
-        function formatSlotTimeLabel(timeValue) {
-            if (!timeValue) return '';
-            const normalized = String(timeValue).slice(0, 5);
-            const date = new Date(`1970-01-01T${normalized}`);
-            return Number.isNaN(date.getTime())
-                ? normalized
-                : date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-        }
-
-        function getBaseInquirySlots() {
-            const slots = [];
-            let totalMinutes = 9 * 60;
-            const endMinutes = (16 * 60) + 30;
-            while (totalMinutes <= endMinutes) {
-                const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
-                const minutes = String(totalMinutes % 60).padStart(2, '0');
-                slots.push(`${hours}:${minutes}`);
-                totalMinutes += 30;
-            }
-            return slots;
-        }
-
-        function setPreferredTimeOptions(slots, selectedValue = '', placeholder = 'Select preferred time') {
-            const normalizedSelected = String(selectedValue || '').slice(0, 5);
-            preferredTimeSelect.innerHTML = `<option value="">${placeholder}</option>`;
-            (slots || []).forEach((slot) => {
-                const normalized = String(slot || '').slice(0, 5);
-                if (!normalized) return;
-                const option = document.createElement('option');
-                option.value = normalized;
-                option.textContent = formatSlotTimeLabel(normalized);
-                preferredTimeSelect.appendChild(option);
-            });
-            if (normalizedSelected) {
-                preferredTimeSelect.value = normalizedSelected;
-            }
-        }
-
-        async function loadPreferredTimeSlots() {
-            const dateValue = preferredDateInput.value;
-            const serviceId = serviceSelect.value;
-            preferredTimeSelect.disabled = false;
-
-            if (!dateValue) {
-                setPreferredTimeOptions(getBaseInquirySlots(), '', 'Select preferred time');
-                return;
-            }
-
-            setPreferredTimeOptions([], '', 'Loading available slots...');
-
-            try {
-                const url = new URL('./get_slots.php', window.location.href);
-                url.searchParams.set('date', dateValue);
-                if (serviceId) {
-                    url.searchParams.set('service_id', serviceId);
-                }
-
-                const response = await fetch(url.toString());
-                const data = await response.json();
-                if (!response.ok || !data.success) {
-                    setPreferredTimeOptions([], '', 'No available slots');
-                    showFormAlert('error', data.message || 'Unable to load preferred time slots.');
-                    return;
-                }
-
-                if (data.is_open === false) {
-                    setPreferredTimeOptions([], '', 'Clinic closed on selected date');
-                    showFormAlert('error', data.message || 'Clinic is closed on the selected date.');
-                    return;
-                }
-
-                const slots = data.available_slots || [];
-                if (!slots.length) {
-                    setPreferredTimeOptions([], '', 'No available slots');
-                    showFormAlert('error', 'No available preferred time slots for the selected date.');
-                    return;
-                }
-
-                preferredTimeSelect.disabled = false;
-                setPreferredTimeOptions(slots);
-            } catch (_error) {
-                setPreferredTimeOptions([], '', 'No available slots');
-                showFormAlert('error', 'Unable to load preferred time slots.');
-            }
+            return 'Your inquiry has been received and is waiting for a staff response.';
         }
 
         function showFormAlert(type, message) {
@@ -819,19 +651,12 @@ $pageTitle = 'Inquiry / Consultation';
                 }
 
                 form.reset();
-                document.getElementById('urgency').value = 'Medium';
-                preferredTimeSelect.disabled = false;
-                setPreferredTimeOptions(getBaseInquirySlots(), '', 'Select preferred time');
-                showFormAlert('success', data.message || 'Inquiry submitted successfully.');
+                showFormAlert('success', data.message || 'Inquiry submitted successfully. Staff will reply to your account.');
                 setTimeout(() => window.location.reload(), 700);
             } catch (error) {
                 showFormAlert('error', 'Something went wrong while submitting your inquiry.');
             }
         });
-
-        setPreferredTimeOptions(getBaseInquirySlots(), '', 'Select preferred time');
-        preferredDateInput.addEventListener('change', loadPreferredTimeSlots);
-        serviceSelect.addEventListener('change', loadPreferredTimeSlots);
 
         async function openDetailModal(id) {
             detailModalBody.innerHTML = '<div class="detail-block full"><div class="detail-value">Loading details...</div></div>';
@@ -846,60 +671,25 @@ $pageTitle = 'Inquiry / Consultation';
                 }
 
                 const inquiry = data.inquiry;
-                const requestedSchedule = formatSchedule(inquiry.preferred_date, inquiry.preferred_time, 'No preferred schedule');
-                const confirmedSchedule = (inquiry.confirmed_date && inquiry.confirmed_time)
-                    ? formatSchedule(inquiry.confirmed_date, inquiry.confirmed_time, 'Awaiting clinic confirmation')
-                    : 'Awaiting clinic confirmation';
+                const concernHtml = nl2brSafe(inquiry.resolved_concern || inquiry.concern || '', 'No concern provided.');
+                const clinicUpdate = getClinicUpdate(inquiry);
                 const assignedName = [
                     inquiry.assigned_first_name,
                     inquiry.assigned_last_name
                 ].filter(Boolean).join(' ').trim() || inquiry.assigned_username || inquiry.assigned_dentist || '';
-                const referenceNumber = inquiry.reference_code || inquiry.reference_number || `INQ-${String(inquiry.id).padStart(5, '0')}`;
-                const concernHtml = nl2brSafe(inquiry.resolved_concern || inquiry.concern || '', 'No concern provided.');
-                const clinicUpdate = getClinicUpdate(inquiry, confirmedSchedule);
 
                 detailModalBody.innerHTML = `
-                    <div class="detail-section-title">Inquiry Progress</div>
-                    <div class="progress-tracker">
-                        ${getProgressStages(inquiry.status)}
-                    </div>
                     <div class="detail-block">
                         <div class="detail-label">Date Submitted</div>
                         <div class="detail-value">${new Date(inquiry.created_at).toLocaleString()}</div>
                     </div>
                     <div class="detail-block">
                         <div class="detail-label">Status</div>
-                        <div class="detail-value"><span class="status-badge status-${inquiry.status}">${inquiry.status}</span></div>
+                        <div class="detail-value"><span class="status-badge status-${inquiry.status}">${inquiry.status || 'Open'}</span></div>
                     </div>
                     <div class="detail-block">
-                        <div class="detail-label">Service</div>
-                        <div class="detail-value">${escapeHtml(inquiry.service_name || 'General Consultation')}</div>
-                    </div>
-                    <div class="detail-block">
-                        <div class="detail-label">Inquiry Reference Number</div>
-                        <div class="detail-value">${escapeHtml(referenceNumber)}</div>
-                    </div>
-                    <div class="detail-block">
-                        <div class="detail-label">Pain Level</div>
-                        <div class="detail-value">${escapeHtml(inquiry.pain_level || 'Not specified')}</div>
-                    </div>
-                    <div class="detail-block">
-                        <div class="detail-label">Urgency</div>
-                        <div class="detail-value">${escapeHtml(inquiry.urgency || 'Low')}</div>
-                    </div>
-                    <div class="detail-block">
-                        <div class="detail-label">Assigned Staff / Dentist</div>
-                        <div class="detail-value">${escapeHtml(assignedName || 'Not yet assigned')}</div>
-                    </div>
-                    <div class="detail-section-title">Your Request</div>
-                    <div class="detail-block full">
-                        <div class="detail-label">Requested Schedule</div>
-                        <div class="detail-value">${escapeHtml(requestedSchedule)}</div>
-                    </div>
-                    <div class="detail-section-title">Clinic Confirmation</div>
-                    <div class="detail-block full">
-                        <div class="detail-label">Confirmed Schedule</div>
-                        <div class="detail-value">${escapeHtml(confirmedSchedule)}</div>
+                        <div class="detail-label">Replied By</div>
+                        <div class="detail-value">${escapeHtml(assignedName || 'Not yet')}</div>
                     </div>
                     <div class="detail-block full">
                         <div class="detail-label">Concern / Message</div>

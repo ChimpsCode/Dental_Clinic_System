@@ -23,8 +23,7 @@ $stmt->execute();
 $inquiries = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $services = fetchInquiryServices($pdo);
-$staffMembers = fetchAssignableStaff($pdo);
-$statuses = ['Pending', 'Contacted', 'Awaiting Confirmation', 'Scheduled', 'Completed', 'Cancelled'];
+$statuses = ['Open', 'Replied', 'Closed'];
 
 require_once '../../includes/staff_layout_start.php';
 ?>
@@ -169,8 +168,7 @@ require_once '../../includes/staff_layout_start.php';
     display: grid;
 }
 .filter-group label,
-.form-group label,
-.detail-field label {
+.form-group label {
     display: block;
     margin-bottom: 8px;
     color: #64748b;
@@ -229,9 +227,6 @@ require_once '../../includes/staff_layout_start.php';
     color: #64748b;
     line-height: 1.55;
 }
-.service-title {
-    font-weight: 700;
-}
 .source-chip {
     display: inline-flex;
     align-items: center;
@@ -254,12 +249,9 @@ require_once '../../includes/staff_layout_start.php';
     font-weight: 800;
     white-space: nowrap;
 }
-.status-Pending { background: #fef3c7; color: #92400e; }
-.status-Contacted { background: #dbeafe; color: #1d4ed8; }
-.status-Awaiting-Confirmation { background: #ede9fe; color: #6d28d9; }
-.status-Scheduled { background: #dcfce7; color: #166534; }
-.status-Completed { background: #e5e7eb; color: #475569; }
-.status-Cancelled { background: #fee2e2; color: #b91c1c; }
+.status-Open { background: #fef3c7; color: #92400e; }
+.status-Replied { background: #dbeafe; color: #1d4ed8; }
+.status-Closed { background: #e5e7eb; color: #475569; }
 .actions-cell {
     width: 84px;
     text-align: right;
@@ -365,120 +357,203 @@ require_once '../../includes/staff_layout_start.php';
     font-size: 14px;
 }
 .modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(15, 23, 42, 0.58);
     display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.58);
     align-items: center;
     justify-content: center;
-    z-index: 2000;
+    z-index: 99999;
     padding: 20px;
 }
 .modal-overlay.active {
     display: flex;
 }
-.modal-card {
-    width: min(1040px, 100%);
-    max-height: 92vh;
-    overflow: auto;
-}
-.modal-head {
+.chat-modal {
+    width: min(500px, 100%);
+    height: min(680px, 92vh);
+    background: #fff;
+    border-radius: 24px;
+    box-shadow: 0 30px 60px rgba(15, 23, 42, 0.22);
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    overflow: hidden;
+}
+.chat-modal-header {
+    display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 22px 24px;
+    gap: 14px;
+    padding: 18px 20px;
     border-bottom: 1px solid #e5e7eb;
+    background: #fafbff;
 }
-.modal-head h3 {
-    margin: 0;
-    font-size: 1.25rem;
-    color: #0f172a;
-}
-.modal-close {
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
-    border: 1px solid #e5e7eb;
-    background: #f8fafc;
+.chat-modal-back {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: none;
+    background: #eef2ff;
+    color: #1d4ed8;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s;
 }
-.modal-body {
-    padding: 24px;
+.chat-modal-back:hover { background: #dbeafe; }
+.chat-modal-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 15px;
+    flex-shrink: 0;
 }
-.detail-layout {
-    display: grid;
-    grid-template-columns: 1.2fr 0.9fr;
-    gap: 22px;
+.chat-modal-user-info {
+    flex: 1;
+    min-width: 0;
 }
-.detail-panel,
-.control-panel {
-    border: 1px solid #e5e7eb;
-    border-radius: 20px;
-    padding: 20px;
-    background: #fcfdff;
-}
-.section-block {
-    border-top: 1px solid #e5e7eb;
-    margin-top: 18px;
-    padding-top: 18px;
-}
-.section-title {
-    margin: 0 0 14px;
+.chat-modal-name {
+    font-weight: 700;
     color: #0f172a;
-    font-size: 0.95rem;
-    font-weight: 800;
+    font-size: 15px;
 }
-.form-section {
-    border: 1px solid #e5e7eb;
-    border-radius: 20px;
-    padding: 20px;
+.chat-modal-email {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 2px;
+}
+.chat-modal-source {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    flex-shrink: 0;
+}
+.chat-modal-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
     background: #fcfdff;
 }
-.readonly-select {
-    background-color: #f8fafc;
+.chat-bubble {
+    max-width: 88%;
+    padding: 12px 16px;
+    border-radius: 18px;
+    line-height: 1.55;
+    font-size: 14px;
+    word-break: break-word;
+}
+.chat-bubble.received {
+    align-self: flex-start;
+    background: #f0f2f5;
+    color: #111827;
+    border-bottom-left-radius: 6px;
+}
+.chat-bubble.sent {
+    align-self: flex-end;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #fff;
+    border-bottom-right-radius: 6px;
+}
+.chat-bubble .chat-meta {
+    font-size: 11px;
+    opacity: 0.65;
+    margin-top: 6px;
+}
+.chat-bubble.sent .chat-meta {
+    color: rgba(255,255,255,0.8);
+}
+.chat-bubble.system {
+    align-self: center;
+    background: transparent;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    max-width: 100%;
+}
+.chat-channel-info {
+    padding: 10px 20px;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-top: 1px solid #e5e7eb;
+    background: #fafbff;
     color: #475569;
 }
-.readonly-note {
-    margin: -4px 0 0;
-    color: #64748b;
-    font-size: 0.83rem;
-}
-.schedule-fields {
-    display: none;
-    gap: 16px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.schedule-fields.active {
-    display: grid;
-}
-.detail-grid,
-.form-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
-}
-.full-span {
-    grid-column: 1 / -1;
-}
-.detail-field .value {
-    color: #0f172a;
-    line-height: 1.6;
+.chat-compose {
+    padding: 14px 20px 18px;
+    border-top: 1px solid #e5e7eb;
     background: #fff;
-    border: 1px solid #edf2f7;
-    border-radius: 14px;
-    padding: 13px 14px;
-    min-height: 52px;
+}
+.chat-send-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+}
+.chat-send-row textarea {
+    flex: 1;
+    border: 1px solid #d1d5db;
+    border-radius: 20px;
+    padding: 12px 16px;
+    font: inherit;
+    font-size: 14px;
+    resize: none;
+    min-height: 48px;
+    max-height: 120px;
+    outline: none;
+    transition: border-color 0.2s;
+    background: #f9fafb;
+}
+.chat-send-row textarea:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    background: #fff;
+}
+.chat-send-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 4px 12px rgba(37,99,235,0.25);
+}
+.chat-send-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(37,99,235,0.35);
+}
+.chat-send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
 }
 .form-textarea {
     min-height: 120px;
     resize: vertical;
-}
-.modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    padding: 0 24px 24px;
 }
 .toast {
     position: fixed;
@@ -506,9 +581,6 @@ require_once '../../includes/staff_layout_start.php';
     .filter-row {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
-    .detail-layout {
-        grid-template-columns: 1fr;
-    }
 }
 @media (max-width: 860px) {
     .page-header {
@@ -520,9 +592,7 @@ require_once '../../includes/staff_layout_start.php';
         align-items: stretch;
     }
     .filter-row,
-    .custom-range-row,
-    .form-grid,
-    .detail-grid {
+    .custom-range-row {
         grid-template-columns: 1fr;
     }
     .results-bar {
@@ -619,14 +689,12 @@ require_once '../../includes/staff_layout_start.php';
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>Patient Name</th>
-                        <th>Contact Info</th>
-                        <th>Service / Inquiry</th>
-                        <th>Preferred Schedule</th>
+                        <th>Name</th>
+                        <th>Contact</th>
+                        <th>Message</th>
                         <th>Source</th>
                         <th>Status</th>
-                        <th>Assigned Staff</th>
-                        <th>Date Created</th>
+                        <th>Date</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -640,194 +708,39 @@ require_once '../../includes/staff_layout_start.php';
     </section>
 </div>
 
-<div class="modal-overlay" id="formModal">
-    <div class="modal-card">
-        <div class="modal-head">
-            <h3 id="formModalTitle">+ New Inquiry</h3>
-            <button type="button" class="modal-close" onclick="closeModal('formModal')"><i class="fas fa-times"></i></button>
-        </div>
-        <form id="inquiryForm">
-            <div class="modal-body">
-                <input type="hidden" id="form_id" name="id">
-                <div class="detail-layout">
-                    <div class="form-section">
-                        <h4 class="section-title">Patient Submission</h4>
-                        <p class="readonly-note">Original patient-submitted details are preserved as read-only records.</p>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="form_full_name">Full Name</label>
-                                <input id="form_full_name" name="full_name" class="form-input" readonly>
-                            </div>
-                            <div class="form-group">
-                                <label for="form_phone">Phone Number</label>
-                                <input id="form_phone" name="phone" class="form-input" readonly>
-                            </div>
-                            <div class="form-group">
-                                <label for="form_email">Email</label>
-                                <input id="form_email" name="email" type="email" class="form-input" readonly>
-                            </div>
-                            <div class="form-group">
-                                <label for="form_service_id">Service Needed</label>
-                                <select id="form_service_id" name="service_id" class="form-select readonly-select" disabled>
-                                    <option value="">Select service</option>
-                                    <?php foreach ($services as $service): ?>
-                                        <option value="<?php echo (int)$service['id']; ?>"><?php echo htmlspecialchars($service['name']); ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="form_preferred_date">Patient Requested Schedule Date</label>
-                                <input id="form_preferred_date" name="preferred_date" type="date" class="form-input" readonly>
-                            </div>
-                            <div class="form-group">
-                                <label for="form_preferred_time">Patient Requested Schedule Time</label>
-                                <input id="form_preferred_time" name="preferred_time" type="time" class="form-input" readonly>
-                            </div>
-                            <div class="form-group">
-                                <label for="form_source">Source</label>
-                                <select id="form_source" name="source" class="form-select readonly-select" disabled>
-                                    <option value="Website">Website</option>
-                                    <option value="Facebook">Facebook</option>
-                                    <option value="Walk-in">Walk-in</option>
-                                    <option value="Referral">Referral</option>
-                                    <option value="Patient Portal">Patient Portal</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="form_pain_level">Pain Level</label>
-                                <select id="form_pain_level" name="pain_level" class="form-select readonly-select" disabled>
-                                    <option value="">Select pain level</option>
-                                    <?php for ($i = 1; $i <= 10; $i++): ?>
-                                        <option value="<?php echo $i; ?>"><?php echo $i; ?></option>
-                                    <?php endfor; ?>
-                                </select>
-                            </div>
-                            <div class="form-group full-span">
-                                <label for="form_concern">Full Concern Description</label>
-                                <textarea id="form_concern" name="concern" class="form-textarea" readonly></textarea>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="form-section">
-                        <h4 class="section-title">Staff Processing</h4>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="form_status">Inquiry Status</label>
-                                <select id="form_status" name="status" class="form-select">
-                                    <?php foreach ($statuses as $status): ?>
-                                        <option value="<?php echo htmlspecialchars($status); ?>" <?php echo $status === 'Pending' ? 'selected' : ''; ?>><?php echo htmlspecialchars($status); ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="form_urgency">Urgency Level</label>
-                                <select id="form_urgency" name="urgency" class="form-select">
-                                    <option value="Low">Low</option>
-                                    <option value="Medium" selected>Medium</option>
-                                    <option value="High">High</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="form_confirmed_date">Confirmed Date</label>
-                                <input id="form_confirmed_date" name="confirmed_date" type="date" class="form-input">
-                            </div>
-                            <div class="form-group">
-                                <label for="form_confirmed_time">Confirmed Time</label>
-                                <select id="form_confirmed_time" name="confirmed_time" class="form-select">
-                                    <option value="">Select confirmed time</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="form_assigned_staff_id">Assign Staff</label>
-                                <select id="form_assigned_staff_id" name="assigned_staff_id" class="form-select">
-                                    <option value="">Unassigned</option>
-                                    <?php foreach ($staffMembers as $member): ?>
-                                        <option value="<?php echo (int)$member['id']; ?>">
-                                            <?php echo htmlspecialchars(trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? '')) ?: ($member['username'] ?? 'Staff')); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            <div class="form-group full-span">
-                                <label for="form_notes">Internal Notes</label>
-                                <textarea id="form_notes" name="notes" class="form-textarea" placeholder="Add internal notes for follow-up, coordination, or scheduling."></textarea>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+<div class="modal-overlay" id="replyModal">
+    <div class="chat-modal">
+        <div class="chat-modal-header">
+            <button type="button" class="chat-modal-back" onclick="closeModal('replyModal')" aria-label="Close">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>
+                </svg>
+            </button>
+            <div class="chat-modal-avatar" id="replyAvatar">JD</div>
+            <div class="chat-modal-user-info">
+                <div class="chat-modal-name" id="replyFromName"></div>
+                <div class="chat-modal-email" id="replyEmail"></div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="closeModal('formModal')">Cancel</button>
-                <button type="submit" class="btn-primary">Save Inquiry</button>
+            <div class="chat-modal-source" id="replySource"></div>
+        </div>
+        <div class="chat-modal-messages" id="chatMessages">
+            <div class="chat-bubble received" id="originalBubble">
+                <div id="replyConcern"></div>
+                <div class="chat-meta">Original concern</div>
+            </div>
+        </div>
+        <div class="chat-channel-info" id="replyChannelInfo"></div>
+        <form id="replyForm" class="chat-compose">
+            <input type="hidden" id="reply_inquiry_id">
+            <div class="chat-send-row">
+                <textarea id="reply_message" name="message" placeholder="Type your reply..." rows="1" required></textarea>
+                <button type="submit" class="chat-send-btn" aria-label="Send">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4Z"/>
+                    </svg>
+                </button>
             </div>
         </form>
-    </div>
-</div>
-
-<div class="modal-overlay" id="detailModal">
-    <div class="modal-card">
-        <div class="modal-head">
-            <h3>Inquiry Details</h3>
-            <button type="button" class="modal-close" onclick="closeModal('detailModal')"><i class="fas fa-times"></i></button>
-        </div>
-        <div class="modal-body">
-            <div class="detail-layout">
-                <div class="detail-panel">
-                    <div class="detail-grid" id="detailFields"></div>
-                </div>
-                <div class="control-panel">
-                    <form id="detailControlForm">
-                        <input type="hidden" id="detail_id">
-                        <div class="form-group">
-                            <label for="detail_status">Change Status</label>
-                            <select id="detail_status" class="form-select">
-                                <?php foreach ($statuses as $status): ?>
-                                    <option value="<?php echo htmlspecialchars($status); ?>"><?php echo htmlspecialchars($status); ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="section-block">
-                            <h4 class="section-title">Final Schedule (Staff Confirmation)</h4>
-                            <div id="detailScheduleFields" class="schedule-fields">
-                                <div class="form-group">
-                                    <label for="detail_confirmed_date">Confirmed Appointment Date</label>
-                                    <input id="detail_confirmed_date" type="date" class="form-input">
-                                </div>
-                                <div class="form-group">
-                                    <label for="detail_confirmed_time">Confirmed Appointment Time</label>
-                                    <select id="detail_confirmed_time" class="form-select">
-                                        <option value="">Select confirmed time</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label for="detail_assigned_dentist">Assigned Dentist (optional)</label>
-                                    <input id="detail_assigned_dentist" type="text" class="form-input" placeholder="Enter dentist name">
-                                </div>
-                                <div class="form-group">
-                                    <label for="detail_assigned_staff_id">Assign Staff</label>
-                                    <select id="detail_assigned_staff_id" class="form-select">
-                                        <option value="">Unassigned</option>
-                                        <?php foreach ($staffMembers as $member): ?>
-                                            <option value="<?php echo (int)$member['id']; ?>">
-                                                <?php echo htmlspecialchars(trim(($member['first_name'] ?? '') . ' ' . ($member['last_name'] ?? '')) ?: ($member['username'] ?? 'Staff')); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="detail_notes">Add Internal Notes</label>
-                            <textarea id="detail_notes" class="form-textarea" placeholder="Add internal notes for follow-up, coordination, or scheduling."></textarea>
-                        </div>
-                        <div class="modal-footer" style="padding:0;margin-top:8px;">
-                            <button type="button" id="detailConvertBtn" class="btn-secondary">Convert to Appointment</button>
-                            <button type="submit" class="btn-primary">Save</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -835,7 +748,6 @@ require_once '../../includes/staff_layout_start.php';
 
 <script>
 const inquiries = <?php echo json_encode($inquiries); ?>;
-const services = <?php echo json_encode($services); ?>;
 let inquiryMap = Object.fromEntries(inquiries.map((item) => [String(item.id), item]));
 let filteredInquiries = [...inquiries];
 let activeInquiryId = null;
@@ -851,10 +763,6 @@ const customRangeRow = document.getElementById('customRangeRow');
 const tableBody = document.getElementById('inquiryTableBody');
 const emptyTableState = document.getElementById('emptyTableState');
 const resultsSummary = document.getElementById('resultsSummary');
-const formConfirmedDate = document.getElementById('form_confirmed_date');
-const formConfirmedTime = document.getElementById('form_confirmed_time');
-const detailConfirmedDate = document.getElementById('detail_confirmed_date');
-const detailConfirmedTime = document.getElementById('detail_confirmed_time');
 
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (character) => ({
@@ -866,22 +774,6 @@ function escapeHtml(value) {
     }[character]));
 }
 
-function nl2brSafe(value, fallback = 'N/A') {
-    const text = value && String(value).trim() !== '' ? value : fallback;
-    return escapeHtml(text).replace(/\n/g, '<br>');
-}
-
-function formatDateTime(dateValue, timeValue) {
-    const parts = [];
-    if (dateValue) {
-        parts.push(new Date(`${dateValue}T00:00:00`).toLocaleDateString());
-    }
-    if (timeValue) {
-        parts.push(new Date(`1970-01-01T${timeValue}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
-    }
-    return parts.length ? parts.join(' at ') : 'No preference';
-}
-
 function formatCreatedAt(value) {
     if (!value) return 'N/A';
     const date = new Date(value.replace(' ', 'T'));
@@ -889,7 +781,7 @@ function formatCreatedAt(value) {
 }
 
 function getStatusClass(status) {
-    return `status-${String(status || 'Pending').replace(/\s+/g, '-')}`;
+    return `status-${String(status || 'Open').replace(/\s+/g, '-')}`;
 }
 
 function getAssignedName(inquiry) {
@@ -951,8 +843,8 @@ function applyFilters() {
         ].join(' ').toLowerCase();
 
         const matchesSearch = query === '' || haystack.includes(query);
-        const matchesStatus = statusFilter.value === 'All' || (inquiry.status || 'Pending') === statusFilter.value;
-        const matchesService = serviceFilter.value === 'All' || (inquiry.service_name || 'General Consultation') === serviceFilter.value;
+        const matchesStatus = statusFilter.value === 'All' || (inquiry.status || 'Open') === statusFilter.value;
+        const matchesService = serviceFilter.value === 'All' || (inquiry.service_name || '') === serviceFilter.value;
         const matchesSource = sourceFilter.value === 'All' || (inquiry.source || 'Website') === sourceFilter.value;
 
         return matchesSearch && matchesStatus && matchesService && matchesSource && isWithinDateFilter(inquiry);
@@ -977,24 +869,21 @@ function renderTable() {
         const preview = concern.length > 92 ? `${concern.slice(0, 92)}...` : concern;
         const fullName = inquiry.full_name || [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown Patient';
         const source = inquiry.source || 'Website';
-        const status = inquiry.status || 'Pending';
+        const status = inquiry.status || 'Open';
         return `
             <tr>
                 <td>
                     <div class="patient-name">${escapeHtml(fullName)}</div>
                 </td>
                 <td>
-                    <div>${escapeHtml(inquiry.phone || inquiry.contact_info || 'No phone')}</div>
-                    <div class="muted-text">${escapeHtml(inquiry.email || 'No email')}</div>
+                    <div>${escapeHtml(inquiry.email || 'No email')}</div>
+                    <div class="muted-text">${escapeHtml(inquiry.phone || inquiry.contact_info || 'No phone')}</div>
                 </td>
                 <td>
-                    <div class="service-title">${escapeHtml(inquiry.service_name || 'General Consultation')}</div>
                     <div class="muted-text">${escapeHtml(preview)}</div>
                 </td>
-                <td>${escapeHtml(formatDateTime(inquiry.preferred_date, inquiry.preferred_time))}</td>
                 <td><span class="source-chip">${escapeHtml(source)}</span></td>
                 <td><span class="status-badge ${escapeHtml(getStatusClass(status))}">${escapeHtml(status)}</span></td>
-                <td>${escapeHtml(getAssignedName(inquiry))}</td>
                 <td>${escapeHtml(formatCreatedAt(inquiry.created_at))}</td>
                 <td class="actions-cell">
                     <button
@@ -1038,76 +927,21 @@ function showToast(message, isError = false) {
     setTimeout(() => toast.classList.remove('show'), 2800);
 }
 
-function formatTimeLabel(timeValue) {
-    if (!timeValue) return '';
-    const normalized = String(timeValue).slice(0, 5);
-    const date = new Date(`1970-01-01T${normalized}`);
-    return Number.isNaN(date.getTime())
-        ? normalized
-        : date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-}
-
-function setConfirmedTimeOptions(selectEl, slots, selectedTime = '') {
-    if (!selectEl) return;
-    const normalizedSelected = String(selectedTime || '').slice(0, 5);
-    const normalizedSlots = Array.from(new Set((slots || []).map((slot) => String(slot || '').slice(0, 5)).filter(Boolean)));
-    if (normalizedSelected && !normalizedSlots.includes(normalizedSelected)) {
-        normalizedSlots.push(normalizedSelected);
-    }
-    normalizedSlots.sort();
-
-    selectEl.innerHTML = '<option value="">Select confirmed time</option>';
-    normalizedSlots.forEach((slot) => {
-        const option = document.createElement('option');
-        option.value = slot;
-        option.textContent = formatTimeLabel(slot);
-        selectEl.appendChild(option);
-    });
-    selectEl.value = normalizedSelected;
-}
-
-async function loadConfirmedTimeOptions(dateValue, serviceId, selectEl, selectedTime = '', excludeInquiryId = '') {
-    setConfirmedTimeOptions(selectEl, [], selectedTime);
-    if (!dateValue) return;
-
-    const url = new URL('../user-patient/get_slots.php', window.location.href);
-    url.searchParams.set('date', dateValue);
-    if (serviceId) {
-        url.searchParams.set('service_id', serviceId);
-    }
-    if (excludeInquiryId) {
-        url.searchParams.set('exclude_inquiry_id', excludeInquiryId);
-    }
-
-    try {
-        const response = await fetch(url.toString());
-        const data = await response.json();
-        if (!response.ok || !data.success) {
-            showToast(data.message || 'Unable to load available time slots.', true);
-            return;
-        }
-        if (data.is_open === false) {
-            setConfirmedTimeOptions(selectEl, [], '');
-            showToast(data.message || 'Clinic is closed on the selected date.', true);
-            return;
-        }
-        setConfirmedTimeOptions(selectEl, data.available_slots || [], selectedTime);
-    } catch (_error) {
-        showToast('Unable to load available time slots.', true);
-    }
-}
-
 let inquiryKebabDropdown = null;
 let inquiryKebabBackdrop = null;
 let inquiryActiveButton = null;
 
 function openModal(id) {
-    document.getElementById(id).classList.add('active');
-    closeActionMenu();
+    const el = document.getElementById(id);
+    if (el && el.parentElement !== document.body) {
+        document.body.appendChild(el);
+    }
+    el.classList.add('active');
 }
 
 function closeModal(id) {
-    document.getElementById(id).classList.remove('active');
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active');
 }
 
 function closeActionMenu() {
@@ -1141,36 +975,18 @@ function createInquiryKebabDropdown() {
 
 function getInquiryMenuItems(inquiryId) {
     return `
-        <a href="javascript:void(0)" data-action="view" data-id="${inquiryId}">
+        <a href="javascript:void(0)" onclick="handleInquiryMenuClick(event, 'reply', ${inquiryId})">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
-            View
+            Reply
         </a>
-        <a href="javascript:void(0)" data-action="edit" data-id="${inquiryId}">
+        <a href="javascript:void(0)" onclick="handleInquiryMenuClick(event, 'close', ${inquiryId})">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 20h9"/>
-                <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4Z"/>
+                <path d="M18 6 6 18"/>
+                <path d="m6 6 12 12"/>
             </svg>
-            Edit
-        </a>
-        <a href="javascript:void(0)" data-action="schedule" data-id="${inquiryId}">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M8 2v4"/>
-                <path d="M16 2v4"/>
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                <path d="M3 10h18"/>
-                <path d="m9 16 2 2 4-4"/>
-            </svg>
-            Mark as Scheduled
-        </a>
-        <a href="javascript:void(0)" class="is-danger" data-action="cancel" data-id="${inquiryId}">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="m4.9 4.9 14.2 14.2"/>
-            </svg>
-            Cancel
+            Close
         </a>
     `;
 }
@@ -1240,33 +1056,18 @@ function openActionMenu(event) {
     inquiryActiveButton = button;
     button.classList.add('active');
     button.setAttribute('aria-expanded', 'true');
-    inquiryKebabDropdown.onclick = handleInquiryKebabClick;
 }
 
-function handleInquiryKebabClick(event) {
-    const link = event.target.closest('a[data-action]');
-    if (!link) return;
-
+function handleInquiryMenuClick(event, action, id) {
     event.preventDefault();
     event.stopPropagation();
-
-    const action = link.dataset.action;
-    const id = parseInt(link.dataset.id, 10);
-
     closeActionMenu();
-
     switch (action) {
-        case 'view':
-            openDetailModal(id);
+        case 'reply':
+            openReplyModal(id);
             break;
-        case 'edit':
-            openEditModal(id);
-            break;
-        case 'schedule':
-            quickSchedule(id);
-            break;
-        case 'cancel':
-            quickCancel(id);
+        case 'close':
+            quickClose(id);
             break;
     }
 }
@@ -1293,141 +1094,12 @@ document.addEventListener('click', function(event) {
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
         closeActionMenu();
+        const modal = document.getElementById('replyModal');
+        if (modal && modal.classList.contains('active')) {
+            closeModal('replyModal');
+        }
     }
 });
-
-function openEditModal(id) {
-    const inquiry = inquiryMap[String(id)];
-    if (!inquiry) {
-        showToast('Unable to load inquiry record.', true);
-        return;
-    }
-
-    activeInquiryId = id;
-    document.getElementById('formModalTitle').textContent = 'Edit Inquiry';
-    document.getElementById('form_id').value = inquiry.id;
-    document.getElementById('form_full_name').value = inquiry.full_name || '';
-    document.getElementById('form_phone').value = inquiry.phone || inquiry.contact_info || '';
-    document.getElementById('form_email').value = inquiry.email || '';
-    setSelectValue(document.getElementById('form_service_id'), inquiry.service_id || inquiry.topic_service_id || '', inquiry.service_name || '');
-    document.getElementById('form_preferred_date').value = inquiry.preferred_date || '';
-    document.getElementById('form_preferred_time').value = inquiry.preferred_time || '';
-    setSelectValue(document.getElementById('form_source'), inquiry.source || 'Website');
-    document.getElementById('form_urgency').value = inquiry.urgency || 'Medium';
-    setSelectValue(document.getElementById('form_pain_level'), inquiry.pain_level || '');
-    document.getElementById('form_status').value = inquiry.status || 'Pending';
-    document.getElementById('form_concern').value = inquiry.concern || inquiry.inquiry_message || '';
-    document.getElementById('form_assigned_staff_id').value = inquiry.assigned_staff_id || '';
-    document.getElementById('form_confirmed_date').value = inquiry.confirmed_date || '';
-    setConfirmedTimeOptions(document.getElementById('form_confirmed_time'), [], inquiry.confirmed_time || '');
-    document.getElementById('form_notes').value = inquiry.notes || '';
-    loadConfirmedTimeOptions(
-        inquiry.confirmed_date || '',
-        inquiry.service_id || inquiry.topic_service_id || '',
-        document.getElementById('form_confirmed_time'),
-        inquiry.confirmed_time || '',
-        inquiry.id || ''
-    );
-    openModal('formModal');
-}
-
-function setSelectValue(selectEl, value, fallbackLabel = '') {
-    if (!selectEl) return;
-    const stringValue = String(value ?? '');
-    const hasValue = Array.from(selectEl.options).some((option) => option.value === stringValue);
-    if (hasValue) {
-        selectEl.value = stringValue;
-        return;
-    }
-    if (stringValue !== '' && fallbackLabel !== '') {
-        const fallbackOption = document.createElement('option');
-        fallbackOption.value = stringValue;
-        fallbackOption.textContent = fallbackLabel;
-        fallbackOption.dataset.injected = '1';
-        selectEl.appendChild(fallbackOption);
-        selectEl.value = stringValue;
-        return;
-    }
-    selectEl.value = '';
-}
-
-function openDetailModal(id) {
-    const inquiry = inquiryMap[String(id)];
-    if (!inquiry) {
-        showToast('Unable to load inquiry details.', true);
-        return;
-    }
-
-    activeInquiryId = id;
-    document.getElementById('detail_id').value = inquiry.id;
-    document.getElementById('detail_status').value = inquiry.status || 'Pending';
-    document.getElementById('detail_assigned_staff_id').value = inquiry.assigned_staff_id || '';
-    document.getElementById('detail_confirmed_date').value = inquiry.confirmed_date || '';
-    setConfirmedTimeOptions(document.getElementById('detail_confirmed_time'), [], inquiry.confirmed_time || '');
-    document.getElementById('detail_assigned_dentist').value = inquiry.assigned_dentist || '';
-    document.getElementById('detail_notes').value = inquiry.notes || '';
-    toggleDetailScheduleFields();
-    loadConfirmedTimeOptions(
-        inquiry.confirmed_date || '',
-        inquiry.service_id || inquiry.topic_service_id || '',
-        document.getElementById('detail_confirmed_time'),
-        inquiry.confirmed_time || '',
-        inquiry.id || ''
-    );
-
-    const fullName = inquiry.full_name || [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown Patient';
-    document.getElementById('detailFields').innerHTML = `
-        <div class="detail-field">
-            <label>Patient Name</label>
-            <div class="value">${escapeHtml(fullName)}</div>
-        </div>
-        <div class="detail-field">
-            <label>Contact Info</label>
-            <div class="value">${escapeHtml(inquiry.phone || inquiry.contact_info || 'No phone')}<br>${escapeHtml(inquiry.email || 'No email')}</div>
-        </div>
-        <div class="detail-field full-span">
-            <label>Full Concern Description</label>
-            <div class="value">${nl2brSafe(inquiry.concern || inquiry.inquiry_message, 'No concern provided')}</div>
-        </div>
-        <div class="detail-field">
-            <label>Service Needed</label>
-            <div class="value">${escapeHtml(inquiry.service_name || 'General Consultation')}</div>
-        </div>
-        <div class="detail-field">
-            <label>Pain Level</label>
-            <div class="value">${escapeHtml(inquiry.pain_level || 'Not specified')}</div>
-        </div>
-        <div class="detail-field">
-            <label>Patient Requested Schedule</label>
-            <div class="value">${escapeHtml(formatDateTime(inquiry.preferred_date, inquiry.preferred_time))}</div>
-        </div>
-        <div class="detail-field">
-            <label>Source</label>
-            <div class="value">${escapeHtml(inquiry.source || 'Website')}</div>
-        </div>
-        <div class="detail-field">
-            <label>Confirmed Appointment</label>
-            <div class="value">${escapeHtml(formatDateTime(inquiry.confirmed_date, inquiry.confirmed_time))}</div>
-        </div>
-        <div class="detail-field">
-            <label>Assigned Dentist</label>
-            <div class="value">${escapeHtml(inquiry.assigned_dentist || 'Not assigned')}</div>
-        </div>
-        <div class="detail-field full-span">
-            <label>Notes</label>
-            <div class="value">${nl2brSafe(inquiry.notes, 'No internal notes yet.')}</div>
-        </div>
-    `;
-
-    openModal('detailModal');
-}
-
-function toggleDetailScheduleFields() {
-    const status = document.getElementById('detail_status').value;
-    const scheduleFields = document.getElementById('detailScheduleFields');
-    const shouldShow = status === 'Scheduled' || status === 'Awaiting Confirmation';
-    scheduleFields.classList.toggle('active', shouldShow);
-}
 
 async function postAction(payload) {
     const formData = new FormData();
@@ -1440,135 +1112,110 @@ async function refreshData() {
     window.location.reload();
 }
 
-async function quickSchedule(id) {
+function getInitials(name) {
+    const parts = (name || 'P').trim().split(/\s+/);
+    const first = parts[0] || '';
+    const last = parts.length > 1 ? parts[parts.length - 1] : '';
+    return ((first[0] || '') + (last[0] || '')).toUpperCase() || 'P';
+}
+
+function addChatBubble(text, type, timestamp) {
+    const container = document.getElementById('chatMessages');
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble ' + type;
+    bubble.innerHTML = '<div>' + escapeHtml(text).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(timestamp || 'just now') + '</div>';
+    container.appendChild(bubble);
+    container.scrollTop = container.scrollHeight;
+}
+
+function openReplyModal(id) {
     const inquiry = inquiryMap[String(id)];
     if (!inquiry) {
-        showToast('Unable to load inquiry details.', true);
+        showToast('Unable to load inquiry record.', true);
         return;
     }
-    openDetailModal(id);
-    document.getElementById('detail_status').value = 'Scheduled';
-    toggleDetailScheduleFields();
+
+    activeInquiryId = id;
+    document.getElementById('reply_inquiry_id').value = inquiry.id;
+    const msgInput = document.getElementById('reply_message');
+    msgInput.value = '';
+    msgInput.style.height = 'auto';
+
+    const fullName = inquiry.full_name || [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown Patient';
+    document.getElementById('replyFromName').textContent = fullName;
+    document.getElementById('replySource').textContent = inquiry.source || 'Website';
+    document.getElementById('replyEmail').textContent = inquiry.email || 'No email';
+    document.getElementById('replyAvatar').textContent = getInitials(fullName);
+
+    const concernText = inquiry.concern || inquiry.inquiry_message || 'No concern provided.';
+    document.getElementById('replyConcern').textContent = concernText;
+
+    const messageContainer = document.getElementById('chatMessages');
+    messageContainer.innerHTML = '';
+    const originalBubble = document.createElement('div');
+    originalBubble.className = 'chat-bubble received';
+    originalBubble.innerHTML = '<div>' + escapeHtml(concernText).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(formatCreatedAt(inquiry.created_at)) + '</div>';
+    messageContainer.appendChild(originalBubble);
+
+    const channelInfo = document.getElementById('replyChannelInfo');
+    const isPortal = (inquiry.source || '') === 'Patient Portal' && inquiry.patient_id;
+    if (isPortal) {
+        channelInfo.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Reply will appear in patient\'s account messages';
+    } else {
+        channelInfo.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M22 12v1a5 5 0 0 1-5 5h-1"/></svg> Reply will be sent via email to ' + escapeHtml(inquiry.email || 'the sender');
+    }
+
+    openModal('replyModal');
+    setTimeout(() => msgInput.focus(), 200);
 }
 
-async function quickCancel(id) {
-    const data = await postAction({ action: 'status', id, status: 'Cancelled' });
+async function quickClose(id) {
+    const data = await postAction({ action: 'staff_close', id });
     if (!data.success) {
-        showToast(data.message || 'Unable to cancel inquiry.', true);
+        showToast(data.message || 'Unable to close inquiry.', true);
         return;
     }
-    showToast(data.message || 'Inquiry cancelled.');
+    showToast('Inquiry closed.');
     refreshData();
 }
 
-document.getElementById('inquiryForm').addEventListener('submit', async (event) => {
+document.getElementById('replyForm').addEventListener('submit', async (event) => {
     event.preventDefault();
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-    formData.append('action', document.getElementById('form_id').value ? 'update' : 'create');
+    const id = document.getElementById('reply_inquiry_id').value;
+    const message = document.getElementById('reply_message').value.trim();
+    if (!id || !message) {
+        showToast('Reply message is required.', true);
+        return;
+    }
+
+    const btn = event.currentTarget.querySelector('button[type="submit"]');
+    const textarea = document.getElementById('reply_message');
+    btn.disabled = true;
 
     try {
-        const response = await fetch('../shared/inquiry_actions.php', { method: 'POST', body: formData });
-        const data = await response.json();
+        const data = await postAction({ action: 'staff_reply', id, message });
         if (!data.success) {
-            showToast(data.message || 'Unable to save inquiry.', true);
+            showToast(data.message || 'Unable to send reply.', true);
+            btn.disabled = false;
             return;
         }
-        showToast(data.message || 'Inquiry saved successfully.');
-        closeModal('formModal');
-        refreshData();
-    } catch (error) {
-        showToast('Something went wrong while saving the inquiry.', true);
-    }
-});
-
-document.getElementById('detailControlForm').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const id = document.getElementById('detail_id').value;
-    if (!id) {
-        showToast('Invalid inquiry selected.', true);
-        return;
-    }
-
-    const status = document.getElementById('detail_status').value;
-    const payload = {
-        action: 'update_staff_schedule',
-        id,
-        status,
-        assigned_staff_id: document.getElementById('detail_assigned_staff_id').value,
-        confirmed_date: document.getElementById('detail_confirmed_date').value,
-        confirmed_time: document.getElementById('detail_confirmed_time').value,
-        assigned_dentist: document.getElementById('detail_assigned_dentist').value,
-        notes: document.getElementById('detail_notes').value
-    };
-
-    const response = await postAction(payload);
-    if (!response.success) {
-        showToast(response.message || 'Unable to save inquiry details.', true);
-        return;
-    }
-
-    showToast('Inquiry details updated successfully.');
-    closeModal('detailModal');
-    refreshData();
-});
-
-document.getElementById('detail_status').addEventListener('change', toggleDetailScheduleFields);
-formConfirmedDate?.addEventListener('change', () => {
-    const inquiryId = document.getElementById('form_id').value;
-    const inquiry = inquiryMap[String(inquiryId)] || {};
-    loadConfirmedTimeOptions(
-        formConfirmedDate.value,
-        inquiry.service_id || inquiry.topic_service_id || '',
-        formConfirmedTime,
-        '',
-        inquiryId
-    );
-});
-detailConfirmedDate?.addEventListener('change', () => {
-    const inquiryId = document.getElementById('detail_id').value;
-    const inquiry = inquiryMap[String(inquiryId)] || {};
-    loadConfirmedTimeOptions(
-        detailConfirmedDate.value,
-        inquiry.service_id || inquiry.topic_service_id || '',
-        detailConfirmedTime,
-        '',
-        inquiryId
-    );
-});
-
-document.getElementById('detailConvertBtn').addEventListener('click', async () => {
-    const id = document.getElementById('detail_id').value;
-    if (!id) {
-        showToast('Invalid inquiry selected.', true);
-        return;
-    }
-
-    const appointmentDate = document.getElementById('detail_confirmed_date').value;
-    const appointmentTime = document.getElementById('detail_confirmed_time').value;
-    if (!appointmentDate || !appointmentTime) {
-        showToast('Set the confirmed appointment date and time first.', true);
-        return;
-    }
-
-    const response = await postAction({
-        action: 'convert_to_appointment',
-        id,
-        appointment_date: appointmentDate,
-        appointment_time: appointmentTime,
-        assigned_staff_id: document.getElementById('detail_assigned_staff_id').value,
-        assigned_dentist: document.getElementById('detail_assigned_dentist').value,
-        notes: document.getElementById('detail_notes').value
+        const now = new Date().toLocaleString();
+        addChatBubble(message, 'sent', now);
+        textarea.value = '';
+        textarea.style.height = 'auto';
+        btn.disabled = false;
+            textarea.focus();
+            showToast('Reply sent.');
+        } catch (error) {
+            showToast('Something went wrong while sending the reply.', true);
+            btn.disabled = false;
+        }
     });
 
-    if (!response.success) {
-        showToast(response.message || 'Unable to convert inquiry.', true);
-        return;
-    }
-
-    showToast(response.message || 'Inquiry converted successfully.');
-    closeModal('detailModal');
-    refreshData();
+const replyTextarea = document.getElementById('reply_message');
+replyTextarea.addEventListener('input', function () {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
 });
 
 [searchInput, statusFilter, serviceFilter, sourceFilter, dateFrom, dateTo].forEach((element) => {
