@@ -12,13 +12,15 @@
 let currentModule = 'patients';
 let currentPage = {
     patients: 1,
-    users: 1
+    users: 1,
+    inquiries: 1
 };
 
 // Selected records
 let selectedRecords = {
     patients: [],
-    users: []
+    users: [],
+    inquiries: []
 };
 
 /**
@@ -72,6 +74,8 @@ function switchTab(tab) {
         loadArchivedPatients(currentPage.patients);
     } else if (tab === 'users') {
         loadArchivedUsers(currentPage.users);
+    } else if (tab === 'inquiries') {
+        loadArchivedInquiries(currentPage.inquiries);
     }
 }
 
@@ -124,6 +128,8 @@ function switchTab(tab) {
         loadArchivedPatients(currentPage.patients);
     } else if (tab === 'users') {
         loadArchivedUsers(currentPage.users);
+    } else if (tab === 'inquiries') {
+        loadArchivedInquiries(currentPage.inquiries);
     }
 }
 
@@ -787,9 +793,8 @@ function renderInquiriesTable(records) {
                 </div>
             </td>
             <td>
-                <div style="color: #374151;">${escapeHtml(inquiry.subject || 'N/A')}</div>
-                <div style="font-size: 0.8rem; color: #6b7280; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(inquiry.message || '')}">
-                    ${escapeHtml((inquiry.message || '').substring(0, 50))}${(inquiry.message || '').length > 50 ? '...' : ''}
+                <div style="font-size: 0.85rem; color: #374151; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.4;" title="${escapeHtml(inquiry.message || '')}">
+                    ${escapeHtml((inquiry.message || 'N/A').substring(0, 60))}${(inquiry.message || '').length > 60 ? '...' : ''}
                 </div>
             </td>
             <td>
@@ -817,6 +822,12 @@ function renderInquiriesTable(records) {
     }
     selectedRecords.inquiries = [];
     updateBulkButtons('inquiries');
+
+    // Store records for conversation view
+    window.inquiryConvMap = window.inquiryConvMap || {};
+    records.forEach(inquiry => {
+        window.inquiryConvMap[inquiry.id] = inquiry;
+    });
 }
 
 /**
@@ -888,6 +899,92 @@ function renderInquiriesPagination(currentPage, totalPages, totalRecords) {
 
     html += '</div>';
     container.innerHTML = html;
+}
+
+/**
+ * View full inquiry conversation in a read-only modal
+ */
+function viewInquiryConversation(id) {
+    const inquiry = window.inquiryConvMap && window.inquiryConvMap[id];
+    if (!inquiry) {
+        showError('Inquiry record not found.');
+        return;
+    }
+
+    const existing = document.getElementById('inquiryConvModal');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'inquiryConvModal';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:99999;';
+
+    const modal = document.createElement('div');
+    modal.style.cssText = 'background:#fff;border-radius:16px;width:560px;max-width:94%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.25);overflow:hidden;animation:fadeIn 0.2s ease;';
+
+    const fullName = inquiry.full_name || 'Unknown';
+    const concernText = inquiry.concern || inquiry.message || 'No concern provided.';
+    const replies = parseInquiryConvNotes(inquiry.notes);
+
+    modal.innerHTML = `
+        <div style="padding:18px 22px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:#fafbff;">
+            <div>
+                <div style="font-weight:700;font-size:16px;color:#111827;">${escapeHtml(fullName)}</div>
+                <div style="font-size:13px;color:#64748b;">${escapeHtml(inquiry.email || 'No email')}</div>
+            </div>
+            <button onclick="closeInquiryConvModal()" style="background:none;border:none;cursor:pointer;padding:6px;border-radius:50%;color:#6b7280;font-size:22px;line-height:1;">&times;</button>
+        </div>
+        <div id="inquiryConvMessages" style="flex:1;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:10px;background:#fcfdff;">
+            <div class="conv-bubble received" style="max-width:88%;padding:12px 16px;border-radius:18px;line-height:1.55;font-size:14px;word-break:break-word;align-self:flex-start;background:#f0f2f5;color:#111827;border-bottom-left-radius:6px;">
+                <div>${escapeHtml(concernText).replace(/\n/g, '<br>')}</div>
+                <div style="font-size:11px;opacity:0.65;margin-top:6px;">${escapeHtml(formatDate(inquiry.submitted_at))}</div>
+            </div>
+        </div>
+        <div style="padding:14px 22px;border-top:1px solid #e5e7eb;text-align:right;background:#fff;flex-shrink:0;">
+            <button onclick="closeInquiryConvModal()" style="padding:10px 24px;background:#0ea5e9;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;">Close</button>
+        </div>
+    `;
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
+
+    // Append reply bubbles
+    const container = document.getElementById('inquiryConvMessages');
+    replies.forEach(function(reply) {
+        const bubble = document.createElement('div');
+        bubble.className = 'conv-bubble sent';
+        bubble.style.cssText = 'max-width:88%;padding:12px 16px;border-radius:18px;line-height:1.55;font-size:14px;word-break:break-word;align-self:flex-end;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border-bottom-right-radius:6px;';
+        bubble.innerHTML = '<div>' + escapeHtml(reply.message || '(no message)').replace(/\n/g, '<br>') + '</div><div style="font-size:11px;opacity:0.65;margin-top:6px;color:rgba(255,255,255,0.8);">' + escapeHtml(reply.timestamp) + '</div>';
+        container.appendChild(bubble);
+    });
+
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) closeInquiryConvModal();
+    });
+}
+
+function closeInquiryConvModal() {
+    const modal = document.getElementById('inquiryConvModal');
+    if (modal) modal.remove();
+    document.body.style.overflow = '';
+}
+
+function parseInquiryConvNotes(notes) {
+    if (!notes) return [];
+    const replies = [];
+    const lines = notes.split('\n');
+    let current = null;
+    for (const line of lines) {
+        const staffMatch = line.match(/^\[Staff replied on (.+?)\]/);
+        if (staffMatch) {
+            if (current) replies.push(current);
+            current = { timestamp: staffMatch[1], message: '', type: 'sent' };
+        } else if (current) {
+            current.message += (current.message ? '\n' : '') + line;
+        }
+    }
+    if (current) replies.push(current);
+    return replies;
 }
 
 /**
@@ -1230,7 +1327,9 @@ function bulkAction(module, action) {
  * Perform single action
  */
 function singleAction(module, id, action) {
-    if (action === 'delete_forever') {
+    if (action === 'view_conversation') {
+        viewInquiryConversation(id);
+    } else if (action === 'delete_forever') {
         showVerifyPasswordModal(1, (verified) => {
             if (verified) {
                 performAction(module, action, [id]);
@@ -1393,7 +1492,15 @@ function positionArchiveKebabDropdown(button) {
 }
 
 function getArchiveKebabMarkup(module, id) {
-    return `
+    let extra = '';
+    if (module === 'inquiries') {
+        extra = `
+        <a href="#" data-action="view_conversation" data-module="${module}" data-id="${id}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            View Conversation
+        </a>`;
+    }
+    return extra + `
         <a href="#" data-action="restore" data-module="${module}" data-id="${id}">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
             Restore

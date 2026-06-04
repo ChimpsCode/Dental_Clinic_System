@@ -8,9 +8,9 @@
 
 define('SMTP_HOST', 'smtp.gmail.com');
 define('SMTP_PORT', 587); // TLS
-define('SMTP_USER', 'jessarose123321@gmail.com');       // TODO: change to your Gmail
-define('SMTP_PASS', 'hsrhvjwbkbfsbtnl');     // TODO: change to your Gmail App password
+define('SMTP_USER', 'rfdentalclinic2023@gmail.com');       // TODO: change to your Gmail
+define('SMTP_PASS', 'xyzn ukzq hthz banb');     // TODO: change to your Gmail App password
 
-define('MAIL_FROM', 'jessarose123321@gmail.com');       // Usually same as SMTP_USER
+define('MAIL_FROM', 'rfdentalclinic2023@gmail.com');       // Usually same as SMTP_USER
 define('MAIL_FROM_NAME', 'RF Dental Clinic');      // Display name for emails
 

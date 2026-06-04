@@ -23,7 +23,7 @@ require_once __DIR__ . '/../../config/database.php';
 
 // Check if archive columns exist
 $archiveReady = true;
-$tables = ['patients', 'users'];
+$tables = ['patients', 'users', 'inquiries'];
 
 foreach ($tables as $table) {
     $checkColumn = $pdo->query("SHOW COLUMNS FROM $table LIKE 'is_archived'");
@@ -36,7 +36,8 @@ foreach ($tables as $table) {
 // Get archived counts if ready
 $archivedCounts = [
     'patients' => 0,
-    'users' => 0
+    'users' => 0,
+    'inquiries' => 0
 ];
 
 if ($archiveReady) {
@@ -54,6 +55,14 @@ if ($archiveReady) {
         $archivedCounts['users'] = (int)$stmt->fetchColumn();
     } catch (Exception $e) {
         $archivedCounts['users'] = 0;
+    }
+
+    // Inquiries count
+    try {
+        $stmt = $pdo->query("SELECT COUNT(*) FROM inquiries WHERE is_archived = 1");
+        $archivedCounts['inquiries'] = (int)$stmt->fetchColumn();
+    } catch (Exception $e) {
+        $archivedCounts['inquiries'] = 0;
     }
 }
 
@@ -291,7 +300,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 /* Summary Cards - 2 columns */
 .summary-cards.archive-stats {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 12px;
     margin-bottom: 0px;
 }
@@ -323,20 +332,9 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 /* Color coding for each module */
 .summary-card.patients .count { color: #667eea; }
 .summary-card.users .count { color: #a8edea; }
+.summary-card.inquiries .count { color: #f59e0b; }
 
 /* Responsive */
-@media (max-width: 1400px) {
-    .summary-cards.archive-stats {
-        grid-template-columns: repeat(4, 1fr);
-    }
-}
-
-@media (max-width: 1024px) {
-    .summary-cards.archive-stats {
-        grid-template-columns: repeat(3, 1fr);
-    }
-}
-
 @media (max-width: 768px) {
     .summary-cards.archive-stats {
         grid-template-columns: repeat(2, 1fr);
@@ -456,6 +454,10 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
             <div class="count"><?php echo $archivedCounts['users']; ?></div>
             <div class="label">Employees</div>
         </div>
+        <div class="summary-card archive-card inquiries">
+            <div class="count"><?php echo $archivedCounts['inquiries']; ?></div>
+            <div class="label">Inquiries</div>
+        </div>
     </div>
 
     <!-- Tab Navigation -->
@@ -465,6 +467,9 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         </button>
         <button class="tab-btn" data-tab="users" onclick="switchTab('users')">
             Employees
+        </button>
+        <button class="tab-btn" data-tab="inquiries" onclick="switchTab('inquiries')">
+            Inquiries
         </button>
     </div>
 
@@ -597,11 +602,72 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         <?php endif; ?>
     </div>
 
+    <!-- INQUIRIES TAB -->
+    <div id="inquiries-content" class="tab-content">
+        <?php if (!$archiveReady): ?>
+        <div style="text-align: center; padding: 60px; color: #6b7280;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 20px; opacity: 0.5;">
+                <path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5z"/>
+            </svg>
+            <h3 style="margin-bottom: 10px;">Archive Not Configured</h3>
+            <p>Please run the database migration to enable archive functionality.</p>
+        </div>
+        <?php else: ?>
+        <!-- Search & Filters -->
+        <div class="search-filters" style="margin-bottom: 16px;">
+            <input type="text" id="inquiries-search" placeholder="Search by name or email..." class="search-input" style="min-width: 300px;">
+            <input type="date" id="inquiries-dateFrom" class="filter-select" title="From Date">
+            <input type="date" id="inquiries-dateTo" class="filter-select" title="To Date">
+            <button class="btn-filter" onclick="loadArchivedInquiries(1)">Filter</button>
+            <button class="btn-reset" onclick="resetFilters('inquiries')">Reset</button>
+        </div>
+
+        <!-- Bulk Actions -->
+        <div class="bulk-actions">
+            <button id="bulk-restore-inquiries" class="btn-restore" onclick="bulkAction('inquiries', 'restore')" disabled>
+                Restore Selected
+            </button>
+            <button id="bulk-delete-inquiries" class="btn-delete-forever" onclick="bulkAction('inquiries', 'delete_forever')" disabled>
+                Delete Forever
+            </button>
+        </div>
+
+        <!-- Table -->
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px; text-align: center;">
+                            <input type="checkbox" id="select-all-inquiries" onchange="toggleSelectAll('inquiries', this.checked)">
+                        </th>
+                        <th>Name</th>
+                        <th>Contact</th>
+                        <th>Concern</th>
+                        <th>Date Submitted</th>
+                        <th>Archived Date</th>
+                        <th style="width: 200px; text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="inquiries-table-body">
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 60px; color: #6b7280;">
+                            Loading archived inquiries...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination" id="inquiries-pagination"></div>
+        <?php endif; ?>
+    </div>
+
     <!-- Archive meatball menu portal -->
     <div id="archiveKebabDropdown" class="archive-kebab-dropdown"></div>
     <div id="archiveKebabBackdrop" class="archive-kebab-backdrop"></div>
 </div>
 
-<script src="../../assets/js/archive.js"></script>
+<script src="../../assets/js/archive.js?v=2"></script>
 
 <?php require_once __DIR__ . '/../../includes/admin_layout_end.php'; ?>

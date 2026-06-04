@@ -23,7 +23,7 @@ $stmt->execute();
 $inquiries = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $services = fetchInquiryServices($pdo);
-$statuses = ['Open', 'Replied', 'Closed'];
+$statuses = ['Unread', 'Read', 'Replied'];
 
 require_once '../../includes/staff_layout_start.php';
 ?>
@@ -198,11 +198,11 @@ require_once '../../includes/staff_layout_start.php';
 }
 .data-table {
     width: 100%;
-    min-width: 1280px;
+    min-width: 900px;
     border-collapse: collapse;
 }
 .data-table th {
-    padding: 16px 24px;
+    padding: 14px 14px;
     text-align: left;
     color: #64748b;
     font-size: 12px;
@@ -212,7 +212,7 @@ require_once '../../includes/staff_layout_start.php';
     border-bottom: 1px solid #e5e7eb;
 }
 .data-table td {
-    padding: 20px 24px;
+    padding: 16px 14px;
     border-bottom: 1px solid #eef2f7;
     vertical-align: top;
     color: #0f172a;
@@ -227,18 +227,6 @@ require_once '../../includes/staff_layout_start.php';
     color: #64748b;
     line-height: 1.55;
 }
-.source-chip {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 7px 12px;
-    border-radius: 999px;
-    background: #eff6ff;
-    color: #1d4ed8;
-    font-size: 12px;
-    font-weight: 700;
-    white-space: nowrap;
-}
 .status-badge {
     display: inline-flex;
     align-items: center;
@@ -249,12 +237,13 @@ require_once '../../includes/staff_layout_start.php';
     font-weight: 800;
     white-space: nowrap;
 }
-.status-Open { background: #fef3c7; color: #92400e; }
+.status-Unread { background: #fef3c7; color: #92400e; }
+.status-Read { background: #f0fdf4; color: #16a34a; }
 .status-Replied { background: #dbeafe; color: #1d4ed8; }
-.status-Closed { background: #e5e7eb; color: #475569; }
 .actions-cell {
-    width: 84px;
-    text-align: right;
+    width: 1px;
+    white-space: nowrap;
+    text-align: center;
 }
 .patient-kebab-btn {
     background: none;
@@ -692,7 +681,6 @@ require_once '../../includes/staff_layout_start.php';
                         <th>Name</th>
                         <th>Contact</th>
                         <th>Message</th>
-                        <th>Source</th>
                         <th>Status</th>
                         <th>Date</th>
                         <th>Actions</th>
@@ -781,7 +769,7 @@ function formatCreatedAt(value) {
 }
 
 function getStatusClass(status) {
-    return `status-${String(status || 'Open').replace(/\s+/g, '-')}`;
+    return `status-${String(status || 'Unread').replace(/\s+/g, '-')}`;
 }
 
 function getAssignedName(inquiry) {
@@ -842,7 +830,7 @@ function applyFilters() {
         ].join(' ').toLowerCase();
 
         const matchesSearch = query === '' || haystack.includes(query);
-        const matchesStatus = statusFilter.value === 'All' || (inquiry.status || 'Open') === statusFilter.value;
+        const matchesStatus = statusFilter.value === 'All' || (inquiry.status || 'Unread') === statusFilter.value;
         const matchesService = serviceFilter.value === 'All' || (inquiry.service_name || '') === serviceFilter.value;
         const matchesSource = sourceFilter.value === 'All' || (inquiry.source || 'Website') === sourceFilter.value;
 
@@ -870,8 +858,7 @@ function renderTable() {
         const displayMiddleName = inquiry.middle_name ? escapeHtml(inquiry.middle_name) : null;
         const displayLastName = escapeHtml(inquiry.last_name || '');
         const hasName = displayFirstName || displayMiddleName || displayLastName;
-        const source = inquiry.source || 'Website';
-        const status = inquiry.status || 'Open';
+        const status = inquiry.status || 'Unread';
         return `
             <tr>
                 <td>
@@ -888,7 +875,6 @@ function renderTable() {
                 <td>
                     <div class="muted-text">${escapeHtml(preview)}</div>
                 </td>
-                <td><span class="source-chip">${escapeHtml(source)}</span></td>
                 <td><span class="status-badge ${escapeHtml(getStatusClass(status))}">${escapeHtml(status)}</span></td>
                 <td>${escapeHtml(formatCreatedAt(inquiry.created_at))}</td>
                 <td class="actions-cell">
@@ -939,10 +925,10 @@ let inquiryActiveButton = null;
 
 function openModal(id) {
     const el = document.getElementById(id);
-    if (el && el.parentElement !== document.body) {
+    if (el) {
         document.body.appendChild(el);
+        el.classList.add('active');
     }
-    el.classList.add('active');
 }
 
 function closeModal(id) {
@@ -987,12 +973,13 @@ function getInquiryMenuItems(inquiryId) {
             </svg>
             Reply
         </a>
-        <a href="javascript:void(0)" onclick="handleInquiryMenuClick(event, 'close', ${inquiryId})">
+        <a href="javascript:void(0)" onclick="handleInquiryMenuClick(event, 'archive', ${inquiryId})">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 6 6 18"/>
-                <path d="m6 6 12 12"/>
+                <path d="M21 4H3l2 3h14l2-3z"/>
+                <path d="M5 7v11a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7"/>
+                <path d="M10 10h4"/>
             </svg>
-            Close
+            Delete
         </a>
     `;
 }
@@ -1072,18 +1059,28 @@ function handleInquiryMenuClick(event, action, id) {
         case 'reply':
             openReplyModal(id);
             break;
-        case 'close':
-            quickClose(id);
+        case 'archive':
+            archiveInquiry(id);
             break;
     }
 }
 
-document.querySelectorAll('.modal-overlay').forEach((overlay) => {
-    overlay.addEventListener('click', (event) => {
-        if (event.target === overlay) {
-            overlay.classList.remove('active');
-        }
-    });
+async function archiveInquiry(id) {
+    if (!confirm('Move this inquiry to archive?')) return;
+    const data = await postAction({ action: 'archive', id });
+    if (!data.success) {
+        showToast(data.message || 'Unable to archive inquiry.', true);
+        return;
+    }
+    showToast('Inquiry moved to archive.');
+    refreshData();
+}
+
+document.addEventListener('click', (event) => {
+    const modal = document.getElementById('replyModal');
+    if (modal && modal.classList.contains('active') && event.target === modal) {
+        closeModal('replyModal');
+    }
 });
 
 window.addEventListener('resize', function() {
@@ -1134,6 +1131,24 @@ function addChatBubble(text, type, timestamp) {
     container.scrollTop = container.scrollHeight;
 }
 
+function parseStaffReplies(notes) {
+    if (!notes) return [];
+    const replies = [];
+    const lines = notes.split('\n');
+    let current = null;
+    for (const line of lines) {
+        const staffMatch = line.match(/^\[Staff replied on (.+?)\]/);
+        if (staffMatch) {
+            if (current) replies.push(current);
+            current = { timestamp: staffMatch[1], message: '', type: 'sent' };
+        } else if (current) {
+            current.message += (current.message ? '\n' : '') + line;
+        }
+    }
+    if (current) replies.push(current);
+    return replies;
+}
+
 function openReplyModal(id) {
     const inquiry = inquiryMap[String(id)];
     if (!inquiry) {
@@ -1154,7 +1169,6 @@ function openReplyModal(id) {
     document.getElementById('replyAvatar').textContent = getInitials(fullName);
 
     const concernText = inquiry.concern || inquiry.inquiry_message || 'No concern provided.';
-    document.getElementById('replyConcern').textContent = concernText;
 
     const messageContainer = document.getElementById('chatMessages');
     messageContainer.innerHTML = '';
@@ -1162,6 +1176,17 @@ function openReplyModal(id) {
     originalBubble.className = 'chat-bubble received';
     originalBubble.innerHTML = '<div>' + escapeHtml(concernText).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(formatCreatedAt(inquiry.created_at)) + '</div>';
     messageContainer.appendChild(originalBubble);
+
+    const replies = parseStaffReplies(inquiry.notes);
+    replies.forEach((reply) => {
+        const bubble = document.createElement('div');
+        bubble.className = 'chat-bubble ' + reply.type;
+        const displayText = reply.message || '(no message)';
+        bubble.innerHTML = '<div>' + escapeHtml(displayText).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(reply.timestamp) + '</div>';
+        messageContainer.appendChild(bubble);
+    });
+
+    messageContainer.scrollTop = messageContainer.scrollHeight;
 
     const channelInfo = document.getElementById('replyChannelInfo');
     const isPortal = (inquiry.source || '') === 'Patient Portal' && inquiry.patient_id;
@@ -1172,17 +1197,13 @@ function openReplyModal(id) {
     }
 
     openModal('replyModal');
-    setTimeout(() => msgInput.focus(), 200);
-}
 
-async function quickClose(id) {
-    const data = await postAction({ action: 'staff_close', id });
-    if (!data.success) {
-        showToast(data.message || 'Unable to close inquiry.', true);
-        return;
+    if ((inquiry.status || 'Unread') === 'Unread') {
+        inquiry.status = 'Read';
+        postAction({ action: 'mark_read', id });
     }
-    showToast('Inquiry closed.');
-    refreshData();
+
+    setTimeout(() => msgInput.focus(), 200);
 }
 
 document.getElementById('replyForm').addEventListener('submit', async (event) => {
@@ -1205,18 +1226,23 @@ document.getElementById('replyForm').addEventListener('submit', async (event) =>
             btn.disabled = false;
             return;
         }
-        const now = new Date().toLocaleString();
-        addChatBubble(message, 'sent', now);
+        const now = new Date();
+        const ts = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
+        addChatBubble(message, 'sent', ts);
+        const entry = inquiryMap[String(id)];
+        if (entry) {
+            entry.notes = (entry.notes || '') + '\n[Staff replied on ' + ts + ']\n' + message;
+        }
         textarea.value = '';
         textarea.style.height = 'auto';
         btn.disabled = false;
-            textarea.focus();
-            showToast('Reply sent.');
-        } catch (error) {
-            showToast('Something went wrong while sending the reply.', true);
-            btn.disabled = false;
-        }
-    });
+        textarea.focus();
+        showToast('Reply sent.');
+    } catch (error) {
+        showToast('Something went wrong while sending the reply.', true);
+        btn.disabled = false;
+    }
+});
 
 const replyTextarea = document.getElementById('reply_message');
 replyTextarea.addEventListener('input', function () {

@@ -737,6 +737,11 @@ if ($action === 'archive') {
     inquiryJson(['success' => true, 'message' => 'Inquiry archived successfully.']);
 }
 
+if ($action === 'mark_read') {
+    updateInquiryRecord($pdo, $id, ['status' => 'Read']);
+    inquiryJson(['success' => true]);
+}
+
 if ($action === 'delete') {
     $stmt = $pdo->prepare("DELETE FROM inquiries WHERE id = ? LIMIT 1");
     $stmt->execute([$id]);
@@ -922,14 +927,6 @@ if ($action === 'staff_reply') {
 
     updateInquiryRecord($pdo, $id, ['status' => 'Replied', 'notes' => $newNotes, 'assigned_staff_id' => (int)$_SESSION['user_id']]);
     inquiryJson(['success' => true, 'message' => 'Reply sent successfully.']);
-}
-
-if ($action === 'staff_close') {
-    $existingNotes = $inquiry['notes'] ?? '';
-    $timestamp = date('Y-m-d H:i:s');
-    $newNotes = $existingNotes . "\n[Closed by staff on {$timestamp}]";
-    updateInquiryRecord($pdo, $id, ['status' => 'Closed', 'notes' => $newNotes]);
-    inquiryJson(['success' => true, 'message' => 'Inquiry closed.']);
 }
 
 inquiryJson(['success' => false, 'message' => 'Unknown action.']);

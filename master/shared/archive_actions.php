@@ -322,14 +322,14 @@ function handleGetArchivedInquiries($pdo, $page, $limit, $offset, $search, $date
         $params[] = "%$search%";
     }
     
-    // Date filter (submitted_at, not deleted_at)
+    // Date filter (created_at, not deleted_at)
     if (!empty($dateFrom)) {
-        $where .= " AND DATE(submitted_at) >= ?";
+        $where .= " AND DATE(created_at) >= ?";
         $params[] = $dateFrom;
     }
     
     if (!empty($dateTo)) {
-        $where .= " AND DATE(submitted_at) <= ?";
+        $where .= " AND DATE(created_at) <= ?";
         $params[] = $dateTo;
     }
     
@@ -340,7 +340,7 @@ function handleGetArchivedInquiries($pdo, $page, $limit, $offset, $search, $date
     $total = $countStmt->fetchColumn();
     
     // Get records
-    $sql = "SELECT id, CONCAT(first_name, ' ', last_name) as full_name, email, phone, subject, message, submitted_at, deleted_at
+    $sql = "SELECT id, CONCAT(first_name, ' ', last_name) as full_name, email, phone, COALESCE(concern, inquiry_message) as message, COALESCE(concern, inquiry_message) as subject, concern, notes, created_at as submitted_at, deleted_at
             FROM inquiries
             WHERE $where
             ORDER BY deleted_at DESC
