@@ -247,7 +247,7 @@ function fetchInquiryById(PDO $pdo, int $id): ?array
 
     $stmt = $pdo->prepare("
         SELECT i.*,
-               COALESCE(i.full_name, TRIM(CONCAT(COALESCE(i.first_name, ''), ' ', COALESCE(i.middle_name, ''), ' ', COALESCE(i.last_name, '')))) AS resolved_full_name,
+               TRIM(CONCAT(COALESCE(i.first_name, ''), ' ', COALESCE(i.middle_name, ''), ' ', COALESCE(i.last_name, ''))) AS resolved_full_name,
                {$resolvedPhoneExpr} AS resolved_phone,
                COALESCE(i.concern, i.inquiry_message) AS resolved_concern,
                s.name AS service_name,
@@ -286,7 +286,7 @@ function resolveInquiryPatientId(PDO $pdo, array $inquiry): ?int
         return $existingPatientId;
     }
 
-    $fullName = trim((string)($inquiry['resolved_full_name'] ?? $inquiry['full_name'] ?? ''));
+    $fullName = trim((string)($inquiry['resolved_full_name'] ?? ''));
     [$firstName, $middleName, $lastName] = splitInquiryFullName($fullName);
     $email = trim((string)($inquiry['email'] ?? ''));
     $phone = trim((string)($inquiry['resolved_phone'] ?? $inquiry['phone'] ?? ''));
@@ -505,7 +505,6 @@ if ($action === 'create') {
 
     $insertData = [
         'patient_id' => $patientId,
-        'full_name' => $fullName,
         'phone' => $phone,
         'email' => $email,
         'concern' => $concern,
@@ -572,7 +571,7 @@ if (!$inquiry) {
 }
 
 if ($action === 'update') {
-    $fullName = trim((string)($inquiry['resolved_full_name'] ?? $inquiry['full_name'] ?? ''));
+    $fullName = trim((string)($inquiry['resolved_full_name'] ?? ''));
     $phone = trim((string)($inquiry['resolved_phone'] ?? $inquiry['phone'] ?? ''));
     $email = trim((string)($inquiry['email'] ?? ''));
     $concern = trim((string)($inquiry['resolved_concern'] ?? $inquiry['concern'] ?? ''));
@@ -618,7 +617,6 @@ if ($action === 'update') {
     [$firstName, $middleName, $lastName] = splitInquiryFullName($fullName);
 
     $updateData = [
-        'full_name' => $fullName,
         'phone' => $phone,
         'email' => $email,
         'concern' => $concern,
@@ -849,7 +847,7 @@ if ($action === 'staff_reply') {
         inquiryJson(['success' => false, 'message' => 'Reply message is required.']);
     }
 
-    $fullName = $inquiry['resolved_full_name'] ?? $inquiry['full_name'] ?? 'Patient';
+    $fullName = $inquiry['resolved_full_name'] ?? 'Patient';
     $timestamp = date('Y-m-d H:i:s');
     $replyEntry = "\n[Staff replied on {$timestamp}]\n{$replyMessage}";
     $existingNotes = $inquiry['notes'] ?? '';

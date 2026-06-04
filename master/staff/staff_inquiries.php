@@ -828,7 +828,6 @@ function applyFilters() {
     const query = searchInput.value.trim().toLowerCase();
     filteredInquiries = inquiries.filter((inquiry) => {
         const haystack = [
-            inquiry.full_name,
             inquiry.first_name,
             inquiry.last_name,
             inquiry.phone,
@@ -867,13 +866,20 @@ function renderTable() {
     tableBody.innerHTML = filteredInquiries.map((inquiry) => {
         const concern = inquiry.concern || inquiry.inquiry_message || 'No concern provided';
         const preview = concern.length > 92 ? `${concern.slice(0, 92)}...` : concern;
-        const fullName = inquiry.full_name || [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown Patient';
+        const displayFirstName = escapeHtml(inquiry.first_name || '');
+        const displayMiddleName = inquiry.middle_name ? escapeHtml(inquiry.middle_name) : null;
+        const displayLastName = escapeHtml(inquiry.last_name || '');
+        const hasName = displayFirstName || displayMiddleName || displayLastName;
         const source = inquiry.source || 'Website';
         const status = inquiry.status || 'Open';
         return `
             <tr>
                 <td>
-                    <div class="patient-name">${escapeHtml(fullName)}</div>
+                    <div class="patient-name">${hasName ? `
+                        <div style="font-size:15px;line-height:1.4">${displayFirstName}</div>
+                        ${displayMiddleName ? `<div style="font-size:15px;line-height:1.4;color:#9ca3af">${displayMiddleName}</div>` : ''}
+                        <div style="font-size:15px;line-height:1.4">${displayLastName}</div>
+                    ` : 'Unknown Patient'}</div>
                 </td>
                 <td>
                     <div>${escapeHtml(inquiry.email || 'No email')}</div>
@@ -1141,7 +1147,7 @@ function openReplyModal(id) {
     msgInput.value = '';
     msgInput.style.height = 'auto';
 
-    const fullName = inquiry.full_name || [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown Patient';
+    const fullName = [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown Patient';
     document.getElementById('replyFromName').textContent = fullName;
     document.getElementById('replySource').textContent = inquiry.source || 'Website';
     document.getElementById('replyEmail').textContent = inquiry.email || 'No email';

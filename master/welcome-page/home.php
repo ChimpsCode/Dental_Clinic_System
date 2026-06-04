@@ -303,6 +303,446 @@ $assets = [
       }
 
       .typing-indicator { color: #666; font-style: italic; }
+
+      /* Chat Service List Component */
+      .chat-service-container {
+        background: #fff;
+        border: 1px solid #e0e0e0;
+        border-radius: 12px;
+        overflow: hidden;
+        margin: 8px 0;
+      }
+      .chat-service-header {
+        font-weight: 700;
+        font-size: 14px;
+        color: #005daa;
+        padding: 12px 14px 8px;
+        border-bottom: 1px solid #f0f0f0;
+      }
+      .chat-service-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 14px;
+        cursor: pointer;
+        transition: background 0.15s;
+        border-bottom: 1px solid #f5f5f5;
+      }
+      .chat-service-item:last-child { border-bottom: none; }
+      .chat-service-item:hover,
+      .chat-service-item:focus { background: #f0f7ff; outline: none; }
+      .chat-service-name { font-size: 13px; font-weight: 600; color: #222; }
+      .chat-service-price { font-size: 13px; color: #005daa; font-weight: 700; }
+      .chat-service-hint {
+        display: block;
+        text-align: center;
+        font-size: 11px;
+        color: #999;
+        padding: 8px 14px;
+      }
+      /* Action Buttons */
+      .chat-service-actions { margin: 8px 0; }
+      .chat-service-selected {
+        font-size: 13px; font-weight: 600; color: #005daa; margin-bottom: 8px;
+      }
+      .chat-action-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+      .chat-action-btn {
+        padding: 8px 18px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1px solid;
+        transition: all 0.2s;
+        background: #fff;
+      }
+      .chat-action-btn-price {
+        border-color: #005daa;
+        color: #005daa;
+      }
+      .chat-action-btn-price:hover {
+        background: #005daa;
+        color: #fff;
+      }
+      .chat-action-btn-book {
+        border-color: #005daa;
+        background: #005daa;
+        color: #fff;
+      }
+      .chat-action-btn-book:hover {
+        background: #003d7a;
+        border-color: #003d7a;
+      }
+      .chat-action-btn-back {
+        border-color: #ccc;
+        color: #666;
+      }
+      .chat-action-btn-back:hover {
+        background: #e0e0e0;
+      }
+
+      /* Booking Modal */
+      .booking-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        align-items: center;
+        justify-content: center;
+      }
+      .booking-modal[aria-hidden="false"] { display: flex; }
+      .booking-modal-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+      }
+      .booking-modal-content {
+        position: relative;
+        background: #fff;
+        border-radius: 16px;
+        padding: 32px;
+        width: 90%;
+        max-width: 500px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      }
+      .booking-modal-close {
+        position: absolute;
+        top: 12px;
+        right: 16px;
+        background: none;
+        border: none;
+        font-size: 28px;
+        cursor: pointer;
+        color: #999;
+        line-height: 1;
+      }
+      .booking-modal-close:hover { color: #333; }
+      .booking-modal-title {
+        margin: 0 0 20px;
+        font-size: 20px;
+        color: #005daa;
+      }
+      .booking-field { margin-bottom: 14px; flex: 1; }
+      .booking-label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: #555;
+        margin-bottom: 4px;
+      }
+      .booking-label .required { color: #e00; }
+      .booking-input {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 14px;
+        box-sizing: border-box;
+      }
+      .booking-input:focus {
+        border-color: #005daa;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(0,93,170,0.15);
+      }
+      .booking-input[readonly] {
+        background: #f5f5f5;
+        color: #005daa;
+        font-weight: 600;
+      }
+      .booking-row { display: flex; gap: 12px; }
+      .booking-submit {
+        width: 100%;
+        padding: 12px;
+        font-size: 15px;
+        margin-top: 4px;
+      }
+      .booking-status {
+        margin-top: 12px;
+        font-size: 14px;
+        text-align: center;
+      }
+      .booking-status.success { color: #2e7d32; }
+      .booking-status.error { color: #c62828; }
+      @media (max-width: 500px) {
+        .booking-modal-content { padding: 20px; }
+        .booking-row { flex-direction: column; gap: 0; }
+      }
+
+      /* Hero Choice Modal */
+      .hero-choice-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 11000;
+        align-items: center;
+        justify-content: center;
+      }
+      .hero-choice-modal[aria-hidden="false"] { display: flex; }
+      .hero-choice-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+      }
+      .hero-choice-content {
+        position: relative;
+        background: #fff;
+        border-radius: 16px;
+        padding: 32px;
+        width: 90%;
+        max-width: 420px;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      }
+      .hero-choice-title {
+        font-size: 18px;
+        color: #222;
+        margin: 0 0 8px;
+      }
+      .hero-choice-desc {
+        font-size: 14px;
+        color: #666;
+        margin: 0 0 24px;
+        line-height: 1.5;
+      }
+      .hero-choice-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .hero-choice-btn {
+        padding: 12px 20px;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+      }
+      .hero-choice-btn-yes {
+        background: #005daa;
+        color: #fff;
+      }
+      .hero-choice-btn-yes:hover { background: #003d7a; }
+      .hero-choice-btn-no {
+        background: #f5f5f5;
+        color: #555;
+      }
+      .hero-choice-btn-no:hover { background: #e0e0e0; }
+
+      /* Phone Modal */
+      .phone-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 11000;
+        align-items: center;
+        justify-content: center;
+      }
+      .phone-modal[aria-hidden="false"] { display: flex; }
+      .phone-reason {
+        background: #eef6ff;
+        border-left: 4px solid #005daa;
+        padding: 12px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        color: #333;
+        line-height: 1.5;
+        margin-bottom: 16px;
+        text-align: left;
+      }
+      .phone-reason-icon { margin-right: 6px; }
+      .phone-error {
+        color: #c62828;
+        font-size: 13px;
+        margin-top: 8px;
+        text-align: center;
+      }
+
+      /* Service & Slot Modal */
+      .ss-service-list {
+        max-height: 320px;
+        overflow-y: auto;
+        margin-bottom: 8px;
+      }
+      .ss-service-item {
+        padding: 12px 14px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        margin-bottom: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.15s;
+      }
+      .ss-service-item:hover,
+      .ss-service-item:focus {
+        border-color: #005daa;
+        background: #f0f7ff;
+      }
+      .ss-service-item.selected {
+        border-color: #005daa;
+        background: #e8f4ff;
+        color: #005daa;
+        font-weight: 600;
+      }
+      .ss-slots-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .ss-slot-btn {
+        padding: 8px 4px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        background: #fff;
+        cursor: pointer;
+        font-size: 13px;
+        text-align: center;
+        transition: all 0.15s;
+      }
+      .ss-slot-btn:hover {
+        border-color: #005daa;
+        background: #f0f7ff;
+      }
+      .ss-slot-btn.selected {
+        border-color: #005daa;
+        background: #005daa;
+        color: #fff;
+        font-weight: 600;
+      }
+      .ss-slot-btn.confirmed {
+        border-color: #065f46;
+        background: #065f46;
+        color: #fff;
+        font-weight: 600;
+        animation: ssPulse 0.35s ease;
+      }
+      @keyframes ssPulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+      }
+      .ss-slots-grid.fade-out { animation: ssFadeOut 0.25s ease forwards; }
+      @keyframes ssFadeOut {
+        to { opacity: 0; transform: translateY(-8px); }
+      }
+      .ss-slot-btn:disabled {
+        background: #f5f5f5;
+        color: #ccc;
+        cursor: not-allowed;
+        border-color: #eee;
+      }
+      .ss-slot-btn.available {
+        background: #d1fae5;
+        color: #065f46;
+      }
+      .phone-booking-summary {
+        background: #f0f9ff;
+        border: 1px solid #bae6fd;
+        border-radius: 8px;
+        padding: 10px 14px;
+        margin-bottom: 14px;
+        font-size: 14px;
+        color: #0369a1;
+        font-weight: 600;
+        text-align: center;
+      }
+      .hero-choice-modal.fade-out { animation: modalFadeOut 0.25s ease forwards; }
+      .phone-modal.fade-in { animation: modalFadeIn 0.3s ease forwards; }
+      @keyframes modalFadeOut {
+        to { opacity: 0; transform: scale(0.96); }
+      }
+      @keyframes modalFadeIn {
+        from { opacity: 0; transform: scale(0.96); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      .ss-slot-btn.booked {
+        background: #fee2e2;
+        color: #991b1b;
+        cursor: not-allowed;
+        opacity: 0.7;
+        border-color: #fecaca;
+      }
+
+      /* Step transitions */
+      .ss-step-exit {
+        animation: stepExit 0.25s ease forwards;
+      }
+      .ss-step-enter {
+        animation: stepEnter 0.3s ease 0.05s both;
+      }
+      @keyframes stepExit {
+        to { opacity: 0; transform: translateX(-16px); }
+      }
+      @keyframes stepExitRight {
+        to { opacity: 0; transform: translateX(16px); }
+      }
+      @keyframes stepEnter {
+        from { opacity: 0; transform: translateX(16px); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+      @keyframes stepEnterLeft {
+        from { opacity: 0; transform: translateX(-16px); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+
+      /* Phone back button */
+      .phone-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .phone-header h3 {
+        padding-left: 30px;
+      }
+      .phone-back-btn {
+        background: none;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        width: 36px;
+        height: 36px;
+        font-size: 18px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #555;
+        transition: all 0.15s;
+        flex-shrink: 0;
+      }
+      .phone-back-btn:hover {
+        border-color: #005daa;
+        color: #005daa;
+        background: #f0f7ff;
+      }
+
+      /* Success Toast */
+      .booking-success-toast {
+        display: none;
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 12000;
+        background: #2e7d32;
+        color: #fff;
+        padding: 16px 24px;
+        border-radius: 12px;
+        font-size: 15px;
+        font-weight: 600;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+        text-align: center;
+        animation: toastFadeIn 0.3s ease;
+      }
+      .booking-success-toast.show { display: block; }
+      @keyframes toastFadeIn {
+        from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+        to { opacity: 1; transform: translateX(-50%) translateY(0); }
+      }
     </style>
   </head>
   <body>
@@ -696,6 +1136,135 @@ $assets = [
       </div>
     </footer>
 
+    <!-- Booking Modal -->
+    <div id="bookingModal" class="booking-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Book an appointment">
+      <div class="booking-modal-overlay"></div>
+      <div class="booking-modal-content">
+        <button type="button" class="booking-modal-close" id="bookingModalClose" aria-label="Close booking form">&times;</button>
+        <h3 class="booking-modal-title">Book an Appointment</h3>
+        <form id="bookingForm">
+          <div class="booking-field">
+            <label class="booking-label">Service</label>
+            <input type="text" id="bookingService" class="booking-input" readonly />
+          </div>
+          <div class="booking-row">
+            <div class="booking-field">
+              <label class="booking-label">First Name <span class="required">*</span></label>
+              <input type="text" id="bookingFirstName" class="booking-input" required />
+            </div>
+            <div class="booking-field">
+              <label class="booking-label">Last Name <span class="required">*</span></label>
+              <input type="text" id="bookingLastName" class="booking-input" required />
+            </div>
+          </div>
+          <div class="booking-row">
+            <div class="booking-field">
+              <label class="booking-label">Email <span class="required">*</span></label>
+              <input type="email" id="bookingEmail" class="booking-input" required />
+            </div>
+            <div class="booking-field">
+              <label class="booking-label">Phone <span class="required">*</span></label>
+              <input type="tel" id="bookingPhone" class="booking-input" required />
+            </div>
+          </div>
+          <div class="booking-row">
+            <div class="booking-field">
+              <label class="booking-label">Preferred Date</label>
+              <input type="date" id="bookingDate" class="booking-input" />
+            </div>
+            <div class="booking-field">
+              <label class="booking-label">Preferred Time</label>
+              <input type="time" id="bookingTime" class="booking-input" />
+            </div>
+          </div>
+          <div id="bookingPasswordRow" class="booking-row" style="display:none">
+            <div class="booking-field">
+              <label class="booking-label">Password <span class="required">*</span></label>
+              <input type="password" id="bookingPassword" class="booking-input" />
+            </div>
+            <div class="booking-field">
+              <label class="booking-label">Confirm Password <span class="required">*</span></label>
+              <input type="password" id="bookingConfirm" class="booking-input" />
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary booking-submit" id="bookingSubmitBtn">Submit Booking</button>
+          <div id="bookingStatus" class="booking-status"></div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Choice Modal: Create Account? -->
+    <div id="heroChoiceModal" class="hero-choice-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Create an account">
+      <div class="hero-choice-overlay" id="heroChoiceOverlay"></div>
+      <div class="hero-choice-content">
+        <h3 class="hero-choice-title">Would you like to create an account?</h3>
+        <p class="hero-choice-desc">Creating an account lets you manage your appointments, view history, and book faster next time.</p>
+        <div class="hero-choice-buttons">
+          <button type="button" class="hero-choice-btn hero-choice-btn-yes" id="heroChoiceYes">Yes, Create Account</button>
+          <button type="button" class="hero-choice-btn hero-choice-btn-no" id="heroChoiceNo">No, Just Book</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phone Modal: Book Without Account -->
+    <div id="phoneModal" class="phone-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Enter phone number">
+      <div class="hero-choice-overlay" id="phoneOverlay"></div>
+      <div class="hero-choice-content">
+        <div class="phone-header">
+          <button type="button" class="phone-back-btn" id="phoneBackBtn" aria-label="Go back">&larr;</button>
+          <h3 class="hero-choice-title" style="margin:0;">Complete Your Booking</h3>
+        </div>
+        <div class="phone-booking-summary" id="phoneBookingSummary"></div>
+        <div class="phone-reason">
+          <span class="phone-reason-icon">📋</span>
+          We need your phone number so we can contact you regarding your appointment schedule and any last-minute changes or confirmations.
+        </div>
+        <div class="booking-field">
+          <label class="booking-label">Phone Number <span class="required">*</span></label>
+          <input type="tel" id="phoneInput" class="booking-input" placeholder="09123456789" maxlength="11" oninput="this.value=this.value.replace(/\D/g,'')" required />
+        </div>
+        <div class="phone-error" id="phoneError"></div>
+        <button type="button" class="btn btn-primary booking-submit" id="phoneBookBtn">Book Appointment</button>
+      </div>
+    </div>
+
+    <!-- Service & Slot Modal (for "No, Just Book" flow) -->
+    <div id="serviceSlotModal" class="hero-choice-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Select service and time slot">
+      <div class="hero-choice-overlay" id="serviceSlotOverlay"></div>
+      <div class="hero-choice-content" style="max-width:500px;text-align:left;padding:24px 28px;">
+        <button type="button" class="booking-modal-close" id="serviceSlotClose" aria-label="Close">&times;</button>
+
+        <!-- Step 1: Service Selection -->
+        <div id="ssStep1">
+          <h3 class="booking-modal-title" style="margin-bottom:16px;">Select a Service</h3>
+          <div id="ssServiceList" class="ss-service-list"></div>
+        </div>
+
+        <!-- Step 2: Date & Slot -->
+        <div id="ssStep2" style="display:none">
+          <h3 class="booking-modal-title" style="margin-bottom:16px;">Choose Date &amp; Time</h3>
+          <p style="font-size:14px;color:#005daa;font-weight:600;margin-bottom:12px;" id="ssSelectedServiceLabel"></p>
+          <div class="booking-field">
+            <label class="booking-label">Preferred Date</label>
+            <input type="date" id="ssDate" class="booking-input" />
+          </div>
+          <div class="booking-field">
+            <label class="booking-label">Available Time Slots</label>
+            <div id="ssSlotsContainer">
+              <p style="color:#999;font-size:13px;">Select a date to see available slots.</p>
+            </div>
+            <div id="ssSlotError" style="color:#c62828;font-size:13px;margin-top:6px;display:none;"></div>
+          </div>
+          <button type="button" class="btn btn-outline" id="ssBackBtn" style="margin-top:12px;">&larr; Back to Services</button>
+        </div>
+
+        <div id="ssLoading" style="display:none;text-align:center;padding:30px;color:#666;">Loading available slots...</div>
+      </div>
+    </div>
+
+    <!-- Success Toast -->
+    <div id="bookingSuccessToast" class="booking-success-toast"></div>
+
     <button
       type="button"
       class="chat-fab"
@@ -808,6 +1377,17 @@ $assets = [
         const body = document.getElementById('chatBody');
         const balloon = document.getElementById('chatBalloon');
 
+        window.SERVICES = <?php
+          $chatServices = [];
+          $allActiveServices = $pdo->query("SELECT id, name, price, duration_minutes FROM services WHERE is_active = 1 AND (is_archived = 0 OR is_archived IS NULL) ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
+          foreach ($allActiveServices as $svc) {
+              $price = '₱' . number_format((float)$svc['price'], 2);
+              $duration = (int)$svc['duration_minutes'] . ' min';
+              $chatServices[] = ['id' => (int)$svc['id'], 'name' => $svc['name'], 'price' => $price, 'duration' => $duration];
+          }
+          echo json_encode($chatServices);
+        ?>;
+
         function addMsg(role, text) {
           const row = document.createElement('div');
           row.className = `chat-msg chat-msg-${role}`;
@@ -820,9 +1400,181 @@ $assets = [
           return bubble;
         }
 
+        function addComponent(el) {
+          body.appendChild(el);
+          body.scrollTop = body.scrollHeight;
+        }
+
+        function normalize(s) {
+          return (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        }
+
+        function renderServiceList(title) {
+          const container = document.createElement('div');
+          container.className = 'chat-service-container';
+
+          const header = document.createElement('div');
+          header.className = 'chat-service-header';
+          header.textContent = title || 'Our Services';
+          container.appendChild(header);
+
+          SERVICES.forEach(svc => {
+            const item = document.createElement('div');
+            item.className = 'chat-service-item';
+            item.setAttribute('role', 'button');
+            item.setAttribute('tabindex', '0');
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'chat-service-name';
+            nameSpan.textContent = svc.name;
+
+            const priceSpan = document.createElement('span');
+            priceSpan.className = 'chat-service-price';
+            priceSpan.textContent = svc.price;
+
+            item.appendChild(nameSpan);
+            item.appendChild(priceSpan);
+
+            item.addEventListener('click', () => renderServiceActions(svc));
+            item.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                renderServiceActions(svc);
+              }
+            });
+
+            container.appendChild(item);
+          });
+
+          const hint = document.createElement('span');
+          hint.className = 'chat-service-hint';
+          hint.textContent = 'Click a service to check price or book';
+          container.appendChild(hint);
+
+          addComponent(container);
+        }
+
+        function renderServiceActions(svc) {
+          const container = document.createElement('div');
+          container.className = 'chat-service-actions';
+
+          const selected = document.createElement('div');
+          selected.className = 'chat-service-selected';
+          selected.textContent = 'Selected: ' + svc.name;
+          container.appendChild(selected);
+
+          const btnGroup = document.createElement('div');
+          btnGroup.className = 'chat-action-buttons';
+
+          const priceBtn = document.createElement('button');
+          priceBtn.type = 'button';
+          priceBtn.className = 'chat-action-btn chat-action-btn-price';
+          priceBtn.textContent = 'Check Price';
+          priceBtn.addEventListener('click', () => {
+            container.remove();
+            showServicePrice(svc);
+          });
+
+          const bookBtn = document.createElement('button');
+          bookBtn.type = 'button';
+          bookBtn.className = 'chat-action-btn chat-action-btn-book';
+          bookBtn.textContent = 'Book Appointment';
+          bookBtn.addEventListener('click', () => {
+            container.remove();
+            startBooking(svc);
+          });
+
+          btnGroup.appendChild(priceBtn);
+          btnGroup.appendChild(bookBtn);
+          container.appendChild(btnGroup);
+          addComponent(container);
+        }
+
+        function showServicePrice(svc) {
+          addMsg('bot', svc.name + ': ' + svc.price + ' \u2022 ' + svc.duration + '. Would you like to book?');
+
+          const container = document.createElement('div');
+          container.className = 'chat-service-actions';
+
+          const btnGroup = document.createElement('div');
+          btnGroup.className = 'chat-action-buttons';
+
+          const bookBtn = document.createElement('button');
+          bookBtn.type = 'button';
+          bookBtn.className = 'chat-action-btn chat-action-btn-book';
+          bookBtn.textContent = 'Book Appointment';
+          bookBtn.addEventListener('click', () => {
+            container.remove();
+            startBooking(svc);
+          });
+
+          const backBtn = document.createElement('button');
+          backBtn.type = 'button';
+          backBtn.className = 'chat-action-btn chat-action-btn-back';
+          backBtn.textContent = '\u2190 Back to Services';
+          backBtn.addEventListener('click', () => {
+            container.remove();
+            renderServiceList();
+          });
+
+          btnGroup.appendChild(bookBtn);
+          btnGroup.appendChild(backBtn);
+          container.appendChild(btnGroup);
+          addComponent(container);
+        }
+
+        function startBooking(svc) {
+          document.getElementById('bookingService').value = svc.name + ' (' + svc.price + ')';
+          document.getElementById('bookingFirstName').value = '';
+          document.getElementById('bookingLastName').value = '';
+          document.getElementById('bookingEmail').value = '';
+          document.getElementById('bookingPhone').value = '';
+          document.getElementById('bookingDate').value = '';
+          document.getElementById('bookingTime').value = '';
+          document.getElementById('bookingStatus').textContent = '';
+          document.getElementById('bookingStatus').className = 'booking-status';
+          document.getElementById('bookingModal').setAttribute('aria-hidden', 'false');
+          document.body.style.overflow = 'hidden';
+          setTimeout(() => document.getElementById('bookingFirstName').focus(), 100);
+        }
+
+        function closeBookingModal() {
+          document.getElementById('bookingModal').setAttribute('aria-hidden', 'true');
+          document.body.style.overflow = '';
+        }
+
+        function isServiceQuery(nq) {
+          return /\b(services?)\b/.test(nq) ||
+                 /\b(procedures?|treatments?)\b/.test(nq) ||
+                 /what do you do/.test(nq) ||
+                 /do you offer/.test(nq) ||
+                 /are available/.test(nq);
+        }
+
+        function isBookingQuery(nq) {
+          return /\b(book|appointment|schedule|reserve)\b/.test(nq);
+        }
+
+        let typingRow = null;
+
         async function processChat(msg) {
+          const nq = normalize(msg);
+
+          if (isServiceQuery(nq)) {
+            addMsg('bot', 'Here are our available services. Click any service to check the price or book an appointment:');
+            renderServiceList();
+            return;
+          }
+
+          if (isBookingQuery(nq)) {
+            addMsg('bot', "I'd be happy to help you book! Please select a service you're interested in:");
+            renderServiceList('Book an Appointment');
+            return;
+          }
+
           const typingBubble = addMsg('bot', '...');
           typingBubble.classList.add('typing-indicator');
+          typingRow = typingBubble.closest('.chat-msg');
 
           try {
             const response = await fetch('../api/ai_chat.php', {
@@ -833,12 +1585,12 @@ $assets = [
 
             if (!response.ok) {
               const errorText = await response.text();
-              throw new Error(`Server returned ${response.status}: ${errorText.substring(0, 100)}`);
+              throw new Error('Server returned ' + response.status + ': ' + errorText.substring(0, 100));
             }
 
             const data = await response.json();
-            const typingRow = typingBubble.closest('.chat-msg');
             if (typingRow) typingRow.remove();
+            typingRow = null;
 
             if (data.response) {
               addMsg('bot', data.response);
@@ -849,8 +1601,8 @@ $assets = [
             }
           } catch (error) {
             console.error('Chat Error:', error);
-            const typingRow = typingBubble.closest('.chat-msg');
             if (typingRow) typingRow.remove();
+            typingRow = null;
             addMsg('bot', "I'm having trouble connecting to my brain right now. (Error: " + error.message + ").");
           }
         }
@@ -860,7 +1612,7 @@ $assets = [
           fab.setAttribute('aria-expanded', 'true');
           setTimeout(() => input.focus(), 0);
           if (!body.dataset.greeted) {
-            addMsg('bot', "Hi! I’m RF Dental AI. Ask me about services, prices, durations, clinic hours, or booking.");
+            addMsg('bot', "Hi! I'm RF Dental AI. Ask me about services, prices, durations, clinic hours, or booking.");
             body.dataset.greeted = '1';
           }
         }
@@ -885,15 +1637,585 @@ $assets = [
           input.value = '';
           processChat(text);
         });
-        // Show chat balloon greeting
+
+        // Booking modal
+        document.getElementById('bookingModalClose').addEventListener('click', closeBookingModal);
+        document.querySelector('.booking-modal-overlay').addEventListener('click', closeBookingModal);
+
+        document.getElementById('bookingForm').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const statusEl = document.getElementById('bookingStatus');
+          const svcName = document.getElementById('bookingService').value;
+          const firstName = document.getElementById('bookingFirstName').value.trim();
+          const lastName = document.getElementById('bookingLastName').value.trim();
+          const email = document.getElementById('bookingEmail').value.trim();
+          const phone = document.getElementById('bookingPhone').value.trim();
+          const date = document.getElementById('bookingDate').value;
+          const time = document.getElementById('bookingTime').value;
+
+          if (!firstName || !lastName || !email || !phone) {
+            statusEl.textContent = 'Please fill in all required fields.';
+            statusEl.className = 'booking-status error';
+            return;
+          }
+
+          statusEl.textContent = 'Submitting...';
+          statusEl.className = 'booking-status';
+
+          try {
+            const formData = new FormData();
+            formData.append('first_name', firstName);
+            formData.append('last_name', lastName);
+            formData.append('email', email);
+            formData.append('phone', phone);
+            formData.append('message', 'I would like to book an appointment for ' + svcName + '.' + (date ? ' Preferred date: ' + date : '') + (time ? ' at ' + time : ''));
+
+            const res = await fetch('../api/public_contact.php', { method: 'POST', body: formData });
+            const data = await res.json();
+
+            if (data.success) {
+              statusEl.textContent = 'Booking submitted! We will contact you soon.';
+              statusEl.className = 'booking-status success';
+              setTimeout(closeBookingModal, 2000);
+            } else {
+              statusEl.textContent = data.message || 'Submission failed. Please try again.';
+              statusEl.className = 'booking-status error';
+            }
+          } catch (err) {
+            statusEl.textContent = 'Connection error. Please try again.';
+            statusEl.className = 'booking-status error';
+          }
+        });
+
         if (balloon) {
           setTimeout(() => {
             balloon.classList.add('show');
-            // Hide balloon after 2 seconds
             setTimeout(() => {
               balloon.classList.remove('show');
             }, 4000);
-          }, 1000); // Wait 1 second after page load
+          }, 1000);
+        }
+      })();
+    </script>
+
+    <script>
+      (() => {
+        // ---- Hero "Book Now" Form ----
+        const heroForm = document.querySelector('.appointment-form');
+        const choiceModal = document.getElementById('heroChoiceModal');
+        const choiceOverlay = document.getElementById('heroChoiceOverlay');
+        const choiceYes = document.getElementById('heroChoiceYes');
+        const choiceNo = document.getElementById('heroChoiceNo');
+        const phoneModal = document.getElementById('phoneModal');
+        const phoneOverlay = document.getElementById('phoneOverlay');
+        const phoneInput = document.getElementById('phoneInput');
+        const phoneError = document.getElementById('phoneError');
+        const phoneBookBtn = document.getElementById('phoneBookBtn');
+        const secureModal = document.getElementById('secureModal');
+        const secureOverlay = document.getElementById('secureOverlay');
+        const secureClose = document.getElementById('secureClose');
+        const secureForm = document.getElementById('secureForm');
+        const secureSubmit = document.getElementById('secureSubmit');
+        const secureError = document.getElementById('secureError');
+        const successToast = document.getElementById('bookingSuccessToast');
+
+        let bookingData = {};
+
+        function closeChoiceModal() {
+          choiceModal.setAttribute('aria-hidden', 'true');
+          document.body.style.overflow = '';
+        }
+
+        function closePhoneModal() {
+          phoneModal.setAttribute('aria-hidden', 'true');
+          document.body.style.overflow = '';
+        }
+
+        function closeSecureModal() {
+          secureModal.setAttribute('aria-hidden', 'true');
+          document.body.style.overflow = '';
+        }
+
+        function showSuccess(msg) {
+          successToast.textContent = msg || 'Booking submitted! We will contact you soon.';
+          successToast.classList.add('show');
+          setTimeout(() => successToast.classList.remove('show'), 4000);
+        }
+
+        // Hero form submit
+        if (heroForm) {
+          heroForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            bookingData = {
+              first: this.querySelector('[name="first_name"]').value.trim(),
+              middle: this.querySelector('[name="middle_name"]').value.trim(),
+              last: this.querySelector('[name="last_name"]').value.trim(),
+              email: this.querySelector('[name="email"]').value.trim()
+            };
+            choiceModal.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+          });
+        }
+
+        // Choice: Yes - show Registration modal ("Secure Your Appointment")
+        if (choiceYes) {
+          choiceYes.addEventListener('click', function() {
+            choiceModal.setAttribute('aria-hidden', 'true');
+            const cap = function(s) { return s ? s.replace(/\b\w/g, function(l) { return l.toUpperCase(); }) : ''; };
+            document.getElementById('reg-first-name').value = cap(bookingData.first || '');
+            document.getElementById('reg-first-name-display').value = cap(bookingData.first || '');
+            document.getElementById('reg-middle-name').value = cap(bookingData.middle || '');
+            document.getElementById('reg-middle-name-display').value = cap(bookingData.middle || '');
+            document.getElementById('reg-last-name').value = cap(bookingData.last || '');
+            document.getElementById('reg-last-name-display').value = cap(bookingData.last || '');
+            document.getElementById('reg-email').value = bookingData.email || '';
+            document.getElementById('reg-email-hidden').value = bookingData.email || '';
+            document.getElementById('reg-phone').value = '';
+            document.getElementById('reg-gender').value = '';
+            document.getElementById('reg-dob').value = '';
+            document.getElementById('reg-age').value = '';
+            document.getElementById('reg-address').value = '';
+            document.getElementById('reg-password').value = '';
+            document.getElementById('reg-confirm-password').value = '';
+            const modal = document.getElementById('registrationModal');
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+          });
+        }
+
+        // ---- Service & Slot Modal ----
+        const serviceSlotModal = document.getElementById('serviceSlotModal');
+        const serviceSlotOverlay = document.getElementById('serviceSlotOverlay');
+        const serviceSlotClose = document.getElementById('serviceSlotClose');
+        const ssServiceList = document.getElementById('ssServiceList');
+        const ssStep1 = document.getElementById('ssStep1');
+        const ssStep2 = document.getElementById('ssStep2');
+        const ssSelectedServiceLabel = document.getElementById('ssSelectedServiceLabel');
+        const ssDate = document.getElementById('ssDate');
+        const ssSlotsContainer = document.getElementById('ssSlotsContainer');
+        const ssSlotError = document.getElementById('ssSlotError');
+        const ssBackBtn = document.getElementById('ssBackBtn');
+        const ssLoading = document.getElementById('ssLoading');
+
+        let selectedService = null;
+        let selectedSlot = null;
+
+        function closeServiceSlotModal() {
+          serviceSlotModal.setAttribute('aria-hidden', 'true');
+          document.body.style.overflow = '';
+          ssStep1.style.display = '';
+          ssStep2.style.display = 'none';
+          ssStep1.classList.remove('ss-step-exit');
+          ssStep2.classList.remove('ss-step-enter');
+        }
+
+        function showServiceStep() {
+          selectedService = null;
+          selectedSlot = null;
+          ssStep1.style.display = '';
+          ssStep2.style.display = 'none';
+          ssStep1.classList.remove('ss-step-exit');
+          ssStep2.classList.remove('ss-step-enter');
+          ssDate.value = '';
+          ssSlotsContainer.innerHTML = '<p style="color:#999;font-size:13px;">Select a date to see available slots.</p>';
+          renderServiceList();
+          serviceSlotModal.setAttribute('aria-hidden', 'false');
+          document.body.style.overflow = 'hidden';
+        }
+
+        function renderServiceList() {
+          ssServiceList.innerHTML = '';
+          SERVICES.forEach(function(svc) {
+            const item = document.createElement('div');
+            item.className = 'ss-service-item';
+            item.setAttribute('role', 'button');
+            item.setAttribute('tabindex', '0');
+            item.textContent = svc.name;
+            item.addEventListener('click', function() {
+              selectService(svc, item);
+            });
+            item.addEventListener('keydown', function(e) {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                selectService(svc, item);
+              }
+            });
+            ssServiceList.appendChild(item);
+          });
+        }
+
+        function selectService(svc, itemEl) {
+          ssServiceList.querySelectorAll('.ss-service-item').forEach(function(el) {
+            el.classList.remove('selected');
+          });
+          itemEl.classList.add('selected');
+          selectedService = svc;
+          selectedSlot = null;
+          // Animate step 1 exit
+          ssStep1.classList.add('ss-step-exit');
+          ssSelectedServiceLabel.textContent = svc.name;
+          // Set default date to today
+          var today = new Date();
+          var y = today.getFullYear();
+          var m = String(today.getMonth() + 1).padStart(2, '0');
+          var d = String(today.getDate()).padStart(2, '0');
+          ssDate.value = y + '-' + m + '-' + d;
+          setTimeout(function() {
+            ssStep1.style.display = 'none';
+            ssStep1.classList.remove('ss-step-exit');
+            // Show step 2 with enter animation
+            ssStep2.style.display = '';
+            ssStep2.classList.remove('ss-step-enter');
+            // Force reflow to restart animation
+            void ssStep2.offsetWidth;
+            ssStep2.classList.add('ss-step-enter');
+            fetchSlots(y + '-' + m + '-' + d);
+          }, 280);
+        }
+
+        async function fetchSlots(dateStr) {
+          if (!selectedService) return;
+          ssSlotsContainer.innerHTML = '';
+          ssSlotError.style.display = 'none';
+          ssLoading.style.display = 'block';
+          try {
+            var url = '../user-patient/get_slots.php?date=' + encodeURIComponent(dateStr) + '&service_id=' + selectedService.id;
+            var res = await fetch(url);
+            var data = await res.json();
+            ssLoading.style.display = 'none';
+            if (!data.success) {
+              ssSlotError.textContent = data.message || 'Could not load slots.';
+              ssSlotError.style.display = '';
+              return;
+            }
+            if (!data.is_open) {
+              ssSlotsContainer.innerHTML = '<p style="color:#c62828;font-size:13px;">' + (data.message || 'Clinic is closed on this date.') + '</p>';
+              return;
+            }
+            if (data.is_past) {
+              ssSlotsContainer.innerHTML = '<p style="color:#c62828;font-size:13px;">Cannot book past dates.</p>';
+              return;
+            }
+            renderSlots(data);
+          } catch (err) {
+            ssLoading.style.display = 'none';
+            ssSlotError.textContent = 'Connection error. Please try again.';
+            ssSlotError.style.display = '';
+          }
+        }
+
+        function renderSlots(data) {
+          var allSlots = (data.available_slots || []).concat(data.booked_slots || []).sort();
+          if (allSlots.length === 0) {
+            ssSlotsContainer.innerHTML = '<p style="color:#c62828;font-size:13px;">No available slots for this date.</p>';
+            return;
+          }
+          var grid = document.createElement('div');
+          grid.className = 'ss-slots-grid';
+
+          // Legend
+          var legend = document.createElement('div');
+          legend.style.cssText = 'grid-column:1/-1;display:flex;gap:16px;margin-bottom:8px;font-size:12px;';
+          legend.innerHTML = '<span style="color:#065f46;">Available</span><span style="color:#991b1b;">Booked</span>';
+          grid.appendChild(legend);
+
+          allSlots.forEach(function(timeStr) {
+            var isBooked = data.booked_slots && data.booked_slots.indexOf(timeStr) !== -1;
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            // Format: "08:00" -> "8:00 AM"
+            var parts = timeStr.split(':');
+            var h = parseInt(parts[0], 10);
+            var m = parts[1];
+            var ampm = h >= 12 ? 'PM' : 'AM';
+            if (h > 12) h = h - 12;
+            if (h === 0) h = 12;
+            btn.textContent = h + ':' + m + ' ' + ampm;
+            if (isBooked) {
+              btn.className = 'ss-slot-btn booked';
+              btn.disabled = true;
+              btn.title = 'Already booked';
+            } else {
+              btn.className = 'ss-slot-btn available';
+              btn.dataset.time = timeStr;
+              btn.addEventListener('click', function() {
+                selectSlot(timeStr, btn);
+              });
+            }
+            grid.appendChild(btn);
+          });
+          ssSlotsContainer.innerHTML = '';
+          ssSlotsContainer.appendChild(grid);
+        }
+
+        function selectSlot(timeStr, btnEl) {
+          ssSlotsContainer.querySelectorAll('.ss-slot-btn').forEach(function(el) {
+            el.classList.remove('selected');
+          });
+          btnEl.classList.add('confirmed');
+          selectedSlot = timeStr;
+
+          // Build summary text
+          var dateObj = ssDate.value ? new Date(ssDate.value + 'T00:00:00') : null;
+          var dateStr = dateObj ? dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+          var timeStrFormatted = btnEl.textContent;
+          var summary = (selectedService ? selectedService.name : '') + (dateStr ? ' - ' + dateStr : '') + (timeStrFormatted ? ' at ' + timeStrFormatted : '');
+          document.getElementById('phoneBookingSummary').textContent = summary;
+
+          // Animate: show confirmed state briefly, then transition
+          setTimeout(function() {
+            serviceSlotModal.classList.add('fade-out');
+            setTimeout(function() {
+              closeServiceSlotModal();
+              serviceSlotModal.classList.remove('fade-out');
+              phoneInput.value = '';
+              phoneError.textContent = '';
+              phoneModal.classList.add('fade-in');
+              phoneModal.setAttribute('aria-hidden', 'false');
+              setTimeout(function() {
+                phoneModal.classList.remove('fade-in');
+              }, 300);
+            }, 250);
+          }, 350);
+        }
+
+        if (serviceSlotClose) {
+          serviceSlotClose.addEventListener('click', closeServiceSlotModal);
+        }
+        if (serviceSlotOverlay) {
+          serviceSlotOverlay.addEventListener('click', closeServiceSlotModal);
+        }
+        if (ssDate) {
+          ssDate.addEventListener('change', function() {
+            if (this.value) fetchSlots(this.value);
+          });
+        }
+        if (ssBackBtn) {
+          ssBackBtn.addEventListener('click', function() {
+            selectedSlot = null;
+            ssStep2.style.animation = 'stepExitRight 0.25s ease forwards';
+            setTimeout(function() {
+              ssStep2.style.display = 'none';
+              ssStep2.style.animation = '';
+              ssStep1.style.display = '';
+              ssStep1.style.animation = '';
+              void ssStep1.offsetWidth;
+              ssStep1.style.animation = 'stepEnterLeft 0.3s ease 0.05s both';
+              setTimeout(function() {
+                ssStep1.style.animation = '';
+              }, 350);
+            }, 260);
+          });
+        }
+
+        // Choice: No - show Service & Slot modal
+        if (choiceNo) {
+          choiceNo.addEventListener('click', function() {
+            choiceModal.setAttribute('aria-hidden', 'true');
+            showServiceStep();
+          });
+        }
+
+        // Close modals on overlay click
+        if (choiceOverlay) choiceOverlay.addEventListener('click', closeChoiceModal);
+        if (phoneOverlay) phoneOverlay.addEventListener('click', closePhoneModal);
+
+        // Escape key
+        document.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape') {
+            const regModal = document.getElementById('registrationModal');
+            if (regModal && regModal.style.display === 'flex') {
+              regModal.style.display = 'none';
+              document.body.style.overflow = '';
+            }
+            else if (choiceModal.getAttribute('aria-hidden') === 'false') closeChoiceModal();
+            else if (phoneModal.getAttribute('aria-hidden') === 'false') closePhoneModal();
+            else if (serviceSlotModal.getAttribute('aria-hidden') === 'false') closeServiceSlotModal();
+            else if (bookingModal.getAttribute('aria-hidden') === 'false') closeBookingModal();
+          }
+        });
+
+        // Path A: Book without account (directly to appointments table)
+        if (phoneBookBtn) {
+          phoneBookBtn.addEventListener('click', async function() {
+            const phone = phoneInput.value.trim();
+            if (!phone) {
+              phoneError.textContent = 'Please enter your phone number.';
+              return;
+            }
+            if (!selectedService || !ssDate.value || !selectedSlot) {
+              phoneError.textContent = 'Missing service, date, or time selection. Please start over.';
+              return;
+            }
+            phoneError.textContent = '';
+            phoneBookBtn.disabled = true;
+            phoneBookBtn.textContent = 'Booking...';
+
+            try {
+              const formData = new FormData();
+              formData.append('first_name', bookingData.first || '');
+              formData.append('middle_name', bookingData.middle || '');
+              formData.append('last_name', bookingData.last || '');
+              formData.append('email', bookingData.email || '');
+              formData.append('phone', phone);
+              formData.append('service_id', selectedService.id);
+              formData.append('preferred_date', ssDate.value);
+              formData.append('preferred_time', selectedSlot);
+
+              const res = await fetch('../api/public_book.php', { method: 'POST', body: formData });
+              const data = await res.json();
+
+              if (data.success) {
+                closePhoneModal();
+                showSuccess('Appointment booked! We will contact you to confirm.');
+              } else {
+                phoneError.textContent = data.message || 'Booking failed. Please try again.';
+              }
+            } catch (err) {
+              phoneError.textContent = 'Connection error. Please try again.';
+            } finally {
+              phoneBookBtn.disabled = false;
+              phoneBookBtn.textContent = 'Book Appointment';
+            }
+          });
+        }
+
+        // Phone back button: return to slot selection
+        const phoneBackBtn = document.getElementById('phoneBackBtn');
+        if (phoneBackBtn) {
+          phoneBackBtn.addEventListener('click', function() {
+            phoneModal.setAttribute('aria-hidden', 'true');
+            selectedSlot = null;
+            serviceSlotModal.setAttribute('aria-hidden', 'false');
+          });
+        }
+
+        // Path B: Create Account & Book
+        if (secureForm) {
+          secureForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const first = document.getElementById('secureFirst').value.trim();
+            const last = document.getElementById('secureLast').value.trim();
+            const email = document.getElementById('secureEmail').value.trim();
+            const phone = document.getElementById('securePhone').value.trim();
+            const pass = document.getElementById('securePassword').value;
+            const confirm = document.getElementById('secureConfirm').value;
+
+            if (!first || !last || !email || !phone || !pass || !confirm) {
+              secureError.textContent = 'Please fill in all fields.';
+              return;
+            }
+            if (pass !== confirm) {
+              secureError.textContent = 'Passwords do not match.';
+              return;
+            }
+            secureError.textContent = '';
+            secureSubmit.disabled = true;
+            secureSubmit.textContent = 'Creating Account...';
+
+            try {
+              // Step 1: Register the patient
+              const regData = new FormData();
+              regData.append('first_name', first);
+              regData.append('middle_name', bookingData.middle || '');
+              regData.append('last_name', last);
+              regData.append('email', email);
+              regData.append('phone', phone);
+              regData.append('password', pass);
+              regData.append('confirm_password', confirm);
+
+              const regRes = await fetch('../user-patient/patient_register.php', {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                body: regData
+              });
+              const regResult = await regRes.json();
+
+              if (!regResult.success) {
+                secureError.textContent = regResult.message || 'Registration failed.';
+                secureSubmit.disabled = false;
+                secureSubmit.textContent = 'Create Account & Book';
+                return;
+              }
+
+              // Step 2: Submit the booking
+              secureSubmit.textContent = 'Booking...';
+              const bookData = new FormData();
+              bookData.append('first_name', first);
+              bookData.append('middle_name', bookingData.middle || '');
+              bookData.append('last_name', last);
+              bookData.append('email', email);
+              bookData.append('phone', phone);
+              bookData.append('message', 'I would like to book an appointment.');
+
+              const bookRes = await fetch('../api/public_contact.php', { method: 'POST', body: bookData });
+              const bookResult = await bookRes.json();
+
+              closeSecureModal();
+              if (bookResult.success) {
+                showSuccess('Account created and booking submitted! Please log in to manage your appointments.');
+              } else {
+                showSuccess('Account created! You can now log in and book.');
+              }
+
+              setTimeout(function() {
+                window.location.href = 'login.php';
+              }, 3000);
+
+            } catch (err) {
+              secureError.textContent = 'Connection error. Please try again.';
+              secureSubmit.disabled = false;
+              secureSubmit.textContent = 'Create Account & Book';
+            }
+          });
+        }
+
+        // ---- Contact Us Form ----
+        const contactForm = document.querySelector('.contact-form');
+        if (contactForm) {
+          contactForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const first = this.querySelector('[name="first_name"]').value.trim();
+            const middle = this.querySelector('[name="middle_name"]').value.trim();
+            const last = this.querySelector('[name="last_name"]').value.trim();
+            const email = this.querySelector('[name="email"]').value.trim();
+            const phone = this.querySelector('[name="phone"]').value.trim();
+            const message = this.querySelector('[name="message"]').value.trim();
+
+            if (!first || !last || !email || !phone || !message) {
+              alert('Please fill in all required fields.');
+              return;
+            }
+
+            const submitBtn = this.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Sending...';
+
+            try {
+              const formData = new FormData();
+              formData.append('first_name', first);
+              formData.append('middle_name', middle);
+              formData.append('last_name', last);
+              formData.append('email', email);
+              formData.append('phone', phone);
+              formData.append('message', message);
+
+              const res = await fetch('../api/public_contact.php', { method: 'POST', body: formData });
+              const data = await res.json();
+
+              if (data.success) {
+                this.reset();
+                showSuccess('Your message has been sent! We will reply to you via email.');
+              } else {
+                alert(data.message || 'Failed to send. Please try again.');
+              }
+            } catch (err) {
+              alert('Connection error. Please try again.');
+            } finally {
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Submit';
+            }
+          });
         }
       })();
     </script>
@@ -1088,102 +2410,7 @@ $assets = [
         const modalClose = document.querySelector('.modal-close');
         const body = document.body;
 
-        // Step 1: Handle initial appointment form submission
-        if (appointmentForm) {
-          appointmentForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            // Collect form data
-            const formData = new FormData(appointmentForm);
-            const firstName = formData.get('first_name');
-            const middleName = formData.get('middle_name');
-            const lastName = formData.get('last_name');
-            const email = formData.get('email');
-
-            // Validate required fields
-            if (!firstName || !lastName || !email) {
-              alert('Please fill in all required fields (First Name, Last Name, Email)');
-              return;
-            }
-
-            // Check if user already has an account
-            try {
-              const checkData = { exists: false };
-              
-              try {
-                const checkResponse = await fetch('../user-patient/check_user_exists.php', {
-                  method: 'POST',
-                  headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                  },
-                  body: formData
-                });
-                const checkResult = await checkResponse.json();
-                if (checkResult && typeof checkResult === 'object' && 'exists' in checkResult) {
-                  checkData.exists = checkResult.exists;
-                }
-              } catch (checkErr) {
-                console.log('Check user endpoint not available, proceeding with registration');
-              }
-              
-              if (checkData.exists) {
-                // User exists - show welcome back modal
-                const fullName = middleName ? firstName + ' ' + middleName + ' ' + lastName : firstName + ' ' + lastName;
-                document.getElementById('welcome-back-email').value = email;
-                document.getElementById('welcome-back-name').value = fullName;
-                document.getElementById('welcomeBackUserEmail').textContent = email;
-                
-                document.getElementById('welcomeBackModal').style.display = 'flex';
-                body.style.overflow = 'hidden';
-                
-                // Clear and regenerate CAPTCHA
-                document.getElementById('captcha-code').value = '';
-                document.getElementById('captchaError').style.display = 'none';
-                generateCaptcha();
-              } else {
-                // User doesn't exist - show registration modal
-                // Pre-fill the modal fields (capitalize names)
-                const capitalizeName = (name) => {
-                  return name.replace(/\b\w/g, l => l.toUpperCase());
-                };
-                
-                document.getElementById('reg-first-name').value = capitalizeName(firstName);
-                document.getElementById('reg-middle-name').value = middleName ? capitalizeName(middleName) : '';
-                document.getElementById('reg-last-name').value = capitalizeName(lastName);
-                document.getElementById('reg-email').value = email;
-                document.getElementById('reg-email-hidden').value = email;
-                
-                // Also fill display fields
-                document.getElementById('reg-first-name-display').value = capitalizeName(firstName);
-                document.getElementById('reg-middle-name-display').value = middleName ? capitalizeName(middleName) : '';
-                document.getElementById('reg-last-name-display').value = capitalizeName(lastName);
-                
-                registrationModal.style.display = 'flex';
-                body.style.overflow = 'hidden';
-              }
-            } catch (error) {
-              console.error('Error:', error);
-              // Fallback to registration modal
-              const capitalizeName = (name) => {
-                return name.replace(/\b\w/g, l => l.toUpperCase());
-              };
-              
-              document.getElementById('reg-first-name').value = capitalizeName(firstName);
-              document.getElementById('reg-middle-name').value = middleName ? capitalizeName(middleName) : '';
-              document.getElementById('reg-last-name').value = capitalizeName(lastName);
-              document.getElementById('reg-email').value = email;
-              document.getElementById('reg-email-hidden').value = email;
-              
-              // Also fill display fields
-              document.getElementById('reg-first-name-display').value = capitalizeName(firstName);
-              document.getElementById('reg-middle-name-display').value = middleName ? capitalizeName(middleName) : '';
-              document.getElementById('reg-last-name-display').value = capitalizeName(lastName);
-              
-              registrationModal.style.display = 'flex';
-              body.style.overflow = 'hidden';
-            }
-          });
-        }
+        // Step 1 is handled by the IIFE above (choice modal → booking modal with registration)
 
         // Close modal handlers
         if (modalClose) {

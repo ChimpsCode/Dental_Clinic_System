@@ -8,7 +8,6 @@ SET time_zone = "+00:00";
 CREATE TABLE `inquiries` (
   `id` int(11) NOT NULL,
   `patient_id` int(11) NOT NULL,
-  `full_name` varchar(255) NOT NULL,
   `phone` varchar(50) NOT NULL,
   `email` varchar(255) NOT NULL,
   `concern` text NOT NULL,

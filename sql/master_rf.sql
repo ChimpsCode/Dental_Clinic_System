@@ -403,7 +403,6 @@ CREATE TABLE `file_types` (
 CREATE TABLE `inquiries` (
   `id` int(11) NOT NULL,
   `patient_id` int(11) DEFAULT NULL,
-  `full_name` varchar(255) DEFAULT NULL,
   `first_name` varchar(100) DEFAULT NULL,
   `middle_name` varchar(100) DEFAULT NULL,
   `last_name` varchar(100) DEFAULT NULL,

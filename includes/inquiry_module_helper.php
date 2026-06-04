@@ -27,8 +27,7 @@ function ensureInquiryModuleSchema(PDO $pdo): void
 
     $inquiryColumns = [
         'patient_id' => "ALTER TABLE inquiries ADD COLUMN patient_id INT NULL AFTER id",
-        'full_name' => "ALTER TABLE inquiries ADD COLUMN full_name VARCHAR(255) NULL AFTER patient_id",
-        'phone' => "ALTER TABLE inquiries ADD COLUMN phone VARCHAR(50) NULL AFTER full_name",
+        'phone' => "ALTER TABLE inquiries ADD COLUMN phone VARCHAR(50) NULL AFTER patient_id",
         'email' => "ALTER TABLE inquiries ADD COLUMN email VARCHAR(150) NULL AFTER phone",
         'concern' => "ALTER TABLE inquiries ADD COLUMN concern TEXT NULL AFTER email",
         'service_id' => "ALTER TABLE inquiries ADD COLUMN service_id INT NULL AFTER concern",
@@ -52,6 +51,10 @@ function ensureInquiryModuleSchema(PDO $pdo): void
         }
     }
 
+    if (inquiryModuleColumnExists($pdo, 'inquiries', 'full_name')) {
+        $pdo->exec("ALTER TABLE inquiries DROP COLUMN full_name");
+    }
+
     if (inquiryModuleColumnExists($pdo, 'inquiries', 'source')) {
         $pdo->exec("ALTER TABLE inquiries MODIFY COLUMN source VARCHAR(50) NOT NULL DEFAULT 'Patient Portal'");
     }
@@ -73,15 +76,6 @@ function ensureInquiryModuleSchema(PDO $pdo): void
 
     // Backfill modern fields from legacy data when legacy columns are available.
     $backfillAssignments = [];
-
-    if (
-        inquiryModuleColumnExists($pdo, 'inquiries', 'full_name') &&
-        inquiryModuleColumnExists($pdo, 'inquiries', 'first_name') &&
-        inquiryModuleColumnExists($pdo, 'inquiries', 'middle_name') &&
-        inquiryModuleColumnExists($pdo, 'inquiries', 'last_name')
-    ) {
-        $backfillAssignments[] = "full_name = TRIM(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(middle_name, ''), ' ', COALESCE(last_name, '')))";
-    }
 
     if (
         inquiryModuleColumnExists($pdo, 'inquiries', 'phone') &&
