@@ -22,7 +22,7 @@ function ensureInquiryModuleSchema(PDO $pdo): void
     }
 
     if (!inquiryModuleColumnExists($pdo, 'inquiries', 'status')) {
-        $pdo->exec("ALTER TABLE inquiries ADD COLUMN status VARCHAR(30) NOT NULL DEFAULT 'Pending' AFTER status_id");
+        $pdo->exec("ALTER TABLE inquiries ADD COLUMN status VARCHAR(30) NOT NULL DEFAULT 'Unread' AFTER status_id");
     }
 
     $inquiryColumns = [
@@ -59,7 +59,7 @@ function ensureInquiryModuleSchema(PDO $pdo): void
         $pdo->exec("ALTER TABLE inquiries MODIFY COLUMN source VARCHAR(50) NOT NULL DEFAULT 'Patient Portal'");
     }
     if (inquiryModuleColumnExists($pdo, 'inquiries', 'status')) {
-        $pdo->exec("ALTER TABLE inquiries MODIFY COLUMN status VARCHAR(30) NOT NULL DEFAULT 'Pending'");
+        $pdo->exec("ALTER TABLE inquiries MODIFY COLUMN status VARCHAR(30) NOT NULL DEFAULT 'Unread'");
     }
 
     if (!inquiryModuleColumnExists($pdo, 'appointments', 'service_id')) {
@@ -120,13 +120,13 @@ function ensureInquiryModuleSchema(PDO $pdo): void
 
 function getInquiryStatuses(): array
 {
-    return ['Pending', 'Contacted', 'Awaiting Confirmation', 'Scheduled', 'Completed', 'Cancelled'];
+    return ['Unread', 'Read', 'Replied'];
 }
 
 function normalizeInquiryStatus(?string $status): string
 {
     $allowed = getInquiryStatuses();
-    return in_array($status, $allowed, true) ? $status : 'Pending';
+    return in_array($status, $allowed, true) ? $status : 'Unread';
 }
 
 function fetchInquiryServices(PDO $pdo): array

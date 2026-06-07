@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     $source = $_POST['source'] ?? '';
     $topic = trim($_POST['topic'] ?? '');
     $inquiry_message = trim($_POST['inquiry_message'] ?? '');
-    $status = 'Pending'; // Auto-set to Pending
+    $status = 'Unread';
     
     error_log("Final values - First: '$first_name', Last: '$last_name', Source: '$source'");
     

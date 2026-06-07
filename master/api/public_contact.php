@@ -22,7 +22,7 @@ if (!$firstName || !$lastName || !$email || !$phone || !$message) {
 
 $stmt = $pdo->prepare("
     INSERT INTO inquiries (first_name, middle_name, last_name, phone, email, concern, source, status, created_at, service_id, preferred_date, preferred_time)
-    VALUES (?, ?, ?, ?, ?, ?, 'Website', 'Open', NOW(), ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, 'Website', 'Unread', NOW(), ?, ?, ?)
 ");
 $stmt->execute([$firstName, $middleName ?: null, $lastName, $phone, $email, $message, $serviceId, $preferredDate ?: null, $preferredTime ?: null]);
 

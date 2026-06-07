@@ -745,14 +745,10 @@ div.main-content {
     background: #f3f4f6;
 }
 
-.time-display {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
+
 
 .time-12hr {
-    font-weight: 600;
+    font-weight: 400;
     color: #111827;
 }
 
@@ -1025,8 +1021,7 @@ div.main-content {
                                 <td><?php echo htmlspecialchars($item['assigned_doctor'] ?? 'Dr. Rex'); ?></td>
                                 <td>
                                     <div class="time-display">
-                                        <span class="time-12hr"><?php echo $time12hr; ?></span>
-                                        <span class="time-24hr"><?php echo $time24hr; ?></span>
+                                        <span class="time-12hr" ><?php echo $time12hr; ?></span>
                                     </div>
                                 </td>
 <td>

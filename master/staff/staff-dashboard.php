@@ -413,6 +413,56 @@ try {
     </div>
 </div>
 
+<!-- Inquiry Panel Backdrop -->
+<div class="dashboard-inquiry-backdrop" id="dashboardInquiryBackdrop" onclick="toggleInquiryPanel()"></div>
+
+<!-- Floating Inquiry Button -->
+<button type="button" id="dashboardInquiryFab" class="dashboard-inquiry-fab" onclick="toggleInquiryPanel()" aria-label="Inquiries" title="Inquiries">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 2 11 13"></path>
+        <path d="m22 2-7 20-4-9-9-4Z"></path>
+    </svg>
+    <span class="dashboard-inquiry-fab-badge" id="dashboardInquiryFabBadge" style="display:none;">0</span>
+</button>
+
+<!-- Inquiry Panel -->
+<div class="dashboard-inquiry-panel" id="dashboardInquiryPanel">
+    <div id="inquiryPanelListView" style="display:flex;flex-direction:column;flex:1;min-height:0;">
+        <div class="dashboard-inquiry-panel-header">
+            <h3>Inquiries</h3>
+            <span class="dashboard-inquiry-panel-count" id="dashboardInquiryCount">0</span>
+            <button type="button" class="dashboard-inquiry-panel-close" onclick="toggleInquiryPanel()" aria-label="Close">&times;</button>
+        </div>
+        <div class="dashboard-inquiry-panel-list" id="dashboardInquiryList">
+            <div class="dashboard-inquiry-loading">Loading...</div>
+        </div>
+    </div>
+    <div id="inquiryPanelChatView" style="display:none;flex-direction:column;flex:1;min-height:0;">
+        <div class="chat-modal-header">
+            <button type="button" class="chat-modal-back" onclick="showInquiryList()" aria-label="Back">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+            </button>
+            <div class="chat-modal-avatar" id="inquiryChatAvatar">JD</div>
+            <div class="chat-modal-user-info">
+                <div class="chat-modal-name" id="inquiryChatName"></div>
+                <div class="chat-modal-email" id="inquiryChatContact"></div>
+            </div>
+            <div class="chat-modal-source" id="inquiryChatSource"></div>
+        </div>
+        <div class="chat-modal-messages" id="inquiryChatMessages"></div>
+        <div class="chat-channel-info" id="inquiryChatChannel"></div>
+        <form id="inquiryChatReplyForm" class="chat-compose">
+            <input type="hidden" id="inquiryChatReplyId">
+            <div class="chat-send-row">
+                <textarea id="inquiryChatReplyMsg" placeholder="Type your reply..." rows="1" required></textarea>
+                <button type="submit" class="chat-send-btn" aria-label="Send">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4Z"/></svg>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 const queueItems = <?php echo json_encode($queueItems); ?>;
 let dashboardConfirmHandler = null;
@@ -781,6 +831,243 @@ function getStaffTeethDisplayText(teethString) {
     
     return parts.join(' + ');
 }
+
+// ===== Dashboard Inquiry Panel =====
+let dashboardInquiries = [];
+let dashboardInquiryMap = {};
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;',
+        '"': '&quot;', "'": '&#39;'
+    }[character]));
+}
+
+function getInitials(name) {
+    const parts = (name || 'P').trim().split(/\s+/);
+    const first = parts[0] || '';
+    const last = parts.length > 1 ? parts[parts.length - 1] : '';
+    return ((first[0] || '') + (last[0] || '')).toUpperCase() || 'P';
+}
+
+function toggleInquiryPanel() {
+    const panel = document.getElementById('dashboardInquiryPanel');
+    const backdrop = document.getElementById('dashboardInquiryBackdrop');
+    const isOpen = panel.classList.toggle('open');
+    backdrop.classList.toggle('open', isOpen);
+    if (isOpen && !dashboardInquiries.length) {
+        fetchDashboardInquiries();
+    }
+}
+
+function showInquiryList() {
+    document.getElementById('inquiryPanelListView').style.display = 'flex';
+    document.getElementById('inquiryPanelChatView').style.display = 'none';
+}
+
+async function fetchDashboardInquiries() {
+    try {
+        const url = '../shared/inquiry_actions.php?action=get_inquiries&limit=30';
+        const response = await fetch(url);
+        const data = await response.json();
+        if (!data.success) return;
+        dashboardInquiries = data.inquiries;
+        dashboardInquiryMap = Object.fromEntries(dashboardInquiries.map((item) => [String(item.id), item]));
+        renderDashboardInquiries();
+        updateDashboardInquiryBadge(data.unread_count);
+    } catch (_err) {}
+}
+
+function renderDashboardInquiries() {
+    const list = document.getElementById('dashboardInquiryList');
+    if (!dashboardInquiries.length) {
+        list.innerHTML = '<div class="dashboard-inquiry-empty">No inquiries yet</div>';
+        document.getElementById('dashboardInquiryCount').textContent = '0';
+        return;
+    }
+    document.getElementById('dashboardInquiryCount').textContent = dashboardInquiries.length;
+    list.innerHTML = dashboardInquiries.map((inquiry) => {
+        const fullName = [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown';
+        const preview = (inquiry.concern || inquiry.inquiry_message || 'No message').slice(0, 80);
+        const status = inquiry.status || 'Unread';
+        const initials = getInitials(fullName);
+        return `
+            <div class="dashboard-inquiry-item">
+                <div class="dashboard-inquiry-item-avatar">${escapeHtml(initials)}</div>
+                <div class="dashboard-inquiry-item-body">
+                    <div class="dashboard-inquiry-item-top">
+                        <span class="dashboard-inquiry-item-name">${escapeHtml(fullName)}</span>
+                        <span class="dashboard-inquiry-item-status ${escapeHtml(status)}">${escapeHtml(status)}</span>
+                    </div>
+                    <div class="dashboard-inquiry-item-preview">${escapeHtml(preview)}</div>
+                    <button class="dashboard-inquiry-item-reply" onclick="openDashboardInquiryChat(${Number(inquiry.id)})">Reply</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function updateDashboardInquiryBadge(count) {
+    const badge = document.getElementById('dashboardInquiryFabBadge');
+    if (count > 0) {
+        badge.textContent = count > 99 ? '99+' : String(count);
+        badge.style.display = 'inline-flex';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+function openDashboardInquiryChat(id) {
+    const inquiry = dashboardInquiryMap[String(id)];
+    if (!inquiry) return;
+
+    const fullName = [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown Patient';
+    const contactParts = [inquiry.email, inquiry.phone || inquiry.contact_info].filter(Boolean);
+    document.getElementById('inquiryChatName').textContent = fullName;
+    document.getElementById('inquiryChatContact').textContent = contactParts.join(' · ') || 'No contact';
+    document.getElementById('inquiryChatSource').textContent = inquiry.source || 'Website';
+    document.getElementById('inquiryChatAvatar').textContent = getInitials(fullName);
+    document.getElementById('inquiryChatReplyId').value = inquiry.id;
+
+    const concernText = inquiry.concern || inquiry.inquiry_message || 'No concern provided.';
+    const container = document.getElementById('inquiryChatMessages');
+    container.innerHTML = '';
+
+    const originalBubble = document.createElement('div');
+    originalBubble.className = 'chat-bubble received';
+    const createdDate = inquiry.created_at ? new Date(String(inquiry.created_at).replace(' ', 'T')).toLocaleString() : '';
+    originalBubble.innerHTML = '<div>' + escapeHtml(concernText).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(createdDate) + '</div>';
+    container.appendChild(originalBubble);
+
+    const replies = parseDashboardStaffReplies(inquiry.notes);
+    replies.forEach((reply) => {
+        const bubble = document.createElement('div');
+        bubble.className = 'chat-bubble ' + reply.type;
+        bubble.innerHTML = '<div>' + escapeHtml(reply.message).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(reply.timestamp) + '</div>';
+        container.appendChild(bubble);
+    });
+
+    container.scrollTop = container.scrollHeight;
+
+    const channelInfo = document.getElementById('inquiryChatChannel');
+    if ((inquiry.source || '') === 'Patient Portal' && inquiry.patient_id) {
+        channelInfo.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Reply will appear in patient\'s account messages';
+    } else {
+        channelInfo.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M22 12v1a5 5 0 0 1-5 5h-1"/></svg> Reply will be sent via email to ' + escapeHtml(inquiry.email || 'the sender');
+    }
+
+    document.getElementById('inquiryPanelListView').style.display = 'none';
+    document.getElementById('inquiryPanelChatView').style.display = 'flex';
+
+    if ((inquiry.status || 'Unread') === 'Unread') {
+        inquiry.status = 'Read';
+        fetch('../shared/inquiry_actions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'action=mark_read&id=' + id
+        });
+        renderDashboardInquiries();
+    }
+
+    document.getElementById('inquiryChatReplyMsg').value = '';
+    document.getElementById('inquiryChatReplyMsg').style.height = 'auto';
+    setTimeout(() => document.getElementById('inquiryChatReplyMsg').focus(), 200);
+}
+
+function parseDashboardStaffReplies(notes) {
+    if (!notes) return [];
+    const replies = [];
+    const lines = notes.split('\n');
+    let current = null;
+    for (const line of lines) {
+        const staffMatch = line.match(/^\[Staff replied on (.+?)\]/);
+        if (staffMatch) {
+            if (current) replies.push(current);
+            current = { timestamp: staffMatch[1], message: '', type: 'sent' };
+        } else if (current) {
+            current.message += (current.message ? '\n' : '') + line;
+        }
+    }
+    if (current) replies.push(current);
+    return replies;
+}
+
+document.getElementById('inquiryChatReplyForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const id = document.getElementById('inquiryChatReplyId').value;
+    const message = document.getElementById('inquiryChatReplyMsg').value.trim();
+    if (!id || !message) return;
+
+    const btn = event.currentTarget.querySelector('button[type="submit"]');
+    btn.disabled = true;
+
+    try {
+        const formData = new FormData();
+        formData.append('action', 'staff_reply');
+        formData.append('id', id);
+        formData.append('message', message);
+        const response = await fetch('../shared/inquiry_actions.php', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (!data.success) {
+            btn.disabled = false;
+            return;
+        }
+        const now = new Date();
+        const ts = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
+
+        const container = document.getElementById('inquiryChatMessages');
+        const bubble = document.createElement('div');
+        bubble.className = 'chat-bubble sent';
+        bubble.innerHTML = '<div>' + escapeHtml(message).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + ts + '</div>';
+        container.appendChild(bubble);
+        container.scrollTop = container.scrollHeight;
+
+        const entry = dashboardInquiryMap[String(id)];
+        if (entry) {
+            entry.status = 'Replied';
+            entry.notes = (entry.notes || '') + '\n[Staff replied on ' + ts + ']\n' + message;
+        }
+
+        document.getElementById('inquiryChatReplyMsg').value = '';
+        document.getElementById('inquiryChatReplyMsg').style.height = 'auto';
+        btn.disabled = false;
+        renderDashboardInquiries();
+    } catch (_err) {
+        btn.disabled = false;
+    }
+});
+
+const inquiryChatTextarea = document.getElementById('inquiryChatReplyMsg');
+if (inquiryChatTextarea) {
+    inquiryChatTextarea.addEventListener('input', function () {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+    });
+}
+
+// Poll for unread count
+async function pollDashboardInquiryBadge() {
+    try {
+        const response = await fetch('../shared/inquiry_actions.php?action=get_inquiries&limit=1');
+        const data = await response.json();
+        if (data.success) {
+            updateDashboardInquiryBadge(data.unread_count);
+        }
+    } catch (_err) {}
+}
+
+setInterval(pollDashboardInquiryBadge, 5000);
+pollDashboardInquiryBadge();
+
+// Portal fixed elements to body to avoid ancestor transform/scroll issues
+(function() {
+    const fab = document.getElementById('dashboardInquiryFab');
+    if (fab) document.body.appendChild(fab);
+    const backdrop = document.getElementById('dashboardInquiryBackdrop');
+    if (backdrop) document.body.appendChild(backdrop);
+    const panel = document.getElementById('dashboardInquiryPanel');
+    if (panel) document.body.appendChild(panel);
+})();
 </script>
 
 
@@ -1015,6 +1302,392 @@ function getStaffTeethDisplayText(teethString) {
     .complete-treatment-cancel,
     .complete-treatment-confirm {
         width: 100%;
+    }
+}
+
+/* Floating Inquiry Button */
+.dashboard-inquiry-fab {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    border: none;
+    background: #059669 !important;
+    color: #ffffff !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none !important;
+    box-shadow: 0 14px 28px rgba(5, 150, 105, 0.28);
+    z-index: 2001;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.dashboard-inquiry-fab:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 32px rgba(5, 150, 105, 0.34);
+    background: #047857 !important;
+}
+.dashboard-inquiry-fab-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #dc2626;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #ffffff;
+    line-height: 1;
+}
+
+/* Inquiry Panel */
+.dashboard-inquiry-panel {
+    position: fixed;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 400px;
+    max-width: 100vw;
+    background: #ffffff;
+    box-shadow: -8px 0 30px rgba(15, 23, 42, 0.12);
+    z-index: 2002;
+    display: none;
+    flex-direction: column;
+    animation: slideInRight 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.dashboard-inquiry-panel.open {
+    display: flex;
+}
+@keyframes slideInRight {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+}
+.dashboard-inquiry-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 18px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #fafbff;
+}
+.dashboard-inquiry-panel-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #0f172a;
+    font-weight: 700;
+}
+.dashboard-inquiry-panel-count {
+    font-size: 12px;
+    font-weight: 700;
+    background: #e2e8f0;
+    color: #64748b;
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+.dashboard-inquiry-panel-close {
+    margin-left: auto;
+    background: none;
+    border: none;
+    font-size: 1.6rem;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+}
+.dashboard-inquiry-panel-close:hover {
+    color: #111827;
+}
+.dashboard-inquiry-panel-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+}
+.dashboard-inquiry-loading {
+    text-align: center;
+    padding: 40px 20px;
+    color: #64748b;
+}
+
+/* Inquiry Panel Items */
+.dashboard-inquiry-item {
+    display: flex;
+    gap: 12px;
+    padding: 14px 20px;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background 0.15s;
+    cursor: default;
+}
+.dashboard-inquiry-item:hover {
+    background: #f8fafc;
+}
+.dashboard-inquiry-item-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+.dashboard-inquiry-item-body {
+    flex: 1;
+    min-width: 0;
+}
+.dashboard-inquiry-item-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+.dashboard-inquiry-item-name {
+    font-weight: 600;
+    color: #0f172a;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.dashboard-inquiry-item-status {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+.dashboard-inquiry-item-status.Unread {
+    background: #fef3c7;
+    color: #92400e;
+}
+.dashboard-inquiry-item-status.Read {
+    background: #f0fdf4;
+    color: #16a34a;
+}
+.dashboard-inquiry-item-status.Replied {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+.dashboard-inquiry-item-preview {
+    font-size: 13px;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 6px;
+}
+.dashboard-inquiry-item-reply {
+    font-size: 12px;
+    color: #2563eb;
+    font-weight: 600;
+    background: none;
+    border: none;
+    padding: 4px 0;
+    cursor: pointer;
+}
+.dashboard-inquiry-item-reply:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+}
+.dashboard-inquiry-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: #64748b;
+}
+
+/* Inquiry Chat View — matches staff_inquiries.php chat modal classes */
+.chat-modal-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #fafbff;
+}
+.chat-modal-back {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: none;
+    background: #eef2ff;
+    color: #1d4ed8;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s;
+}
+.chat-modal-back:hover { background: #dbeafe; }
+.chat-modal-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+.chat-modal-user-info {
+    flex: 1;
+    min-width: 0;
+}
+.chat-modal-name {
+    font-weight: 700;
+    color: #0f172a;
+    font-size: 15px;
+}
+.chat-modal-email {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 2px;
+}
+.chat-modal-source {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    flex-shrink: 0;
+}
+.chat-modal-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: #fcfdff;
+}
+.chat-bubble {
+    max-width: 88%;
+    padding: 12px 16px;
+    border-radius: 18px;
+    line-height: 1.55;
+    font-size: 14px;
+    word-break: break-word;
+}
+.chat-bubble.received {
+    align-self: flex-start;
+    background: #f0f2f5;
+    color: #111827;
+    border-bottom-left-radius: 6px;
+}
+.chat-bubble.sent {
+    align-self: flex-end;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #fff;
+    border-bottom-right-radius: 6px;
+}
+.chat-bubble .chat-meta {
+    font-size: 11px;
+    opacity: 0.65;
+    margin-top: 6px;
+}
+.chat-bubble.sent .chat-meta {
+    color: rgba(255,255,255,0.8);
+}
+.chat-channel-info {
+    padding: 10px 20px;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-top: 1px solid #e5e7eb;
+    background: #fafbff;
+    color: #475569;
+}
+.chat-compose {
+    padding: 14px 20px 18px;
+    border-top: 1px solid #e5e7eb;
+    background: #fff;
+}
+.chat-send-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+}
+.chat-send-row textarea {
+    flex: 1;
+    border: 1px solid #d1d5db;
+    border-radius: 20px;
+    padding: 12px 16px;
+    font: inherit;
+    font-size: 14px;
+    resize: none;
+    min-height: 48px;
+    max-height: 120px;
+    outline: none;
+    transition: border-color 0.2s;
+    background: #f9fafb;
+}
+.chat-send-row textarea:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    background: #fff;
+}
+.chat-send-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 4px 12px rgba(37,99,235,0.25);
+}
+.chat-send-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(37,99,235,0.35);
+}
+.chat-send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.dashboard-inquiry-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.4);
+    z-index: 2001;
+    display: none;
+}
+.dashboard-inquiry-backdrop.open {
+    display: block;
+}
+
+@media (max-width: 640px) {
+    .dashboard-inquiry-fab {
+        right: 16px;
+        bottom: 24px;
+        width: 52px;
+        height: 52px;
+    }
+    .dashboard-inquiry-panel {
+        width: 100vw;
     }
 }
 

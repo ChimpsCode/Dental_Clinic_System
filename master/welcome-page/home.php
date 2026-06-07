@@ -140,6 +140,7 @@ $assets = [
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,700;1,400&family=Inria+Sans:wght@400;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="../../assets/css/home-styles.css" />
     <link rel="stylesheet" href="../../assets/css/home-integration.css" />
+    <link rel="stylesheet" href="../../assets/css/chatbot-components.css" />
     <script src="../../assets/js/home-integration.js" defer></script>
     <style>
       @keyframes homeFadeIn {
@@ -300,85 +301,6 @@ $assets = [
         font-weight: 600;
         text-decoration: none;
         margin-top: 12px;
-      }
-
-      .typing-indicator { color: #666; font-style: italic; }
-
-      /* Chat Service List Component */
-      .chat-service-container {
-        background: #fff;
-        border: 1px solid #e0e0e0;
-        border-radius: 12px;
-        overflow: hidden;
-        margin: 8px 0;
-      }
-      .chat-service-header {
-        font-weight: 700;
-        font-size: 14px;
-        color: #005daa;
-        padding: 12px 14px 8px;
-        border-bottom: 1px solid #f0f0f0;
-      }
-      .chat-service-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 14px;
-        cursor: pointer;
-        transition: background 0.15s;
-        border-bottom: 1px solid #f5f5f5;
-      }
-      .chat-service-item:last-child { border-bottom: none; }
-      .chat-service-item:hover,
-      .chat-service-item:focus { background: #f0f7ff; outline: none; }
-      .chat-service-name { font-size: 13px; font-weight: 600; color: #222; }
-      .chat-service-price { font-size: 13px; color: #005daa; font-weight: 700; }
-      .chat-service-hint {
-        display: block;
-        text-align: center;
-        font-size: 11px;
-        color: #999;
-        padding: 8px 14px;
-      }
-      /* Action Buttons */
-      .chat-service-actions { margin: 8px 0; }
-      .chat-service-selected {
-        font-size: 13px; font-weight: 600; color: #005daa; margin-bottom: 8px;
-      }
-      .chat-action-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
-      .chat-action-btn {
-        padding: 8px 18px;
-        border-radius: 20px;
-        font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
-        border: 1px solid;
-        transition: all 0.2s;
-        background: #fff;
-      }
-      .chat-action-btn-price {
-        border-color: #005daa;
-        color: #005daa;
-      }
-      .chat-action-btn-price:hover {
-        background: #005daa;
-        color: #fff;
-      }
-      .chat-action-btn-book {
-        border-color: #005daa;
-        background: #005daa;
-        color: #fff;
-      }
-      .chat-action-btn-book:hover {
-        background: #003d7a;
-        border-color: #003d7a;
-      }
-      .chat-action-btn-back {
-        border-color: #ccc;
-        color: #666;
-      }
-      .chat-action-btn-back:hover {
-        background: #e0e0e0;
       }
 
       /* Booking Modal */
@@ -1206,6 +1128,33 @@ $assets = [
       </div>
     </div>
 
+    <!-- Name/Email Modal for Chatbot Booking -->
+    <div id="nameEmailModal" class="hero-choice-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Enter your name and email">
+      <div class="hero-choice-overlay" id="nameEmailOverlay"></div>
+      <div class="hero-choice-content">
+        <h3 class="hero-choice-title">Complete Your Details</h3>
+        <p class="hero-choice-desc">Please provide your name and email to proceed with the booking.</p>
+        <div class="booking-field">
+          <label class="booking-label">First Name <span class="required">*</span></label>
+          <input type="text" id="neFirstName" class="booking-input" placeholder="Juan" required />
+        </div>
+        <div class="booking-field">
+          <label class="booking-label">Middle Name</label>
+          <input type="text" id="neMiddleName" class="booking-input" placeholder="Dela" />
+        </div>
+        <div class="booking-field">
+          <label class="booking-label">Last Name <span class="required">*</span></label>
+          <input type="text" id="neLastName" class="booking-input" placeholder="Cruz" required />
+        </div>
+        <div class="booking-field">
+          <label class="booking-label">Email Address <span class="required">*</span></label>
+          <input type="email" id="neEmail" class="booking-input" placeholder="juan@example.com" required />
+        </div>
+        <div class="phone-error" id="neError"></div>
+        <button type="button" class="btn btn-primary booking-submit" id="neSubmitBtn">Continue</button>
+      </div>
+    </div>
+
     <!-- Phone Modal: Book Without Account -->
     <div id="phoneModal" class="phone-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Enter phone number">
       <div class="hero-choice-overlay" id="phoneOverlay"></div>
@@ -1265,50 +1214,7 @@ $assets = [
     <!-- Success Toast -->
     <div id="bookingSuccessToast" class="booking-success-toast"></div>
 
-    <button
-      type="button"
-      class="chat-fab"
-      id="chatFab"
-      aria-label="Open AI chat"
-      aria-haspopup="dialog"
-      aria-controls="chatWidget"
-      aria-expanded="false"
-    >
-      <span class="chat-fab-icon" aria-hidden="true">💬</span>
-    </button>
-    
-    <!-- Chatbot greeting balloon -->
-    <div class="chat-balloon" id="chatBalloon">
-      <div class="chat-balloon-content">
-        <span class="chat-balloon-icon">🤖</span>
-        <span class="chat-balloon-text">Hi! I'm your RF Dental Clinic chatbot assistant.</span>
-      </div>
-      <div class="chat-balloon-arrow"></div>
-    </div>
-
-    <section class="chat-widget" id="chatWidget" role="dialog" aria-modal="false" aria-label="AI automated chat" hidden>
-      <header class="chat-header">
-        <div class="chat-title">
-          <div class="chat-title-main">RF Dental AI</div>
-          <div class="chat-title-sub">Automated inquiry assistant</div>
-        </div>
-        <button type="button" class="chat-close" id="chatClose" aria-label="Close chat">✕</button>
-      </header>
-
-      <div class="chat-body" id="chatBody" aria-live="polite" aria-relevant="additions"></div>
-
-      <form class="chat-input" id="chatForm" autocomplete="off">
-        <input
-          type="text"
-          id="chatText"
-          name="message"
-          placeholder="Type your question… (e.g., price for braces, clinic hours)"
-          aria-label="Chat message"
-          required
-        />
-        <button class="btn btn-primary" type="submit">Send</button>
-      </form>
-    </section>
+    <?php include __DIR__ . '/../../includes/chatbot_widget.php'; ?>
 
     <script>
       // Mobile navigation toggle
@@ -1368,335 +1274,18 @@ $assets = [
     </script>
 
     <script>
-      (() => {
-        const fab = document.getElementById('chatFab');
-        const widget = document.getElementById('chatWidget');
-        const closeBtn = document.getElementById('chatClose');
-        const form = document.getElementById('chatForm');
-        const input = document.getElementById('chatText');
-        const body = document.getElementById('chatBody');
-        const balloon = document.getElementById('chatBalloon');
-
-        window.SERVICES = <?php
-          $chatServices = [];
-          $allActiveServices = $pdo->query("SELECT id, name, price, duration_minutes FROM services WHERE is_active = 1 AND (is_archived = 0 OR is_archived IS NULL) ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
-          foreach ($allActiveServices as $svc) {
-              $price = '₱' . number_format((float)$svc['price'], 2);
-              $duration = (int)$svc['duration_minutes'] . ' min';
-              $chatServices[] = ['id' => (int)$svc['id'], 'name' => $svc['name'], 'price' => $price, 'duration' => $duration];
-          }
-          echo json_encode($chatServices);
-        ?>;
-
-        function addMsg(role, text) {
-          const row = document.createElement('div');
-          row.className = `chat-msg chat-msg-${role}`;
-          const bubble = document.createElement('div');
-          bubble.className = 'chat-bubble';
-          bubble.textContent = text;
-          row.appendChild(bubble);
-          body.appendChild(row);
-          body.scrollTop = body.scrollHeight;
-          return bubble;
+      window.SERVICES = <?php
+        $chatServices = [];
+        $allActiveServices = $pdo->query("SELECT id, name, price, duration_minutes FROM services WHERE is_active = 1 AND (is_archived = 0 OR is_archived IS NULL) ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($allActiveServices as $svc) {
+            $price = '₱' . number_format((float)$svc['price'], 2);
+            $duration = (int)$svc['duration_minutes'] . ' min';
+            $chatServices[] = ['id' => (int)$svc['id'], 'name' => $svc['name'], 'price' => $price, 'duration' => $duration];
         }
-
-        function addComponent(el) {
-          body.appendChild(el);
-          body.scrollTop = body.scrollHeight;
-        }
-
-        function normalize(s) {
-          return (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
-        }
-
-        function renderServiceList(title) {
-          const container = document.createElement('div');
-          container.className = 'chat-service-container';
-
-          const header = document.createElement('div');
-          header.className = 'chat-service-header';
-          header.textContent = title || 'Our Services';
-          container.appendChild(header);
-
-          SERVICES.forEach(svc => {
-            const item = document.createElement('div');
-            item.className = 'chat-service-item';
-            item.setAttribute('role', 'button');
-            item.setAttribute('tabindex', '0');
-
-            const nameSpan = document.createElement('span');
-            nameSpan.className = 'chat-service-name';
-            nameSpan.textContent = svc.name;
-
-            const priceSpan = document.createElement('span');
-            priceSpan.className = 'chat-service-price';
-            priceSpan.textContent = svc.price;
-
-            item.appendChild(nameSpan);
-            item.appendChild(priceSpan);
-
-            item.addEventListener('click', () => renderServiceActions(svc));
-            item.addEventListener('keydown', (e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                renderServiceActions(svc);
-              }
-            });
-
-            container.appendChild(item);
-          });
-
-          const hint = document.createElement('span');
-          hint.className = 'chat-service-hint';
-          hint.textContent = 'Click a service to check price or book';
-          container.appendChild(hint);
-
-          addComponent(container);
-        }
-
-        function renderServiceActions(svc) {
-          const container = document.createElement('div');
-          container.className = 'chat-service-actions';
-
-          const selected = document.createElement('div');
-          selected.className = 'chat-service-selected';
-          selected.textContent = 'Selected: ' + svc.name;
-          container.appendChild(selected);
-
-          const btnGroup = document.createElement('div');
-          btnGroup.className = 'chat-action-buttons';
-
-          const priceBtn = document.createElement('button');
-          priceBtn.type = 'button';
-          priceBtn.className = 'chat-action-btn chat-action-btn-price';
-          priceBtn.textContent = 'Check Price';
-          priceBtn.addEventListener('click', () => {
-            container.remove();
-            showServicePrice(svc);
-          });
-
-          const bookBtn = document.createElement('button');
-          bookBtn.type = 'button';
-          bookBtn.className = 'chat-action-btn chat-action-btn-book';
-          bookBtn.textContent = 'Book Appointment';
-          bookBtn.addEventListener('click', () => {
-            container.remove();
-            startBooking(svc);
-          });
-
-          btnGroup.appendChild(priceBtn);
-          btnGroup.appendChild(bookBtn);
-          container.appendChild(btnGroup);
-          addComponent(container);
-        }
-
-        function showServicePrice(svc) {
-          addMsg('bot', svc.name + ': ' + svc.price + ' \u2022 ' + svc.duration + '. Would you like to book?');
-
-          const container = document.createElement('div');
-          container.className = 'chat-service-actions';
-
-          const btnGroup = document.createElement('div');
-          btnGroup.className = 'chat-action-buttons';
-
-          const bookBtn = document.createElement('button');
-          bookBtn.type = 'button';
-          bookBtn.className = 'chat-action-btn chat-action-btn-book';
-          bookBtn.textContent = 'Book Appointment';
-          bookBtn.addEventListener('click', () => {
-            container.remove();
-            startBooking(svc);
-          });
-
-          const backBtn = document.createElement('button');
-          backBtn.type = 'button';
-          backBtn.className = 'chat-action-btn chat-action-btn-back';
-          backBtn.textContent = '\u2190 Back to Services';
-          backBtn.addEventListener('click', () => {
-            container.remove();
-            renderServiceList();
-          });
-
-          btnGroup.appendChild(bookBtn);
-          btnGroup.appendChild(backBtn);
-          container.appendChild(btnGroup);
-          addComponent(container);
-        }
-
-        function startBooking(svc) {
-          document.getElementById('bookingService').value = svc.name + ' (' + svc.price + ')';
-          document.getElementById('bookingFirstName').value = '';
-          document.getElementById('bookingLastName').value = '';
-          document.getElementById('bookingEmail').value = '';
-          document.getElementById('bookingPhone').value = '';
-          document.getElementById('bookingDate').value = '';
-          document.getElementById('bookingTime').value = '';
-          document.getElementById('bookingStatus').textContent = '';
-          document.getElementById('bookingStatus').className = 'booking-status';
-          document.getElementById('bookingModal').setAttribute('aria-hidden', 'false');
-          document.body.style.overflow = 'hidden';
-          setTimeout(() => document.getElementById('bookingFirstName').focus(), 100);
-        }
-
-        function closeBookingModal() {
-          document.getElementById('bookingModal').setAttribute('aria-hidden', 'true');
-          document.body.style.overflow = '';
-        }
-
-        function isServiceQuery(nq) {
-          return /\b(services?)\b/.test(nq) ||
-                 /\b(procedures?|treatments?)\b/.test(nq) ||
-                 /what do you do/.test(nq) ||
-                 /do you offer/.test(nq) ||
-                 /are available/.test(nq);
-        }
-
-        function isBookingQuery(nq) {
-          return /\b(book|appointment|schedule|reserve)\b/.test(nq);
-        }
-
-        let typingRow = null;
-
-        async function processChat(msg) {
-          const nq = normalize(msg);
-
-          if (isServiceQuery(nq)) {
-            addMsg('bot', 'Here are our available services. Click any service to check the price or book an appointment:');
-            renderServiceList();
-            return;
-          }
-
-          if (isBookingQuery(nq)) {
-            addMsg('bot', "I'd be happy to help you book! Please select a service you're interested in:");
-            renderServiceList('Book an Appointment');
-            return;
-          }
-
-          const typingBubble = addMsg('bot', '...');
-          typingBubble.classList.add('typing-indicator');
-          typingRow = typingBubble.closest('.chat-msg');
-
-          try {
-            const response = await fetch('../api/ai_chat.php', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ message: msg })
-            });
-
-            if (!response.ok) {
-              const errorText = await response.text();
-              throw new Error('Server returned ' + response.status + ': ' + errorText.substring(0, 100));
-            }
-
-            const data = await response.json();
-            if (typingRow) typingRow.remove();
-            typingRow = null;
-
-            if (data.response) {
-              addMsg('bot', data.response);
-            } else if (data.error) {
-              addMsg('bot', "I'm sorry, I'm having an issue: " + data.error);
-            } else {
-              addMsg('bot', "I'm sorry, I encountered an unknown error. Please try again later.");
-            }
-          } catch (error) {
-            console.error('Chat Error:', error);
-            if (typingRow) typingRow.remove();
-            typingRow = null;
-            addMsg('bot', "I'm having trouble connecting to my brain right now. (Error: " + error.message + ").");
-          }
-        }
-
-        function openChat() {
-          widget.hidden = false;
-          fab.setAttribute('aria-expanded', 'true');
-          setTimeout(() => input.focus(), 0);
-          if (!body.dataset.greeted) {
-            addMsg('bot', "Hi! I'm RF Dental AI. Ask me about services, prices, durations, clinic hours, or booking.");
-            body.dataset.greeted = '1';
-          }
-        }
-
-        function closeChat() {
-          widget.hidden = true;
-          fab.setAttribute('aria-expanded', 'false');
-          fab.focus();
-        }
-
-        fab.addEventListener('click', () => (widget.hidden ? openChat() : closeChat()));
-        closeBtn.addEventListener('click', closeChat);
-        document.addEventListener('keydown', (e) => {
-          if (e.key === 'Escape' && !widget.hidden) closeChat();
-        });
-
-        form.addEventListener('submit', (e) => {
-          e.preventDefault();
-          const text = input.value.trim();
-          if (!text) return;
-          addMsg('user', text);
-          input.value = '';
-          processChat(text);
-        });
-
-        // Booking modal
-        document.getElementById('bookingModalClose').addEventListener('click', closeBookingModal);
-        document.querySelector('.booking-modal-overlay').addEventListener('click', closeBookingModal);
-
-        document.getElementById('bookingForm').addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const statusEl = document.getElementById('bookingStatus');
-          const svcName = document.getElementById('bookingService').value;
-          const firstName = document.getElementById('bookingFirstName').value.trim();
-          const lastName = document.getElementById('bookingLastName').value.trim();
-          const email = document.getElementById('bookingEmail').value.trim();
-          const phone = document.getElementById('bookingPhone').value.trim();
-          const date = document.getElementById('bookingDate').value;
-          const time = document.getElementById('bookingTime').value;
-
-          if (!firstName || !lastName || !email || !phone) {
-            statusEl.textContent = 'Please fill in all required fields.';
-            statusEl.className = 'booking-status error';
-            return;
-          }
-
-          statusEl.textContent = 'Submitting...';
-          statusEl.className = 'booking-status';
-
-          try {
-            const formData = new FormData();
-            formData.append('first_name', firstName);
-            formData.append('last_name', lastName);
-            formData.append('email', email);
-            formData.append('phone', phone);
-            formData.append('message', 'I would like to book an appointment for ' + svcName + '.' + (date ? ' Preferred date: ' + date : '') + (time ? ' at ' + time : ''));
-
-            const res = await fetch('../api/public_contact.php', { method: 'POST', body: formData });
-            const data = await res.json();
-
-            if (data.success) {
-              statusEl.textContent = 'Booking submitted! We will contact you soon.';
-              statusEl.className = 'booking-status success';
-              setTimeout(closeBookingModal, 2000);
-            } else {
-              statusEl.textContent = data.message || 'Submission failed. Please try again.';
-              statusEl.className = 'booking-status error';
-            }
-          } catch (err) {
-            statusEl.textContent = 'Connection error. Please try again.';
-            statusEl.className = 'booking-status error';
-          }
-        });
-
-        if (balloon) {
-          setTimeout(() => {
-            balloon.classList.add('show');
-            setTimeout(() => {
-              balloon.classList.remove('show');
-            }, 4000);
-          }, 1000);
-        }
-      })();
+        echo json_encode($chatServices);
+      ?>;
     </script>
+    <script src="../../assets/js/chatbot.js"></script>
 
     <script>
       (() => {
@@ -1718,6 +1307,14 @@ $assets = [
         const secureSubmit = document.getElementById('secureSubmit');
         const secureError = document.getElementById('secureError');
         const successToast = document.getElementById('bookingSuccessToast');
+        const neModal = document.getElementById('nameEmailModal');
+        const neOverlay = document.getElementById('nameEmailOverlay');
+        const neFirstName = document.getElementById('neFirstName');
+        const neMiddleName = document.getElementById('neMiddleName');
+        const neLastName = document.getElementById('neLastName');
+        const neEmail = document.getElementById('neEmail');
+        const neError = document.getElementById('neError');
+        const neSubmit = document.getElementById('neSubmitBtn');
 
         let bookingData = {};
 
@@ -1821,6 +1418,24 @@ $assets = [
           renderServiceList();
           serviceSlotModal.setAttribute('aria-hidden', 'false');
           document.body.style.overflow = 'hidden';
+        }
+
+        function showDateTimeStep(svc) {
+          selectedService = svc;
+          selectedSlot = null;
+          ssSelectedServiceLabel.textContent = 'Selected: ' + svc.name;
+          var today = new Date();
+          var y = today.getFullYear();
+          var m = String(today.getMonth() + 1).padStart(2, '0');
+          var d = String(today.getDate()).padStart(2, '0');
+          ssDate.value = y + '-' + m + '-' + d;
+          ssStep1.style.display = 'none';
+          ssStep2.style.display = '';
+          void ssStep2.offsetWidth;
+          ssStep2.classList.add('ss-step-enter');
+          serviceSlotModal.setAttribute('aria-hidden', 'false');
+          document.body.style.overflow = 'hidden';
+          fetchSlots(y + '-' + m + '-' + d);
         }
 
         function renderServiceList() {
@@ -2008,17 +1623,65 @@ $assets = [
           });
         }
 
-        // Choice: No - show Service & Slot modal
+        // Choice: No - show Service & Slot modal (or name/email modal if from chatbot)
         if (choiceNo) {
           choiceNo.addEventListener('click', function() {
             choiceModal.setAttribute('aria-hidden', 'true');
-            showServiceStep();
+            var svc = window.__chatbotService;
+            if (svc && (!bookingData.first || !bookingData.email)) {
+              neFirstName.value = '';
+              neMiddleName.value = '';
+              neLastName.value = '';
+              neEmail.value = '';
+              neError.textContent = '';
+              neModal.setAttribute('aria-hidden', 'false');
+              document.body.style.overflow = 'hidden';
+              setTimeout(function() { neFirstName.focus(); }, 100);
+            } else {
+              showServiceStep();
+            }
+          });
+        }
+
+        // Name/Email submit from chatbot booking
+        if (neSubmit) {
+          neSubmit.addEventListener('click', function() {
+            var first = neFirstName.value.trim();
+            var middle = neMiddleName.value.trim();
+            var last = neLastName.value.trim();
+            var email = neEmail.value.trim();
+            if (!first) {
+              neError.textContent = 'Please enter your first name.';
+              return;
+            }
+            if (!last) {
+              neError.textContent = 'Please enter your last name.';
+              return;
+            }
+            if (!email) {
+              neError.textContent = 'Please enter your email address.';
+              return;
+            }
+            if (!/\S+@\S+\.\S+/.test(email)) {
+              neError.textContent = 'Please enter a valid email address.';
+              return;
+            }
+            neError.textContent = '';
+            bookingData = { first: first, middle: middle, last: last, email: email };
+            neModal.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+            var svc = window.__chatbotService;
+            if (svc) {
+              window.__chatbotService = null;
+              showDateTimeStep(svc);
+            }
           });
         }
 
         // Close modals on overlay click
         if (choiceOverlay) choiceOverlay.addEventListener('click', closeChoiceModal);
         if (phoneOverlay) phoneOverlay.addEventListener('click', closePhoneModal);
+        if (neOverlay) neOverlay.addEventListener('click', function() { neModal.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; });
 
         // Escape key
         document.addEventListener('keydown', function(e) {
@@ -2030,6 +1693,7 @@ $assets = [
             }
             else if (choiceModal.getAttribute('aria-hidden') === 'false') closeChoiceModal();
             else if (phoneModal.getAttribute('aria-hidden') === 'false') closePhoneModal();
+            else if (neModal.getAttribute('aria-hidden') === 'false') { neModal.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; }
             else if (serviceSlotModal.getAttribute('aria-hidden') === 'false') closeServiceSlotModal();
             else if (bookingModal.getAttribute('aria-hidden') === 'false') closeBookingModal();
           }

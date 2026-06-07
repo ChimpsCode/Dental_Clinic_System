@@ -5,12 +5,7 @@
             </div>
         </div>
     </main>
-    <?php if (basename($_SERVER['PHP_SELF']) !== 'staff_new_admission.php'): ?>
-    <a href="../shared/staff_messages.php" class="floating-message-btn" title="Messages" aria-label="Open messages">
-        <i class="fas fa-message"></i>
-        <span class="staff-unread-badge" id="staffUnreadBadge" style="display:none;">0</span>
-    </a>
-    <?php endif; ?>
+
 
     <script>
         
@@ -42,39 +37,6 @@
         })();
     </script>
     <script src="../../assets/js/dashboard.js"></script>
-    <script>
-        (function () {
-            const badge = document.getElementById('staffUnreadBadge');
-            if (!badge) return;
-
-            function updateBadge(count) {
-                if (count > 0) {
-                    badge.textContent = count > 99 ? '99+' : String(count);
-                    badge.style.display = 'inline-flex';
-                } else {
-                    badge.style.display = 'none';
-                }
-            }
-
-            async function pollUnreadMessages() {
-                try {
-                    const payload = new FormData();
-                    payload.append('ajax', '1');
-                    payload.append('action', 'get_unread_summary');
-                    const response = await fetch('../shared/staff_messages.php', {
-                        method: 'POST',
-                        body: payload
-                    });
-                    const data = await response.json();
-                    if (!response.ok || !data.success) return;
-                    updateBadge(Number(data.total_unread || 0));
-                } catch (_err) {}
-            }
-
-            pollUnreadMessages();
-            setInterval(pollUnreadMessages, 3000);
-        })();
-    </script>
     <script>
         
         function markNotificationRead(notificationId, actionUrl, event) {

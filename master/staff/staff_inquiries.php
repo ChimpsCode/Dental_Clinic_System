@@ -194,7 +194,7 @@ require_once '../../includes/staff_layout_start.php';
 }
 .table-wrap {
     overflow: auto;
-    padding: 16px 0 4px;
+    padding: 16px 16px 4px;
 }
 .data-table {
     width: 100%;
@@ -219,9 +219,15 @@ require_once '../../includes/staff_layout_start.php';
     font-size: 14px;
 }
 .patient-name {
-    font-size: 15px;
-    font-weight: 800;
+    font-size: 14px;
     color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.msg-cell {
+    max-width: 220px;
+    word-break: break-word;
 }
 .muted-text {
     color: #64748b;
@@ -566,6 +572,60 @@ require_once '../../includes/staff_layout_start.php';
     padding: 54px 24px;
     color: #64748b;
 }
+/* Pagination */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.pagination-info {
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+.pagination-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+.pagination-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    text-decoration: none;
+    color: #4a5568;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    min-width: 32px;
+    cursor: pointer;
+}
+.pagination-btn:hover:not(.active):not(:disabled) {
+    background-color: #f7fafc;
+    border-color: #cbd5e0;
+}
+.pagination-btn.active {
+    background-color: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+}
+.pagination-btn:disabled {
+    color: #a0aec0;
+    background-color: #fff;
+    cursor: not-allowed;
+    border-color: #edf2f7;
+}
+.pagination-ellipsis {
+    color: #a0aec0;
+    padding: 0 4px;
+}
+
 @media (max-width: 1180px) {
     .filter-row {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -678,11 +738,11 @@ require_once '../../includes/staff_layout_start.php';
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>Name</th>
-                        <th>Contact</th>
+                        <th style="padding-left: 40px;">First Name</th>
+                        <th>Middle Name</th>
+                        <th>Last Name</th>
                         <th>Message</th>
                         <th>Status</th>
-                        <th>Date</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -693,7 +753,9 @@ require_once '../../includes/staff_layout_start.php';
             <h3 style="margin:0 0 8px;color:#0f172a;">No inquiries yet</h3>
             <p style="margin:0 0 18px;">No inquiries matched your current search or filter settings.</p>
         </div>
+        
     </section>
+    <div class="pagination" id="pagination"></div>
 </div>
 
 <div class="modal-overlay" id="replyModal">
@@ -708,6 +770,7 @@ require_once '../../includes/staff_layout_start.php';
             <div class="chat-modal-user-info">
                 <div class="chat-modal-name" id="replyFromName"></div>
                 <div class="chat-modal-email" id="replyEmail"></div>
+                <div class="chat-modal-email" id="replyPhone" style="color:#64748b;font-size:11px;margin-top:1px;"></div>
             </div>
             <div class="chat-modal-source" id="replySource"></div>
         </div>
@@ -739,6 +802,8 @@ const inquiries = <?php echo json_encode($inquiries); ?>;
 let inquiryMap = Object.fromEntries(inquiries.map((item) => [String(item.id), item]));
 let filteredInquiries = [...inquiries];
 let activeInquiryId = null;
+let currentPage = 1;
+const itemsPerPage = 8;
 
 const searchInput = document.getElementById('searchInput');
 const statusFilter = document.getElementById('statusFilter');
@@ -813,6 +878,7 @@ function isWithinDateFilter(inquiry) {
 }
 
 function applyFilters() {
+    currentPage = 1;
     const query = searchInput.value.trim().toLowerCase();
     filteredInquiries = inquiries.filter((inquiry) => {
         const haystack = [
@@ -841,17 +907,25 @@ function applyFilters() {
 }
 
 function renderTable() {
-    if (!filteredInquiries.length) {
+    const total = filteredInquiries.length;
+    const totalPages = Math.max(1, Math.ceil(total / itemsPerPage));
+    if (currentPage > totalPages) currentPage = totalPages;
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = Math.min(start + itemsPerPage, total);
+    const pageItems = filteredInquiries.slice(start, end);
+
+    if (!total) {
         tableBody.innerHTML = '';
         emptyTableState.style.display = 'block';
         resultsSummary.textContent = 'Showing 0 inquiries';
+        document.getElementById('pagination').innerHTML = '';
         return;
     }
 
     emptyTableState.style.display = 'none';
-    resultsSummary.textContent = `Showing ${filteredInquiries.length} ${filteredInquiries.length === 1 ? 'inquiry' : 'inquiries'}`;
+    resultsSummary.textContent = `${total} ${total === 1 ? 'inquiry' : 'inquiries'} found`;
 
-    tableBody.innerHTML = filteredInquiries.map((inquiry) => {
+    tableBody.innerHTML = pageItems.map((inquiry) => {
         const concern = inquiry.concern || inquiry.inquiry_message || 'No concern provided';
         const preview = concern.length > 92 ? `${concern.slice(0, 92)}...` : concern;
         const displayFirstName = escapeHtml(inquiry.first_name || '');
@@ -862,21 +936,30 @@ function renderTable() {
         return `
             <tr>
                 <td>
-                    <div class="patient-name">${hasName ? `
-                        <div style="font-size:15px;line-height:1.4">${displayFirstName}</div>
-                        ${displayMiddleName ? `<div style="font-size:15px;line-height:1.4;color:#9ca3af">${displayMiddleName}</div>` : ''}
-                        <div style="font-size:15px;line-height:1.4">${displayLastName}</div>
-                    ` : 'Unknown Patient'}</div>
+                    <div style="display:flex;
+                    align-items:flex-start;
+                    gap:12px">
+                        <div 
+                            style="width:40px;
+                            height:40px;
+                            border-radius:50%;
+                            background:linear-gradient(135deg,#2563eb,#1d4ed8);
+                            color:#fff;
+                            display:flex;
+                            align-items:center;
+                            justify-content:center;
+                            font-weight:700;
+                            font-size:14px;
+                            flex-shrink:0">${escapeHtml(getInitials((inquiry.first_name||'')+' '+(inquiry.last_name||'')))}</div>
+                        <div class="patient-name">${displayFirstName || '-'}</div>
+                    </div>
                 </td>
-                <td>
-                    <div>${escapeHtml(inquiry.email || 'No email')}</div>
-                    <div class="muted-text">${escapeHtml(inquiry.phone || inquiry.contact_info || 'No phone')}</div>
-                </td>
-                <td>
+                <td><div class="patient-name">${displayMiddleName || '-'}</div></td>
+                <td><div class="patient-name">${displayLastName || '-'}</div></td>
+                <td class="msg-cell">
                     <div class="muted-text">${escapeHtml(preview)}</div>
                 </td>
                 <td><span class="status-badge ${escapeHtml(getStatusClass(status))}">${escapeHtml(status)}</span></td>
-                <td>${escapeHtml(formatCreatedAt(inquiry.created_at))}</td>
                 <td class="actions-cell">
                     <button
                         type="button"
@@ -897,6 +980,66 @@ function renderTable() {
             </tr>
         `;
     }).join('');
+    renderPagination();
+}
+
+function renderPagination() {
+    const total = filteredInquiries.length;
+    const totalPages = Math.max(1, Math.ceil(total / itemsPerPage));
+    const container = document.getElementById('pagination');
+
+    if (total <= itemsPerPage) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = Math.min(start + itemsPerPage, total);
+
+    const pages = [];
+    const range = 2;
+
+    const addPage = (p) => {
+        if (p >= 1 && p <= totalPages) {
+            const active = p === currentPage ? ' active' : '';
+            pages.push(`<button type="button" class="pagination-btn${active}" onclick="goToPage(${p})">${p}</button>`);
+        }
+    };
+
+    const addEllipsis = () => {
+        if (pages[pages.length - 1] !== 'ellipsis') pages.push('ellipsis');
+    };
+
+    addPage(1);
+
+    if (currentPage - range > 2) addEllipsis();
+
+    for (let i = Math.max(2, currentPage - range); i <= Math.min(totalPages - 1, currentPage + range); i++) {
+        addPage(i);
+    }
+
+    if (currentPage + range < totalPages - 1) addEllipsis();
+
+    if (totalPages > 1) addPage(totalPages);
+
+    const prevDisabled = currentPage <= 1 ? ' disabled' : '';
+    const nextDisabled = currentPage >= totalPages ? ' disabled' : '';
+
+    container.innerHTML =
+        `<span class="pagination-info">Showing ${start + 1}–${end} of ${total} inquiries</span>` +
+        `<div class="pagination-buttons">` +
+            `<button type="button" class="pagination-btn" onclick="goToPage(currentPage - 1)"${prevDisabled}>Previous</button>` +
+            pages.map(p => p === 'ellipsis' ? '<span class="pagination-ellipsis">...</span>' : p).join('') +
+            `<button type="button" class="pagination-btn" onclick="goToPage(currentPage + 1)"${nextDisabled}>Next</button>` +
+        `</div>`;
+}
+
+function goToPage(page) {
+    const total = filteredInquiries.length;
+    const totalPages = Math.max(1, Math.ceil(total / itemsPerPage));
+    if (page < 1 || page > totalPages || page === currentPage) return;
+    currentPage = page;
+    renderTable();
 }
 
 function resetFilters() {
@@ -908,6 +1051,7 @@ function resetFilters() {
     dateFrom.value = '';
     dateTo.value = '';
     customRangeRow.classList.remove('active');
+    currentPage = 1;
     applyFilters();
 }
 
@@ -1166,6 +1310,7 @@ function openReplyModal(id) {
     document.getElementById('replyFromName').textContent = fullName;
     document.getElementById('replySource').textContent = inquiry.source || 'Website';
     document.getElementById('replyEmail').textContent = inquiry.email || 'No email';
+    document.getElementById('replyPhone').textContent = inquiry.phone || inquiry.contact_info || 'No phone';
     document.getElementById('replyAvatar').textContent = getInitials(fullName);
 
     const concernText = inquiry.concern || inquiry.inquiry_message || 'No concern provided.';
@@ -1201,6 +1346,7 @@ function openReplyModal(id) {
     if ((inquiry.status || 'Unread') === 'Unread') {
         inquiry.status = 'Read';
         postAction({ action: 'mark_read', id });
+        applyFilters();
     }
 
     setTimeout(() => msgInput.focus(), 200);

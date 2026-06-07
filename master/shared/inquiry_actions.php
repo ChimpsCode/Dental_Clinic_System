@@ -471,6 +471,39 @@ if ($action === 'detail') {
     inquiryJson(['success' => true, 'inquiry' => $inquiry]);
 }
 
+if ($action === 'get_inquiries') {
+    if (!inquiryCanManage($role)) {
+        inquiryJson(['success' => false, 'message' => 'Unauthorized.']);
+    }
+
+    $offset = max(0, (int)($_REQUEST['offset'] ?? 0));
+    $limit = min(50, max(1, (int)($_REQUEST['limit'] ?? 20)));
+
+    $stmt = $pdo->prepare("
+        SELECT i.*, s.name AS service_name,
+               ass.first_name AS assigned_first_name,
+               ass.last_name AS assigned_last_name,
+               ass.username AS assigned_username
+        FROM inquiries i
+        LEFT JOIN services s ON s.id = i.service_id
+        LEFT JOIN users ass ON ass.id = i.assigned_staff_id
+        WHERE COALESCE(i.is_archived, 0) = 0
+        ORDER BY i.created_at DESC, i.id DESC
+        LIMIT ? OFFSET ?
+    ");
+    $stmt->execute([$limit, $offset]);
+    $inquiries = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $unreadStmt = $pdo->query("
+        SELECT COUNT(*) FROM inquiries
+        WHERE status = 'Unread'
+          AND COALESCE(is_archived, 0) = 0
+    ");
+    $unreadCount = (int)$unreadStmt->fetchColumn();
+
+    inquiryJson(['success' => true, 'inquiries' => $inquiries, 'unread_count' => $unreadCount]);
+}
+
 if ($method !== 'POST') {
     inquiryJson(['success' => false, 'message' => 'Invalid request method.']);
 }
@@ -508,7 +541,7 @@ if ($action === 'create') {
         'phone' => $phone,
         'email' => $email,
         'concern' => $concern,
-        'status' => 'Open',
+        'status' => 'Unread',
         'assigned_staff_id' => null,
         'notes' => null,
         'source' => $source,
@@ -533,7 +566,7 @@ if ($action === 'create') {
     if (inquiryColumnExists($pdo, 'inquiries', 'status_id')) {
         $statusId = null;
         $statusLookup = $pdo->prepare("SELECT id FROM inquiry_statuses WHERE status_name = ? LIMIT 1");
-        $statusLookup->execute([$status]);
+        $statusLookup->execute(['Unread']);
         $statusId = $statusLookup->fetchColumn();
         if ($statusId !== false) {
             $columns[] = 'status_id';

@@ -505,6 +505,7 @@ try {
         .kebab-menu button:last-child { border-radius: 0 0 8px 8px; }
         .kebab-menu button.delete-btn { color: #dc2626; }
         .kebab-menu button.delete-btn:hover { background: #fef2f2; }
+        html, body { overflow-x: hidden; width: 100%; }
     </style>
 </head>
 <body data-user-id="<?php echo (int)($_SESSION['user_id'] ?? 0); ?>">
