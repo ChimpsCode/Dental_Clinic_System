@@ -555,8 +555,66 @@ function saveBillingAdjustment(patientId, queueId) {
     });
 }
 
+function togglePaymentInput() {
+    const container = document.getElementById('paymentInputContainer');
+    const btn = document.getElementById('recordPaymentBtn');
+    if (container.style.display === 'none' || !container.style.display) {
+        container.style.display = 'block';
+        btn.textContent = 'Cancel';
+        btn.style.background = '#6b7280';
+    } else {
+        container.style.display = 'none';
+        btn.textContent = 'Record Payment';
+        btn.style.background = '#0891b2';
+    }
+}
+
+function recordPayment(patientId, queueId) {
+    const amountInput = document.getElementById('paymentAmountInput');
+    const methodInput = document.getElementById('paymentMethodInput');
+    const amount = parseFloat(amountInput.value) || 0;
+    const method = methodInput.value;
+
+    if (amount <= 0) {
+        alert('Please enter a valid payment amount.');
+        return;
+    }
+    if (!confirm('Record payment of ₱' + amount.toLocaleString('en-PH', {minimumFractionDigits: 2}) + ' via ' + method + '?')) return;
+    
+    fetch('../shared/billing_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'record_payment',
+            patient_id: patientId,
+            queue_id: queueId,
+            amount: amount,
+            payment_method: method
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Payment of ₱' + amount.toLocaleString('en-PH', {minimumFractionDigits: 2}) + ' recorded.');
+            togglePaymentInput();
+            loadBillingInfo(patientId);
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to record payment');
+    });
+}
+
 function markAsPaidComplete(patientId, queueId) {
-    const amount = currentTotalAmount > 0 ? currentTotalAmount : currentStandardPrice;
+    const paidEl = document.getElementById('detailsPaidAmount');
+    const paidText = paidEl ? paidEl.innerText.replace('₱', '').replace(/,/g, '') : '0';
+    const paidAmount = parseFloat(paidText) || 0;
+    const remaining = Math.max(0, currentTotalAmount - paidAmount);
+    const amount = remaining > 0 ? remaining : currentTotalAmount;
+    if (amount <= 0) { alert('This bill is already fully paid.'); return; }
     if (!confirm('Mark as paid for ₱' + amount.toLocaleString('en-PH', {minimumFractionDigits: 2}) + '?')) return;
     
     fetch('../shared/billing_actions.php', {
@@ -663,9 +721,7 @@ function viewPatientDetails(patientId) {
                     <div class="patient-info-grid">
                         <div class="patient-info-item">
                             <div class="patient-info-label">Standard Price (Services)</div>
-                            <div id="detailsEstimatedAmount" class="patient-info-value" style="color:#92400e;">
-                                ₱${q.service_price ? parseFloat(q.service_price).toLocaleString('en-PH', {minimumFractionDigits: 2}) : '0.00'}
-                            </div>
+                            <div id="detailsEstimatedAmount" class="patient-info-value" style="color:#92400e;">₱0.00</div>
                         </div>
                         <div class="patient-info-item">
                             <div class="patient-info-label">Additional Adjustment</div>
@@ -676,9 +732,15 @@ function viewPatientDetails(patientId) {
                         </div>
                         <div class="patient-info-item">
                             <div class="patient-info-label">Final Total Amount</div>
-                            <div id="detailsTotalAmount" class="patient-info-value" style="font-weight:800;color:#111827;font-size:1.1rem;">
-                                ₱${q.service_price ? parseFloat(q.service_price).toLocaleString('en-PH', {minimumFractionDigits: 2}) : '0.00'}
-                            </div>
+                            <div id="detailsTotalAmount" class="patient-info-value" style="font-weight:800;color:#111827;font-size:1.1rem;">₱0.00</div>
+                        </div>
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Paid Amount</div>
+                            <div id="detailsPaidAmount" class="patient-info-value" style="color:#16a34a;">₱0.00</div>
+                        </div>
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Remaining Balance</div>
+                            <div id="detailsBalance" class="patient-info-value" style="color:#dc2626;">₱0.00</div>
                         </div>
                         <div class="patient-info-item">
                             <div class="patient-info-label">Payment Status</div>
@@ -687,9 +749,30 @@ function viewPatientDetails(patientId) {
                             </div>
                         </div>
                     </div>
-                    <div style="margin-top:16px;display:flex;gap:12px;align-items:center;">
+                    <div style="margin-top:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
                         <button onclick="saveBillingAdjustment(${p.id}, ${q.id})" id="saveBillingBtn" class="btn-primary" style="padding:8px 16px;display:none;">Save Amount</button>
-                        <button onclick="markAsPaidComplete(${p.id}, ${q.id})" id="markPaidBtn" class="btn-primary" style="padding:8px 16px;background:#16a34a;">Mark as Paid</button>
+                        <button onclick="togglePaymentInput()" id="recordPaymentBtn" class="btn-primary" style="padding:8px 16px;background:#0891b2;">Record Payment</button>
+                        <button onclick="markAsPaidComplete(${p.id}, ${q.id})" id="markPaidBtn" class="btn-primary" style="padding:8px 16px;background:#16a34a;">Mark as Fully Paid</button>
+                    </div>
+                    <!-- Inline Payment Form -->
+                    <div id="paymentInputContainer" style="display:none;margin-top:12px;padding:12px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;">
+                        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+                            <div>
+                                <div style="font-size:0.75rem;color:#6b7280;margin-bottom:4px;">Payment Amount</div>
+                                <input type="number" id="paymentAmountInput" class="patient-info-value" style="color:#111827;font-weight:700;padding:8px;border:2px solid #16a34a;border-radius:8px;width:150px;" placeholder="Enter amount" value="0">
+                            </div>
+                            <div>
+                                <div style="font-size:0.75rem;color:#6b7280;margin-bottom:4px;">Payment Method</div>
+                                <select id="paymentMethodInput" style="padding:8px;border:2px solid #d1d5db;border-radius:8px;font-size:0.9rem;font-weight:600;">
+                                    <option value="Cash">Cash</option>
+                                    <option value="GCash">GCash</option>
+                                    <option value="Bank Transfer">Bank Transfer</option>
+                                    <option value="Card">Card</option>
+                                </select>
+                            </div>
+                            <button onclick="recordPayment(${p.id}, ${q.id})" class="btn-primary" style="padding:8px 20px;background:#16a34a;margin-top:16px;">Confirm Payment</button>
+                            <button onclick="togglePaymentInput()" class="btn-cancel" style="padding:8px 20px;margin-top:16px;">Cancel</button>
+                        </div>
                     </div>
                 </div>
 
@@ -728,11 +811,6 @@ function viewPatientDetails(patientId) {
             if (q.id) {
                 setupNotesAutoSave(q.id);
                 loadBillingInfo(p.id);
-                
-                // Set billing globals for adjustment
-                currentStandardPrice = parseFloat(q.service_price) || 500;
-                currentTotalAmount = currentStandardPrice;
-                updateBillingTotal();
             }
         }
     });
@@ -846,7 +924,15 @@ function loadBillingInfo(patientId) {
             const b = data.billing;
             const standardPrice = parseFloat(b.estimated_amount || 0);
             const finalTotal = parseFloat(b.total_amount || standardPrice);
+            const paidAmount = parseFloat(b.paid_amount || 0);
+            const balance = parseFloat(b.balance || finalTotal);
             const adjustment = finalTotal - standardPrice;
+            
+            // Sync global variables with actual data
+            currentStandardPrice = standardPrice;
+            currentTotalAmount = finalTotal;
+            const adjInput = document.getElementById('adjustmentInput');
+            if (adjInput) adjInput.value = 0;
             
             // Display procedure name from database
             const procNameEl = document.getElementById('modalProcedureName');
@@ -862,13 +948,21 @@ function loadBillingInfo(patientId) {
             
             document.getElementById('detailsEstimatedAmount').innerText = '₱' + standardPrice.toLocaleString('en-PH', {minimumFractionDigits: 2});
             document.getElementById('detailsTotalAmount').innerText = '₱' + finalTotal.toLocaleString('en-PH', {minimumFractionDigits: 2});
+            document.getElementById('detailsPaidAmount').innerText = '₱' + paidAmount.toLocaleString('en-PH', {minimumFractionDigits: 2});
+            document.getElementById('detailsBalance').innerText = '₱' + balance.toLocaleString('en-PH', {minimumFractionDigits: 2});
             
             const adjustmentEl = document.getElementById('detailsAdjustmentAmount');
             const sign = adjustment >= 0 ? '+' : '-';
             adjustmentEl.innerText = sign + '₱' + Math.abs(adjustment).toLocaleString('en-PH', {minimumFractionDigits: 2});
             adjustmentEl.style.color = adjustment >= 0 ? '#0ea5e9' : '#dc2626';
 
-            document.getElementById('detailsStatus').innerHTML = `<span style="background:${b.payment_status === 'paid' ? '#dcfce7' : '#fee2e2'};color:${b.payment_status === 'paid' ? '#15803d' : '#991b1b'};padding:4px 12px;border-radius:9999px;font-size:0.85rem;">${b.payment_status.toUpperCase()}</span>`;
+            const status = (b.payment_status || 'unpaid').toLowerCase();
+            let statusBg = '#fee2e2';
+            let statusColor = '#991b1b';
+            let statusLabel = status.toUpperCase();
+            if (status === 'paid') { statusBg = '#dcfce7'; statusColor = '#15803d'; }
+            else if (status === 'partial') { statusBg = '#fef3c7'; statusColor = '#92400e'; statusLabel = 'PARTIAL'; }
+            document.getElementById('detailsStatus').innerHTML = `<span style="background:${statusBg};color:${statusColor};padding:4px 12px;border-radius:9999px;font-size:0.85rem;font-weight:600;">${statusLabel}</span>`;
         } else if (data.message) {
             console.error('Billing error:', data.message);
         }

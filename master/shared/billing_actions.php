@@ -499,6 +499,109 @@ try {
             }
             break;
             
+        case 'record_payment':
+            // Used by dentist_dashboard.php, staff_payment.php, staff_billing.php for partial/down payments
+            $input = json_decode(file_get_contents('php://input'), true);
+            
+            $patient_id = $input['patient_id'] ?? 0;
+            $queue_id = $input['queue_id'] ?? 0;
+            $billing_id = $input['billing_id'] ?? 0;
+            $amount = floatval($input['amount'] ?? 0);
+            $payment_method = $input['payment_method'] ?? 'Cash';
+            
+            if (!$patient_id || $amount <= 0) {
+                $response['message'] = 'Patient ID and valid amount are required';
+                echo json_encode($response);
+                exit;
+            }
+            
+            $patient_name = getPatientName($pdo, $patient_id);
+            $paymentDate = date('Y-m-d');
+            
+            $pdo->beginTransaction();
+            
+            try {
+                // Find or create billing record
+                if ($billing_id) {
+                    $stmt = $pdo->prepare("SELECT id, total_amount, paid_amount, balance, payment_status FROM billing WHERE id = ?");
+                    $stmt->execute([$billing_id]);
+                } else {
+                    $stmt = $pdo->prepare("SELECT id, total_amount, paid_amount, balance, payment_status FROM billing WHERE patient_id = ? ORDER BY created_at DESC LIMIT 1");
+                    $stmt->execute([$patient_id]);
+                }
+                $billing = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($billing) {
+                    $billing_id = $billing['id'];
+                    $total_amount = floatval($billing['total_amount']);
+                    $old_paid = floatval($billing['paid_amount']);
+                    $new_paid = $old_paid + $amount;
+                    $new_balance = max(0, $total_amount - $new_paid);
+                    
+                    // Determine new payment status
+                    $new_status = 'partial';
+                    $new_status_id = 2; // Partial
+                    if ($new_balance <= 0) { $new_status = 'paid'; $new_status_id = 1; } // Paid
+                    
+                    $stmt = $pdo->query("DESCRIBE billing");
+                    $bcols = array_column($stmt->fetchAll(), 'Field');
+                    $bupdates = [];
+                    $bparams = [];
+                    $bupdates[] = "paid_amount = ?"; $bparams[] = $new_paid;
+                    $bupdates[] = "balance = ?"; $bparams[] = $new_balance;
+                    $bupdates[] = "payment_status = ?"; $bparams[] = $new_status;
+                    if (in_array('payment_status_id', $bcols)) { $bupdates[] = "payment_status_id = ?"; $bparams[] = $new_status_id; }
+                    $bupdates[] = "updated_at = NOW()";
+                    $bparams[] = $billing_id;
+                    $stmt = $pdo->prepare("UPDATE billing SET " . implode(', ', $bupdates) . " WHERE id = ?");
+                    $stmt->execute($bparams);
+                } else {
+                    // Create new billing if none exists
+                    $total_amount = $amount;
+                    $new_paid = $amount;
+                    $new_balance = 0;
+                    
+                    $stmt = $pdo->query("DESCRIBE billing");
+                    $bcols = array_column($stmt->fetchAll(), 'Field');
+                    $bcolsList = [];
+                    $bvals = [];
+                    if (in_array('patient_id', $bcols)) { $bcolsList[] = "patient_id"; $bvals[] = $patient_id; }
+                    if (in_array('total_amount', $bcols)) { $bcolsList[] = "total_amount"; $bvals[] = $amount; }
+                    if (in_array('paid_amount', $bcols)) { $bcolsList[] = "paid_amount"; $bvals[] = $amount; }
+                    if (in_array('balance', $bcols)) { $bcolsList[] = "balance"; $bvals[] = 0; }
+                    if (in_array('payment_status', $bcols)) { $bcolsList[] = "payment_status"; $bvals[] = 'paid'; }
+                    if (in_array('billing_date', $bcols)) { $bcolsList[] = "billing_date"; $bvals[] = $paymentDate; }
+                    if (in_array('created_at', $bcols)) { $bcolsList[] = "created_at"; $bvals[] = 'NOW()'; }
+                    if (in_array('updated_at', $bcols)) { $bcolsList[] = "updated_at"; $bvals[] = 'NOW()'; }
+                    if (!empty($bcolsList)) {
+                        $sql = "INSERT INTO billing (" . implode(', ', $bcolsList) . ") VALUES (" . implode(', ', array_fill(0, count($bvals), '?')) . ")";
+                        $stmt = $pdo->prepare($sql);
+                        $stmt->execute($bvals);
+                        $billing_id = $pdo->lastInsertId();
+                    }
+                }
+                
+                // Create payment record
+                $stmt = $pdo->prepare("
+                    INSERT INTO payments (billing_id, patient_id, amount, payment_method, payment_date, created_by, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, NOW())
+                ");
+                $stmt->execute([$billing_id, $patient_id, $amount, $payment_method, $paymentDate, $current_user_id]);
+                $payment_id = $pdo->lastInsertId();
+                
+                $pdo->commit();
+                
+                logAudit($pdo, $current_user_id, $current_username, $current_role, 'payment', 'billing', 'Partial payment recorded: ₱' . number_format($amount, 2) . ' via ' . $payment_method . ' for patient: ' . $patient_name, $billing_id, 'billing', 'pending', $new_status ?? 'partial');
+                logAudit($pdo, $current_user_id, $current_username, $current_role, 'create', 'payments', 'Created payment record: ₱' . number_format($amount, 2) . ' for patient: ' . $patient_name, $payment_id, 'payments', null, '₱' . number_format($amount, 2));
+                
+                $response['success'] = true;
+                $response['message'] = 'Payment recorded successfully';
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                throw $e;
+            }
+            break;
+            
         case 'update_amount':
             // Used by admin_payment.php, dentist_dashboard.php, dentist_appointments.php
             $input = json_decode(file_get_contents('php://input'), true);

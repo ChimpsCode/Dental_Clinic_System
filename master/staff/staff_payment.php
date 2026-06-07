@@ -54,7 +54,7 @@ try {
         if ($statusFilter === 'paid') {
             $whereClause .= " AND (b.payment_status = 'paid' OR b.payment_status_id = 1)";
         } elseif ($statusFilter === 'unpaid') {
-            $whereClause .= " AND (b.id IS NULL OR ((b.payment_status IS NULL OR b.payment_status IN ('pending', 'unpaid')) AND (b.payment_status_id IS NULL OR b.payment_status_id <> 1)))";
+            $whereClause .= " AND (b.id IS NULL OR ((b.payment_status IS NULL OR b.payment_status IN ('pending', 'unpaid', 'partial')) AND (b.payment_status_id IS NULL OR b.payment_status_id NOT IN (1))))";
         }
     }
     
@@ -113,6 +113,7 @@ try {
                 b.payment_status_id,
                 CASE
                     WHEN b.payment_status_id = 1 OR b.payment_status = 'paid' THEN 'paid'
+                    WHEN b.payment_status = 'partial' OR b.payment_status_id = 2 THEN 'partial'
                     ELSE 'unpaid'
                 END AS effective_payment_status,
                 b.billing_date,
@@ -324,7 +325,9 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                             <?php else: ?>
                             <?php foreach ($paymentRecords as $record): ?>
                             <?php 
-                                $isPaid = (($record['effective_payment_status'] ?? 'unpaid') === 'paid');
+                                $payStatus = $record['effective_payment_status'] ?? 'unpaid';
+                                $isPaid = ($payStatus === 'paid');
+                                $isPartial = ($payStatus === 'partial');
                                 $calculatedAmount = $record['amount'] > 0 ? $record['amount'] : calculateAmount($record['treatment_type'], $servicesMap);
                             ?>
                             <tr data-queue-id="<?php echo (int)($record['queue_id'] ?? 0); ?>" data-patient-id="<?php echo (int)$record['patient_id']; ?>" data-billing-id="<?php echo (int)$record['billing_id']; ?>">
@@ -358,6 +361,8 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                 <td>
                                     <?php if ($isPaid): ?>
                                         <span class="status-badge paid">Paid</span>
+                                    <?php elseif ($isPartial): ?>
+                                        <span class="status-badge partial">Partial</span>
                                     <?php else: ?>
                                         <span class="status-badge unpaid">Unpaid</span>
                                     <?php endif; ?>
@@ -371,7 +376,9 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                             data-billing-id="<?php echo (int)$record['billing_id']; ?>"
                                             data-amount="<?php echo $calculatedAmount; ?>"
                                             data-treatment="<?php echo htmlspecialchars($record['treatment_type'] ?: 'General Checkup'); ?>"
-                                            data-is-paid="<?php echo $isPaid ? '1' : '0'; ?>"
+                                            data-is-paid="<?php echo $isPaid ? '1' : ($isPartial ? '0' : '0'); ?>"
+                                            data-paid-amount="<?php echo (float)($record['paid_amount'] ?? 0); ?>"
+                                            data-balance="<?php echo max(0, $calculatedAmount - (float)($record['paid_amount'] ?? 0)); ?>"
                                             aria-label="Payment actions for queue <?php echo $record['queue_id']; ?>"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -508,6 +515,58 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     <div class="modal-actions">
                         <button type="button" class="btn-cancel" onclick="closeConfirmPaymentModal()">Cancel</button>
                         <button type="button" class="btn-primary" onclick="confirmPayment()">Confirm Payment</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Record Payment Modal -->
+            <div id="recordPaymentModal" class="modal-overlay" style="display: none;">
+                <div class="modal">
+                    <div class="modal-header">
+                        <h2>Record Payment</h2>
+                        <button class="modal-close" onclick="closeRecordPaymentModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="payment-details">
+                            <div class="detail-row">
+                                <span class="detail-label">Treatment:</span>
+                                <span class="detail-value" id="recordPaymentTreatment">-</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Total Amount:</span>
+                                <span class="detail-value" id="recordPaymentTotalAmount">P0.00</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Paid So Far:</span>
+                                <span class="detail-value" id="recordPaymentPaidSoFar">P0.00</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Balance:</span>
+                                <span class="detail-value" id="recordPaymentBalance">P0.00</span>
+                            </div>
+                        </div>
+                        <div style="margin-top: 1rem;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Payment Amount</label>
+                            <input type="number" id="recordPaymentAmount" step="0.01" min="0.01" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 0.9rem; box-sizing: border-box;">
+                        </div>
+                        <div style="margin-top: 1rem;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Payment Method</label>
+                            <select id="recordPaymentMethod" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 0.9rem; background: white; box-sizing: border-box;">
+                                <option value="cash">Cash</option>
+                                <option value="card">Card</option>
+                                <option value="gcash">GCash</option>
+                                <option value="maya">Maya</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="installment">Installment</option>
+                            </select>
+                        </div>
+                        <input type="hidden" id="recordPaymentQueueId">
+                        <input type="hidden" id="recordPaymentPatientId">
+                        <input type="hidden" id="recordPaymentBillingId">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-cancel" onclick="closeRecordPaymentModal()">Cancel</button>
+                        <button type="button" class="btn-primary" onclick="confirmRecordPayment()">Record Payment</button>
                     </div>
                 </div>
             </div>
@@ -691,7 +750,12 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     background: #dcfce7;
                     color: #16a34a;
                 }
-
+                
+                .status-badge.partial {
+                    background: #fef3c7;
+                    color: #92400e;
+                }
+                
                 .status-badge.unpaid {
                     background: #fef3c7;
                     color: #d97706;
@@ -1035,12 +1099,16 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                 (function() {
                     const paymentModal = document.getElementById('paymentModal');
                     const confirmPaymentModal = document.getElementById('confirmPaymentModal');
+                    const recordPaymentModal = document.getElementById('recordPaymentModal');
                     
                     if (paymentModal) {
                         document.body.appendChild(paymentModal);
                     }
                     if (confirmPaymentModal) {
                         document.body.appendChild(confirmPaymentModal);
+                    }
+                    if (recordPaymentModal) {
+                        document.body.appendChild(recordPaymentModal);
                     }
                 })();
 
@@ -1070,6 +1138,8 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     const treatment = button.dataset.treatment;
                     const billingId = button.dataset.billingId || '0';
                     const isPaid = button.dataset.isPaid === '1';
+                    const paidAmount = button.dataset.paidAmount || '0';
+                    const balance = button.dataset.balance || amount;
 
                     return `
                         <a href="javascript:void(0)" data-action="view" data-queue-id="${queueId}" data-patient-id="${patientId}" data-billing-id="${billingId}">
@@ -1080,6 +1150,12 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                             View Details
                         </a>
                         ${!isPaid ? `
+                        <a href="javascript:void(0)" data-action="record-payment" data-billing-id="${billingId}" data-queue-id="${queueId}" data-patient-id="${patientId}" data-amount="${amount}" data-treatment="${treatment}" data-paid-amount="${paidAmount}" data-balance="${balance}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
+                                <path fill="none" stroke="currentColor" stroke-width="2" d="M12 2v20M2 12h20"/>
+                            </svg>
+                            Record Payment
+                        </a>
                         <a href="javascript:void(0)" data-action="mark-paid" data-billing-id="${billingId}" data-queue-id="${queueId}" data-patient-id="${patientId}" data-amount="${amount}" data-treatment="${treatment}">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
                                 <path fill="none" stroke="currentColor" stroke-width="2" d="M20 6 9 17l-5-5"/>
@@ -1168,12 +1244,17 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     const billingId = link.dataset.billingId;
                     const amount = link.dataset.amount;
                     const treatment = link.dataset.treatment;
+                    const paidAmount = link.dataset.paidAmount || '0';
+                    const balance = link.dataset.balance || amount;
 
                     closePayKebabDropdown();
 
                     switch (action) {
                         case 'view':
                             viewPaymentDetails(queueId, patientId, billingId);
+                            break;
+                        case 'record-payment':
+                            openRecordPayment(queueId, patientId, amount, treatment, billingId, paidAmount, balance);
                             break;
                         case 'mark-paid':
                             markAsPaid(queueId, patientId, amount, treatment, billingId);
@@ -1198,6 +1279,13 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                         closePayKebabDropdown();
                     }
                 });
+
+                function formatPayStatus(status) {
+                    const s = (status || 'unpaid').toLowerCase();
+                    if (s === 'paid') return '<span style="background:#dcfce7;color:#16a34a;padding:2px 10px;border-radius:9999px;font-size:0.75rem;font-weight:600;text-transform:uppercase;">Paid</span>';
+                    if (s === 'partial') return '<span style="background:#fef3c7;color:#92400e;padding:2px 10px;border-radius:9999px;font-size:0.75rem;font-weight:600;text-transform:uppercase;">Partial</span>';
+                    return '<span style="background:#fee2e2;color:#dc2626;padding:2px 10px;border-radius:9999px;font-size:0.75rem;font-weight:600;text-transform:uppercase;">Unpaid</span>';
+                }
 
                 function viewPaymentDetails(queueId, patientId, billingId) {
                     // Close kebab menu
@@ -1245,7 +1333,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                         </div>
                                         <div class="detail-row">
                                             <span class="detail-label">Payment Status:</span>
-                                            <span class="detail-value">${billing.payment_status || 'unpaid'}</span>
+                                            <span class="detail-value">${formatPayStatus(billing.payment_status)}</span>
                                         </div>
                                         <div class="detail-row">
                                             <span class="detail-label">Billing Date:</span>
@@ -1282,7 +1370,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                         </div>
                                         <div class="detail-row">
                                             <span class="detail-label">Payment Status:</span>
-                                            <span class="detail-value">${data.payment_status}</span>
+                                            <span class="detail-value">${formatPayStatus(data.payment_status)}</span>
                                         </div>
                                         <div class="detail-row">
                                             <span class="detail-label">Date:</span>
@@ -1365,6 +1453,64 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     });
                 }
 
+                function openRecordPayment(queueId, patientId, amount, treatment, billingId, paidAmount, balance) {
+                    closePayKebabDropdown();
+
+                    const recordModal = document.getElementById('recordPaymentModal');
+                    document.getElementById('recordPaymentQueueId').value = queueId || 0;
+                    document.getElementById('recordPaymentPatientId').value = patientId || 0;
+                    document.getElementById('recordPaymentBillingId').value = billingId || 0;
+                    document.getElementById('recordPaymentTreatment').textContent = treatment || 'General Checkup';
+                    document.getElementById('recordPaymentTotalAmount').textContent = 'P' + parseFloat(amount || 0).toFixed(2);
+                    document.getElementById('recordPaymentPaidSoFar').textContent = 'P' + parseFloat(paidAmount || 0).toFixed(2);
+                    document.getElementById('recordPaymentBalance').textContent = 'P' + parseFloat(balance || amount || 0).toFixed(2);
+                    document.getElementById('recordPaymentAmount').value = balance || amount || 0;
+                    document.getElementById('recordPaymentMethod').value = 'cash';
+                    recordModal.style.display = 'flex';
+                }
+
+                function closeRecordPaymentModal() {
+                    document.getElementById('recordPaymentModal').style.display = 'none';
+                }
+
+                function confirmRecordPayment() {
+                    const billingId = document.getElementById('recordPaymentBillingId').value;
+                    const queueId = document.getElementById('recordPaymentQueueId').value;
+                    const patientId = document.getElementById('recordPaymentPatientId').value;
+                    const amount = document.getElementById('recordPaymentAmount').value;
+                    const paymentMethod = document.getElementById('recordPaymentMethod').value;
+
+                    if (!amount || parseFloat(amount) <= 0) {
+                        alert('Please enter a valid payment amount.');
+                        return;
+                    }
+
+                    fetch('../shared/billing_actions.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'record_payment',
+                            billing_id: billingId,
+                            queue_id: queueId,
+                            patient_id: patientId,
+                            amount: amount,
+                            payment_method: paymentMethod
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            closeRecordPaymentModal();
+                            window.location.reload();
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        alert('Error recording payment. Please try again.');
+                    });
+                }
+
                 // Close modals when clicking outside
                 document.getElementById('paymentModal').addEventListener('click', function(e) {
                     if (e.target === this) {
@@ -1375,6 +1521,12 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                 document.getElementById('confirmPaymentModal').addEventListener('click', function(e) {
                     if (e.target === this) {
                         closeConfirmPaymentModal();
+                    }
+                });
+
+                document.getElementById('recordPaymentModal').addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        closeRecordPaymentModal();
                     }
                 });
 
