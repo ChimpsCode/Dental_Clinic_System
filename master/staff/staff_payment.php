@@ -571,6 +571,56 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                 </div>
             </div>
 
+            <!-- Payment History Modal -->
+            <div id="paymentHistoryModal" class="modal-overlay" style="display: none;">
+                <div class="modal" style="max-width: 550px;">
+                    <div class="modal-header">
+                        <h2>Payment History</h2>
+                        <button class="modal-close" onclick="closePaymentHistoryModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <table style="width:100%;border-collapse:collapse;">
+                            <thead>
+                                <tr style="background:#f9fafb;text-align:left;">
+                                    <th style="padding:0.5rem;font-size:0.8rem;color:#6b7280;font-weight:600;text-transform:uppercase;">Date</th>
+                                    <th style="padding:0.5rem;font-size:0.8rem;color:#6b7280;font-weight:600;text-transform:uppercase;">Amount</th>
+                                    <th style="padding:0.5rem;font-size:0.8rem;color:#6b7280;font-weight:600;text-transform:uppercase;">Method</th>
+                                    <th style="padding:0.5rem;font-size:0.8rem;color:#6b7280;font-weight:600;text-transform:uppercase;">Reference</th>
+                                </tr>
+                            </thead>
+                            <tbody id="paymentHistoryBody">
+                                <tr><td colspan="4" style="text-align:center;padding:2rem;color:#9ca3af;">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                        <div id="paymentHistoryEmpty" style="display:none;text-align:center;padding:2rem;color:#9ca3af;">
+                            <p>No payment records found.</p>
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-cancel" onclick="closePaymentHistoryModal()">Close</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Set Due Date Modal -->
+            <div id="setDueDateModal" class="modal-overlay" style="display: none;">
+                <div class="modal" style="max-width: 400px;">
+                    <div class="modal-header">
+                        <h2>Set Due Date</h2>
+                        <button class="modal-close" onclick="closeSetDueDateModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:500;color:#374151;">Due Date</label>
+                        <input type="date" id="setDueDateInput" style="width:100%;padding:0.5rem;border:1px solid #e5e7eb;border-radius:8px;font-size:0.9rem;box-sizing:border-box;">
+                        <input type="hidden" id="setDueDateBillingId">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-cancel" onclick="closeSetDueDateModal()">Cancel</button>
+                        <button type="button" class="btn-primary" onclick="confirmSetDueDate()">Save</button>
+                    </div>
+                </div>
+            </div>
+
             <style>
                 .page-subtitle {
                     color: #6b7280;
@@ -1100,6 +1150,8 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     const paymentModal = document.getElementById('paymentModal');
                     const confirmPaymentModal = document.getElementById('confirmPaymentModal');
                     const recordPaymentModal = document.getElementById('recordPaymentModal');
+                    const paymentHistoryModal = document.getElementById('paymentHistoryModal');
+                    const setDueDateModal = document.getElementById('setDueDateModal');
                     
                     if (paymentModal) {
                         document.body.appendChild(paymentModal);
@@ -1109,6 +1161,12 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     }
                     if (recordPaymentModal) {
                         document.body.appendChild(recordPaymentModal);
+                    }
+                    if (paymentHistoryModal) {
+                        document.body.appendChild(paymentHistoryModal);
+                    }
+                    if (setDueDateModal) {
+                        document.body.appendChild(setDueDateModal);
                     }
                 })();
 
@@ -1149,6 +1207,12 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                             </svg>
                             View Details
                         </a>
+                        <a href="javascript:void(0)" data-action="payment-history" data-billing-id="${billingId}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
+                                <path fill="none" stroke="currentColor" stroke-width="2" d="M12 2v20M2 12h20"/>
+                            </svg>
+                            Payment History
+                        </a>
                         ${!isPaid ? `
                         <a href="javascript:void(0)" data-action="record-payment" data-billing-id="${billingId}" data-queue-id="${queueId}" data-patient-id="${patientId}" data-amount="${amount}" data-treatment="${treatment}" data-paid-amount="${paidAmount}" data-balance="${balance}">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
@@ -1161,6 +1225,12 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                 <path fill="none" stroke="currentColor" stroke-width="2" d="M20 6 9 17l-5-5"/>
                             </svg>
                             Mark as Paid
+                        </a>
+                        <a href="javascript:void(0)" data-action="set-due-date" data-billing-id="${billingId}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
+                                <path fill="none" stroke="currentColor" stroke-width="2" d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V10h14z"/>
+                            </svg>
+                            Set Due Date
                         </a>` : ''}
                     `;
                 }
@@ -1253,11 +1323,17 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                         case 'view':
                             viewPaymentDetails(queueId, patientId, billingId);
                             break;
+                        case 'payment-history':
+                            openPaymentHistory(billingId);
+                            break;
                         case 'record-payment':
                             openRecordPayment(queueId, patientId, amount, treatment, billingId, paidAmount, balance);
                             break;
                         case 'mark-paid':
                             markAsPaid(queueId, patientId, amount, treatment, billingId);
+                            break;
+                        case 'set-due-date':
+                            openSetDueDate(billingId);
                             break;
                     }
                 }
@@ -1285,6 +1361,23 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     if (s === 'paid') return '<span style="background:#dcfce7;color:#16a34a;padding:2px 10px;border-radius:9999px;font-size:0.75rem;font-weight:600;text-transform:uppercase;">Paid</span>';
                     if (s === 'partial') return '<span style="background:#fef3c7;color:#92400e;padding:2px 10px;border-radius:9999px;font-size:0.75rem;font-weight:600;text-transform:uppercase;">Partial</span>';
                     return '<span style="background:#fee2e2;color:#dc2626;padding:2px 10px;border-radius:9999px;font-size:0.75rem;font-weight:600;text-transform:uppercase;">Unpaid</span>';
+                }
+
+                function formatDueDate(dateStr) {
+                    if (!dateStr) return '';
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const due = new Date(dateStr);
+                    due.setHours(0, 0, 0, 0);
+                    const diff = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+                    if (diff < 0) {
+                        return '<span style="color:#dc2626;font-weight:600;">' + dateStr + ' (Overdue by ' + Math.abs(diff) + ' days)</span>';
+                    } else if (diff === 0) {
+                        return '<span style="color:#d97706;font-weight:600;">' + dateStr + ' (Due today)</span>';
+                    } else if (diff <= 7) {
+                        return '<span style="color:#d97706;font-weight:600;">' + dateStr + ' (' + diff + ' days left)</span>';
+                    }
+                    return '<span style="color:#16a34a;font-weight:600;">' + dateStr + '</span>';
                 }
 
                 function viewPaymentDetails(queueId, patientId, billingId) {
@@ -1340,6 +1433,10 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                             <span class="detail-value">${billing.billing_date || 'N/A'}</span>
                                         </div>
                                         <div class="detail-row">
+                                            <span class="detail-label">Due Date:</span>
+                                            <span class="detail-value">${billing.due_date ? formatDueDate(billing.due_date) : '<span style="color:#9ca3af;">Not set</span>'}</span>
+                                        </div>
+                                        <div class="detail-row">
                                             <span class="detail-label">Notes:</span>
                                             <span class="detail-value">${billing.notes || 'N/A'}</span>
                                         </div>
@@ -1375,6 +1472,10 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                         <div class="detail-row">
                                             <span class="detail-label">Date:</span>
                                             <span class="detail-value">${data.queue_date}</span>
+                                        </div>
+                                        <div class="detail-row">
+                                            <span class="detail-label">Due Date:</span>
+                                            <span class="detail-value">${data.due_date ? formatDueDate(data.due_date) : '<span style="color:#9ca3af;">Not set</span>'}</span>
                                         </div>
                                     </div>
                                 `;
@@ -1511,6 +1612,124 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     });
                 }
 
+                function openPaymentHistory(billingId) {
+                    closePayKebabDropdown();
+                    if (!billingId || billingId === '0') {
+                        alert('No billing record found for this patient.');
+                        return;
+                    }
+
+                    const modal = document.getElementById('paymentHistoryModal');
+                    const tbody = document.getElementById('paymentHistoryBody');
+                    const empty = document.getElementById('paymentHistoryEmpty');
+                    modal.style.display = 'flex';
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:#6b7280;">Loading...</td></tr>';
+                    empty.style.display = 'none';
+
+                    fetch('../shared/billing_actions.php?action=get_payments&billing_id=' + encodeURIComponent(billingId))
+                        .then(response => response.json())
+                        .then(data => {
+                            tbody.innerHTML = '';
+                            if (data.success && data.payments && data.payments.length > 0) {
+                                empty.style.display = 'none';
+                                data.payments.forEach(p => {
+                                    const row = document.createElement('tr');
+                                    const methodLabel = (p.payment_method || 'Cash').charAt(0).toUpperCase() + (p.payment_method || 'Cash').slice(1);
+                                    row.innerHTML = `
+                                        <td>${p.payment_date || 'N/A'}</td>
+                                        <td><strong>P${parseFloat(p.amount || 0).toFixed(2)}</strong></td>
+                                        <td>${methodLabel}</td>
+                                        <td>${p.reference_number || '-'}</td>
+                                    `;
+                                    tbody.appendChild(row);
+                                });
+                            } else {
+                                empty.style.display = 'block';
+                            }
+                        })
+                        .catch(error => {
+                            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:#dc2626;">Error loading payment history.</td></tr>';
+                        });
+                }
+
+                function closePaymentHistoryModal() {
+                    document.getElementById('paymentHistoryModal').style.display = 'none';
+                }
+
+                function openSetDueDate(billingId) {
+                    closePayKebabDropdown();
+                    if (!billingId || billingId === '0') {
+                        alert('No billing record found for this patient.');
+                        return;
+                    }
+
+                    const modal = document.getElementById('setDueDateModal');
+                    document.getElementById('setDueDateBillingId').value = billingId;
+                    document.getElementById('setDueDateInput').value = '';
+
+                    fetch('../shared/billing_actions.php?action=get_billing&billing_id=' + encodeURIComponent(billingId))
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success && data.billing) {
+                                const dueDate = data.billing.due_date || '';
+                                if (dueDate) {
+                                    document.getElementById('setDueDateInput').value = dueDate;
+                                } else {
+                                    const future = new Date();
+                                    future.setDate(future.getDate() + 30);
+                                    document.getElementById('setDueDateInput').value = future.toISOString().split('T')[0];
+                                }
+                            } else {
+                                const future = new Date();
+                                future.setDate(future.getDate() + 30);
+                                document.getElementById('setDueDateInput').value = future.toISOString().split('T')[0];
+                            }
+                        })
+                        .catch(() => {
+                            const future = new Date();
+                            future.setDate(future.getDate() + 30);
+                            document.getElementById('setDueDateInput').value = future.toISOString().split('T')[0];
+                        });
+
+                    modal.style.display = 'flex';
+                }
+
+                function closeSetDueDateModal() {
+                    document.getElementById('setDueDateModal').style.display = 'none';
+                }
+
+                function confirmSetDueDate() {
+                    const billingId = document.getElementById('setDueDateBillingId').value;
+                    const dueDate = document.getElementById('setDueDateInput').value;
+
+                    if (!dueDate) {
+                        alert('Please select a due date.');
+                        return;
+                    }
+
+                    fetch('../shared/billing_actions.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'set_due_date',
+                            billing_id: billingId,
+                            due_date: dueDate
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            closeSetDueDateModal();
+                            window.location.reload();
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        alert('Error setting due date. Please try again.');
+                    });
+                }
+
                 // Close modals when clicking outside
                 document.getElementById('paymentModal').addEventListener('click', function(e) {
                     if (e.target === this) {
@@ -1527,6 +1746,18 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                 document.getElementById('recordPaymentModal').addEventListener('click', function(e) {
                     if (e.target === this) {
                         closeRecordPaymentModal();
+                    }
+                });
+
+                document.getElementById('paymentHistoryModal').addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        closePaymentHistoryModal();
+                    }
+                });
+
+                document.getElementById('setDueDateModal').addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        closeSetDueDateModal();
                     }
                 });
 

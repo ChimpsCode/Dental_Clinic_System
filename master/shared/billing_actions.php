@@ -146,6 +146,63 @@ try {
             }
             break;
 
+        case 'get_payments':
+            // Get all payment records for a billing record
+            $billing_id = $_GET['billing_id'] ?? 0;
+
+            if (!$billing_id) {
+                $response['message'] = 'Billing ID is required';
+                echo json_encode($response);
+                exit;
+            }
+
+            $stmt = $pdo->prepare("
+                SELECT id, billing_id, patient_id, amount, payment_method, payment_date, reference_number, created_by, notes, created_at
+                FROM payments
+                WHERE billing_id = ?
+                ORDER BY payment_date DESC, created_at DESC
+            ");
+            $stmt->execute([$billing_id]);
+            $payments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $response['success'] = true;
+            $response['payments'] = $payments;
+            $response['count'] = count($payments);
+            break;
+
+        case 'set_due_date':
+            // Set or update the due date on a billing record
+            $input = json_decode(file_get_contents('php://input'), true);
+            $billing_id = $input['billing_id'] ?? 0;
+            $due_date = $input['due_date'] ?? '';
+
+            if (!$billing_id || !$due_date) {
+                $response['message'] = 'Billing ID and due date are required';
+                echo json_encode($response);
+                exit;
+            }
+
+            $stmt = $pdo->prepare("SELECT patient_id FROM billing WHERE id = ?");
+            $stmt->execute([$billing_id]);
+            $billing = $stmt->fetch();
+
+            if (!$billing) {
+                $response['message'] = 'Billing record not found';
+                echo json_encode($response);
+                exit;
+            }
+
+            $patient_name = getPatientName($pdo, $billing['patient_id']);
+
+            $stmt = $pdo->prepare("UPDATE billing SET due_date = ?, updated_at = NOW() WHERE id = ?");
+            $stmt->execute([$due_date, $billing_id]);
+
+            logAudit($pdo, $current_user_id, $current_username, $current_role, 'update', 'billing', 'Set due date to ' . $due_date . ' for patient: ' . $patient_name . ' (INV-' . str_pad($billing_id, 3, '0', STR_PAD_LEFT) . ')', $billing_id, 'billing', null, $due_date);
+
+            $response['success'] = true;
+            $response['message'] = 'Due date set successfully';
+            break;
+
         case 'mark_printed':
             // Log that an invoice was printed
             $billing_id = (int)($input['billing_id'] ?? 0);
@@ -243,6 +300,7 @@ try {
                     $response['amount'] = $amount;
                     $response['billing_id'] = $billing['id'] ?? 0;
                     $response['payment_status'] = $billing['payment_status'] ?? 'unpaid';
+                    $response['due_date'] = $billing['due_date'] ?? null;
                     
                     echo json_encode($response);
                     exit;
@@ -298,6 +356,7 @@ try {
                     $response['amount'] = $amount;
                     $response['billing_id'] = $billing['id'] ?? 0;
                     $response['payment_status'] = $billing['payment_status'] ?? 'unpaid';
+                    $response['due_date'] = $billing['due_date'] ?? null;
                 } else {
                     $response['message'] = 'Queue record not found';
                 }
@@ -324,6 +383,7 @@ try {
                     $response['queue_date'] = date('Y-m-d');
                     $response['amount'] = 500;
                     $response['payment_status'] = 'unpaid';
+                    $response['due_date'] = null;
                 } else {
                     $response['message'] = 'Patient not found';
                 }
@@ -571,6 +631,7 @@ try {
                     if (in_array('balance', $bcols)) { $bcolsList[] = "balance"; $bvals[] = 0; }
                     if (in_array('payment_status', $bcols)) { $bcolsList[] = "payment_status"; $bvals[] = 'paid'; }
                     if (in_array('billing_date', $bcols)) { $bcolsList[] = "billing_date"; $bvals[] = $paymentDate; }
+                    if (in_array('due_date', $bcols)) { $bcolsList[] = "due_date"; $bvals[] = date('Y-m-d', strtotime($paymentDate . ' +30 days')); }
                     if (in_array('created_at', $bcols)) { $bcolsList[] = "created_at"; $bvals[] = 'NOW()'; }
                     if (in_array('updated_at', $bcols)) { $bcolsList[] = "updated_at"; $bvals[] = 'NOW()'; }
                     if (!empty($bcolsList)) {
