@@ -1718,29 +1718,25 @@ header.top-header {
 
 .patient-info-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 20px;
-    margin-bottom: 28px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
 }
 
 .patient-info-item {
     background: #f9fafb;
-    padding: 14px 16px;
-    border-radius: 10px;
-    border: 1px solid #e5e7eb;
+    padding: 12px 16px;
+    border-radius: 8px;
 }
 
 .patient-info-label {
     font-size: 0.75rem;
-    font-weight: 600;
     color: #6b7280;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
 }
 
 .patient-info-value {
-    font-size: 1rem;
+    font-size: 0.9rem;
     font-weight: 500;
     color: #111827;
 }
