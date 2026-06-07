@@ -1266,11 +1266,12 @@ function getInitials(name) {
     return ((first[0] || '') + (last[0] || '')).toUpperCase() || 'P';
 }
 
-function addChatBubble(text, type, timestamp) {
+function addChatBubble(text, type, timestamp, label) {
     const container = document.getElementById('chatMessages');
     const bubble = document.createElement('div');
     bubble.className = 'chat-bubble ' + type;
-    bubble.innerHTML = '<div>' + escapeHtml(text).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(timestamp || 'just now') + '</div>';
+    const labelHtml = label ? '<div style="font-size:11px;font-weight:600;color:' + (type === 'received' ? '#64748b' : 'rgba(255,255,255,0.7)') + ';margin-bottom:3px;">' + escapeHtml(label) + '</div>' : '';
+    bubble.innerHTML = labelHtml + '<div>' + escapeHtml(text).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(timestamp || 'just now') + '</div>';
     container.appendChild(bubble);
     container.scrollTop = container.scrollHeight;
 }
@@ -1293,7 +1294,7 @@ function parseStaffReplies(notes) {
     return replies;
 }
 
-function openReplyModal(id) {
+async function openReplyModal(id) {
     const inquiry = inquiryMap[String(id)];
     if (!inquiry) {
         showToast('Unable to load inquiry record.', true);
@@ -1319,17 +1320,34 @@ function openReplyModal(id) {
     messageContainer.innerHTML = '';
     const originalBubble = document.createElement('div');
     originalBubble.className = 'chat-bubble received';
-    originalBubble.innerHTML = '<div>' + escapeHtml(concernText).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(formatCreatedAt(inquiry.created_at)) + '</div>';
+    originalBubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:3px;">' + escapeHtml(fullName) + '</div><div>' + escapeHtml(concernText).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(formatCreatedAt(inquiry.created_at)) + '</div>';
     messageContainer.appendChild(originalBubble);
 
-    const replies = parseStaffReplies(inquiry.notes);
-    replies.forEach((reply) => {
-        const bubble = document.createElement('div');
-        bubble.className = 'chat-bubble ' + reply.type;
-        const displayText = reply.message || '(no message)';
-        bubble.innerHTML = '<div>' + escapeHtml(displayText).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(reply.timestamp) + '</div>';
-        messageContainer.appendChild(bubble);
-    });
+    try {
+        const data = await postAction({ action: 'get_conversation', id });
+        if (data.success && data.replies) {
+            data.replies.forEach((reply) => {
+                const bubble = document.createElement('div');
+                if (reply.sender_type === 'guest') {
+                    bubble.className = 'chat-bubble received';
+                } else {
+                    bubble.className = 'chat-bubble sent';
+                }
+                const label = reply.sender_type === 'guest' ? (fullName) : 'Staff';
+                bubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:' + (reply.sender_type === 'guest' ? '#64748b' : 'rgba(255,255,255,0.7)') + ';margin-bottom:3px;">' + escapeHtml(label) + '</div><div>' + escapeHtml(reply.message).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(formatCreatedAt(reply.created_at)) + '</div>';
+                messageContainer.appendChild(bubble);
+            });
+        }
+    } catch (e) {
+        const replies = parseStaffReplies(inquiry.notes);
+        replies.forEach((reply) => {
+            const bubble = document.createElement('div');
+            bubble.className = 'chat-bubble ' + reply.type;
+            const displayText = reply.message || '(no message)';
+            bubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.7);margin-bottom:3px;">Staff</div><div>' + escapeHtml(displayText).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(reply.timestamp) + '</div>';
+            messageContainer.appendChild(bubble);
+        });
+    }
 
     messageContainer.scrollTop = messageContainer.scrollHeight;
 
@@ -1338,7 +1356,7 @@ function openReplyModal(id) {
     if (isPortal) {
         channelInfo.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Reply will appear in patient\'s account messages';
     } else {
-        channelInfo.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M22 12v1a5 5 0 0 1-5 5h-1"/></svg> Reply will be sent via email to ' + escapeHtml(inquiry.email || 'the sender');
+        channelInfo.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M22 12v1a5 5 0 0 1-5 5h-1"/></svg> Reply will be sent via email with a conversation link to ' + escapeHtml(inquiry.email || 'the sender');
     }
 
     openModal('replyModal');
@@ -1374,7 +1392,7 @@ document.getElementById('replyForm').addEventListener('submit', async (event) =>
         }
         const now = new Date();
         const ts = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
-        addChatBubble(message, 'sent', ts);
+        addChatBubble(message, 'sent', ts, 'Staff');
         const entry = inquiryMap[String(id)];
         if (entry) {
             entry.notes = (entry.notes || '') + '\n[Staff replied on ' + ts + ']\n' + message;

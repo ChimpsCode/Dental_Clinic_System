@@ -115,7 +115,96 @@ function ensureInquiryModuleSchema(PDO $pdo): void
         ");
     }
 
+    if (!inquiryModuleColumnExists($pdo, 'inquiries', 'reply_token')) {
+        $pdo->exec("ALTER TABLE inquiries ADD COLUMN reply_token VARCHAR(64) NULL AFTER source, ADD UNIQUE KEY uk_reply_token (reply_token)");
+    }
+
+    ensureInquiryReplySchema($pdo);
+
     $ensured = true;
+}
+
+function ensureInquiryReplySchema(PDO $pdo): void
+{
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS `inquiry_replies` (
+            `id` INT(11) NOT NULL AUTO_INCREMENT,
+            `inquiry_id` INT(11) NOT NULL,
+            `message` TEXT NOT NULL,
+            `sender_type` ENUM('staff','guest') NOT NULL DEFAULT 'guest',
+            `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            KEY `idx_inquiry_id` (`inquiry_id`),
+            KEY `idx_created_at` (`created_at`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+    ");
+}
+
+function fetchInquiryReplies(PDO $pdo, int $inquiryId): array
+{
+    $stmt = $pdo->prepare("
+        SELECT id, message, sender_type, created_at
+        FROM inquiry_replies
+        WHERE inquiry_id = ?
+        ORDER BY created_at ASC, id ASC
+    ");
+    $stmt->execute([$inquiryId]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function generateReplyToken(): string
+{
+    return bin2hex(random_bytes(32));
+}
+
+function inquiryColumnExists(PDO $pdo, string $table, string $column): bool
+{
+    static $cache = [];
+    $key = $table . '.' . $column;
+    if (array_key_exists($key, $cache)) {
+        return $cache[$key];
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT 1
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = ?
+          AND COLUMN_NAME = ?
+        LIMIT 1
+    ");
+    $stmt->execute([$table, $column]);
+    $cache[$key] = (bool)$stmt->fetchColumn();
+    return $cache[$key];
+}
+
+function updateInquiryRecord(PDO $pdo, int $id, array $data, bool $touchUpdatedAt = true): void
+{
+    $setParts = [];
+    $values = [];
+
+    foreach ($data as $column => $value) {
+        if (inquiryColumnExists($pdo, 'inquiries', $column)) {
+            $setParts[] = "{$column} = ?";
+            $values[] = $value;
+        }
+    }
+
+    if ($touchUpdatedAt && inquiryColumnExists($pdo, 'inquiries', 'updated_at')) {
+        $setParts[] = "updated_at = NOW()";
+    }
+
+    if ($setParts === []) {
+        return;
+    }
+
+    $values[] = $id;
+    $stmt = $pdo->prepare("
+        UPDATE inquiries
+        SET " . implode(', ', $setParts) . "
+        WHERE id = ?
+    ");
+    $stmt->execute($values);
 }
 
 function getInquiryStatuses(): array

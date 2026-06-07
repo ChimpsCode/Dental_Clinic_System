@@ -1333,10 +1333,58 @@ $assets = [
           document.body.style.overflow = '';
         }
 
+        var successToastTimer = null;
+
         function showSuccess(msg) {
-          successToast.textContent = msg || 'Booking submitted! We will contact you soon.';
+          successToast.innerHTML = msg || 'Booking submitted! We will contact you soon.';
           successToast.classList.add('show');
-          setTimeout(() => successToast.classList.remove('show'), 4000);
+          if (successToastTimer) clearTimeout(successToastTimer);
+          successToastTimer = setTimeout(function() { successToast.classList.remove('show'); }, 4000);
+        }
+
+        function escapeHtml(value) {
+          return String(value ?? '').replace(/[&<>"']/g, function(c) {
+            return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+          });
+        }
+
+        function showContactSuccess(msg, link) {
+          successToast.innerHTML = msg + '<br><button id="copyLinkBtn" style="margin-top:12px;background:rgba(255,255,255,0.2);border:2px solid rgba(255,255,255,0.4);color:#fff;padding:8px 20px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;">Copy Link</button>';
+          successToast.classList.add('show');
+          successToast.style.cursor = 'default';
+          var btn = document.getElementById('copyLinkBtn');
+          if (btn) {
+            btn._link = link;
+            btn.onclick = function() {
+              copyConversationLink(this._link);
+            };
+          }
+          if (successToastTimer) clearTimeout(successToastTimer);
+          successToastTimer = setTimeout(function() { successToast.classList.remove('show'); }, 4000);
+        }
+
+        function copyConversationLink(link) {
+          navigator.clipboard.writeText(link).then(function() {
+            var popup = document.getElementById('copyPopup');
+            if (!popup) {
+              popup = document.createElement('div');
+              popup.id = 'copyPopup';
+              popup.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:12px 24px;border-radius:12px;font-size:14px;font-weight:600;z-index:13000;box-shadow:0 8px 30px rgba(0,0,0,0.3);animation:toastFadeIn 0.3s ease;';
+              document.body.appendChild(popup);
+            }
+            popup.textContent = 'Copied!';
+            popup.style.display = 'block';
+            setTimeout(function() { popup.style.display = 'none'; }, 2000);
+          }).catch(function() {
+            var textarea = document.createElement('textarea');
+            textarea.value = link;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+          });
         }
 
         // Hero form submit
@@ -1869,7 +1917,12 @@ $assets = [
 
               if (data.success) {
                 this.reset();
-                showSuccess('Your message has been sent! We will reply to you via email.');
+                var baseUrl = window.location.protocol + '//' + window.location.host;
+                var pathParts = window.location.pathname.replace(/\/+$/, '').split('/');
+                pathParts.pop(); pathParts.pop(); pathParts.pop();
+                var projectBase = pathParts.join('/');
+                var link = baseUrl + projectBase + '/inquiry/' + (data.token || '');
+                showContactSuccess('Your message has been sent! We will reply to you via email.', link);
               } else {
                 alert(data.message || 'Failed to send. Please try again.');
               }

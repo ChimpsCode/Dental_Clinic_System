@@ -1,0 +1,3 @@
+RewriteEngine On
+
+RewriteRule ^inquiry/([a-f0-9]{64})$ master/welcome-page/inquiry_reply.php?token=$1 [L,QSA]

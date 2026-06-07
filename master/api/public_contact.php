@@ -26,4 +26,10 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute([$firstName, $middleName ?: null, $lastName, $phone, $email, $message, $serviceId, $preferredDate ?: null, $preferredTime ?: null]);
 
-echo json_encode(['success' => true, 'message' => 'Your message has been received. We will reply to you via email.']);
+$inquiryId = (int)$pdo->lastInsertId();
+
+$token = bin2hex(random_bytes(32));
+$tokenStmt = $pdo->prepare("UPDATE inquiries SET reply_token = ? WHERE id = ?");
+$tokenStmt->execute([$token, $inquiryId]);
+
+echo json_encode(['success' => true, 'message' => 'Your message has been sent! We will reply to you via email.', 'token' => $token]);

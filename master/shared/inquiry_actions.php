@@ -25,27 +25,6 @@ function inquiryJson(array $payload): void
     exit();
 }
 
-function inquiryColumnExists(PDO $pdo, string $table, string $column): bool
-{
-    static $cache = [];
-    $key = $table . '.' . $column;
-    if (array_key_exists($key, $cache)) {
-        return $cache[$key];
-    }
-
-    $stmt = $pdo->prepare("
-        SELECT 1
-        FROM information_schema.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE()
-          AND TABLE_NAME = ?
-          AND COLUMN_NAME = ?
-        LIMIT 1
-    ");
-    $stmt->execute([$table, $column]);
-    $cache[$key] = (bool)$stmt->fetchColumn();
-    return $cache[$key];
-}
-
 function inquiryCanManage(string $role): bool
 {
     return in_array($role, ['staff', 'admin', 'dentist'], true);
@@ -54,35 +33,6 @@ function inquiryCanManage(string $role): bool
 function inquiryCanPatient(string $role): bool
 {
     return $role === 'user';
-}
-
-function updateInquiryRecord(PDO $pdo, int $id, array $data, bool $touchUpdatedAt = true): void
-{
-    $setParts = [];
-    $values = [];
-
-    foreach ($data as $column => $value) {
-        if (inquiryColumnExists($pdo, 'inquiries', $column)) {
-            $setParts[] = "{$column} = ?";
-            $values[] = $value;
-        }
-    }
-
-    if ($touchUpdatedAt && inquiryColumnExists($pdo, 'inquiries', 'updated_at')) {
-        $setParts[] = "updated_at = NOW()";
-    }
-
-    if ($setParts === []) {
-        return;
-    }
-
-    $values[] = $id;
-    $stmt = $pdo->prepare("
-        UPDATE inquiries
-        SET " . implode(', ', $setParts) . "
-        WHERE id = ?
-    ");
-    $stmt->execute($values);
 }
 
 function resolveInquiryStatusId(PDO $pdo, string $statusName): ?int
@@ -770,6 +720,15 @@ if ($action === 'archive') {
     inquiryJson(['success' => true, 'message' => 'Inquiry archived successfully.']);
 }
 
+if ($action === 'get_conversation') {
+    $inquiry = fetchInquiryById($pdo, $id);
+    if (!$inquiry) {
+        inquiryJson(['success' => false, 'message' => 'Inquiry not found.']);
+    }
+    $replies = fetchInquiryReplies($pdo, $id);
+    inquiryJson(['success' => true, 'inquiry' => $inquiry, 'replies' => $replies]);
+}
+
 if ($action === 'mark_read') {
     updateInquiryRecord($pdo, $id, ['status' => 'Read']);
     inquiryJson(['success' => true]);
@@ -885,11 +844,19 @@ if ($action === 'staff_reply') {
         inquiryJson(['success' => false, 'message' => 'Reply message is required.']);
     }
 
+    ensureInquiryReplySchema($pdo);
+
     $fullName = $inquiry['resolved_full_name'] ?? 'Patient';
     $timestamp = date('Y-m-d H:i:s');
     $replyEntry = "\n[Staff replied on {$timestamp}]\n{$replyMessage}";
     $existingNotes = $inquiry['notes'] ?? '';
     $newNotes = $existingNotes . $replyEntry;
+
+    $replyStmt = $pdo->prepare("
+        INSERT INTO inquiry_replies (inquiry_id, message, sender_type, created_at)
+        VALUES (?, ?, 'staff', NOW())
+    ");
+    $replyStmt->execute([$id, $replyMessage]);
 
     if (($inquiry['source'] ?? '') === 'Patient Portal' && !empty($inquiry['patient_id'])) {
         $patientId = (int)$inquiry['patient_id'];
@@ -924,6 +891,18 @@ if ($action === 'staff_reply') {
     } elseif (in_array($inquiry['source'] ?? '', ['Website', 'Facebook', 'Walk-in', 'Referral']) || empty($inquiry['patient_id'])) {
         $recipientEmail = trim($inquiry['email'] ?? '');
         if ($recipientEmail !== '') {
+            if (empty($inquiry['reply_token'])) {
+                $token = generateReplyToken();
+                $tokenStmt = $pdo->prepare("UPDATE inquiries SET reply_token = ? WHERE id = ?");
+                $tokenStmt->execute([$token, $id]);
+            } else {
+                $token = $inquiry['reply_token'];
+            }
+
+            $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'];
+            $projectBase = rtrim(dirname(dirname(dirname($_SERVER['SCRIPT_NAME']))), '/');
+            $conversationLink = $baseUrl . $projectBase . '/inquiry/' . $token;
+
             $mailerConfig = __DIR__ . '/../../config/mailer_config.php';
             $phpMailerBase = __DIR__ . '/../../PHPMailer/src';
             if (file_exists($mailerConfig) && file_exists($phpMailerBase . '/PHPMailer.php')) {
@@ -948,8 +927,12 @@ if ($action === 'staff_reply') {
                     $mailer->Subject = 'Re: Your Inquiry - RF Dental Clinic';
                     $mailer->Body = '<p>Dear ' . htmlspecialchars($fullName) . ',</p>'
                         . '<p>' . nl2br(htmlspecialchars($replyMessage)) . '</p>'
-                        . '<hr><p style="color:#64748b;font-size:13px;">This is a reply to your inquiry submitted through our website.</p>';
-                    $mailer->AltBody = "Dear {$fullName},\n\n{$replyMessage}\n\n-- RF Dental Clinic";
+                        . '<table border="0" cellpadding="0" cellspacing="0" style="margin:24px 0;">'
+                        . '<tr><td align="center" style="background:#2563eb;border-radius:12px;padding:14px 28px;">'
+                        . '<a href="' . htmlspecialchars($conversationLink) . '" style="color:#fff;text-decoration:none;font-size:15px;font-weight:700;display:inline-block;">Reply to this message &rarr;</a>'
+                        . '</td></tr></table>'
+                        . '<hr><p style="color:#64748b;font-size:13px;">Click the button above to view the full conversation and reply. This is a reply to your inquiry submitted through our website.</p>';
+                    $mailer->AltBody = "Dear {$fullName},\n\n{$replyMessage}\n\nTo reply, visit: {$conversationLink}\n\n-- RF Dental Clinic";
                     $mailer->send();
                 } catch (\Exception $e) {
                     inquiryJson(['success' => false, 'message' => 'Failed to send email reply. ' . $e->getMessage()]);

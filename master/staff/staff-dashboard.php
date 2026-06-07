@@ -917,7 +917,7 @@ function updateDashboardInquiryBadge(count) {
     }
 }
 
-function openDashboardInquiryChat(id) {
+async function openDashboardInquiryChat(id) {
     const inquiry = dashboardInquiryMap[String(id)];
     if (!inquiry) return;
 
@@ -936,16 +936,34 @@ function openDashboardInquiryChat(id) {
     const originalBubble = document.createElement('div');
     originalBubble.className = 'chat-bubble received';
     const createdDate = inquiry.created_at ? new Date(String(inquiry.created_at).replace(' ', 'T')).toLocaleString() : '';
-    originalBubble.innerHTML = '<div>' + escapeHtml(concernText).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(createdDate) + '</div>';
+    originalBubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:3px;">' + escapeHtml(fullName) + '</div><div>' + escapeHtml(concernText).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(createdDate) + '</div>';
     container.appendChild(originalBubble);
 
-    const replies = parseDashboardStaffReplies(inquiry.notes);
-    replies.forEach((reply) => {
-        const bubble = document.createElement('div');
-        bubble.className = 'chat-bubble ' + reply.type;
-        bubble.innerHTML = '<div>' + escapeHtml(reply.message).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(reply.timestamp) + '</div>';
-        container.appendChild(bubble);
-    });
+    try {
+        const formData = new FormData();
+        formData.append('action', 'get_conversation');
+        formData.append('id', id);
+        const response = await fetch('../shared/inquiry_actions.php', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (data.success && data.replies) {
+            data.replies.forEach((reply) => {
+                const bubble = document.createElement('div');
+                const isGuest = reply.sender_type === 'guest';
+                bubble.className = 'chat-bubble ' + (isGuest ? 'received' : 'sent');
+                const label = isGuest ? fullName : 'Staff';
+                bubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:' + (isGuest ? '#64748b' : 'rgba(255,255,255,0.7)') + ';margin-bottom:3px;">' + escapeHtml(label) + '</div><div>' + escapeHtml(reply.message).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(reply.created_at ? new Date(String(reply.created_at).replace(' ', 'T')).toLocaleString() : '') + '</div>';
+                container.appendChild(bubble);
+            });
+        }
+    } catch (_err) {
+        const replies = parseDashboardStaffReplies(inquiry.notes);
+        replies.forEach((reply) => {
+            const bubble = document.createElement('div');
+            bubble.className = 'chat-bubble sent';
+            bubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.7);margin-bottom:3px;">Staff</div><div>' + escapeHtml(reply.message).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(reply.timestamp) + '</div>';
+            container.appendChild(bubble);
+        });
+    }
 
     container.scrollTop = container.scrollHeight;
 
@@ -953,7 +971,7 @@ function openDashboardInquiryChat(id) {
     if ((inquiry.source || '') === 'Patient Portal' && inquiry.patient_id) {
         channelInfo.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Reply will appear in patient\'s account messages';
     } else {
-        channelInfo.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M22 12v1a5 5 0 0 1-5 5h-1"/></svg> Reply will be sent via email to ' + escapeHtml(inquiry.email || 'the sender');
+        channelInfo.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M22 12v1a5 5 0 0 1-5 5h-1"/></svg> Reply will be sent via email with a conversation link to ' + escapeHtml(inquiry.email || 'the sender');
     }
 
     document.getElementById('inquiryPanelListView').style.display = 'none';
@@ -1018,7 +1036,7 @@ document.getElementById('inquiryChatReplyForm').addEventListener('submit', async
         const container = document.getElementById('inquiryChatMessages');
         const bubble = document.createElement('div');
         bubble.className = 'chat-bubble sent';
-        bubble.innerHTML = '<div>' + escapeHtml(message).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + ts + '</div>';
+        bubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.7);margin-bottom:3px;">Staff</div><div>' + escapeHtml(message).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + ts + '</div>';
         container.appendChild(bubble);
         container.scrollTop = container.scrollHeight;
 
