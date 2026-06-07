@@ -164,6 +164,14 @@ $assets = [
         transform: translateY(0);
       }
 
+      .count-num { display: inline-block; }
+      .count-num.counting { animation: countPulse 0.3s ease; }
+      @keyframes countPulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.08); }
+        100% { transform: scale(1); }
+      }
+
       .btn,
       .service-card,
       .faq-item,
@@ -790,9 +798,14 @@ $assets = [
             </p>
 
             <div class="about-stats">
-              <?php foreach ($aboutStats as $stat): ?>
+              <?php foreach ($aboutStats as $stat):
+                $raw = $stat['value'] ?? '';
+                preg_match('/^([\d,.]+)(.*)$/', $raw, $m);
+                $numOnly = str_replace(',', '', $m[1] ?? '0');
+                $suffix = $m[2] ?? '';
+              ?>
               <div class="stat">
-                <div class="stat-value accent"><?php echo htmlspecialchars($stat['value'] ?? ''); ?></div>
+                <div class="stat-value accent"><span class="count-num" data-target="<?= (int)$numOnly ?>">0</span><span class="count-suffix"><?= htmlspecialchars($suffix) ?></span></div>
                 <div class="stat-label"><?php echo htmlspecialchars($stat['label'] ?? ''); ?></div>
               </div>
               <?php endforeach; ?>
@@ -1270,6 +1283,48 @@ $assets = [
         }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
 
         targets.forEach((el) => observer.observe(el));
+      })();
+
+      // Count-up animation for stats
+      (() => {
+        function animateCount(el, target, duration) {
+          const start = performance.now();
+          el.classList.add('counting');
+
+          function step(now) {
+            const elapsed = now - start;
+            const progress = Math.min(elapsed / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            const current = Math.round(eased * target);
+            el.textContent = current.toLocaleString();
+            if (progress < 1) {
+              requestAnimationFrame(step);
+            } else {
+              el.textContent = target.toLocaleString();
+              el.classList.remove('counting');
+            }
+          }
+
+          requestAnimationFrame(step);
+        }
+
+        const countObserver = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              const numEl = entry.target.querySelector('.count-num');
+              if (numEl && !numEl.dataset.counted) {
+                numEl.dataset.counted = 'true';
+                const target = parseInt(numEl.dataset.target, 10);
+                if (!isNaN(target) && target > 0) {
+                  animateCount(numEl, target, 1500);
+                }
+              }
+              countObserver.unobserve(entry.target);
+            }
+          });
+        }, { threshold: 0.5 });
+
+        document.querySelectorAll('.stat-value').forEach((el) => countObserver.observe(el));
       })();
     </script>
 
