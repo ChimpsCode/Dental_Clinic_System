@@ -287,14 +287,66 @@ if (($patient['status_text'] ?? '') === 'in_procedure') {
         </div>
         <?php endif; ?>
 
-         
+        <?php if (!empty($upcomingPatients)): ?>
+        <!-- IN THE QUEUE -->
+        <div class="section-card" style="border: 1px solid #e5e7eb; background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 class="section-title" style="margin: 0; color: #374151;">
+                    <span style="font-size: 1.5rem;">📋</span> IN THE QUEUE
+                </h2>
+                <span style="background: #6b7280; color: white; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 0.9rem;">
+                    <?php echo count($upcomingPatients); ?> waiting
+                </span>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <?php $queuePos = ($inProcedurePatient ? 2 : 1); ?>
+                <?php foreach ($upcomingPatients as $up): 
+                    $queuePos++;
+                ?>
+                <div style="background: white; border-radius: 10px; padding: 14px 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #d1d5db;">
+                    <div style="display: flex; align-items: center; gap: 14px; flex: 1;">
+                        <div style="width: 36px; height: 36px; background: #f3f4f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #6b7280; font-size: 0.9rem; flex-shrink: 0;">
+                            #<?php echo $queuePos; ?>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; color: #111827; font-size: 1rem;">
+                                <?php 
+                                echo htmlspecialchars($up['first_name'] ?? ''); 
+                                if (!empty($up['middle_name'])) {
+                                    echo ' ' . htmlspecialchars($up['middle_name']);
+                                }
+                                echo ' ' . htmlspecialchars($up['last_name'] ?? '');
+                                ?>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: center; margin-top: 4px;">
+                                <span style="background: #dbeafe; color: #1e40af; padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
+                                    <?php echo htmlspecialchars($up['gender'] ?? 'Unknown'); ?>
+                                </span>
+                                <span style="color: #6b7280; font-size: 0.8rem;">
+                                    <?php echo htmlspecialchars($up['treatment_type'] ?? 'Consultation'); ?>
+                                </span>
+                                <span style="color: #9ca3af; font-size: 0.75rem;">
+                                    ⏰ <?php echo date('g:i A', strtotime($up['queue_time'])); ?>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="viewPatientDetails(<?php echo $up['patient_id']; ?>)" style="background: #f3f4f6; border: none; border-radius: 8px; padding: 8px 14px; color: #374151; font-weight: 600; font-size: 0.85rem; cursor: pointer; white-space: nowrap; transition: background 0.2s;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f3f4f6'">
+                        👁 View
+                    </button>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
         
         <!-- UPCOMING PATIENTS -->
         <div class="section-card">
             
             
             <!-- EMPTY STATE - When no patients in queue -->
-            <?php if (!$inProcedurePatient && !$nextPatient): ?>
+            <?php if (!$inProcedurePatient && !$nextPatient && empty($upcomingPatients)): ?>
             <div class="section-card" style="text-align: center; padding: 60px 40px; background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%); border: 2px dashed #d1d5db;">
             <div style="font-size: 4rem; margin-bottom: 20px;">🪑</div>
             <h2 style="color: #374151; font-size: 1.5rem; margin-bottom: 12px;">No Patients in Queue</h2>

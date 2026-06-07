@@ -592,6 +592,11 @@ try {
             if (in_array('total_amount', $bcols)) { $bupdates[] = "total_amount = ?"; $bparams[] = $new_amount; }
             if (in_array('balance', $bcols)) { $bupdates[] = "balance = ?"; $bparams[] = max(0, $new_amount - $paid_amount); }
             if (in_array('updated_at', $bcols)) { $bupdates[] = "updated_at = NOW()"; }
+            // If new amount exceeds what was already paid, reset payment status to partial
+            if ($new_amount > $paid_amount && $paid_amount > 0) {
+                if (in_array('payment_status_id', $bcols)) { $bupdates[] = "payment_status_id = 2"; }
+                if (in_array('payment_status', $bcols)) { $bupdates[] = "payment_status = 'partial'"; }
+            }
             if (!empty($bupdates)) {
                 $stmt = $pdo->prepare("UPDATE billing SET " . implode(', ', $bupdates) . " WHERE id = ?");
                 $bparams[] = $billing_id;

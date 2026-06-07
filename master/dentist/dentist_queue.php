@@ -602,10 +602,6 @@ div.main-content {
     color: #111827;
 }
 
-.time-24hr {
-    font-size: 0.75rem;
-    color: #6b7280;
-}
 
 /* Empty State */
 .empty-state {
@@ -1163,7 +1159,6 @@ div.main-content {
                             <td>
                                 <div class="time-display">
                                     <span class="time-12hr"><?php echo $time12hr; ?></span>
-                                    <span class="time-24hr"><?php echo $time24hr; ?></span>
                                 </div>
                             </td>
                             <td>
