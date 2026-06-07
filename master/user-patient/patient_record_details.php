@@ -83,12 +83,46 @@ try {
         $queueItem = null;
     }
     
+    // Get billing data
+    $billing = null;
+    try {
+        $stmt = $pdo->prepare("
+            SELECT id, total_amount, paid_amount, balance, payment_status, payment_status_id, billing_date, due_date, notes
+            FROM billing
+            WHERE patient_id = ?
+            ORDER BY created_at DESC
+            LIMIT 1
+        ");
+        $stmt->execute([$patientId]);
+        $billing = $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        $billing = null;
+    }
+    
+    // Get payment records
+    $payments = [];
+    try {
+        $stmt = $pdo->prepare("
+            SELECT id, billing_id, amount, payment_method, payment_date, reference_number, notes, created_at
+            FROM payments
+            WHERE patient_id = ?
+            ORDER BY payment_date DESC, created_at DESC
+            LIMIT 50
+        ");
+        $stmt->execute([$patientId]);
+        $payments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        $payments = [];
+    }
+    
     echo json_encode([
         'success' => true,
         'patient' => $patient,
         'medical_history' => $medicalHistory,
         'dental_history' => $dentalHistory,
-        'queue_item' => $queueItem
+        'queue_item' => $queueItem,
+        'billing' => $billing,
+        'payments' => $payments
     ]);
     
 } catch (Exception $e) {

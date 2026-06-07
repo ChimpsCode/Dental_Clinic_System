@@ -691,12 +691,24 @@ const patients = <?php echo json_encode($patients); ?>;
 (function() {
     const patientRecordModal = document.getElementById('patientRecordModal');
     const appointmentModal = document.getElementById('appointmentModal');
+    const recordPaymentModal = document.getElementById('recordPaymentModal');
+    const paymentHistoryModal = document.getElementById('paymentHistoryModal');
+    const setDueDateModal = document.getElementById('setDueDateModal');
     
     if (patientRecordModal) {
         document.body.appendChild(patientRecordModal);
     }
     if (appointmentModal) {
         document.body.appendChild(appointmentModal);
+    }
+    if (recordPaymentModal) {
+        document.body.appendChild(recordPaymentModal);
+    }
+    if (paymentHistoryModal) {
+        document.body.appendChild(paymentHistoryModal);
+    }
+    if (setDueDateModal) {
+        document.body.appendChild(setDueDateModal);
     }
 })();
 
@@ -726,10 +738,20 @@ function viewPatientRecord(patientId) {
             const m = data.medical_history || {};
             const d = data.dental_history || {};
             const q = data.queue_item || {};
+            const b = data.billing || {};
+            const payments = data.payments || [];
             
             const allergies = m.allergies || 'None';
             const medications = m.current_medications || 'None';
             const conditions = m.medical_conditions || 'None';
+            
+            const billingId = b.id || '0';
+            const totalAmount = parseFloat(b.total_amount || 0);
+            const paidAmount = parseFloat(b.paid_amount || 0);
+            const balance = parseFloat(b.balance || 0);
+            const payStatus = (b.payment_status || 'unpaid').toLowerCase();
+            const isPaid = payStatus === 'paid';
+            const dueDate = b.due_date || null;
             
             document.getElementById('staffModalPatientName').innerText = (p.first_name || '') + ' ' + (p.last_name || '');
             
@@ -832,6 +854,56 @@ function viewPatientRecord(patientId) {
                         </div>
                     </div>
                 </div>
+
+                ${billingId !== '0' ? `
+                <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:20px;margin-bottom:20px;">
+                    <h3 style="font-size:1rem;font-weight:600;color:#166534;margin-bottom:16px;">💰 Billing Summary</h3>
+                    <div class="patient-info-grid">
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Total Amount</div>
+                            <div class="patient-info-value">P${totalAmount.toFixed(2)}</div>
+                        </div>
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Paid Amount</div>
+                            <div class="patient-info-value">P${paidAmount.toFixed(2)}</div>
+                        </div>
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Balance</div>
+                            <div class="patient-info-value" style="color:${balance > 0 ? '#dc2626' : '#16a34a'};font-weight:600;">P${balance.toFixed(2)}</div>
+                        </div>
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Payment Status</div>
+                            <div class="patient-info-value">${formatPayStatus(payStatus)}</div>
+                        </div>
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Due Date</div>
+                            <div class="patient-info-value">${dueDate ? formatDueDate(dueDate) : '<span style="color:#9ca3af;">Not set</span>'}</div>
+                        </div>
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Billing Date</div>
+                            <div class="patient-info-value">${b.billing_date || 'N/A'}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+                        <button onclick="openPaymentHistory('${billingId}')" style="padding:8px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;cursor:pointer;font-size:0.85rem;color:#166534;font-weight:500;display:flex;align-items:center;gap:6px;">
+                            📋 Payment History
+                        </button>
+                        ${!isPaid ? `
+                        <button onclick="openRecordPayment(${p.id}, '${billingId}', ${totalAmount}, ${paidAmount}, ${balance})" style="padding:8px 16px;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;cursor:pointer;font-size:0.85rem;color:#92400e;font-weight:500;display:flex;align-items:center;gap:6px;">
+                            💵 Record Payment
+                        </button>
+                        <button onclick="openSetDueDate('${billingId}')" style="padding:8px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;cursor:pointer;font-size:0.85rem;color:#1e40af;font-weight:500;display:flex;align-items:center;gap:6px;">
+                            📅 Set Due Date
+                        </button>
+                        ` : ''}
+                    </div>
+                </div>
+                ` : `
+                <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:20px;">
+                    <h3 style="font-size:1rem;font-weight:600;color:#6b7280;margin-bottom:16px;">💰 Billing</h3>
+                    <p style="color:#9ca3af;text-align:center;padding:12px;">No billing record found for this patient.</p>
+                </div>
+                `}
 
                 <div style="background: #f9fafb; border-radius: 12px; padding: 20px;">
                     <h3 style="font-size: 1rem; font-weight: 600; color: #374151; margin-bottom: 16px;">📜 Dental History</h3>
@@ -979,6 +1051,11 @@ function closePatientKebabDropdown() {
     if (patientKebabDropdown) {
         patientKebabDropdown.classList.remove('show');
         patientKebabDropdown.innerHTML = '';
+        patientKebabDropdown.style.display = '';
+        patientKebabDropdown.style.visibility = '';
+        patientKebabDropdown.style.left = '';
+        patientKebabDropdown.style.top = '';
+        patientKebabDropdown.removeEventListener('click', handlePatientKebabClick);
     }
     if (patientKebabBackdrop) {
         patientKebabBackdrop.classList.remove('show');
@@ -1041,6 +1118,18 @@ document.addEventListener('keydown', function(e) {
         if (patientKebabDropdown && patientKebabDropdown.classList.contains('show')) {
             closePatientKebabDropdown();
         }
+        var rpM = document.getElementById('recordPaymentModal');
+        if (rpM && rpM.style.display === 'flex') {
+            closeRecordPaymentModal();
+        }
+        var phM = document.getElementById('paymentHistoryModal');
+        if (phM && phM.style.display === 'flex') {
+            closePaymentHistoryModal();
+        }
+        var sdM = document.getElementById('setDueDateModal');
+        if (sdM && sdM.style.display === 'flex') {
+            closeSetDueDateModal();
+        }
     }
 });
 
@@ -1080,13 +1169,18 @@ function closeAddAppointmentModal() {
     selectedPatientId = null;
 }
 
-document.getElementById('appointmentModal').addEventListener('click', function(e) {
-    if (e.target === this || e.target.classList.contains('modal-backdrop') || e.target.closest('.modal-container') === e.target) {
-        closeAddAppointmentModal();
-    }
-});
+var aptModalEl = document.getElementById('appointmentModal');
+if (aptModalEl) {
+    aptModalEl.addEventListener('click', function(e) {
+        if (e.target === this || e.target.classList.contains('modal-backdrop') || e.target.closest('.modal-container') === e.target) {
+            closeAddAppointmentModal();
+        }
+    });
+}
 
-document.getElementById('addAppointmentForm').addEventListener('submit', function(e) {
+var aptFormEl = document.getElementById('addAppointmentForm');
+if (aptFormEl) {
+    aptFormEl.addEventListener('submit', function(e) {
     e.preventDefault();
     const formData = new FormData(this);
     
@@ -1109,14 +1203,223 @@ document.getElementById('addAppointmentForm').addEventListener('submit', functio
         alert('Error scheduling appointment');
     });
 });
+}
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
-        if (document.getElementById('appointmentModal').classList.contains('active')) {
+        var aptM = document.getElementById('appointmentModal');
+        if (aptM && aptM.classList.contains('active')) {
             closeAddAppointmentModal();
         }
     }
 });
+
+// Billing Helper Functions
+function formatPayStatus(status) {
+    var s = (status || 'unpaid').toLowerCase();
+    if (s === 'paid') return '<span style="background:#d1fae5;color:#065f46;padding:4px 12px;border-radius:9999px;font-size:0.8rem;font-weight:600;">Paid</span>';
+    if (s === 'partial') return '<span style="background:#fef3c7;color:#92400e;padding:4px 12px;border-radius:9999px;font-size:0.8rem;font-weight:600;">Partial</span>';
+    return '<span style="background:#fee2e2;color:#dc2626;padding:4px 12px;border-radius:9999px;font-size:0.8rem;font-weight:600;">Unpaid</span>';
+}
+
+function formatDueDate(dateStr) {
+    if (!dateStr) return '<span style="color:#9ca3af;">Not set</span>';
+    var d = new Date(dateStr);
+    var today = new Date();
+    today.setHours(0,0,0,0);
+    d.setHours(0,0,0,0);
+    var diff = Math.ceil((d - today) / (1000*60*60*24));
+    var formatted = d.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+    if (diff < 0) return '<span style="color:#dc2626;font-weight:600;">' + formatted + ' (Overdue by ' + Math.abs(diff) + 'd)</span>';
+    if (diff === 0) return '<span style="color:#d97706;font-weight:600;">' + formatted + ' (Due Today)</span>';
+    if (diff <= 7) return '<span style="color:#d97706;">' + formatted + ' (' + diff + 'd left)</span>';
+    return formatted;
+}
+
+function openRecordPayment(patientId, billingId, totalAmount, paidAmount, balance) {
+    document.getElementById('recordPaymentPatientId').value = patientId || 0;
+    document.getElementById('recordPaymentBillingId').value = billingId || 0;
+    document.getElementById('recordPaymentTotalAmount').textContent = 'P' + parseFloat(totalAmount || 0).toFixed(2);
+    document.getElementById('recordPaymentPaidSoFar').textContent = 'P' + parseFloat(paidAmount || 0).toFixed(2);
+    document.getElementById('recordPaymentBalance').textContent = 'P' + parseFloat(balance || 0).toFixed(2);
+    document.getElementById('recordPaymentAmount').value = balance || 0;
+    document.getElementById('recordPaymentMethod').value = 'cash';
+    document.getElementById('recordPaymentModal').style.display = 'flex';
+}
+
+function closeRecordPaymentModal() {
+    document.getElementById('recordPaymentModal').style.display = 'none';
+}
+
+function confirmRecordPayment() {
+    var billingId = document.getElementById('recordPaymentBillingId').value;
+    var patientId = document.getElementById('recordPaymentPatientId').value;
+    var amount = document.getElementById('recordPaymentAmount').value;
+    var paymentMethod = document.getElementById('recordPaymentMethod').value;
+
+    if (!amount || parseFloat(amount) <= 0) {
+        alert('Please enter a valid payment amount.');
+        return;
+    }
+
+    fetch('../shared/billing_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'record_payment',
+            billing_id: billingId,
+            queue_id: 0,
+            patient_id: patientId,
+            amount: amount,
+            payment_method: paymentMethod
+        })
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        if (data.success) {
+            closeRecordPaymentModal();
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(function(error) {
+        alert('Error recording payment. Please try again.');
+    });
+}
+
+function openPaymentHistory(billingId) {
+    if (!billingId || billingId === '0') {
+        alert('No billing record found for this patient.');
+        return;
+    }
+
+    var modal = document.getElementById('paymentHistoryModal');
+    var tbody = document.getElementById('paymentHistoryBody');
+    var empty = document.getElementById('paymentHistoryEmpty');
+    modal.style.display = 'flex';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:#6b7280;">Loading...</td></tr>';
+    empty.style.display = 'none';
+
+    fetch('../shared/billing_actions.php?action=get_payments&billing_id=' + encodeURIComponent(billingId))
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            tbody.innerHTML = '';
+            if (data.success && data.payments && data.payments.length > 0) {
+                empty.style.display = 'none';
+                data.payments.forEach(function(p) {
+                    var row = document.createElement('tr');
+                    var methodLabel = (p.payment_method || 'Cash').charAt(0).toUpperCase() + (p.payment_method || 'Cash').slice(1);
+                    row.innerHTML = '<td>' + (p.payment_date || 'N/A') + '</td><td><strong>P' + parseFloat(p.amount || 0).toFixed(2) + '</strong></td><td>' + methodLabel + '</td><td>' + (p.reference_number || '-') + '</td>';
+                    tbody.appendChild(row);
+                });
+            } else {
+                empty.style.display = 'block';
+            }
+        })
+        .catch(function(error) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:#dc2626;">Error loading payment history.</td></tr>';
+        });
+}
+
+function closePaymentHistoryModal() {
+    document.getElementById('paymentHistoryModal').style.display = 'none';
+}
+
+function openSetDueDate(billingId) {
+    if (!billingId || billingId === '0') {
+        alert('No billing record found for this patient.');
+        return;
+    }
+
+    var modal = document.getElementById('setDueDateModal');
+    document.getElementById('setDueDateBillingId').value = billingId;
+    document.getElementById('setDueDateInput').value = '';
+
+    fetch('../shared/billing_actions.php?action=get_billing&billing_id=' + encodeURIComponent(billingId))
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            if (data.success && data.billing) {
+                var dueDate = data.billing.due_date || '';
+                if (dueDate) {
+                    document.getElementById('setDueDateInput').value = dueDate;
+                } else {
+                    var future = new Date();
+                    future.setDate(future.getDate() + 30);
+                    document.getElementById('setDueDateInput').value = future.toISOString().split('T')[0];
+                }
+            } else {
+                var future = new Date();
+                future.setDate(future.getDate() + 30);
+                document.getElementById('setDueDateInput').value = future.toISOString().split('T')[0];
+            }
+        })
+        .catch(function() {
+            var future = new Date();
+            future.setDate(future.getDate() + 30);
+            document.getElementById('setDueDateInput').value = future.toISOString().split('T')[0];
+        });
+
+    modal.style.display = 'flex';
+}
+
+function closeSetDueDateModal() {
+    document.getElementById('setDueDateModal').style.display = 'none';
+}
+
+function confirmSetDueDate() {
+    var billingId = document.getElementById('setDueDateBillingId').value;
+    var dueDate = document.getElementById('setDueDateInput').value;
+
+    if (!dueDate) {
+        alert('Please select a due date.');
+        return;
+    }
+
+    fetch('../shared/billing_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'set_due_date',
+            billing_id: billingId,
+            due_date: dueDate
+        })
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        if (data.success) {
+            closeSetDueDateModal();
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(function(error) {
+        alert('Error setting due date. Please try again.');
+    });
+}
+
+// Record Payment Modal click handlers
+var rpModalEl = document.getElementById('recordPaymentModal');
+if (rpModalEl) {
+    rpModalEl.addEventListener('click', function(e) {
+        if (e.target === this) closeRecordPaymentModal();
+    });
+}
+
+var phModalEl = document.getElementById('paymentHistoryModal');
+if (phModalEl) {
+    phModalEl.addEventListener('click', function(e) {
+        if (e.target === this) closePaymentHistoryModal();
+    });
+}
+
+var sdModalEl = document.getElementById('setDueDateModal');
+if (sdModalEl) {
+    sdModalEl.addEventListener('click', function(e) {
+        if (e.target === this) closeSetDueDateModal();
+    });
+}
 
 // Convert teeth numbers to arch labels
 function getStaffPatientTeethDisplayText(teethString) {
@@ -1213,6 +1516,96 @@ function getStaffPatientTeethDisplayText(teethString) {
                     <button type="submit" class="btn-primary">Schedule Appointment</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Record Payment Modal -->
+<div id="recordPaymentModal" class="modal-overlay">
+    <div class="modal-backdrop"></div>
+    <div class="modal-container">
+        <div class="modal" style="max-width:440px;">
+            <h2 style="margin:0 0 20px;font-size:1.25rem;font-weight:600;">Record Payment</h2>
+            <input type="hidden" id="recordPaymentPatientId">
+            <input type="hidden" id="recordPaymentBillingId">
+            <div style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:20px;">
+                <div class="patient-info-grid" style="margin-bottom:0;">
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Total Amount</div>
+                        <div class="patient-info-value" id="recordPaymentTotalAmount">P0.00</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Paid So Far</div>
+                        <div class="patient-info-value" id="recordPaymentPaidSoFar" style="color:#059669;">P0.00</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Balance</div>
+                        <div class="patient-info-value" id="recordPaymentBalance" style="color:#dc2626;font-weight:600;">P0.00</div>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Payment Amount</label>
+                <input type="number" id="recordPaymentAmount" class="form-control" step="0.01" min="0">
+            </div>
+            <div class="form-group">
+                <label>Payment Method</label>
+                <select id="recordPaymentMethod" class="form-control">
+                    <option value="cash">Cash</option>
+                    <option value="card">Card</option>
+                    <option value="gcash">GCash</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button onclick="closeRecordPaymentModal()" class="btn-cancel">Cancel</button>
+                <button onclick="confirmRecordPayment()" class="btn-primary">Confirm Payment</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment History Modal -->
+<div id="paymentHistoryModal" class="modal-overlay">
+    <div class="modal-backdrop"></div>
+    <div class="modal-container">
+        <div class="modal" style="max-width:600px;">
+            <h2 style="margin:0 0 20px;font-size:1.25rem;font-weight:600;">Payment History</h2>
+            <table class="data-table" style="width:100%;border-collapse:collapse;">
+                <thead>
+                    <tr>
+                        <th style="padding:10px 12px;text-align:left;font-weight:600;color:#6b7280;font-size:0.85rem;text-transform:uppercase;background:#f9fafb;border-bottom:1px solid #f3f4f6;">Date</th>
+                        <th style="padding:10px 12px;text-align:left;font-weight:600;color:#6b7280;font-size:0.85rem;text-transform:uppercase;background:#f9fafb;border-bottom:1px solid #f3f4f6;">Amount</th>
+                        <th style="padding:10px 12px;text-align:left;font-weight:600;color:#6b7280;font-size:0.85rem;text-transform:uppercase;background:#f9fafb;border-bottom:1px solid #f3f4f6;">Method</th>
+                        <th style="padding:10px 12px;text-align:left;font-weight:600;color:#6b7280;font-size:0.85rem;text-transform:uppercase;background:#f9fafb;border-bottom:1px solid #f3f4f6;">Reference</th>
+                    </tr>
+                </thead>
+                <tbody id="paymentHistoryBody">
+                </tbody>
+            </table>
+            <div id="paymentHistoryEmpty" style="display:none;text-align:center;padding:40px;color:#6b7280;">No payment records found.</div>
+            <div class="modal-actions">
+                <button onclick="closePaymentHistoryModal()" class="btn-cancel">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Set Due Date Modal -->
+<div id="setDueDateModal" class="modal-overlay">
+    <div class="modal-backdrop"></div>
+    <div class="modal-container">
+        <div class="modal" style="max-width:400px;">
+            <h2 style="margin:0 0 20px;font-size:1.25rem;font-weight:600;">Set Due Date</h2>
+            <input type="hidden" id="setDueDateBillingId">
+            <div class="form-group">
+                <label>Due Date</label>
+                <input type="date" id="setDueDateInput" class="form-control">
+            </div>
+            <div class="modal-actions">
+                <button onclick="closeSetDueDateModal()" class="btn-cancel">Cancel</button>
+                <button onclick="confirmSetDueDate()" class="btn-primary">Save</button>
+            </div>
         </div>
     </div>
 </div>

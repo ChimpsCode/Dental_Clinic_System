@@ -330,6 +330,15 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 <script>
 const patients = <?php echo json_encode($patients); ?>;
 
+// Portal Pattern: Move modals to body level
+(function() {
+    var modals = ['adminPatientModal', 'recordPaymentModal', 'paymentHistoryModal', 'setDueDateModal', 'appointmentModal'];
+    modals.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) document.body.appendChild(el);
+    });
+})();
+
 document.getElementById('searchInput').addEventListener('input', filterPatients);
 document.getElementById('statusFilter').addEventListener('change', filterPatients);
 
@@ -479,6 +488,11 @@ function closePatientKebabDropdown() {
     if (patientKebabDropdown) {
         patientKebabDropdown.classList.remove('show');
         patientKebabDropdown.innerHTML = '';
+        patientKebabDropdown.style.display = '';
+        patientKebabDropdown.style.visibility = '';
+        patientKebabDropdown.style.left = '';
+        patientKebabDropdown.style.top = '';
+        patientKebabDropdown.removeEventListener('click', handlePatientKebabClick);
     }
     if (patientKebabBackdrop) {
         patientKebabBackdrop.classList.remove('show');
@@ -558,121 +572,408 @@ window.addEventListener('resize', function() {
 
 // View Patient Details - Modal
 function viewPatientDetails(patientId) {
-    const patient = patients.find(p => p.id == patientId);
-    if (!patient) return;
-    
-    const fullName = `${patient.first_name || ''} ${patient.middle_name || ''} ${patient.last_name || ''} ${patient.suffix || ''}`.trim();
-    const membershipStatus = patient.email ? 'Registered' : 'Guest';
-    const membershipBadge = patient.email ? 
-        '<span style="background: #d1fae5; color: #065f46; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">✓ Web Account</span>' :
-        '<span style="background: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">Guest</span>';
-    
-    // Remove existing modal
-    const existingModal = document.getElementById('view-patient-modal');
-    if (existingModal) existingModal.remove();
-    
-    const overlay = document.createElement('div');
-    overlay.id = 'view-patient-modal';
-    overlay.className = 'modal-overlay active';
-    
-    overlay.innerHTML = `
-        <div class="modal" style="max-width: 500px; max-height: 90vh; overflow-y: auto;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #e5e7eb; padding-bottom: 16px;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 50px; height: 50px; background: #0ea5e9; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; font-weight: 700;">
-                        ${(patient.first_name || 'P').charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                        <h3 style="margin: 0; color: #111827; font-size: 18px;">${fullName || 'Unknown Patient'}</h3>
-                        <p style="margin: 4px 0 0 0; color: #6b7280; font-size: 13px;">Patient ID: ${patient.id}</p>
-                    </div>
+    closePatientKebabDropdown();
+
+    const modalContent = document.getElementById('patientModalContent');
+    document.getElementById('adminModalPatientName').innerText = 'Loading...';
+    document.getElementById('adminPatientModal').style.display = 'flex';
+    modalContent.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280;">Loading patient records...</div>';
+
+    fetch('../user-patient/patient_record_details.php?id=' + patientId)
+    .then(response => {
+        if (!response.ok) throw new Error('Network error');
+        return response.json();
+    })
+    .then(data => {
+        if (!data.success) {
+            modalContent.innerHTML = '<div style="text-align:center;padding:40px;color:#dc2626;"><p>Error: ' + (data.message || 'Unable to load patient details') + '</p><button onclick="closeAdminPatientModal()" style="margin-top:16px;padding:10px 20px;background:#6b7280;color:white;border:none;border-radius:8px;cursor:pointer;">Close</button></div>';
+            return;
+        }
+
+        const p = data.patient;
+        const m = data.medical_history || {};
+        const dentalHistory = data.dental_history || [];
+        const q = data.queue_item || {};
+        const b = data.billing || {};
+        const payments = data.payments || [];
+
+        const allergies = m.allergies || 'None';
+        const medications = m.current_medications || 'None';
+        const conditions = m.medical_conditions || 'None';
+
+        const billingId = b.id || '0';
+        const totalAmount = parseFloat(b.total_amount || 0);
+        const paidAmount = parseFloat(b.paid_amount || 0);
+        const balance = parseFloat(b.balance || 0);
+        const payStatus = (b.payment_status || 'unpaid').toLowerCase();
+        const isPaid = payStatus === 'paid';
+        const dueDate = b.due_date || null;
+
+        document.getElementById('adminModalPatientName').innerText = (p.first_name || '') + ' ' + (p.last_name || '');
+
+        const hasMedicalAlert = allergies === 'Yes' ||
+                               conditions.toLowerCase().includes('diabetes') ||
+                               conditions.toLowerCase().includes('heart') ||
+                               conditions.toLowerCase().includes('blood pressure') ||
+                               conditions.toLowerCase().includes('asthma');
+
+        modalContent.innerHTML = `
+            <div class="patient-info-grid">
+                <div class="patient-info-item">
+                    <div class="patient-info-label">First Name</div>
+                    <div class="patient-info-value">${p.first_name || 'N/A'}</div>
                 </div>
-                <button onclick="closeViewPatientModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280;">&times;</button>
-            </div>
-            
-            <div style="display: flex; gap: 8px; margin-bottom: 20px;">
-                ${membershipBadge}
-            </div>
-            
-            <!-- Personal Info -->
-            <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-                <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 14px; font-weight: 600;">👤 Personal Information</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <div>
-                        <p style="margin: 0; color: #6b7280; font-size: 12px;">First Name</p>
-                        <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${patient.first_name || '-'}</p>
-                    </div>
-                    <div>
-                        <p style="margin: 0; color: #6b7280; font-size: 12px;">Middle Name</p>
-                        <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${patient.middle_name || '-'}</p>
-                    </div>
-                    <div>
-                        <p style="margin: 0; color: #6b7280; font-size: 12px;">Last Name</p>
-                        <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${patient.last_name || '-'}</p>
-                    </div>
-                    <div>
-                        <p style="margin: 0; color: #6b7280; font-size: 12px;">Suffix</p>
-                        <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${patient.suffix || '-'}</p>
-                    </div>
+                <div class="patient-info-item">
+                    <div class="patient-info-label">Middle Name</div>
+                    <div class="patient-info-value">${p.middle_name || ''}</div>
                 </div>
-            </div>
-            
-            <!-- Contact Info -->
-            <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-                <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 14px; font-weight: 600;">📞 Contact Information</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <div>
-                        <p style="margin: 0; color: #6b7280; font-size: 12px;">Phone</p>
-                        <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${patient.phone || '-'}</p>
-                    </div>
-                    <div>
-                        <p style="margin: 0; color: #6b7280; font-size: 12px;">Email</p>
-                        <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${patient.email || '-'}</p>
-                    </div>
+                <div class="patient-info-item">
+                    <div class="patient-info-label">Last Name</div>
+                    <div class="patient-info-value">${p.last_name || 'N/A'}</div>
                 </div>
-            </div>
-            
-            <!-- Additional Info -->
-            <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-                <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 14px; font-weight: 600;">📋 Additional Information</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <div>
-                        <p style="margin: 0; color: #6b7280; font-size: 12px;">Date of Birth</p>
-                        <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${patient.date_of_birth || '-'}</p>
-                    </div>
-                    <div>
-                        <p style="margin: 0; color: #6b7280; font-size: 12px;">Gender</p>
-                        <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${patient.gender || '-'}</p>
-                    </div>
-                    <div>
-                        <p style="margin: 0; color: #6b7280; font-size: 12px;">Registered Date</p>
-                        <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${patient.created_at ? new Date(patient.created_at).toLocaleDateString() : '-'}</p>
-                    </div>
-                    <div>
-                        <p style="margin: 0; color: #6b7280; font-size: 12px;">Address ID</p>
-                        <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${patient.address_id || '-'}</p>
-                    </div>
+                <div class="patient-info-item">
+                    <div class="patient-info-label">Suffix</div>
+                    <div class="patient-info-value">${p.suffix || ''}</div>
+                </div>
+                <div class="patient-info-item">
+                    <div class="patient-info-label">Age</div>
+                    <div class="patient-info-value">${p.age || 'N/A'} years</div>
+                </div>
+                <div class="patient-info-item">
+                    <div class="patient-info-label">Gender</div>
+                    <div class="patient-info-value">${p.gender || 'N/A'}</div>
+                </div>
+                <div class="patient-info-item">
+                    <div class="patient-info-label">Phone</div>
+                    <div class="patient-info-value">${p.phone || 'N/A'}</div>
+                </div>
+                <div class="patient-info-item">
+                    <div class="patient-info-label">Email</div>
+                    <div class="patient-info-value">${p.email || 'N/A'}</div>
+                </div>
+                <div class="patient-info-item" style="grid-column:1/-1;">
+                    <div class="patient-info-label">Address</div>
+                    <div class="patient-info-value">${p.address || 'N/A'} ${p.city ? ', ' + p.city : ''} ${p.province ? ', ' + p.province : ''}</div>
                 </div>
             </div>
-            
-            <!-- Actions -->
-            <div style="display: flex; gap: 12px; justify-content: flex-end; border-top: 1px solid #e5e7eb; padding-top: 16px;">
-                <button onclick="closeViewPatientModal()" 
-                    style="padding: 10px 20px; background: #0ea5e9; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
-                    Close
-                </button>
+
+            ${hasMedicalAlert ? `
+            <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:20px;margin-bottom:20px;">
+                <div style="color:#dc2626;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px;">⚠️ Medical Alert - Important for Treatment</div>
+                <div class="patient-info-grid">
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Allergies</div>
+                        <div class="patient-info-value" style="${allergies === 'Yes' ? 'color:#dc2626;' : ''}">${allergies}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Diabetes</div>
+                        <div class="patient-info-value" style="${conditions.toLowerCase().includes('diabetes') ? 'color:#dc2626;' : ''}">${conditions.toLowerCase().includes('diabetes') ? 'Yes' : 'No'}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Heart Disease</div>
+                        <div class="patient-info-value" style="${conditions.toLowerCase().includes('heart') ? 'color:#dc2626;' : ''}">${conditions.toLowerCase().includes('heart') ? 'Yes' : 'No'}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">High Blood Pressure</div>
+                        <div class="patient-info-value" style="${conditions.toLowerCase().includes('blood pressure') ? 'color:#dc2626;' : ''}">${conditions.toLowerCase().includes('blood pressure') ? 'Yes' : 'No'}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Asthma</div>
+                        <div class="patient-info-value" style="${conditions.toLowerCase().includes('asthma') ? 'color:#dc2626;' : ''}">${conditions.toLowerCase().includes('asthma') ? 'Yes' : 'No'}</div>
+                    </div>
+                    <div class="patient-info-item" style="grid-column:1/-1;">
+                        <div class="patient-info-label">Current Medications</div>
+                        <div class="patient-info-value">${medications}</div>
+                    </div>
+                </div>
             </div>
-        </div>
-    `;
-    
-    document.body.appendChild(overlay);
-    document.body.classList.add('modal-open');
+            ` : ''}
+
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:20px;margin-bottom:20px;">
+                <h3 style="font-size:1rem;font-weight:600;color:#1e40af;margin-bottom:16px;">📋 Service Requested</h3>
+                <div class="patient-info-grid">
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Treatment Type</div>
+                        <div class="patient-info-value">${q.treatment_type || 'Consultation'}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Selected Teeth</div>
+                        <div class="patient-info-value">${q.teeth_numbers || 'None specified'}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Status</div>
+                        <div class="patient-info-value">
+                            <span style="background:${q.status === 'in_procedure' ? '#dcfce7' : q.status === 'waiting' ? '#fef3c7' : '#f3f4f6'};color:${q.status === 'in_procedure' ? '#15803d' : q.status === 'waiting' ? '#d97706' : '#6b7280'};padding:4px 12px;border-radius:9999px;font-size:0.85rem;">
+                                ${q.status ? q.status.replace('_', ' ').toUpperCase() : 'NONE'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            ${billingId !== '0' ? `
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:20px;margin-bottom:20px;">
+                <h3 style="font-size:1rem;font-weight:600;color:#166534;margin-bottom:16px;">💰 Billing Summary</h3>
+                <div class="patient-info-grid">
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Total Amount</div>
+                        <div class="patient-info-value">P${totalAmount.toFixed(2)}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Paid Amount</div>
+                        <div class="patient-info-value">P${paidAmount.toFixed(2)}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Balance</div>
+                        <div class="patient-info-value" style="color:${balance > 0 ? '#dc2626' : '#16a34a'};font-weight:600;">P${balance.toFixed(2)}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Payment Status</div>
+                        <div class="patient-info-value">${formatPayStatus(payStatus)}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Due Date</div>
+                        <div class="patient-info-value">${dueDate ? formatDueDate(dueDate) : '<span style="color:#9ca3af;">Not set</span>'}</div>
+                    </div>
+                    <div class="patient-info-item">
+                        <div class="patient-info-label">Billing Date</div>
+                        <div class="patient-info-value">${b.billing_date || 'N/A'}</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+                    <button onclick="openPaymentHistory('${billingId}')" style="padding:8px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;cursor:pointer;font-size:0.85rem;color:#166534;font-weight:500;display:flex;align-items:center;gap:6px;">
+                        📋 Payment History
+                    </button>
+                    ${!isPaid ? `
+                    <button onclick="openRecordPayment(${p.id}, '${billingId}', ${totalAmount}, ${paidAmount}, ${balance})" style="padding:8px 16px;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;cursor:pointer;font-size:0.85rem;color:#92400e;font-weight:500;display:flex;align-items:center;gap:6px;">
+                        💵 Record Payment
+                    </button>
+                    <button onclick="openSetDueDate('${billingId}')" style="padding:8px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;cursor:pointer;font-size:0.85rem;color:#1e40af;font-weight:500;display:flex;align-items:center;gap:6px;">
+                        📅 Set Due Date
+                    </button>
+                    ` : ''}
+                </div>
+            </div>
+            ` : `
+            <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:20px;">
+                <h3 style="font-size:1rem;font-weight:600;color:#6b7280;margin-bottom:16px;">💰 Billing</h3>
+                <p style="color:#9ca3af;text-align:center;padding:12px;">No billing record found for this patient.</p>
+            </div>
+            `}
+
+            <div style="background:#f9fafb;border-radius:12px;padding:20px;margin-bottom:20px;">
+                <h3 style="font-size:1rem;font-weight:600;color:#374151;margin-bottom:16px;">📜 Dental History - Past Treatments</h3>
+                ${dentalHistory.length > 0 ? `
+                    <div style="display:flex;flex-direction:column;gap:12px;">
+                        ${dentalHistory.map(function(tx) {
+                            var txDate = tx.completed_at ? new Date(tx.completed_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+                            return '<div style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:16px;">' +
+                                '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">' +
+                                '<div><div style="font-weight:600;color:#111827;font-size:1rem;">' + (tx.treatment_type || 'Treatment') + '</div>' +
+                                '<div style="font-size:0.85rem;color:#6b7280;margin-top:4px;">🦷 Teeth: ' + (tx.teeth_numbers || 'N/A') + '</div></div>' +
+                                '<div style="font-size:0.8rem;color:#6b7280;">' + txDate + '</div></div></div>';
+                        }).join('')}
+                    </div>
+                ` : '<p style="color:#6b7280;text-align:center;padding:20px;background:#f3f4f6;border-radius:8px;">No previous treatment records found.</p>'}
+            </div>
+
+            <div style="margin-top:24px;padding-top:20px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;">
+                <button onclick="closeAdminPatientModal()" class="btn-cancel" style="padding:10px 24px;background:#f3f4f6;border:none;border-radius:8px;cursor:pointer;font-weight:500;">Close</button>
+            </div>
+        `;
+    })
+    .catch(function(error) {
+        modalContent.innerHTML = '<div style="text-align:center;padding:40px;color:#dc2626;"><p>Error loading patient details</p><button onclick="closeAdminPatientModal()" style="margin-top:16px;padding:10px 20px;background:#6b7280;color:white;border:none;border-radius:8px;cursor:pointer;">Close</button></div>';
+    });
 }
 
-function closeViewPatientModal() {
-    const modal = document.getElementById('view-patient-modal');
-    if (modal) modal.remove();
-    document.body.classList.remove('modal-open');
+function closeAdminPatientModal() {
+    document.getElementById('adminPatientModal').style.display = 'none';
+}
+
+function formatPayStatus(status) {
+    var s = (status || 'unpaid').toLowerCase();
+    if (s === 'paid') return '<span style="background:#d1fae5;color:#065f46;padding:4px 12px;border-radius:9999px;font-size:0.8rem;font-weight:600;">Paid</span>';
+    if (s === 'partial') return '<span style="background:#fef3c7;color:#92400e;padding:4px 12px;border-radius:9999px;font-size:0.8rem;font-weight:600;">Partial</span>';
+    return '<span style="background:#fee2e2;color:#dc2626;padding:4px 12px;border-radius:9999px;font-size:0.8rem;font-weight:600;">Unpaid</span>';
+}
+
+function formatDueDate(dateStr) {
+    if (!dateStr) return '<span style="color:#9ca3af;">Not set</span>';
+    var d = new Date(dateStr);
+    var today = new Date();
+    today.setHours(0,0,0,0);
+    d.setHours(0,0,0,0);
+    var diff = Math.ceil((d - today) / (1000*60*60*24));
+    var formatted = d.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+    if (diff < 0) return '<span style="color:#dc2626;font-weight:600;">' + formatted + ' (Overdue by ' + Math.abs(diff) + 'd)</span>';
+    if (diff === 0) return '<span style="color:#d97706;font-weight:600;">' + formatted + ' (Due Today)</span>';
+    if (diff <= 7) return '<span style="color:#d97706;">' + formatted + ' (' + diff + 'd left)</span>';
+    return formatted;
+}
+
+function openRecordPayment(patientId, billingId, totalAmount, paidAmount, balance) {
+    var recordModal = document.getElementById('recordPaymentModal');
+    document.getElementById('recordPaymentPatientId').value = patientId || 0;
+    document.getElementById('recordPaymentBillingId').value = billingId || 0;
+    document.getElementById('recordPaymentTotalAmount').textContent = 'P' + parseFloat(totalAmount || 0).toFixed(2);
+    document.getElementById('recordPaymentPaidSoFar').textContent = 'P' + parseFloat(paidAmount || 0).toFixed(2);
+    document.getElementById('recordPaymentBalance').textContent = 'P' + parseFloat(balance || 0).toFixed(2);
+    document.getElementById('recordPaymentAmount').value = balance || 0;
+    document.getElementById('recordPaymentMethod').value = 'cash';
+    recordModal.style.display = 'flex';
+}
+
+function closeRecordPaymentModal() {
+    document.getElementById('recordPaymentModal').style.display = 'none';
+}
+
+function confirmRecordPayment() {
+    var billingId = document.getElementById('recordPaymentBillingId').value;
+    var patientId = document.getElementById('recordPaymentPatientId').value;
+    var amount = document.getElementById('recordPaymentAmount').value;
+    var paymentMethod = document.getElementById('recordPaymentMethod').value;
+
+    if (!amount || parseFloat(amount) <= 0) {
+        alert('Please enter a valid payment amount.');
+        return;
+    }
+
+    fetch('../../master/shared/billing_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'record_payment',
+            billing_id: billingId,
+            queue_id: 0,
+            patient_id: patientId,
+            amount: amount,
+            payment_method: paymentMethod
+        })
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        if (data.success) {
+            closeRecordPaymentModal();
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(function(error) {
+        alert('Error recording payment. Please try again.');
+    });
+}
+
+function openPaymentHistory(billingId) {
+    if (!billingId || billingId === '0') {
+        alert('No billing record found for this patient.');
+        return;
+    }
+
+    var modal = document.getElementById('paymentHistoryModal');
+    var tbody = document.getElementById('paymentHistoryBody');
+    var empty = document.getElementById('paymentHistoryEmpty');
+    modal.style.display = 'flex';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:#6b7280;">Loading...</td></tr>';
+    empty.style.display = 'none';
+
+    fetch('../../master/shared/billing_actions.php?action=get_payments&billing_id=' + encodeURIComponent(billingId))
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            tbody.innerHTML = '';
+            if (data.success && data.payments && data.payments.length > 0) {
+                empty.style.display = 'none';
+                data.payments.forEach(function(p) {
+                    var row = document.createElement('tr');
+                    var methodLabel = (p.payment_method || 'Cash').charAt(0).toUpperCase() + (p.payment_method || 'Cash').slice(1);
+                    row.innerHTML = '<td>' + (p.payment_date || 'N/A') + '</td><td><strong>P' + parseFloat(p.amount || 0).toFixed(2) + '</strong></td><td>' + methodLabel + '</td><td>' + (p.reference_number || '-') + '</td>';
+                    tbody.appendChild(row);
+                });
+            } else {
+                empty.style.display = 'block';
+            }
+        })
+        .catch(function(error) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:#dc2626;">Error loading payment history.</td></tr>';
+        });
+}
+
+function closePaymentHistoryModal() {
+    document.getElementById('paymentHistoryModal').style.display = 'none';
+}
+
+function openSetDueDate(billingId) {
+    if (!billingId || billingId === '0') {
+        alert('No billing record found for this patient.');
+        return;
+    }
+
+    var modal = document.getElementById('setDueDateModal');
+    document.getElementById('setDueDateBillingId').value = billingId;
+    document.getElementById('setDueDateInput').value = '';
+
+    fetch('../../master/shared/billing_actions.php?action=get_billing&billing_id=' + encodeURIComponent(billingId))
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            if (data.success && data.billing) {
+                var dueDate = data.billing.due_date || '';
+                if (dueDate) {
+                    document.getElementById('setDueDateInput').value = dueDate;
+                } else {
+                    var future = new Date();
+                    future.setDate(future.getDate() + 30);
+                    document.getElementById('setDueDateInput').value = future.toISOString().split('T')[0];
+                }
+            } else {
+                var future = new Date();
+                future.setDate(future.getDate() + 30);
+                document.getElementById('setDueDateInput').value = future.toISOString().split('T')[0];
+            }
+        })
+        .catch(function() {
+            var future = new Date();
+            future.setDate(future.getDate() + 30);
+            document.getElementById('setDueDateInput').value = future.toISOString().split('T')[0];
+        });
+
+    modal.style.display = 'flex';
+}
+
+function closeSetDueDateModal() {
+    document.getElementById('setDueDateModal').style.display = 'none';
+}
+
+function confirmSetDueDate() {
+    var billingId = document.getElementById('setDueDateBillingId').value;
+    var dueDate = document.getElementById('setDueDateInput').value;
+
+    if (!dueDate) {
+        alert('Please select a due date.');
+        return;
+    }
+
+    fetch('../../master/shared/billing_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'set_due_date',
+            billing_id: billingId,
+            due_date: dueDate
+        })
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        if (data.success) {
+            closeSetDueDateModal();
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(function(error) {
+        alert('Error setting due date. Please try again.');
+    });
 }
 
 // Edit Patient Info - Modal
@@ -927,13 +1228,46 @@ function closeAddAppointmentModal() {
     document.getElementById('appointmentModal').classList.remove('active');
 }
 
-document.getElementById('appointmentModal').addEventListener('click', function(e) {
-    if (e.target === this || e.target.classList.contains('modal-backdrop') || e.target.closest('.modal-container') === e.target) {
-        closeAddAppointmentModal();
-    }
-});
+var appointmentModal_el = document.getElementById('appointmentModal');
+if (appointmentModal_el) {
+    appointmentModal_el.addEventListener('click', function(e) {
+        if (e.target === this || e.target.classList.contains('modal-backdrop') || e.target.closest('.modal-container') === e.target) {
+            closeAddAppointmentModal();
+        }
+    });
+}
 
-document.getElementById('addAppointmentForm').addEventListener('submit', function(e) {
+var adminPatientModal_el = document.getElementById('adminPatientModal');
+if (adminPatientModal_el) {
+    adminPatientModal_el.addEventListener('click', function(e) {
+        if (e.target === this) closeAdminPatientModal();
+    });
+}
+
+var recordPaymentModal_el = document.getElementById('recordPaymentModal');
+if (recordPaymentModal_el) {
+    recordPaymentModal_el.addEventListener('click', function(e) {
+        if (e.target === this) closeRecordPaymentModal();
+    });
+}
+
+var paymentHistoryModal_el = document.getElementById('paymentHistoryModal');
+if (paymentHistoryModal_el) {
+    paymentHistoryModal_el.addEventListener('click', function(e) {
+        if (e.target === this) closePaymentHistoryModal();
+    });
+}
+
+var setDueDateModal_el = document.getElementById('setDueDateModal');
+if (setDueDateModal_el) {
+    setDueDateModal_el.addEventListener('click', function(e) {
+        if (e.target === this) closeSetDueDateModal();
+    });
+}
+
+var addAppointmentForm_el = document.getElementById('addAppointmentForm');
+if (addAppointmentForm_el) {
+    addAppointmentForm_el.addEventListener('submit', function(e) {
     e.preventDefault();
     const formData = new FormData(this);
     
@@ -956,11 +1290,29 @@ document.getElementById('addAppointmentForm').addEventListener('submit', functio
         alert('Error scheduling appointment');
     });
 });
+}
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
-        if (document.getElementById('appointmentModal').classList.contains('active')) {
+        var aptM = document.getElementById('appointmentModal');
+        if (aptM && aptM.classList.contains('active')) {
             closeAddAppointmentModal();
+        }
+        var admM = document.getElementById('adminPatientModal');
+        if (admM && admM.style.display === 'flex') {
+            closeAdminPatientModal();
+        }
+        var rpM = document.getElementById('recordPaymentModal');
+        if (rpM && rpM.style.display === 'flex') {
+            closeRecordPaymentModal();
+        }
+        var phM = document.getElementById('paymentHistoryModal');
+        if (phM && phM.style.display === 'flex') {
+            closePaymentHistoryModal();
+        }
+        var sdM = document.getElementById('setDueDateModal');
+        if (sdM && sdM.style.display === 'flex') {
+            closeSetDueDateModal();
         }
     }
 });
@@ -1249,6 +1601,93 @@ document.addEventListener('keydown', function(e) {
     display: block;
 }
 
+/* Fullscreen Modal Styles */
+.fullscreen-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    justify-content: center;
+    backdrop-filter: blur(0px);
+    z-index: 99999;
+}
+.fullscreen-modal-overlay.active {
+    display: flex;
+    align-items: center;
+}
+.fullscreen-modal-content {
+    background: white;
+    border-radius: 16px;
+    width: 95%;
+    max-width: 900px;
+    max-height: 90vh;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    position: relative;
+    z-index: 100000;
+}
+.fullscreen-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px;
+    border-bottom: 1px solid #e5e7eb;
+    background: white;
+    z-index: 10;
+}
+.fullscreen-modal-close {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    cursor: pointer;
+    color: #6b7280;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+.fullscreen-modal-close:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+.fullscreen-modal-body {
+    padding: 24px;
+    max-height: calc(90vh - 97px);
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.fullscreen-modal-body::-webkit-scrollbar {
+    display: none;
+}
+.patient-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+.patient-info-item {
+    background: #f9fafb;
+    padding: 12px 16px;
+    border-radius: 8px;
+}
+.patient-info-label {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-bottom: 4px;
+}
+.patient-info-value {
+    font-size: 0.9rem;
+    color: #111827;
+    font-weight: 500;
+}
+
 /* Form Styles */
 .form-group {
     margin-bottom: 16px;
@@ -1319,6 +1758,57 @@ document.addEventListener('keydown', function(e) {
     border-color: #9ca3af;
 }
 
+/* Payment Details */
+.payment-details {
+    background: #f9fafb;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #e5e7eb;
+}
+.detail-row:last-child {
+    border-bottom: none;
+}
+.detail-label {
+    font-size: 0.85rem;
+    color: #6b7280;
+}
+.detail-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #111827;
+}
+
+/* Modal Header for Payment Modals */
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 16px;
+}
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+}
+
 /* Modal Styles */
 .modal-overlay {
     display: none;
@@ -1370,6 +1860,118 @@ document.addEventListener('keydown', function(e) {
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
 }
 </style>
+
+<!-- Admin Patient Record Modal -->
+<div id="adminPatientModal" class="fullscreen-modal-overlay">
+    <div class="fullscreen-modal-content">
+        <div class="fullscreen-modal-header">
+            <div>
+                <h2 style="font-size:1.5rem;font-weight:600;margin:0;">Patient Record Details</h2>
+                <p id="adminModalPatientName" style="color:#6b7280;margin:4px 0 0 0;font-size:0.9rem;"></p>
+            </div>
+            <button onclick="closeAdminPatientModal()" class="fullscreen-modal-close">&times;</button>
+        </div>
+        <div class="fullscreen-modal-body" id="patientModalContent">
+        </div>
+    </div>
+</div>
+
+<!-- Record Payment Modal -->
+<div id="recordPaymentModal" class="modal-overlay" style="display:none;">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>Record Payment</h2>
+            <button class="modal-close" onclick="closeRecordPaymentModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="payment-details">
+                <div class="detail-row">
+                    <span class="detail-label">Total Amount:</span>
+                    <span class="detail-value" id="recordPaymentTotalAmount">P0.00</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Paid So Far:</span>
+                    <span class="detail-value" id="recordPaymentPaidSoFar">P0.00</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Balance:</span>
+                    <span class="detail-value" id="recordPaymentBalance">P0.00</span>
+                </div>
+            </div>
+            <div style="margin-top:1rem;">
+                <label style="display:block;margin-bottom:0.5rem;font-weight:500;color:#374151;">Payment Amount</label>
+                <input type="number" id="recordPaymentAmount" step="0.01" min="0.01" style="width:100%;padding:0.5rem;border:1px solid #e5e7eb;border-radius:8px;font-size:0.9rem;box-sizing:border-box;">
+            </div>
+            <div style="margin-top:1rem;">
+                <label style="display:block;margin-bottom:0.5rem;font-weight:500;color:#374151;">Payment Method</label>
+                <select id="recordPaymentMethod" style="width:100%;padding:0.5rem;border:1px solid #e5e7eb;border-radius:8px;font-size:0.9rem;background:white;box-sizing:border-box;">
+                    <option value="cash">Cash</option>
+                    <option value="card">Card</option>
+                    <option value="gcash">GCash</option>
+                    <option value="maya">Maya</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="installment">Installment</option>
+                </select>
+            </div>
+            <input type="hidden" id="recordPaymentPatientId">
+            <input type="hidden" id="recordPaymentBillingId">
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn-cancel" onclick="closeRecordPaymentModal()">Cancel</button>
+            <button type="button" class="btn-primary" onclick="confirmRecordPayment()">Record Payment</button>
+        </div>
+    </div>
+</div>
+
+<!-- Payment History Modal -->
+<div id="paymentHistoryModal" class="modal-overlay" style="display:none;">
+    <div class="modal" style="max-width:550px;">
+        <div class="modal-header">
+            <h2>Payment History</h2>
+            <button class="modal-close" onclick="closePaymentHistoryModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <table style="width:100%;border-collapse:collapse;">
+                <thead>
+                    <tr style="background:#f9fafb;text-align:left;">
+                        <th style="padding:0.5rem;font-size:0.8rem;color:#6b7280;font-weight:600;text-transform:uppercase;">Date</th>
+                        <th style="padding:0.5rem;font-size:0.8rem;color:#6b7280;font-weight:600;text-transform:uppercase;">Amount</th>
+                        <th style="padding:0.5rem;font-size:0.8rem;color:#6b7280;font-weight:600;text-transform:uppercase;">Method</th>
+                        <th style="padding:0.5rem;font-size:0.8rem;color:#6b7280;font-weight:600;text-transform:uppercase;">Reference</th>
+                    </tr>
+                </thead>
+                <tbody id="paymentHistoryBody">
+                    <tr><td colspan="4" style="text-align:center;padding:2rem;color:#9ca3af;">Loading...</td></tr>
+                </tbody>
+            </table>
+            <div id="paymentHistoryEmpty" style="display:none;text-align:center;padding:2rem;color:#9ca3af;">
+                <p>No payment records found.</p>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn-cancel" onclick="closePaymentHistoryModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Set Due Date Modal -->
+<div id="setDueDateModal" class="modal-overlay" style="display:none;">
+    <div class="modal" style="max-width:400px;">
+        <div class="modal-header">
+            <h2>Set Due Date</h2>
+            <button class="modal-close" onclick="closeSetDueDateModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <label style="display:block;margin-bottom:0.5rem;font-weight:500;color:#374151;">Due Date</label>
+            <input type="date" id="setDueDateInput" style="width:100%;padding:0.5rem;border:1px solid #e5e7eb;border-radius:8px;font-size:0.9rem;box-sizing:border-box;">
+            <input type="hidden" id="setDueDateBillingId">
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn-cancel" onclick="closeSetDueDateModal()">Cancel</button>
+            <button type="button" class="btn-primary" onclick="confirmSetDueDate()">Save</button>
+        </div>
+    </div>
+</div>
 
 <!-- Add Appointment Modal -->
 <div id="appointmentModal" class="modal-overlay">
