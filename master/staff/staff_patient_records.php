@@ -677,7 +677,7 @@ function viewPatientRecord(patientId) {
             const p = data.patient;
             const m = data.medical_history || {};
             const d = data.dental_history || {};
-            const q = data.queue_item || {};
+            const q = data.queue_item;
             const b = data.billing || {};
             const payments = data.payments || [];
             
@@ -773,6 +773,7 @@ function viewPatientRecord(patientId) {
                 </div>
                 ` : ''}
 
+                ${q ? `
                 <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
                     <h3 style="font-size: 1rem; font-weight: 600; color: #1e40af; margin-bottom: 16px;">📋 Service Requested</h3>
                     <div class="patient-info-grid">
@@ -794,6 +795,7 @@ function viewPatientRecord(patientId) {
                         </div>
                     </div>
                 </div>
+                ` : ''}
 
                 ${billingId !== '0' ? `
                 <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:20px;margin-bottom:20px;">

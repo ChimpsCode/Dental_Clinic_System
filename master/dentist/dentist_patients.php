@@ -353,7 +353,7 @@ function viewPatientDetails(patientId) {
         const m = data.medical_history || {};
         const dentalHistory = data.dental_history || [];
         const completedPlans = data.completed_plans || [];
-        const q = data.queue_item || {};
+        const q = data.queue_item;
         const b = data.billing || {};
         const payments = data.payments || [];
             
