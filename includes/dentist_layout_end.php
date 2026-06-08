@@ -42,7 +42,7 @@
             let timer;
             const reset = () => {
                 clearTimeout(timer);
-                timer = setTimeout(() => window.location.href = 'logout.php', LOGOUT_AFTER_MS);
+                timer = setTimeout(() => window.location.href = '../../logout.php', LOGOUT_AFTER_MS);
             };
             ['click','mousemove','keydown','scroll','touchstart'].forEach(evt =>
                 document.addEventListener(evt, reset, { passive: true })

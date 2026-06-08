@@ -312,11 +312,12 @@ try {
                t.last_message,
                COALESCE(um.unread_count, 0) AS unread_count
         FROM (
-            SELECT m1.patient_id, m1.created_at AS last_at, m1.message AS last_message
+            SELECT m1.patient_id, m1.created_at AS last_at, m1.message AS last_message, m1.sender_type AS last_sender_type
             FROM messages m1
             INNER JOIN (
                 SELECT patient_id, MAX(id) AS max_id
                 FROM messages
+                WHERE sender_type != 'system'
                 GROUP BY patient_id
             ) m2 ON m1.id = m2.max_id
         ) t
@@ -769,7 +770,7 @@ try {
                                         <span class="staff-message-name"><?php echo htmlspecialchars($patientName); ?></span>
                                         <span class="staff-message-role">Patient</span>
                                     </div>
-                                    <div class="staff-message-preview"><?php echo htmlspecialchars($t['last_message'] ?? ''); ?></div>
+                                    <div class="staff-message-preview"><?php echo ((string)($t['last_sender_type'] ?? '') === 'admin' ? 'you: ' : '') . htmlspecialchars($t['last_message'] ?? ''); ?></div>
                                 </div>
                                 <div class="staff-message-conversation-meta">
                                     <span class="staff-message-time"><?php echo !empty($t['last_at']) ? date('M j, g:i A', strtotime($t['last_at'])) : ''; ?></span>
@@ -827,6 +828,8 @@ try {
     </div>
 
     <script>
+        history.scrollRestoration = 'manual';
+
         (function () {
             const history = document.getElementById('chatHistory');
             const form = document.getElementById('replyForm');
@@ -835,7 +838,18 @@ try {
             const searchInput = document.querySelector('.staff-message-search input');
             const filterButtons = Array.from(document.querySelectorAll('.staff-message-tab'));
             let activeFilter = 'all';
-            if (history) history.scrollTop = history.scrollHeight;
+
+            function scrollToBottom() {
+                if (!history) return;
+                var lastMsg = history.lastElementChild;
+                if (lastMsg) {
+                    lastMsg.scrollIntoView({ block: 'end', inline: 'nearest' });
+                } else {
+                    history.scrollTop = history.scrollHeight;
+                }
+            }
+
+            scrollToBottom();
             const patientId = form ? (form.querySelector('input[name="patient_id"]')?.value || '') : '';
             const renderedMessageIds = new Set(
                 Array.from(document.querySelectorAll('.bubble'))
@@ -924,7 +938,7 @@ try {
                 }
                 if (el) {
                     el.style.display = visible ? 'flex' : 'none';
-                    if (visible) history.scrollTop = history.scrollHeight;
+                    if (visible) scrollToBottom();
                 }
             }
 
@@ -942,7 +956,7 @@ try {
                 }
                 row.innerHTML = '<div class="staff-message-bubble-wrap"><div class="bubble ' + (isPatient ? 'patient' : 'staff') + unreadClass + '"' + (messageId > 0 ? ' data-message-id="' + String(messageId) + '"' : '') + '><div>' + esc(msg.message).replace(/\n/g, '<br>') + '</div></div><div class="meta">' + esc(fmt(msg.created_at)) + '</div></div>';
                 history.appendChild(row);
-                history.scrollTop = history.scrollHeight;
+                scrollToBottom();
             }
 
             function playNotificationSound() {

@@ -888,7 +888,10 @@ function renderDashboardInquiries() {
     document.getElementById('dashboardInquiryCount').textContent = dashboardInquiries.length;
     list.innerHTML = dashboardInquiries.map((inquiry) => {
         const fullName = [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown';
-        const preview = (inquiry.concern || inquiry.inquiry_message || 'No message').slice(0, 80);
+        const lastReply = inquiry.latest_reply_message || '';
+        const lastSender = inquiry.latest_reply_sender_type || '';
+        const previewSource = lastReply ? (lastSender === 'staff' ? 'you: ' + lastReply : lastReply) : (inquiry.concern || inquiry.inquiry_message || 'No message');
+        const preview = previewSource.slice(0, 80);
         const status = inquiry.status || 'Unread';
         const initials = getInitials(fullName);
         return `
