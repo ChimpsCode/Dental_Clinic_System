@@ -36,6 +36,73 @@ require_once '../../includes/inquiry_module_helper.php';
 
 ensureInquiryModuleSchema($pdo);
 
+// Load clinic settings
+$settingsStmt = $pdo->query("SELECT setting_key, setting_value FROM settings");
+$clinicSettings = [];
+while ($row = $settingsStmt->fetch(PDO::FETCH_ASSOC)) {
+    $clinicSettings[$row['setting_key']] = $row['setting_value'];
+}
+$clinicName    = $clinicSettings['clinic_name'] ?? 'RF Dental Clinic';
+$clinicPhone   = $clinicSettings['clinic_phone'] ?? '';
+$clinicEmail   = $clinicSettings['clinic_email'] ?? '';
+$clinicAddress = $clinicSettings['clinic_address'] ?? '';
+$clinicLogo    = $clinicSettings['welcome_logo'] ?? '';
+$logoFull      = $clinicLogo ? '../../' . $clinicLogo : '../../assets/images/Logo.png';
+
+// Load business hours
+$defaultHours = [
+    'monday'    => ['open' => '08:00', 'close' => '17:00', 'is_open' => true],
+    'tuesday'   => ['open' => '08:00', 'close' => '17:00', 'is_open' => true],
+    'wednesday' => ['open' => '08:00', 'close' => '17:00', 'is_open' => true],
+    'thursday'  => ['open' => '08:00', 'close' => '17:00', 'is_open' => true],
+    'friday'    => ['open' => '08:00', 'close' => '17:00', 'is_open' => true],
+    'saturday'  => ['open' => '09:00', 'close' => '13:00', 'is_open' => true],
+    'sunday'    => ['open' => '',      'close' => '',      'is_open' => false]
+];
+$businessHours = isset($clinicSettings['business_hours']) ? json_decode($clinicSettings['business_hours'], true) : $defaultHours;
+if (!$businessHours) $businessHours = $defaultHours;
+
+// Build grouped hours for display
+function getHoursGroups($hours) {
+    $days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    $dayNames = [
+        'monday' => 'Monday', 'tuesday' => 'Tuesday', 'wednesday' => 'Wednesday',
+        'thursday' => 'Thursday', 'friday' => 'Friday', 'saturday' => 'Saturday', 'sunday' => 'Sunday'
+    ];
+    $groups = [];
+    $currentGroup = null;
+    foreach ($days as $day) {
+        if (!empty($hours[$day]['is_open'])) {
+            $timeRange = date('g:i A', strtotime($hours[$day]['open'])) . ' - ' . date('g:i A', strtotime($hours[$day]['close']));
+            if ($currentGroup && $currentGroup['time'] === $timeRange) {
+                $currentGroup['end'] = $day;
+            } else {
+                if ($currentGroup) $groups[] = $currentGroup;
+                $currentGroup = ['start' => $day, 'end' => $day, 'time' => $timeRange];
+            }
+        } else {
+            if ($currentGroup) { $groups[] = $currentGroup; $currentGroup = null; }
+        }
+    }
+    if ($currentGroup) $groups[] = $currentGroup;
+    foreach ($groups as &$g) {
+        if ($g['start'] === $g['end']) {
+            $g['label'] = $dayNames[$g['start']];
+        } else {
+            $g['label'] = $dayNames[$g['start']] . ' - ' . $dayNames[$g['end']];
+        }
+    }
+    return $groups;
+}
+$hoursGroups = getHoursGroups($businessHours);
+
+// Load active services
+$servicesList = [];
+$svcStmt = $pdo->query("SELECT id, name FROM services WHERE is_active = 1 AND (is_archived = 0 OR is_archived IS NULL) ORDER BY name");
+while ($svc = $svcStmt->fetch(PDO::FETCH_ASSOC)) {
+    $servicesList[] = $svc;
+}
+
 $userId = (int)($_SESSION['user_id'] ?? 0);
 $userStmt = $pdo->prepare("
     SELECT id, first_name, middle_name, last_name, email, phone
@@ -126,8 +193,8 @@ $pageTitle = 'Inquiry / Consultation';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($pageTitle); ?> - RF Dental Clinic</title>
-    <link rel="icon" type="image/png" href="../../assets/images/Logo.png">
+    <title><?php echo htmlspecialchars($pageTitle); ?> - <?php echo htmlspecialchars($clinicName); ?></title>
+    <link rel="icon" type="image/png" href="<?php echo htmlspecialchars($logoFull); ?>">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../assets/css/patient_portal.css">
@@ -147,256 +214,197 @@ $pageTitle = 'Inquiry / Consultation';
         .user-profile:hover .user-dropdown { opacity: 1; visibility: visible; transform: translateY(0); }
         .dropdown-item { display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: #374151; text-decoration: none; }
         .dropdown-item.logout { border-top: 1px solid #e5e7eb; color: #dc2626; }
+        
         .dashboard-main { flex: 1; padding: 24px 32px 40px; width: 100%; max-width: 1500px; margin: 0 auto; }
+        
+        /* Updated Grid Layout */
         .top-layout {
             display: grid;
-            grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.95fr);
+            grid-template-columns: 1fr 360px;
             gap: 24px;
-            align-items: start;
+            align-items: stretch;
+            height: calc(100vh - 120px);
+            min-height: 600px;
+        }
+
+        /* Conversation panel styling (Left Side) */
+        .conversation-panel { 
+            display: flex; 
+            flex-direction: column; 
+            height: 100%; 
+            border-radius: 12px; 
+            overflow: hidden; 
+            border: 1px solid #cecece; /* Blue border to match mockup selection if desired, or #e6eef8 */
+            background: #fff; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        .conv-header { display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid #eef2f7; }
+        .conv-avatar-placeholder { width:44px; height:44px; border-radius:50%; background:#d1d5db; }
+        .conv-meta { flex:1; }
+        .conv-name { font-size: 1.1rem; font-weight:800; color:#005daa; }
+        .conv-status { font-size:12px; color:#6b7280; margin-top:2px; }
+        .conv-body { flex:1; padding:20px; overflow-y:auto; background:#fff; display:flex; flex-direction:column; gap:16px; }
+        
+        .message-row { display:flex; gap:12px; align-items:flex-end; }
+        .message-row.left { justify-content:flex-start; }
+        .message-row.right { justify-content:flex-end; }
+        .avatar.small { width:34px; height:34px; border-radius:50%; background:#d1d5db; }
+        
+        .bubble { padding:14px 16px; border-radius:12px; max-width:68%; font-size:14px; line-height:1.5; }
+        .bubble-left { background:#f3f4f6; border:1px solid #e5e7eb; color:#1f2937; border-bottom-left-radius: 4px; }
+        .bubble-right { background:#5b6ee6; color:#fff; border-bottom-right-radius: 4px; }
+        .ts { font-size:11px; color:#9ca3af; margin-top:6px; }
+        
+        .conv-input { display:flex; gap:12px; align-items:center; padding:16px 20px; border-top:1px solid #eef2f7; background:#fff; }
+        .icon-btn { background:transparent; border:none; color:#6b7280; font-size:18px; padding:8px; cursor:pointer; }
+        .conv-text { flex:1; border:1px solid #d1d5db; padding:12px 20px; border-radius:999px; font:inherit; outline: none; }
+        .conv-text:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        .send-btn { background:#f3f4f6; border:none; color:#6b7280; padding:12px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+
+        /* Clinic Profile Panel (Right Side) */
+        .clinic-profile-card {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid #cecece;
+            padding: 32px 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            height: 100%;
+            overflow-y: auto;
+        }
+        .clinic-profile-header {
+            text-align: center;
             margin-bottom: 24px;
         }
-        .panel { background: #fff; border-radius: 20px; border: 1px solid #e5e7eb; box-shadow: 0 16px 30px rgba(15, 23, 42, 0.06); }
-        .panel-header { padding: 24px 24px 0; }
-        .panel-title { font-size: 1.3rem; font-weight: 800; color: #0f172a; }
-        .panel-subtitle { margin-top: 6px; color: #64748b; font-size: 14px; }
-        .panel-body { padding: 24px; }
-        .form-panel {
-            overflow: hidden;
+        .clinic-avatar-large {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: #d1d5db;
+            margin: 0 auto 16px;
         }
-        .form-panel .panel-header {
-            padding: 24px;
-            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-            border-bottom: 1px solid #dbeafe;
+        .clinic-name-large {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #005daa;
+            margin-bottom: 6px;
         }
-        .eyebrow {
+        .clinic-status-badge {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.82);
-            color: #2563eb;
-            border: 1px solid #bfdbfe;
-            font-size: 12px;
-            font-weight: 800;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-            margin-bottom: 14px;
+            gap: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #10b981;
         }
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 14px 16px;
-            margin-bottom: 18px;
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
         }
-        .readonly-field { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 14px; padding: 14px 16px; }
-        .readonly-label, .field-label { display: block; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
-        .readonly-value { font-size: 15px; color: #0f172a; font-weight: 600; }
-        .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-        .field-group { margin-bottom: 16px; }
-        .field-input, .field-select, .field-textarea {
-            width: 100%;
-            border: 1px solid #d1d5db;
-            border-radius: 14px;
-            padding: 13px 14px;
-            font: inherit;
-            color: #111827;
-            background: #fff;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        .clinic-reply-time {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            margin-top: 4px;
         }
-        .field-textarea { min-height: 150px; resize: vertical; }
-        .field-input:focus, .field-select:focus, .field-textarea:focus {
-            outline: none;
-            border-color: #2563eb;
-            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
-        }
-        .helper-text { margin-top: 8px; color: #64748b; font-size: 12px; line-height: 1.5; }
-        .actions-row { display: flex; gap: 12px; align-items: center; margin-top: 20px; }
-        .btn-primary, .btn-secondary {
-            border: none;
-            border-radius: 14px;
-            padding: 13px 18px;
-            font: inherit;
-            font-weight: 700;
-            cursor: pointer;
-            transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-        }
-        .btn-primary { background: #2563eb; color: #fff; box-shadow: 0 12px 20px rgba(37, 99, 235, 0.18); }
-        .btn-secondary { background: #eef2ff; color: #1d4ed8; }
-        .btn-primary:hover, .btn-secondary:hover { transform: translateY(-1px); }
-        .side-stack {
-            display: grid;
-            gap: 18px;
-        }
-        .info-card {
-            background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
-        }
-        .info-card .panel-body {
-            display: grid;
-            gap: 16px;
-        }
-        .support-box {
-            background: #fff;
-            border: 1px solid #dbeafe;
-            border-radius: 18px;
-            padding: 18px;
-        }
-        .support-box h3 {
-            font-size: 1.05rem;
-            color: #0f172a;
-            margin-bottom: 12px;
-        }
-        .support-list {
-            display: grid;
+        .profile-buttons {
+            display: flex;
+            flex-direction: column;
             gap: 12px;
-            color: #64748b;
-            line-height: 1.5;
+            margin-bottom: 32px;
         }
-        .support-item {
+        .btn-block {
+            width: 100%;
+            display: block;
+            text-align: center;
+            border-radius: 8px;
+            padding: 12px 18px;
+            font: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-primary { background: #0070f3; color: #fff; border: none; }
+        .btn-primary:hover { background: #005bb5; }
+        .btn-outline { background: #fff; border: 1px solid #d1d5db; color: #374151; }
+        .btn-outline:hover { background: #f9fafb; }
+        
+        .profile-section { margin-bottom: 28px; }
+        .profile-section-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 16px;
+        }
+        .contact-list { list-style: none; padding: 0; margin: 0; }
+        .contact-list li {
             display: flex;
             align-items: flex-start;
-            gap: 10px;
+            gap: 16px;
+            margin-bottom: 16px;
+            font-size: 0.875rem;
+            color: #374151;
+            line-height: 1.4;
         }
-        .support-item i {
-            color: #2563eb;
-            margin-top: 3px;
-        }
-        .status-guide {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .guide-pill {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 999px;
+        .contact-list i { color: #0070f3; margin-top: 3px; width: 16px; text-align: center; }
+        .contact-label { display: block; color: #9ca3af; font-size: 0.75rem; margin-bottom: 2px; }
+        
+        .hours-list { list-style: none; padding: 0; margin: 0; font-size: 0.875rem; }
+        .hours-list li { display: flex; gap: 16px; margin-bottom: 10px; }
+        .hours-list i { color: #0070f3; margin-top: 3px; width: 16px; text-align: center; }
+        .hours-row { flex: 1; display: flex; justify-content: space-between; color: #374151; }
+        .hours-day { color: #9ca3af; }
+        
+        .services-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .service-pill {
+            background: #cffafe;
+            color: #0891b2;
             padding: 8px 12px;
-            font-size: 12px;
-            font-weight: 800;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            text-align: center;
+            font-weight: 600;
         }
-        .guide-pending { background: #fef3c7; color: #92400e; }
-        .guide-contacted { background: #dbeafe; color: #1d4ed8; }
-        .guide-scheduled { background: #dcfce7; color: #166534; }
-        .guide-completed { background: #e5e7eb; color: #475569; }
-        .guide-cancelled { background: #fee2e2; color: #b91c1c; }
-        .guide-Open { background: #fef3c7; color: #92400e; }
-        .guide-Replied { background: #dbeafe; color: #1d4ed8; }
-        .guide-Closed { background: #e5e7eb; color: #475569; }
-        .history-section {
-            margin-top: 8px;
-        }
-        .history-table-wrap { overflow-x: auto; }
-        .history-table { width: 100%; border-collapse: collapse; min-width: 760px; }
-        .history-table th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; padding: 0 0 14px; }
-        .history-table td { padding: 18px 0; border-top: 1px solid #eef2f7; vertical-align: top; color: #0f172a; font-size: 14px; }
-        .concern-preview { max-width: 240px; color: #475569; line-height: 1.5; }
-        .status-badge { display: inline-flex; align-items: center; justify-content: center; padding: 7px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; }
-        .status-Open { background: #fef3c7; color: #92400e; }
-        .status-Pending { background: #fef3c7; color: #92400e; }
-        .status-Contacted { background: #dbeafe; color: #1d4ed8; }
-        .status-Replied { background: #dbeafe; color: #1d4ed8; }
-        .status-Scheduled { background: #dcfce7; color: #166534; }
-        .status-Completed { background: #e0f2fe; color: #0369a1; }
-        .status-Closed { background: #e5e7eb; color: #475569; }
-        .status-Cancelled { background: #fee2e2; color: #b91c1c; }
-        .link-btn { background: none; border: none; color: #2563eb; font: inherit; font-weight: 700; cursor: pointer; padding: 0; }
-        .empty-state { text-align: center; padding: 50px 24px; color: #64748b; }
-        .empty-state i { font-size: 42px; color: #93c5fd; margin-bottom: 14px; }
+
         .alert { display: none; padding: 14px 16px; border-radius: 14px; margin-bottom: 16px; font-size: 14px; font-weight: 600; }
         .alert.show { display: block; }
         .alert.success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
         .alert.error { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
-        .modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(15, 23, 42, 0.5);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1200;
-            padding: 20px;
-        }
-        .modal-overlay.active { display: flex; }
-        .modal-card {
-            width: min(720px, 100%);
-            background: #fff;
-            border-radius: 22px;
-            box-shadow: 0 30px 60px rgba(15, 23, 42, 0.2);
-            border: 1px solid #e5e7eb;
-            overflow: hidden;
-        }
-        .modal-head { padding: 22px 24px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
-        .modal-head h3 { font-size: 1.2rem; color: #0f172a; }
-        .modal-close { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 10px; width: 38px; height: 38px; cursor: pointer; }
-        .modal-body { padding: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; }
-        .detail-block.full { grid-column: 1 / -1; }
-        .detail-label { font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: 700; margin-bottom: 6px; }
-        .detail-value { color: #0f172a; line-height: 1.6; }
-        .detail-section-title {
-            grid-column: 1 / -1;
-            margin: 4px 0 0;
-            padding-top: 10px;
-            border-top: 1px solid #e5e7eb;
-            font-size: 12px;
-            font-weight: 800;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: #334155;
-        }
-        .progress-tracker {
-            grid-column: 1 / -1;
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 12px;
-        }
-        .progress-step {
-            padding: 12px 14px;
-            border: 1px solid #dbe1ea;
-            border-radius: 14px;
-            background: #f8fafc;
-            color: #64748b;
-            font-size: 13px;
-            font-weight: 700;
-            text-align: center;
-        }
-        .progress-step.is-active,
-        .progress-step.is-complete {
-            border-color: #93c5fd;
-            background: #eff6ff;
-            color: #1d4ed8;
-        }
-        .progress-step.is-active {
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
-        }
-        .progress-step span {
-            display: block;
-            margin-top: 4px;
-            font-size: 11px;
-            font-weight: 600;
-            color: inherit;
-            opacity: 0.82;
-        }
+
         @media (max-width: 1180px) {
-            .top-layout { grid-template-columns: 1fr; }
+            .top-layout { grid-template-columns: 1fr; height: auto; min-height: auto; }
+            .conversation-panel { height: 600px; }
         }
         @media (max-width: 768px) {
             .sidebar { width: 60px; }
             .main-wrapper { margin-left: 60px; }
             .dashboard-header { padding: 12px 16px; height: 60px; }
             .dashboard-main { padding: 16px; }
-            .info-grid,
-            .field-grid,
-            .modal-body { grid-template-columns: 1fr; }
             .user-details { display: none; }
         }
+        
+        /* Hide the site-wide floating message launcher on the Inquiry page only */
+        .floating-message-btn { display: none !important; }
     </style>
+    <script>
+        (function () {
+            // ensure messages list is scrolled to bottom on load
+            window.addEventListener('DOMContentLoaded', () => {
+                const messagesList = document.getElementById('messagesList');
+                if (messagesList) {
+                    messagesList.scrollTop = messagesList.scrollHeight;
+                }
+            });
+        })();
+    </script>
 </head>
 <body>
     <aside class="sidebar">
         <a href="../../index.php" class="sidebar-brand">
-            <img src="../../assets/images/Logo.png" alt="RF Dental Clinic">
-            <span>RF Dental Clinic</span>
+            <img src="<?php echo htmlspecialchars($logoFull); ?>" alt="<?php echo htmlspecialchars($clinicName); ?>">
+            <span><?php echo htmlspecialchars($clinicName); ?></span>
         </a>
         <nav class="sidebar-menu">
             <a href="patient-dashboard.php" class="menu-item">
@@ -450,188 +458,156 @@ $pageTitle = 'Inquiry / Consultation';
         </header>
 
         <main class="dashboard-main">
+            <div id="formAlert" class="alert"></div>
+            
             <div class="top-layout">
-                <section class="panel form-panel">
-                    <div class="panel-header">
-                        <div class="eyebrow"><i class="fas fa-stethoscope"></i> Patient Support</div>
-                        <div class="panel-title">New Inquiry</div>
-                        <div class="panel-subtitle">Tell us what you are experiencing, what service you need, and when you prefer to visit. Your request is linked to your account automatically.</div>
-                    </div>
-                    <div class="panel-body">
-                        <div id="formAlert" class="alert"></div>
-                        <form id="inquiryForm">
-                            <div class="info-grid">
-                                <div class="readonly-field">
-                                    <span class="readonly-label">Full Name</span>
-                                    <div class="readonly-value"><?php echo htmlspecialchars($fullName ?: 'Patient'); ?></div>
-                                </div>
-                                <div class="readonly-field">
-                                    <span class="readonly-label">Phone Number</span>
-                                    <div class="readonly-value"><?php echo htmlspecialchars($phone ?: 'Not provided'); ?></div>
-                                </div>
-                                <div class="readonly-field">
-                                    <span class="readonly-label">Email</span>
-                                    <div class="readonly-value"><?php echo htmlspecialchars($email ?: 'Not provided'); ?></div>
-                                </div>
-                            </div>
-
-                            <div class="field-group">
-                                <label class="field-label" for="concern">Concern / Message</label>
-                                <textarea id="concern" name="concern" class="field-textarea" placeholder="Describe your concern, symptoms, or what you would like to ask." required></textarea>
-                            </div>
-
-                            <div class="actions-row">
-                                <button type="submit" class="btn-primary">Submit Inquiry</button>
-                                <button type="reset" class="btn-secondary">Clear Form</button>
-                            </div>
-                        </form>
-                    </div>
-                </section>
-
-                <div class="side-stack">
-                    <section class="panel info-card">
-                        <div class="panel-header">
-                            <div class="eyebrow"><i class="fas fa-link"></i> Account Linked</div>
-                            <div class="panel-title">What happens next</div>
-                            <div class="panel-subtitle">Your submission is attached to your logged-in patient profile so the clinic can respond faster and keep your request history in one place.</div>
+                <div class="conversation-panel">
+                    <div class="conv-header">
+                        <img src="<?php echo htmlspecialchars($logoFull); ?>" alt="<?php echo htmlspecialchars($clinicName); ?>" style="width:44px;height:44px;border-radius:50%;object-fit:cover;">
+                        <div class="conv-meta">
+                            <div class="conv-name"><?php echo htmlspecialchars($clinicName); ?></div>
                         </div>
-                        <div class="panel-body">
-                            <div class="support-box">
-                                <h3>Inquiry details</h3>
-                                <div class="support-list">
-                                    <div class="support-item"><i class="fas fa-user-check"></i><span>Name, phone number, and email are prefilled from your account.</span></div>
-                                    <div class="support-item"><i class="fas fa-reply"></i><span>Staff will review your message and reply directly to your account.</span></div>
-                                    <div class="support-item"><i class="fas fa-shield-heart"></i><span>Your request history stays under your patient record.</span></div>
-                                </div>
-                            </div>
-                            <div class="support-box">
-                                <h3>Status guide</h3>
-                                <div class="status-guide">
-                                    <span class="guide-pill guide-pending">Open</span>
-                                    <span class="guide-pill guide-contacted">Replied</span>
-                                    <span class="guide-pill guide-completed">Closed</span>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-                </div>
-            </div>
+                        <div><button class="icon-btn" aria-label="options"><i class="fas fa-ellipsis-v"></i></button></div>
+                    </div>
 
-            <section class="panel history-section">
-                <div class="panel-header">
-                    <div class="panel-title">My Inquiries</div>
-                    <div class="panel-subtitle">Track your submitted requests and their latest clinic status.</div>
-                </div>
-                <div class="panel-body">
-                    <div class="history-table-wrap">
-                        <table class="history-table">
-                            <thead>
-                                <tr>
-                                    <th>Date Submitted</th>
-                                    <th>Concern Preview</th>
-                                    <th>Status</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="historyTableBody">
-                                <?php if (empty($inquiries)): ?>
-                                    <tr>
-                                        <td colspan="4">
-                                            <div class="empty-state">
-                                                <i class="fas fa-comment-medical"></i>
-                                                <h3 style="margin-bottom: 8px; color: #0f172a;">No inquiries yet</h3>
-                                                <p>Use the form above to send your first consultation request.</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php else: ?>
-                                    <?php foreach ($inquiries as $inquiry): ?>
-                                        <?php
-                                        $concernText = $inquiry['concern'] ?: ($inquiry['inquiry_message'] ?? '');
-                                        $preview = mb_strlen($concernText) > 70 ? mb_substr($concernText, 0, 70) . '...' : $concernText;
-                                        ?>
-                                        <tr data-inquiry='<?php echo htmlspecialchars(json_encode($inquiry), ENT_QUOTES, 'UTF-8'); ?>'>
-                                            <td><?php echo date('M d, Y', strtotime($inquiry['created_at'])); ?></td>
-                                            <td><div class="concern-preview"><?php echo htmlspecialchars($preview ?: 'No concern provided'); ?></div></td>
-                                            <td><span class="status-badge status-<?php echo htmlspecialchars($inquiry['status']); ?>"><?php echo htmlspecialchars($inquiry['status']); ?></span></td>
-                                            <td><button type="button" class="link-btn" onclick="openDetailModal(<?php echo (int)$inquiry['id']; ?>)">View Details</button></td>
-                                        </tr>
-                                    <?php endforeach; ?>
+                    <div id="messagesList" class="conv-body">
+                        <?php if (empty($inquiries)): ?>
+                            <div class="message-row left">
+                                <img src="<?php echo htmlspecialchars($logoFull); ?>" alt="<?php echo htmlspecialchars($clinicName); ?>" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
+                                <div>
+                                    <div class="bubble bubble-left">Hello, How are you today?<br>would you like to book now?</div>
+                                    <div class="ts">11:00 AM</div>
+                                </div>
+                            </div>
+                        <?php else: ?>
+                            <?php foreach ($inquiries as $inq): ?>
+                                <?php
+                                    $concernText = $inq['concern'] ?: ($inq['inquiry_message'] ?? '');
+                                    $clinicReply = $inq['clinic_reply'] ?? ($inq['response'] ?? '');
+                                    $ts = date('h:i A', strtotime($inq['created_at'] ?? 'now'));
+                                ?>
+                                <?php if (!empty($clinicReply)): ?>
+                                    <div class="message-row left">
+                                        <div class="avatar small"></div>
+                                        <div>
+                                            <div class="bubble bubble-left"><?php echo nl2br(htmlspecialchars($clinicReply)); ?></div>
+                                            <div class="ts"><?php echo $ts; ?></div>
+                                        </div>
+                                    </div>
                                 <?php endif; ?>
-                            </tbody>
-                        </table>
+                                <div class="message-row right">
+                                    <div>
+                                        <div class="bubble bubble-right"><?php echo nl2br(htmlspecialchars($concernText ?: 'No message provided')); ?></div>
+                                        <div class="ts" style="text-align: right;"><?php echo $ts; ?></div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </div>
+
+                    <form id="inquiryForm">
+                        <input type="hidden" name="action" value="create">
+                        <div class="conv-input">
+                            <button type="button" class="icon-btn" aria-label="attach"><i class="fas fa-paperclip"></i></button>
+                            <button type="button" class="icon-btn" aria-label="image"><i class="fas fa-image"></i></button>
+                            <input id="concern" name="concern" class="conv-text" placeholder="Type a message" required />
+                            <button type="submit" class="send-btn" aria-label="send"><i class="fas fa-paper-plane"></i></button>
+                        </div>
+                    </form>
                 </div>
-            </section>
+
+                <aside class="clinic-profile-card">
+                    <div class="clinic-profile-header">
+                        <img src="<?php echo htmlspecialchars($logoFull); ?>" alt="<?php echo htmlspecialchars($clinicName); ?>" style="width:100px;height:100px;border-radius:50%;object-fit:cover;margin:0 auto 16px;display:block;">
+                        <h2 class="clinic-name-large"><?php echo htmlspecialchars($clinicName); ?></h2>
+                        <div class="clinic-status-badge"><span class="status-dot"></span> Online</div>
+                        <div class="clinic-reply-time">Usually replies within 5 minutes</div>
+                    </div>
+
+                    <div class="profile-buttons">
+                        <button class="btn-block btn-primary">Book an Appointment</button>
+                        <button class="btn-block btn-outline">View Records</button>
+                    </div>
+
+                    <div class="profile-section">
+                        <h3 class="profile-section-title">CONTACT INFORMATION</h3>
+                        <ul class="contact-list">
+                            <?php if (!empty($clinicPhone)): ?>
+                            <li>
+                                <i class="fas fa-phone"></i>
+                                <div>
+                                    <span class="contact-label">Phone</span>
+                                    <?php echo htmlspecialchars($clinicPhone); ?>
+                                </div>
+                            </li>
+                            <?php endif; ?>
+                            <?php if (!empty($clinicEmail)): ?>
+                            <li>
+                                <i class="fas fa-envelope"></i>
+                                <div>
+                                    <span class="contact-label">Email</span>
+                                    <?php echo htmlspecialchars($clinicEmail); ?>
+                                </div>
+                            </li>
+                            <?php endif; ?>
+                            <?php if (!empty($clinicAddress)): ?>
+                            <li>
+                                <i class="fas fa-map-marker-alt"></i>
+                                <div>
+                                    <span class="contact-label">Address</span>
+                                    <?php echo nl2br(htmlspecialchars($clinicAddress)); ?>
+                                </div>
+                            </li>
+                            <?php endif; ?>
+                        </ul>
+                    </div>
+
+                    <div class="profile-section">
+                        <h3 class="profile-section-title">OFFICE HOURS</h3>
+                        <ul class="hours-list">
+                            <?php if (empty($hoursGroups)): ?>
+                                <li><span style="color:#9ca3af;font-size:0.875rem;">Closed</span></li>
+                            <?php else: ?>
+                                <?php $first = true; ?>
+                                <?php foreach ($hoursGroups as $hg): ?>
+                                <li>
+                                    <i class="fas fa-clock" style="<?php echo $first ? '' : 'visibility:hidden;'; ?>"></i>
+                                    <div class="hours-row">
+                                        <span class="hours-day"><?php echo htmlspecialchars($hg['label']); ?></span>
+                                        <span><?php echo htmlspecialchars($hg['time']); ?></span>
+                                    </div>
+                                </li>
+                                <?php $first = false; ?>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </ul>
+                    </div>
+
+                    <div class="profile-section">
+                        <h3 class="profile-section-title">AVAILABLE SERVICES</h3>
+                        <div class="services-grid">
+                            <?php if (empty($servicesList)): ?>
+                                <div class="service-pill" style="grid-column: span 2;">No services listed</div>
+                            <?php else: ?>
+                                <?php foreach ($servicesList as $svc): ?>
+                                <div class="service-pill"><?php echo htmlspecialchars($svc['name']); ?></div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </aside>
+            </div>
         </main>
     </div>
 
-    <div class="modal-overlay" id="detailModal">
-        <div class="modal-card">
-            <div class="modal-head">
-                <h3>Inquiry Details</h3>
-                <button type="button" class="modal-close" onclick="closeDetailModal()"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="modal-body" id="detailModalBody"></div>
-        </div>
-    </div>
-
     <script>
-        const inquiryCache = <?php echo json_encode(array_values($inquiries)); ?>;
         const form = document.getElementById('inquiryForm');
         const formAlert = document.getElementById('formAlert');
-        const detailModal = document.getElementById('detailModal');
-        const detailModalBody = document.getElementById('detailModalBody');
-
-        function escapeHtml(value) {
-            return String(value ?? '').replace(/[&<>"']/g, (character) => ({
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#39;'
-            }[character]));
-        }
-
-        function nl2brSafe(value, fallback = 'N/A') {
-            const text = value && String(value).trim() !== '' ? value : fallback;
-            return escapeHtml(text).replace(/\n/g, '<br>');
-        }
-
-        function formatSchedule(dateValue, timeValue, fallback = 'N/A') {
-            const parts = [];
-            if (dateValue) {
-                const date = new Date(`${dateValue}T00:00:00`);
-                parts.push(Number.isNaN(date.getTime()) ? dateValue : date.toLocaleDateString());
-            }
-            if (timeValue) {
-                const time = new Date(`1970-01-01T${String(timeValue).slice(0, 5)}`);
-                parts.push(Number.isNaN(time.getTime()) ? timeValue : time.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
-            }
-            return parts.length ? parts.join(' at ') : fallback;
-        }
-
-        function getClinicUpdate(inquiry) {
-            const status = String(inquiry.status || 'Open');
-            if (status === 'Closed') {
-                return 'This inquiry has been closed.';
-            }
-            if (status === 'Replied') {
-                return 'The clinic has responded to your inquiry. Check your messages for the reply.';
-            }
-            return 'Your inquiry has been received and is waiting for a staff response.';
-        }
+        const messagesList = document.getElementById('messagesList');
 
         function showFormAlert(type, message) {
             formAlert.className = `alert show ${type}`;
             formAlert.textContent = message;
-        }
-
-        async function refreshHistory() {
-            const response = await fetch('../shared/inquiry_actions.php?action=patient_history');
-            const data = await response.json();
-            if (!data.success) return;
-            window.location.reload();
         }
 
         form.addEventListener('submit', async (event) => {
@@ -651,67 +627,9 @@ $pageTitle = 'Inquiry / Consultation';
                 }
 
                 form.reset();
-                showFormAlert('success', data.message || 'Inquiry submitted successfully. Staff will reply to your account.');
-                setTimeout(() => window.location.reload(), 700);
+                window.location.reload();
             } catch (error) {
                 showFormAlert('error', 'Something went wrong while submitting your inquiry.');
-            }
-        });
-
-        async function openDetailModal(id) {
-            detailModalBody.innerHTML = '<div class="detail-block full"><div class="detail-value">Loading details...</div></div>';
-            detailModal.classList.add('active');
-
-            try {
-                const response = await fetch(`../shared/inquiry_actions.php?action=detail&id=${id}`);
-                const data = await response.json();
-                if (!data.success) {
-                    detailModalBody.innerHTML = `<div class="detail-block full"><div class="detail-value">${data.message || 'Unable to load details.'}</div></div>`;
-                    return;
-                }
-
-                const inquiry = data.inquiry;
-                const concernHtml = nl2brSafe(inquiry.resolved_concern || inquiry.concern || '', 'No concern provided.');
-                const clinicUpdate = getClinicUpdate(inquiry);
-                const assignedName = [
-                    inquiry.assigned_first_name,
-                    inquiry.assigned_last_name
-                ].filter(Boolean).join(' ').trim() || inquiry.assigned_username || inquiry.assigned_dentist || '';
-
-                detailModalBody.innerHTML = `
-                    <div class="detail-block">
-                        <div class="detail-label">Date Submitted</div>
-                        <div class="detail-value">${new Date(inquiry.created_at).toLocaleString()}</div>
-                    </div>
-                    <div class="detail-block">
-                        <div class="detail-label">Status</div>
-                        <div class="detail-value"><span class="status-badge status-${inquiry.status}">${inquiry.status || 'Open'}</span></div>
-                    </div>
-                    <div class="detail-block">
-                        <div class="detail-label">Replied By</div>
-                        <div class="detail-value">${escapeHtml(assignedName || 'Not yet')}</div>
-                    </div>
-                    <div class="detail-block full">
-                        <div class="detail-label">Concern / Message</div>
-                        <div class="detail-value">${concernHtml}</div>
-                    </div>
-                    <div class="detail-block full">
-                        <div class="detail-label">Clinic Update</div>
-                        <div class="detail-value">${escapeHtml(clinicUpdate)}</div>
-                    </div>
-                `;
-            } catch (error) {
-                detailModalBody.innerHTML = '<div class="detail-block full"><div class="detail-value">Unable to load details.</div></div>';
-            }
-        }
-
-        function closeDetailModal() {
-            detailModal.classList.remove('active');
-        }
-
-        detailModal.addEventListener('click', (event) => {
-            if (event.target === detailModal) {
-                closeDetailModal();
             }
         });
     </script>
