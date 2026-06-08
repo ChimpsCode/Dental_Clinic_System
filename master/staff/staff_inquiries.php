@@ -1348,13 +1348,13 @@ async function openReplyModal(id) {
         if (data.success && data.replies) {
             data.replies.forEach((reply) => {
                 const bubble = document.createElement('div');
-                if (reply.sender_type === 'guest') {
+                if (reply.sender_type !== 'staff') {
                     bubble.className = 'chat-bubble received';
                 } else {
                     bubble.className = 'chat-bubble sent';
                 }
-                const label = reply.sender_type === 'guest' ? (fullName) : 'Staff';
-                bubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:' + (reply.sender_type === 'guest' ? '#64748b' : 'rgba(255,255,255,0.7)') + ';margin-bottom:3px;">' + escapeHtml(label) + '</div><div>' + escapeHtml(reply.message).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(formatCreatedAt(reply.created_at)) + '</div>';
+                const label = reply.sender_type !== 'staff' ? (fullName) : 'Staff';
+                bubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:' + (reply.sender_type !== 'staff' ? '#64748b' : 'rgba(255,255,255,0.7)') + ';margin-bottom:3px;">' + escapeHtml(label) + '</div><div>' + escapeHtml(reply.message).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(formatCreatedAt(reply.created_at)) + '</div>';
                 messageContainer.appendChild(bubble);
             });
         }

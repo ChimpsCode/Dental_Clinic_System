@@ -498,6 +498,31 @@ if ($action === 'create') {
         inquiryJson(['success' => false, 'message' => 'Concern / Message is required.']);
     }
 
+    $existingStmt = $pdo->prepare("
+        SELECT id, status FROM inquiries
+        WHERE patient_id = ?
+          AND COALESCE(is_archived, 0) = 0
+          AND status IN ('Unread', 'Read', 'Replied')
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1
+    ");
+    $existingStmt->execute([$patientId]);
+    $existingInquiry = $existingStmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($existingInquiry) {
+        ensureInquiryReplySchema($pdo);
+
+        $replyStmt = $pdo->prepare("
+            INSERT INTO inquiry_replies (inquiry_id, message, sender_type, created_at)
+            VALUES (?, ?, 'patient', NOW())
+        ");
+        $replyStmt->execute([(int)$existingInquiry['id'], $concern]);
+
+        updateInquiryRecord($pdo, (int)$existingInquiry['id'], ['status' => 'Unread']);
+
+        inquiryJson(['success' => true, 'message' => 'Message sent successfully.']);
+    }
+
     [$firstName, $middleName, $lastName] = splitInquiryFullName($fullName);
 
     $insertData = [

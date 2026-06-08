@@ -181,15 +181,39 @@ $displayFirstName = trim((string)preg_split('/\s+/', $fullName)[0]);
 $phone = $patient['phone'] ?: ($patient['user_phone'] ?? '');
 $email = $patient['email'] ?: ($patient['user_email'] ?? '');
 
-$stmt = $pdo->prepare("
+$inqStmt = $pdo->prepare("
     SELECT i.*, s.name AS service_name
     FROM inquiries i
     LEFT JOIN services s ON s.id = i.service_id
     WHERE i.patient_id = ? AND COALESCE(i.is_archived, 0) = 0
     ORDER BY i.created_at DESC, i.id DESC
+    LIMIT 1
 ");
-$stmt->execute([(int)$patient['id']]);
-$inquiries = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$inqStmt->execute([(int)$patient['id']]);
+$activeInquiry = $inqStmt->fetch(PDO::FETCH_ASSOC);
+
+$messages = [];
+if ($activeInquiry) {
+    $concernText = $activeInquiry['concern'] ?: ($activeInquiry['inquiry_message'] ?? '');
+    if ($concernText !== '') {
+        $messages[] = [
+            'type' => 'patient',
+            'message' => $concernText,
+            'created_at' => $activeInquiry['created_at'],
+        ];
+    }
+    $replies = fetchInquiryReplies($pdo, (int)$activeInquiry['id']);
+    foreach ($replies as $reply) {
+        $messages[] = [
+            'type' => $reply['sender_type'] === 'staff' ? 'clinic' : 'patient',
+            'message' => $reply['message'],
+            'created_at' => $reply['created_at'],
+        ];
+    }
+    usort($messages, function ($a, $b) {
+        return strtotime($a['created_at']) - strtotime($b['created_at']);
+    });
+}
 
 $pageTitle = 'Inquiry / Consultation';
 ?>
@@ -255,7 +279,9 @@ $pageTitle = 'Inquiry / Consultation';
         .message-row.right { justify-content:flex-end; }
         .avatar.small { width:34px; height:34px; border-radius:50%; background:#d1d5db; }
         
-        .bubble { padding:14px 16px; border-radius:12px; max-width:68%; font-size:14px; line-height:1.5; }
+        .conv-body .message-row > div:last-child { max-width:75%; }
+        
+        .bubble { padding:14px 16px; border-radius:12px; max-width:100%; width:fit-content; font-size:14px; line-height:1.5; word-wrap:break-word; }
         .bubble-left { background:#f3f4f6; border:1px solid #e5e7eb; color:#1f2937; border-bottom-left-radius: 4px; }
         .bubble-right { background:#5b6ee6; color:#fff; border-bottom-right-radius: 4px; }
         .ts { font-size:11px; color:#9ca3af; margin-top:6px; }
@@ -490,7 +516,7 @@ $pageTitle = 'Inquiry / Consultation';
                     </div>
 
                     <div id="messagesList" class="conv-body">
-                        <?php if (empty($inquiries)): ?>
+                        <?php if (empty($messages)): ?>
                             <div class="message-row left">
                                 <img src="<?php echo htmlspecialchars($clinicAvatar); ?>" alt="<?php echo htmlspecialchars($clinicName); ?>" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
                                 <div>
@@ -499,27 +525,24 @@ $pageTitle = 'Inquiry / Consultation';
                                 </div>
                             </div>
                         <?php else: ?>
-                            <?php foreach ($inquiries as $inq): ?>
-                                <?php
-                                    $concernText = $inq['concern'] ?: ($inq['inquiry_message'] ?? '');
-                                    $clinicReply = $inq['clinic_reply'] ?? ($inq['response'] ?? '');
-                                    $ts = date('h:i A', strtotime($inq['created_at'] ?? 'now'));
-                                ?>
-                                <?php if (!empty($clinicReply)): ?>
+                            <?php foreach ($messages as $msg): ?>
+                                <?php $ts = date('h:i A', strtotime($msg['created_at'] ?? 'now')); ?>
+                                <?php if ($msg['type'] === 'clinic'): ?>
                                     <div class="message-row left">
                                         <img src="<?php echo htmlspecialchars($clinicAvatar); ?>" alt="<?php echo htmlspecialchars($clinicName); ?>" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
                                         <div>
-                                            <div class="bubble bubble-left"><?php echo nl2br(htmlspecialchars($clinicReply)); ?></div>
+                                            <div class="bubble bubble-left"><?php echo nl2br(htmlspecialchars($msg['message'])); ?></div>
                                             <div class="ts"><?php echo $ts; ?></div>
                                         </div>
                                     </div>
-                                <?php endif; ?>
-                                <div class="message-row right">
-                                    <div>
-                                        <div class="bubble bubble-right"><?php echo nl2br(htmlspecialchars($concernText ?: 'No message provided')); ?></div>
-                                        <div class="ts" style="text-align: right;"><?php echo $ts; ?></div>
+                                <?php else: ?>
+                                    <div class="message-row right">
+                                        <div>
+                                            <div class="bubble bubble-right"><?php echo nl2br(htmlspecialchars($msg['message'] ?: 'No message provided')); ?></div>
+                                            <div class="ts" style="text-align: right;"><?php echo $ts; ?></div>
+                                        </div>
                                     </div>
-                                </div>
+                                <?php endif; ?>
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </div>

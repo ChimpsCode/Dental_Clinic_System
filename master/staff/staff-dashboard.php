@@ -954,10 +954,10 @@ async function openDashboardInquiryChat(id) {
         if (data.success && data.replies) {
             data.replies.forEach((reply) => {
                 const bubble = document.createElement('div');
-                const isGuest = reply.sender_type === 'guest';
-                bubble.className = 'chat-bubble ' + (isGuest ? 'received' : 'sent');
-                const label = isGuest ? fullName : 'Staff';
-                bubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:' + (isGuest ? '#64748b' : 'rgba(255,255,255,0.7)') + ';margin-bottom:3px;">' + escapeHtml(label) + '</div><div>' + escapeHtml(reply.message).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(reply.created_at ? new Date(String(reply.created_at).replace(' ', 'T')).toLocaleString() : '') + '</div>';
+                const isNotStaff = reply.sender_type !== 'staff';
+                bubble.className = 'chat-bubble ' + (isNotStaff ? 'received' : 'sent');
+                const label = isNotStaff ? fullName : 'Staff';
+                bubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:' + (isNotStaff ? '#64748b' : 'rgba(255,255,255,0.7)') + ';margin-bottom:3px;">' + escapeHtml(label) + '</div><div>' + escapeHtml(reply.message).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(reply.created_at ? new Date(String(reply.created_at).replace(' ', 'T')).toLocaleString() : '') + '</div>';
                 container.appendChild(bubble);
             });
         }

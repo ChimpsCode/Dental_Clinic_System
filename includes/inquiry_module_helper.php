@@ -131,13 +131,17 @@ function ensureInquiryReplySchema(PDO $pdo): void
             `id` INT(11) NOT NULL AUTO_INCREMENT,
             `inquiry_id` INT(11) NOT NULL,
             `message` TEXT NOT NULL,
-            `sender_type` ENUM('staff','guest') NOT NULL DEFAULT 'guest',
+            `sender_type` ENUM('staff','guest','patient') NOT NULL DEFAULT 'guest',
             `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (`id`),
             KEY `idx_inquiry_id` (`inquiry_id`),
             KEY `idx_created_at` (`created_at`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
     ");
+
+    if (inquiryModuleColumnExists($pdo, 'inquiry_replies', 'sender_type')) {
+        $pdo->exec("ALTER TABLE `inquiry_replies` MODIFY COLUMN `sender_type` ENUM('staff','guest','patient') NOT NULL DEFAULT 'guest'");
+    }
 }
 
 function fetchInquiryReplies(PDO $pdo, int $inquiryId): array
