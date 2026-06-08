@@ -488,12 +488,21 @@ try {
                 <div class="user-profile" id="userProfileDropdown" onclick="var menu=document.getElementById('userProfileDropdownMenu');menu.style.display=menu.style.display==='none'?'':'none';">
                     <div class="user-profile-info">
                         <div class="user-avatar">
-                            <img src="../../assets/images/profile.png" alt="Profile" />
+                            <?php
+                            $profPic = $_SESSION['profile_picture'] ?? '';
+                            if (!empty($profPic) && file_exists(dirname(__DIR__) . '/' . $profPic)):
+                            ?>
+                                <img src="../../<?php echo htmlspecialchars($profPic); ?>" alt="Profile" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">
+                            <?php else:
+                                $initial = strtoupper(substr($_SESSION['display_name'] ?? 'D', 0, 1));
+                            ?>
+                                <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#005daa,#0571ca);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;"><?php echo htmlspecialchars($initial); ?></div>
+                            <?php endif; ?>
                         </div>
                     </div>
                     <div class="user-profile-dropdown" id="userProfileDropdownMenu" style="display:none;">
                         <div class="dropdown-divider"></div>
-                        <a href="../../settings.php" class="dropdown-item settings">
+                        <a href="../dentist/dentist_profile.php" class="dropdown-item settings">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.64l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.49-.41h-3.84c-.25 0-.45.17-.49.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.09-.47 0-.59.22L2.74 8.87c-.12.22-.07.5.12.64l2.03 1.58c-.05.3-.07.62-.07.94 0 .33.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.64l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.49.41h3.84c.25 0 .45-.17.49-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.09.47 0 .59-.22l1.92-3.32c.12-.22.07-.5-.12-.64l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
                             </svg>

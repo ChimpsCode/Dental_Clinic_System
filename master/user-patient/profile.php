@@ -40,7 +40,7 @@ try {
                COALESCE(u.first_name, p.first_name) as first_name, 
                COALESCE(u.middle_name, p.middle_name) as middle_name, 
                COALESCE(u.last_name, p.last_name) as last_name,
-               u.email, u.phone, u.created_at
+               u.email, u.phone, u.created_at, u.profile_picture
         FROM patients p 
         LEFT JOIN users u ON u.id = p.user_id 
         WHERE p.user_id = ?
@@ -55,7 +55,7 @@ try {
                    COALESCE(p.first_name, u.first_name) as first_name, 
                    COALESCE(p.middle_name, u.middle_name) as middle_name, 
                    COALESCE(p.last_name, u.last_name) as last_name,
-                   u.email, u.phone, u.created_at
+                   u.email, u.phone, u.created_at, u.profile_picture
             FROM patients p 
             LEFT JOIN users u ON u.id = p.user_id 
             WHERE p.id = ?
@@ -105,7 +105,7 @@ try {
                        COALESCE(u.first_name, p.first_name) as first_name, 
                        COALESCE(u.middle_name, p.middle_name) as middle_name, 
                        COALESCE(u.last_name, p.last_name) as last_name,
-                       u.email, u.phone, u.created_at
+                       u.email, u.phone, u.created_at, u.profile_picture
                 FROM patients p 
                 LEFT JOIN users u ON u.id = p.user_id 
                 WHERE p.id = ?
@@ -252,11 +252,18 @@ $pageTitle = 'My Profile';
                 <div class="user-profile">
                     <div class="user-avatar">
                         <?php 
-                            $first = $patient['first_name'] ?? $_SESSION['user_name'] ?? '';
+                            $profPic = $patient['profile_picture'] ?? $_SESSION['profile_picture'] ?? '';
+                            $first = ($patient['first_name'] ?? '') ?: ($_SESSION['user_name'] ?? $_SESSION['display_name'] ?? '');
                             $last = $patient['last_name'] ?? '';
-                            $initials = strtoupper(substr($first, 0, 1) . substr($last, 0, 1));
-                            echo htmlspecialchars($initials ?: 'P');
+                            if (!empty($profPic) && file_exists(dirname(__DIR__, 2) . '/' . $profPic)):
                         ?>
+                            <img src="../../<?php echo htmlspecialchars($profPic); ?>" alt="Profile" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">
+                        <?php 
+                            else:
+                            $initials = strtoupper(substr($first, 0, 1) . substr($last, 0, 1));
+                        ?>
+                            <?php echo htmlspecialchars($initials ?: 'P'); ?>
+                        <?php endif; ?>
                     </div>
                     <div class="user-details">
                         <div class="user-name">
@@ -291,16 +298,38 @@ $pageTitle = 'My Profile';
 
             <div class="section">
                 <div class="profile-header">
-                    <div class="profile-avatar">
+                    <div class="profile-avatar" style="overflow:hidden;">
                         <?php 
+                            $profPic = $patient['profile_picture'] ?? $_SESSION['profile_picture'] ?? '';
+                            if (!empty($profPic) && file_exists(dirname(__DIR__, 2) . '/' . $profPic)):
+                        ?>
+                            <img src="../../<?php echo htmlspecialchars($profPic); ?>" alt="Profile" style="width:80px;height:80px;border-radius:50%;object-fit:cover;">
+                        <?php 
+                            else:
                             $initials = strtoupper(substr($patient['first_name'] ?? 'P', 0, 1) . substr($patient['middle_name'] ?? '', 0, 1) . substr($patient['last_name'] ?? '', 0, 1));
                             echo $initials;
-                        ?>
+                        endif; ?>
                     </div>
                     <div class="profile-info">
                         <h2><?php echo htmlspecialchars(trim(($patient['first_name'] ?? '') . ' ' . ($patient['middle_name'] ?? '') . ' ' . ($patient['last_name'] ?? ''))); ?></h2>
                         <p>Patient since <?php echo date('F Y', strtotime($patient['created_at'] ?? 'now')); ?></p>
                     </div>
+                </div>
+
+                <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #e5e7eb;">
+                    <div class="section-title">Profile Photo</div>
+                    <form action="../shared/profile_picture_actions.php" method="POST" enctype="multipart/form-data" id="uploadForm" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+                        <input type="hidden" name="action" value="upload">
+                        <div class="upload-btn-wrapper">
+                            <button class="btn btn-primary" id="chooseBtn" type="button">Choose Photo</button>
+                            <input type="file" name="profile_picture" id="fileInput" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;">
+                        </div>
+                        <button class="btn btn-primary" id="saveBtn" style="display:none;" type="submit">Save Photo</button>
+                        <?php if (!empty($profPic)): ?>
+                            <a href="../shared/profile_picture_actions.php?action=delete" class="btn btn-secondary" style="text-decoration:none;color:#dc2626;" onclick="return confirm('Remove profile photo?')">Remove Photo</a>
+                        <?php endif; ?>
+                        <span style="font-size:12px;color:#6b7280;">JPG, PNG, GIF, WebP. Max 2MB.</span>
+                    </form>
                 </div>
 
                 <form method="POST" action="">
@@ -435,6 +464,25 @@ $pageTitle = 'My Profile';
                 document.addEventListener(evt, reset, { passive: true })
             );
             reset();
+        })();
+    </script>
+    <script>
+        (function() {
+            const fileInput = document.getElementById('fileInput');
+            const chooseBtn = document.getElementById('chooseBtn');
+            const saveBtn = document.getElementById('saveBtn');
+            const form = document.getElementById('uploadForm');
+            if (!fileInput || !chooseBtn || !saveBtn || !form) return;
+            chooseBtn.addEventListener('click', function() { fileInput.click(); });
+            fileInput.addEventListener('change', function() {
+                const file = this.files[0];
+                if (!file) return;
+                const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+                if (!validTypes.includes(file.type)) { alert('Please select a valid image file (JPG, PNG, GIF, WebP).'); this.value = ''; return; }
+                if (file.size > 2 * 1024 * 1024) { alert('File is too large. Maximum size is 2MB.'); this.value = ''; return; }
+                saveBtn.style.display = 'inline-flex';
+                chooseBtn.textContent = 'Change Photo';
+            });
         })();
     </script>
 </body>

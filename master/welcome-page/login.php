@@ -369,6 +369,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
             $_SESSION['email'] = $user['email'] ?? '';
+            $_SESSION['profile_picture'] = $user['profile_picture'] ?? null;
             // If role_id is NULL (patient user), default to 'user'; otherwise use role_name
             if (empty($user['role_id'])) {
                 $role = 'user';
@@ -392,6 +393,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             $firstName = trim($user['first_name'] ?? '');
             $lastName = trim($user['last_name'] ?? '');
             $firstNameOnly = explode(' ', $firstName)[0] ?? '';
+            $_SESSION['user_name'] = $firstName;
             
             if ($role === 'dentist') {
                 $_SESSION['display_name'] = 'Dr. ' . trim($firstNameOnly ?: 'Dentist');
@@ -505,6 +507,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['email'] = $user['email'] ?? '';
+                $_SESSION['profile_picture'] = $user['profile_picture'] ?? null;
                 // If role_id is NULL (patient user), default to 'user'; otherwise use role_name
                 if (empty($user['role_id'])) {
                     $role = 'user';
@@ -528,6 +531,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 $firstName = trim($user['first_name'] ?? '');
                 $lastName = trim($user['last_name'] ?? '');
                 $firstNameOnly = explode(' ', $firstName)[0] ?? '';
+                $_SESSION['user_name'] = $firstName;
                 
 if ($role === 'dentist') {
                     $_SESSION['display_name'] = 'Dr. ' . trim($firstNameOnly ?: 'Dentist');

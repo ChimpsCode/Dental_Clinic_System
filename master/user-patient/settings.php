@@ -35,13 +35,24 @@ require_once '../../config/database.php';
 
 try {
     $stmt = $pdo->prepare("
-        SELECT p.*, u.first_name, u.middle_name, u.last_name, u.email, u.phone, u.created_at
+        SELECT p.*, COALESCE(u.first_name, p.first_name) AS first_name, COALESCE(u.middle_name, p.middle_name) AS middle_name, COALESCE(u.last_name, p.last_name) AS last_name, u.email, u.phone, u.created_at
         FROM patients p 
         LEFT JOIN users u ON u.id = p.user_id 
         WHERE p.user_id = ?
     ");
     $stmt->execute([$user_id]);
     $patient = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$patient && $patient_id) {
+        $stmt = $pdo->prepare("
+            SELECT p.*, COALESCE(u.first_name, p.first_name) AS first_name, COALESCE(u.middle_name, p.middle_name) AS middle_name, COALESCE(u.last_name, p.last_name) AS last_name, u.email, u.phone, u.created_at
+            FROM patients p 
+            LEFT JOIN users u ON u.id = p.user_id 
+            WHERE p.id = ?
+        ");
+        $stmt->execute([$patient_id]);
+        $patient = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
     
     if (!$patient) {
         throw new Exception('Patient not found');
@@ -250,11 +261,18 @@ $pageTitle = 'Account Settings';
                 <div class="user-profile">
                     <div class="user-avatar">
                         <?php 
-                            $first = $patient['first_name'] ?? $_SESSION['user_name'] ?? '';
+                            $profPic = $patient['profile_picture'] ?? $_SESSION['profile_picture'] ?? '';
+                            $first = ($patient['first_name'] ?? '') ?: ($_SESSION['user_name'] ?? $_SESSION['display_name'] ?? '');
                             $last = $patient['last_name'] ?? '';
-                            $initials = strtoupper(substr($first, 0, 1) . substr($last, 0, 1));
-                            echo htmlspecialchars($initials ?: 'P');
+                            if (!empty($profPic) && file_exists(dirname(__DIR__, 2) . '/' . $profPic)):
                         ?>
+                            <img src="../../<?php echo htmlspecialchars($profPic); ?>" alt="Profile" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">
+                        <?php 
+                            else:
+                            $initials = strtoupper(substr($first, 0, 1) . substr($last, 0, 1));
+                        ?>
+                            <?php echo htmlspecialchars($initials ?: 'P'); ?>
+                        <?php endif; ?>
                     </div>
                     <div class="user-details">
                         <div class="user-name">

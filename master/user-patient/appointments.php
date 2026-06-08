@@ -292,10 +292,22 @@ $pageTitle = 'My Appointments';
                 <div class="notification-bell"><i class="fas fa-bell"></i></div>
                 <div class="user-profile">
                     <div class="user-avatar">
-                        <?php echo htmlspecialchars($avatar_initial ?? 'P'); ?>
+                        <?php 
+                            $profPic = $patient['profile_picture'] ?? $_SESSION['profile_picture'] ?? '';
+                            $first = ($patient['first_name'] ?? '') ?: ($_SESSION['user_name'] ?? $_SESSION['display_name'] ?? '');
+                            $last = $patient['last_name'] ?? '';
+                            if (!empty($profPic) && file_exists(dirname(__DIR__, 2) . '/' . $profPic)):
+                        ?>
+                            <img src="../../<?php echo htmlspecialchars($profPic); ?>" alt="Profile" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">
+                        <?php 
+                            else:
+                            $initials = strtoupper(substr($first, 0, 1) . substr($last, 0, 1));
+                        ?>
+                            <?php echo htmlspecialchars($initials ?: 'P'); ?>
+                        <?php endif; ?>
                     </div>
                     <div class="user-details">
-                        <div class="user-name"><?php echo htmlspecialchars(trim((string)preg_split('/\s+/', trim($patient_name))[0] ?: 'Patient')); ?></div>
+                        <div class="user-name"><?php echo htmlspecialchars(trim($first ?: 'Patient')); ?></div>
                         <div class="user-role">Patient</div>
                     </div>
                     <div class="dropdown-toggle"><i class="fas fa-chevron-down"></i></div>

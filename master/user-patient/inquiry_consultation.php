@@ -49,6 +49,11 @@ $clinicAddress = $clinicSettings['clinic_address'] ?? '';
 $clinicLogo    = $clinicSettings['welcome_logo'] ?? '';
 $logoFull      = $clinicLogo ? '../../' . $clinicLogo : '../../assets/images/Logo.png';
 
+$adminPicStmt = $pdo->prepare("SELECT profile_picture FROM users WHERE role_id = 1 ORDER BY id ASC LIMIT 1");
+$adminPicStmt->execute();
+$adminPicPath = $adminPicStmt->fetchColumn();
+$clinicAvatar = ($adminPicPath && file_exists(dirname(__DIR__, 2) . '/' . $adminPicPath)) ? '../../' . $adminPicPath : $logoFull;
+
 // Load business hours
 $defaultHours = [
     'monday'    => ['open' => '08:00', 'close' => '17:00', 'is_open' => true],
@@ -443,9 +448,23 @@ $pageTitle = 'Inquiry / Consultation';
             <div class="header-right">
                 <div class="notification-bell"><i class="fas fa-bell"></i></div>
                 <div class="user-profile">
-                    <div class="user-avatar"><?php echo htmlspecialchars(strtoupper(substr(($patient['first_name'] ?: $patient['user_first_name']), 0, 1) . substr(($patient['last_name'] ?: $patient['user_last_name']), 0, 1)) ?: 'P'); ?></div>
+                    <div class="user-avatar">
+                        <?php 
+                            $profPic = $patient['profile_picture'] ?? $_SESSION['profile_picture'] ?? '';
+                            $first = ($patient['first_name'] ?? '') ?: ($patient['user_first_name'] ?? $_SESSION['user_name'] ?? $_SESSION['display_name'] ?? '');
+                            $last = $patient['last_name'] ?: ($patient['user_last_name'] ?? '');
+                            if (!empty($profPic) && file_exists(dirname(__DIR__, 2) . '/' . $profPic)):
+                        ?>
+                            <img src="../../<?php echo htmlspecialchars($profPic); ?>" alt="Profile" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">
+                        <?php 
+                            else:
+                            $initials = strtoupper(substr($first, 0, 1) . substr($last, 0, 1));
+                        ?>
+                            <?php echo htmlspecialchars($initials ?: 'P'); ?>
+                        <?php endif; ?>
+                    </div>
                     <div class="user-details">
-                        <div class="user-name"><?php echo htmlspecialchars($displayFirstName ?: 'Patient'); ?></div>
+                        <div class="user-name"><?php echo htmlspecialchars(trim($first ?: 'Patient')); ?></div>
                         <div class="user-role">Patient</div>
                     </div>
                     <div class="dropdown-toggle"><i class="fas fa-chevron-down"></i></div>
@@ -463,7 +482,7 @@ $pageTitle = 'Inquiry / Consultation';
             <div class="top-layout">
                 <div class="conversation-panel">
                     <div class="conv-header">
-                        <img src="<?php echo htmlspecialchars($logoFull); ?>" alt="<?php echo htmlspecialchars($clinicName); ?>" style="width:44px;height:44px;border-radius:50%;object-fit:cover;">
+                        <img src="<?php echo htmlspecialchars($clinicAvatar); ?>" alt="<?php echo htmlspecialchars($clinicName); ?>" style="width:44px;height:44px;border-radius:50%;object-fit:cover;">
                         <div class="conv-meta">
                             <div class="conv-name"><?php echo htmlspecialchars($clinicName); ?></div>
                         </div>
@@ -473,7 +492,7 @@ $pageTitle = 'Inquiry / Consultation';
                     <div id="messagesList" class="conv-body">
                         <?php if (empty($inquiries)): ?>
                             <div class="message-row left">
-                                <img src="<?php echo htmlspecialchars($logoFull); ?>" alt="<?php echo htmlspecialchars($clinicName); ?>" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
+                                <img src="<?php echo htmlspecialchars($clinicAvatar); ?>" alt="<?php echo htmlspecialchars($clinicName); ?>" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
                                 <div>
                                     <div class="bubble bubble-left">Hello, How are you today?<br>would you like to book now?</div>
                                     <div class="ts">11:00 AM</div>
@@ -488,7 +507,7 @@ $pageTitle = 'Inquiry / Consultation';
                                 ?>
                                 <?php if (!empty($clinicReply)): ?>
                                     <div class="message-row left">
-                                        <div class="avatar small"></div>
+                                        <img src="<?php echo htmlspecialchars($clinicAvatar); ?>" alt="<?php echo htmlspecialchars($clinicName); ?>" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
                                         <div>
                                             <div class="bubble bubble-left"><?php echo nl2br(htmlspecialchars($clinicReply)); ?></div>
                                             <div class="ts"><?php echo $ts; ?></div>
@@ -518,7 +537,7 @@ $pageTitle = 'Inquiry / Consultation';
 
                 <aside class="clinic-profile-card">
                     <div class="clinic-profile-header">
-                        <img src="<?php echo htmlspecialchars($logoFull); ?>" alt="<?php echo htmlspecialchars($clinicName); ?>" style="width:100px;height:100px;border-radius:50%;object-fit:cover;margin:0 auto 16px;display:block;">
+                        <img src="<?php echo htmlspecialchars($clinicAvatar); ?>" alt="<?php echo htmlspecialchars($clinicName); ?>" style="width:100px;height:100px;border-radius:50%;object-fit:cover;margin:0 auto 16px;display:block;">
                         <h2 class="clinic-name-large"><?php echo htmlspecialchars($clinicName); ?></h2>
                         <div class="clinic-status-badge"><span class="status-dot"></span> Online</div>
                         <div class="clinic-reply-time">Usually replies within 5 minutes</div>
