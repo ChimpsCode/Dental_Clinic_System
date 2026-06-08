@@ -3,12 +3,107 @@ header('Content-Type: application/json');
 session_start();
 require_once '../../config/database.php';
 
+$action = trim($_POST['action'] ?? 'register');
+
+if ($action === 'verify_otp') {
+    $enteredOtp = trim($_POST['otp'] ?? '');
+    $storedOtp = $_SESSION['reg_otp'] ?? '';
+    $expires = $_SESSION['reg_otp_expires'] ?? 0;
+    $regData = $_SESSION['reg_data'] ?? null;
+
+    if (!$regData || !$storedOtp) {
+        echo json_encode(['success' => false, 'message' => 'Registration session expired. Please try again.']);
+        exit();
+    }
+
+    if (time() > $expires) {
+        $_SESSION['reg_otp'] = '';
+        $_SESSION['reg_otp_expires'] = 0;
+        echo json_encode(['success' => false, 'message' => 'Verification code has expired. Please register again.']);
+        exit();
+    }
+
+    if ((string)$enteredOtp !== (string)$storedOtp) {
+        echo json_encode(['success' => false, 'message' => 'Invalid verification code. Please try again.']);
+        exit();
+    }
+
+    $_SESSION['reg_otp'] = '';
+    $_SESSION['reg_otp_expires'] = 0;
+
+    $first_name = $regData['first_name'];
+    $middle_name = $regData['middle_name'] ?? '';
+    $last_name = $regData['last_name'];
+    $email = $regData['email'];
+    $phone = $regData['phone'];
+    $gender = $regData['gender'];
+    $date_of_birth = $regData['date_of_birth'] ?? '';
+    $password = $regData['password'];
+
+    try {
+        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare("INSERT INTO users (first_name, middle_name, last_name, username, password, email, phone, gender, date_of_birth) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$first_name, $middle_name ?: null, $last_name, $email, $hashedPassword, $email, $phone, $gender, $date_of_birth ?: null]);
+        $user_id = $pdo->lastInsertId();
+
+        $stmt = $pdo->prepare("
+            INSERT INTO patients (
+                first_name, middle_name, last_name,
+                phone, email, gender, date_of_birth
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ");
+        $stmt->execute([
+            $first_name,
+            $middle_name ?: null,
+            $last_name,
+            $phone,
+            $email,
+            $gender,
+            $date_of_birth ?: null
+        ]);
+        $patient_id = $pdo->lastInsertId();
+
+        $pdo->commit();
+
+        require_once __DIR__ . '/../../includes/sms_functions.php';
+        sendRegistrationWelcomeSMS($phone, $first_name);
+
+        $_SESSION['user_id'] = $user_id;
+        $_SESSION['role'] = 'user';
+        $_SESSION['user_role'] = 'user';
+        $_SESSION['user_name'] = $first_name;
+        $_SESSION['patient_id'] = $patient_id;
+        $_SESSION['display_name'] = $first_name;
+        $_SESSION['new_registration'] = true;
+        $_SESSION['reg_data'] = null;
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Registration successful!',
+            'redirect' => '../user-patient/patient-dashboard.php'
+        ]);
+
+    } catch (Exception $e) {
+        if (isset($pdo) && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log("Registration Error: " . $e->getMessage());
+        echo json_encode([
+            'success' => false,
+            'message' => 'Registration failed. Please try again.'
+        ]);
+    }
+    exit();
+}
+
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('Invalid request method');
     }
 
-    // Get all fields from POST
     $first_name = trim($_POST['first_name'] ?? '');
     $middle_name = trim($_POST['middle_name'] ?? '');
     $last_name = trim($_POST['last_name'] ?? '');
@@ -21,7 +116,6 @@ try {
     $password = $_POST['password'] ?? '';
     $confirm_password = $_POST['confirm_password'] ?? '';
 
-    // Validate required fields
     if (empty($first_name)) {
         throw new Exception('First name is required');
     }
@@ -58,73 +152,45 @@ try {
         throw new Exception('Passwords do not match');
     }
 
-    // Check if email already exists (exclude archived/deleted users)
     $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND is_archived = 0");
     $stmt->execute([$email]);
     if ($stmt->fetch()) {
         throw new Exception('Email already registered. Please login instead.');
     }
 
-    // Hash password
-    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+    $otpCode = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+    $_SESSION['reg_otp'] = $otpCode;
+    $_SESSION['reg_otp_expires'] = time() + 180;
+    $_SESSION['reg_data'] = [
+        'first_name' => $first_name,
+        'middle_name' => $middle_name,
+        'last_name' => $last_name,
+        'email' => $email,
+        'phone' => $phone,
+        'gender' => $gender,
+        'date_of_birth' => $date_of_birth,
+        'password' => $password,
+    ];
 
-    // Start transaction
-    $pdo->beginTransaction();
+    require_once __DIR__ . '/../../includes/send_otp_email.php';
+    $emailSent = sendOtpEmail($email, $first_name, $otpCode);
 
-    // Create user account (for patient users, role_id = NULL)
-    $stmt = $pdo->prepare("INSERT INTO users (first_name, middle_name, last_name, username, password, email, phone, gender, date_of_birth) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->execute([$first_name, $middle_name ?: null, $last_name, $email, $hashedPassword, $email, $phone, $gender, $date_of_birth ?: null]);
-    $user_id = $pdo->lastInsertId();
-
-    // Create patient record (without address - use addresses table separately if needed)
-    $stmt = $pdo->prepare("
-        INSERT INTO patients (
-            first_name, middle_name, last_name, 
-            phone, email, gender, date_of_birth
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
-    ");
-    $stmt->execute([
-        $first_name, 
-        $middle_name ?: null, 
-        $last_name, 
-        $phone, 
-        $email, 
-        $gender,
-        $date_of_birth ?: null
-    ]);
-    $patient_id = $pdo->lastInsertId();
-
-    $pdo->commit();
-
-    // Send welcome SMS
-    require_once __DIR__ . '/../../includes/sms_functions.php';
-    sendRegistrationWelcomeSMS($phone, $first_name);
-
-    // Set session for automatic login
-    $_SESSION['user_id'] = $user_id;
-    $_SESSION['role'] = 'user';
-    $_SESSION['user_role'] = 'user';
-    $_SESSION['user_name'] = $first_name;
-    $_SESSION['patient_id'] = $patient_id;
-    $_SESSION['display_name'] = $first_name;
-    $_SESSION['new_registration'] = true;
+    if (!$emailSent) {
+        $_SESSION['reg_otp'] = '';
+        $_SESSION['reg_otp_expires'] = 0;
+        $_SESSION['reg_data'] = null;
+        throw new Exception('Unable to send verification email. Please check your email address or try again later.');
+    }
 
     echo json_encode([
         'success' => true,
-        'message' => 'Registration successful!',
-        'redirect' => '../user-patient/patient-dashboard.php'
+        'message' => 'Verification code sent to your email.',
+        'step' => 'otp'
     ]);
 
 } catch (Exception $e) {
-    if (isset($pdo) && $pdo->inTransaction()) {
-        $pdo->rollBack();
-    }
-
-    error_log("Registration Error: " . $e->getMessage());
-
     echo json_encode([
         'success' => false,
         'message' => $e->getMessage()
     ]);
 }
-?>

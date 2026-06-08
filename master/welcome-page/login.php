@@ -905,10 +905,6 @@ if ($role === 'dentist') {
                     <div class="input-group">
                         <input type="tel" id="reg_phone" name="phone" placeholder="Phone Number" required autocomplete="tel">
                     </div>
-
-                    <div class="input-group">
-                        <input type="text" id="reg_username" name="username" placeholder="Username" required autocomplete="username">
-                    </div>
                     
                     <div class="input-group">
                         <input type="password" id="reg_password" name="password" placeholder="Password" required autocomplete="new-password">
@@ -922,10 +918,31 @@ if ($role === 'dentist') {
                         <span class="separator">By registering, you agree to our Terms of Service and Privacy Policy.</span>
                     </div>
                     
-                    <button type="submit" class="login-btn" id="registerBtn">
+                    <button type="submit" class="login-btn" id="registerBtn" style="display: flex; justify-content: center; align-items: center;">
                         <span id="registerBtnText">Create Account</span>
                     </button>
                 </form>
+
+                <div id="regOtpStep" class="step-pane" style="display: none;">
+                    <p class="login-subtitle" style="text-align:center; margin-bottom: 16px;">
+                        Enter the 6-digit verification code sent to <strong id="regOtpEmailDisplay"></strong>
+                    </p>
+                    <div class="alert alert-error" id="regOtpError" style="display: none;"></div>
+                    <div class="input-group">
+                        <input type="text" id="regOtpCode" placeholder="Enter verification code" maxlength="6" inputmode="numeric" style="text-align: center; letter-spacing: 6px; font-size: 18px;">
+                    </div>
+                    <button type="button" class="login-btn" id="regOtpVerifyBtn">
+                        <span id="regOtpVerifyBtnText">Verify & Create Account</span>
+                    </button>
+                    <div style="text-align:center; margin-top: 12px;">
+                        <span style="font-size:13px; color:#666;">Didn't receive the code? </span>
+                        <button type="button" id="regOtpResendBtn" style="background:none; border:none; color:#2563eb; cursor:pointer; font-size:13px; text-decoration:underline;">Resend</button>
+                        <span id="regOtpTimer" style="font-size:13px; color:#999; margin-left:4px;"></span>
+                    </div>
+                    <div class="form-links" style="margin-top: 16px; justify-content: center;">
+                        <a href="#register" class="link" id="backToRegisterFromOtpLink">Back to registration form</a>
+                    </div>
+                </div>
                 
                 <div class="form-links" style="margin-top: 16px; justify-content: center;">
                     <span>Already have an account? </span>

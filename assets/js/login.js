@@ -222,6 +222,97 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    const regOtpStep = document.getElementById('regOtpStep');
+    const regOtpCode = document.getElementById('regOtpCode');
+    const regOtpVerifyBtn = document.getElementById('regOtpVerifyBtn');
+    const regOtpVerifyBtnText = document.getElementById('regOtpVerifyBtnText');
+    const regOtpError = document.getElementById('regOtpError');
+    const regOtpEmailDisplay = document.getElementById('regOtpEmailDisplay');
+    const regOtpResendBtn = document.getElementById('regOtpResendBtn');
+    const regOtpTimer = document.getElementById('regOtpTimer');
+    const backToRegisterFromOtpLink = document.getElementById('backToRegisterFromOtpLink');
+    let regOtpCountdown = null;
+
+    function showRegOtpStep(email) {
+        if (registerForm) registerForm.style.display = 'none';
+        if (registerBtn) registerBtn.style.display = 'none';
+        if (regOtpStep) regOtpStep.style.display = 'block';
+        if (regOtpEmailDisplay) regOtpEmailDisplay.textContent = email;
+        if (regOtpCode) { regOtpCode.value = ''; regOtpCode.focus(); }
+        if (regOtpError) regOtpError.style.display = 'none';
+        startRegOtpTimer();
+    }
+
+    function hideRegOtpStep() {
+        if (regOtpStep) regOtpStep.style.display = 'none';
+        if (registerForm) registerForm.style.display = 'block';
+        if (registerBtn) registerBtn.style.display = 'flex';
+        stopRegOtpTimer();
+    }
+
+    function startRegOtpTimer() {
+        stopRegOtpTimer();
+        let timeLeft = 180;
+        if (regOtpTimer) regOtpTimer.textContent = '(03:00)';
+        if (regOtpResendBtn) regOtpResendBtn.disabled = true;
+        regOtpCountdown = setInterval(function() {
+            timeLeft--;
+            if (timeLeft <= 0) {
+                stopRegOtpTimer();
+                if (regOtpTimer) regOtpTimer.textContent = '(expired)';
+                if (regOtpResendBtn) regOtpResendBtn.disabled = false;
+                return;
+            }
+            const m = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+            const s = String(timeLeft % 60).padStart(2, '0');
+            if (regOtpTimer) regOtpTimer.textContent = '(' + m + ':' + s + ')';
+        }, 1000);
+    }
+
+    function stopRegOtpTimer() {
+        if (regOtpCountdown) {
+            clearInterval(regOtpCountdown);
+            regOtpCountdown = null;
+        }
+    }
+
+    function sendRegisterRequest(body, onSuccess) {
+        if (registerError) registerError.style.display = 'none';
+
+        fetch('../../master/user-patient/patient_register.php', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString()
+        })
+        .then(async res => {
+            const text = await res.text();
+            let data = null;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                if (!res.ok) throw new Error('Server error (' + res.status + ').');
+                throw new Error('Invalid server response.');
+            }
+            if (!res.ok) throw new Error(data?.message || ('Server error (' + res.status + ').'));
+            return data;
+        })
+        .then(data => {
+            onSuccess(data);
+        })
+        .catch((err) => {
+            const msg = err?.message || 'Registration failed. Please try again.';
+            if (registerError) {
+                registerError.textContent = msg;
+                registerError.style.display = 'block';
+            }
+            showToast('Error', msg, 'error');
+        })
+        .finally(() => {
+            if (registerBtn) registerBtn.disabled = false;
+            if (registerBtnText) registerBtnText.textContent = 'Create Account';
+        });
+    }
+
     if (registerForm) {
         registerForm.addEventListener('submit', function(e) {
             e.preventDefault();
@@ -240,11 +331,58 @@ document.addEventListener('DOMContentLoaded', function() {
             const formData = new FormData(registerForm);
             const body = new URLSearchParams();
             formData.forEach((value, key) => body.append(key, value));
+            body.append('action', 'register');
 
             if (registerBtn) registerBtn.disabled = true;
-            if (registerBtnText) registerBtnText.textContent = 'Creating...';
-            if (registerError) registerError.style.display = 'none';
-            if (registerSuccess) registerSuccess.style.display = 'none';
+            if (registerBtnText) registerBtnText.textContent = 'Sending code...';
+
+            sendRegisterRequest(body, function(data) {
+                if (data.success) {
+                    if (data.step === 'otp') {
+                        const email = document.getElementById('reg_email')?.value || '';
+                        showRegOtpStep(email);
+                        showToast('Success', 'Verification code sent to your email.', 'success');
+                    } else {
+                        if (registerSuccess) {
+                            registerSuccess.textContent = data.message || 'Account created successfully!';
+                            registerSuccess.style.display = 'block';
+                        }
+                        showToast('Success', 'Account created! You can now log in.', 'success');
+                        setTimeout(function() {
+                            showLogin();
+                            if (usernameInput) {
+                                usernameInput.value = document.getElementById('reg_email')?.value || '';
+                                usernameInput.focus();
+                            }
+                        }, 900);
+                    }
+                } else {
+                    const msg = data.message || 'Registration failed. Please try again.';
+                    if (registerError) {
+                        registerError.textContent = msg;
+                        registerError.style.display = 'block';
+                    }
+                    showToast('Error', msg, 'error');
+                }
+            });
+        });
+    }
+
+    if (regOtpVerifyBtn) {
+        regOtpVerifyBtn.addEventListener('click', function() {
+            const code = regOtpCode ? regOtpCode.value.trim() : '';
+            if (!code || code.length !== 6) {
+                showToast('Error', 'Please enter the 6-digit verification code.', 'error');
+                return;
+            }
+
+            regOtpVerifyBtn.disabled = true;
+            if (regOtpVerifyBtnText) regOtpVerifyBtnText.textContent = 'Verifying...';
+            if (regOtpError) regOtpError.style.display = 'none';
+
+            const body = new URLSearchParams();
+            body.append('action', 'verify_otp');
+            body.append('otp', code);
 
             fetch('../../master/user-patient/patient_register.php', {
                 method: 'POST',
@@ -254,30 +392,21 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(async res => {
                 const text = await res.text();
                 let data = null;
-
                 try {
                     data = JSON.parse(text);
                 } catch (e) {
-                    if (!res.ok) {
-                        throw new Error('Server error (' + res.status + ').');
-                    }
+                    if (!res.ok) throw new Error('Server error (' + res.status + ').');
                     throw new Error('Invalid server response.');
                 }
-
-                if (!res.ok) {
-                    throw new Error(data?.message || ('Server error (' + res.status + ').'));
-                }
-
+                if (!res.ok) throw new Error(data?.message || ('Server error (' + res.status + ').'));
                 return data;
             })
             .then(data => {
                 if (data.success) {
-                    if (registerSuccess) {
-                        registerSuccess.textContent = data.message || 'Account created successfully!';
-                        registerSuccess.style.display = 'block';
-                    }
                     showToast('Success', 'Account created! You can now log in.', 'success');
-                    setTimeout(() => {
+                    stopRegOtpTimer();
+                    hideRegOtpStep();
+                    setTimeout(function() {
                         showLogin();
                         if (usernameInput) {
                             usernameInput.value = document.getElementById('reg_email')?.value || '';
@@ -285,26 +414,63 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }, 900);
                 } else {
-                    const msg = data.message || 'Registration failed. Please try again.';
-                    if (registerError) {
-                        registerError.textContent = msg;
-                        registerError.style.display = 'block';
+                    const msg = data.message || 'Verification failed.';
+                    if (regOtpError) {
+                        regOtpError.textContent = msg;
+                        regOtpError.style.display = 'block';
                     }
                     showToast('Error', msg, 'error');
                 }
             })
             .catch((err) => {
-                const msg = err?.message || 'Registration failed. Please try again.';
-                if (registerError) {
-                    registerError.textContent = msg;
-                    registerError.style.display = 'block';
+                const msg = err?.message || 'Verification failed. Please try again.';
+                if (regOtpError) {
+                    regOtpError.textContent = msg;
+                    regOtpError.style.display = 'block';
                 }
                 showToast('Error', msg, 'error');
             })
-            .finally(() => {
-                if (registerBtn) registerBtn.disabled = false;
-                if (registerBtnText) registerBtnText.textContent = 'Create Account';
+            .finally(function() {
+                regOtpVerifyBtn.disabled = false;
+                if (regOtpVerifyBtnText) regOtpVerifyBtnText.textContent = 'Verify & Create Account';
             });
+        });
+    }
+
+    if (regOtpResendBtn) {
+        regOtpResendBtn.addEventListener('click', function() {
+            const email = document.getElementById('reg_email')?.value || '';
+            const body = new URLSearchParams();
+            body.append('action', 'register');
+            body.append('first_name', document.getElementById('reg_first_name')?.value || '');
+            body.append('middle_name', document.getElementById('reg_middle_name')?.value || '');
+            body.append('last_name', document.getElementById('reg_last_name')?.value || '');
+            body.append('email', email);
+            body.append('phone', document.getElementById('reg_phone')?.value || '');
+            body.append('password', document.getElementById('reg_password')?.value || '');
+            body.append('confirm_password', document.getElementById('reg_confirm_password')?.value || '');
+
+            regOtpResendBtn.disabled = true;
+            regOtpResendBtn.textContent = 'Sending...';
+
+            sendRegisterRequest(body, function(data) {
+                if (data.success && data.step === 'otp') {
+                    showToast('Success', 'New verification code sent.', 'success');
+                    startRegOtpTimer();
+                } else {
+                    const msg = data.message || 'Failed to resend code.';
+                    showToast('Error', msg, 'error');
+                    regOtpResendBtn.disabled = false;
+                    regOtpResendBtn.textContent = 'Resend';
+                }
+            });
+        });
+    }
+
+    if (backToRegisterFromOtpLink) {
+        backToRegisterFromOtpLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            hideRegOtpStep();
         });
     }
 

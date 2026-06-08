@@ -549,6 +549,30 @@ $assets = [
 
             <button type="submit" class="btn btn-primary btn-block">Create Account &amp; Book Appointment</button>
           </form>
+
+          <div id="regOtpSection" style="display: none;">
+            <div style="text-align:center; padding: 20px 0;">
+              <p style="margin-bottom: 16px; color: #555;">
+                Enter the 6-digit verification code sent to <strong id="regOtpEmailDisplay"></strong>
+              </p>
+              <div class="alert alert-error" id="regOtpError" style="display: none; color: #dc3545; font-size: 14px; margin-bottom: 12px; text-align: center;"></div>
+              <div style="margin-bottom: 16px;">
+                <input type="text" id="regOtpCode" placeholder="Enter verification code" maxlength="6" inputmode="numeric" style="width:200px; text-align:center; letter-spacing:6px; font-size:20px; padding:10px; border:2px solid #2563eb; border-radius:8px; outline:none;">
+              </div>
+              <button type="button" class="btn btn-primary" id="regOtpVerifyBtn" style="width:100%;">
+                <span id="regOtpVerifyBtnText">Verify & Create Account</span>
+              </button>
+              <div style="margin-top: 12px;">
+                <span style="font-size:13px; color:#666;">Didn't receive the code? </span>
+                <button type="button" id="regOtpResendBtn" style="background:none; border:none; color:#2563eb; cursor:pointer; font-size:13px; text-decoration:underline;">Resend</button>
+                <span id="regOtpTimer" style="font-size:13px; color:#999; margin-left:4px;"></span>
+              </div>
+              <div style="margin-top: 12px;">
+                <a href="#" id="backToRegFormLink" style="font-size:13px; color:#666;">Back to registration form</a>
+              </div>
+            </div>
+          </div>
+
           <div class="modal-footer-text">
             <p>By registering, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</p>
           </div>
@@ -641,6 +665,69 @@ $assets = [
           if (e.target === registrationModal) closeModal(registrationModal);
         });
 
+        // OTP step elements
+        const regOtpSection = document.getElementById('regOtpSection');
+        const regOtpEmailDisplay = document.getElementById('regOtpEmailDisplay');
+        const regOtpCode = document.getElementById('regOtpCode');
+        const regOtpVerifyBtn = document.getElementById('regOtpVerifyBtn');
+        const regOtpVerifyBtnText = document.getElementById('regOtpVerifyBtnText');
+        const regOtpError = document.getElementById('regOtpError');
+        const regOtpResendBtn = document.getElementById('regOtpResendBtn');
+        const regOtpTimer = document.getElementById('regOtpTimer');
+        const backToRegFormLink = document.getElementById('backToRegFormLink');
+        let regOtpCountdown = null;
+
+        function showRegOtpStep(email) {
+          regForm.style.display = 'none';
+          regOtpSection.style.display = 'block';
+          regOtpEmailDisplay.textContent = email;
+          regOtpCode.value = '';
+          regOtpCode.focus();
+          regOtpError.style.display = 'none';
+          startRegOtpTimer();
+        }
+
+        function hideRegOtpStep() {
+          regOtpSection.style.display = 'none';
+          regForm.style.display = 'block';
+          stopRegOtpTimer();
+        }
+
+        function startRegOtpTimer() {
+          stopRegOtpTimer();
+          let timeLeft = 180;
+          regOtpTimer.textContent = '(03:00)';
+          regOtpResendBtn.disabled = true;
+          regOtpCountdown = setInterval(function() {
+            timeLeft--;
+            if (timeLeft <= 0) {
+              stopRegOtpTimer();
+              regOtpTimer.textContent = '(expired)';
+              regOtpResendBtn.disabled = false;
+              return;
+            }
+            var m = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+            var s = String(timeLeft % 60).padStart(2, '0');
+            regOtpTimer.textContent = '(' + m + ':' + s + ')';
+          }, 1000);
+        }
+
+        function stopRegOtpTimer() {
+          if (regOtpCountdown) {
+            clearInterval(regOtpCountdown);
+            regOtpCountdown = null;
+          }
+        }
+
+        async function sendRegisterRequest(formData) {
+          formData.append('action', 'register');
+          const response = await fetch('../user-patient/process_registration.php', {
+            method: 'POST',
+            body: formData
+          });
+          return await response.json();
+        }
+
         const regForm = document.getElementById('registrationForm');
         regForm.addEventListener('submit', async function(e) {
           e.preventDefault();
@@ -657,30 +744,120 @@ $assets = [
           if (password !== confirmPassword) { alert('Passwords do not match'); return; }
           if (password.length < 8) { alert('Password must be at least 8 characters'); return; }
 
+          const submitBtn = regForm.querySelector('button[type="submit"]');
+          const originalText = submitBtn.textContent;
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Sending code...';
+
           const formData = new FormData(regForm);
 
           try {
-            const response = await fetch('../user-patient/process_registration.php', {
-              method: 'POST',
-              body: formData
-            });
-
-            const result = await response.json();
+            const result = await sendRegisterRequest(formData);
 
             if (result.success) {
-              closeModal(registrationModal);
-              openModal(successModal);
-              setTimeout(function() {
-                window.location.href = '../user-patient/patient-dashboard.php';
-              }, 2000);
+              if (result.step === 'otp') {
+                showRegOtpStep(email);
+              } else {
+                closeModal(registrationModal);
+                openModal(successModal);
+                setTimeout(function() {
+                  window.location.href = '../user-patient/patient-dashboard.php';
+                }, 2000);
+              }
             } else {
               alert(result.message || 'Registration failed');
+              submitBtn.disabled = false;
+              submitBtn.textContent = originalText;
             }
           } catch (error) {
             console.error('Registration error:', error);
             alert('An error occurred. Please try again.');
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
           }
         });
+
+        // OTP verify handler
+        if (regOtpVerifyBtn) {
+          regOtpVerifyBtn.addEventListener('click', async function() {
+            const code = regOtpCode.value.trim();
+            if (!code || code.length !== 6) {
+              alert('Please enter the 6-digit verification code.');
+              return;
+            }
+
+            regOtpVerifyBtn.disabled = true;
+            regOtpVerifyBtnText.textContent = 'Verifying...';
+            regOtpError.style.display = 'none';
+
+            try {
+              const formData = new FormData();
+              formData.append('action', 'verify_otp');
+              formData.append('otp', code);
+
+              const response = await fetch('../user-patient/process_registration.php', {
+                method: 'POST',
+                body: formData
+              });
+
+              const result = await response.json();
+
+              if (result.success) {
+                stopRegOtpTimer();
+                closeModal(registrationModal);
+                openModal(successModal);
+                setTimeout(function() {
+                  window.location.href = result.redirect || '../user-patient/patient-dashboard.php';
+                }, 2000);
+              } else {
+                regOtpError.textContent = result.message || 'Verification failed.';
+                regOtpError.style.display = 'block';
+                regOtpVerifyBtn.disabled = false;
+                regOtpVerifyBtnText.textContent = 'Verify & Create Account';
+              }
+            } catch (error) {
+              console.error('OTP verification error:', error);
+              regOtpError.textContent = 'An error occurred. Please try again.';
+              regOtpError.style.display = 'block';
+              regOtpVerifyBtn.disabled = false;
+              regOtpVerifyBtnText.textContent = 'Verify & Create Account';
+            }
+          });
+        }
+
+        // Resend handler
+        if (regOtpResendBtn) {
+          regOtpResendBtn.addEventListener('click', async function() {
+            regOtpResendBtn.disabled = true;
+            regOtpResendBtn.textContent = 'Sending...';
+
+            const formData = new FormData(regForm);
+
+            try {
+              const result = await sendRegisterRequest(formData);
+              if (result.success && result.step === 'otp') {
+                startRegOtpTimer();
+              } else {
+                alert(result.message || 'Failed to resend code.');
+                regOtpResendBtn.disabled = false;
+                regOtpResendBtn.textContent = 'Resend';
+              }
+            } catch (error) {
+              console.error('Resend error:', error);
+              alert('Failed to resend code.');
+              regOtpResendBtn.disabled = false;
+              regOtpResendBtn.textContent = 'Resend';
+            }
+          });
+        }
+
+        // Back to registration form
+        if (backToRegFormLink) {
+          backToRegFormLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            hideRegOtpStep();
+          });
+        }
 
         const firstNameDisplay = document.getElementById('reg-first-name-display');
         const middleNameDisplay = document.getElementById('reg-middle-name-display');
