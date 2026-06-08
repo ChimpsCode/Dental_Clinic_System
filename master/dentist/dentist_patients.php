@@ -3,26 +3,8 @@ $pageTitle = 'Patient Records';
 require_once '../../config/database.php';
 require_once '../../includes/dentist_layout_start.php';
 
-// Pagination settings
-$perPage = 7;
-$currentPage = isset($_GET['page']) && is_numeric($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
-
 try {
-    // Get total count for pagination
-    $totalPatients = (int)$pdo->query("SELECT COUNT(*) FROM patients WHERE is_archived = 0")->fetchColumn();
-} catch (Exception $e) {
-    $totalPatients = 0;
-}
-
-$totalPages = max(1, ceil($totalPatients / $perPage));
-if ($currentPage > $totalPages) $currentPage = 1;
-$offset = ($currentPage - 1) * $perPage;
-
-$showingStart = $totalPatients > 0 ? $offset + 1 : 0;
-$showingEnd = min($offset + $perPage, $totalPatients);
-
-// Fetch patients with appointment data
-try {
+    // Fetch ALL non-archived patients (client-side search/pagination/sort)
     $stmt = $pdo->prepare("
         SELECT p.*, 
                TIMESTAMPDIFF(YEAR, p.date_of_birth, CURDATE()) as age,
@@ -44,18 +26,12 @@ try {
         WHERE p.is_archived = 0
         GROUP BY p.id
         ORDER BY p.created_at DESC
-        LIMIT :limit OFFSET :offset
     ");
-    $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
-    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
     $stmt->execute();
     $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (Exception $e) {
-    $patients = [];
-}
+    $totalPatients = count($patients);
 
-// Get stats
-try {
+    // Get stats
     $inQueueStmt = $pdo->query("
         SELECT COUNT(DISTINCT p.id) FROM patients p
         INNER JOIN appointments a ON p.id = a.patient_id
@@ -75,6 +51,8 @@ try {
     ");
     $newThisMonth = $newThisMonthStmt->fetchColumn();
 } catch (Exception $e) {
+    $patients = [];
+    $totalPatients = 0;
     $inQueue = 0;
     $completedCount = 0;
     $newThisMonth = 0;
@@ -133,18 +111,6 @@ try {
 
 <!-- Patient Records Table -->
 
-    <?php if (empty($patients)): ?>
-        <div class="empty-state" style="text-align: center; padding: 60px 20px;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5" style="margin: 0 auto 16px; display: block;">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-            </svg>
-            <h3 style="color: #111827; font-size: 1.5rem; margin-bottom: 10px;">No Patients Found</h3>
-            <p style="color: #6b7280; font-size: 0.9rem;">Patients will appear here once they are registered</p>
-        </div>
-    <?php else: ?>
         <div class="table-container">
             <table class="data-table" id="patientsTable">
                 <thead>
@@ -159,125 +125,12 @@ try {
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <?php foreach ($patients as $patient): ?>
-                        <tr class="patient-row" 
-                            data-name="<?php echo strtolower(htmlspecialchars($patient['first_name'] ?? '')); ?>" 
-                            data-phone="<?php echo strtolower(htmlspecialchars($patient['phone'] ?? '')); ?>" 
-                            data-status="<?php echo $patient['appointment_status_id'] ?? ''; ?>">
-                            <td>
-                                <?php echo htmlspecialchars($patient['first_name'] ?? ''); ?>
-                            </td>
-                            <td>
-                                <?php echo htmlspecialchars($patient['middle_name'] ?? ''); ?>
-                            </td>
-                            <td>
-                                <?php echo htmlspecialchars($patient['last_name'] ?? ''); ?>
-                            </td>
-                            <td>
-                                <div style="font-size: 0.9rem;">
-                                    <span style="font-weight: 500;"><?php echo $patient['age'] ?? 'N/A'; ?> yrs</span>
-                                    <span style="color: #6b7280; margin-left: 8px;"><?php echo $patient['gender'] ?? 'N/A'; ?></span>
-                                </div>
-                            </td>
-                            <td>
-                                <div style="font-size: 0.85rem; color: #6b7280;">
-                                    <div><?php echo htmlspecialchars($patient['phone'] ?: 'N/A'); ?></div>
-                                    <div><?php echo htmlspecialchars($patient['email'] ?: ''); ?></div>
-                                </div>
-                            </td>
-                            <td>
-                                <div style="font-size: 0.9rem; font-weight: 500;">
-                                    <?php echo htmlspecialchars($patient['service_name'] ?: 'N/A'); ?>
-                                </div>
-                            </td>
-                            <td>
-                                <?php 
-                                    $statusId = $patient['appointment_status_id'] ?? 0;
-                                    $statusColors = [
-                                        0 => '#f3f4f6:#6b7280',  // -- (None) - Gray
-                                        1 => '#dbeafe:#1d4ed8', // Scheduled - Blue
-                                        2 => '#fef3c7:#92400e', // In Queue - Yellow
-                                        3 => '#fed7aa:#c2410c', // Unpaid - Orange
-                                        4 => '#d1fae5:#065f46', // Done - Green
-                                        5 => '#fee2e2:#dc2626'  // Cancelled - Red
-                                    ];
-                                    $bgColor = '#f3f4f6';
-                                    $textColor = '#6b7280';
-                                    if (isset($statusColors[$statusId])) {
-                                        list($bg, $text) = explode(':', $statusColors[$statusId]);
-                                        $bgColor = $bg;
-                                        $textColor = $text;
-                                    }
-                                    $statusLabels = [
-                                        0 => '--',
-                                        1 => 'Scheduled',
-                                        2 => 'In Queue',
-                                        3 => 'Unpaid',
-                                        4 => 'Done',
-                                        5 => 'Cancelled'
-                                    ];
-                                    $statusLabel = $statusLabels[$statusId] ?? '--';
-                                ?>
-                                <span class="status-badge" style="background: <?php echo $bgColor; ?>; color: <?php echo $textColor; ?>;">
-                                    <?php echo $statusLabel; ?>
-                                </span>
-                            </td>
-                            <td>
-                                <div class="patient-kebab-menu">
-                                    <button class="patient-kebab-btn" data-patient-id="<?php echo $patient['id']; ?>">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                            <circle cx="12" cy="6" r="2"/>
-                                            <circle cx="12" cy="12" r="2"/>
-                                            <circle cx="12" cy="18" r="2"/>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
+                <tbody id="patientsTableBody">
                 </tbody>
             </table>
         </div>
-    <?php endif; ?>
 
-    <!-- Pagination -->
-    <?php if ($totalPatients > 0): ?>
-    <div class="pagination">
-        <span class="pagination-info">Showing <?php echo $showingStart; ?>-<?php echo $showingEnd; ?> of <?php echo $totalPatients; ?> patients</span>
-        <div class="pagination-buttons">
-            <?php 
-            $queryString = $_GET;
-            unset($queryString['page']);
-            $baseUrl = '?' . http_build_query($queryString);
-            if (!empty($queryString)) $baseUrl .= '&';
-            ?>
-            <?php if ($currentPage > 1): ?>
-                <a href="<?php echo $baseUrl; ?>page=<?php echo $currentPage - 1; ?>" class="pagination-btn">Previous</a>
-            <?php else: ?>
-                <button class="pagination-btn" disabled>Previous</button>
-            <?php endif; ?>
-            
-            <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-                <?php if ($i == 1 || $i == $totalPages || ($i >= $currentPage - 1 && $i <= $currentPage + 1)): ?>
-                    <?php if ($i == $currentPage): ?>
-                        <button class="pagination-btn active"><?php echo $i; ?></button>
-                    <?php else: ?>
-                        <a href="<?php echo $baseUrl; ?>page=<?php echo $i; ?>" class="pagination-btn"><?php echo $i; ?></a>
-                    <?php endif; ?>
-                <?php elseif ($i == $currentPage - 2 || $i == $currentPage + 2): ?>
-                    <span class="pagination-ellipsis">...</span>
-                <?php endif; ?>
-            <?php endfor; ?>
-            
-            <?php if ($currentPage < $totalPages): ?>
-                <a href="<?php echo $baseUrl; ?>page=<?php echo $currentPage + 1; ?>" class="pagination-btn">Next</a>
-            <?php else: ?>
-                <button class="pagination-btn" disabled>Next</button>
-            <?php endif; ?>
-        </div>
-    </div>
-    <?php endif; ?>
+    <div id="pagination" class="pagination"></div>
 
 
 <!-- Patient Details Modal - Full Screen -->
@@ -297,110 +150,179 @@ try {
 </div>
 
 <script>
+const allPatients = <?php echo json_encode($patients); ?>;
 const latestPatientId = <?php echo (int)($patients[0]['id'] ?? 0); ?>;
-const patients = <?php echo json_encode($patients); ?>;
+let currentPage = 1;
+let perPage = 7;
+let filteredPatients = [...allPatients];
 
-// Portal Pattern: Move modal to body level to escape stacking context
-// This ensures modal appears above sidebar and all other elements
+const statusLabels = {0:'--',1:'Scheduled',2:'In Queue',3:'Unpaid',4:'Done',5:'Cancelled'};
+const statusColors = {0:'#f3f4f6:#6b7280',1:'#dbeafe:#1d4ed8',2:'#fef3c7:#92400e',3:'#fed7aa:#c2410c',4:'#d1fae5:#065f46',5:'#fee2e2:#dc2626'};
+
+// Portal Pattern: Move modals to body level
 document.addEventListener('DOMContentLoaded', function() {
-    // Portal Pattern: Move modal to body level to escape stacking context
-    // This ensures modal appears above sidebar and all other elements
+    var modals = ['patientModal','billingModal','appointmentModal','treatmentPlanModal','patientPrescriptionModal','recordPaymentModal','paymentHistoryModal','setDueDateModal'];
+    modals.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) document.body.appendChild(el);
+    });
 
-    // 1. Move Patient Details Modal
-    const patientModal = document.getElementById('patientModal');
-    if (patientModal) {
-        document.body.appendChild(patientModal);
-        // Set up close handlers after modal is moved
-        patientModal.addEventListener('click', function(e) {
-            if (e.target === patientModal) closePatientModal();
-        });
-    }
-
-    // 2. Move Billing Modal
-    const billingModal = document.getElementById('billingModal');
-    if (billingModal) {
-        document.body.appendChild(billingModal);
-        billingModal.addEventListener('click', function(e) {
-            if (e.target === billingModal) closeBillingModal();
-        });
-    }
-
-    // 3. Move Appointment Modal
-    const appointmentModal = document.getElementById('appointmentModal');
-    if (appointmentModal) {
-        document.body.appendChild(appointmentModal);
-        appointmentModal.addEventListener('click', function(e) {
-            if (e.target === appointmentModal) closeAddAppointmentModal();
-        });
-    }
-    
-    // 4. Move Treatment Plan Modal
-    const treatmentPlanModal = document.getElementById('treatmentPlanModal');
-    if (treatmentPlanModal) {
-        document.body.appendChild(treatmentPlanModal);
-        treatmentPlanModal.addEventListener('click', function(e) {
-            if (e.target === treatmentPlanModal) closeTreatmentPlanModal();
-        });
-    }
-
-    // 5. Move Patient Prescription Modal
-    const patientPrescriptionModal = document.getElementById('patientPrescriptionModal');
-    if (patientPrescriptionModal) {
-        document.body.appendChild(patientPrescriptionModal);
-        patientPrescriptionModal.addEventListener('click', function(e) {
-            if (e.target === patientPrescriptionModal) closePatientPrescriptionModal();
-        });
-    }
-
-    // 6. Move Payment Modals
-    const recordPaymentModal = document.getElementById('recordPaymentModal');
-    if (recordPaymentModal) {
-        document.body.appendChild(recordPaymentModal);
-    }
-    const paymentHistoryModal = document.getElementById('paymentHistoryModal');
-    if (paymentHistoryModal) {
-        document.body.appendChild(paymentHistoryModal);
-    }
-    const setDueDateModal = document.getElementById('setDueDateModal');
-    if (setDueDateModal) {
-        document.body.appendChild(setDueDateModal);
-    }
+    // Set up close handlers
+    var pm = document.getElementById('patientModal');
+    if (pm) pm.addEventListener('click', function(e) { if (e.target === pm) closePatientModal(); });
+    var bm = document.getElementById('billingModal');
+    if (bm) bm.addEventListener('click', function(e) { if (e.target === bm) closeBillingModal(); });
+    var am = document.getElementById('appointmentModal');
+    if (am) am.addEventListener('click', function(e) { if (e.target === am) closeAddAppointmentModal(); });
+    var tpm = document.getElementById('treatmentPlanModal');
+    if (tpm) tpm.addEventListener('click', function(e) { if (e.target === tpm) closeTreatmentPlanModal(); });
+    var ppm = document.getElementById('patientPrescriptionModal');
+    if (ppm) ppm.addEventListener('click', function(e) { if (e.target === ppm) closePatientPrescriptionModal(); });
 });
 
-// Search and filter functionality
-document.getElementById('searchInput').addEventListener('input', filterPatients);
-document.getElementById('statusFilter').addEventListener('change', filterPatients);
-document.getElementById('sortFilter').addEventListener('change', sortPatients);
+document.getElementById('searchInput').addEventListener('input', applyFilters);
+document.getElementById('statusFilter').addEventListener('change', applyFilters);
+document.getElementById('sortFilter').addEventListener('change', applyFilters);
 
-function filterPatients() {
-    const search = document.getElementById('searchInput').value.toLowerCase();
-    const status = document.getElementById('statusFilter').value;
-    
-    document.querySelectorAll('.patient-row').forEach(row => {
-        const matchSearch = !search || 
-            row.dataset.name.includes(search) || 
-            row.dataset.phone.includes(search);
-        const matchStatus = !status || row.dataset.status === status;
-        
-        row.style.display = (matchSearch && matchStatus) ? '' : 'none';
+renderTable();
+
+function applyFilters() {
+    currentPage = 1;
+    const query = document.getElementById('searchInput').value.trim().toLowerCase();
+    const statusVal = document.getElementById('statusFilter').value;
+    const sortVal = document.getElementById('sortFilter').value;
+
+    const statusMap = {
+        'waiting': [2],
+        'in_procedure': [1],
+        'completed': [4],
+        'scheduled': [1],
+        'none': [0]
+    };
+
+    filteredPatients = allPatients.filter(function(p) {
+        const haystack = ((p.first_name||'') + ' ' + (p.middle_name||'') + ' ' + (p.last_name||'') + ' ' + (p.phone||'')).toLowerCase();
+        const matchesSearch = !query || haystack.includes(query);
+
+        let matchesStatus = true;
+        if (statusVal) {
+            const sId = Number(p.appointment_status_id || 0);
+            matchesStatus = (statusMap[statusVal] || []).includes(sId);
+        }
+        return matchesSearch && matchesStatus;
     });
+
+    if (sortVal === 'name') {
+        filteredPatients.sort(function(a, b) {
+            var nameA = ((a.first_name||'') + ' ' + (a.middle_name||'') + ' ' + (a.last_name||'')).toLowerCase();
+            var nameB = ((b.first_name||'') + ' ' + (b.middle_name||'') + ' ' + (b.last_name||'')).toLowerCase();
+            return nameA.localeCompare(nameB);
+        });
+    }
+
+    renderTable();
 }
 
-function sortPatients() {
-    const sortBy = document.getElementById('sortFilter').value;
-    const tbody = document.querySelector('#patientsTable tbody');
-    const rows = Array.from(document.querySelectorAll('.patient-row'));
-    
-    rows.sort((a, b) => {
-        if (sortBy === 'name') {
-            return a.dataset.name.localeCompare(b.dataset.name);
+function renderTable() {
+    const tbody = document.getElementById('patientsTableBody');
+    const total = filteredPatients.length;
+    const totalPages = Math.max(1, Math.ceil(total / perPage));
+    if (currentPage > totalPages) currentPage = totalPages;
+    const start = (currentPage - 1) * perPage;
+    const end = Math.min(start + perPage, total);
+    const pageData = filteredPatients.slice(start, end);
+
+    if (pageData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:60px;color:#6b7280;">No patients found</td></tr>';
+        document.getElementById('pagination').innerHTML = '';
+        return;
+    }
+
+    tbody.innerHTML = pageData.map(function(p) {
+        const sId = Number(p.appointment_status_id || 0);
+        const label = statusLabels[sId] || '--';
+        const [bg, text] = (statusColors[sId] || '#f3f4f6:#6b7280').split(':');
+        const age = p.age || 'N/A';
+        const gender = p.gender || 'N/A';
+        const phone = p.phone || 'N/A';
+        const email = p.email || '';
+        const svc = p.service_name || 'N/A';
+        const pid = Number(p.id);
+        const fn = escapeHtml(p.first_name || '');
+        const mn = escapeHtml(p.middle_name || '');
+        const ln = escapeHtml(p.last_name || '');
+
+        return '<tr class="patient-row">' +
+            '<td>' + fn + '</td>' +
+            '<td>' + mn + '</td>' +
+            '<td>' + ln + '</td>' +
+            '<td><div style="font-size:0.9rem;"><span style="font-weight:500;">' + age + ' yrs</span><span style="color:#6b7280;margin-left:8px;">' + escapeHtml(gender.charAt(0).toUpperCase() + gender.slice(1)) + '</span></div></td>' +
+            '<td><div style="font-size:0.85rem;color:#6b7280;"><div>' + escapeHtml(phone) + '</div><div>' + escapeHtml(email) + '</div></div></td>' +
+            '<td><div style="font-size:0.9rem;font-weight:500;">' + escapeHtml(svc) + '</div></td>' +
+            '<td><span class="status-badge" style="background:' + bg + ';color:' + text + ';">' + label + '</span></td>' +
+            '<td><div class="patient-kebab-menu"><button class="patient-kebab-btn" data-patient-id="' + pid + '">' +
+            '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">' +
+            '<circle cx="12" cy="6" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="18" r="2"/></svg></button></div></td>' +
+            '</tr>';
+    }).join('');
+
+    renderPagination(total, totalPages);
+}
+
+function renderPagination(total, totalPages) {
+    const el = document.getElementById('pagination');
+    if (total === 0) { el.innerHTML = ''; return; }
+
+    const showingStart = (currentPage - 1) * perPage + 1;
+    const showingEnd = Math.min(currentPage * perPage, total);
+
+    let html = '<span class="pagination-info">Showing ' + showingStart + '-' + showingEnd + ' of ' + total + ' patients</span><div class="pagination-buttons">';
+
+    if (currentPage > 1) {
+        html += '<a href="javascript:void(0)" onclick="changePage(' + (currentPage - 1) + ')" class="pagination-btn">Previous</a>';
+    } else {
+        html += '<button class="pagination-btn" disabled>Previous</button>';
+    }
+
+    let startP = Math.max(1, currentPage - 2);
+    let endP = Math.min(totalPages, startP + 4);
+    if (endP - startP + 1 < 5) startP = Math.max(1, endP - 4);
+
+    if (startP > 1) {
+        html += '<a href="javascript:void(0)" onclick="changePage(1)" class="pagination-btn">1</a>';
+        if (startP > 2) html += '<span class="pagination-ellipsis">...</span>';
+    }
+
+    for (let i = startP; i <= endP; i++) {
+        if (i === currentPage) {
+            html += '<button class="pagination-btn active">' + i + '</button>';
         } else {
-            // Keep original order (newest first)
-            return 0;
+            html += '<a href="javascript:void(0)" onclick="changePage(' + i + ')" class="pagination-btn">' + i + '</a>';
         }
-    });
-    
-    rows.forEach(row => tbody.appendChild(row));
+    }
+
+    if (endP < totalPages) {
+        if (endP < totalPages - 1) html += '<span class="pagination-ellipsis">...</span>';
+        html += '<a href="javascript:void(0)" onclick="changePage(' + totalPages + ')" class="pagination-btn">' + totalPages + '</a>';
+    }
+
+    if (currentPage < totalPages) {
+        html += '<a href="javascript:void(0)" onclick="changePage(' + (currentPage + 1) + ')" class="pagination-btn">Next</a>';
+    } else {
+        html += '<button class="pagination-btn" disabled>Next</button>';
+    }
+
+    html += '</div>';
+    el.innerHTML = html;
+}
+
+function changePage(page) {
+    currentPage = page;
+    renderTable();
+}
+
+function escapeHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // View patient details - Full screen modal with medical history
@@ -1161,7 +1083,7 @@ function openAddAppointmentModal(patientId) {
     closePatientKebabDropdown();
     document.body.style.overflow = 'hidden';
     
-    const patient = patients.find(p => p.id == patientId);
+    const patient = allPatients.find(p => p.id == patientId);
     
     if (patient) {
         selectedPatientId = patientId;
@@ -1698,7 +1620,7 @@ function openBillingModal(patientId) {
     document.body.style.overflow = 'hidden';
     
     // Find the patient's queue record
-    const patient = patients.find(p => p.id == patientId);
+    const patient = allPatients.find(p => p.id == patientId);
     console.log('Found patient:', patient);
     
     // Get the latest queue for this patient
@@ -1800,7 +1722,7 @@ function openTreatmentPlanModal(patientId) {
     document.body.style.overflow = 'hidden';
     
     treatmentPlanPatientId = patientId;
-    const patient = patients.find(p => p.id == patientId);
+    const patient = allPatients.find(p => p.id == patientId);
     
     // Update patient name and link
     document.getElementById('tpPatientName').textContent = patient ? 
@@ -1987,7 +1909,7 @@ function showTpCreateForm() {
     
     // Clear teeth and set default based on patient age
     clearTeeth();
-    const patient = patients.find(p => p.id == treatmentPlanPatientId);
+    const patient = allPatients.find(p => p.id == treatmentPlanPatientId);
     if (patient) {
         const age = parseInt(patient.age) || 0;
         // Default to primary teeth for children under 12

@@ -3,25 +3,8 @@ $pageTitle = 'Patient Records';
 require_once '../../config/database.php';
 require_once '../../includes/staff_layout_start.php';
 
-// Pagination settings
-$itemsPerPage = 10;
-$currentPage = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
-if ($currentPage < 1) $currentPage = 1;
-
 try {
-    // Get total count for pagination
-    $totalPatients = (int)$pdo->query("SELECT COUNT(*) FROM patients WHERE is_archived = 0")->fetchColumn();
-    $totalPages = max(1, ceil($totalPatients / $itemsPerPage));
-    
-    // Ensure current page is valid
-    if ($currentPage > $totalPages) $currentPage = $totalPages;
-    $offset = ($currentPage - 1) * $itemsPerPage;
-    
-    // Calculate showing range
-    $showingStart = $totalPatients > 0 ? $offset + 1 : 0;
-    $showingEnd = min($offset + $itemsPerPage, $totalPatients);
-    
-    // Get paginated patients with appointment data
+    // Fetch ALL non-archived patients (client-side search/pagination)
     $stmt = $pdo->prepare("
         SELECT p.*, 
                TIMESTAMPDIFF(YEAR, p.date_of_birth, CURDATE()) as age,
@@ -43,12 +26,10 @@ try {
         WHERE p.is_archived = 0
         GROUP BY p.id
         ORDER BY p.created_at DESC
-        LIMIT :limit OFFSET :offset
     ");
-    $stmt->bindValue(':limit', $itemsPerPage, PDO::PARAM_INT);
-    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
     $stmt->execute();
     $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $totalPatients = count($patients);
     
     // Get stats
     $inQueueStmt = $pdo->query("
@@ -73,9 +54,6 @@ try {
 } catch (Exception $e) {
     $patients = [];
     $totalPatients = 0;
-    $totalPages = 1;
-    $showingStart = 0;
-    $showingEnd = 0;
     $inQueue = 0;
     $completedCount = 0;
     $newThisMonth = 0;
@@ -157,156 +135,12 @@ try {
                 </tr>
             </thead>
             <tbody id="patientsTableBody">
-                <?php if (empty($patients)): ?>
-                    <tr>
-                        <td colspan="7" style="text-align: center; padding: 60px; color: #6b7280;">
-                            <p style="font-size: 1.1rem; margin-bottom: 8px;">No patient records found</p>
-                        </td>
-                    </tr>
-                <?php else: ?>
-                    <?php foreach ($patients as $patient): 
-                        $statusId = $patient['appointment_status_id'] ?? 0;
-                        $statusColors = [
-                            0 => '#f3f4f6:#6b7280',
-                            1 => '#dbeafe:#1d4ed8',
-                            2 => '#fef3c7:#92400e',
-                            3 => '#fed7aa:#c2410c',
-                            4 => '#d1fae5:#065f46',
-                            5 => '#fee2e2:#dc2626'
-                        ];
-                        $bgColor = '#f3f4f6';
-                        $textColor = '#6b7280';
-                        if (isset($statusColors[$statusId])) {
-                            list($bg, $text) = explode(':', $statusColors[$statusId]);
-                            $bgColor = $bg;
-                            $textColor = $text;
-                        }
-                        $statusLabels = [
-                            0 => '--',
-                            1 => 'Scheduled',
-                            2 => 'In Queue',
-                            3 => 'Unpaid',
-                            4 => 'Done',
-                            5 => 'Cancelled'
-                        ];
-                        $statusLabel = $statusLabels[$statusId] ?? '--';
-                    ?>
-                        <tr class="patient-row" 
-                            data-name="<?php echo strtolower(htmlspecialchars($patient['first_name'] ?? 'Unknown')); ?>"
-                            data-phone="<?php echo strtolower(htmlspecialchars($patient['phone'] ?? '')); ?>"
-                            data-status="<?php echo $statusId; ?>">
-                            <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
-                                <?php echo htmlspecialchars($patient['first_name'] ?? ''); ?>
-                            </td>
-                            <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
-                                <?php echo htmlspecialchars($patient['middle_name'] ?? ''); ?>
-                            </td>
-                            <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
-                                <?php echo htmlspecialchars($patient['last_name'] ?? ''); ?>
-                            </td>
-                            <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
-                                <div style="font-size: 0.9rem;">
-                                    <span style="font-weight: 500;"><?php echo $patient['age'] ?? 'N/A'; ?> yrs</span>
-                                    <span style="color: #6b7280; margin-left: 8px;"><?php echo ucfirst($patient['gender'] ?? 'N/A'); ?></span>
-                                </div>
-                            </td>
-                            <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
-                                <div style="font-size: 0.85rem; color: #6b7280;">
-                                    <div><?php echo htmlspecialchars($patient['phone'] ?: 'N/A'); ?></div>
-                                    <div><?php echo htmlspecialchars($patient['email'] ?? ''); ?></div>
-                                </div>
-                            </td>
-                            <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
-                                <span style="font-weight: 500; color: #111827;"><?php echo htmlspecialchars($patient['service_name'] ?: 'N/A'); ?></span>
-                            </td>
-                            <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
-                                <span style="background: <?php echo $bgColor; ?>; color: <?php echo $textColor; ?>; padding: 4px 12px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600;">
-                                    <?php echo $statusLabel; ?>
-                                </span>
-                            </td>
-                            <td style="padding: 12px 16px; border-bottom: 1px solid #f3f4f6;">
-                                <div class="patient-kebab-menu">
-                                    <button class="patient-kebab-btn" data-patient-id="<?php echo $patient['id']; ?>">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                            <circle cx="12" cy="6" r="2"/>
-                                            <circle cx="12" cy="12" r="2"/>
-                                            <circle cx="12" cy="18" r="2"/>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                <?php endif; ?>
             </tbody>
         </table>
     </div>
 </div>
 
-<!-- Pagination -->
-<?php if ($totalPatients > 0): ?>
-<div class="pagination">
-    <span class="pagination-info">Showing <?php echo $showingStart; ?>-<?php echo $showingEnd; ?> of <?php echo $totalPatients; ?> patients</span>
-    <div class="pagination-buttons">
-        <?php if ($currentPage > 1): ?>
-            <a href="?page=<?php echo $currentPage - 1; ?>" class="pagination-btn">Previous</a>
-        <?php else: ?>
-            <button class="pagination-btn" disabled>Previous</button>
-        <?php endif; ?>
-        
-        <?php
-        // Smart page number display
-        $maxVisiblePages = 5;
-        $startPage = max(1, $currentPage - floor($maxVisiblePages / 2));
-        $endPage = min($totalPages, $startPage + $maxVisiblePages - 1);
-        
-        if ($endPage - $startPage + 1 < $maxVisiblePages) {
-            $startPage = max(1, $endPage - $maxVisiblePages + 1);
-        }
-        
-        if ($startPage > 1) {
-            ?>
-            <a href="?page=1" class="pagination-btn">1</a>
-            <?php
-            if ($startPage > 2) {
-                ?>
-                <span class="pagination-ellipsis">...</span>
-                <?php
-            }
-        }
-        
-        for ($i = $startPage; $i <= $endPage; $i++) {
-            if ($i == $currentPage) {
-                ?>
-                <button class="pagination-btn active"><?php echo $i; ?></button>
-                <?php
-            } else {
-                ?>
-                <a href="?page=<?php echo $i; ?>" class="pagination-btn"><?php echo $i; ?></a>
-                <?php
-            }
-        }
-        
-        if ($endPage < $totalPages) {
-            if ($endPage < $totalPages - 1) {
-                ?>
-                <span class="pagination-ellipsis">...</span>
-                <?php
-            }
-            ?>
-            <a href="?page=<?php echo $totalPages; ?>" class="pagination-btn"><?php echo $totalPages; ?></a>
-            <?php
-        }
-        ?>
-        
-        <?php if ($currentPage < $totalPages): ?>
-            <a href="?page=<?php echo $currentPage + 1; ?>" class="pagination-btn">Next</a>
-        <?php else: ?>
-            <button class="pagination-btn" disabled>Next</button>
-        <?php endif; ?>
-    </div>
-</div>
-<?php endif; ?>
+<div id="pagination" class="pagination"></div>
 
 <!-- Full Screen Patient Record Modal -->
 <div id="patientRecordModal" class="fullscreen-modal-overlay">
@@ -684,49 +518,155 @@ try {
 </style>
 
 <script>
-const patients = <?php echo json_encode($patients); ?>;
+const allPatients = <?php echo json_encode($patients); ?>;
+let currentPage = 1;
+let perPage = 10;
+let filteredPatients = [...allPatients];
 
-// Portal Pattern: Move modals to body level to escape stacking context
-// This ensures modals appear above sidebar and all other elements
+const statusLabels = {0:'--',1:'Scheduled',2:'In Queue',3:'Unpaid',4:'Done',5:'Cancelled'};
+const statusColors = {0:'#f3f4f6:#6b7280',1:'#dbeafe:#1d4ed8',2:'#fef3c7:#92400e',3:'#fed7aa:#c2410c',4:'#d1fae5:#065f46',5:'#fee2e2:#dc2626'};
+
+// Portal Pattern: Move modals to body level
 (function() {
-    const patientRecordModal = document.getElementById('patientRecordModal');
-    const appointmentModal = document.getElementById('appointmentModal');
-    const recordPaymentModal = document.getElementById('recordPaymentModal');
-    const paymentHistoryModal = document.getElementById('paymentHistoryModal');
-    const setDueDateModal = document.getElementById('setDueDateModal');
-    
-    if (patientRecordModal) {
-        document.body.appendChild(patientRecordModal);
-    }
-    if (appointmentModal) {
-        document.body.appendChild(appointmentModal);
-    }
-    if (recordPaymentModal) {
-        document.body.appendChild(recordPaymentModal);
-    }
-    if (paymentHistoryModal) {
-        document.body.appendChild(paymentHistoryModal);
-    }
-    if (setDueDateModal) {
-        document.body.appendChild(setDueDateModal);
-    }
+    var modals = ['patientRecordModal','appointmentModal','recordPaymentModal','paymentHistoryModal','setDueDateModal'];
+    modals.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) document.body.appendChild(el);
+    });
 })();
 
-document.getElementById('searchInput').addEventListener('input', filterPatients);
-document.getElementById('statusFilter').addEventListener('change', filterPatients);
+document.getElementById('searchInput').addEventListener('input', applyFilters);
+document.getElementById('statusFilter').addEventListener('change', applyFilters);
 
-function filterPatients() {
-    const search = document.getElementById('searchInput').value.toLowerCase();
-    const status = document.getElementById('statusFilter').value;
-    
-    document.querySelectorAll('.patient-row').forEach(row => {
-        const matchSearch = !search || 
-            row.dataset.name.includes(search) || 
-            row.dataset.phone.includes(search);
-        const matchStatus = !status || row.dataset.status === status;
-        
-        row.style.display = (matchSearch && matchStatus) ? '' : 'none';
+renderTable();
+
+function applyFilters() {
+    currentPage = 1;
+    const query = document.getElementById('searchInput').value.trim().toLowerCase();
+    const statusVal = document.getElementById('statusFilter').value;
+
+    const statusMap = {
+        'waiting': [2],
+        'in_procedure': [1],
+        'completed': [4],
+        'scheduled': [1],
+        'none': [0]
+    };
+
+    filteredPatients = allPatients.filter(function(p) {
+        const haystack = ((p.first_name||'') + ' ' + (p.middle_name||'') + ' ' + (p.last_name||'') + ' ' + (p.phone||'')).toLowerCase();
+        const matchesSearch = !query || haystack.includes(query);
+
+        let matchesStatus = true;
+        if (statusVal) {
+            const sId = Number(p.appointment_status_id || 0);
+            matchesStatus = (statusMap[statusVal] || []).includes(sId);
+        }
+        return matchesSearch && matchesStatus;
     });
+    renderTable();
+}
+
+function renderTable() {
+    const tbody = document.getElementById('patientsTableBody');
+    const total = filteredPatients.length;
+    const totalPages = Math.max(1, Math.ceil(total / perPage));
+    if (currentPage > totalPages) currentPage = totalPages;
+    const start = (currentPage - 1) * perPage;
+    const end = Math.min(start + perPage, total);
+    const pageData = filteredPatients.slice(start, end);
+
+    if (pageData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:60px;color:#6b7280;">No patient records found</td></tr>';
+        document.getElementById('pagination').innerHTML = '';
+        return;
+    }
+
+    tbody.innerHTML = pageData.map(function(p) {
+        const sId = Number(p.appointment_status_id || 0);
+        const label = statusLabels[sId] || '--';
+        const [bg, text] = (statusColors[sId] || '#f3f4f6:#6b7280').split(':');
+        const age = p.age || 'N/A';
+        const gender = p.gender || 'N/A';
+        const phone = p.phone || 'N/A';
+        const email = p.email || '';
+        const svc = p.service_name || 'N/A';
+        const pid = Number(p.id);
+        const fn = escapeHtml(p.first_name || '');
+        const mn = escapeHtml(p.middle_name || '');
+        const ln = escapeHtml(p.last_name || '');
+
+        return '<tr class="patient-row">' +
+            '<td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;">' + fn + '</td>' +
+            '<td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;">' + mn + '</td>' +
+            '<td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;">' + ln + '</td>' +
+            '<td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;"><div style="font-size:0.9rem;"><span style="font-weight:500;">' + age + ' yrs</span><span style="color:#6b7280;margin-left:8px;">' + escapeHtml(gender.charAt(0).toUpperCase() + gender.slice(1)) + '</span></div></td>' +
+            '<td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;"><div style="font-size:0.85rem;color:#6b7280;"><div>' + escapeHtml(phone) + '</div><div>' + escapeHtml(email) + '</div></div></td>' +
+            '<td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;"><span style="font-weight:500;color:#111827;">' + escapeHtml(svc) + '</span></td>' +
+            '<td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;"><span style="background:' + bg + ';color:' + text + ';padding:4px 12px;border-radius:9999px;font-size:0.75rem;font-weight:600;">' + label + '</span></td>' +
+            '<td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;"><div class="patient-kebab-menu"><button class="patient-kebab-btn" data-patient-id="' + pid + '">' +
+            '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">' +
+            '<circle cx="12" cy="6" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="18" r="2"/></svg></button></div></td>' +
+            '</tr>';
+    }).join('');
+
+    renderPagination(total, totalPages);
+}
+
+function renderPagination(total, totalPages) {
+    const el = document.getElementById('pagination');
+    if (total === 0) { el.innerHTML = ''; return; }
+
+    const showingStart = (currentPage - 1) * perPage + 1;
+    const showingEnd = Math.min(currentPage * perPage, total);
+
+    let html = '<span class="pagination-info">Showing ' + showingStart + '-' + showingEnd + ' of ' + total + ' patients</span><div class="pagination-buttons">';
+
+    if (currentPage > 1) {
+        html += '<a href="javascript:void(0)" onclick="changePage(' + (currentPage - 1) + ')" class="pagination-btn">Previous</a>';
+    } else {
+        html += '<button class="pagination-btn" disabled>Previous</button>';
+    }
+
+    let startP = Math.max(1, currentPage - 2);
+    let endP = Math.min(totalPages, startP + 4);
+    if (endP - startP + 1 < 5) startP = Math.max(1, endP - 4);
+
+    if (startP > 1) {
+        html += '<a href="javascript:void(0)" onclick="changePage(1)" class="pagination-btn">1</a>';
+        if (startP > 2) html += '<span class="pagination-ellipsis">...</span>';
+    }
+
+    for (let i = startP; i <= endP; i++) {
+        if (i === currentPage) {
+            html += '<button class="pagination-btn active">' + i + '</button>';
+        } else {
+            html += '<a href="javascript:void(0)" onclick="changePage(' + i + ')" class="pagination-btn">' + i + '</a>';
+        }
+    }
+
+    if (endP < totalPages) {
+        if (endP < totalPages - 1) html += '<span class="pagination-ellipsis">...</span>';
+        html += '<a href="javascript:void(0)" onclick="changePage(' + totalPages + ')" class="pagination-btn">' + totalPages + '</a>';
+    }
+
+    if (currentPage < totalPages) {
+        html += '<a href="javascript:void(0)" onclick="changePage(' + (currentPage + 1) + ')" class="pagination-btn">Next</a>';
+    } else {
+        html += '<button class="pagination-btn" disabled>Next</button>';
+    }
+
+    html += '</div>';
+    el.innerHTML = html;
+}
+
+function changePage(page) {
+    currentPage = page;
+    renderTable();
+}
+
+function escapeHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function viewPatientRecord(patientId) {
@@ -1144,7 +1084,7 @@ let selectedPatientId = null;
 
 function openAddAppointmentModal(patientId) {
     // Find patient data from the existing patients array
-    const patient = patients.find(p => p.id == patientId);
+    const patient = allPatients.find(p => p.id == patientId);
     
     if (patient) {
         selectedPatientId = patientId;
