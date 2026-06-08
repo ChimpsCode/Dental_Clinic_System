@@ -11,16 +11,25 @@ $query = "
            s.name AS service_name,
            ass.first_name AS assigned_first_name,
            ass.last_name AS assigned_last_name,
-           ass.username AS assigned_username
+           ass.username AS assigned_username,
+           up.profile_picture AS patient_profile_picture
     FROM inquiries i
     LEFT JOIN services s ON s.id = i.service_id
     LEFT JOIN users ass ON ass.id = i.assigned_staff_id
+    LEFT JOIN users up ON up.email = i.email
     WHERE COALESCE(i.is_archived, 0) = 0
     ORDER BY i.created_at DESC, i.id DESC
 ";
 $stmt = $pdo->prepare($query);
 $stmt->execute();
 $inquiries = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+foreach ($inquiries as &$inq) {
+    if (!empty($inq['patient_profile_picture']) && !file_exists(dirname(__DIR__, 2) . '/' . $inq['patient_profile_picture'])) {
+        $inq['patient_profile_picture'] = null;
+    }
+}
+unset($inq);
 
 $services = fetchInquiryServices($pdo);
 $statuses = ['Unread', 'Read', 'Replied'];
@@ -766,7 +775,7 @@ require_once '../../includes/staff_layout_start.php';
                     <path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>
                 </svg>
             </button>
-            <div class="chat-modal-avatar" id="replyAvatar">JD</div>
+            <div class="chat-modal-avatar" id="replyAvatar" style="overflow:hidden;">JD</div>
             <div class="chat-modal-user-info">
                 <div class="chat-modal-name" id="replyFromName"></div>
                 <div class="chat-modal-email" id="replyEmail"></div>
@@ -939,6 +948,10 @@ function renderTable() {
                     <div style="display:flex;
                     align-items:flex-start;
                     gap:12px">
+                        ${inquiry.patient_profile_picture ? `
+                        <img src="../../${escapeHtml(inquiry.patient_profile_picture)}" alt=""
+                            style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+                        ` : `
                         <div 
                             style="width:40px;
                             height:40px;
@@ -951,6 +964,7 @@ function renderTable() {
                             font-weight:700;
                             font-size:14px;
                             flex-shrink:0">${escapeHtml(getInitials((inquiry.first_name||'')+' '+(inquiry.last_name||'')))}</div>
+                        `}
                         <div class="patient-name">${displayFirstName || '-'}</div>
                     </div>
                 </td>
@@ -1312,7 +1326,13 @@ async function openReplyModal(id) {
     document.getElementById('replySource').textContent = inquiry.source || 'Website';
     document.getElementById('replyEmail').textContent = inquiry.email || 'No email';
     document.getElementById('replyPhone').textContent = inquiry.phone || inquiry.contact_info || 'No phone';
-    document.getElementById('replyAvatar').textContent = getInitials(fullName);
+    const avatarEl = document.getElementById('replyAvatar');
+    if (inquiry.patient_profile_picture) {
+        avatarEl.innerHTML = '<img src="../../' + escapeHtml(inquiry.patient_profile_picture) + '" alt="" style="width:44px;height:44px;border-radius:50%;object-fit:cover;">';
+    } else {
+        avatarEl.textContent = getInitials(fullName);
+        avatarEl.style.background = 'linear-gradient(135deg,#2563eb,#1d4ed8)';
+    }
 
     const concernText = inquiry.concern || inquiry.inquiry_message || 'No concern provided.';
 

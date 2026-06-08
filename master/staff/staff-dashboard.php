@@ -442,7 +442,7 @@ try {
             <button type="button" class="chat-modal-back" onclick="showInquiryList()" aria-label="Back">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
             </button>
-            <div class="chat-modal-avatar" id="inquiryChatAvatar">JD</div>
+            <div class="chat-modal-avatar" id="inquiryChatAvatar" style="overflow:hidden;">JD</div>
             <div class="chat-modal-user-info">
                 <div class="chat-modal-name" id="inquiryChatName"></div>
                 <div class="chat-modal-email" id="inquiryChatContact"></div>
@@ -893,7 +893,7 @@ function renderDashboardInquiries() {
         const initials = getInitials(fullName);
         return `
             <div class="dashboard-inquiry-item">
-                <div class="dashboard-inquiry-item-avatar">${escapeHtml(initials)}</div>
+                <div class="dashboard-inquiry-item-avatar" style="overflow:hidden;">${inquiry.patient_profile_picture ? '<img src="../../' + escapeHtml(inquiry.patient_profile_picture) + '" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">' : escapeHtml(initials)}</div>
                 <div class="dashboard-inquiry-item-body">
                     <div class="dashboard-inquiry-item-top">
                         <span class="dashboard-inquiry-item-name">${escapeHtml(fullName)}</span>
@@ -926,7 +926,13 @@ async function openDashboardInquiryChat(id) {
     document.getElementById('inquiryChatName').textContent = fullName;
     document.getElementById('inquiryChatContact').textContent = contactParts.join(' · ') || 'No contact';
     document.getElementById('inquiryChatSource').textContent = inquiry.source || 'Website';
-    document.getElementById('inquiryChatAvatar').textContent = getInitials(fullName);
+    const avatarEl = document.getElementById('inquiryChatAvatar');
+    if (inquiry.patient_profile_picture) {
+        avatarEl.innerHTML = '<img src="../../' + escapeHtml(inquiry.patient_profile_picture) + '" alt="" style="width:44px;height:44px;border-radius:50%;object-fit:cover;">';
+    } else {
+        avatarEl.textContent = getInitials(fullName);
+        avatarEl.style.background = 'linear-gradient(135deg,#2563eb,#1d4ed8)';
+    }
     document.getElementById('inquiryChatReplyId').value = inquiry.id;
 
     const concernText = inquiry.concern || inquiry.inquiry_message || 'No concern provided.';

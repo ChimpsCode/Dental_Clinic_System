@@ -203,15 +203,21 @@ function fetchInquiryById(PDO $pdo, int $id): ?array
                s.name AS service_name,
                ass.first_name AS assigned_first_name,
                ass.last_name AS assigned_last_name,
-               ass.username AS assigned_username
+               ass.username AS assigned_username,
+               up.profile_picture AS patient_profile_picture
         FROM inquiries i
         LEFT JOIN services s ON s.id = i.service_id
         LEFT JOIN users ass ON ass.id = i.assigned_staff_id
+        LEFT JOIN users up ON up.email = i.email
         WHERE i.id = ?
         LIMIT 1
     ");
     $stmt->execute([$id]);
-    return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($row && !empty($row['patient_profile_picture']) && !file_exists(dirname(__DIR__, 2) . '/' . $row['patient_profile_picture'])) {
+        $row['patient_profile_picture'] = null;
+    }
+    return $row ?: null;
 }
 
 function splitInquiryFullName(string $fullName): array
@@ -433,16 +439,24 @@ if ($action === 'get_inquiries') {
         SELECT i.*, s.name AS service_name,
                ass.first_name AS assigned_first_name,
                ass.last_name AS assigned_last_name,
-               ass.username AS assigned_username
+               ass.username AS assigned_username,
+               up.profile_picture AS patient_profile_picture
         FROM inquiries i
         LEFT JOIN services s ON s.id = i.service_id
         LEFT JOIN users ass ON ass.id = i.assigned_staff_id
+        LEFT JOIN users up ON up.email = i.email
         WHERE COALESCE(i.is_archived, 0) = 0
         ORDER BY i.created_at DESC, i.id DESC
         LIMIT ? OFFSET ?
     ");
     $stmt->execute([$limit, $offset]);
     $inquiries = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($inquiries as &$inq) {
+        if (!empty($inq['patient_profile_picture']) && !file_exists(dirname(__DIR__, 2) . '/' . $inq['patient_profile_picture'])) {
+            $inq['patient_profile_picture'] = null;
+        }
+    }
+    unset($inq);
 
     $unreadStmt = $pdo->query("
         SELECT COUNT(*) FROM inquiries
