@@ -1,11 +1,13 @@
 <?php
+error_reporting(0);
+ini_set('display_errors', 0);
 header('Content-Type: application/json');
 
 session_start();
-require_once '../../config/database.php';
-require_once '../../includes/sms_functions.php';
 
 try {
+    require_once '../../config/database.php';
+    require_once '../../includes/sms_functions.php';
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('Invalid request method');
     }
@@ -179,17 +181,22 @@ try {
     $sms_sent = false;
     $sms_error = null;
     if ($patient_phone) {
-        $sms_result = sendAppointmentConfirmationSMS(
-            $patient_phone,
-            $patient_name,
-            $appointment_date,
-            $appointment_time,
-            $treatment
-        );
-        $sms_sent = $sms_result['success'];
-        if (!$sms_sent) {
-            $sms_error = $sms_result['error'];
-            error_log("SMS failed for appointment $appointment_id: " . $sms_error);
+        try {
+            $sms_result = sendAppointmentConfirmationSMS(
+                $patient_phone,
+                $patient_name,
+                $appointment_date,
+                $appointment_time,
+                $treatment
+            );
+            $sms_sent = $sms_result['success'];
+            if (!$sms_sent) {
+                $sms_error = $sms_result['error'];
+                error_log("SMS failed for appointment $appointment_id: " . $sms_error);
+            }
+        } catch (Error $e) {
+            $sms_error = $e->getMessage();
+            error_log("SMS sending error for appointment $appointment_id: " . $sms_error);
         }
     }
 
@@ -214,5 +221,11 @@ try {
     echo json_encode([
         'success' => false,
         'message' => $e->getMessage()
+    ]);
+} catch (Error $e) {
+    error_log("Book Appointment Fatal Error: " . $e->getMessage());
+    echo json_encode([
+        'success' => false,
+        'message' => 'An internal server error occurred. Please try again.'
     ]);
 }

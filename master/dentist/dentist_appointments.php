@@ -1,6 +1,25 @@
 <?php
 $pageTitle = 'Appointments';
 require_once '../../config/database.php';
+
+// Auto-cancel no-show trigger on page visit
+try {
+    $acStmt = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('auto_cancel_enabled', 'auto_cancel_minutes')");
+    $acSettings = $acStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+    if (($acSettings['auto_cancel_enabled'] ?? '0') === '1') {
+        $acMinutes = (int)($acSettings['auto_cancel_minutes'] ?? 20);
+        if (!in_array($acMinutes, [10, 20, 30])) $acMinutes = 20;
+        $pdo->prepare("UPDATE appointments SET status = 'cancelled', status_id = 5, cancel_reason = ?
+                       WHERE (status_id NOT IN (4, 5) OR status_id IS NULL)
+                       AND (LOWER(status) NOT IN ('completed', 'cancelled') OR status IS NULL)
+                       AND check_in_time IS NULL
+                       AND (appointment_date < CURDATE() OR (appointment_date = CURDATE() AND ADDTIME(appointment_time, SEC_TO_TIME(? * 60)) <= NOW()))")
+           ->execute(['Auto-cancelled due to no-show', $acMinutes]);
+    }
+} catch (Exception $e) {
+    // Silently fail - cron handles email notifications
+}
+
 require_once '../../includes/dentist_layout_start.php';
 
 // Load settings for business hours and unavailable dates
@@ -279,7 +298,7 @@ try {
                          <td><span class="status-badge" style="<?php echo $statusColor; ?>"><?php echo $statusText; ?></span></td>
                          <td>
                                 <div class="appt-kebab-menu">
-                                    <button class="appt-kebab-btn" data-appt-id="<?php echo $apt['id']; ?>">
+                                    <button class="appt-kebab-btn" data-appt-id="<?php echo $apt['id']; ?>" data-status-id="<?php echo $apt['status_id'] ?? ''; ?>" data-status="<?php echo htmlspecialchars($statusText); ?>" data-checked-in="<?php echo $apt['check_in_time'] ?? ''; ?>">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                                             <circle cx="12" cy="6" r="2"/>
                                             <circle cx="12" cy="12" r="2"/>
@@ -1124,9 +1143,13 @@ function initApptKebabMenu() {
 
 function openApptKebabDropdown(button) {
     const apptId = button.getAttribute('data-appt-id');
+    const statusId = parseInt(button.getAttribute('data-status-id')) || 0;
     const status = button.getAttribute('data-status') || 'scheduled';
-    
-    apptKebabDropdown.innerHTML = `
+    const checkedIn = button.getAttribute('data-checked-in') || '';
+    const isCancelled = (statusId == 5 || status.toLowerCase().includes('cancel'));
+    const isArrived = checkedIn && checkedIn.trim() !== '';
+
+    let html = `
         <a href="javascript:void(0)" onclick="viewAppointmentDetails(${apptId})">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -1134,15 +1157,47 @@ function openApptKebabDropdown(button) {
             </svg>
             View Details
         </a>
-        <a href="javascript:void(0)" onclick="openCancelReasonModal(${apptId})" style="color: #dc2626;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="15" y1="9" x2="9" y2="15"/>
-                <line x1="9" y1="9" x2="15" y2="15"/>
-            </svg>
-            Cancel Appointment
-        </a>
     `;
+
+    if (!isArrived) {
+        html += `
+            <a href="javascript:void(0)" onclick="markArrived(${apptId})">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                Mark as Arrived
+            </a>
+        `;
+    }
+
+    if (isArrived) {
+        html += `
+            <a href="javascript:void(0)" onclick="forwardToQueue(${apptId})">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 12h-16"/>
+                    <path d="M12 5l7 7-7 7"/>
+                    <path d="M3 5v14"/>
+                </svg>
+                Forward to Queue
+            </a>
+        `;
+    }
+
+    if (!isCancelled) {
+        html += `
+            <a href="javascript:void(0)" onclick="openCancelReasonModal(${apptId})" style="color: #dc2626;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="15" y1="9" x2="9" y2="15"/>
+                    <line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>
+                Cancel Appointment
+            </a>
+        `;
+    }
+
+    apptKebabDropdown.innerHTML = html;
     
     // Position dropdown
     const rect = button.getBoundingClientRect();
@@ -1181,6 +1236,49 @@ function closeApptKebabDropdown() {
         apptActiveButton = null;
     }
 }
+
+    function markArrived(id) {
+        closeApptKebabDropdown();
+        if (confirm('Mark this patient as arrived?')) {
+            fetch('../shared/mark_arrived.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ appt_id: id })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Error marking as arrived');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error marking as arrived');
+            });
+        }
+    }
+
+    function forwardToQueue(id) {
+        closeApptKebabDropdown();
+        const row = document.querySelector(`.appointment-row[data-id="${id}"]`);
+        if (!row) return;
+
+        const firstName = row.getAttribute('data-first-name') || '';
+        const middleName = row.getAttribute('data-middle-name') || '';
+        const lastName = row.getAttribute('data-last-name') || '';
+        const phone = row.getAttribute('data-phone') || '';
+
+        if (confirm('Forward this appointment to Queue?')) {
+            let url = '../staff/staff_new_admission.php?appointment_id=' + id;
+            if (firstName) url += '&first_name=' + encodeURIComponent(firstName);
+            if (middleName) url += '&middle_name=' + encodeURIComponent(middleName);
+            if (lastName) url += '&last_name=' + encodeURIComponent(lastName);
+            if (phone) url += '&phone=' + encodeURIComponent(phone);
+            window.location.href = url;
+        }
+    }
 
     // Cancel Reason Modal
     let cancelAppointmentId = null;

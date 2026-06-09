@@ -306,6 +306,31 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     </div>
 
                     <div class="settings-section">
+                        <h3 class="section-title">⏰ Auto-Cancel No-Show</h3>
+                        <form class="settings-form" id="autoCancelForm">
+                            <div class="toggle-setting">
+                                <div class="toggle-info">
+                                    <span class="toggle-label">Enable Auto-Cancel</span>
+                                    <span class="toggle-description">Automatically cancel appointments when patients do not arrive within the set time window</span>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="autoCancelEnabled" <?php echo ($settings['auto_cancel_enabled'] ?? '0') === '1' ? 'checked' : ''; ?>>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label>No-Show Timeout</label>
+                                <select class="form-control" id="autoCancelMinutes" style="width: auto;">
+                                    <option value="10" <?php echo ($settings['auto_cancel_minutes'] ?? '20') == '10' ? 'selected' : ''; ?>>10 minutes after appointment time</option>
+                                    <option value="20" <?php echo ($settings['auto_cancel_minutes'] ?? '20') == '20' ? 'selected' : ''; ?>>20 minutes after appointment time</option>
+                                    <option value="30" <?php echo ($settings['auto_cancel_minutes'] ?? '20') == '30' ? 'selected' : ''; ?>>30 minutes after appointment time</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn-primary">Save Auto-Cancel Settings</button>
+                        </form>
+                    </div>
+
+                    <div class="settings-section">
                         <h3 class="section-title">🔒 Security</h3>
                         <form class="settings-form">
                             <div class="toggle-setting">
@@ -437,6 +462,31 @@ document.getElementById('clinicSettingsForm').addEventListener('submit', functio
     })
     .catch(() => {
         alert('Failed to save settings');
+    });
+});
+
+document.getElementById('autoCancelForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData();
+    formData.append('action', 'save_auto_cancel_settings');
+    formData.append('auto_cancel_enabled', document.getElementById('autoCancelEnabled').checked ? '1' : '0');
+    formData.append('auto_cancel_minutes', document.getElementById('autoCancelMinutes').value);
+
+    fetch('settings_actions.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert('Auto-cancel settings saved successfully!');
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(() => {
+        alert('Failed to save auto-cancel settings');
     });
 });
 
