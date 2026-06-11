@@ -146,34 +146,13 @@
     addComponent(container);
   }
 
-  function startBooking(svc) {
-    document.getElementById('bookingService').value = svc.name + ' (' + svc.price + ')';
-    document.getElementById('bookingFirstName').value = '';
-    document.getElementById('bookingLastName').value = '';
-    document.getElementById('bookingEmail').value = '';
-    document.getElementById('bookingPhone').value = '';
-    document.getElementById('bookingDate').value = '';
-    document.getElementById('bookingTime').value = '';
-    document.getElementById('bookingStatus').textContent = '';
-    document.getElementById('bookingStatus').className = 'booking-status';
-    document.getElementById('bookingModal').setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
-    setTimeout(function() { document.getElementById('bookingFirstName').focus(); }, 100);
-  }
-
   function chatbotStartBooking(svc) {
     window.__chatbotService = svc;
-    var modal = document.getElementById('heroChoiceModal');
+    var modal = document.getElementById('registrationModal');
     if (modal) {
-      modal.setAttribute('aria-hidden', 'false');
+      modal.style.display = 'flex';
       document.body.style.overflow = 'hidden';
     }
-  }
-
-  function closeBookingModal() {
-    var modal = document.getElementById('bookingModal');
-    if (modal) modal.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
   }
 
   function renderInquireSection() {
@@ -311,60 +290,7 @@
     processChat(text);
   });
 
-  // Booking modal event listeners
-  var bookingModalClose = document.getElementById('bookingModalClose');
-  if (bookingModalClose) bookingModalClose.addEventListener('click', closeBookingModal);
 
-  var bookingModalOverlay = document.querySelector('.booking-modal-overlay');
-  if (bookingModalOverlay) bookingModalOverlay.addEventListener('click', closeBookingModal);
-
-  var bookingForm = document.getElementById('bookingForm');
-  if (bookingForm) {
-    bookingForm.addEventListener('submit', async function(e) {
-      e.preventDefault();
-      var statusEl = document.getElementById('bookingStatus');
-      var svcName = document.getElementById('bookingService').value;
-      var firstName = document.getElementById('bookingFirstName').value.trim();
-      var lastName = document.getElementById('bookingLastName').value.trim();
-      var email = document.getElementById('bookingEmail').value.trim();
-      var phone = document.getElementById('bookingPhone').value.trim();
-      var date = document.getElementById('bookingDate').value;
-      var time = document.getElementById('bookingTime').value;
-
-      if (!firstName || !lastName || !email || !phone) {
-        statusEl.textContent = 'Please fill in all required fields.';
-        statusEl.className = 'booking-status error';
-        return;
-      }
-
-      statusEl.textContent = 'Submitting...';
-      statusEl.className = 'booking-status';
-
-      try {
-        var formData = new FormData();
-        formData.append('first_name', firstName);
-        formData.append('last_name', lastName);
-        formData.append('email', email);
-        formData.append('phone', phone);
-        formData.append('message', 'I would like to book an appointment for ' + svcName + '.' + (date ? ' Preferred date: ' + date : '') + (time ? ' at ' + time : ''));
-
-        var res = await fetch('../api/public_contact.php', { method: 'POST', body: formData });
-        var data = await res.json();
-
-        if (data.success) {
-          statusEl.textContent = 'Booking submitted! We will contact you soon.';
-          statusEl.className = 'booking-status success';
-          setTimeout(closeBookingModal, 2000);
-        } else {
-          statusEl.textContent = data.message || 'Submission failed. Please try again.';
-          statusEl.className = 'booking-status error';
-        }
-      } catch (err) {
-        statusEl.textContent = 'Connection error. Please try again.';
-        statusEl.className = 'booking-status error';
-      }
-    });
-  }
 
   if (balloon) {
     setTimeout(function() {
@@ -376,6 +302,5 @@
   }
 
   // Expose functions needed by other scripts
-  window.closeBookingModal = closeBookingModal;
   window.chatbotStartBooking = chatbotStartBooking;
 })();

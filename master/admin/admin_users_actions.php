@@ -246,19 +246,30 @@ $hashed = password_hash($password, PASSWORD_DEFAULT);
 
         // Also check if there's a matching patient in patients table to archive
         if ($userData) {
-            // Try to find patient by name match
             $firstName = trim($userData['first_name'] ?? '');
             $lastName = trim($userData['last_name'] ?? '');
+            $email = trim($userData['email'] ?? '');
             
-            if ($firstName && $lastName) {
-                // Find patient with same name
+            // Try to find patient by email first (most reliable), then by name
+            $patientMatch = null;
+            if ($email) {
+                $patientCheck = $pdo->prepare("SELECT id FROM patients WHERE email = ? AND is_archived = 0 LIMIT 1");
+                $patientCheck->execute([$email]);
+                $patientMatch = $patientCheck->fetch(PDO::FETCH_ASSOC);
+            }
+            if (!$patientMatch && $firstName && $lastName) {
                 $patientCheck = $pdo->prepare("SELECT id FROM patients WHERE first_name = ? AND last_name = ? AND is_archived = 0 LIMIT 1");
                 $patientCheck->execute([$firstName, $lastName]);
                 $patientMatch = $patientCheck->fetch(PDO::FETCH_ASSOC);
-                
-                if ($patientMatch) {
-                    // Archive the patient too
+            }
+            
+            if ($patientMatch) {
+                // Check if deleted_at column exists before using it
+                $colCheck = $pdo->query("SHOW COLUMNS FROM patients LIKE 'deleted_at'");
+                if ($colCheck->fetch(PDO::FETCH_ASSOC)) {
                     $pdo->prepare("UPDATE patients SET is_archived = 1, deleted_at = NOW() WHERE id = ?")->execute([$patientMatch['id']]);
+                } else {
+                    $pdo->prepare("UPDATE patients SET is_archived = 1 WHERE id = ?")->execute([$patientMatch['id']]);
                 }
             }
         }

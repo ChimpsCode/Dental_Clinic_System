@@ -279,6 +279,15 @@ function handleGetArchivedPatients($pdo, $page, $limit, $offset, $search, $dateF
     $countStmt->execute($params);
     $total = $countStmt->fetchColumn();
     
+    // Check if deleted_at column exists
+    $hasDeletedAt = false;
+    $colCheck = $pdo->query("SHOW COLUMNS FROM patients LIKE 'deleted_at'");
+    if ($colCheck->fetch(PDO::FETCH_ASSOC)) {
+        $hasDeletedAt = true;
+    }
+    
+    $dateCol = $hasDeletedAt ? 'deleted_at' : 'created_at';
+    
     // Get records with separate name fields
     $sql = "SELECT id, 
             first_name,
@@ -289,10 +298,10 @@ function handleGetArchivedPatients($pdo, $page, $limit, $offset, $search, $dateF
             gender,
             phone,
             email,
-            deleted_at
+            $dateCol as deleted_at
             FROM patients
             WHERE $where
-            ORDER BY deleted_at DESC
+            ORDER BY $dateCol DESC
             LIMIT $limit OFFSET $offset";
     
     $stmt = $pdo->prepare($sql);
