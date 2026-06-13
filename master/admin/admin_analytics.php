@@ -174,29 +174,28 @@ try {
         $genderDistribution = $femalePct . '% F / ' . $malePct . '% M';
     }
 
-    $stmt = $pdo->prepare("
-        SELECT procedure_name AS service_name, COUNT(*) AS total
-        FROM treatments
-        WHERE treatment_date BETWEEN ? AND ?
-        GROUP BY procedure_name
+    $stmt = $pdo->query("
+        SELECT service_name, COUNT(*) AS total
+        FROM (
+            SELECT s.name AS service_name
+            FROM appointments a
+            JOIN services s ON a.service_id = s.id
+            WHERE a.service_id IS NOT NULL AND a.service_id > 0
+
+            UNION ALL
+
+            SELECT COALESCE(s.name, q.treatment_type) AS service_name
+            FROM queue q
+            LEFT JOIN services s ON q.service_id = s.id
+            WHERE (q.service_id IS NOT NULL AND q.service_id > 0)
+               OR (q.treatment_type IS NOT NULL AND q.treatment_type != '')
+        ) combined
+        WHERE service_name IS NOT NULL AND service_name != ''
+        GROUP BY service_name
         ORDER BY total DESC
         LIMIT 4
     ");
-    $stmt->execute([$startStr, $endStr]);
     $topServices = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    if (empty($topServices)) {
-        $stmt = $pdo->prepare("
-            SELECT treatment AS service_name, COUNT(*) AS total
-            FROM appointments
-            WHERE appointment_date BETWEEN ? AND ?
-            GROUP BY treatment
-            ORDER BY total DESC
-            LIMIT 4
-        ");
-        $stmt->execute([$startStr, $endStr]);
-        $topServices = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
 
     $stmt = $pdo->prepare("
         SELECT CONCAT(u.first_name, ' ', u.last_name) as full_name, COUNT(*) AS total

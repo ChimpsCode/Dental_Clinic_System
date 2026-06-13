@@ -74,16 +74,27 @@ try {
 
     $chartYear = (int)date('Y');
 
-    $stmt = $pdo->prepare("
-            SELECT s.name AS service_name, COUNT(*) AS total
-            FROM treatments t
-            LEFT JOIN services s ON t.service_id = s.id
-            WHERE t.treatment_date BETWEEN ? AND ?
-            GROUP BY s.name
+    $stmt = $pdo->query("
+            SELECT service_name, COUNT(*) AS total
+            FROM (
+                SELECT s.name AS service_name
+                FROM appointments a
+                JOIN services s ON a.service_id = s.id
+                WHERE a.service_id IS NOT NULL AND a.service_id > 0
+
+                UNION ALL
+
+                SELECT COALESCE(s.name, q.treatment_type) AS service_name
+                FROM queue q
+                LEFT JOIN services s ON q.service_id = s.id
+                WHERE (q.service_id IS NOT NULL AND q.service_id > 0)
+                   OR (q.treatment_type IS NOT NULL AND q.treatment_type != '')
+            ) combined
+            WHERE service_name IS NOT NULL AND service_name != ''
+            GROUP BY service_name
             ORDER BY total DESC
             LIMIT 4
         ");
-        $stmt->execute([$startStr, $endStr]);
         $topServices = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Get live queue data (next 5 patients in line)
@@ -360,11 +371,11 @@ try {
                                 </div>
                             <?php endif; ?>
                         </div>
-                    </div>
-                    
-                    
-                                
-                    <div class="section-card" style="margin-bottom: 40px;">
+    </div>
+                </div>
+
+                <!-- Top Services -->
+                <div class="section-card" style="margin-bottom: 40px;">
                     <h2 class="section-title">Top Services</h2>
                     <div class="stat-content">
                         <?php if (!empty($topServices)): ?>
@@ -384,11 +395,6 @@ try {
                         <?php endif; ?>
                     </div>
                 </div>
-                </div>
-
-                <!-- Top Services -->
-                
-                
 
             </div>
 
