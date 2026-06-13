@@ -880,7 +880,7 @@ $assets = [
           });
         }
 
-        // Hero form submit - directly show Registration Modal
+        // Hero form submit - check email then show Registration or Welcome Back modal
         if (heroForm) {
           heroForm.addEventListener('submit', function(e) {
             e.preventDefault();
@@ -906,9 +906,32 @@ $assets = [
             document.getElementById('reg-address').value = '';
             document.getElementById('reg-password').value = '';
             document.getElementById('reg-confirm-password').value = '';
-            const modal = document.getElementById('registrationModal');
-            modal.style.display = 'flex';
-            document.body.style.overflow = 'hidden';
+
+            if (bookingData.email) {
+              fetch('../user-patient/check_user_exists.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'email=' + encodeURIComponent(bookingData.email)
+              })
+              .then(function(r) { return r.json(); })
+              .then(function(data) {
+                if (data.exists) {
+                  document.getElementById('welcome-back-email').value = bookingData.email;
+                  document.getElementById('welcomeBackUserEmail').textContent = bookingData.email;
+                  document.getElementById('welcomeBackModal').style.display = 'flex';
+                } else {
+                  document.getElementById('registrationModal').style.display = 'flex';
+                }
+                document.body.style.overflow = 'hidden';
+              })
+              .catch(function() {
+                document.getElementById('registrationModal').style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+              });
+            } else {
+              document.getElementById('registrationModal').style.display = 'flex';
+              document.body.style.overflow = 'hidden';
+            }
           });
         }
 
@@ -1270,6 +1293,59 @@ $assets = [
             body: formData
           });
           return await response.json();
+        }
+
+        // Real-time email existence check
+        var regEmailInput = document.getElementById('reg-email');
+        var regEmailCheckTimer = null;
+        var regEmailError = null;
+        var regSubmitBtn = registrationForm ? registrationForm.querySelector('button[type="submit"]') : null;
+
+        if (regEmailInput) {
+          regEmailInput.addEventListener('input', function() {
+            clearTimeout(regEmailCheckTimer);
+            var email = this.value.trim();
+            if (!email || !email.includes('@')) {
+              if (regEmailError) { regEmailError.remove(); regEmailError = null; }
+              if (regSubmitBtn) regSubmitBtn.disabled = false;
+              return;
+            }
+            regEmailCheckTimer = setTimeout(function() {
+              fetch('../user-patient/check_user_exists.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'email=' + encodeURIComponent(email)
+              })
+              .then(function(r) { return r.json(); })
+              .then(function(data) {
+                if (data.exists) {
+                  if (!regEmailError) {
+                    regEmailError = document.createElement('span');
+                    regEmailError.style.cssText = 'color:#dc3545;font-size:13px;display:block;margin-top:4px;';
+                    regEmailError.innerHTML = 'This email is already registered. <a href="#" id="loginInsteadLink" style="color:#2563eb;text-decoration:underline;">Log in here</a>';
+                    regEmailInput.parentNode.appendChild(regEmailError);
+                    document.getElementById('loginInsteadLink').addEventListener('click', function(e) {
+                      e.preventDefault();
+                      registrationModal.style.display = 'none';
+                      document.body.style.overflow = '';
+                      document.getElementById('welcome-back-email').value = email;
+                      document.getElementById('welcomeBackUserEmail').textContent = email;
+                      document.getElementById('welcomeBackModal').style.display = 'flex';
+                      document.body.style.overflow = 'hidden';
+                    });
+                  }
+                  if (regSubmitBtn) regSubmitBtn.disabled = true;
+                } else {
+                  if (regEmailError) { regEmailError.remove(); regEmailError = null; }
+                  if (regSubmitBtn) regSubmitBtn.disabled = false;
+                }
+              })
+              .catch(function() {
+                if (regEmailError) { regEmailError.remove(); regEmailError = null; }
+                if (regSubmitBtn) regSubmitBtn.disabled = false;
+              });
+            }, 400);
+          });
         }
 
         // Step 2: Handle registration form submission
