@@ -68,8 +68,16 @@ function autoCancelNoShows($pdo) {
                 $mailer->addAddress($appt['email'], $fullName);
                 $mailer->isHTML(true);
                 $mailer->Subject = 'Appointment Cancelled - No Show';
-                $mailer->Body = '<p>Sorry, your appointment has been canceled due to a no-show.</p>';
-                $mailer->AltBody = 'Sorry, your appointment has been canceled due to a no-show.';
+                $mailer->Body = '<p>Please be advised that your appointment has been canceled as a missed session. To reschedule, please contact our clinic directly.</p>
+                                <p><strong>Contact Number:</strong> 0949 347 2725</p>
+                                <br>
+                                <p>Best regards,<br>
+                                <strong>RF Dental Clinic</strong></p>';
+
+                $mailer->AltBody = "Please be advised that your appointment has been canceled as a missed session. To reschedule, please contact our clinic directly.\n\n" .
+                                    "Contact Number: 0949 347 2725\n\n" .
+                                    "Best regards,\n" .
+                                    "RF Dental Clinic";
                 $mailer->send();
             } catch (\Exception $e) {
                 error_log("Auto-cancel email failed for appointment #{$appt['id']}: " . $e->getMessage());
