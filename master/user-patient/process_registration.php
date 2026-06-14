@@ -68,8 +68,12 @@ if ($action === 'verify_otp') {
 
         $pdo->commit();
 
-        require_once __DIR__ . '/../../includes/sms_functions.php';
-        sendRegistrationWelcomeSMS($phone, $first_name);
+        try {
+            require_once __DIR__ . '/../../includes/sms_functions.php';
+            sendRegistrationWelcomeSMS($phone, $first_name);
+        } catch (\Throwable $e) {
+            error_log("Welcome SMS skipped (non-blocking): " . $e->getMessage());
+        }
 
         $_SESSION['user_id'] = $user_id;
         $_SESSION['role'] = 'user';
@@ -86,7 +90,7 @@ if ($action === 'verify_otp') {
             'redirect' => '../user-patient/patient-dashboard.php'
         ]);
 
-    } catch (Exception $e) {
+    } catch (\Throwable $e) {
         if (isset($pdo) && $pdo->inTransaction()) {
             $pdo->rollBack();
         }
@@ -152,9 +156,13 @@ try {
         throw new Exception('Passwords do not match');
     }
 
-    $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND is_archived = 0");
-    $stmt->execute([$email]);
-    if ($stmt->fetch()) {
+    $stmt = $pdo->prepare("SELECT id, is_archived FROM users WHERE email = ? OR username = ?");
+    $stmt->execute([$email, $email]);
+    $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($existing) {
+        if ($existing['is_archived']) {
+            throw new Exception('This email was previously used and is no longer active. Please contact support.');
+        }
         throw new Exception('Email already registered. Please login instead.');
     }
 

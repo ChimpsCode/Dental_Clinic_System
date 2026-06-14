@@ -102,7 +102,7 @@ function ensurePatientRecordForUser(PDO $pdo, array $user): ?int {
 
     $email = trim((string)($user['email'] ?? ''));
     if ($email !== '') {
-        $patientStmt = $pdo->prepare("SELECT id FROM patients WHERE email = ? LIMIT 1");
+        $patientStmt = $pdo->prepare("SELECT id FROM patients WHERE email = ? AND is_archived = 0 LIMIT 1");
         $patientStmt->execute([$email]);
         $patient = $patientStmt->fetch(PDO::FETCH_ASSOC);
         if ($patient) {
@@ -202,7 +202,7 @@ if (
                 exit();
             }
 
-            $stmt = $pdo->prepare("SELECT id, username FROM users WHERE email = ? LIMIT 1");
+            $stmt = $pdo->prepare("SELECT id, username FROM users WHERE email = ? AND is_archived = 0 LIMIT 1");
             $stmt->execute([$email]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             if (!$user) {

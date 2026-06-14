@@ -472,15 +472,66 @@ function handleDeleteForever($pdo, $module, $ids) {
     $placeholders = implode(',', array_fill(0, count($ids), '?'));
     
     try {
-        // For patients, also delete related records
-        if ($module === 'patients') {
+        if ($module === 'users') {
+            // ---------- USERS: cascade to patients ----------
             $pdo->beginTransaction();
-            
             try {
+                // Get emails of users being deleted
+                $userStmt = $pdo->prepare("SELECT email FROM users WHERE id IN ($placeholders) AND is_archived = 1");
+                $userStmt->execute($ids);
+                $userEmails = $userStmt->fetchAll(PDO::FETCH_COLUMN);
+                $userEmails = array_filter(array_unique($userEmails));
+                
+                if (!empty($userEmails)) {
+                    $emailPlaceholders = implode(',', array_fill(0, count($userEmails), '?'));
+                    
+                    // Find matching patients by email
+                    $patStmt = $pdo->prepare("SELECT id FROM patients WHERE email IN ($emailPlaceholders) AND is_archived = 1");
+                    $patStmt->execute(array_values($userEmails));
+                    $patientIds = $patStmt->fetchAll(PDO::FETCH_COLUMN);
+                    
+                    if (!empty($patientIds)) {
+                        $patPlaceholders = implode(',', array_fill(0, count($patientIds), '?'));
+                        
+                        $pdo->prepare("DELETE FROM medical_history WHERE patient_id IN ($patPlaceholders)")->execute($patientIds);
+                        $pdo->prepare("DELETE FROM dental_history WHERE patient_id IN ($patPlaceholders)")->execute($patientIds);
+                        $pdo->prepare("DELETE FROM queue WHERE patient_id IN ($patPlaceholders)")->execute($patientIds);
+                        $pdo->prepare("DELETE FROM appointments WHERE patient_id IN ($patPlaceholders)")->execute($patientIds);
+                        $pdo->prepare("DELETE FROM patients WHERE id IN ($patPlaceholders) AND is_archived = 1")->execute($patientIds);
+                    }
+                }
+                
+                // Delete the users last
+                $stmt = $pdo->prepare("DELETE FROM users WHERE id IN ($placeholders) AND is_archived = 1");
+                $result = $stmt->execute($ids);
+                
+                $pdo->commit();
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                throw $e;
+            }
+            
+        } elseif ($module === 'patients') {
+            // ---------- PATIENTS: cascade to users ----------
+            $pdo->beginTransaction();
+            try {
+                // Get emails of patients being deleted
+                $patStmt = $pdo->prepare("SELECT email FROM patients WHERE id IN ($placeholders) AND is_archived = 1");
+                $patStmt->execute($ids);
+                $patientEmails = $patStmt->fetchAll(PDO::FETCH_COLUMN);
+                $patientEmails = array_filter(array_unique($patientEmails));
+                
                 // Delete related records first
                 $pdo->prepare("DELETE FROM medical_history WHERE patient_id IN ($placeholders)")->execute($ids);
                 $pdo->prepare("DELETE FROM dental_history WHERE patient_id IN ($placeholders)")->execute($ids);
                 $pdo->prepare("DELETE FROM queue WHERE patient_id IN ($placeholders)")->execute($ids);
+                $pdo->prepare("DELETE FROM appointments WHERE patient_id IN ($placeholders)")->execute($ids);
+                
+                // Find and delete matching users by email
+                if (!empty($patientEmails)) {
+                    $emailPlaceholders = implode(',', array_fill(0, count($patientEmails), '?'));
+                    $pdo->prepare("DELETE FROM users WHERE email IN ($emailPlaceholders) AND is_archived = 1")->execute(array_values($patientEmails));
+                }
                 
                 // Delete the patients
                 $stmt = $pdo->prepare("DELETE FROM patients WHERE id IN ($placeholders) AND is_archived = 1");
@@ -491,6 +542,7 @@ function handleDeleteForever($pdo, $module, $ids) {
                 $pdo->rollBack();
                 throw $e;
             }
+            
         } else {
             // For other modules, just delete
             $stmt = $pdo->prepare("DELETE FROM $module WHERE id IN ($placeholders) AND is_archived = 1");

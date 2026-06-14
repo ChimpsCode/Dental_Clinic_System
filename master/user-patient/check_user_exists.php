@@ -14,13 +14,12 @@ try {
         throw new Exception('Email is required');
     }
 
-    // Check if user exists by email
-    $stmt = $pdo->prepare("SELECT id, email FROM users WHERE email = ?");
-    $stmt->execute([$email]);
+    $stmt = $pdo->prepare("SELECT id, email, is_archived FROM users WHERE email = ? OR username = ?");
+    $stmt->execute([$email, $email]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if ($user) {
-        echo json_encode(['exists' => true, 'email' => $user['email']]);
+        echo json_encode(['exists' => true, 'email' => $user['email'], 'is_archived' => (bool)$user['is_archived']]);
     } else {
         echo json_encode(['exists' => false]);
     }

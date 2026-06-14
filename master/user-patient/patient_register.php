@@ -216,9 +216,13 @@ try {
         respond(false, 'Database connection not available.', [], 500);
     }
 
-    $checkEmail = $pdo->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
-    $checkEmail->execute([$email]);
-    if ($checkEmail->fetch(PDO::FETCH_ASSOC)) {
+    $checkEmail = $pdo->prepare("SELECT id, is_archived FROM users WHERE email = ? OR username = ? LIMIT 1");
+    $checkEmail->execute([$email, $email]);
+    $existing = $checkEmail->fetch(PDO::FETCH_ASSOC);
+    if ($existing) {
+        if ($existing['is_archived']) {
+            respond(false, 'This email was previously used and is no longer active. Please contact support to restore your account.');
+        }
         respond(false, 'Email already exists.');
     }
 

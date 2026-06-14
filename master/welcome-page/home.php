@@ -916,6 +916,10 @@ $assets = [
               .then(function(r) { return r.json(); })
               .then(function(data) {
                 if (data.exists) {
+                  if (data.is_archived) {
+                    alert('This email was previously used and is no longer active. Please contact support to restore your account.');
+                    return;
+                  }
                   document.getElementById('welcome-back-email').value = bookingData.email;
                   document.getElementById('welcomeBackUserEmail').textContent = bookingData.email;
                   document.getElementById('welcomeBackModal').style.display = 'flex';
@@ -1319,6 +1323,16 @@ $assets = [
               .then(function(r) { return r.json(); })
               .then(function(data) {
                 if (data.exists) {
+                  if (data.is_archived) {
+                    if (!regEmailError) {
+                      regEmailError = document.createElement('span');
+                      regEmailError.style.cssText = 'color:#dc3545;font-size:13px;display:block;margin-top:4px;';
+                      regEmailError.textContent = 'This email was previously used and is no longer active. Please contact support.';
+                      regEmailInput.parentNode.appendChild(regEmailError);
+                    }
+                    if (regSubmitBtn) regSubmitBtn.disabled = true;
+                    return;
+                  }
                   if (!regEmailError) {
                     regEmailError = document.createElement('span');
                     regEmailError.style.cssText = 'color:#dc3545;font-size:13px;display:block;margin-top:4px;';
