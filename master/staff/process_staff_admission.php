@@ -325,12 +325,12 @@ if ($appointmentId) {
         
         if ($existingQueue) {
             $queueId = $existingQueue['id'];
-            $stmt = $pdo->prepare("UPDATE queue SET treatment_type = ?, service_id = ?, queue_time = NOW() WHERE id = ?");
-            $stmt->execute([$treatmentType, $primaryServiceId, $queueId]);
+            $stmt = $pdo->prepare("UPDATE queue SET treatment_type = ?, service_id = ?, teeth_numbers = ?, queue_time = NOW() WHERE id = ?");
+            $stmt->execute([$treatmentType, $primaryServiceId, $teethNumbers, $queueId]);
         } else {
             // Insert new queue entry
-            $stmt = $pdo->prepare("INSERT INTO queue (patient_id, status_id, priority, treatment_type, service_id, queue_time, created_at) VALUES (?, 1, 5, ?, ?, NOW(), NOW())");
-            $stmt->execute([$patientId, $treatmentType, $primaryServiceId]);
+            $stmt = $pdo->prepare("INSERT INTO queue (patient_id, status_id, priority, treatment_type, service_id, teeth_numbers, queue_time, created_at) VALUES (?, 1, 5, ?, ?, ?, NOW(), NOW())");
+            $stmt->execute([$patientId, $treatmentType, $primaryServiceId, $teethNumbers]);
             $queueId = (int)$pdo->lastInsertId();
         }
         

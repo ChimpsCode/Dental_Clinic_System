@@ -20,7 +20,7 @@ $query = "
     LEFT JOIN users ass ON ass.id = i.assigned_staff_id
     LEFT JOIN users up ON up.email = i.email
     LEFT JOIN (
-        SELECT r1.inquiry_id, r1.message, r1.sender_type
+        SELECT r1.inquiry_id, r1.message, r1.sender_type, r1.created_at
         FROM inquiry_replies r1
         INNER JOIN (
             SELECT inquiry_id, MAX(id) AS max_id
@@ -29,7 +29,7 @@ $query = "
         ) r2 ON r1.id = r2.max_id
     ) lr ON lr.inquiry_id = i.id
     WHERE COALESCE(i.is_archived, 0) = 0
-    ORDER BY i.created_at DESC, i.id DESC
+    ORDER BY COALESCE(lr.created_at, i.created_at) DESC, i.id DESC
 ";
 $stmt = $pdo->prepare($query);
 $stmt->execute();
@@ -41,6 +41,20 @@ foreach ($inquiries as &$inq) {
     }
 }
 unset($inq);
+
+if (isset($_GET['ajax']) && $_GET['ajax'] === '1') {
+    header('Content-Type: application/json');
+    $stmt = $pdo->prepare($query);
+    $stmt->execute();
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($rows as &$row) {
+        if (!empty($row['patient_profile_picture']) && !file_exists(dirname(__DIR__, 2) . '/' . $row['patient_profile_picture'])) {
+            $row['patient_profile_picture'] = null;
+        }
+    }
+    echo json_encode($rows);
+    exit;
+}
 
 $services = fetchInquiryServices($pdo);
 $statuses = ['Unread', 'Read', 'Replied'];
@@ -818,7 +832,7 @@ require_once '../../includes/staff_layout_start.php';
 <div class="toast" id="toast"></div>
 
 <script>
-const inquiries = <?php echo json_encode($inquiries); ?>;
+let inquiries = <?php echo json_encode($inquiries); ?>;
 let inquiryMap = Object.fromEntries(inquiries.map((item) => [String(item.id), item]));
 let filteredInquiries = [...inquiries];
 let activeInquiryId = null;
@@ -1462,6 +1476,29 @@ dateFilter.addEventListener('change', () => {
 });
 
 renderTable();
+
+async function pollInquiries() {
+    try {
+        const r = await fetch(window.location.pathname + '?ajax=1');
+        const data = await r.json();
+        if (!Array.isArray(data) || !data.length) return;
+        const oldMap = inquiryMap;
+        inquiries = data;
+        inquiryMap = Object.fromEntries(inquiries.map((item) => [String(item.id), item]));
+        let changed = false;
+        for (const item of data) {
+            const old = oldMap[String(item.id)];
+            if (!old || old.status !== item.status || old.latest_reply_created_at !== item.latest_reply_created_at) {
+                changed = true;
+                break;
+            }
+        }
+        if (changed) {
+            applyFilters();
+        }
+    } catch (_e) {}
+}
+setInterval(pollInquiries, 8000);
 </script>
 
 <?php require_once '../../includes/staff_layout_end.php'; ?>

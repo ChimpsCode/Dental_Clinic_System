@@ -442,13 +442,14 @@ if ($action === 'get_inquiries') {
                ass.username AS assigned_username,
                up.profile_picture AS patient_profile_picture,
                lr.message AS latest_reply_message,
-               lr.sender_type AS latest_reply_sender_type
+               lr.sender_type AS latest_reply_sender_type,
+               lr.created_at AS latest_reply_created_at
         FROM inquiries i
         LEFT JOIN services s ON s.id = i.service_id
         LEFT JOIN users ass ON ass.id = i.assigned_staff_id
         LEFT JOIN users up ON up.email = i.email
         LEFT JOIN (
-            SELECT r1.inquiry_id, r1.message, r1.sender_type
+            SELECT r1.inquiry_id, r1.message, r1.sender_type, r1.created_at
             FROM inquiry_replies r1
             INNER JOIN (
                 SELECT inquiry_id, MAX(id) AS max_id
@@ -457,7 +458,7 @@ if ($action === 'get_inquiries') {
             ) r2 ON r1.id = r2.max_id
         ) lr ON lr.inquiry_id = i.id
         WHERE COALESCE(i.is_archived, 0) = 0
-        ORDER BY i.created_at DESC, i.id DESC
+        ORDER BY COALESCE(lr.created_at, i.created_at) DESC, i.id DESC
         LIMIT ? OFFSET ?
     ");
     $stmt->execute([$limit, $offset]);

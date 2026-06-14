@@ -43,6 +43,15 @@ $patient_id = $_SESSION['patient_id'] ?? null;
 
 // Get patient details from database
 require_once '../../config/database.php';
+require_once '../../includes/inquiry_module_helper.php';
+ensureInquiryModuleSchema($pdo);
+
+$inquiryActiveId = null;
+$inquiryMessages = [];
+$inquiryStatus = null;
+$inquiryClinicName = 'RF Dental Clinic';
+$inquiryClinicAvatar = '../../assets/images/Logo.png';
+
 try {
     $userStmt = $pdo->prepare("
         SELECT id, first_name, middle_name, last_name, email, phone
@@ -168,6 +177,60 @@ try {
         }
     }
 
+    // Inquiry conversation data for floating chat
+    $inquirySetStmt = $pdo->query("SELECT setting_key, setting_value FROM settings");
+    $inquiryClinicSettings = [];
+    while ($inquiryRow = $inquirySetStmt->fetch(PDO::FETCH_ASSOC)) {
+        $inquiryClinicSettings[$inquiryRow['setting_key']] = $inquiryRow['setting_value'];
+    }
+    $inquiryClinicName = $inquiryClinicSettings['clinic_name'] ?? 'RF Dental Clinic';
+    $inquiryClinicLogo = $inquiryClinicSettings['welcome_logo'] ?? '';
+    $inquiryLogoFull = $inquiryClinicLogo ? '../../' . $inquiryClinicLogo : '../../assets/images/Logo.png';
+    $inquiryAdminPicStmt = $pdo->prepare("SELECT profile_picture FROM users WHERE role_id = 1 ORDER BY id ASC LIMIT 1");
+    $inquiryAdminPicStmt->execute();
+    $inquiryAdminPicPath = $inquiryAdminPicStmt->fetchColumn();
+    $inquiryClinicAvatar = ($inquiryAdminPicPath && file_exists(dirname(__DIR__, 2) . '/' . $inquiryAdminPicPath)) ? '../../' . $inquiryAdminPicPath : $inquiryLogoFull;
+
+    if ($hasInquiries && !empty($patient_id)) {
+        $inquiryConvStmt = $pdo->prepare("
+            SELECT i.*, s.name AS service_name
+            FROM inquiries i
+            LEFT JOIN services s ON s.id = i.service_id
+            WHERE i.patient_id = ? AND COALESCE(i.is_archived, 0) = 0
+            ORDER BY i.created_at DESC, i.id DESC
+            LIMIT 1
+        ");
+        $inquiryConvStmt->execute([(int)$patient_id]);
+        $activeInquiry = $inquiryConvStmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($activeInquiry) {
+            $inquiryActiveId = (int)$activeInquiry['id'];
+            $inquiryStatus = $activeInquiry['status'] ?? '';
+
+            $concernText = $activeInquiry['concern'] ?: ($activeInquiry['inquiry_message'] ?? '');
+            if ($concernText !== '') {
+                $inquiryMessages[] = [
+                    'type' => 'patient',
+                    'message' => $concernText,
+                    'created_at' => $activeInquiry['created_at'],
+                ];
+            }
+
+            $inquiryReplies = fetchInquiryReplies($pdo, $inquiryActiveId);
+            foreach ($inquiryReplies as $reply) {
+                $inquiryMessages[] = [
+                    'type' => $reply['sender_type'] === 'staff' ? 'clinic' : 'patient',
+                    'message' => $reply['message'],
+                    'created_at' => $reply['created_at'],
+                ];
+            }
+
+            usort($inquiryMessages, function ($a, $b) {
+                return strtotime($a['created_at']) - strtotime($b['created_at']);
+            });
+        }
+    }
+
     $hasQueue = (bool)$pdo->query("SHOW TABLES LIKE 'queue'")->fetch(PDO::FETCH_ASSOC);
     if ($hasQueue) {
         $stmt = $pdo->prepare("
@@ -228,6 +291,9 @@ try {
     $queueNumberText = 'None';
     $billingSummaryText = 'No balance';
     $recentActivity = [];
+    $inquiryActiveId = null;
+    $inquiryMessages = [];
+    $inquiryStatus = null;
 }
 
 $pageTitle = 'Patient Dashboard';
@@ -1499,57 +1565,140 @@ $pageTitle = 'Patient Dashboard';
             renderCalendar();
         });
     </script>
-    <a href="messages.php" class="floating-message-btn" data-chat-launcher aria-label="Open messages" title="Messages">
+    <a href="#" class="floating-message-btn" data-inquiry-launcher aria-label="Open messages" title="Messages">
         <i class="fas fa-message"></i>
-        <span class="unread-badge" id="unreadBadge" style="display: none;">0</span>
+        <span class="unread-badge" id="inquiryUnreadBadge" style="display: none;">0</span>
     </a>
+
+    <div id="inquiryChatOverlay" class="floating-chat-overlay"></div>
+
+    <div id="inquiryChatPanel" class="floating-chat-panel">
+        <div class="floating-chat-header">
+            <div class="floating-chat-title">
+                <img src="<?php echo htmlspecialchars($inquiryClinicAvatar); ?>" alt="" style="width:32px;height:32px;border-radius:50%;object-fit:cover;margin-right:8px;">
+                <span>Inquiry</span>
+            </div>
+            <div class="floating-chat-actions">
+                <button type="button" class="floating-chat-control" data-inquiry-minimize aria-label="Minimize"><i class="fas fa-minus"></i></button>
+                <button type="button" class="floating-chat-control" data-inquiry-close aria-label="Close"><i class="fas fa-xmark"></i></button>
+            </div>
+        </div>
+        <div id="inquiryMessagesList" class="inquiry-messages-body">
+            <?php if (empty($inquiryMessages)): ?>
+            <div class="inquiry-empty-state">
+                <i class="fas fa-comments" style="font-size:48px;margin-bottom:16px;display:block;color:#d1d5db;"></i>
+                <p>Send a message to start a conversation with the clinic.</p>
+            </div>
+            <?php else: ?>
+                <?php foreach ($inquiryMessages as $msg): ?>
+                <?php $ts = date('h:i A', strtotime($msg['created_at'] ?? 'now')); ?>
+                <?php if ($msg['type'] === 'clinic'): ?>
+                <div class="message-row left">
+                    <img src="<?php echo htmlspecialchars($inquiryClinicAvatar); ?>" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
+                    <div>
+                        <div class="bubble bubble-left"><?php echo nl2br(htmlspecialchars($msg['message'])); ?></div>
+                        <div class="ts"><?php echo $ts; ?></div>
+                    </div>
+                </div>
+                <?php else: ?>
+                <div class="message-row right">
+                    <div>
+                        <div class="bubble bubble-right"><?php echo nl2br(htmlspecialchars($msg['message'] ?: 'No message provided')); ?></div>
+                        <div class="ts" style="text-align:right;"><?php echo $ts; ?></div>
+                    </div>
+                </div>
+                <?php endif; ?>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+        <form id="inquiryChatForm">
+            <input type="hidden" name="action" value="create">
+            <div class="conv-input">
+                <input id="inquiryChatInput" name="concern" class="conv-text" placeholder="Type a message..." required>
+                <button type="submit" class="send-btn" aria-label="send"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </form>
+    </div>
+
+    <style>
+        #inquiryChatPanel .inquiry-messages-body {
+            flex: 1; overflow-y: auto; padding: 16px; background: #fff;
+            display: flex; flex-direction: column; gap: 16px; min-height: 0;
+        }
+        #inquiryChatPanel .inquiry-empty-state {
+            text-align: center; color: #9ca3af; padding: 40px 16px; font-size: 14px; line-height: 1.5;
+        }
+        #inquiryChatPanel .message-row {
+            display: flex; gap: 12px; align-items: flex-end;
+        }
+        #inquiryChatPanel .message-row.left { justify-content: flex-start; }
+        #inquiryChatPanel .message-row.right { justify-content: flex-end; }
+        #inquiryChatPanel .message-row > div:last-child { max-width: 75%; }
+        #inquiryChatPanel .bubble {
+            padding: 14px 16px; border-radius: 12px; max-width: 100%; width: fit-content;
+            font-size: 14px; line-height: 1.5; word-wrap: break-word;
+        }
+        #inquiryChatPanel .bubble-left {
+            background: #f3f4f6; border: 1px solid #e5e7eb; color: #1f2937; border-bottom-left-radius: 4px;
+        }
+        #inquiryChatPanel .bubble-right {
+            background: #5b6ee6; color: #fff; border-bottom-right-radius: 4px;
+        }
+        #inquiryChatPanel .ts {
+            font-size: 11px; color: #9ca3af; margin-top: 6px;
+        }
+        #inquiryChatPanel .conv-input {
+            display: flex; gap: 12px; align-items: center; padding: 12px 16px;
+            border-top: 1px solid #eef2f7; background: #fff;
+        }
+        #inquiryChatPanel .conv-text {
+            flex: 1; border: 1px solid #d1d5db; padding: 10px 16px; border-radius: 999px;
+            font: inherit; font-size: 14px; outline: none;
+        }
+        #inquiryChatPanel .conv-text:focus {
+            border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        #inquiryChatPanel .send-btn {
+            background: #f3f4f6; border: none; color: #6b7280; padding: 10px; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px;
+        }
+        #inquiryChatPanel .send-btn:hover { background: #e5e7eb; }
+        #inquiryChatPanel.is-open { display: flex; flex-direction: column; }
+        #inquiryChatPanel .floating-chat-header { border-bottom: 1px solid #eef2f7; }
+    </style>
+
     <script>
         (function () {
-            const launcher = document.querySelector('[data-chat-launcher]');
+            var launcher = document.querySelector('[data-inquiry-launcher]');
             if (!launcher) return;
-            const unreadBadge = document.getElementById('unreadBadge');
-
-            let overlay = document.getElementById('floatingChatOverlay');
-            let panel = document.getElementById('floatingChatPanel');
-
-            if (!overlay) {
-                overlay = document.createElement('div');
-                overlay.id = 'floatingChatOverlay';
-                overlay.className = 'floating-chat-overlay';
-                document.body.appendChild(overlay);
-            }
-
-            if (!panel) {
-                panel = document.createElement('div');
-                panel.id = 'floatingChatPanel';
-                panel.className = 'floating-chat-panel';
-                panel.innerHTML = `
-                    <div class="floating-chat-header">
-                        <div class="floating-chat-title"><i class="fas fa-comments"></i><span>Messages</span></div>
-                        <div class="floating-chat-actions">
-                            <button type="button" class="floating-chat-control" data-chat-minimize aria-label="Minimize"><i class="fas fa-minus"></i></button>
-                            <button type="button" class="floating-chat-control" data-chat-close aria-label="Close"><i class="fas fa-xmark"></i></button>
-                        </div>
-                    </div>
-                    <iframe class="floating-chat-frame" src="messages.php?embed=1" title="Messages"></iframe>
-                `;
-                document.body.appendChild(panel);
-            }
+            var unreadBadge = document.getElementById('inquiryUnreadBadge');
+            var overlay = document.getElementById('inquiryChatOverlay');
+            var panel = document.getElementById('inquiryChatPanel');
+            var messagesList = document.getElementById('inquiryMessagesList');
+            var chatForm = document.getElementById('inquiryChatForm');
+            var chatInput = document.getElementById('inquiryChatInput');
+            var activeInquiryId = <?php echo $inquiryActiveId ?: 'null'; ?>;
+            var inquiryStatus = '<?php echo addslashes($inquiryStatus ?: ''); ?>';
+            var lastMessageCount = <?php echo count($inquiryMessages); ?>;
 
             function closeChat() {
                 overlay.classList.remove('is-open');
                 panel.classList.remove('is-open');
             }
 
-            function openChat(event) {
-                event.preventDefault();
+            function openChat(e) {
+                e.preventDefault();
                 overlay.classList.add('is-open');
                 panel.classList.add('is-open');
-                const frame = panel.querySelector('.floating-chat-frame');
-                if (frame && frame.contentWindow) {
-                    window.setTimeout(() => {
-                        frame.contentWindow.postMessage({ type: 'patient-chat-opened' }, window.location.origin);
-                    }, 120);
+                scrollToBottom();
+                if (activeInquiryId) {
+                    markInquiryRead();
+                }
+            }
+
+            function scrollToBottom() {
+                if (messagesList) {
+                    messagesList.scrollTop = messagesList.scrollHeight;
                 }
             }
 
@@ -1563,36 +1712,92 @@ $pageTitle = 'Patient Dashboard';
                 }
             }
 
-            async function pollUnreadCount() {
+            function escapeHtml(text) {
+                var d = document.createElement('div');
+                d.appendChild(document.createTextNode(text));
+                return d.innerHTML;
+            }
+
+            function appendMessage(type, message, timestamp) {
+                var avatar = '<?php echo addslashes($inquiryClinicAvatar); ?>';
+                var ts = timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                var div = document.createElement('div');
+                div.className = 'message-row ' + (type === 'clinic' ? 'left' : 'right');
+                if (type === 'clinic') {
+                    div.innerHTML = '<img src="' + avatar + '" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;"><div><div class="bubble bubble-left">' + escapeHtml(message) + '</div><div class="ts">' + ts + '</div></div>';
+                } else {
+                    div.innerHTML = '<div><div class="bubble bubble-right">' + escapeHtml(message) + '</div><div class="ts" style="text-align:right;">' + ts + '</div></div>';
+                }
+                var emptyState = messagesList.querySelector('.inquiry-empty-state');
+                if (emptyState) emptyState.remove();
+                messagesList.appendChild(div);
+                scrollToBottom();
+            }
+
+            async function markInquiryRead() {
                 try {
-                    const payload = new FormData();
-                    payload.append('ajax', '1');
-                    payload.append('action', 'get_unread_count');
-                    const response = await fetch('messages.php', {
-                        method: 'POST',
-                        body: payload,
-                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                    });
-                    const data = await response.json();
-                    if (!response.ok || !data.success) return;
-                    updateUnreadBadge(Number(data.unread_count || 0));
-                } catch (_err) {}
+                    var fd = new FormData();
+                    fd.append('action', 'mark_read');
+                    fd.append('id', activeInquiryId);
+                    await fetch('../shared/inquiry_actions.php', { method: 'POST', body: fd });
+                } catch (_) {}
+            }
+
+            if (chatForm) {
+                chatForm.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+                    var message = chatInput.value.trim();
+                    if (!message) return;
+                    chatInput.disabled = true;
+                    var fd = new FormData();
+                    fd.append('action', 'create');
+                    fd.append('concern', message);
+                    try {
+                        var resp = await fetch('../shared/inquiry_actions.php', { method: 'POST', body: fd });
+                        var data = await resp.json();
+                        if (data.success) {
+                            chatInput.value = '';
+                            window.location.reload();
+                        }
+                    } catch (_) {}
+                    chatInput.disabled = false;
+                });
+            }
+
+            async function pollConversation() {
+                if (!activeInquiryId) return;
+                try {
+                    var fd = new FormData();
+                    fd.append('action', 'get_conversation');
+                    fd.append('id', activeInquiryId);
+                    var resp = await fetch('../shared/inquiry_actions.php', { method: 'POST', body: fd });
+                    var data = await resp.json();
+                    if (!data.success) return;
+                    var replies = data.replies || [];
+                    var total = 1 + replies.length;
+                    if (total !== lastMessageCount) {
+                        window.location.reload();
+                        return;
+                    }
+                    var badgeOn = data.inquiry && data.inquiry.status === 'Replied';
+                    updateUnreadBadge(badgeOn ? 1 : 0);
+                } catch (_) {}
+            }
+
+            if (inquiryStatus === 'Replied') {
+                updateUnreadBadge(1);
             }
 
             launcher.addEventListener('click', openChat);
             overlay.addEventListener('click', closeChat);
-            panel.querySelector('[data-chat-close]').addEventListener('click', closeChat);
-            panel.querySelector('[data-chat-minimize]').addEventListener('click', closeChat);
+            var closeBtn = panel.querySelector('[data-inquiry-close]');
+            var minimizeBtn = panel.querySelector('[data-inquiry-minimize]');
+            if (closeBtn) closeBtn.addEventListener('click', closeChat);
+            if (minimizeBtn) minimizeBtn.addEventListener('click', closeChat);
 
-            window.addEventListener('message', function (event) {
-                if (event.origin !== window.location.origin) return;
-                if (event.data && event.data.type === 'patient-chat-unread') {
-                    updateUnreadBadge(Number(event.data.count || 0));
-                }
-            });
-
-            pollUnreadCount();
-            setInterval(pollUnreadCount, 3000);
+            if (activeInquiryId) {
+                setInterval(pollConversation, 3000);
+            }
         })();
     </script>
     <script>

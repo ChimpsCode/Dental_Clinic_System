@@ -1072,7 +1072,9 @@ if (inquiryChatTextarea) {
     });
 }
 
-// Poll for unread count
+// Poll for unread count and reorder list
+let dashboardInquiryPollTimer = null;
+
 async function pollDashboardInquiryBadge() {
     try {
         const response = await fetch('../shared/inquiry_actions.php?action=get_inquiries&limit=1');
@@ -1083,8 +1085,40 @@ async function pollDashboardInquiryBadge() {
     } catch (_err) {}
 }
 
+async function pollDashboardInquiryList() {
+    const panel = document.getElementById('dashboardInquiryPanel');
+    if (!panel.classList.contains('open')) return;
+    if (!dashboardInquiries.length) {
+        fetchDashboardInquiries();
+        return;
+    }
+    try {
+        const response = await fetch('../shared/inquiry_actions.php?action=get_inquiries&limit=30');
+        const data = await response.json();
+        if (!data.success || !data.inquiries) return;
+        const oldMap = dashboardInquiryMap;
+        let changed = false;
+        for (const item of data.inquiries) {
+            const old = oldMap[String(item.id)];
+            if (!old || old.status !== item.status || old.latest_reply_created_at !== item.latest_reply_created_at) {
+                changed = true;
+                break;
+            }
+        }
+        if (changed) {
+            dashboardInquiries = data.inquiries;
+            dashboardInquiryMap = Object.fromEntries(dashboardInquiries.map((item) => [String(item.id), item]));
+            renderDashboardInquiries();
+            updateDashboardInquiryBadge(data.unread_count);
+        }
+    } catch (_err) {}
+}
+
 setInterval(pollDashboardInquiryBadge, 5000);
 pollDashboardInquiryBadge();
+
+if (dashboardInquiryPollTimer) clearInterval(dashboardInquiryPollTimer);
+dashboardInquiryPollTimer = setInterval(pollDashboardInquiryList, 8000);
 
 // Portal fixed elements to body to avoid ancestor transform/scroll issues
 (function() {

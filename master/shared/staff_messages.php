@@ -161,7 +161,7 @@ function markPatientThreadAsRead(PDO $pdo, int $patientId, array $columns): void
 function getStaffUnreadSummary(PDO $pdo, array $columns): array
 {
     if (!hasUnreadColumn($columns)) {
-        return ['total_unread' => 0, 'thread_counts' => []];
+        return ['total_unread' => 0, 'thread_counts' => [], 'thread_order' => []];
     }
 
     $stmt = $pdo->query("
@@ -182,7 +182,39 @@ function getStaffUnreadSummary(PDO $pdo, array $columns): array
         }
     }
 
-    return ['total_unread' => $totalUnread, 'thread_counts' => $threadCounts];
+    $senderSql = senderExpr($columns);
+    $orderStmt = $pdo->query("
+        SELECT m1.patient_id,
+               m1.message AS last_message,
+               m1.created_at AS last_at,
+               {$senderSql} AS last_sender_type
+        FROM messages m1
+        INNER JOIN (
+            SELECT patient_id, MAX(id) AS max_id
+            FROM messages
+            WHERE sender_type != 'system'
+            GROUP BY patient_id
+        ) m2 ON m1.id = m2.max_id
+        ORDER BY m1.created_at DESC
+    ");
+    $threadOrder = [];
+    $threadUpdates = [];
+    foreach ($orderStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $pid = (int)$row['patient_id'];
+        $threadOrder[] = $pid;
+        $threadUpdates[$pid] = [
+            'last_message' => $row['last_message'],
+            'last_at' => $row['last_at'],
+            'last_sender_type' => $row['last_sender_type'],
+        ];
+    }
+
+    return [
+        'total_unread' => $totalUnread,
+        'thread_counts' => $threadCounts,
+        'thread_order' => $threadOrder,
+        'thread_updates' => $threadUpdates,
+    ];
 }
 
 try {
@@ -1004,6 +1036,39 @@ try {
                 applySidebarFilters();
             }
 
+            function reorderThreads(order, updates) {
+                var list = document.querySelector('.staff-message-list');
+                if (!list || !order || !order.length) return;
+                var fragment = document.createDocumentFragment();
+                order.forEach(function (pid) {
+                    var el = list.querySelector('.thread-item[data-thread-patient-id="' + pid + '"]');
+                    if (!el) return;
+                    if (updates && updates[pid]) {
+                        var u = updates[pid];
+                        var preview = el.querySelector('.staff-message-preview');
+                        if (preview) {
+                            var senderPrefix = u.last_sender_type === 'admin' ? 'you: ' : '';
+                            preview.textContent = senderPrefix + (u.last_message || '');
+                        }
+                        var timeEl = el.querySelector('.staff-message-time');
+                        if (timeEl && u.last_at) {
+                            var d = new Date(u.last_at.replace(' ', 'T'));
+                            timeEl.textContent = d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ', ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                        }
+                        el.setAttribute('data-thread-preview', (u.last_message || '').toLowerCase());
+                        if (u.last_sender_type === 'admin') {
+                            el.classList.remove('thread-unread');
+                            el.setAttribute('data-thread-unread', '0');
+                        } else if (Number(el.getAttribute('data-thread-unread')) === 0) {
+                            el.classList.add('thread-unread');
+                            el.setAttribute('data-thread-unread', '1');
+                        }
+                    }
+                    fragment.appendChild(el);
+                });
+                list.appendChild(fragment);
+            }
+
             async function refreshUnreadSummary(playSound = false) {
                 const fd = new FormData();
                 fd.append('ajax', '1');
@@ -1014,6 +1079,9 @@ try {
                     if (!r.ok || !data.success) return;
                     const nextTotal = Number(data.total_unread || 0);
                     updateFabBadge(nextTotal);
+                    if (data.thread_order) {
+                        reorderThreads(data.thread_order, data.thread_updates);
+                    }
                     updateThreadBadges(data.thread_counts || {});
                     if (playSound && nextTotal > lastKnownUnreadTotal) {
                         playNotificationSound();
@@ -1128,6 +1196,9 @@ try {
                     if (!r.ok || !data.success) return;
                     document.querySelectorAll('.bubble.unread-patient').forEach((el) => el.classList.remove('unread-patient'));
                     updateFabBadge(Number(data.total_unread || 0));
+                    if (data.thread_order) {
+                        reorderThreads(data.thread_order, data.thread_updates);
+                    }
                     updateThreadBadges(data.thread_counts || {});
                     lastKnownUnreadTotal = Number(data.total_unread || 0);
                 } catch (_e) {}

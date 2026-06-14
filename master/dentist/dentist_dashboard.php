@@ -904,7 +904,12 @@ function saveTeethChanges(queueId) {
             document.getElementById('teethEditActions').style.display = 'none';
             alert('Teeth updated!');
             location.reload();
+        } else {
+            alert('Failed to update teeth: ' + (data.message || 'Unknown error'));
         }
+    })
+    .catch(error => {
+        alert('Error saving teeth: ' + error.message);
     });
 }
 
