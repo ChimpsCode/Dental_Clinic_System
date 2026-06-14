@@ -223,9 +223,9 @@ if ($action === 'get_unavailable_dates') {
 
 if ($action === 'save_auto_cancel_settings') {
     $enabled = ($_POST['auto_cancel_enabled'] ?? '0') === '1' ? '1' : '0';
-    $minutes = (int)($_POST['auto_cancel_minutes'] ?? 20);
-    if (!in_array($minutes, [10, 20, 30])) {
-        $minutes = 20;
+    $minutes = (int)($_POST['auto_cancel_minutes'] ?? 15);
+    if (!in_array($minutes, [10, 15, 20, 30])) {
+        $minutes = 15;
     }
 
     $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");

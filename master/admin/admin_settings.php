@@ -318,12 +318,13 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
-                            <div class="form-group">
+                            <div class="form-group" id="autoCancelTimeoutContainer" style="<?php echo ($settings['auto_cancel_enabled'] ?? '0') === '1' ? '' : 'display: none;'; ?>">
                                 <label>No-Show Timeout</label>
                                 <select class="form-control" id="autoCancelMinutes" style="width: auto;">
-                                    <option value="10" <?php echo ($settings['auto_cancel_minutes'] ?? '20') == '10' ? 'selected' : ''; ?>>10 minutes after appointment time</option>
-                                    <option value="20" <?php echo ($settings['auto_cancel_minutes'] ?? '20') == '20' ? 'selected' : ''; ?>>20 minutes after appointment time</option>
-                                    <option value="30" <?php echo ($settings['auto_cancel_minutes'] ?? '20') == '30' ? 'selected' : ''; ?>>30 minutes after appointment time</option>
+                                    <option value="10" <?php echo ($settings['auto_cancel_minutes'] ?? '15') == '10' ? 'selected' : ''; ?>>10 minutes after appointment time</option>
+                                    <option value="15" <?php echo ($settings['auto_cancel_minutes'] ?? '15') == '15' ? 'selected' : ''; ?>>15 minutes after appointment time</option>
+                                    <option value="20" <?php echo ($settings['auto_cancel_minutes'] ?? '15') == '20' ? 'selected' : ''; ?>>20 minutes after appointment time</option>
+                                    <option value="30" <?php echo ($settings['auto_cancel_minutes'] ?? '15') == '30' ? 'selected' : ''; ?>>30 minutes after appointment time</option>
                                 </select>
                             </div>
                             <button type="submit" class="btn-primary">Save Auto-Cancel Settings</button>
@@ -463,6 +464,10 @@ document.getElementById('clinicSettingsForm').addEventListener('submit', functio
     .catch(() => {
         alert('Failed to save settings');
     });
+});
+
+document.getElementById('autoCancelEnabled').addEventListener('change', function() {
+    document.getElementById('autoCancelTimeoutContainer').style.display = this.checked ? '' : 'none';
 });
 
 document.getElementById('autoCancelForm').addEventListener('submit', function(e) {

@@ -4,20 +4,10 @@ require_once '../../config/database.php';
 
 // Auto-cancel no-show trigger on page visit
 try {
-    $acStmt = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('auto_cancel_enabled', 'auto_cancel_minutes')");
-    $acSettings = $acStmt->fetchAll(PDO::FETCH_KEY_PAIR);
-    if (($acSettings['auto_cancel_enabled'] ?? '0') === '1') {
-        $acMinutes = (int)($acSettings['auto_cancel_minutes'] ?? 20);
-        if (!in_array($acMinutes, [10, 20, 30])) $acMinutes = 20;
-        $pdo->prepare("UPDATE appointments SET status = 'cancelled', status_id = 5, cancel_reason = ?
-                       WHERE (status_id NOT IN (4, 5) OR status_id IS NULL)
-                       AND (LOWER(status) NOT IN ('completed', 'cancelled') OR status IS NULL)
-                       AND check_in_time IS NULL
-                       AND (appointment_date < CURDATE() OR (appointment_date = CURDATE() AND ADDTIME(appointment_time, SEC_TO_TIME(? * 60)) <= NOW()))")
-           ->execute(['Auto-cancelled due to no-show', $acMinutes]);
-    }
+    require_once __DIR__ . '/../../includes/auto_cancel_helper.php';
+    autoCancelNoShows($pdo);
 } catch (Exception $e) {
-    // Silently fail - cron handles email notifications
+    // Silently fail
 }
 
 require_once '../../includes/dentist_layout_start.php';
