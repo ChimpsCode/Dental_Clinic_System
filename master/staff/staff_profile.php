@@ -23,9 +23,10 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 .avatar-preview { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
 .avatar-preview-initials { width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(135deg, #005daa, #0571ca); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 700; flex-shrink: 0; }
 .avatar-upload-actions { display: flex; flex-direction: column; gap: 12px; }
+.avatar-upload-actions .btn { min-width: 160px; }
 .upload-btn-wrapper { position: relative; overflow: hidden; display: inline-block; }
-.upload-btn-wrapper input[type=file] { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
-.btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+.upload-btn-wrapper input[type=file] { position: absolute; left: 0; top: 0; opacity: 0; width: 160px; height: 100%; cursor: pointer; }
+.btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .btn-primary { background: #005daa; color: #fff; }
 .btn-primary:hover { background: #004080; }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -43,11 +44,14 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
     .profile-dates { grid-column: span 1; flex-direction: column; gap: 12px; }
     .avatar-upload-wrap { flex-direction: column; align-items: center; text-align: center; }
 }
+.btn.btn-danger {
+    width:140px;
+}
 </style>
 
 <div class="content-main">
     <div class="page-header">
-        <h2>My Profile</h2>
+        
         <p class="page-subtitle">Manage your profile picture and personal information</p>
     </div>
 

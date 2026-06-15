@@ -398,7 +398,8 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             if ($role === 'dentist') {
                 $_SESSION['display_name'] = 'Dr. ' . trim($firstNameOnly ?: 'Dentist');
             } else {
-                $_SESSION['display_name'] = trim($firstNameOnly ?: $user['username']);
+                $roleLabel = ['admin' => 'Admin', 'staff' => 'Staff', 'user' => 'User'];
+                $_SESSION['display_name'] = trim($firstNameOnly ?: ($roleLabel[$role] ?? $user['username']));
             }
             
             // First login check (optional column)
@@ -536,7 +537,8 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
 if ($role === 'dentist') {
                     $_SESSION['display_name'] = 'Dr. ' . trim($firstNameOnly ?: 'Dentist');
                 } else {
-                    $_SESSION['display_name'] = trim($firstNameOnly ?: $user['username']);
+                    $roleLabel = ['admin' => 'Admin', 'staff' => 'Staff', 'user' => 'User'];
+                    $_SESSION['display_name'] = trim($firstNameOnly ?: ($roleLabel[$role] ?? $user['username']));
                 }
                 
                 // First login check (optional column)

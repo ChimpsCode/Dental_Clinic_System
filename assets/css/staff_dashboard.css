@@ -1393,6 +1393,12 @@ header.top-header {
     contain: content;
 }
 
+.page-subtitle {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin: 4px 0 30px 0;
+}
+
 .top-header {
     position: sticky;
     top: 0;

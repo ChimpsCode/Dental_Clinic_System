@@ -28,7 +28,20 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'staff') {
 }
 
 $username = $_SESSION['username'] ?? 'Staff';
-$displayName = trim($_SESSION['display_name'] ?? 'Staff Member');
+$userId = (int)($_SESSION['user_id'] ?? 0);
+
+// Query DB for current first_name so header always shows the latest name
+$dbFirstName = '';
+if ($userId > 0 && isset($pdo)) {
+    try {
+        $nameStmt = $pdo->prepare("SELECT first_name FROM users WHERE id = ?");
+        $nameStmt->execute([$userId]);
+        $dbFirstName = trim($nameStmt->fetchColumn() ?? '');
+    } catch (Exception $e) {
+        $dbFirstName = '';
+    }
+}
+$displayName = $dbFirstName ?: trim($_SESSION['display_name'] ?? 'Staff');
 
 // Extract honorific if present and clean the name
 $honorific = '';

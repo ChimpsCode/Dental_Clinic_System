@@ -128,8 +128,8 @@ $hashed = password_hash($password, PASSWORD_DEFAULT);
 
             // Convert role name to role_id - patient uses NULL (as per existing db design)
             $roleIdMap = ['admin' => 1, 'dentist' => 2, 'staff' => 3, 'patient' => null];
-            $roleId = $roleIdMap[strtolower($role)] ?? 3;
-            
+            $roleId = array_key_exists(strtolower($role), $roleIdMap) ? $roleIdMap[strtolower($role)] : 3;
+
             // Build dynamic INSERT based on what we have
             $fields = ['username', 'password', 'email', 'first_name', 'middle_name', 'last_name', 'role_id', 'status'];
             $values = [$username, $hashed, $email, $firstName, $middleName, $lastName, $roleId, $status];
@@ -181,8 +181,10 @@ $hashed = password_hash($password, PASSWORD_DEFAULT);
             }
 
             // Build update query dynamically (password optional)
-            $fields = ['username' => $username, 'email' => $email, 'first_name' => $firstName, 'middle_name' => $middleName, 'last_name' => $lastName, 'role' => $role];
-            $setParts = ['username = :username', 'email = :email', 'first_name = :first_name', 'middle_name = :middle_name', 'last_name = :last_name', 'role = :role'];
+            $roleIdMap = ['admin' => 1, 'dentist' => 2, 'staff' => 3, 'patient' => null];
+            $roleId = array_key_exists(strtolower($role), $roleIdMap) ? $roleIdMap[strtolower($role)] : 3;
+            $fields = ['username' => $username, 'email' => $email, 'first_name' => $firstName, 'middle_name' => $middleName, 'last_name' => $lastName, 'role_id' => $roleId];
+            $setParts = ['username = :username', 'email = :email', 'first_name = :first_name', 'middle_name = :middle_name', 'last_name = :last_name', 'role_id = :role_id'];
 
             if ($hasStatusColumn) {
                 $fields['status'] = $status;
@@ -204,6 +206,13 @@ $hashed = password_hash($password, PASSWORD_DEFAULT);
             $sql = "UPDATE users SET " . implode(', ', $setParts) . " WHERE id = :id";
             $stmt = $pdo->prepare($sql);
             $stmt->execute($fields);
+
+            // Refresh session display_name if editing own profile
+            if ((int)$id === (int)$_SESSION['user_id']) {
+                $firstNameOnly = explode(' ', $firstName)[0] ?? '';
+                $roleLabel = ['admin' => 'Admin', 'staff' => 'Staff', 'user' => 'User'];
+                $_SESSION['display_name'] = trim($firstNameOnly ?: ($roleLabel[$role] ?? $username));
+            }
 
             echo json_encode([
                 'success' => true,
