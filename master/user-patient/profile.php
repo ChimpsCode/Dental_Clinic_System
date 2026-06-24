@@ -485,5 +485,17 @@ $pageTitle = 'My Profile';
             });
         })();
     </script>
+    <script>
+    (function() {
+        var alertEl = document.querySelector('.alert-success');
+        if (alertEl) {
+            setTimeout(function() {
+                alertEl.style.transition = 'opacity 0.3s';
+                alertEl.style.opacity = '0';
+                setTimeout(function() { alertEl.remove(); }, 300);
+            }, 2000);
+        }
+    })();
+    </script>
 </body>
 </html>

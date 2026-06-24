@@ -6,46 +6,74 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 $uploadError = $_SESSION['upload_error'] ?? null;
 unset($_SESSION['upload_error']);
 
+$message = '';
+$messageType = '';
+
 $userId = (int)$_SESSION['user_id'];
 $colCheck = $pdo->prepare("SHOW COLUMNS FROM users LIKE 'profile_picture'");
 $colCheck->execute();
 if (!$colCheck->fetch()) {
     $pdo->exec("ALTER TABLE users ADD COLUMN profile_picture VARCHAR(255) DEFAULT NULL AFTER updated_at");
 }
-$stmt = $pdo->prepare("SELECT first_name, middle_name, last_name, email, phone, profile_picture, created_at FROM users WHERE id = ?");
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_profile') {
+    $first_name = trim($_POST['first_name'] ?? '');
+    $middle_name = trim($_POST['middle_name'] ?? '');
+    $last_name = trim($_POST['last_name'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $phone = trim($_POST['phone'] ?? '');
+    $date_of_birth = $_POST['date_of_birth'] ?? null;
+    $gender = $_POST['gender'] ?? '';
+
+    $stmt = $pdo->prepare("UPDATE users SET first_name = ?, middle_name = ?, last_name = ?, email = ?, phone = ?, date_of_birth = ?, gender = ? WHERE id = ?");
+    $stmt->execute([$first_name, $middle_name, $last_name, $email, $phone, $date_of_birth ?: null, $gender ?: null, $userId]);
+
+    $message = 'Profile updated successfully!';
+    $messageType = 'success';
+}
+
+$stmt = $pdo->prepare("SELECT first_name, middle_name, last_name, email, phone, profile_picture, gender, date_of_birth, created_at FROM users WHERE id = ?");
 $stmt->execute([$userId]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 ?>
 <style>
-.profile-section { background: #fff; border-radius: 12px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 24px; }
-.profile-section-title { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid #e5e7eb; }
-.avatar-upload-wrap { display: flex; align-items: center; gap: 32px; flex-wrap: wrap; }
-.avatar-preview { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
-.avatar-preview-initials { width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(135deg, #005daa, #0571ca); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 700; flex-shrink: 0; }
-.avatar-upload-actions { display: flex; flex-direction: column; gap: 12px; }
-.avatar-upload-actions .btn { min-width: 160px; }
+.section { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 24px; }
+.section-title { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 20px; }
+.profile-header { display: flex; align-items: center; gap: 20px; margin-bottom: 24px; }
+.profile-avatar { width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, #005daa, #0571ca); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 42px; flex-shrink: 0; overflow: hidden; }
+.profile-avatar img { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; }
+.profile-info h2 { font-size: 24px; color: #1a1a2e; margin-bottom: 4px; }
+.profile-info p { color: #6b7280; font-size: 14px; }
+.avatar-upload-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .upload-btn-wrapper { position: relative; overflow: hidden; display: inline-block; }
 .upload-btn-wrapper input[type=file] { position: absolute; left: 0; top: 0; opacity: 0; width: 160px; height: 100%; cursor: pointer; }
-.btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-.btn-primary { background: #005daa; color: #fff; }
+.btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-primary { background: #005daa; color: white; }
 .btn-primary:hover { background: #004080; }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-secondary { background: #f3f4f6; color: #374151; }
+.btn-secondary:hover { background: #e5e7eb; }
 .btn-success { background: #059669; color: #fff; }
 .btn-success:hover { background: #047857; }
 .btn-danger { background: #fee2e2; color: #dc2626; }
 .btn-danger:hover { background: #fecaca; }
 .upload-hint { font-size: 13px; color: #6b7280; margin: 0; }
-.profile-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-.profile-info-label { display: block; font-size: 13px; font-weight: 500; color: #6b7280; margin-bottom: 4px; }
-.profile-info-value { font-size: 15px; color: #1a1a2e; font-weight: 500; }
-.profile-dates { grid-column: span 2; display: flex; gap: 32px; padding-top: 12px; border-top: 1px solid #f3f4f6; }
+.form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+.form-group { margin-bottom: 16px; }
+.form-group.full-width { grid-column: span 2; }
+.form-label { display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px; }
+.form-input { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; transition: border-color 0.2s; }
+.form-input:focus { outline: none; border-color: #005daa; box-shadow: 0 0 0 3px rgba(0,93,170,0.1); }
+.form-select { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; background: white; }
+.btn-container { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
+.alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
+.alert-success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+.alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
 @media (max-width: 768px) {
-    .profile-info-grid { grid-template-columns: 1fr; }
-    .profile-dates { grid-column: span 1; flex-direction: column; gap: 12px; }
-    .avatar-upload-wrap { flex-direction: column; align-items: center; text-align: center; }
-}
-.btn.btn-danger {
-    width:140px;
+    .form-grid { grid-template-columns: 1fr; }
+    .form-group.full-width { grid-column: span 1; }
+    .profile-header { flex-direction: column; text-align: center; }
+    .avatar-upload-actions { flex-direction: column; align-items: flex-start; }
 }
 </style>
 
@@ -55,8 +83,12 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
         <p class="page-subtitle">Manage your profile picture and personal information</p>
     </div>
 
+    <?php if ($message): ?>
+        <div class="alert alert-<?php echo $messageType; ?>"><?php echo htmlspecialchars($message); ?></div>
+    <?php endif; ?>
+
     <?php if ($uploadError): ?>
-        <div style="padding:12px 16px;border-radius:8px;margin-bottom:20px;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;font-size:14px;"><?php echo htmlspecialchars($uploadError); ?></div>
+        <div class="alert alert-error"><?php echo htmlspecialchars($uploadError); ?></div>
     <?php endif; ?>
 
     <?php
@@ -68,61 +100,94 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
     $email = $user['email'] ?? $_SESSION['email'] ?? '';
     $phone = $user['phone'] ?? '';
     $createdAt = isset($user['created_at']) ? date('F Y', strtotime($user['created_at'])) : 'N/A';
+    $gender = $user['gender'] ?? '';
+    $date_of_birth = $user['date_of_birth'] ?? '';
     ?>
 
-    <div class="profile-section">
-        <div class="profile-section-title">Profile Picture</div>
-        <form action="../shared/profile_picture_actions.php" method="POST" enctype="multipart/form-data" id="uploadForm">
-            <input type="hidden" name="action" value="upload">
-            <div class="avatar-upload-wrap">
-                <div>
-                    <?php if ($profPic && file_exists(dirname(__DIR__, 2) . '/' . $profPic)): ?>
-                        <img src="<?php echo htmlspecialchars($profPicFull); ?>?t=<?php echo time(); ?>" alt="Profile" class="avatar-preview" id="avatarPreview">
-                    <?php else: ?>
-                        <div class="avatar-preview-initials" id="avatarPreview"><?php echo htmlspecialchars($initial); ?></div>
-                    <?php endif; ?>
-                </div>
+    <div class="section">
+        <div class="profile-header">
+            <div class="profile-avatar">
+                <?php if ($profPic && file_exists(dirname(__DIR__, 2) . '/' . $profPic)): ?>
+                    <img src="<?php echo htmlspecialchars($profPicFull); ?>?t=<?php echo time(); ?>" alt="Profile">
+                <?php else: ?>
+                    <?php echo htmlspecialchars($initial); ?>
+                <?php endif; ?>
+            </div>
+            <div class="profile-info">
+                <h2><?php echo htmlspecialchars($fullName ?: 'Admin'); ?></h2>
+                <p>Admin since <?php echo htmlspecialchars($createdAt); ?></p>
+            </div>
+        </div>
+
+        <div style="padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            <div class="section-title">Profile Photo</div>
+            <form action="../shared/profile_picture_actions.php" method="POST" enctype="multipart/form-data" id="uploadForm">
+                <input type="hidden" name="action" value="upload">
                 <div class="avatar-upload-actions">
                     <div class="upload-btn-wrapper">
                         <button class="btn btn-primary" id="chooseBtn" type="button">Choose Photo</button>
                         <input type="file" name="profile_picture" id="fileInput" accept="image/jpeg,image/png,image/gif,image/webp">
                     </div>
-                    <button class="btn btn-success" id="saveBtn" style="display:none;" type="button">Save</button>
+                    <button class="btn btn-success" id="saveBtn" style="display:none;" type="button">Save Photo</button>
                     <?php if ($profPic): ?>
                         <a href="../shared/profile_picture_actions.php?action=delete" class="btn btn-danger" id="deleteBtn" onclick="return confirm('Remove your profile picture?')">Remove Photo</a>
                     <?php endif; ?>
-                    <p class="upload-hint">JPG, PNG, GIF, or WebP. Max 2MB.</p>
+                    <span class="upload-hint">JPG, PNG, GIF, WebP. Max 2MB.</span>
                 </div>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
 
-    <div class="profile-section">
-        <div class="profile-section-title">Account Information</div>
-        <div class="profile-info-grid">
-            <div class="profile-info-item">
-                <span class="profile-info-label">Full Name</span>
-                <span class="profile-info-value"><?php echo htmlspecialchars($fullName ?: 'N/A'); ?></span>
-            </div>
-            <div class="profile-info-item">
-                <span class="profile-info-label">Role</span>
-                <span class="profile-info-value">Admin</span>
-            </div>
-            <div class="profile-info-item">
-                <span class="profile-info-label">Email</span>
-                <span class="profile-info-value"><?php echo htmlspecialchars($email ?: 'N/A'); ?></span>
-            </div>
-            <div class="profile-info-item">
-                <span class="profile-info-label">Phone</span>
-                <span class="profile-info-value"><?php echo htmlspecialchars($phone ?: 'N/A'); ?></span>
-            </div>
-            <div class="profile-dates">
-                <div class="profile-info-item">
-                    <span class="profile-info-label">Member Since</span>
-                    <span class="profile-info-value"><?php echo htmlspecialchars($createdAt); ?></span>
+    <div class="section">
+        <form method="POST" action="">
+            <input type="hidden" name="action" value="update_profile">
+
+            <div class="section-title">Personal Information</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">First Name</label>
+                    <input type="text" name="first_name" class="form-input" value="<?php echo htmlspecialchars($user['first_name'] ?? ''); ?>" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Middle Name</label>
+                    <input type="text" name="middle_name" class="form-input" value="<?php echo htmlspecialchars($user['middle_name'] ?? ''); ?>">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Last Name</label>
+                    <input type="text" name="last_name" class="form-input" value="<?php echo htmlspecialchars($user['last_name'] ?? ''); ?>" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Date of Birth</label>
+                    <input type="date" name="date_of_birth" class="form-input" value="<?php echo htmlspecialchars($date_of_birth); ?>">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Gender</label>
+                    <select name="gender" class="form-select">
+                        <option value="">Select Gender</option>
+                        <option value="Male" <?php echo $gender === 'Male' ? 'selected' : ''; ?>>Male</option>
+                        <option value="Female" <?php echo $gender === 'Female' ? 'selected' : ''; ?>>Female</option>
+                    </select>
                 </div>
             </div>
-        </div>
+
+            <div class="section-title" style="margin-top: 24px;">Contact Information</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" class="form-input" value="<?php echo htmlspecialchars($email); ?>" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Phone</label>
+                    <input type="tel" name="phone" class="form-input" value="<?php echo htmlspecialchars($phone); ?>">
+                </div>
+            </div>
+
+            <div class="btn-container">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -133,7 +198,7 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
     const chooseBtn = document.getElementById('chooseBtn');
     const saveBtn = document.getElementById('saveBtn');
     const form = document.getElementById('uploadForm');
-    const preview = document.getElementById('avatarPreview');
+    const preview = document.querySelector('.profile-avatar');
 
     fileInput.addEventListener('change', function() {
         const file = this.files[0];
@@ -153,15 +218,15 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
         const reader = new FileReader();
         reader.onload = function(e) {
-            if (preview.tagName === 'IMG') {
-                preview.src = e.target.result;
-            } else {
-                const img = document.createElement('img');
+            const img = preview.querySelector('img');
+            if (img) {
                 img.src = e.target.result;
-                img.alt = 'Profile';
-                img.className = 'avatar-preview';
-                img.id = 'avatarPreview';
-                preview.parentNode.replaceChild(img, preview);
+            } else {
+                preview.innerHTML = '';
+                const newImg = document.createElement('img');
+                newImg.src = e.target.result;
+                newImg.alt = 'Profile';
+                preview.appendChild(newImg);
             }
         };
         reader.readAsDataURL(file);
@@ -175,5 +240,14 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
         chooseBtn.disabled = true;
         form.submit();
     });
+
+    var alertEl = document.querySelector('.alert-success');
+    if (alertEl) {
+        setTimeout(function() {
+            alertEl.style.transition = 'opacity 0.3s';
+            alertEl.style.opacity = '0';
+            setTimeout(function() { alertEl.remove(); }, 300);
+        }, 2000);
+    }
 })();
 </script>
