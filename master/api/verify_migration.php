@@ -5,7 +5,7 @@ echo "<h2>Database Verification</h2>";
 echo "<pre>";
 
 // Check tables
-$tables = ['patient_types', 'patient_statuses', 'genders', 'appointment_statuses', 'queue_statuses'];
+$tables = ['patient_types', 'appointment_statuses', 'queue_statuses'];
 foreach ($tables as $table) {
     $result = $pdo->query("SELECT COUNT(*) as count FROM $table");
     $row = $result->fetch(PDO::FETCH_ASSOC);

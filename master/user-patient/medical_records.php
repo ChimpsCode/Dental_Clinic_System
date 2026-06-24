@@ -62,12 +62,25 @@ try {
     }
     
     $stmt = $pdo->prepare("
-        SELECT * FROM medical_records 
-        WHERE patient_id = ?
-        ORDER BY record_date DESC
+        SELECT t.treatment_date AS record_date, s.name AS record_type, t.notes, 
+               CONCAT(u.first_name, ' ', u.last_name) AS dentist_name
+        FROM treatments t
+        LEFT JOIN services s ON t.service_id = s.id
+        LEFT JOIN users u ON t.doctor_id = u.id
+        WHERE t.patient_id = ?
+        ORDER BY t.treatment_date DESC
     ");
     $stmt->execute([$patient_id]);
     $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    $stmt = $pdo->prepare("
+        SELECT mh.allergies, mh.current_medications, mh.medical_conditions
+        FROM medical_history mh
+        WHERE mh.patient_id = ?
+        LIMIT 1
+    ");
+    $stmt->execute([$patient_id]);
+    $medical = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
     
     $stmt = $pdo->prepare("
         SELECT * FROM prescriptions 
@@ -80,6 +93,7 @@ try {
 } catch (Exception $e) {
     $patient = [];
     $records = [];
+    $medical = [];
     $prescriptions = [];
 }
 
@@ -258,20 +272,16 @@ $pageTitle = 'Medical Records';
                 <h3 class="section-title">Health Information</h3>
                 <div class="info-grid">
                     <div class="info-card">
-                        <div class="info-label">Blood Type</div>
-                        <div class="info-value"><?php echo htmlspecialchars($patient['blood_type'] ?? 'Not recorded'); ?></div>
-                    </div>
-                    <div class="info-card">
                         <div class="info-label">Allergies</div>
-                        <div class="info-value"><?php echo htmlspecialchars($patient['allergies'] ?? 'None'); ?></div>
+                        <div class="info-value"><?php echo htmlspecialchars($medical['allergies'] ?? 'None'); ?></div>
                     </div>
                     <div class="info-card">
                         <div class="info-label">Medical Conditions</div>
-                        <div class="info-value"><?php echo htmlspecialchars($patient['medical_conditions'] ?? 'None'); ?></div>
+                        <div class="info-value"><?php echo htmlspecialchars($medical['medical_conditions'] ?? 'None'); ?></div>
                     </div>
                     <div class="info-card">
                         <div class="info-label">Current Medications</div>
-                        <div class="info-value"><?php echo htmlspecialchars($patient['current_medications'] ?? 'None'); ?></div>
+                        <div class="info-value"><?php echo htmlspecialchars($medical['current_medications'] ?? 'None'); ?></div>
                     </div>
                 </div>
             </div>

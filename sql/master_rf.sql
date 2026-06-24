@@ -369,6 +369,38 @@ INSERT INTO `billing` (`id`, `patient_id`, `treatment_id`, `appointment_id`, `to
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `chat_typing_status`
+--
+
+CREATE TABLE `chat_typing_status` (
+  `id` int(11) NOT NULL,
+  `patient_id` int(11) NOT NULL,
+  `sender_type` enum('patient','staff') NOT NULL,
+  `is_typing` tinyint(1) NOT NULL DEFAULT 0,
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `content_images`
+--
+
+CREATE TABLE `content_images` (
+  `id` int(11) NOT NULL,
+  `file_name` varchar(255) NOT NULL,
+  `original_name` varchar(255) NOT NULL,
+  `file_path` varchar(500) NOT NULL,
+  `file_type` varchar(50) DEFAULT NULL,
+  `file_size` int(11) DEFAULT NULL,
+  `section` varchar(50) DEFAULT NULL,
+  `uploaded_by` int(11) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `dental_history`
 --
 
@@ -424,6 +456,20 @@ CREATE TABLE `inquiries` (
   `is_archived` tinyint(1) NOT NULL DEFAULT 0,
   `deleted_at` datetime DEFAULT NULL,
   `inquiry_message` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `inquiry_replies`
+--
+
+CREATE TABLE `inquiry_replies` (
+  `id` int(11) NOT NULL,
+  `inquiry_id` int(11) NOT NULL,
+  `message` text NOT NULL,
+  `sender_type` enum('staff','guest','patient') NOT NULL DEFAULT 'guest',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -511,6 +557,26 @@ CREATE TABLE `medicines` (
   `id` int(11) NOT NULL,
   `medicine_name` varchar(150) NOT NULL,
   `dosage_form` varchar(100) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `messages`
+--
+
+CREATE TABLE `messages` (
+  `id` int(11) NOT NULL,
+  `sender_id` int(11) DEFAULT NULL,
+  `receiver_id` int(11) DEFAULT NULL,
+  `patient_id` int(11) NOT NULL,
+  `subject` varchar(255) DEFAULT NULL,
+  `message` text NOT NULL,
+  `sender_type` enum('patient','admin','system') NOT NULL DEFAULT 'patient',
+  `auto_reply_for_message_id` int(11) DEFAULT NULL,
+  `is_read` tinyint(1) NOT NULL DEFAULT 0,
+  `sent_by` enum('patient','admin') NOT NULL DEFAULT 'patient',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -1112,6 +1178,43 @@ CREATE TABLE `service_prices` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `settings`
+--
+
+CREATE TABLE `settings` (
+  `setting_key` varchar(100) NOT NULL,
+  `setting_value` text DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `settings`
+--
+
+INSERT IGNORE INTO `settings` (`setting_key`, `setting_value`) VALUES
+('welcome_logo', ''),
+('welcome_hero_title', 'Your Best Dental Care In Town Awaits'),
+('welcome_hero_subtitle', 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas quam libero, malesuada sed lorem in, sodales dapibus ligula.'),
+('welcome_hero_image', ''),
+('welcome_hero_badge_big', '7+'),
+('welcome_hero_badge_small', 'Years Experience'),
+('welcome_hero_note1', 'Hi I''m Dr. Rex'),
+('welcome_hero_note2', 'and I''m Dr. Floralyn'),
+('welcome_about_heading', 'About RF Dental'),
+('welcome_about_paragraph1', 'At RF Dental Clinic, we''re committed to providing exceptional dental care in a comfortable and welcoming environment. Our experienced team uses the latest technology to ensure you receive the best treatment possible.'),
+('welcome_about_paragraph2', 'We believe everyone deserves a healthy, beautiful smile. That''s why we offer comprehensive services ranging from routine checkups to advanced cosmetic procedures, all delivered with personalized care and attention.'),
+('welcome_about_image', ''),
+('welcome_about_stats', '[{"value":"5,000+","label":"Happy Patients"},{"value":"98%","label":"Satisfaction Rate"}]'),
+('welcome_faqs', '[{"q":"What should I expect during my first visit?","a":"During your first visit, you''ll meet our friendly team, discuss your dental history, and receive a thorough examination. We recommend bringing any previous dental records and a list of medications you''re currently taking."},{"q":"How often should I visit the dentist?","a":"We recommend visiting the dentist every 6 months for regular check-ups and cleanings. However, if you have specific dental concerns or conditions, we may suggest more frequent visits to ensure optimal oral health."},{"q":"Do you accept dental insurance?","a":"Unfortunately, we do not accept dental insurance at this time. However, we offer competitive pricing and flexible payment options to make our services accessible to all patients."},{"q":"What payment options do you offer?","a":"We offer flexible payment options including cash, gcash e-wallet and bank transfers."}]'),
+('welcome_featured_services', '[9,11,12]'),
+('welcome_service_images', '{}'),
+('welcome_hero_title_blocks', '[{"text":"","color":"","fontSize":64,"fontWeight":700,"lineHeight":1.05,"newLine":true},{"text":"","color":"#005daa","fontSize":64,"fontWeight":700,"lineHeight":1.05,"newLine":true}]'),
+('welcome_footer_tagline', 'Providing exceptional dental care with a commitment to your comfort and health.'),
+('welcome_footer_facebook', 'https://www.facebook.com'),
+('welcome_footer_messenger', 'https://m.me');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `teeth`
 --
 
@@ -1232,7 +1335,11 @@ CREATE TABLE `treatment_plans` (
   `plan_name` varchar(200) DEFAULT NULL,
   `total_estimated_cost` decimal(10,2) DEFAULT NULL,
   `overall_status` enum('Active','Completed','On-Hold','Cancelled') DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+  `next_session_date` date DEFAULT NULL,
+  `next_session_time` time DEFAULT NULL,
+  `appointment_id` int(11) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -1295,6 +1402,19 @@ INSERT INTO `users` (`id`, `role_id`, `first_name`, `middle_name`, `last_name`, 
 --
 -- Indexes for dumped tables
 --
+
+--
+-- Indexes for table `chat_typing_status`
+--
+ALTER TABLE `chat_typing_status`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_chat_typing` (`patient_id`,`sender_type`);
+
+--
+-- Indexes for table `content_images`
+--
+ALTER TABLE `content_images`
+  ADD PRIMARY KEY (`id`);
 
 --
 -- Indexes for table `addresses`
@@ -1367,6 +1487,14 @@ ALTER TABLE `inquiry_sources`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `inquiry_replies`
+--
+ALTER TABLE `inquiry_replies`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_inquiry_id` (`inquiry_id`),
+  ADD KEY `idx_created_at` (`created_at`);
+
+--
 -- Indexes for table `inquiry_statuses`
 --
 ALTER TABLE `inquiry_statuses`
@@ -1390,6 +1518,14 @@ ALTER TABLE `medical_history`
 --
 ALTER TABLE `medicines`
   ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `messages`
+--
+ALTER TABLE `messages`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_messages_auto_reply_for_message_id` (`auto_reply_for_message_id`),
+  ADD KEY `idx_messages_patient_id` (`patient_id`);
 
 --
 -- Indexes for table `notifications`
@@ -1520,6 +1656,12 @@ ALTER TABLE `service_prices`
   ADD KEY `service_id` (`service_id`);
 
 --
+-- Indexes for table `settings`
+--
+ALTER TABLE `settings`
+  ADD PRIMARY KEY (`setting_key`);
+
+--
 -- Indexes for table `teeth`
 --
 ALTER TABLE `teeth`
@@ -1547,7 +1689,8 @@ ALTER TABLE `treatment_item_statuses`
 ALTER TABLE `treatment_plans`
   ADD PRIMARY KEY (`id`),
   ADD KEY `patient_id` (`patient_id`),
-  ADD KEY `doctor_id` (`doctor_id`);
+  ADD KEY `doctor_id` (`doctor_id`),
+  ADD KEY `appointment_id` (`appointment_id`);
 
 --
 -- Indexes for table `treatment_plan_details`
@@ -1570,6 +1713,18 @@ ALTER TABLE `users`
 --
 -- AUTO_INCREMENT for dumped tables
 --
+
+--
+-- AUTO_INCREMENT for table `chat_typing_status`
+--
+ALTER TABLE `chat_typing_status`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `content_images`
+--
+ALTER TABLE `content_images`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `addresses`
@@ -1620,6 +1775,12 @@ ALTER TABLE `inquiries`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `inquiry_replies`
+--
+ALTER TABLE `inquiry_replies`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `inquiry_sources`
 --
 ALTER TABLE `inquiry_sources`
@@ -1647,6 +1808,12 @@ ALTER TABLE `medical_history`
 -- AUTO_INCREMENT for table `medicines`
 --
 ALTER TABLE `medicines`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `messages`
+--
+ALTER TABLE `messages`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
@@ -1785,7 +1952,7 @@ ALTER TABLE `treatment_plan_details`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- Constraints for dumped tables
@@ -1931,7 +2098,8 @@ ALTER TABLE `treatments`
 --
 ALTER TABLE `treatment_plans`
   ADD CONSTRAINT `treatment_plans_ibfk_1` FOREIGN KEY (`patient_id`) REFERENCES `patients` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `treatment_plans_ibfk_2` FOREIGN KEY (`doctor_id`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+  ADD CONSTRAINT `treatment_plans_ibfk_2` FOREIGN KEY (`doctor_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_treatment_plan_appointment` FOREIGN KEY (`appointment_id`) REFERENCES `appointments` (`id`) ON DELETE SET NULL;
 
 --
 -- Constraints for table `treatment_plan_details`

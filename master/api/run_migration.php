@@ -43,50 +43,6 @@ try {
     $stmt->execute(['VIP', 'Very important patient', 0.00]);
     echo "✓ patient_types data inserted\n";
     
-    // Patient Statuses
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS `patient_statuses` (
-          `id` int(11) NOT NULL AUTO_INCREMENT,
-          `status_name` varchar(50) NOT NULL,
-          `color` varchar(7) DEFAULT '#6c757d',
-          `description` text DEFAULT NULL,
-          `sort_order` int(11) DEFAULT 0,
-          `is_active` tinyint(1) DEFAULT 1,
-          `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
-          PRIMARY KEY (`id`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    ");
-    echo "✓ patient_statuses table created\n";
-    
-    $pdo->exec("DELETE FROM patient_statuses");
-    $stmt = $pdo->prepare("INSERT INTO patient_statuses (status_name, color, description, sort_order) VALUES (?, ?, ?, ?)");
-    $stmt->execute(['Active', '#28a745', 'Patient can book appointments', 1]);
-    $stmt->execute(['Inactive', '#6c757d', 'Account temporarily disabled', 2]);
-    $stmt->execute(['Archived', '#ffc107', 'Soft-deleted patient records', 3]);
-    $stmt->execute(['Deceased', '#dc3545', 'Patient is deceased', 4]);
-    echo "✓ patient_statuses data inserted\n";
-    
-    // Genders
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS `genders` (
-          `id` int(11) NOT NULL AUTO_INCREMENT,
-          `gender_name` varchar(20) NOT NULL,
-          `abbreviation` varchar(10) DEFAULT NULL,
-          `is_active` tinyint(1) DEFAULT 1,
-          `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
-          PRIMARY KEY (`id`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    ");
-    echo "✓ genders table created\n";
-    
-    $pdo->exec("DELETE FROM genders");
-    $stmt = $pdo->prepare("INSERT INTO genders (gender_name, abbreviation) VALUES (?, ?)");
-    $stmt->execute(['Male', 'M']);
-    $stmt->execute(['Female', 'F']);
-    $stmt->execute(['Other', 'O']);
-    $stmt->execute(['Prefer not to say', 'N/A']);
-    echo "✓ genders data inserted\n";
-    
     // Appointment Statuses
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS `appointment_statuses` (
@@ -180,7 +136,7 @@ try {
     echo "✅ MIGRATION COMPLETED SUCCESSFULLY!\n";
     echo "========================================\n";
     echo "\nSummary:\n";
-    echo "- Created 5 new lookup tables\n";
+    echo "- Created 3 new lookup tables\n";
     echo "- Added 2 columns to appointments table\n";
     echo "- All seed data inserted\n";
     echo "\nYou can now book appointments and they will display correctly!\n";

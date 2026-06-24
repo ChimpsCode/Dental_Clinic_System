@@ -1,13 +1,3 @@
-/* =============================================
-   MASTER ADMIN CSS
-   Modular Admin System Styles
-   ============================================= */
-
-/* Note: CSS files are now imported in admin.php directly */
-
-/* =============================================
-   MASTER LAYOUT
-   ============================================= */
 
 .master-layout {
     display: flex;
