@@ -687,6 +687,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
+    // Expose for external use (e.g., account deleted redirect)
+    window.showToast = showToast;
+
     // Show error message function - now uses toast instead of alert
     function showError(message) {
         // Use toast notification instead of alert box

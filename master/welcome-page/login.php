@@ -609,6 +609,8 @@ if ($role === 'dentist') {
         }
     }
 }
+
+$showDeletedMsg = isset($_GET['deleted']) && $_GET['deleted'] === '1';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -1001,5 +1003,13 @@ if ($role === 'dentist') {
     </div>
     
     <script src="../../assets/js/login.js"></script>
+    
+    <?php if ($showDeletedMsg): ?>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            window.showToast('Account Deactivated', 'Your account has been deactivated. If you believe this was a mistake, please contact the clinic.', 'success');
+        });
+    </script>
+    <?php endif; ?>
 </body>
 </html>

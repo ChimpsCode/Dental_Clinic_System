@@ -196,6 +196,17 @@ $pageTitle = 'Account Settings';
         .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
         .danger-zone { border: 1px solid #fecaca; background: #fef2f2; }
         .danger-zone .section-title { color: #991b1b; }
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-overlay.is-open { display: flex; }
+        .modal-box { background: white; border-radius: 12px; padding: 32px; max-width: 440px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); text-align: center; }
+        .modal-icon { font-size: 48px; color: #dc3545; margin-bottom: 16px; }
+        .modal-title { font-size: 20px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
+        .modal-desc { font-size: 14px; color: #6b7280; margin-bottom: 24px; line-height: 1.5; }
+        .modal-input { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; margin-bottom: 16px; }
+        .modal-input:focus { outline: none; border-color: #dc3545; box-shadow: 0 0 0 3px rgba(220,53,69,0.1); }
+        .modal-actions { display: flex; gap: 12px; justify-content: center; }
+        .modal-actions .btn { min-width: 120px; }
+        .modal-error { color: #dc3545; font-size: 13px; margin-bottom: 12px; display: none; }
         .account-info { background: #f9fafb; padding: 16px; border-radius: 8px; margin-bottom: 20px; }
         .account-info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
         .account-info-row:last-child { border-bottom: none; }
@@ -372,9 +383,27 @@ $pageTitle = 'Account Settings';
                 <p style="color: #6b7280; font-size: 14px; margin-bottom: 16px;">
                     Once you delete your account, there is no going back. Please be certain.
                 </p>
-                <button type="button" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete your account? This action cannot be undone.')">
+                <button type="button" class="btn btn-danger" id="deleteAccountBtn">
                     <i class="fas fa-trash"></i> Delete Account
                 </button>
+            </div>
+
+            <!-- Delete Account Confirmation Modal -->
+            <div class="modal-overlay" id="deleteModal">
+                <div class="modal-box">
+                    <div class="modal-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                    <h2 class="modal-title">Delete Account</h2>
+                    <p class="modal-desc">
+                        This will permanently deactivate your account. You will lose access to all your data.
+                        If you change your mind later, please contact the clinic to restore your account.
+                    </p>
+                    <div class="modal-error" id="deleteModalError"></div>
+                    <input type="password" class="modal-input" id="deletePasswordInput" placeholder="Enter your password to confirm" autocomplete="off">
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-primary" id="deleteCancelBtn">Cancel</button>
+                        <button type="button" class="btn btn-danger" id="deleteConfirmBtn"><i class="fas fa-trash"></i> Delete</button>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
@@ -453,6 +482,77 @@ $pageTitle = 'Account Settings';
                 document.addEventListener(evt, reset, { passive: true })
             );
             reset();
+        })();
+    </script>
+    <script>
+        (function() {
+            const modal = document.getElementById('deleteModal');
+            const openBtn = document.getElementById('deleteAccountBtn');
+            const cancelBtn = document.getElementById('deleteCancelBtn');
+            const confirmBtn = document.getElementById('deleteConfirmBtn');
+            const passwordInput = document.getElementById('deletePasswordInput');
+            const errorEl = document.getElementById('deleteModalError');
+
+            function openModal() {
+                modal.classList.add('is-open');
+                passwordInput.value = '';
+                errorEl.style.display = 'none';
+                passwordInput.focus();
+            }
+
+            function closeModal() {
+                modal.classList.remove('is-open');
+            }
+
+            openBtn.addEventListener('click', openModal);
+            cancelBtn.addEventListener('click', closeModal);
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) closeModal();
+            });
+
+            passwordInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') confirmBtn.click();
+            });
+
+            confirmBtn.addEventListener('click', async function() {
+                const password = passwordInput.value.trim();
+                if (!password) {
+                    errorEl.textContent = 'Please enter your password.';
+                    errorEl.style.display = 'block';
+                    return;
+                }
+
+                confirmBtn.disabled = true;
+                confirmBtn.textContent = 'Deleting...';
+
+                try {
+                    const body = new URLSearchParams();
+                    body.append('action', 'self_delete');
+                    body.append('password', password);
+
+                    const res = await fetch('patient_actions.php', {
+                        method: 'POST',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        body: body
+                    });
+
+                    const data = await res.json();
+
+                    if (data.success && data.redirect) {
+                        window.location.href = data.redirect;
+                    } else {
+                        errorEl.textContent = data.message || 'Failed to delete account.';
+                        errorEl.style.display = 'block';
+                        confirmBtn.disabled = false;
+                        confirmBtn.innerHTML = '<i class="fas fa-trash"></i> Delete';
+                    }
+                } catch (err) {
+                    errorEl.textContent = 'Connection error. Please try again.';
+                    errorEl.style.display = 'block';
+                    confirmBtn.disabled = false;
+                    confirmBtn.innerHTML = '<i class="fas fa-trash"></i> Delete';
+                }
+            });
         })();
     </script>
 </body>

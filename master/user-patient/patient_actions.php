@@ -15,6 +15,63 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $role = $_SESSION['role'] ?? '';
+$action = $_POST['action'] ?? '';
+
+// Handle patient self-deletion (no admin role check needed)
+if ($action === 'self_delete') {
+    ob_end_clean();
+    header('Content-Type: application/json');
+
+    $userId = $_SESSION['user_id'] ?? null;
+    $patientId = $_SESSION['patient_id'] ?? null;
+    $password = $_POST['password'] ?? '';
+
+    if (!$userId || !$patientId) {
+        echo json_encode(['success' => false, 'message' => 'Session expired. Please log in again.']);
+        exit();
+    }
+
+    try {
+        require_once '../../config/database.php';
+
+        // Verify password
+        $stmt = $pdo->prepare("SELECT password FROM users WHERE id = ? AND is_archived = 0");
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$user || !password_verify($password, $user['password'])) {
+            echo json_encode(['success' => false, 'message' => 'Incorrect password.']);
+            exit();
+        }
+
+        // Archive patients record
+        $stmt = $pdo->prepare("UPDATE patients SET is_archived = 1, deleted_at = NOW() WHERE id = ? AND is_archived = 0");
+        $stmt->execute([$patientId]);
+
+        // Archive users record
+        $stmt = $pdo->prepare("UPDATE users SET is_archived = 1, archived_at = NOW() WHERE id = ? AND is_archived = 0");
+        $stmt->execute([$userId]);
+
+        // Log audit
+        require_once '../../includes/audit_helper.php';
+        logAudit($pdo, $userId, $_SESSION['username'] ?? 'unknown', 'user', 'delete', 'users', 'Patient self-deleted account');
+
+        // Destroy session
+        session_destroy();
+        ob_clean();
+
+        echo json_encode([
+            'success' => true,
+            'redirect' => '../../master/welcome-page/login.php?deleted=1'
+        ]);
+        exit();
+    } catch (Exception $e) {
+        error_log("Self-deletion error: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => 'An error occurred. Please try again.']);
+        exit();
+    }
+}
+
 // Accept Admin or admin from the roles table
 if (strtolower($role) !== 'admin' && strtolower($role) !== 'dentist') {
     ob_end_clean();
@@ -25,7 +82,6 @@ if (strtolower($role) !== 'admin' && strtolower($role) !== 'dentist') {
 
 header('Content-Type: application/json');
 
-$action = $_POST['action'] ?? '';
 $patientId = $_POST['patient_id'] ?? null;
 
 if (!$patientId || !is_numeric($patientId)) {

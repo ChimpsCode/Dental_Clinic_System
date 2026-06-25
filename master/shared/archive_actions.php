@@ -392,7 +392,7 @@ function handleRestore($pdo, $module, $ids) {
         // Special handling for users table
         if ($module === 'users') {
             // Get user details before restoring
-            $userStmt = $pdo->prepare("SELECT first_name, last_name FROM users WHERE id IN ($placeholders)");
+            $userStmt = $pdo->prepare("SELECT first_name, last_name, email FROM users WHERE id IN ($placeholders)");
             $userStmt->execute($ids);
             $usersToRestore = $userStmt->fetchAll(PDO::FETCH_ASSOC);
             
@@ -402,11 +402,24 @@ function handleRestore($pdo, $module, $ids) {
             
             // Also restore matching patients in patients table
             foreach ($usersToRestore as $user) {
-                $firstName = trim($user['first_name'] ?? '');
-                $lastName = trim($user['last_name'] ?? '');
-                if ($firstName && $lastName) {
-                    $patientCheck = $pdo->prepare("UPDATE patients SET is_archived = 0, deleted_at = NULL WHERE first_name = ? AND last_name = ? AND is_archived = 1");
-                    $patientCheck->execute([$firstName, $lastName]);
+                $restored = false;
+                // Try email match first (more reliable)
+                $email = trim($user['email'] ?? '');
+                if ($email !== '') {
+                    $patientCheck = $pdo->prepare("UPDATE patients SET is_archived = 0, deleted_at = NULL WHERE email = ? AND is_archived = 1");
+                    $patientCheck->execute([$email]);
+                    if ($patientCheck->rowCount() > 0) {
+                        $restored = true;
+                    }
+                }
+                // Fall back to name match
+                if (!$restored) {
+                    $firstName = trim($user['first_name'] ?? '');
+                    $lastName = trim($user['last_name'] ?? '');
+                    if ($firstName && $lastName) {
+                        $patientCheck = $pdo->prepare("UPDATE patients SET is_archived = 0, deleted_at = NULL WHERE first_name = ? AND last_name = ? AND is_archived = 1");
+                        $patientCheck->execute([$firstName, $lastName]);
+                    }
                 }
             }
         } else {
@@ -420,15 +433,28 @@ function handleRestore($pdo, $module, $ids) {
             // Also restore matching user in users table if restoring patient
             if ($module === 'patients') {
                 foreach ($ids as $patientId) {
-                    $patientStmt = $pdo->prepare("SELECT first_name, last_name FROM patients WHERE id = ?");
+                    $patientStmt = $pdo->prepare("SELECT first_name, last_name, email FROM patients WHERE id = ?");
                     $patientStmt->execute([$patientId]);
                     $patient = $patientStmt->fetch(PDO::FETCH_ASSOC);
                     if ($patient) {
-                        $firstName = trim($patient['first_name'] ?? '');
-                        $lastName = trim($patient['last_name'] ?? '');
-                        if ($firstName && $lastName) {
-                            $userRestore = $pdo->prepare("UPDATE users SET is_archived = 0, archived_at = NULL WHERE first_name = ? AND last_name = ? AND is_archived = 1");
-                            $userRestore->execute([$firstName, $lastName]);
+                        $restored = false;
+                        // Try email match first (more reliable)
+                        $email = trim($patient['email'] ?? '');
+                        if ($email !== '') {
+                            $userRestore = $pdo->prepare("UPDATE users SET is_archived = 0, archived_at = NULL WHERE email = ? AND is_archived = 1");
+                            $userRestore->execute([$email]);
+                            if ($userRestore->rowCount() > 0) {
+                                $restored = true;
+                            }
+                        }
+                        // Fall back to name match
+                        if (!$restored) {
+                            $firstName = trim($patient['first_name'] ?? '');
+                            $lastName = trim($patient['last_name'] ?? '');
+                            if ($firstName && $lastName) {
+                                $userRestore = $pdo->prepare("UPDATE users SET is_archived = 0, archived_at = NULL WHERE first_name = ? AND last_name = ? AND is_archived = 1");
+                                $userRestore->execute([$firstName, $lastName]);
+                            }
                         }
                     }
                 }
