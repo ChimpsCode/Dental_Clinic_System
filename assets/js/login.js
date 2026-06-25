@@ -282,6 +282,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('../../master/user-patient/patient_register.php', {
             method: 'POST',
             headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+            credentials: 'include',
             body: body.toString()
         })
         .then(async res => {
@@ -387,6 +388,7 @@ document.addEventListener('DOMContentLoaded', function() {
             fetch('../../master/user-patient/patient_register.php', {
                 method: 'POST',
                 headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+                credentials: 'include',
                 body: body.toString()
             })
             .then(async res => {

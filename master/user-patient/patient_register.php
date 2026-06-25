@@ -63,6 +63,7 @@ if ($action === 'verify_otp') {
     }
 
     if ((string)$enteredOtp !== (string)$storedOtp) {
+        error_log("RF_DEBUG OTP MISMATCH: entered=[" . var_export($enteredOtp, true) . "] stored=[" . var_export($storedOtp, true) . "] entered_type=" . gettype($enteredOtp) . " stored_type=" . gettype($storedOtp));
         respond(false, 'Invalid verification code. Please try again.');
     }
 

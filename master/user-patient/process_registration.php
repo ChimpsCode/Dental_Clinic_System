@@ -1,6 +1,6 @@
 <?php
-header('Content-Type: application/json');
 session_start();
+header('Content-Type: application/json');
 require_once '../../config/database.php';
 
 $action = trim($_POST['action'] ?? 'register');
@@ -24,6 +24,7 @@ if ($action === 'verify_otp') {
     }
 
     if ((string)$enteredOtp !== (string)$storedOtp) {
+        error_log("RF_DEBUG OTP MISMATCH: entered=[" . var_export($enteredOtp, true) . "] stored=[" . var_export($storedOtp, true) . "] entered_type=" . gettype($enteredOtp) . " stored_type=" . gettype($storedOtp));
         echo json_encode(['success' => false, 'message' => 'Invalid verification code. Please try again.']);
         exit();
     }

@@ -723,6 +723,7 @@ $assets = [
           formData.append('action', 'register');
           const response = await fetch('../user-patient/process_registration.php', {
             method: 'POST',
+            credentials: 'include',
             body: formData
           });
           return await response.json();
@@ -797,6 +798,7 @@ $assets = [
 
               const response = await fetch('../user-patient/process_registration.php', {
                 method: 'POST',
+                credentials: 'include',
                 body: formData
               });
 
