@@ -418,6 +418,16 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             }
             $_SESSION['first_login'] = $isFirstLogin ? 1 : 0;
             
+            // Detect first-time login via audit_logs
+            $_SESSION['is_new_patient'] = true;
+            try {
+                $priorLoginStmt = $pdo->prepare("SELECT COUNT(*) FROM audit_logs WHERE user_id = ? AND action_type = 'login'");
+                $priorLoginStmt->execute([$user['id']]);
+                $_SESSION['is_new_patient'] = ((int)$priorLoginStmt->fetchColumn() === 0);
+            } catch (Exception $e) {
+                $_SESSION['is_new_patient'] = false;
+            }
+            
             // Log successful login (only if not logged in recent session to prevent duplicates)
             require_once '../../includes/audit_helper.php';
             
@@ -557,7 +567,24 @@ if ($role === 'dentist') {
                 }
                 $_SESSION['first_login'] = $isFirstLogin ? 1 : 0;
                 
-// Skip duplicate login logging - already logged at line 390
+                // Detect first-time login via audit_logs
+                $_SESSION['is_new_patient'] = true;
+                try {
+                    $priorLoginStmt = $pdo->prepare("SELECT COUNT(*) FROM audit_logs WHERE user_id = ? AND action_type = 'login'");
+                    $priorLoginStmt->execute([$user['id']]);
+                    $_SESSION['is_new_patient'] = ((int)$priorLoginStmt->fetchColumn() === 0);
+                } catch (Exception $e) {
+                    $_SESSION['is_new_patient'] = false;
+                }
+                
+                // Log successful login
+                require_once '../../includes/audit_helper.php';
+                $recentCheck = $pdo->prepare("SELECT id FROM audit_logs WHERE username = ? AND action_type = 'login' AND created_at > DATE_SUB(NOW(), INTERVAL 5 SECOND) ORDER BY id DESC LIMIT 1");
+                $recentCheck->execute([$user['username']]);
+                if (!$recentCheck->fetch()) {
+                    logAudit($pdo, $user['id'], $user['username'], $role, 'login', 'users', 'Successful login from ' . ($_SERVER['HTTP_USER_AGENT'] ? 'web browser' : 'unknown device'));
+                }
+                
             // Redirect based on role
                 if ($role === 'admin') {
                     header('Location: ../admin/admin_dashboard.php');

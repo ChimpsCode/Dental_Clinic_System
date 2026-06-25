@@ -83,6 +83,7 @@ if ($action === 'verify_otp') {
         $_SESSION['patient_id'] = $patient_id;
         $_SESSION['display_name'] = $first_name;
         $_SESSION['new_registration'] = true;
+        $_SESSION['is_new_patient'] = true;
         $_SESSION['reg_data'] = null;
 
         echo json_encode([
