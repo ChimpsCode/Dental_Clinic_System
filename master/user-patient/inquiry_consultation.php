@@ -290,7 +290,8 @@ $pageTitle = 'Inquiry / Consultation';
         .icon-btn { background:transparent; border:none; color:#6b7280; font-size:18px; padding:8px; cursor:pointer; }
         .conv-text { flex:1; border:1px solid #d1d5db; padding:12px 20px; border-radius:999px; font:inherit; outline: none; }
         .conv-text:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-        .send-btn { background:#f3f4f6; border:none; color:#6b7280; padding:12px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+        .send-btn { background:#f3f4f6; border:none; color:#6b7280; padding:12px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition: color 0.2s, background 0.2s; }
+        .send-btn.has-text { color:#0070f3; background:#dbeaf1; }
 
         /* Clinic Profile Panel (Right Side) */
         .clinic-profile-card {
@@ -646,6 +647,12 @@ $pageTitle = 'Inquiry / Consultation';
         const form = document.getElementById('inquiryForm');
         const formAlert = document.getElementById('formAlert');
         const messagesList = document.getElementById('messagesList');
+        const concernInput = document.getElementById('concern');
+        const sendBtn = document.querySelector('.send-btn');
+
+        concernInput.addEventListener('input', () => {
+            sendBtn.classList.toggle('has-text', concernInput.value.trim().length > 0);
+        });
 
         function showFormAlert(type, message) {
             formAlert.className = `alert show ${type}`;
