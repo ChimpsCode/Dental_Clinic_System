@@ -949,6 +949,12 @@ require_once '../../includes/staff_layout_start.php';
         if (e.target === this) closeStaffCalDayModal();
     });
 
+    // Portal modal to body to escape stacking context (sidebar, header)
+    (function() {
+        const modal = document.getElementById('staffCalDayModal');
+        if (modal) document.body.appendChild(modal);
+    })();
+
     function filterAppointments() {
         const search = document.getElementById('searchAppointment').value.toLowerCase();
         const activeFilter = document.querySelector('.filter-tabs span.active').dataset.filter;
