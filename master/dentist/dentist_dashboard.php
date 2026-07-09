@@ -1071,6 +1071,8 @@ document.addEventListener('DOMContentLoaded', function() {
     z-index: 9999999; /* Exceptionally high z-index to cover sidebar */
     align-items: center; 
     justify-content: center;
+    padding: 40px;
+    box-sizing: border-box;
     backdrop-filter: blur(4px); /* Modern blur effect for background */
 }
 .fullscreen-modal-overlay.active { display: flex !important; }

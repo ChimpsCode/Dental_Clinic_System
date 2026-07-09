@@ -536,9 +536,16 @@ try {
                     $qcols = array_column($stmt->fetchAll(), 'Field');
                     $qupdates = [];
                     if (in_array('status', $qcols)) { $qupdates[] = "status = 'completed'"; }
+                    if (in_array('status_id', $qcols)) { $qupdates[] = "status_id = 3"; } // 3 = completed
                     if (in_array('updated_at', $qcols)) { $qupdates[] = "updated_at = NOW()"; }
                     if (!empty($qupdates)) {
-                        $stmt = $pdo->prepare("UPDATE queue SET " . implode(', ', $qupdates) . " WHERE id = ? AND status = 'pending_payment'");
+                        $whereClauses = ["id = ?"];
+                        if (in_array('status', $qcols)) {
+                            $whereClauses[] = "status = 'pending_payment'";
+                        } elseif (in_array('status_id', $qcols)) {
+                            $whereClauses[] = "status_id IN (1, 2)"; // only waiting or in_procedure
+                        }
+                        $stmt = $pdo->prepare("UPDATE queue SET " . implode(', ', $qupdates) . " WHERE " . implode(' AND ', $whereClauses));
                         $stmt->execute([$queue_id]);
                     }
                 }

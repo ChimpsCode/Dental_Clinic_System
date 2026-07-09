@@ -135,7 +135,7 @@ try {
 
 <!-- Patient Details Modal - Full Screen -->
 <div id="patientModal" class="modal-overlay">
-    <div class="modal">
+    <div class="modal" style="max-width: 900px;">
         <div class="modal-header">
             <div>
                 <h2 style="font-size: 1.5rem; font-weight: 600; margin: 0;">Patient Record Details</h2>
