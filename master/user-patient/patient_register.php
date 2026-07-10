@@ -52,6 +52,20 @@ if ($action === 'verify_otp') {
     $expires = $_SESSION['reg_otp_expires'] ?? 0;
     $regData = $_SESSION['reg_data'] ?? null;
 
+    $debug = sprintf(
+        "[%s] SID=%s entered=[%s] stored=[%s] entered_type=%s stored_type=%s expires=%d now=%d has_regData=%d\n",
+        date('Y-m-d H:i:s'),
+        session_id(),
+        var_export($enteredOtp, true),
+        var_export($storedOtp, true),
+        gettype($enteredOtp),
+        gettype($storedOtp),
+        $expires,
+        time(),
+        $regData ? 1 : 0
+    );
+    file_put_contents(__DIR__ . '/../../debug_otp.log', $debug, FILE_APPEND);
+
     if (!$regData || !$storedOtp) {
         respond(false, 'Registration session expired. Please try again.');
     }
@@ -63,7 +77,7 @@ if ($action === 'verify_otp') {
     }
 
     if ((string)$enteredOtp !== (string)$storedOtp) {
-        error_log("RF_DEBUG OTP MISMATCH: entered=[" . var_export($enteredOtp, true) . "] stored=[" . var_export($storedOtp, true) . "] entered_type=" . gettype($enteredOtp) . " stored_type=" . gettype($storedOtp));
+        file_put_contents(__DIR__ . '/../../debug_otp.log', "  -> MISMATCH\n", FILE_APPEND);
         respond(false, 'Invalid verification code. Please try again.');
     }
 
@@ -238,6 +252,10 @@ try {
         'phone' => $phone,
         'password' => $password,
     ];
+    file_put_contents(__DIR__ . '/../../debug_otp.log', sprintf(
+        "[%s] REGISTER SID=%s otp=[%s] email=%s\n",
+        date('Y-m-d H:i:s'), session_id(), $otpCode, $email
+    ), FILE_APPEND);
 
     require_once __DIR__ . '/../../includes/send_otp_email.php';
     $emailSent = sendOtpEmail($email, $firstName, $otpCode);

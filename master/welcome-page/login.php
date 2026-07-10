@@ -513,7 +513,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
             
             if ($user && verifyAndUpgradePassword($pdo, $user, $password)) {
                 // Regenerate session ID to prevent session fixation
-                session_regenerate_id(true);
+                session_regenerate_id(false);
                 
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
