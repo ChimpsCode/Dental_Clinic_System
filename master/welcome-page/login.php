@@ -364,7 +364,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
         
         if ($user && verifyAndUpgradePassword($pdo, $user, $password)) {
             // Clear existing session and set new session data
-            session_regenerate_id(true);
+            session_regenerate_id(false);
             
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
