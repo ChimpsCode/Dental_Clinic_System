@@ -123,8 +123,7 @@ try {
             SELECT COUNT(*) FROM appointments 
             WHERE patient_id = ? 
             AND DATE(appointment_date) = ?
-            AND status_id IN (1, 2)
-            AND (status = 'scheduled' OR status = 'in_queue' OR status IS NULL)
+            AND status IN ('Scheduled', 'In Queue')
         ");
         $checkStmt->execute([$patient_id, $appointment_date]);
         $activeCount = $checkStmt->fetchColumn();
@@ -135,7 +134,7 @@ try {
         }
         
         // Also check if patient is in queue
-        $checkStmt = $pdo->prepare("SELECT COUNT(*) FROM queue WHERE patient_id = ? AND status_id IN (1, 2)");
+        $checkStmt = $pdo->prepare("SELECT COUNT(*) FROM queue WHERE patient_id = ? AND status IN ('waiting', 'in_procedure')");
         $checkStmt->execute([$patient_id]);
         $inQueueCount = $checkStmt->fetchColumn();
         
@@ -166,8 +165,8 @@ try {
     
     // Create appointment
     $stmt = $pdo->prepare("INSERT INTO appointments 
-        (patient_id, appointment_date, appointment_time, service_id, notes, status, status_id, created_by, reference_code, created_at) 
-        VALUES (?, ?, ?, ?, ?, 'scheduled', 1, ?, ?, NOW())");
+        (patient_id, appointment_date, appointment_time, service_id, notes, status, created_by, reference_code, created_at) 
+        VALUES (?, ?, ?, ?, ?, 'Scheduled', ?, ?, NOW())");
     
     // Resolve service_id
     $service_id = null;

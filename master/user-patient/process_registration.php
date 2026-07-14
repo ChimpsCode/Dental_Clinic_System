@@ -3,6 +3,31 @@ session_start();
 header('Content-Type: application/json');
 require_once '../../config/database.php';
 
+function tableHasColumn(PDO $pdo, string $table, string $column): bool {
+    static $cache = [];
+    $key = $table . '.' . $column;
+    if (array_key_exists($key, $cache)) {
+        return $cache[$key];
+    }
+    $stmt = $pdo->prepare("SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ? LIMIT 1");
+    $stmt->execute([$table, $column]);
+    $cache[$key] = (bool)$stmt->fetchColumn();
+    return $cache[$key];
+}
+
+function findRoleId(PDO $pdo, string $roleName): ?int {
+    static $cache = [];
+    $key = strtolower($roleName);
+    if (array_key_exists($key, $cache)) {
+        return $cache[$key];
+    }
+    $stmt = $pdo->prepare("SELECT id FROM roles WHERE LOWER(role_name) = LOWER(?) LIMIT 1");
+    $stmt->execute([$roleName]);
+    $roleId = $stmt->fetchColumn();
+    $cache[$key] = $roleId !== false ? (int)$roleId : null;
+    return $cache[$key];
+}
+
 $action = trim($_POST['action'] ?? 'register');
 
 if ($action === 'verify_otp') {
@@ -46,8 +71,21 @@ if ($action === 'verify_otp') {
 
         $pdo->beginTransaction();
 
-        $stmt = $pdo->prepare("INSERT INTO users (first_name, middle_name, last_name, username, password, email, phone, gender, date_of_birth) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$first_name, $middle_name ?: null, $last_name, $email, $hashedPassword, $email, $phone, $gender, $date_of_birth ?: null]);
+        $userColumns = ['first_name', 'middle_name', 'last_name', 'username', 'password', 'email', 'phone', 'gender', 'date_of_birth'];
+        $userValues = [$first_name, $middle_name ?: null, $last_name, $email, $hashedPassword, $email, $phone, $gender, $date_of_birth ?: null];
+
+        if (tableHasColumn($pdo, 'users', 'role_id')) {
+            $patientRoleId = findRoleId($pdo, 'Patient');
+            $userColumns[] = 'role_id';
+            $userValues[] = $patientRoleId;
+        } elseif (tableHasColumn($pdo, 'users', 'role')) {
+            $userColumns[] = 'role';
+            $userValues[] = 'Patient';
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($userColumns), '?'));
+        $stmt = $pdo->prepare("INSERT INTO users (" . implode(', ', $userColumns) . ") VALUES ($placeholders)");
+        $stmt->execute($userValues);
         $user_id = $pdo->lastInsertId();
 
         $stmt = $pdo->prepare("

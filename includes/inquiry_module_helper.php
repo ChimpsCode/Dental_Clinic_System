@@ -231,10 +231,9 @@ function fetchInquiryServices(PDO $pdo): array
 function fetchAssignableStaff(PDO $pdo): array
 {
     $stmt = $pdo->query("
-        SELECT u.id, u.first_name, u.last_name, u.username, LOWER(r.role_name) AS role
+        SELECT u.id, u.first_name, u.last_name, u.username, LOWER(u.role) AS role
         FROM users u
-        LEFT JOIN roles r ON r.id = u.role_id
-        WHERE LOWER(COALESCE(r.role_name, '')) IN ('staff', 'admin', 'dentist')
+        WHERE LOWER(COALESCE(u.role, '')) IN ('staff', 'admin', 'dentist')
           AND COALESCE(u.status, 'Active') = 'Active'
         ORDER BY first_name, last_name, username
     ");

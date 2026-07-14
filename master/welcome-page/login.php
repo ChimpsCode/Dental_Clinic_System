@@ -358,7 +358,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             throw new Exception('Database connection not available');
         }
         
-        $stmt = $pdo->prepare("SELECT u.*, r.role_name FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE (u.username = ? OR u.email = ?) AND u.is_archived = 0 LIMIT 1");
+        $stmt = $pdo->prepare("SELECT u.* FROM users u WHERE (u.username = ? OR u.email = ?) AND u.is_archived = 0 LIMIT 1");
         $stmt->execute([$username, $username]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         
@@ -370,11 +370,11 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             $_SESSION['username'] = $user['username'];
             $_SESSION['email'] = $user['email'] ?? '';
             $_SESSION['profile_picture'] = $user['profile_picture'] ?? null;
-            // If role_id is NULL (patient user), default to 'user'; otherwise use role_name
-            if (empty($user['role_id'])) {
-                $role = 'user';
+
+            if (isset($user['role'])) {
+                $role = strtolower($user['role']);
             } else {
-                $role = strtolower($user['role_name'] ?? 'Admin');
+                $role = 'user';
             }
             if ($role === 'patient') { $role = 'user'; }
             if ($role === 'administrator') { $role = 'admin'; }
@@ -507,7 +507,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 throw new Exception('Database connection not available');
             }
             
-            $stmt = $pdo->prepare("SELECT u.*, r.role_name FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE (u.username = ? OR u.email = ?) AND u.is_archived = 0 LIMIT 1");
+            $stmt = $pdo->prepare("SELECT u.* FROM users u WHERE (u.username = ? OR u.email = ?) AND u.is_archived = 0 LIMIT 1");
             $stmt->execute([$username, $username]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
@@ -519,11 +519,11 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['email'] = $user['email'] ?? '';
                 $_SESSION['profile_picture'] = $user['profile_picture'] ?? null;
-                // If role_id is NULL (patient user), default to 'user'; otherwise use role_name
-                if (empty($user['role_id'])) {
-                    $role = 'user';
+
+                if (isset($user['role'])) {
+                    $role = strtolower($user['role']);
                 } else {
-                    $role = strtolower($user['role_name'] ?? 'Admin');
+                    $role = 'user';
                 }
                 if ($role === 'patient') { $role = 'user'; }
                 if ($role === 'administrator') { $role = 'admin'; }

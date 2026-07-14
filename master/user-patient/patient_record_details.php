@@ -56,7 +56,7 @@ try {
         $stmt = $pdo->prepare("
             SELECT id, treatment_type, teeth_numbers, completed_at
             FROM queue
-            WHERE patient_id = ? AND status_id = 5 AND is_archived = 0
+            WHERE patient_id = ? AND status = 'completed' AND is_archived = 0
             ORDER BY completed_at DESC
             LIMIT 20
         ");
@@ -71,10 +71,9 @@ try {
     $queueItem = null;
     try {
         $stmt = $pdo->prepare("
-            SELECT q.*, qs.status_name as status_text
+            SELECT q.*, q.status as status_text
             FROM queue q 
-            LEFT JOIN queue_statuses qs ON q.status_id = qs.id
-            WHERE q.patient_id = ? AND q.status_id IN (1, 2) AND q.is_archived = 0 
+            WHERE q.patient_id = ? AND q.status IN ('waiting', 'in_procedure') AND q.is_archived = 0 
             ORDER BY q.created_at DESC LIMIT 1
         ");
         $stmt->execute([$patientId]);
@@ -87,7 +86,7 @@ try {
     $billing = null;
     try {
         $stmt = $pdo->prepare("
-            SELECT id, total_amount, paid_amount, balance, payment_status, payment_status_id, billing_date, due_date, notes
+            SELECT id, total_amount, paid_amount, balance, payment_status, billing_date, due_date, notes
             FROM billing
             WHERE patient_id = ?
             ORDER BY created_at DESC

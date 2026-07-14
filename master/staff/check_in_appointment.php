@@ -103,16 +103,8 @@ try {
         'status' => 'waiting'
     ]);
 
-    $appointmentHasStatusId = columnExistsCheckIn($pdo, 'appointments', 'status_id');
-    $appointmentStatusesTableExists = tableExistsCheckIn($pdo, 'appointment_statuses');
-
-    if ($appointmentHasStatusId && $appointmentStatusesTableExists) {
-        $updateStmt = $pdo->prepare("UPDATE appointments SET status = 'arrived', status_id = NULL, updated_at = NOW() WHERE id = ?");
-        $updateStmt->execute([$appointmentId]);
-    } else {
-        $updateStmt = $pdo->prepare("UPDATE appointments SET status = 'arrived', updated_at = NOW() WHERE id = ?");
-        $updateStmt->execute([$appointmentId]);
-    }
+    $updateStmt = $pdo->prepare("UPDATE appointments SET status = 'arrived', updated_at = NOW() WHERE id = ?");
+    $updateStmt->execute([$appointmentId]);
 
     $pdo->commit();
 

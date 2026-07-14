@@ -45,8 +45,7 @@ try {
     } catch (Exception $e) {}
 
     $stmt = $pdo->prepare("UPDATE appointments SET 
-        status = 'cancelled',
-        status_id = 5,
+        status = 'Cancelled',
         cancel_reason = ?,
         cancelled_by = ?,
         cancelled_at = NOW()

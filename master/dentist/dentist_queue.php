@@ -17,13 +17,12 @@ try {
                COALESCE(p.last_name, '') as last_name, 
                COALESCE(p.suffix, '') as suffix, 
                COALESCE(p.phone, '') as phone,
-               COALESCE(qs.status_name, 'waiting') as status_text
+               COALESCE(q.status, 'waiting') as status_text
         FROM queue q 
         LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id
-        LEFT JOIN queue_statuses qs ON qs.id = q.status_id
-        WHERE q.status_id IN (1, 2, 3, 4, 5, 6) AND q.is_archived = 0
+        WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'cancelled', 'on_hold') AND q.is_archived = 0
         ORDER BY 
-            CASE COALESCE(qs.status_name, 'waiting')
+            CASE COALESCE(q.status, 'waiting')
                 WHEN 'in_procedure' THEN 1 
                 WHEN 'waiting' THEN 2 
                 WHEN 'completed' THEN 3 

@@ -98,6 +98,21 @@ if (isset($_GET['first_name']) || isset($_GET['last_name'])) {
         'email' => $_GET['email'] ?? ''
     ];
     $appointmentId = $appointmentId ?? ($_GET['appointment_id'] ?? null);
+    
+    // Even with URL params, fetch service_name from appointment for auto-check
+    if ($appointmentId) {
+        try {
+            require_once '../../config/database.php';
+            $svcStmt = $pdo->prepare("SELECT s.name as service_name FROM appointments a LEFT JOIN services s ON a.service_id = s.id WHERE a.id = ?");
+            $svcStmt->execute([$appointmentId]);
+            $svcRow = $svcStmt->fetch(PDO::FETCH_ASSOC);
+            if ($svcRow && !empty($svcRow['service_name'])) {
+                $appointmentData = $svcRow;
+            }
+        } catch (Exception $e) {
+            // Silent fail
+        }
+    }
 }
 
 // Otherwise try database lookup
@@ -107,13 +122,12 @@ elseif ($appointmentId) {
         
         $stmt = $pdo->prepare("SELECT a.*, 
                             p.first_name, p.middle_name, p.last_name, p.suffix,
-                            p.phone as patient_phone, p.date_of_birth, p.age, p.gender,
-                            addr.street_address as address, addr.city, addr.province, addr.zip_code,
+                            p.phone as patient_phone, p.date_of_birth, p.gender,
+                            p.street_address as address, p.city, p.province, p.zip_code,
                             p.email,
                             s.name as service_name
                             FROM appointments a 
                             LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
-                            LEFT JOIN addresses addr ON p.address_id = addr.id
                             LEFT JOIN services s ON a.service_id = s.id
                             WHERE a.id = ?");
         $stmt->execute([$appointmentId]);

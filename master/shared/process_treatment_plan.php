@@ -131,7 +131,7 @@ try {
                 WHERE a.appointment_date = ? 
                 AND a.appointment_time = ?
                 AND a.is_archived = 0
-                AND a.status_id NOT IN (SELECT id FROM appointment_statuses WHERE status_name IN ('cancelled', 'no-show'))
+                AND a.status NOT IN ('Cancelled')
             ");
             $conflictCheck->execute([$session_date, $apptTime]);
             $conflict = $conflictCheck->fetch(PDO::FETCH_ASSOC);
@@ -140,12 +140,7 @@ try {
                 throw new Exception("Time slot conflict! There is already an appointment ($conflict[reference_code]) for $conflict[first_name] $conflict[last_name] at this time.");
             }
             
-            // Get status ID for 'scheduled'
-            $apptStatusId = 1;
-            $chk = $pdo->query("SELECT id FROM appointment_statuses WHERE LOWER(status_name) = 'scheduled' LIMIT 1");
-            if ($row = $chk->fetch(PDO::FETCH_ASSOC)) {
-                $apptStatusId = $row['id'];
-            }
+            $refCode = 'APT' . strtoupper(substr(md5(uniqid()), 0, 6));
             
             // Get service info
             $serviceId = null;
@@ -157,15 +152,13 @@ try {
                 $duration = $row['duration_minutes'] ?? 30;
             }
             
-            $refCode = 'APT' . strtoupper(substr(md5(uniqid()), 0, 6));
-            
             // Create the appointment
             $ins = $pdo->prepare("
                 INSERT INTO appointments 
-                (reference_code, patient_id, service_id, status_id, appointment_date, appointment_time, duration_minutes, booked_by_id, created_by, created_at, is_archived) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 0)
+                (reference_code, patient_id, service_id, status, appointment_date, appointment_time, duration_minutes, booked_by_id, created_by, created_at, is_archived) 
+                VALUES (?, ?, ?, 'Scheduled', ?, ?, ?, ?, ?, NOW(), 0)
             ");
-            $ins->execute([$refCode, $patient_id, $serviceId, $apptStatusId, $session_date, $apptTime, $duration, $doctor_id, $doctor_id]);
+            $ins->execute([$refCode, $patient_id, $serviceId, $session_date, $apptTime, $duration, $doctor_id, $doctor_id]);
             
             $apptId = $pdo->lastInsertId();
             

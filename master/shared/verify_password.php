@@ -17,7 +17,7 @@ if (empty($password)) {
 require_once '../../config/database.php';
 
 // Get admin user
-$stmt = $pdo->prepare("SELECT id, password FROM users WHERE role_id = 1 LIMIT 1");
+$stmt = $pdo->prepare("SELECT id, password FROM users WHERE role = 'Admin' LIMIT 1");
 $stmt->execute();
 $admin = $stmt->fetch();
 

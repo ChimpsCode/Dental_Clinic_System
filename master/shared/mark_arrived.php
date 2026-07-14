@@ -24,7 +24,7 @@ if (!$apptId) {
 }
 
 try {
-    $stmt = $pdo->prepare("UPDATE appointments SET check_in_time = NOW(), status = 'arrived', status_id = NULL WHERE id = ?");
+    $stmt = $pdo->prepare("UPDATE appointments SET check_in_time = NOW(), status = 'arrived' WHERE id = ?");
     $stmt->execute([$apptId]);
 
     if ($stmt->rowCount() === 0) {

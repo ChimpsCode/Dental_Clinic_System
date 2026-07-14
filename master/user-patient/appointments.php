@@ -36,6 +36,53 @@ $patient_name = 'Patient';
 
 require_once '../../config/database.php';
 
+// Resolve patient_id from user account if session has no valid link
+if ($user_id) {
+    try {
+        $hasPatientUserId = (bool)$pdo->query("SHOW COLUMNS FROM patients LIKE 'user_id'")->fetch(PDO::FETCH_ASSOC);
+
+        if ($hasPatientUserId && !$patient_id) {
+            $resolveStmt = $pdo->prepare("SELECT id FROM patients WHERE user_id = ? AND is_archived = 0 LIMIT 1");
+            $resolveStmt->execute([$user_id]);
+            $resolved = $resolveStmt->fetch(PDO::FETCH_ASSOC);
+            if ($resolved) {
+                $patient_id = (int)$resolved['id'];
+                $_SESSION['patient_id'] = $patient_id;
+            }
+        }
+
+        if (!$patient_id) {
+            $userStmt = $pdo->prepare("SELECT email FROM users WHERE id = ? LIMIT 1");
+            $userStmt->execute([$user_id]);
+            $userInfo = $userStmt->fetch(PDO::FETCH_ASSOC);
+            if (!empty($userInfo['email'])) {
+                $resolveStmt = $pdo->prepare("SELECT id FROM patients WHERE email = ? AND is_archived = 0 LIMIT 1");
+                $resolveStmt->execute([$userInfo['email']]);
+                $resolved = $resolveStmt->fetch(PDO::FETCH_ASSOC);
+                if ($resolved) {
+                    $patient_id = (int)$resolved['id'];
+                    $_SESSION['patient_id'] = $patient_id;
+                }
+            }
+        }
+
+        if (!$patient_id) {
+            $userStmt = $pdo->prepare("SELECT phone FROM users WHERE id = ? LIMIT 1");
+            $userStmt->execute([$user_id]);
+            $userInfo = $userStmt->fetch(PDO::FETCH_ASSOC);
+            if (!empty($userInfo['phone'])) {
+                $resolveStmt = $pdo->prepare("SELECT id FROM patients WHERE phone = ? AND is_archived = 0 LIMIT 1");
+                $resolveStmt->execute([$userInfo['phone']]);
+                $resolved = $resolveStmt->fetch(PDO::FETCH_ASSOC);
+                if ($resolved) {
+                    $patient_id = (int)$resolved['id'];
+                    $_SESSION['patient_id'] = $patient_id;
+                }
+            }
+        }
+    } catch (Exception $e) {}
+}
+
 // Get patient data
 $stmt = $pdo->prepare("SELECT * FROM patients WHERE id = ?");
 $stmt->execute([$patient_id]);
@@ -49,14 +96,22 @@ if ($patient) {
     $avatar_initial = strtoupper(substr($firstName, 0, 1)) . strtoupper(substr($lastName, 0, 1));
 }
 
+// Check if is_archived column exists on appointments
+$hasArchivedCol = false;
+try {
+    $checkArchived = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'is_archived'");
+    $hasArchivedCol = $checkArchived && $checkArchived->rowCount() > 0;
+} catch (Exception $e) { $hasArchivedCol = false; }
+
 // Get appointments for this patient
+$archivedFilter = $hasArchivedCol ? " AND a.is_archived = 0" : "";
 $stmt = $pdo->prepare("
     SELECT a.*, 
            s.name as service_name,
            COALESCE(a.status, 'Scheduled') as status_name
     FROM appointments a
     LEFT JOIN services s ON a.service_id = s.id
-    WHERE a.patient_id = ?
+    WHERE a.patient_id = ?{$archivedFilter}
     ORDER BY a.appointment_date DESC, a.appointment_time DESC
 ");
 $stmt->execute([$patient_id]);
@@ -64,9 +119,13 @@ $all_appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Separate upcoming and past
 $today = date('Y-m-d');
+$completedStatuses = ['completed', 'cancelled'];
 foreach ($all_appointments as $apt) {
     $apt_date = substr($apt['appointment_date'], 0, 10);
-    if ($apt_date >= $today) {
+    $apt_status = strtolower(trim($apt['status'] ?? ''));
+    if (in_array($apt_status, $completedStatuses)) {
+        $past_appointments[] = $apt;
+    } elseif ($apt_date >= $today) {
         $upcoming_appointments[] = $apt;
     } else {
         $past_appointments[] = $apt;

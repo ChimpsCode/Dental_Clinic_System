@@ -36,7 +36,7 @@ try {
     $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.last_name 
                           FROM queue q 
                           JOIN patients p ON q.patient_id = p.id 
-                          WHERE q.id = ? AND q.status_id IN (1, 2) AND q.is_archived = 0");
+                          WHERE q.id = ? AND q.status IN ('waiting', 'in_procedure') AND q.is_archived = 0");
     $stmt->execute([$queueId]);
     $queueItem = $stmt->fetch(PDO::FETCH_ASSOC);
     

@@ -17,15 +17,14 @@ try {
                COALESCE(p.last_name, '') as last_name, 
                COALESCE(p.suffix, '') as suffix, 
                COALESCE(p.phone, '') as phone,
-               COALESCE(qs.status_name, 'waiting') as status_text,
-               'queue' as source_type,
-               NULL as appointment_id,
-               NULL as assigned_doctor,
-               q.queue_time as display_time
+               COALESCE(q.status, 'waiting') as status_text,
+                'queue' as source_type,
+                NULL as appointment_id,
+                NULL as assigned_doctor,
+                q.queue_time as display_time
         FROM queue q 
         LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id
-        LEFT JOIN queue_statuses qs ON qs.id = q.status_id
-        WHERE q.status_id IN (1, 2, 3, 4, 5, 6) AND q.is_archived = 0
+        WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'cancelled', 'on_hold') AND q.is_archived = 0
     ");
     $allQueueItems = $allStmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -33,7 +32,7 @@ try {
         SELECT 
             NULL as id,
             a.patient_id,
-            a.status_id,
+            a.status,
             a.created_at,
             a.notes,
             COALESCE(p.first_name, 'Unknown') as first_name,
@@ -42,9 +41,9 @@ try {
             COALESCE(p.suffix, '') as suffix,
             COALESCE(p.phone, '') as phone,
             CASE
-                WHEN a.status_id = 2 THEN 'waiting'
-                WHEN a.status_id = 1 THEN 'waiting'
-                ELSE LOWER(COALESCE(st.status_name, 'waiting'))
+                WHEN a.status = 'In Queue' THEN 'waiting'
+                WHEN a.status = 'Scheduled' THEN 'waiting'
+                ELSE LOWER(COALESCE(a.status, 'waiting'))
             END as status_text,
             'appointment' as source_type,
             a.id as appointment_id,
@@ -55,15 +54,14 @@ try {
             COALESCE(a.appointment_time, '') as display_time
         FROM appointments a
         LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
-        LEFT JOIN appointment_statuses st ON st.id = a.status_id
         LEFT JOIN services s ON s.id = a.service_id
-        WHERE a.status_id IN (1, 2)
+        WHERE a.status IN ('Scheduled', 'In Queue')
           AND NOT EXISTS (
               SELECT 1
               FROM queue q
               WHERE CAST(q.patient_id AS UNSIGNED) = CAST(a.patient_id AS UNSIGNED)
                 AND q.is_archived = 0
-                AND q.status_id IN (1, 2, 3, 4, 5, 6)
+                AND q.status IN ('waiting', 'in_procedure', 'completed', 'cancelled', 'on_hold')
           )
     ");
     $appointmentQueueItems = $appointmentStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -1432,7 +1430,7 @@ function viewPatientQueue(patientId) {
                         </div>
                         <div class="patient-info-item" style="grid-column: 1 / -1;">
                             <div class="patient-info-label">Address</div>
-                            <div class="patient-info-value">${p.address || 'N/A'}${p.city ? ', ' + p.city : ''}${p.province ? ', ' + p.province : ''}</div>
+                            <div class="patient-info-value">${p.street_address || 'N/A'}${p.city ? ', ' + p.city : ''}${p.province ? ', ' + p.province : ''}</div>
                         </div>
                     </div>
                     <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px; margin-bottom: 20px;">

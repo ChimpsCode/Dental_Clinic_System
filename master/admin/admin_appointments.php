@@ -55,11 +55,10 @@ try {
                          p.first_name, p.middle_name, p.last_name,
                          COALESCE(p.phone, '') AS phone,
                          s.name as service_name,
-                         st.status_name as status_label
+                         a.status as status_label
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id
                          LEFT JOIN services s ON a.service_id = s.id
-                         LEFT JOIN appointment_statuses st ON a.status_id = st.id
                          " . $whereClause);
     $allAppointments = $allStmt->fetchAll(PDO::FETCH_ASSOC);
     
@@ -68,12 +67,11 @@ try {
                          p.first_name, p.middle_name, p.last_name,
                          COALESCE(p.phone, '') AS phone,
                          s.name as service_name,
-                         st.status_name as status_label,
+                         a.status as status_label,
                          tp.id as treatment_plan_id, tp.plan_name as treatment_plan_name
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id 
                          LEFT JOIN services s ON a.service_id = s.id
-                         LEFT JOIN appointment_statuses st ON a.status_id = st.id
                          LEFT JOIN treatment_plans tp ON a.id = tp.appointment_id
                          $whereClause
                          ORDER BY a.created_at DESC
@@ -97,22 +95,11 @@ $completedCount = 0;
 $pendingCount = 0;
 $cancelledCount = 0;
 try {
-    $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'status'");
-    $hasStatusCol = $checkCol->fetch() !== false;
-    
     $baseWhere = $countWhereClause ? $countWhereClause . " AND " : "WHERE ";
     $todayCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
-    
-    if ($hasStatusCol) {
-        $completedCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) = 'completed' AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
-        $pendingCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) IN ('scheduled','pending') AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
-        $cancelledCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere LOWER(status) = 'cancelled' AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
-    } else {
-        // status_id: 4=completed, 5=cancelled, 1=scheduled, 2=confirmed
-        $completedCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere status_id = 4 AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
-        $pendingCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere status_id IN (1,2) AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
-        $cancelledCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere status_id = 5 AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
-    }
+    $completedCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere status = 'Completed' AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
+    $pendingCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere status IN ('Scheduled','In Queue') AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
+    $cancelledCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere status = 'Cancelled' AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
 } catch (Exception $e) {
     $todayCount = 0;
     $completedCount = 0;
@@ -266,21 +253,12 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                         <td>
                                             <?php 
                                                 // Robust status resolution
-                                                $statusId = (int)($appt['status_id'] ?? 0);
-                                                $status = $appt['status_label'];
-                                                
-                                                if (!$status) {
-                                                    if ($statusId === 1) $status = 'Scheduled';
-                                                    elseif ($statusId === 2) $status = 'In Queue';
-                                                    elseif ($statusId === 3) $status = 'Pending Payment';
-                                                    elseif ($statusId === 4) $status = 'Completed';
-                                                    elseif ($statusId === 5) $status = 'Cancelled';
-                                                    else $status = $appt['status'] ?? 'Scheduled';
-                                                }
+                                                $status = $appt['status_label'] ?? $appt['status'] ?? 'Scheduled';
                                                 
                                                 $statusClass = strtolower($status);
                                                 // Map status to badge class
                                                 $badgeClass = 'status-scheduled';
+                                                if (stripos($status, 'arrived') !== false) $badgeClass = 'status-arrived';
                                                 if (stripos($status, 'queue') !== false) $badgeClass = 'status-in-queue';
                                                 if (stripos($status, 'pending') !== false) $badgeClass = 'status-pending';
                                                 if (stripos($status, 'complete') !== false) $badgeClass = 'status-completed';
@@ -292,7 +270,6 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                             <div class="appt-kebab-menu">
                                                 <button class="appt-kebab-btn"
                                                         data-appt-id="<?php echo $appt['id']; ?>"
-                                                        data-status-id="<?php echo $appt['status_id']; ?>"
                                                         data-status="<?php echo htmlspecialchars($status); ?>"
                                                         data-checked-in="<?php echo $appt['check_in_time'] ?? ''; ?>">
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -731,7 +708,12 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
 .status-badge.status-cancelled, .status-badge.status-cancel {
     background: #fee2e2;
-    color: #dc2626;
+    color: #991b1b;
+}
+
+.status-badge.status-arrived {
+    background: #ccfbf1;
+    color: #0f766e;
 }
 
 .status-badge.status-no-show {
@@ -867,7 +849,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                             <div style="font-weight: 500;">${name}</div>
                             <div style="font-size: 14px; color: #6b7280;">${time} - ${appt.service_name || 'General'}</div>
                         </div>
-                        <span class="status-badge" style="background: ${status === 'Completed' ? '#d1fae5' : status === 'Cancelled' ? '#fee2e2' : '#e0f2fe'}; color: ${status === 'Completed' ? '#065f46' : status === 'Cancelled' ? '#dc2626' : '#1d4ed8'};">${status}</span>
+                        <span class="status-badge" style="background: ${status === 'Completed' ? '#d1fae5' : status === 'Cancelled' ? '#fee2e2' : status.toLowerCase() === 'arrived' ? '#ccfbf1' : '#e0f2fe'}; color: ${status === 'Completed' ? '#065f46' : status === 'Cancelled' ? '#dc2626' : status.toLowerCase() === 'arrived' ? '#0f766e' : '#1d4ed8'};">${status}</span>
                     </div>
                 </div>`;
             });
@@ -997,7 +979,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 <div><span style="color: #6b7280;">Date:</span> <span style="font-weight: 500; margin-left: 8px;">${new Date(appt.appointment_date).toLocaleDateString()}</span></div>
                 <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.appointment_time || 'N/A'}</span></div>
                 <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.treatment || 'General'}</span></div>
-                <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${appt.status === 'Completed' ? '#dcfce7' : appt.status === 'Cancelled' ? '#fee2e2' : '#e0f2fe'}; color: ${appt.status === 'Completed' ? '#15803d' : appt.status === 'Cancelled' ? '#dc2626' : '#0369a1'};">${appt.status ? appt.status.charAt(0).toUpperCase() + appt.status.slice(1) : 'Pending'}</span></div>
+                <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${appt.status === 'Completed' ? '#dcfce7' : appt.status === 'Cancelled' ? '#fee2e2' : (appt.status || '').toLowerCase() === 'arrived' ? '#ccfbf1' : '#e0f2fe'}; color: ${appt.status === 'Completed' ? '#15803d' : appt.status === 'Cancelled' ? '#dc2626' : (appt.status || '').toLowerCase() === 'arrived' ? '#0f766e' : '#0369a1'};">${appt.status ? appt.status.charAt(0).toUpperCase() + appt.status.slice(1) : 'Pending'}</span></div>
                 ${appt.notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${appt.notes}</p></div>` : ''}
             </div>
         `;
@@ -1095,10 +1077,9 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
     function getApptMenuItems(apptId) {
         // Get status from the button's data attributes
         const button = document.querySelector(`.appt-kebab-btn[data-appt-id="${apptId}"]`);
-        const statusId = button ? parseInt(button.getAttribute('data-status-id')) : 0;
         const status = button ? button.getAttribute('data-status') : '';
         const checkedIn = button ? button.getAttribute('data-checked-in') : '';
-        const isCancelled = (statusId == 5 || (status && status.toLowerCase().includes('cancel')));
+        const isCancelled = (status && status.toLowerCase().includes('cancel'));
         const isArrived = checkedIn && checkedIn.trim() !== '';
 
         let menuItems = `

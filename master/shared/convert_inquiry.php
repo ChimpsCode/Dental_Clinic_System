@@ -93,8 +93,8 @@ try {
     
     // Create appointment
     $stmt = $pdo->prepare("INSERT INTO appointments 
-        (patient_id, appointment_date, appointment_time, service_id, notes, status, status_id, created_by, created_at) 
-        VALUES (?, ?, ?, ?, ?, 'scheduled', 1, ?, NOW())");
+        (patient_id, appointment_date, appointment_time, service_id, notes, status, created_by, created_at) 
+        VALUES (?, ?, ?, ?, ?, 'Scheduled', ?, NOW())");
     
     // Resolve service_id
     $service_id = null;

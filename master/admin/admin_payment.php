@@ -37,13 +37,13 @@ try {
         $params[':searchId'] = '%' . $searchQuery . '%';
     }
 
-    // Fix: use payment_status_id
+    // Filter by payment status
     if ($statusFilter === 'paid') {
-        $whereClause .= " AND b.payment_status_id = 1";
+        $whereClause .= " AND b.payment_status = 'Paid'";
     } elseif ($statusFilter === 'partial') {
-        $whereClause .= " AND b.payment_status_id = 2";
+        $whereClause .= " AND b.payment_status = 'Partial'";
     } elseif ($statusFilter === 'unpaid') {
-        $whereClause .= " AND b.payment_status_id IN (3, 4)";
+        $whereClause .= " AND b.payment_status IN ('Unpaid', 'Overdue')";
     }
 
     switch ($dateFilter) {
@@ -60,13 +60,13 @@ try {
             break;
     }
 
-    // Fix: use payment_status_id
+    // Stats by payment status
     $statsStmt = $pdo->query("
         SELECT
-            COALESCE(SUM(CASE WHEN payment_status_id IN (1, 2) THEN paid_amount ELSE 0 END), 0) AS total_collected,
-            COALESCE(SUM(CASE WHEN payment_status_id IN (2, 3, 4) THEN balance ELSE 0 END), 0) AS pending_payments,
+            COALESCE(SUM(CASE WHEN payment_status IN ('Paid', 'Partial') THEN paid_amount ELSE 0 END), 0) AS total_collected,
+            COALESCE(SUM(CASE WHEN payment_status IN ('Partial', 'Unpaid', 'Overdue') THEN balance ELSE 0 END), 0) AS pending_payments,
             COUNT(*) AS total_transactions,
-            SUM(CASE WHEN payment_status_id IN (3, 4) AND billing_date < CURDATE() THEN 1 ELSE 0 END) AS overdue_count
+            SUM(CASE WHEN payment_status IN ('Unpaid', 'Overdue') AND billing_date < CURDATE() THEN 1 ELSE 0 END) AS overdue_count
         FROM billing
     ");
     $stats = $statsStmt->fetch(PDO::FETCH_ASSOC) ?: [];
@@ -96,7 +96,7 @@ try {
             b.total_amount,
             b.paid_amount,
             b.balance,
-            ps.status_name AS payment_status,
+            b.payment_status AS payment_status,
             b.billing_date,
             b.due_date,
             p.first_name,
@@ -110,7 +110,6 @@ try {
         LEFT JOIN treatments t ON t.id = b.treatment_id
         LEFT JOIN appointments a ON a.id = b.appointment_id
         LEFT JOIN services svc ON a.service_id = svc.id
-        LEFT JOIN payment_statuses ps ON b.payment_status_id = ps.id
         $whereClause
         ORDER BY b.billing_date DESC
         LIMIT $perPage OFFSET $offset

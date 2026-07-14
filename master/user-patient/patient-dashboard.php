@@ -129,9 +129,8 @@ try {
     
     // Get appointments - only upcoming ones
     $stmt = $pdo->prepare("
-        SELECT a.*, aps.status_name as status_label
+        SELECT a.*, a.status as status_label
         FROM appointments a 
-        LEFT JOIN appointment_statuses aps ON a.status_id = aps.id
         WHERE a.patient_id = ? AND a.appointment_date >= CURDATE()
         ORDER BY a.appointment_date ASC, a.appointment_time ASC
         LIMIT 5
@@ -186,7 +185,7 @@ try {
     $inquiryClinicName = $inquiryClinicSettings['clinic_name'] ?? 'RF Dental Clinic';
     $inquiryClinicLogo = $inquiryClinicSettings['welcome_logo'] ?? '';
     $inquiryLogoFull = $inquiryClinicLogo ? '../../' . $inquiryClinicLogo : '../../assets/images/Logo.png';
-    $inquiryAdminPicStmt = $pdo->prepare("SELECT profile_picture FROM users WHERE role_id = 1 ORDER BY id ASC LIMIT 1");
+    $inquiryAdminPicStmt = $pdo->prepare("SELECT profile_picture FROM users WHERE role = 'Admin' ORDER BY id ASC LIMIT 1");
     $inquiryAdminPicStmt->execute();
     $inquiryAdminPicPath = $inquiryAdminPicStmt->fetchColumn();
     $inquiryClinicAvatar = ($inquiryAdminPicPath && file_exists(dirname(__DIR__, 2) . '/' . $inquiryAdminPicPath)) ? '../../' . $inquiryAdminPicPath : $inquiryLogoFull;

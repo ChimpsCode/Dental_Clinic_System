@@ -88,12 +88,6 @@ try {
         }
     }
     
-    // Get the status_id for 'Scheduled'
-    $stmt = $pdo->prepare("SELECT id FROM appointment_statuses WHERE LOWER(status_name) = 'scheduled' LIMIT 1");
-    $stmt->execute();
-    $status_row = $stmt->fetch(PDO::FETCH_ASSOC);
-    $status_id = $status_row['id'] ?? 1; // Default to 1 if not found
-
     $pdo->beginTransaction();
 
     // Check what columns exist
@@ -150,11 +144,7 @@ try {
     }
     if (in_array('status', $columns)) {
         $colList[] = 'status';
-        $params[] = 'scheduled';
-    }
-    if (in_array('status_id', $columns)) {
-        $colList[] = 'status_id';
-        $params[] = 1;
+        $params[] = 'Scheduled';
     }
     
     $sql = "INSERT INTO appointments (" . implode(', ', $colList) . ") VALUES (" . implode(', ', array_fill(0, count($params), '?')) . ")";

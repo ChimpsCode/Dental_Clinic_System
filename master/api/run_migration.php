@@ -130,6 +130,20 @@ try {
     $pdo->exec("UPDATE appointments SET `status_id` = 2 WHERE `status` = 'confirmed'");
     echo "✓ Updated existing appointments with status_id\n";
     
+    // ==============================================
+    // 7. FIX TEETH_NUMBERS COLUMN SIZE
+    // ==============================================
+    $result = $pdo->query("SHOW COLUMNS FROM queue LIKE 'teeth_numbers'");
+    if ($row = $result->fetch(PDO::FETCH_ASSOC)) {
+        $type = $row['Type'] ?? '';
+        if (stripos($type, 'varchar(50)') !== false || stripos($type, 'varchar(100)') !== false) {
+            $pdo->exec("ALTER TABLE `queue` MODIFY COLUMN `teeth_numbers` VARCHAR(255) DEFAULT NULL");
+            echo "✓ Enlarged queue.teeth_numbers from $type to varchar(255)\n";
+        } else {
+            echo "- queue.teeth_numbers already adequate ($type)\n";
+        }
+    }
+    
     $pdo->commit();
     
     echo "\n========================================\n";

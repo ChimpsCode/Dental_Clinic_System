@@ -8,16 +8,14 @@ try {
     $stmt = $pdo->prepare("
         SELECT p.*, 
                TIMESTAMPDIFF(YEAR, p.date_of_birth, CURDATE()) as age,
-               a.status_id as appointment_status_id,
-               a.status_name as appointment_status,
+               a.status as appointment_status,
                a.appointment_date,
                a.appointment_time,
                svc.name as service_name
         FROM patients p 
         LEFT JOIN (
-            SELECT a1.*, s.status_name
+            SELECT a1.*
             FROM appointments a1
-            LEFT JOIN appointment_statuses s ON a1.status_id = s.id
             WHERE a1.id = (
                 SELECT MAX(a2.id) FROM appointments a2 WHERE a2.patient_id = a1.patient_id
             )
@@ -35,14 +33,14 @@ try {
     $inQueueStmt = $pdo->query("
         SELECT COUNT(DISTINCT p.id) FROM patients p
         INNER JOIN appointments a ON p.id = a.patient_id
-        WHERE p.is_archived = 0 AND a.status_id IN (1, 2) AND a.appointment_date >= CURDATE()
+        WHERE p.is_archived = 0 AND a.status IN ('Scheduled', 'In Queue') AND a.appointment_date >= CURDATE()
     ");
     $inQueue = $inQueueStmt->fetchColumn();
     
     $completedStmt = $pdo->query("
         SELECT COUNT(DISTINCT p.id) FROM patients p
         INNER JOIN appointments a ON p.id = a.patient_id
-        WHERE p.is_archived = 0 AND a.status_id = 3
+        WHERE p.is_archived = 0 AND a.status = 'Completed'
     ");
     $completedCount = $completedStmt->fetchColumn();
     
@@ -98,9 +96,11 @@ try {
     
     <select id="statusFilter" class="filter-select">
         <option value="">All Status</option>
-        <option value="waiting">Waiting</option>
-        <option value="in_procedure">In Procedure</option>
-        <option value="completed">Completed</option>
+        <option value="Scheduled">Scheduled</option>
+        <option value="In Queue">In Queue</option>
+        <option value="Pending Payment">Pending Payment</option>
+        <option value="Completed">Completed</option>
+        <option value="Cancelled">Cancelled</option>
     </select>
     
     <select id="sortFilter" class="filter-select">
@@ -156,8 +156,8 @@ let currentPage = 1;
 let perPage = 7;
 let filteredPatients = [...allPatients];
 
-const statusLabels = {0:'--',1:'Scheduled',2:'In Queue',3:'Unpaid',4:'Done',5:'Cancelled'};
-const statusColors = {0:'#f3f4f6:#6b7280',1:'#dbeafe:#1d4ed8',2:'#fef3c7:#92400e',3:'#fed7aa:#c2410c',4:'#d1fae5:#065f46',5:'#fee2e2:#dc2626'};
+const statusLabels = {'Scheduled':'Scheduled','In Queue':'In Queue','Pending Payment':'Pending Payment','Completed':'Completed','Cancelled':'Cancelled'};
+const statusColors = {'Scheduled':'#dbeafe:#1d4ed8','In Queue':'#fef3c7:#92400e','Pending Payment':'#fed7aa:#c2410c','Completed':'#d1fae5:#065f46','Cancelled':'#fee2e2:#dc2626'};
 
 // Portal Pattern: Move modals to body level
 document.addEventListener('DOMContentLoaded', function() {
@@ -192,22 +192,14 @@ function applyFilters() {
     const statusVal = document.getElementById('statusFilter').value;
     const sortVal = document.getElementById('sortFilter').value;
 
-    const statusMap = {
-        'waiting': [2],
-        'in_procedure': [1],
-        'completed': [4],
-        'scheduled': [1],
-        'none': [0]
-    };
-
     filteredPatients = allPatients.filter(function(p) {
         const haystack = ((p.first_name||'') + ' ' + (p.middle_name||'') + ' ' + (p.last_name||'') + ' ' + (p.phone||'')).toLowerCase();
         const matchesSearch = !query || haystack.includes(query);
 
         let matchesStatus = true;
         if (statusVal) {
-            const sId = Number(p.appointment_status_id || 0);
-            matchesStatus = (statusMap[statusVal] || []).includes(sId);
+            const s = (p.appointment_status || '');
+            matchesStatus = (s === statusVal);
         }
         return matchesSearch && matchesStatus;
     });
@@ -239,9 +231,9 @@ function renderTable() {
     }
 
     tbody.innerHTML = pageData.map(function(p) {
-        const sId = Number(p.appointment_status_id || 0);
-        const label = statusLabels[sId] || '--';
-        const [bg, text] = (statusColors[sId] || '#f3f4f6:#6b7280').split(':');
+        const s = (p.appointment_status || '');
+        const label = statusLabels[s] || '--';
+        const [bg, text] = (statusColors[s] || '#f3f4f6:#6b7280').split(':');
         const age = p.age || 'N/A';
         const gender = p.gender || 'N/A';
         const phone = p.phone || 'N/A';
@@ -417,7 +409,7 @@ function viewPatientDetails(patientId) {
                     </div>
                     <div class="patient-info-item" style="grid-column: 1 / -1;">
                         <div class="patient-info-label">Address</div>
-                        <div class="patient-info-value">${p.address || 'N/A'} ${p.city ? ', ' + p.city : ''} ${p.province ? ', ' + p.province : ''}</div>
+                        <div class="patient-info-value">${p.street_address || 'N/A'} ${p.city ? ', ' + p.city : ''} ${p.province ? ', ' + p.province : ''}</div>
                     </div>
                 </div>
 

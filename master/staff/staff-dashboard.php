@@ -9,13 +9,12 @@ try {
     ensureQueueManagementSchema($pdo);
     // Get queue data
     $stmt = $pdo->query("
-        SELECT q.*, COALESCE(p.first_name, 'Unknown') as first_name, COALESCE(p.middle_name, '') as middle_name, COALESCE(p.last_name, '') as last_name, COALESCE(p.suffix, '') as suffix, COALESCE(p.phone, '') as phone, COALESCE(qs.status_name, 'waiting') as status_text
+        SELECT q.*, COALESCE(p.first_name, 'Unknown') as first_name, COALESCE(p.middle_name, '') as middle_name, COALESCE(p.last_name, '') as last_name, COALESCE(p.suffix, '') as suffix, COALESCE(p.phone, '') as phone, COALESCE(q.status, 'waiting') as status_text
         FROM queue q 
         LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id 
-        LEFT JOIN queue_statuses qs ON qs.id = q.status_id
-        WHERE q.status_id IN (1, 2, 3, 4, 5, 6) AND q.is_archived = 0
+        WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'cancelled', 'on_hold') AND q.is_archived = 0
         ORDER BY 
-            CASE COALESCE(qs.status_name, 'waiting')
+            CASE COALESCE(q.status, 'waiting')
                 WHEN 'in_procedure' THEN 1 
                 WHEN 'waiting' THEN 2 
                 WHEN 'completed' THEN 3 
@@ -266,16 +265,15 @@ try {
                 ")->fetchColumn() ?? 0);
 
                 $staffApptStmt = $pdo->query("
-                    SELECT a.id, a.appointment_date, a.appointment_time, a.status_id,
+                    SELECT a.id, a.appointment_date, a.appointment_time, a.status,
                            COALESCE(p.first_name, 'Unknown') as first_name, 
                            COALESCE(p.middle_name, '') as middle_name, 
                            COALESCE(p.last_name, '') as last_name,
                            s.name as service_name,
-                           st.status_name
+                           a.status as status_name
                     FROM appointments a
                     LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
                     LEFT JOIN services s ON a.service_id = s.id
-                    LEFT JOIN appointment_statuses st ON a.status_id = st.id
                     WHERE a.appointment_date >= CURDATE()
                       AND (a.is_archived = 0 OR a.is_archived IS NULL)
                     ORDER BY a.appointment_date ASC, a.appointment_time ASC
@@ -305,13 +303,12 @@ try {
                                 <?php foreach ($staffTodayAppointments as $appt): 
                                     $apptPatientName = trim(($appt['first_name'] ?? '') . ' ' . ($appt['middle_name'] ?? '') . ' ' . ($appt['last_name'] ?? ''));
                                     $statusLabel = $appt['status_name'] ?? 'Scheduled';
-                                    $statusId = (int)$appt['status_id'];
                                     
                                     $badgeStyle = 'background: #dbeafe; color: #1d4ed8;';
-                                    if ($statusId === 2 || stripos($statusLabel, 'queue') !== false) { $badgeStyle = 'background: #fef3c7; color: #92400e;'; }
-                                    if ($statusId === 3 || stripos($statusLabel, 'pending') !== false) { $badgeStyle = 'background: #fed7aa; color: #c2410c;'; }
-                                    if ($statusId === 4 || stripos($statusLabel, 'complete') !== false) { $badgeStyle = 'background: #dcfce7; color: #15803d;'; }
-                                    if ($statusId === 5 || stripos($statusLabel, 'cancel') !== false) { $badgeStyle = 'background: #fee2e2; color: #dc2626;'; }
+                                    if (stripos($statusLabel, 'queue') !== false) { $badgeStyle = 'background: #fef3c7; color: #92400e;'; }
+                                    if (stripos($statusLabel, 'pending') !== false) { $badgeStyle = 'background: #fed7aa; color: #c2410c;'; }
+                                    if (stripos($statusLabel, 'complete') !== false) { $badgeStyle = 'background: #dcfce7; color: #15803d;'; }
+                                    if (stripos($statusLabel, 'cancel') !== false) { $badgeStyle = 'background: #fee2e2; color: #dc2626;'; }
                                 ?>
                                 <tr style="border-bottom: 1px solid #f3f4f6;">
                                     <td style="padding: 8px 6px; color: #374151; font-size: 11px;"><?php echo date('h:i A', strtotime($appt['appointment_time'] ?? '')); ?></td>

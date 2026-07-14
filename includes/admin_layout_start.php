@@ -113,7 +113,7 @@ try {
                 a.appointment_time,
                 s.name as service_name,
                 CONCAT(p.first_name, ' ', p.last_name) as patient_name,
-                a.status_id
+                a.status
             FROM appointments a
             LEFT JOIN patients p ON a.patient_id = p.id
             LEFT JOIN services s ON a.service_id = s.id
@@ -184,6 +184,18 @@ function isActivePage($page) {
                 </div>
 
                 <input type="tel" id="phoneNumber" class="form-control" placeholder="Phone Number (11 digits)" maxlength="11" pattern="[0-9]{11}">
+
+                <div class="form-grid">
+                    <select id="gender" class="form-control">
+                        <option value="">Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                    </select>
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                        <input type="date" id="dateOfBirth" class="form-control" max="<?php echo date('Y-m-d'); ?>">
+                        <span id="computedAge" style="font-size:12px; color:#6b7280; display:none;"></span>
+                    </div>
+                </div>
 
                 <div class="form-grid" style="align-items:flex-start; row-gap:12px;">
                     <div>

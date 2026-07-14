@@ -3,7 +3,7 @@
 // Source of truth: sql/master_rf.sql
 
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'master_rf');
+define('DB_NAME', 'master_rfdb');
 define('DB_USER', 'root');
 define('DB_PASS', '');
 

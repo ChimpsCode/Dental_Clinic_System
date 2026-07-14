@@ -80,7 +80,7 @@ try {
         // Check if patient has email and find matching user (patient web account)
         if (!empty($email)) {
             // Try to find user by matching name OR email
-            $userStmt = $pdo->prepare("SELECT id FROM users WHERE (email = ? AND role_id = 4) OR (first_name = ? AND last_name = ? AND role_id = 4) LIMIT 1");
+            $userStmt = $pdo->prepare("SELECT id FROM users WHERE (email = ? AND role = 'Patient') OR (first_name = ? AND last_name = ? AND role = 'Patient') LIMIT 1");
             $userStmt->execute([$email, $first_name, $last_name]);
             $user = $userStmt->fetch(PDO::FETCH_ASSOC);
             

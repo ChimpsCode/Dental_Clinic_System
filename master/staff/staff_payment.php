@@ -52,9 +52,9 @@ try {
     // Apply payment status filter
     if (!empty($statusFilter)) {
         if ($statusFilter === 'paid') {
-            $whereClause .= " AND (b.payment_status = 'paid' OR b.payment_status_id = 1)";
+            $whereClause .= " AND b.payment_status = 'Paid'";
         } elseif ($statusFilter === 'unpaid') {
-            $whereClause .= " AND (b.id IS NULL OR ((b.payment_status IS NULL OR b.payment_status IN ('pending', 'unpaid', 'partial')) AND (b.payment_status_id IS NULL OR b.payment_status_id NOT IN (1))))";
+            $whereClause .= " AND (b.id IS NULL OR b.payment_status IS NULL OR b.payment_status IN ('Unpaid', 'Partial', 'Overdue'))";
         }
     }
     
@@ -101,7 +101,7 @@ try {
                 b.patient_id,
                 q.treatment_type,
                 q.teeth_numbers,
-                COALESCE(qs.status_name, 'Unknown') as queue_status,
+                COALESCE(q.status, 'Unknown') as queue_status,
                 COALESCE(q.created_at, b.billing_date) as queue_date,
                 q.notes as queue_notes,
                 CONCAT(p.first_name, ' ', p.last_name) as patient_name,
@@ -109,11 +109,10 @@ try {
                 b.id as billing_id,
                 CONCAT('INV-', LPAD(b.id, 4, '0')) as invoice_number,
                 COALESCE(b.total_amount, 0) as amount,
-                COALESCE(b.payment_status, 'unpaid') as payment_status,
-                b.payment_status_id,
+                COALESCE(b.payment_status, 'Unpaid') as payment_status,
                 CASE
-                    WHEN b.payment_status_id = 1 OR b.payment_status = 'paid' THEN 'paid'
-                    WHEN b.payment_status = 'partial' OR b.payment_status_id = 2 THEN 'partial'
+                    WHEN b.payment_status = 'Paid' THEN 'paid'
+                    WHEN b.payment_status = 'Partial' THEN 'partial'
                     ELSE 'unpaid'
                 END AS effective_payment_status,
                 b.billing_date,
@@ -122,7 +121,6 @@ try {
             FROM billing b
             LEFT JOIN patients p ON b.patient_id = p.id
             LEFT JOIN queue q ON CAST(q.patient_id AS UNSIGNED) = b.patient_id AND DATE(q.created_at) = DATE(b.billing_date)
-            LEFT JOIN queue_statuses qs ON q.status_id = qs.id
             $whereClause
             ORDER BY b.billing_date DESC, b.id DESC
             LIMIT :limit OFFSET :offset";
@@ -154,17 +152,17 @@ try {
             (SELECT COALESCE(SUM(b.total_amount), 0)
              FROM billing b
              WHERE DATE(b.billing_date) = CURDATE()
-               AND NOT (b.payment_status_id = 1 OR b.payment_status = 'paid')) AS pending_today,
+               AND b.payment_status != 'Paid') AS pending_today,
                
             (SELECT COUNT(*)
              FROM billing b
              WHERE DATE(b.billing_date) = CURDATE()
-               AND (b.payment_status_id = 1 OR b.payment_status = 'paid')) AS completed_today,
+               AND b.payment_status = 'Paid') AS completed_today,
                
             (SELECT COUNT(*)
              FROM billing b
              WHERE DATE(b.billing_date) = CURDATE()
-               AND NOT (b.payment_status_id = 1 OR b.payment_status = 'paid')) AS unpaid_today
+               AND b.payment_status != 'Paid') AS unpaid_today
     ";
     $statsStmt = $conn->query($statsSql);
     $stats = $statsStmt ? $statsStmt->fetch(PDO::FETCH_ASSOC) : [

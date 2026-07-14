@@ -92,7 +92,7 @@ try {
             $stmt = $pdo->prepare("UPDATE users SET first_name = ?, middle_name = ?, last_name = ?, email = ?, phone = ? WHERE id = ?");
             $stmt->execute([$first_name, $middle_name, $last_name, $email, $phone, $user_id]);
             
-            $stmt = $pdo->prepare("UPDATE patients SET address = ?, date_of_birth = ?, gender = ? WHERE id = ?");
+            $stmt = $pdo->prepare("UPDATE patients SET street_address = ?, date_of_birth = ?, gender = ? WHERE id = ?");
             $stmt->execute([$address, $date_of_birth, $gender, $patient_id]);
             
             $pdo->commit();
@@ -376,7 +376,7 @@ $pageTitle = 'My Profile';
                         </div>
                         <div class="form-group full-width">
                             <label class="form-label">Address</label>
-                            <input type="text" name="address" class="form-input" value="<?php echo htmlspecialchars($patient['address'] ?? ''); ?>">
+                            <input type="text" name="address" class="form-input" value="<?php echo htmlspecialchars($patient['street_address'] ?? ''); ?>">
                         </div>
                     </div>
 

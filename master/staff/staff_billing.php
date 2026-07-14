@@ -121,7 +121,7 @@ try {
         (SELECT COALESCE(SUM(total_amount), 0) FROM billing WHERE payment_status IN ('pending', 'unpaid', 'partial') AND DATE(billing_date) = CURDATE()) as pending_today,
         (SELECT COUNT(*) FROM queue WHERE status = 'completed' AND DATE(created_at) = CURDATE()) as completed_today,
         (SELECT COUNT(*) FROM queue WHERE status = 'completed' AND DATE(created_at) = CURDATE() AND patient_id NOT IN 
-            (SELECT patient_id FROM billing WHERE (payment_status = 'paid' OR payment_status_id = 1) AND DATE(billing_date) = CURDATE())
+            (SELECT patient_id FROM billing WHERE payment_status = 'Paid' AND DATE(billing_date) = CURDATE())
         ) as unpaid_today
         ");
     $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);

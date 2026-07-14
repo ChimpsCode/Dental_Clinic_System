@@ -106,7 +106,7 @@ $revenueStmt = $pdo->prepare("
         ) AS service,
         COALESCE(s.price, sa.price, b.total_amount, 0) AS service_price,
         COUNT(b.id) AS quantity,
-        COALESCE(SUM(CASE WHEN b.payment_status_id IN (1, 2) THEN b.paid_amount ELSE 0 END), 0) AS subtotal
+        COALESCE(SUM(CASE WHEN b.payment_status IN ('Paid', 'Partial') THEN b.paid_amount ELSE 0 END), 0) AS subtotal
     FROM billing b
     LEFT JOIN treatments t ON b.treatment_id = t.id
     LEFT JOIN services s ON t.service_id = s.id
@@ -192,7 +192,7 @@ $availableMonths = $pdo->query("
                 ),
                 '—'
             ) AS service,
-            COALESCE(SUM(CASE WHEN b.payment_status_id IN (1, 2) THEN b.paid_amount ELSE 0 END), 0) AS revenue
+            COALESCE(SUM(CASE WHEN b.payment_status IN ('Paid', 'Partial') THEN b.paid_amount ELSE 0 END), 0) AS revenue
         FROM billing b
         LEFT JOIN treatments t ON b.patient_id = t.patient_id AND DATE(b.billing_date) = t.treatment_date
         LEFT JOIN services s ON t.service_id = s.id
@@ -313,7 +313,7 @@ $availableMonths = $pdo->query("
     $stmt = $pdo->prepare("
         SELECT DATE(billing_date) AS day, COALESCE(SUM(paid_amount), 0) AS total
         FROM billing
-        WHERE payment_status_id IN (1, 2) AND billing_date BETWEEN ? AND ?
+        WHERE payment_status IN ('Paid', 'Partial') AND billing_date BETWEEN ? AND ?
         GROUP BY DATE(billing_date)
     ");
     $stmt->execute([$dailyStartDate, $dailyEndDate]);

@@ -2,9 +2,8 @@
 session_start();
 require_once '../../config/database.php';
 
-// Registration is admin-only (role_id = 1 is admin, or role = 'admin')
-$isAdmin = (isset($_SESSION['role_id']) && $_SESSION['role_id'] == 1) || 
-           (isset($_SESSION['role']) && $_SESSION['role'] === 'admin');
+// Registration is admin-only (role = 'admin')
+$isAdmin = (isset($_SESSION['role']) && $_SESSION['role'] === 'admin');
 if (!$isAdmin) {
     header('Location: login.php');
     exit();
@@ -47,8 +46,8 @@ $role = 'staff';
                     $error = 'Username already exists';
                 } else {
 $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-                    // Get role_id for staff (role_id = 3)
-                    $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, last_name, role_id) VALUES (?, ?, ?, ?, ?, 3)");
+                    // Insert staff user
+                    $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, last_name, role) VALUES (?, ?, ?, ?, ?, 'Staff')");
                     $result = $stmt->execute([$username, $hashedPassword, $email, $firstName, $lastName]);
                     if ($result) {
                         $success = 'Account created successfully! You can now login.';

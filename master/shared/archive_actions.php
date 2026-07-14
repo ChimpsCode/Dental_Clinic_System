@@ -150,27 +150,26 @@ function handleGetArchivedUsers($pdo, $page, $limit, $offset, $search) {
     $roleFilter = isset($_POST['role']) ? trim($_POST['role']) : '';
     if (!empty($roleFilter)) {
         if ($roleFilter === 'patient') {
-            $where .= " AND role_id IS NULL";
+            $where .= " AND (role IS NULL OR role = 'Patient')";
         } else {
-            $where .= " AND role_id = (SELECT id FROM roles WHERE role_name = ?)";
-            $params[] = ucfirst($roleFilter);
+            $where .= " AND LOWER(role) = ?";
+            $params[] = strtolower($roleFilter);
         }
     } else {
-        // Default: show only employees (NOT patients) - exclude role_id IS NULL
-        $where .= " AND role_id IS NOT NULL";
+        // Default: show only employees (NOT patients) - exclude Patient role
+        $where .= " AND role IS NOT NULL AND role != 'Patient'";
     }
     
     // Get total count
-    $countSql = "SELECT COUNT(*) FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE $where";
+    $countSql = "SELECT COUNT(*) FROM users u WHERE $where";
     $countStmt = $pdo->prepare($countSql);
     $countStmt->execute($params);
     $total = $countStmt->fetchColumn();
     
     // Get records
     $sql = "SELECT u.id, u.first_name, u.middle_name, u.last_name, u.email, u.archived_at,
-            CASE WHEN u.role_id IS NULL THEN 'Patient' ELSE r.role_name END as role_name
+            COALESCE(u.role, 'Patient') as role_name
             FROM users u
-            LEFT JOIN roles r ON u.role_id = r.id
             WHERE $where
             ORDER BY u.archived_at DESC
             LIMIT $limit OFFSET $offset";

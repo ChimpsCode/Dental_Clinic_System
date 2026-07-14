@@ -35,8 +35,7 @@ try {
         SELECT COUNT(*) FROM appointments 
         WHERE patient_id = ? 
         AND DATE(appointment_date) = ?
-        AND status_id IN (1, 2)
-        AND (status = 'scheduled' OR status = 'in_queue' OR status IS NULL)
+        AND status IN ('Scheduled', 'In Queue')
     ");
     $checkStmt->execute([$patient_id, $appointment_date]);
     $activeCount = $checkStmt->fetchColumn();
@@ -47,8 +46,8 @@ try {
 
     // Create the appointment
     $stmt = $pdo->prepare("INSERT INTO appointments 
-        (patient_id, appointment_date, appointment_time, service_id, notes, status, status_id, created_by, created_at) 
-        VALUES (?, ?, ?, ?, ?, 'scheduled', 1, ?, NOW())");
+        (patient_id, appointment_date, appointment_time, service_id, notes, status, created_by, created_at) 
+        VALUES (?, ?, ?, ?, ?, 'Scheduled', ?, NOW())");
     
     // Resolve service_id
     $service_id = null;
@@ -76,11 +75,11 @@ try {
 
     if ($existingQueue) {
         // Update existing queue entry
-        $stmt = $pdo->prepare("UPDATE queue SET status = 'scheduled', status_id = 1, treatment_type = ?, updated_at = NOW() WHERE id = ?");
+        $stmt = $pdo->prepare("UPDATE queue SET status = 'scheduled', treatment_type = ?, updated_at = NOW() WHERE id = ?");
         $stmt->execute([$treatment, $existingQueue['id']]);
     } else {
         // Create new queue entry with 'scheduled' status
-        $stmt = $pdo->prepare("INSERT INTO queue (patient_id, treatment_type, status, status_id, created_by, created_at) VALUES (?, ?, 'scheduled', 1, ?, NOW())");
+        $stmt = $pdo->prepare("INSERT INTO queue (patient_id, treatment_type, status, created_by, created_at) VALUES (?, ?, 'scheduled', ?, NOW())");
         $stmt->execute([$patient_id, $treatment, $_SESSION['user_id'] ?? 1]);
     }
 

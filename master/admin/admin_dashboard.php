@@ -52,7 +52,7 @@ try {
     $completedToday = (int)($pdo->query("
         SELECT COUNT(*)
         FROM queue
-        WHERE status_id = 3
+        WHERE status = 'completed'
           AND DATE(completed_at) = CURDATE()
     ")->fetchColumn() ?? 0);
 
@@ -100,18 +100,17 @@ try {
     // Get live queue data (next 5 patients in line)
     try {
         $stmt = $pdo->query("
-            SELECT q.id, q.status_id, q.queue_time, q.treatment_type,
+            SELECT q.id, q.status, q.queue_time, q.treatment_type,
                    COALESCE(CONCAT(p.first_name, ' ', COALESCE(p.middle_name, ''), ' ', p.last_name), 'Unknown') AS patient_name,
-                   qs.status_name
+                   q.status as status_name
             FROM queue q
             LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED)
-            LEFT JOIN queue_statuses qs ON q.status_id = qs.id
-            WHERE q.status_id IN (1, 2)
+            WHERE q.status IN ('waiting', 'in_procedure')
               AND (q.is_archived = 0 OR q.is_archived IS NULL)
             ORDER BY 
-                CASE q.status_id 
-                    WHEN 2 THEN 1 
-                    WHEN 1 THEN 2 
+                CASE q.status 
+                    WHEN 'in_procedure' THEN 1 
+                    WHEN 'waiting' THEN 2 
                     ELSE 3 
                 END,
                 q.queue_time ASC
@@ -134,16 +133,15 @@ try {
 
         // Get only 2 upcoming appointments for overview
         $apptStmt = $pdo->query("
-            SELECT a.id, a.appointment_date, a.appointment_time, a.status_id,
+            SELECT a.id, a.appointment_date, a.appointment_time, a.status,
                    COALESCE(p.first_name, 'Unknown') as first_name,
                    COALESCE(p.middle_name, '') as middle_name,
                    COALESCE(p.last_name, '') as last_name,
                    s.name as service_name,
-                   st.status_name
+                   a.status as status_name
             FROM appointments a
             LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
             LEFT JOIN services s ON a.service_id = s.id
-            LEFT JOIN appointment_statuses st ON a.status_id = st.id
             WHERE a.appointment_date >= CURDATE()
               AND (a.is_archived = 0 OR a.is_archived IS NULL)
             ORDER BY a.appointment_date ASC, a.appointment_time ASC
@@ -329,24 +327,23 @@ try {
                                                 $waitingInterval = $queueTime->diff($now);
                                                 $waitingMinutes = $waitingInterval->h * 60 + $waitingInterval->i;
                                                 
-                                                $statusId = (int)$queueItem['status_id'];
-                                                $statusLabel = $queueItem['status_name'] ?? 'Scheduled';
+                                                $statusLabel = $queueItem['status_name'] ?? 'Waiting';
                                                 $badgeStyle = '';
                                                 
-                                                switch($statusId) {
-                                                    case 1:
+                                                switch($statusLabel) {
+                                                    case 'waiting':
                                                         $statusLabel = 'Waiting';
                                                         $badgeStyle = 'background: #fef3c7; color: #d97706;';
                                                         break;
-                                                    case 2:
+                                                    case 'in_procedure':
                                                         $statusLabel = 'In Procedure';
                                                         $badgeStyle = 'background: #dbeafe; color: #2563eb;';
                                                         break;
-                                                    case 3:
+                                                    case 'completed':
                                                         $statusLabel = 'Completed';
                                                         $badgeStyle = 'background: #dcfce7; color: #15803d;';
                                                         break;
-                                                    case 4:
+                                                    case 'cancelled':
                                                         $statusLabel = 'Cancelled';
                                                         $badgeStyle = 'background: #fee2e2; color: #dc2626;';
                                                         break;
@@ -445,13 +442,12 @@ try {
                                         <?php foreach ($todayAppointments as $appt): 
                                             $apptPatientName = trim(($appt['first_name'] ?? '') . ' ' . ($appt['middle_name'] ?? '') . ' ' . ($appt['last_name'] ?? ''));
                                             $statusLabel = $appt['status_name'] ?? 'Scheduled';
-                                            $statusId = (int)$appt['status_id'];
                                             
                                             $badgeStyle = 'background: #dbeafe; color: #1d4ed8;';
-                                            if ($statusId === 2 || stripos($statusLabel, 'queue') !== false) { $badgeStyle = 'background: #fef3c7; color: #92400e;'; }
-                                            if ($statusId === 3 || stripos($statusLabel, 'pending') !== false) { $badgeStyle = 'background: #fed7aa; color: #c2410c;'; }
-                                            if ($statusId === 4 || stripos($statusLabel, 'complete') !== false) { $badgeStyle = 'background: #dcfce7; color: #15803d;'; }
-                                            if ($statusId === 5 || stripos($statusLabel, 'cancel') !== false) { $badgeStyle = 'background: #fee2e2; color: #dc2626;'; }
+                                            if (stripos($statusLabel, 'queue') !== false) { $badgeStyle = 'background: #fef3c7; color: #92400e;'; }
+                                            if (stripos($statusLabel, 'pending') !== false) { $badgeStyle = 'background: #fed7aa; color: #c2410c;'; }
+                                            if (stripos($statusLabel, 'complete') !== false) { $badgeStyle = 'background: #dcfce7; color: #15803d;'; }
+                                            if (stripos($statusLabel, 'cancel') !== false) { $badgeStyle = 'background: #fee2e2; color: #dc2626;'; }
                                         ?>
                                         <tr style="border-bottom: 1px solid #f3f4f6;">
                                             <td style="padding: 12px; color: #374151;"><?php echo date('h:i A', strtotime($appt['appointment_time'] ?? '')); ?></td>

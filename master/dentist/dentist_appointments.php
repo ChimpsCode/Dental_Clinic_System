@@ -26,26 +26,12 @@ try {
 
 // Fetch appointment statistics
 try {
-    // Check if status column exists
-    $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'status'");
-    $hasStatusCol = $checkCol->fetch() !== false;
-    
-    if ($hasStatusCol) {
-        $stmt = $pdo->query("SELECT 
-            COUNT(*) as total,
-            SUM(CASE WHEN DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as today,
-            SUM(CASE WHEN status = 'completed' AND DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as completed,
-            SUM(CASE WHEN status = 'cancelled' AND DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as cancelled
-        FROM appointments");
-    } else {
-        // Use status_id column (1=scheduled, 2=confirmed, 3=in_progress, 4=completed, 5=cancelled)
-        $stmt = $pdo->query("SELECT 
-            COUNT(*) as total,
-            SUM(CASE WHEN DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as today,
-            SUM(CASE WHEN status_id = 4 AND DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as completed,
-            SUM(CASE WHEN status_id = 5 AND DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as cancelled
-        FROM appointments");
-    }
+    $stmt = $pdo->query("SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as today,
+        SUM(CASE WHEN status = 'Completed' AND DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as completed,
+        SUM(CASE WHEN status = 'Cancelled' AND DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as cancelled
+    FROM appointments");
     $stats = $stmt->fetch(PDO::FETCH_ASSOC);
     
     $totalAppointments = $stats['total'] ?? 0;
@@ -62,12 +48,11 @@ try {
         p.first_name, p.middle_name, p.last_name,
         p.phone, p.email,
         s.name as service_name, s.price as service_price,
-        st.status_name as status_label,
+        a.status as status_label,
         tp.id as treatment_plan_id, tp.plan_name as treatment_plan_name
     FROM appointments a 
     LEFT JOIN patients p ON a.patient_id = p.id
     LEFT JOIN services s ON a.service_id = s.id
-    LEFT JOIN appointment_statuses st ON a.status_id = st.id
     LEFT JOIN treatment_plans tp ON a.id = tp.appointment_id
     WHERE (a.is_archived = 0 OR a.is_archived IS NULL)
     ORDER BY a.appointment_date DESC, a.appointment_time DESC");
@@ -120,7 +105,12 @@ try {
 
 .status-badge.status-cancelled, .status-badge.status-cancel {
     background: #fee2e2;
-    color: #dc2626;
+    color: #991b1b;
+}
+
+.status-badge.status-arrived {
+    background: #ccfbf1;
+    color: #0f766e;
 }
 
 .status-badge.status-no-show {
@@ -249,17 +239,7 @@ try {
                         $appointmentDateStr = $appointmentDate->format('M d, Y');
                         
                         // Robust status resolution
-                        $statusId = (int)($apt['status_id'] ?? 0);
-                        $status = $apt['status_label'];
-                        
-                        if (!$status) {
-                            if ($statusId === 1) $status = 'Scheduled';
-                            elseif ($statusId === 2) $status = 'In Queue';
-                            elseif ($statusId === 3) $status = 'Pending Payment';
-                            elseif ($statusId === 4) $status = 'Completed';
-                            elseif ($statusId === 5) $status = 'Cancelled';
-                            else $status = $apt['status'] ?? 'Scheduled';
-                        }
+                        $status = $apt['status_label'] ?? $apt['status'] ?? 'Scheduled';
                         $statusText = $status;
                     ?>
                     <tr class="appointment-row" data-id="<?php echo $apt['id']; ?>" data-date="<?php echo $apt['appointment_date']; ?>" data-time="<?php echo $appointmentTime; ?>" data-name="<?php echo strtolower($firstName . ' ' . $lastName); ?>" data-first-name="<?php echo htmlspecialchars($firstName); ?>" data-middle-name="<?php echo htmlspecialchars($middleName); ?>" data-last-name="<?php echo htmlspecialchars($lastName); ?>" data-phone="<?php echo htmlspecialchars($apt['phone'] ?? ''); ?>" data-status="<?php echo $statusText; ?>" data-type="<?php echo htmlspecialchars($apt['treatment'] ?? 'Consultation'); ?>" data-notes="<?php echo htmlspecialchars($apt['notes'] ?? ''); ?>" data-price="<?php echo htmlspecialchars($apt['service_price'] ?? '500'); ?>">
@@ -282,13 +262,14 @@ try {
                                 'Cancelled' => 'background: #fee2e2; color: #991b1b;',
                                 'In Queue' => 'background: #fef3c7; color: #92400e;',
                                 'Pending Payment' => 'background: #fed7aa; color: #c2410c;',
+                                'arrived' => 'background: #ccfbf1; color: #0f766e;',
                                 default => 'background: #e0f2fe; color: #0369a1;' // Scheduled
                             };
                          ?>
                          <td><span class="status-badge" style="<?php echo $statusColor; ?>"><?php echo $statusText; ?></span></td>
                          <td>
                                 <div class="appt-kebab-menu">
-                                    <button class="appt-kebab-btn" data-appt-id="<?php echo $apt['id']; ?>" data-status-id="<?php echo $apt['status_id'] ?? ''; ?>" data-status="<?php echo htmlspecialchars($statusText); ?>" data-checked-in="<?php echo $apt['check_in_time'] ?? ''; ?>">
+                                    <button class="appt-kebab-btn" data-appt-id="<?php echo $apt['id']; ?>" data-status="<?php echo htmlspecialchars($statusText); ?>" data-checked-in="<?php echo $apt['check_in_time'] ?? ''; ?>">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                                             <circle cx="12" cy="6" r="2"/>
                                             <circle cx="12" cy="12" r="2"/>
@@ -626,7 +607,7 @@ function openDentistDayModal(dateStr, appts, closedEntry) {
                         <div style="font-size: 14px; color: #6b7280;">${time} - ${appt.service_name || appt.treatment || 'General'}</div>
                         ${isTreatmentPlan ? `<div style="font-size: 12px; color: #92400e; margin-top: 2px;">Plan: ${appt.treatment_plan_name || ''}</div>` : ''}
                     </div>
-                    <span class="status-badge" style="background: ${status === 'Completed' ? '#d1fae5' : status === 'Cancelled' ? '#fee2e2' : '#e0f2fe'}; color: ${status === 'Completed' ? '#065f46' : status === 'Cancelled' ? '#dc2626' : '#1d4ed8'};">${status}</span>
+                    <span class="status-badge" style="background: ${status === 'Completed' ? '#d1fae5' : status === 'Cancelled' ? '#fee2e2' : status.toLowerCase() === 'arrived' ? '#ccfbf1' : '#e0f2fe'}; color: ${status === 'Completed' ? '#065f46' : status === 'Cancelled' ? '#dc2626' : status.toLowerCase() === 'arrived' ? '#0f766e' : '#1d4ed8'};">${status}</span>
                 </div>
             </div>`;
         });
@@ -718,16 +699,13 @@ function filterAppointments() {
         });
     }
 
-    function getStatusBadgeClass(statusId) {
-        const id = parseInt(statusId);
-        switch(id) {
-            case 1: return 'status-scheduled';
-            case 2: return 'status-in-queue';
-            case 3: return 'status-pending';
-            case 4: return 'status-completed';
-            case 5: return 'status-cancelled';
-            default: return 'status-scheduled';
-        }
+    function getStatusBadgeClass(status) {
+        const s = (status || '').toLowerCase();
+        if (s.includes('completed')) return 'status-completed';
+        if (s.includes('cancel')) return 'status-cancelled';
+        if (s.includes('queue')) return 'status-in-queue';
+        if (s.includes('pending')) return 'status-pending';
+        return 'status-scheduled';
     }
 
     function openNewAppointmentModal() {
@@ -800,7 +778,7 @@ function viewAppointment(id) {
             <div><span style="color: #6b7280;">Date:</span> <span style="font-weight: 500; margin-left: 8px;">${dateStr}</span></div>
             <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${timeStr}</span></div>
             <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${appointment.treatment || 'Consultation'}</span></div>
-            <div><span style="color: #6b7280;">Status:</span> <span class="status-badge ${getStatusBadgeClass(appointment.status_id)}" style="margin-left: 8px;">${appointment.status || 'Pending'}</span></div>
+            <div><span style="color: #6b7280;">Status:</span> <span class="status-badge ${getStatusBadgeClass(appointment.status)}" style="margin-left: 8px;">${appointment.status || 'Pending'}</span></div>
             ${appointment.notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${appointment.notes}</p></div>` : ''}
         </div>
     `;
@@ -897,6 +875,8 @@ function viewAppointmentDetails(id) {
             statusBg = '#fef3c7'; statusColor = '#92400e'; break;
         case 'Pending Payment':
             statusBg = '#fed7aa'; statusColor = '#c2410c'; break;
+        case 'arrived':
+            statusBg = '#ccfbf1'; statusColor = '#0f766e'; break;
         default:
             statusBg = '#e0f2fe'; statusColor = '#0369a1';
     }
@@ -1133,10 +1113,9 @@ function initApptKebabMenu() {
 
 function openApptKebabDropdown(button) {
     const apptId = button.getAttribute('data-appt-id');
-    const statusId = parseInt(button.getAttribute('data-status-id')) || 0;
     const status = button.getAttribute('data-status') || 'scheduled';
     const checkedIn = button.getAttribute('data-checked-in') || '';
-    const isCancelled = (statusId == 5 || status.toLowerCase().includes('cancel'));
+    const isCancelled = (status.toLowerCase().includes('cancel'));
     const isArrived = checkedIn && checkedIn.trim() !== '';
 
     let html = `

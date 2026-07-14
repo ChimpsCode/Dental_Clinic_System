@@ -111,8 +111,7 @@ try {
             SELECT COUNT(*) FROM appointments 
             WHERE patient_id = ? 
             AND DATE(appointment_date) = ?
-            AND status_id IN (1, 2) 
-            AND (status = 'scheduled' OR status = 'in_queue' OR status IS NULL)
+            AND status IN ('Scheduled', 'In Queue')
             AND id <> ?
         ");
         $checkStmt->execute([$patient_id, $appointment_date, $appointment_id ?: 0]);
@@ -122,11 +121,11 @@ try {
             throw new Exception('This patient already has an active appointment scheduled for ' . $appointment_date . '. A patient cannot have multiple appointments on the same day.');
         }
         
-        // Also check if patient is currently in queue (status_id = 2 = in_queue)
+        // Also check if patient is currently in queue
         $checkStmt = $pdo->prepare("
             SELECT COUNT(*) FROM queue 
             WHERE patient_id = ? 
-            AND status_id IN (1, 2)
+            AND status IN ('waiting', 'in_procedure')
         ");
         $checkStmt->execute([$patient_id]);
         $inQueueCount = $checkStmt->fetchColumn();
@@ -222,8 +221,8 @@ try {
         }
     } else {
         // Build INSERT query dynamically based on existing columns
-        $columns = ['patient_id', 'appointment_date', 'appointment_time', 'service_id', 'notes', 'status', 'status_id', 'created_by', 'created_at', 'is_archived'];
-        $placeholders = ['?', '?', '?', '?', '?', "'scheduled'", '1', '?', 'NOW()', '0'];
+        $columns = ['patient_id', 'appointment_date', 'appointment_time', 'service_id', 'notes', 'status', 'created_by', 'created_at', 'is_archived'];
+        $placeholders = ['?', '?', '?', '?', '?', "'Scheduled'", '?', 'NOW()', '0'];
         $params = [$patient_id, $appointment_date, $appointment_time, $service_id, $notes, $_SESSION['user_id'] ?? 1];
         
         if ($bookingTypeExists) {

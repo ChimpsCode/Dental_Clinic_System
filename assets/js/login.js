@@ -960,8 +960,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else if (fpStep3 && fpStep3.style.display !== 'none' && fpChangeBtn && !fpChangeBtn.disabled) {
                     fpChangeBtn.click();
                 }
-            } else if (isRegisterVisible && registerBtn && !registerBtn.disabled) {
-                registerBtn.click();
+            } else if (isRegisterVisible) {
+                if (regOtpStep && regOtpStep.style.display !== 'none' && regOtpVerifyBtn && !regOtpVerifyBtn.disabled) {
+                    regOtpVerifyBtn.click();
+                } else if (registerForm && registerForm.style.display !== 'none' && registerBtn && !registerBtn.disabled) {
+                    registerBtn.click();
+                }
             } else if (loginBtn && !loginBtn.disabled) {
                 loginBtn.click();
             }

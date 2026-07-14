@@ -13,17 +13,13 @@ $totalUsers = 0;
 
 try {
     // Get users with role names from roles table
-    // If role_id is NULL, treat as Patient
+    // If role is not set, treat as Patient
     // Exclude archived users
     $stmt = $pdo->query("
         SELECT u.id, u.username, u.first_name, u.middle_name, u.last_name, u.email, u.status, u.is_archived,
-               u.role_id, u.last_active, u.last_logout, u.is_logged_in,
-               CASE 
-                   WHEN u.role_id IS NULL THEN 'Patient'
-                   ELSE r.role_name
-               END as role_name
+               u.role, u.gender, u.date_of_birth, u.last_active, u.last_logout, u.is_logged_in,
+               u.role as role_name
         FROM users u
-        LEFT JOIN roles r ON u.role_id = r.id
         WHERE u.is_archived = 0 OR u.is_archived IS NULL
         ORDER BY u.id ASC
     ");
@@ -127,6 +123,8 @@ try {
                                         data-user-last="<?php echo htmlspecialchars($user['last_name'] ?? ''); ?>"
                                         data-user-email="<?php echo htmlspecialchars($user['email'] ?? ''); ?>"
                                         data-user-role="<?php echo htmlspecialchars($user['role_name'] ?? ''); ?>"
+                                        data-user-gender="<?php echo htmlspecialchars($user['gender'] ?? ''); ?>"
+                                        data-user-dob="<?php echo htmlspecialchars($user['date_of_birth'] ?? ''); ?>"
                                         aria-label="User actions"
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -479,6 +477,14 @@ try {
                                         <div>
                                             <p style="margin: 0; color: #6b7280; font-size: 12px;">Role</p>
                                             <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${roleDisplay}</p>
+                                        </div>
+                                        <div>
+                                            <p style="margin: 0; color: #6b7280; font-size: 12px;">Gender</p>
+                                            <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${btn.dataset.userGender || '-'}</p>
+                                        </div>
+                                        <div>
+                                            <p style="margin: 0; color: #6b7280; font-size: 12px;">Date of Birth</p>
+                                            <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${btn.dataset.userDob || '-'}</p>
                                         </div>
                                     </div>
                                 </div>

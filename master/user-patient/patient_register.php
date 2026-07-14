@@ -52,20 +52,6 @@ if ($action === 'verify_otp') {
     $expires = $_SESSION['reg_otp_expires'] ?? 0;
     $regData = $_SESSION['reg_data'] ?? null;
 
-    $debug = sprintf(
-        "[%s] SID=%s entered=[%s] stored=[%s] entered_type=%s stored_type=%s expires=%d now=%d has_regData=%d\n",
-        date('Y-m-d H:i:s'),
-        session_id(),
-        var_export($enteredOtp, true),
-        var_export($storedOtp, true),
-        gettype($enteredOtp),
-        gettype($storedOtp),
-        $expires,
-        time(),
-        $regData ? 1 : 0
-    );
-    file_put_contents(__DIR__ . '/../../debug_otp.log', $debug, FILE_APPEND);
-
     if (!$regData || !$storedOtp) {
         respond(false, 'Registration session expired. Please try again.');
     }
@@ -77,7 +63,6 @@ if ($action === 'verify_otp') {
     }
 
     if ((string)$enteredOtp !== (string)$storedOtp) {
-        file_put_contents(__DIR__ . '/../../debug_otp.log', "  -> MISMATCH\n", FILE_APPEND);
         respond(false, 'Invalid verification code. Please try again.');
     }
 
@@ -110,7 +95,7 @@ if ($action === 'verify_otp') {
             $userValues[] = $patientRoleId;
         } elseif (tableHasColumn($pdo, 'users', 'role')) {
             $userColumns[] = 'role';
-            $userValues[] = 'user';
+            $userValues[] = 'Patient';
         }
 
         if (tableHasColumn($pdo, 'users', 'phone')) {
@@ -241,6 +226,12 @@ try {
         respond(false, 'Email already exists.');
     }
 
+    $existingOtp = $_SESSION['reg_otp'] ?? '';
+    $existingExpires = $_SESSION['reg_otp_expires'] ?? 0;
+    if ($existingOtp !== '' && $existingExpires > 0 && time() < $existingExpires) {
+        respond(true, 'Verification code sent to your email.', ['step' => 'otp']);
+    }
+
     $otpCode = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
     $_SESSION['reg_otp'] = $otpCode;
     $_SESSION['reg_otp_expires'] = time() + 180;
@@ -252,10 +243,6 @@ try {
         'phone' => $phone,
         'password' => $password,
     ];
-    file_put_contents(__DIR__ . '/../../debug_otp.log', sprintf(
-        "[%s] REGISTER SID=%s otp=[%s] email=%s\n",
-        date('Y-m-d H:i:s'), session_id(), $otpCode, $email
-    ), FILE_APPEND);
 
     require_once __DIR__ . '/../../includes/send_otp_email.php';
     $emailSent = sendOtpEmail($email, $firstName, $otpCode);

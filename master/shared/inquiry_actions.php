@@ -636,9 +636,8 @@ if ($action === 'update') {
         $staffStmt = $pdo->prepare("
             SELECT 1
             FROM users u
-            LEFT JOIN roles r ON r.id = u.role_id
             WHERE u.id = ?
-              AND LOWER(COALESCE(r.role_name, '')) IN ('staff', 'admin', 'dentist')
+              AND LOWER(COALESCE(u.role, '')) IN ('staff', 'admin', 'dentist')
               AND COALESCE(u.status, 'Active') = 'Active'
             LIMIT 1
         ");
@@ -711,9 +710,8 @@ if ($action === 'update_staff_schedule') {
         $staffStmt = $pdo->prepare("
             SELECT 1
             FROM users u
-            LEFT JOIN roles r ON r.id = u.role_id
             WHERE u.id = ?
-              AND LOWER(COALESCE(r.role_name, '')) IN ('staff', 'admin', 'dentist')
+              AND LOWER(COALESCE(u.role, '')) IN ('staff', 'admin', 'dentist')
               AND COALESCE(u.status, 'Active') = 'Active'
             LIMIT 1
         ");
@@ -745,9 +743,8 @@ if ($action === 'assign') {
         $staffStmt = $pdo->prepare("
             SELECT 1
             FROM users u
-            LEFT JOIN roles r ON r.id = u.role_id
             WHERE u.id = ?
-              AND LOWER(COALESCE(r.role_name, '')) IN ('staff', 'admin', 'dentist')
+              AND LOWER(COALESCE(u.role, '')) IN ('staff', 'admin', 'dentist')
               AND COALESCE(u.status, 'Active') = 'Active'
             LIMIT 1
         ");

@@ -90,7 +90,7 @@ try {
                 a.appointment_time,
                 s.name as service_name,
                 CONCAT(p.first_name, ' ', p.last_name) as patient_name,
-                a.status_id
+                a.status
             FROM appointments a
             LEFT JOIN patients p ON a.patient_id = p.id
             LEFT JOIN services s ON a.service_id = s.id

@@ -49,7 +49,7 @@ $clinicAddress = $clinicSettings['clinic_address'] ?? '';
 $clinicLogo    = $clinicSettings['welcome_logo'] ?? '';
 $logoFull      = $clinicLogo ? '../../' . $clinicLogo : '../../assets/images/Logo.png';
 
-$adminPicStmt = $pdo->prepare("SELECT profile_picture FROM users WHERE role_id = 1 ORDER BY id ASC LIMIT 1");
+$adminPicStmt = $pdo->prepare("SELECT profile_picture FROM users WHERE role = 'Admin' ORDER BY id ASC LIMIT 1");
 $adminPicStmt->execute();
 $adminPicPath = $adminPicStmt->fetchColumn();
 $clinicAvatar = ($adminPicPath && file_exists(dirname(__DIR__, 2) . '/' . $adminPicPath)) ? '../../' . $adminPicPath : $logoFull;

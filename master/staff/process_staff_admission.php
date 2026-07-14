@@ -167,38 +167,19 @@ if ($appointmentId) {
 
     $updateSuccess = false;
 
-    // 1. Try to update all columns including updated_at
+    // Update appointment status to In Queue
     try {
-        $stmt = $pdo->prepare("UPDATE appointments SET patient_id = ?, status_id = 2, status = 'In Queue', updated_at = NOW() WHERE id = ?");
+        $stmt = $pdo->prepare("UPDATE appointments SET patient_id = ?, status = 'In Queue', updated_at = NOW() WHERE id = ?");
         $stmt->execute([$patientId, $appointmentId]);
         $updateSuccess = true;
-    } catch (Exception $e) {}
-
-    // 2. Fallback: If updated_at doesn't exist, try updating patient, status_id, and status
-    if (!$updateSuccess) {
-        try {
-            $stmt = $pdo->prepare("UPDATE appointments SET patient_id = ?, status_id = 2, status = 'In Queue' WHERE id = ?");
-            $stmt->execute([$patientId, $appointmentId]);
-            $updateSuccess = true;
-        } catch (Exception $e) {}
-    }
-
-    // 3. Fallback: If status_id doesn't exist, just update status string
-    if (!$updateSuccess) {
+    } catch (Exception $e) {
+        // Fallback without updated_at
         try {
             $stmt = $pdo->prepare("UPDATE appointments SET patient_id = ?, status = 'In Queue' WHERE id = ?");
             $stmt->execute([$patientId, $appointmentId]);
             $updateSuccess = true;
-        } catch (Exception $e) {}
-    }
-
-    // 4. Fallback: If status string doesn't exist, just update status_id
-    if (!$updateSuccess) {
-        try {
-            $stmt = $pdo->prepare("UPDATE appointments SET patient_id = ?, status_id = 2 WHERE id = ?");
-            $stmt->execute([$patientId, $appointmentId]);
-        } catch (Exception $e) {
-            error_log("Failed to update appointment: " . $e->getMessage());
+        } catch (Exception $e2) {
+            error_log("Failed to update appointment: " . $e2->getMessage());
         }
     }
 
@@ -319,7 +300,7 @@ if ($appointmentId) {
     $queueId = 0;
     try {
         // Check if patient is already in an active queue
-        $checkQueue = $pdo->prepare("SELECT id FROM queue WHERE patient_id = ? AND status_id = 1 AND is_archived = 0 LIMIT 1");
+        $checkQueue = $pdo->prepare("SELECT id FROM queue WHERE patient_id = ? AND status = 'waiting' AND is_archived = 0 LIMIT 1");
         $checkQueue->execute([$patientId]);
         $existingQueue = $checkQueue->fetch();
         
@@ -329,7 +310,7 @@ if ($appointmentId) {
             $stmt->execute([$treatmentType, $primaryServiceId, $teethNumbers, $queueId]);
         } else {
             // Insert new queue entry
-            $stmt = $pdo->prepare("INSERT INTO queue (patient_id, status_id, priority, treatment_type, service_id, teeth_numbers, queue_time, created_at) VALUES (?, 1, 5, ?, ?, ?, NOW(), NOW())");
+            $stmt = $pdo->prepare("INSERT INTO queue (patient_id, status, priority, treatment_type, service_id, teeth_numbers, queue_time, created_at) VALUES (?, 'waiting', 5, ?, ?, ?, NOW(), NOW())");
             $stmt->execute([$patientId, $treatmentType, $primaryServiceId, $teethNumbers]);
             $queueId = (int)$pdo->lastInsertId();
         }

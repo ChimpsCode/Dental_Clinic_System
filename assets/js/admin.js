@@ -32,6 +32,35 @@ function initializeAdmin() {
 
     // Initialize phone number input restriction
     initPhoneNumberInput();
+
+    // Initialize age computation from date of birth
+    initAgeComputation();
+}
+
+function initAgeComputation() {
+    const dobInput = document.getElementById('dateOfBirth');
+    const ageDisplay = document.getElementById('computedAge');
+    if (!dobInput || !ageDisplay) return;
+
+    const computeAge = () => {
+        const val = dobInput.value;
+        if (!val) {
+            ageDisplay.style.display = 'none';
+            return;
+        }
+        const dob = new Date(val);
+        const today = new Date();
+        let age = today.getFullYear() - dob.getFullYear();
+        const monthDiff = today.getMonth() - dob.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+            age--;
+        }
+        ageDisplay.textContent = `Age: ${age} years old`;
+        ageDisplay.style.display = 'block';
+    };
+
+    dobInput.addEventListener('input', computeAge);
+    computeAge();
 }
 
 /**
@@ -146,6 +175,13 @@ function openUserModal(userId = null) {
                     document.getElementById('lastName').value = user.last_name || '';
                     document.getElementById('email').value = user.email || '';
                     document.getElementById('role').value = user.role || 'staff';
+                    const genderSelect = document.getElementById('gender');
+                    if (genderSelect) genderSelect.value = user.gender || '';
+                    const dobInput = document.getElementById('dateOfBirth');
+                    if (dobInput) {
+                        dobInput.value = user.date_of_birth || '';
+                        dobInput.dispatchEvent(new Event('input'));
+                    }
                     const statusSelect = document.getElementById('status');
                     if (statusSelect) statusSelect.value = user.status || 'active';
                     const passwordInput = document.getElementById('password');
@@ -415,6 +451,8 @@ function saveUser() {
     userData.append('lastName', lastName);
     userData.append('email', document.getElementById('email').value);
     userData.append('phoneNumber', document.getElementById('phoneNumber').value);
+    userData.append('gender', document.getElementById('gender').value);
+    userData.append('dateOfBirth', document.getElementById('dateOfBirth').value);
     userData.append('role', document.getElementById('role').value);
     const statusSelect = document.getElementById('status');
     if (statusSelect) userData.append('status', statusSelect.value);

@@ -47,11 +47,11 @@ try {
             jsonError('Invalid user ID');
         }
 
-        $sql = "SELECT u.id, u.username, u.first_name, u.middle_name, u.last_name, u.email, u.status, r.role_name as role";
+        $sql = "SELECT u.id, u.username, u.first_name, u.middle_name, u.last_name, u.email, u.status, u.role, u.gender, u.date_of_birth";
         if ($hasPhoneColumn) {
             $sql .= ", u.phone";
         }
-        $sql .= " FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE u.id = ?";
+        $sql .= " FROM users u WHERE u.id = ?";
         
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$id]);
@@ -78,6 +78,8 @@ try {
         $lastName   = trim($_POST['lastName'] ?? '');
         $email    = trim($_POST['email'] ?? '');
         $phoneNumber = trim($_POST['phoneNumber'] ?? '');
+        $gender   = trim($_POST['gender'] ?? '');
+        $dateOfBirth = trim($_POST['dateOfBirth'] ?? '');
         $role     = trim($_POST['role'] ?? '');
         $password = trim($_POST['password'] ?? '');
         $status   = trim($_POST['status'] ?? 'active');
@@ -95,7 +97,7 @@ try {
             jsonError('Invalid role selected.');
         }
 
-        if ($hasStatusColumn && !in_array($status, ['active', 'inactive'], true)) {
+        if ($hasStatusColumn && !in_array(ucfirst($status), ['Active', 'Inactive'], true)) {
             jsonError('Invalid status selected.');
         }
 
@@ -120,20 +122,22 @@ try {
                 jsonError('Passwords do not match.');
             }
 
-            if (!isStrongPassword($password)) {
-                jsonError('Password must be at least 8 chars, with upper, lower, number, and symbol.');
-            }
+            $hashed = password_hash($password, PASSWORD_DEFAULT);
 
-$hashed = password_hash($password, PASSWORD_DEFAULT);
+            $roleNameMap = ['admin' => 'Admin', 'dentist' => 'Dentist', 'staff' => 'Staff', 'patient' => 'Patient'];
+            $roleValue = $roleNameMap[strtolower($role)] ?? 'Staff';
 
-            // Convert role name to role_id - patient uses NULL (as per existing db design)
-            $roleIdMap = ['admin' => 1, 'dentist' => 2, 'staff' => 3, 'patient' => null];
-            $roleId = array_key_exists(strtolower($role), $roleIdMap) ? $roleIdMap[strtolower($role)] : 3;
-
-            // Build dynamic INSERT based on what we have
-            $fields = ['username', 'password', 'email', 'first_name', 'middle_name', 'last_name', 'role_id', 'status'];
-            $values = [$username, $hashed, $email, $firstName, $middleName, $lastName, $roleId, $status];
+            $fields = ['username', 'password', 'email', 'first_name', 'middle_name', 'last_name', 'role', 'status'];
+            $values = [$username, $hashed, $email, $firstName, $middleName, $lastName, $roleValue, ucfirst($status)];
             
+            if ($gender !== '' && in_array($gender, ['Male', 'Female'])) {
+                $fields[] = 'gender';
+                $values[] = $gender;
+            }
+            if ($dateOfBirth !== '') {
+                $fields[] = 'date_of_birth';
+                $values[] = $dateOfBirth;
+            }
             if ($hasPhoneColumn && $phoneNumber !== '') {
                 $fields[] = 'phone';
                 $values[] = $phoneNumber;
@@ -181,22 +185,35 @@ $hashed = password_hash($password, PASSWORD_DEFAULT);
             }
 
             // Build update query dynamically (password optional)
-            $roleIdMap = ['admin' => 1, 'dentist' => 2, 'staff' => 3, 'patient' => null];
-            $roleId = array_key_exists(strtolower($role), $roleIdMap) ? $roleIdMap[strtolower($role)] : 3;
-            $fields = ['username' => $username, 'email' => $email, 'first_name' => $firstName, 'middle_name' => $middleName, 'last_name' => $lastName, 'role_id' => $roleId];
-            $setParts = ['username = :username', 'email = :email', 'first_name = :first_name', 'middle_name = :middle_name', 'last_name = :last_name', 'role_id = :role_id'];
+            $roleNameMap = ['admin' => 'Admin', 'dentist' => 'Dentist', 'staff' => 'Staff', 'patient' => 'Patient'];
+            $roleValue = $roleNameMap[strtolower($role)] ?? 'Staff';
+            $fields = ['username' => $username, 'email' => $email, 'first_name' => $firstName, 'middle_name' => $middleName, 'last_name' => $lastName, 'role' => $roleValue];
+            $setParts = ['username = :username', 'email = :email', 'first_name = :first_name', 'middle_name = :middle_name', 'last_name = :last_name', 'role = :role'];
 
             if ($hasStatusColumn) {
                 $fields['status'] = $status;
                 $setParts[] = 'status = :status';
             }
 
+            if ($gender !== '' && in_array($gender, ['Male', 'Female'])) {
+                $fields['gender'] = $gender;
+                $setParts[] = 'gender = :gender';
+            } elseif ($gender === '') {
+                $fields['gender'] = null;
+                $setParts[] = 'gender = :gender';
+            }
+
+            if ($dateOfBirth !== '') {
+                $fields['date_of_birth'] = $dateOfBirth;
+                $setParts[] = 'date_of_birth = :date_of_birth';
+            } elseif ($dateOfBirth === '') {
+                $fields['date_of_birth'] = null;
+                $setParts[] = 'date_of_birth = :date_of_birth';
+            }
+
             if ($password !== '') {
                 if ($password !== $confirmPassword) {
                     jsonError('Passwords do not match.');
-                }
-                if (!isStrongPassword($password)) {
-                    jsonError('Password must be at least 8 chars, with upper, lower, number, and symbol.');
                 }
                 $fields['password'] = password_hash($password, PASSWORD_DEFAULT);
                 $setParts[] = 'password = :password';
@@ -250,7 +267,12 @@ $hashed = password_hash($password, PASSWORD_DEFAULT);
         $userData = $userStmt->fetch(PDO::FETCH_ASSOC);
 
         // Soft delete - set is_archived = 1
-        $stmt = $pdo->prepare("UPDATE users SET is_archived = 1, archived_at = NOW() WHERE id = ?");
+        $hasArchivedAt = $pdo->query("SHOW COLUMNS FROM users LIKE 'archived_at'")->fetch(PDO::FETCH_ASSOC);
+        if ($hasArchivedAt) {
+            $stmt = $pdo->prepare("UPDATE users SET is_archived = 1, archived_at = NOW() WHERE id = ?");
+        } else {
+            $stmt = $pdo->prepare("UPDATE users SET is_archived = 1 WHERE id = ?");
+        }
         $stmt->execute([$id]);
 
         // Also check if there's a matching patient in patients table to archive
@@ -294,7 +316,7 @@ $hashed = password_hash($password, PASSWORD_DEFAULT);
             jsonError('Invalid user ID.');
         }
 
-        if (!in_array($status, ['active', 'inactive'], true)) {
+        if (!in_array(ucfirst($status), ['Active', 'Inactive'], true)) {
             jsonError('Invalid status.');
         }
 

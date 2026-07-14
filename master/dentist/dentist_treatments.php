@@ -9,11 +9,9 @@ $sql = "
         a.reference_code as appointment_ref, 
         a.appointment_date as appt_date, 
         a.appointment_time as appt_time,
-        a.status_id as appt_status_id,
-        st.status_name as appt_status
+        a.status as appt_status
     FROM treatment_plans tp
     LEFT JOIN appointments a ON tp.appointment_id = a.id
-    LEFT JOIN appointment_statuses st ON a.status_id = st.id
     ORDER BY tp.created_at DESC
 ";
 $treatmentPlans = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
@@ -54,7 +52,7 @@ $queuePatients = $pdo->query("
     SELECT DISTINCT p.id, p.first_name, p.middle_name, p.last_name, p.suffix, p.phone
     FROM patients p
     JOIN queue q ON p.id = CAST(q.patient_id AS UNSIGNED)
-    WHERE q.status_id IN (1, 2, 4)
+    WHERE q.status IN ('waiting', 'in_procedure', 'completed')
     AND DATE(q.created_at) = CURDATE()
     ORDER BY p.last_name ASC, p.first_name ASC
 ")->fetchAll(PDO::FETCH_ASSOC);
@@ -66,7 +64,7 @@ $treatmentPatients = $pdo->query("
     JOIN treatment_plans tp ON p.id = tp.patient_id
     WHERE p.id NOT IN (
         SELECT DISTINCT CAST(patient_id AS UNSIGNED) FROM queue 
-        WHERE status_id IN (1, 2, 4)
+        WHERE status IN ('waiting', 'in_procedure', 'completed')
         AND DATE(created_at) = CURDATE()
     )
     ORDER BY p.last_name ASC, p.first_name ASC
@@ -89,13 +87,6 @@ foreach ($patients as &$patient) {
     $patient['full_name'] = implode(' ', $parts);
 }
 unset($patient);
-    
-    // Combine both lists: queue patients first, then treatment patients
-    $patients = array_merge($queuePatients, $treatmentPatients);
-    
-    // Get services for dropdown
-    $stmtServices = $pdo->query("SELECT id, name, price, mode FROM services WHERE is_active = 1 ORDER BY name");
-    $services = $stmtServices->fetchAll(PDO::FETCH_ASSOC);
 
 // Calculate stats
 $activePlans = 0; $completedPlans = 0;
@@ -444,7 +435,7 @@ require_once '../../includes/dentist_layout_start.php';
 
     document.addEventListener('DOMContentLoaded', function() {
         // Search functionality
-        document.getElementById('searchTreatmentPlan').addEventListener('input', filterPlans);
+        document.getElementById('searchInput').addEventListener('input', filterPlans);
         document.getElementById('statusFilter').addEventListener('change', filterPlans);
         
         // Form submissions
@@ -598,7 +589,7 @@ require_once '../../includes/dentist_layout_start.php';
     }
 
     function filterPlans() {
-        const search = document.getElementById('searchTreatmentPlan').value.toLowerCase();
+        const search = document.getElementById('searchInput').value.toLowerCase();
         const status = document.getElementById('statusFilter').value;
         
         document.querySelectorAll('.treatment-plan-row').forEach(row => {

@@ -49,9 +49,9 @@ if ($archiveReady) {
         $archivedCounts['patients'] = 0;
     }
     
-    // Employees count from users table (only role_id NOT NULL = admin/dentist/staff)
+    // Employees count from users table (only admin/dentist/staff roles)
     try {
-        $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE is_archived = 1 AND role_id IS NOT NULL");
+        $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE is_archived = 1 AND role IS NOT NULL AND role != 'Patient'");
         $archivedCounts['users'] = (int)$stmt->fetchColumn();
     } catch (Exception $e) {
         $archivedCounts['users'] = 0;

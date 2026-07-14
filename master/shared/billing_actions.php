@@ -123,13 +123,12 @@ try {
                     p.last_name, 
                     p.suffix, 
                     p.phone,
-                    a.street_address,
-                    a.city,
-                    a.province,
-                    a.zip_code
+                    p.street_address,
+                    p.city,
+                    p.province,
+                    p.zip_code
                 FROM billing b
                 LEFT JOIN patients p ON b.patient_id = p.id
-                LEFT JOIN addresses a ON p.address_id = a.id
                 WHERE b.id = ?
             ");
             $stmt->execute([$billing_id]);
@@ -453,11 +452,10 @@ try {
             try {
                 // Find or create billing record
                 if ($billing_id) {
-                    // Get old status before update - use payment_status_id
-                    $stmt = $pdo->prepare("SELECT payment_status_id FROM billing WHERE id = ?");
+                    // Get old status before update
+                    $stmt = $pdo->prepare("SELECT payment_status FROM billing WHERE id = ?");
                     $stmt->execute([$billing_id]);
-                    $old_status_id = $stmt->fetchColumn();
-                    $old_status = $old_status_id == 1 ? 'paid' : 'unpaid';
+                    $old_status = strtolower($stmt->fetchColumn() ?: 'unpaid');
                     
                     // Check billing columns
                         $stmt = $pdo->query("DESCRIBE billing");
@@ -475,7 +473,7 @@ try {
                 } else {
                     // Check if billing exists for today
                     $stmt = $pdo->prepare("
-                        SELECT id, payment_status_id FROM billing 
+                        SELECT id, payment_status FROM billing 
                         WHERE patient_id = ? AND DATE(billing_date) = ?
                     ");
                     $stmt->execute([$patient_id, $queueDate]);
@@ -484,7 +482,7 @@ try {
                     if ($existing) {
                         // Update existing - use column checks
                         $billing_id = $existing['id'];
-                        $old_status = $existing['payment_status_id'] == 1 ? 'paid' : 'unpaid';
+                        $old_status = strtolower($existing['payment_status'] ?: 'unpaid');
                         $stmt = $pdo->query("DESCRIBE billing");
                         $bcols = array_column($stmt->fetchAll(), 'Field');
                         $bupdates = [];

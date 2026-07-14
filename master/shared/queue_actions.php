@@ -41,68 +41,6 @@ try {
     require_once '../../config/database.php';
     require_once '../../includes/audit_helper.php';
     
-    // Don't use ensureQueueManagementSchema as it doesn't add status_id column
-    
-    // Ensure queue_statuses table has data
-    $stmt = $pdo->query("SELECT id, status_name FROM queue_statuses");
-    $statuses = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
-    
-    if (empty($statuses)) {
-        // Insert statuses if not exists - use REPLACE to handle existing data
-        $pdo->exec("DELETE FROM queue_statuses");
-        $pdo->exec("INSERT INTO queue_statuses (id, status_name, color, icon, description, sort_order) VALUES 
-            (1, 'Waiting', '#007bff', 'fa-clock', 'Patient is waiting', 1),
-            (2, 'Called', '#ffc107', 'fa-bell', 'Patient has been called', 2),
-            (3, 'In Procedure', '#17a2b8', 'fa-user-md', 'Currently in treatment', 3),
-            (4, 'Pending Payment', '#fd7e14', 'fa-money-bill', 'Awaiting payment', 4),
-            (5, 'Completed', '#28a745', 'fa-check', 'All done, paid', 5),
-            (6, 'On Hold', '#6c757d', 'fa-pause', 'Temporarily paused', 6),
-            (7, 'Cancelled', '#dc3545', 'fa-times', 'Cancelled', 7)
-        ");
-        $stmt = $pdo->query("SELECT id, status_name FROM queue_statuses");
-        $statuses = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
-    }
-    
-    // Create map from status_name to id (case-insensitive)
-    $statusNameToId = [];
-    foreach ($statuses as $id => $name) {
-        $statusNameToId[$name] = $id;
-        // Also add lowercase version for matching
-        $statusNameToId[strtolower($name)] = $id;
-    }
-    
-    // Ensure queue table has status_id column
-    $stmt = $pdo->query("SHOW COLUMNS FROM queue LIKE 'status_id'");
-    if (!$stmt->fetch()) {
-        $pdo->exec("ALTER TABLE queue ADD COLUMN status_id INT NULL DEFAULT 1 AFTER status");
-    }
-    
-    // Add dentist_id column if not exists (for tracking which dentist performed treatment)
-    $stmt = $pdo->query("SHOW COLUMNS FROM queue LIKE 'dentist_id'");
-    if (!$stmt->fetch()) {
-        $pdo->exec("ALTER TABLE queue ADD COLUMN dentist_id INT NULL AFTER status_id");
-    }
-    
-    // Check and fix foreign key - remove if exists to avoid issues
-    try {
-        $pdo->exec("ALTER TABLE queue DROP FOREIGN KEY IF EXISTS queue_ibfk_2");
-    } catch (Exception $e) {
-        // FK might not exist
-    }
-    
-    // Re-add FK with proper settings (no delete set null)
-    try {
-        $pdo->exec("ALTER TABLE queue ADD CONSTRAINT fk_queue_status FOREIGN KEY (status_id) REFERENCES queue_statuses(id) ON DELETE RESTRICT ON UPDATE CASCADE");
-    } catch (Exception $e) {
-        // FK might already exist
-    }
-    
-    // Ensure queue table has status_id column
-    $stmt = $pdo->query("SHOW COLUMNS FROM queue LIKE 'status_id'");
-    if (!$stmt->fetch()) {
-        $pdo->exec("ALTER TABLE queue ADD COLUMN status_id INT NULL DEFAULT 1 AFTER status");
-    }
-    
     // Helper function to build full name
     function buildFullName($item) {
         return trim(($item['first_name'] ?? '') . ' ' . ($item['middle_name'] ?? '') . ' ' . ($item['last_name'] ?? '') . ' ' . ($item['suffix'] ?? ''));
@@ -116,10 +54,10 @@ try {
             $queueItem = $stmt->fetch();
             $patientName = buildFullName($queueItem);
 
-            $stmt = $pdo->prepare("UPDATE queue SET status_id = ? WHERE id = ?");
-            $stmt->execute([$statusNameToId['Called'], $queueId]);
+            $stmt = $pdo->prepare("UPDATE queue SET status = 'in_procedure' WHERE id = ?");
+            $stmt->execute([$queueId]);
 
-            logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Called patient: ' . $patientName, $queueId, 'queue', 'Waiting', 'Called');
+            logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Called patient: ' . $patientName, $queueId, 'queue', 'waiting', 'in_procedure');
 
             echo json_encode([
                 'success' => true, 
@@ -130,32 +68,14 @@ try {
             break;
             
         case 'start_procedure':
-            // Get In Procedure status ID directly from database
-            $inProcedureStatusId = null;
-            if (isset($statusNameToId['In Procedure'])) {
-                $inProcedureStatusId = $statusNameToId['In Procedure'];
-            } elseif (isset($statusNameToId['in_procedure'])) {
-                $inProcedureStatusId = $statusNameToId['in_procedure'];
-            }
-            
-            if ($inProcedureStatusId === null) {
-                $stmt = $pdo->query("SELECT id FROM queue_statuses WHERE status_name = 'In Procedure'");
-                $result = $stmt->fetch(PDO::FETCH_ASSOC);
-                if ($result) {
-                    $inProcedureStatusId = $result['id'];
-                } else {
-                    $inProcedureStatusId = 3; // Default fallback
-                }
-            }
-            
             // Check if there's already a procedure in progress
             $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix 
                                    FROM queue q 
                                    LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED) 
-                                   WHERE q.status_id = ? 
+                                   WHERE q.status = 'in_procedure'
                                    AND DATE(q.created_at) = CURDATE() 
                                    LIMIT 1");
-            $stmt->execute([$inProcedureStatusId]);
+            $stmt->execute();
             $existingProcedure = $stmt->fetch();
             
             if ($existingProcedure) {
@@ -168,13 +88,13 @@ try {
             }
             
             // Get old status for audit
-            $stmt = $pdo->prepare("SELECT status_id FROM queue WHERE id = ?");
+            $stmt = $pdo->prepare("SELECT status FROM queue WHERE id = ?");
             $stmt->execute([$queueId]);
-            $oldStatusId = $stmt->fetchColumn() ?: 1;
+            $oldStatus = $stmt->fetchColumn() ?: 'waiting';
             
             // Update to In Procedure
-            $stmt = $pdo->prepare("UPDATE queue SET status_id = ? WHERE id = ?");
-            $result = $stmt->execute([$inProcedureStatusId, $queueId]);
+            $stmt = $pdo->prepare("UPDATE queue SET status = 'in_procedure' WHERE id = ?");
+            $result = $stmt->execute([$queueId]);
             
             if (!$result || $stmt->rowCount() === 0) {
                 echo json_encode(['success' => false, 'message' => 'Failed to start procedure']);
@@ -187,7 +107,7 @@ try {
             $queueItem = $stmt->fetch();
             $patientName = buildFullName($queueItem);
             
-            logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Started procedure for patient: ' . $patientName, $queueId, 'queue', $oldStatusId, $inProcedureStatusId);
+            logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Started procedure for patient: ' . $patientName, $queueId, 'queue', $oldStatus, 'in_procedure');
             
             echo json_encode(['success' => true, 'message' => 'Patient moved to procedure', 'patient_name' => $patientName]);
             break;
@@ -205,35 +125,17 @@ try {
             
             $patientId = $queueItem['patient_id'];
             $patientName = buildFullName($queueItem);
-            $treatmentType = $queueItem['treatment_od'] ?? 'consultation';
+            $treatmentType = $queueItem['treatment_type'] ?? 'consultation';
             $stmt = $pdo->prepare("SELECT price FROM services WHERE LOWER(name) = ? AND is_active = 1 LIMIT 1");
             $stmt->execute([strtolower($treatmentType)]);
             $service = $stmt->fetch();
             $calculatedAmount = $service['price'] ?? 500;
             
-            // Get completed status ID directly from database
-            $completedStatusId = null;
-            if (isset($statusNameToId['Completed'])) {
-                $completedStatusId = $statusNameToId['Completed'];
-            } elseif (isset($statusNameToId['completed'])) {
-                $completedStatusId = $statusNameToId['completed'];
-            }
-            
-            if ($completedStatusId === null) {
-                $stmt = $pdo->query("SELECT id FROM queue_statuses WHERE status_name = 'Completed'");
-                $result = $stmt->fetch(PDO::FETCH_ASSOC);
-                if ($result) {
-                    $completedStatusId = $result['id'];
-                } else {
-                    $completedStatusId = 5; // Default fallback
-                }
-            }
-            
             $pdo->beginTransaction();
             
-            // Update to Completed and save dentist_id (current user)
-            $stmt = $pdo->prepare("UPDATE queue SET status_id = ?, dentist_id = ?, completed_at = NOW() WHERE id = ?");
-            $result = $stmt->execute([$completedStatusId, $user_id, $queueId]);
+            // Update to Completed
+            $stmt = $pdo->prepare("UPDATE queue SET status = 'completed', completed_at = NOW() WHERE id = ?");
+            $result = $stmt->execute([$queueId]);
             
             if (!$result || $stmt->rowCount() === 0) {
                 $pdo->rollBack();
@@ -241,62 +143,26 @@ try {
                 break;
             }
             
-            // Update appointment status if exists
-            $stmt = $pdo->query("DESCRIBE appointments");
-            $aptCols = array_column($stmt->fetchAll(), 'Field');
-            if (in_array('status_id', $aptCols)) { 
-                $stmt = $pdo->prepare("UPDATE appointments SET status_id = 3 WHERE patient_id = ? AND status_id = 2");
-                $stmt->execute([$patientId]);
-            }
+            // Update appointment status to completed
+            $stmt = $pdo->prepare("UPDATE appointments SET status = 'Completed', updated_at = NOW() WHERE patient_id = ? AND status IN ('Scheduled', 'In Queue')");
+            $stmt->execute([$patientId]);
             
             $pdo->commit();
             
-            logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Completed procedure for: ' . $patientName, $queueId, 'queue', '3', '5');
+            logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Completed procedure for: ' . $patientName, $queueId, 'queue', 'in_procedure', 'completed');
             
             echo json_encode(['success' => true, 'message' => 'Procedure completed. Record moved to billing.', 'patient_id' => $patientId, 'amount' => $calculatedAmount]);
             break;
             
         case 'on_hold':
-            // Debug: log what's in statusNameToId
-            error_log("statusNameToId: " . print_r($statusNameToId, true));
-            
-            // Get current status_id before updating
-            $stmt = $pdo->prepare("SELECT status_id FROM queue WHERE id = ?");
-            $stmt->execute([$queueId]);
-            $currentStatusId = $stmt->fetchColumn();
-            error_log("Current status_id for queue $queueId: " . $currentStatusId);
-            
             // Get old status for audit
-            $stmt = $pdo->prepare("SELECT qs.status_name FROM queue q LEFT JOIN queue_statuses qs ON qs.id = q.status_id WHERE q.id = ?");
+            $stmt = $pdo->prepare("SELECT q.status FROM queue q WHERE q.id = ?");
             $stmt->execute([$queueId]);
-            $oldStatusName = $stmt->fetchColumn() ?: 'Waiting';
-            
-            // Check if 'On Hold' status exists - try different variations
-            $onHoldStatusId = null;
-            if (isset($statusNameToId['On Hold'])) {
-                $onHoldStatusId = $statusNameToId['On Hold'];
-            } elseif (isset($statusNameToId['on hold'])) {
-                $onHoldStatusId = $statusNameToId['on hold'];
-            } elseif (isset($statusNameToId['on_hold'])) {
-                $onHoldStatusId = $statusNameToId['on_hold'];
-            }
-            
-            if ($onHoldStatusId === null) {
-                // Try to get from database directly
-                $stmt = $pdo->query("SELECT id, status_name FROM queue_statuses WHERE status_name LIKE '%Hold%'");
-                $holdStatus = $stmt->fetch(PDO::FETCH_ASSOC);
-                if ($holdStatus) {
-                    $onHoldStatusId = $holdStatus['id'];
-                    error_log("Found On Hold status directly: " . $onHoldStatusId);
-                } else {
-                    echo json_encode(['success' => false, 'message' => 'On Hold status not found in queue_statuses table. Available: ' . implode(', ', $statusNameToId)]);
-                    break;
-                }
-            }
+            $oldStatusName = $stmt->fetchColumn() ?: 'waiting';
             
             // Update to On Hold
-            $stmt = $pdo->prepare("UPDATE queue SET status_id = ? WHERE id = ?");
-            $result = $stmt->execute([$onHoldStatusId, $queueId]);
+            $stmt = $pdo->prepare("UPDATE queue SET status = 'on_hold' WHERE id = ?");
+            $result = $stmt->execute([$queueId]);
             
             // Get patient name for audit
             $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name FROM queue q LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED) WHERE q.id = ?");
@@ -304,19 +170,19 @@ try {
             $queueItem = $stmt->fetch();
             $patientName = buildFullName($queueItem);
             
-            logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Patient put on hold: ' . $patientName, $queueId, 'queue', $oldStatusName, 'On Hold');
+            logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Patient put on hold: ' . $patientName, $queueId, 'queue', $oldStatusName, 'on_hold');
             
             echo json_encode(['success' => true, 'message' => 'Patient put on hold']);
             break;
             
         case 'cancel':
             // Get old status for audit
-            $stmt = $pdo->prepare("SELECT qs.status_name FROM queue q LEFT JOIN queue_statuses qs ON qs.id = q.status_id WHERE q.id = ?");
+            $stmt = $pdo->prepare("SELECT q.status FROM queue q WHERE q.id = ?");
             $stmt->execute([$queueId]);
-            $oldStatusName = $stmt->fetchColumn() ?: 'Waiting';
+            $oldStatusName = $stmt->fetchColumn() ?: 'waiting';
             
-            $stmt = $pdo->prepare("UPDATE queue SET status_id = ? WHERE id = ?");
-            $stmt->execute([$statusNameToId['Cancelled'], $queueId]);
+            $stmt = $pdo->prepare("UPDATE queue SET status = 'cancelled' WHERE id = ?");
+            $stmt->execute([$queueId]);
             
             // Get patient name for audit
             $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name FROM queue q LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED) WHERE q.id = ?");
@@ -324,7 +190,7 @@ try {
             $queueItem = $stmt->fetch();
             $patientName = buildFullName($queueItem);
             
-            logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Patient cancelled: ' . $patientName, $queueId, 'queue', $oldStatusName, 'Cancelled');
+            logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Patient cancelled: ' . $patientName, $queueId, 'queue', $oldStatusName, 'cancelled');
             
             echo json_encode(['success' => true, 'message' => 'Patient cancelled']);
             break;
@@ -340,39 +206,12 @@ try {
                 break;
             }
             
-            // Get current status_id
-            $currentStatusId = $queueItem['status_id'];
-            
             // Get old status name for audit
-            $oldStatusName = 'On Hold';
-            if ($currentStatusId) {
-                $stmt = $pdo->prepare("SELECT status_name FROM queue_statuses WHERE id = ?");
-                $stmt->execute([$currentStatusId]);
-                $oldStatusName = $stmt->fetchColumn() ?: 'On Hold';
-            }
+            $oldStatusName = $queueItem['status'] ?? 'on_hold';
             
-            // Check if 'Waiting' status exists
-            $waitingStatusId = null;
-            if (isset($statusNameToId['Waiting'])) {
-                $waitingStatusId = $statusNameToId['Waiting'];
-            } elseif (isset($statusNameToId['waiting'])) {
-                $waitingStatusId = $statusNameToId['waiting'];
-            }
-            
-            if ($waitingStatusId === null) {
-                // Get directly from database
-                $stmt = $pdo->query("SELECT id FROM queue_statuses WHERE status_name = 'Waiting'");
-                $waitingResult = $stmt->fetch(PDO::FETCH_ASSOC);
-                if ($waitingResult) {
-                    $waitingStatusId = $waitingResult['id'];
-                } else {
-                    $waitingStatusId = 1; // Default fallback
-                }
-            }
-            
-            // Set back to Waiting (status_id = 1)
-            $stmt = $pdo->prepare("UPDATE queue SET status_id = ? WHERE id = ?");
-            $result = $stmt->execute([$waitingStatusId, $queueId]);
+            // Set back to waiting
+            $stmt = $pdo->prepare("UPDATE queue SET status = 'waiting' WHERE id = ?");
+            $result = $stmt->execute([$queueId]);
             
             if (!$result || $stmt->rowCount() === 0) {
                 echo json_encode(['success' => false, 'message' => 'Failed to re-queue patient']);
@@ -385,7 +224,7 @@ try {
             $queueItem = $stmt->fetch();
             $patientName = buildFullName($queueItem);
             
-            logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Patient re-queued: ' . $patientName, $queueId, 'queue', $oldStatusName, 'Waiting');
+            logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Patient re-queued: ' . $patientName, $queueId, 'queue', $oldStatusName, 'waiting');
             
             echo json_encode(['success' => true, 'message' => 'Patient re-queued']);
             break;
