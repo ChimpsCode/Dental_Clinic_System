@@ -129,7 +129,7 @@ try {
             $stmt = $pdo->prepare("SELECT price FROM services WHERE LOWER(name) = ? AND is_active = 1 LIMIT 1");
             $stmt->execute([strtolower($treatmentType)]);
             $service = $stmt->fetch();
-            $calculatedAmount = $service['price'] ?? 500;
+            $estimatedAmount = $service['price'] ?? 500;
             
             $pdo->beginTransaction();
             
@@ -149,9 +149,42 @@ try {
             
             $pdo->commit();
             
+            // Fetch the real billing record for this patient to get actual balance
+            $billingData = null;
+            $stmt = $pdo->prepare("
+                SELECT b.id as billing_id, b.total_amount, b.paid_amount, b.balance, b.payment_status
+                FROM billing b
+                WHERE b.patient_id = ?
+                ORDER BY b.created_at DESC
+                LIMIT 1
+            ");
+            $stmt->execute([$patientId]);
+            $billingData = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($billingData) {
+                $totalAmount = floatval($billingData['total_amount']);
+                $paidAmount = floatval($billingData['paid_amount']);
+                $balance = floatval($billingData['balance']);
+                $paymentStatus = $billingData['payment_status'];
+            } else {
+                $totalAmount = $estimatedAmount;
+                $paidAmount = 0;
+                $balance = $estimatedAmount;
+                $paymentStatus = 'unpaid';
+            }
+            
             logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Completed procedure for: ' . $patientName, $queueId, 'queue', 'in_procedure', 'completed');
             
-            echo json_encode(['success' => true, 'message' => 'Procedure completed. Record moved to billing.', 'patient_id' => $patientId, 'amount' => $calculatedAmount]);
+            echo json_encode([
+                'success' => true,
+                'message' => 'Procedure completed. Record moved to billing.',
+                'patient_id' => $patientId,
+                'patient_name' => $patientName,
+                'total_amount' => $totalAmount,
+                'paid_amount' => $paidAmount,
+                'balance' => $balance,
+                'payment_status' => $paymentStatus
+            ]);
             break;
             
         case 'on_hold':

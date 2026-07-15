@@ -869,6 +869,14 @@ if ($action === 'convert_to_appointment') {
     ");
     $stmt->execute($appointmentValues);
 
+    // Check if patient should transition from New Patient to Returning Patient
+    try {
+        require_once __DIR__ . '/../../includes/patient_type_helper.php';
+        maybeTransitionToReturningPatient($pdo, $appointmentData['patient_id'] ?? null);
+    } catch (Exception $e) {
+        // Silent fail - non-critical
+    }
+
     $inquiryStatusUpdate = [
         'status' => 'Scheduled',
         'confirmed_date' => $appointmentDate,

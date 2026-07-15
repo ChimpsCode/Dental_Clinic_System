@@ -187,7 +187,15 @@ try {
     ]);
     
     $appointment_id = $pdo->lastInsertId();
-    
+
+    // Check if patient should transition from New Patient to Returning Patient
+    try {
+        require_once __DIR__ . '/../../includes/patient_type_helper.php';
+        maybeTransitionToReturningPatient($pdo, $patient_id);
+    } catch (Exception $e) {
+        // Silent fail - non-critical
+    }
+
     echo json_encode([
         'success' => true, 
         'message' => 'Appointment scheduled successfully',

@@ -161,6 +161,14 @@ try {
             $ins->execute([$refCode, $patient_id, $serviceId, $session_date, $apptTime, $duration, $doctor_id, $doctor_id]);
             
             $apptId = $pdo->lastInsertId();
+
+            // Check if patient should transition from New Patient to Returning Patient
+            try {
+                require_once __DIR__ . '/../../includes/patient_type_helper.php';
+                maybeTransitionToReturningPatient($pdo, $patient_id);
+            } catch (Exception $e) {
+                // Silent fail - non-critical
+            }
             
             // Link the appointment to the treatment plan
             $linkStmt = $pdo->prepare("UPDATE treatment_plans SET appointment_id = ?, updated_at = NOW() WHERE id = ?");

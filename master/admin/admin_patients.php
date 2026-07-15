@@ -137,13 +137,14 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                 <th>Middle Name</th>
                                 <th>Last Name</th>
                                 <th>Contact</th>
-                                <th>Services</th>
+                                <th>Type</th>
+                                <th>Current Treatment</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="patientsTableBody">
-                            <tr id="emptyRow"><td colspan="7" style="text-align:center;padding:60px;color:#6b7280;">No patients found</td></tr>
+                            <tr id="emptyRow"><td colspan="8" style="text-align:center;padding:60px;color:#6b7280;">No patients found</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -204,7 +205,7 @@ function renderTable() {
     const pageData = filteredPatients.slice(start, end);
 
     if (pageData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:60px;color:#6b7280;">No patients found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:60px;color:#6b7280;">No patients found</td></tr>';
         document.getElementById('pagination').innerHTML = '';
         return;
     }
@@ -220,12 +221,16 @@ function renderTable() {
         const fn = escapeHtml(p.first_name || '');
         const mn = escapeHtml(p.middle_name || '');
         const ln = escapeHtml(p.last_name || '');
+        const pt = escapeHtml(p.patient_type || 'New Patient');
+        const ptColor = (p.patient_type === 'Returning Patient') ? '#0f766e' : '#0891b2';
+        const ptBg = (p.patient_type === 'Returning Patient') ? '#f0fdfa' : '#ecfeff';
 
         return '<tr class="patient-row">' +
             '<td>' + fn + '</td>' +
             '<td>' + mn + '</td>' +
             '<td>' + ln + '</td>' +
             '<td><div class="patient-contact"><div>' + escapeHtml(phone) + '</div><div>' + escapeHtml(email) + '</div></div></td>' +
+            '<td><span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;background:' + ptBg + ';color:' + ptColor + ';">' + pt + '</span></td>' +
             '<td>' + escapeHtml(svc) + '</td>' +
             '<td><span class="status-badge" style="background:' + bg + ';color:' + text + ';">' + label + '</span></td>' +
             '<td><div class="patient-kebab-menu"><button class="patient-kebab-btn" data-patient-id="' + pid + '">' +

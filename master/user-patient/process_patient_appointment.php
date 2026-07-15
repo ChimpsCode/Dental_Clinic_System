@@ -68,19 +68,12 @@ try {
     
     $appointment_id = $pdo->lastInsertId();
 
-    // Update or create queue entry with 'scheduled' status
-    $stmt = $pdo->prepare("SELECT id FROM queue WHERE patient_id = ? AND status IN ('waiting', 'in_procedure') ORDER BY created_at DESC LIMIT 1");
-    $stmt->execute([$patient_id]);
-    $existingQueue = $stmt->fetch();
-
-    if ($existingQueue) {
-        // Update existing queue entry
-        $stmt = $pdo->prepare("UPDATE queue SET status = 'scheduled', treatment_type = ?, updated_at = NOW() WHERE id = ?");
-        $stmt->execute([$treatment, $existingQueue['id']]);
-    } else {
-        // Create new queue entry with 'scheduled' status
-        $stmt = $pdo->prepare("INSERT INTO queue (patient_id, treatment_type, status, created_by, created_at) VALUES (?, ?, 'scheduled', ?, NOW())");
-        $stmt->execute([$patient_id, $treatment, $_SESSION['user_id'] ?? 1]);
+    // Check if patient should transition from New Patient to Returning Patient
+    try {
+        require_once __DIR__ . '/../../includes/patient_type_helper.php';
+        maybeTransitionToReturningPatient($pdo, $patient_id);
+    } catch (Exception $e) {
+        // Silent fail - non-critical
     }
 
     $pdo->commit();

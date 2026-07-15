@@ -115,6 +115,14 @@ try {
     
     $appointment_id = $pdo->lastInsertId();
     
+    // Check if patient should transition from New Patient to Returning Patient
+    try {
+        require_once __DIR__ . '/../../includes/patient_type_helper.php';
+        maybeTransitionToReturningPatient($pdo, $patient_id);
+    } catch (Exception $e) {
+        // Silent fail - non-critical
+    }
+    
     // Update inquiry status to Booked
     $stmt = $pdo->prepare("UPDATE inquiries SET status = 'Booked' WHERE id = ?");
     $stmt->execute([$id]);

@@ -256,7 +256,15 @@ try {
     }
 
     $pdo->commit();
-    
+
+        // Check if patient should transition from New Patient to Returning Patient
+        try {
+            require_once __DIR__ . '/../../includes/patient_type_helper.php';
+            maybeTransitionToReturningPatient($pdo, $patient_id);
+        } catch (Exception $e) {
+            // Silent fail - non-critical
+        }
+
         // Send notifications for new appointment
         try {
             require_once __DIR__ . '/../../includes/notification_functions.php';

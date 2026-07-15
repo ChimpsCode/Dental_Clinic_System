@@ -482,9 +482,7 @@ function confirmCompleteProcedure() {
     .then(data => {
         if (data.success) {
             closeCompleteProcedureModal();
-            const amount = data.amount || 0;
-            alert('Procedure Completed!\n\nTotal Amount: ₱' + amount.toLocaleString('en-PH', {minimumFractionDigits: 2}) + '\n\nPatient moved to billing.');
-            location.reload();
+            showProcedureCompleteModal(data);
         } else {
             alert('Error: ' + (data.message || 'Unable to complete procedure'));
         }
@@ -492,6 +490,30 @@ function confirmCompleteProcedure() {
     .catch(() => {
         alert('Unable to complete procedure');
     });
+}
+
+function showProcedureCompleteModal(data) {
+    const patientName = data.patient_name || 'Patient';
+    const totalAmount = parseFloat(data.total_amount || 0);
+    const paidAmount = parseFloat(data.paid_amount || 0);
+    const balance = parseFloat(data.balance || 0);
+    const paymentStatus = data.payment_status || 'unpaid';
+
+    document.getElementById('pcPatientName').textContent = patientName;
+    document.getElementById('pcTotalAmount').textContent = '₱' + totalAmount.toLocaleString('en-PH', {minimumFractionDigits: 2});
+    document.getElementById('pcPaidAmount').textContent = '₱' + paidAmount.toLocaleString('en-PH', {minimumFractionDigits: 2});
+    document.getElementById('pcBalance').textContent = '₱' + balance.toLocaleString('en-PH', {minimumFractionDigits: 2});
+
+    const statusEl = document.getElementById('pcPaymentStatus');
+    statusEl.textContent = paymentStatus.charAt(0).toUpperCase() + paymentStatus.slice(1);
+    statusEl.className = 'pc-status-badge pc-status-' + paymentStatus;
+
+    document.getElementById('procedureCompleteModal').style.display = 'flex';
+}
+
+function closeProcedureCompleteModal() {
+    document.getElementById('procedureCompleteModal').style.display = 'none';
+    location.reload();
 }
 
 // Billing functions
@@ -1061,7 +1083,9 @@ document.addEventListener('DOMContentLoaded', function() {
 // Close modals on outside click
 window.onclick = function(event) {
     const cpModal = document.getElementById('completeProcedureModal');
+    const pcModal = document.getElementById('procedureCompleteModal');
     if (event.target === cpModal) closeCompleteProcedureModal();
+    if (event.target === pcModal) closeProcedureCompleteModal();
 };
 </script>
 
@@ -1114,6 +1138,61 @@ window.onclick = function(event) {
             <button type="button" onclick="closeCompleteProcedureModal()" class="cp-btn-cancel">Keep Open</button>
             <button type="button" onclick="confirmCompleteProcedure()" class="cp-btn-confirm">Yes, Complete</button>
         </div>
+    </div>
+</div>
+
+<!-- Procedure Complete Success Modal -->
+<div id="procedureCompleteModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
+    <div class="pc-modal" style="position: relative; z-index: 100000;">
+        <div class="pc-success-ring">
+            <div class="pc-success-check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            </div>
+        </div>
+        <h2 class="pc-title">Procedure Complete!</h2>
+        <p class="pc-subtitle">Treatment for <strong id="pcPatientName">Patient</strong> has been completed successfully.</p>
+
+        <div class="pc-billing-card">
+            <div class="pc-billing-header">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;color:#0891b2;">
+                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                    <line x1="1" y1="10" x2="23" y2="10"></line>
+                </svg>
+                <span>Billing Summary</span>
+            </div>
+            <div class="pc-billing-rows">
+                <div class="pc-billing-row">
+                    <span class="pc-billing-label">Total Amount</span>
+                    <span class="pc-billing-value" id="pcTotalAmount">₱0.00</span>
+                </div>
+                <div class="pc-billing-row">
+                    <span class="pc-billing-label">Amount Paid</span>
+                    <span class="pc-billing-value pc-paid" id="pcPaidAmount">₱0.00</span>
+                </div>
+                <div class="pc-billing-divider"></div>
+                <div class="pc-billing-row pc-balance-row">
+                    <span class="pc-billing-label">Remaining Balance</span>
+                    <span class="pc-billing-value pc-balance" id="pcBalance">₱0.00</span>
+                </div>
+            </div>
+            <div class="pc-status-row">
+                <span class="pc-billing-label">Payment Status</span>
+                <span class="pc-status-badge" id="pcPaymentStatus">Unpaid</span>
+            </div>
+        </div>
+
+        <div class="pc-info-note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex-shrink:0;color:#0891b2;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>Patient has been moved to billing. You can manage payment from the billing page.</span>
+        </div>
+
+        <button type="button" onclick="closeProcedureCompleteModal()" class="pc-btn-done">Done</button>
     </div>
 </div>
 
@@ -1257,6 +1336,100 @@ window.onclick = function(event) {
     .cp-banner, .cp-body, .cp-actions { padding-left: 18px; padding-right: 18px; }
     .cp-actions { flex-direction: column-reverse; }
     .cp-btn-cancel, .cp-btn-confirm { width: 100%; }
+}
+
+/* Procedure Complete Success Modal */
+.pc-modal {
+    background: white;
+    border-radius: 22px;
+    padding: 36px 32px 32px;
+    width: 90%;
+    max-width: 460px;
+    text-align: center;
+    position: relative;
+    z-index: 100000;
+    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.24);
+    animation: pcModalPop 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes pcModalPop {
+    0% { transform: scale(0.85); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+.pc-success-ring {
+    width: 80px; height: 80px; margin: 0 auto 20px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    display: flex; align-items: center; justify-content: center;
+    animation: pcRingPulse 2s ease-in-out infinite;
+}
+@keyframes pcRingPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.3); }
+    50% { box-shadow: 0 0 0 14px rgba(34, 197, 94, 0); }
+}
+.pc-success-check {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    display: flex; align-items: center; justify-content: center;
+    color: white;
+}
+.pc-success-check svg { width: 26px; height: 26px; }
+.pc-title {
+    font-size: 1.4rem; font-weight: 800; color: #1e293b; margin: 0 0 6px;
+}
+.pc-subtitle {
+    font-size: 0.95rem; color: #64748b; margin: 0 0 24px; line-height: 1.5;
+}
+.pc-subtitle strong { color: #1e293b; font-weight: 700; }
+.pc-billing-card {
+    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px;
+    padding: 18px 20px; margin-bottom: 18px; text-align: left;
+}
+.pc-billing-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+    font-size: 0.82rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: #0891b2;
+}
+.pc-billing-rows { display: flex; flex-direction: column; gap: 10px; }
+.pc-billing-row { display: flex; justify-content: space-between; align-items: center; }
+.pc-billing-label { font-size: 0.88rem; color: #64748b; font-weight: 500; }
+.pc-billing-value { font-size: 1rem; font-weight: 700; color: #1e293b; }
+.pc-billing-value.pc-paid { color: #16a34a; }
+.pc-billing-divider { height: 1px; background: #e2e8f0; margin: 4px 0; }
+.pc-balance-row .pc-billing-label { font-weight: 700; color: #1e293b; }
+.pc-billing-value.pc-balance {
+    font-size: 1.15rem; font-weight: 800;
+    background: linear-gradient(135deg, #0891b2, #0f766e);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.pc-status-row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0;
+}
+.pc-status-badge {
+    padding: 4px 12px; border-radius: 20px; font-size: 0.78rem;
+    font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.pc-status-unpaid { background: #fef2f2; color: #dc2626; }
+.pc-status-partial { background: #fffbeb; color: #d97706; }
+.pc-status-paid { background: #f0fdf4; color: #16a34a; }
+.pc-status-pending { background: #eff6ff; color: #2563eb; }
+.pc-info-note {
+    display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px;
+    border-radius: 12px; background: #eff6ff; border: 1px solid #bfdbfe;
+    font-size: 0.85rem; color: #1e40af; line-height: 1.5; text-align: left;
+    margin-bottom: 22px;
+}
+.pc-btn-done {
+    width: 100%; border: none; border-radius: 14px; padding: 14px 24px;
+    background: linear-gradient(135deg, #0891b2 0%, #0f9f53 100%);
+    color: white; font-weight: 700; font-size: 1rem; cursor: pointer;
+    box-shadow: 0 14px 28px rgba(8, 145, 178, 0.24);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.pc-btn-done:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 18px 36px rgba(8, 145, 178, 0.32);
 }
 
 </style>

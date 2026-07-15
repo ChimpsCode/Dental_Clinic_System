@@ -55,7 +55,7 @@ try {
         FROM appointments a
         LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
         LEFT JOIN services s ON s.id = a.service_id
-        WHERE a.status IN ('Scheduled', 'In Queue')
+        WHERE a.status IN ('In Queue')
           AND NOT EXISTS (
               SELECT 1
               FROM queue q
