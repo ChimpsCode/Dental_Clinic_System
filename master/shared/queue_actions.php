@@ -144,7 +144,7 @@ try {
             }
             
             // Update appointment status to completed
-            $stmt = $pdo->prepare("UPDATE appointments SET status = 'Completed', updated_at = NOW() WHERE patient_id = ? AND status IN ('Scheduled', 'In Queue')");
+            $stmt = $pdo->prepare("UPDATE appointments SET status = 'Completed' WHERE patient_id = ? AND status IN ('Scheduled', 'In Queue')");
             $stmt->execute([$patientId]);
             
             $pdo->commit();

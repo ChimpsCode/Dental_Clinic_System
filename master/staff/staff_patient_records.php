@@ -1484,9 +1484,9 @@ function getStaffPatientTeethDisplayText(teethString) {
                 <label>Payment Method</label>
                 <select id="recordPaymentMethod" class="form-control">
                     <option value="cash">Cash</option>
-                    <option value="card">Card</option>
                     <option value="gcash">GCash</option>
                     <option value="bank_transfer">Bank Transfer</option>
+                    <option value="installment">Installment</option>
                 </select>
             </div>
             <div class="modal-actions">

@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                    s.name as service_name
             FROM treatment_plans tp
             LEFT JOIN services s ON (tp.plan_name REGEXP '^[0-9]+$' AND s.id = tp.plan_name)
-            WHERE tp.patient_id = ? AND (tp.is_archived = 0 OR tp.is_archived IS NULL)
+            WHERE tp.patient_id = ?
             ORDER BY tp.created_at DESC
         ");
         $stmt->execute([$patient_id]);

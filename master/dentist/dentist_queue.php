@@ -1011,6 +1011,84 @@ div.main-content {
     .btn-primary:hover {
         background: #0369a1;
     }
+
+    /* Patient Record Details Modal */
+    .fullscreen-modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        justify-content: center;
+        z-index: 99999;
+    }
+    .fullscreen-modal-overlay.active {
+        display: flex;
+        align-items: center;
+    }
+    .fullscreen-modal-content {
+        background: white;
+        border-radius: 16px;
+        width: 95%;
+        max-width: 900px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        position: relative;
+        z-index: 100000;
+    }
+    .fullscreen-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 24px;
+        border-bottom: 1px solid #e5e7eb;
+        position: sticky;
+        top: 0;
+        background: white;
+        z-index: 10;
+    }
+    .fullscreen-modal-close {
+        background: none;
+        border: none;
+        font-size: 2rem;
+        cursor: pointer;
+        color: #6b7280;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+    }
+    .fullscreen-modal-body {
+        padding: 24px;
+    }
+    .patient-info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+    }
+    .patient-info-item {
+        background: #f9fafb;
+        border-radius: 8px;
+        padding: 12px;
+    }
+    .patient-info-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 4px;
+    }
+    .patient-info-value {
+        font-size: 0.95rem;
+        color: #111827;
+        font-weight: 500;
+    }
 </style>
 
 <!-- Summary Widgets -->
@@ -1162,7 +1240,7 @@ div.main-content {
                             </td>
                             <td>
                                 <div class="queue-kebab-menu">
-                                    <button class="queue-kebab-btn" data-queue-id="<?php echo $item['id']; ?>">
+                                    <button class="queue-kebab-btn" data-queue-id="<?php echo $item['id']; ?>" data-patient-id="<?php echo $item['patient_id']; ?>">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                                             <circle cx="12" cy="6" r="2"/>
                                             <circle cx="12" cy="12" r="2"/>
@@ -1219,6 +1297,20 @@ div.main-content {
         </div>
         <?php endif; ?>
 
+<!-- Patient Record Details Modal -->
+<div id="queuePatientModal" class="fullscreen-modal-overlay">
+    <div class="fullscreen-modal-content">
+        <div class="fullscreen-modal-header">
+            <div>
+                <h2 style="font-size: 1.5rem; font-weight: 600; margin: 0;">Patient Record Details</h2>
+                <p id="queueModalPatientName" style="color: #6b7280; margin: 4px 0 0 0; font-size: 0.9rem;"></p>
+            </div>
+            <button type="button" onclick="closeQueuePatientModal()" class="fullscreen-modal-close">&times;</button>
+        </div>
+        <div class="fullscreen-modal-body" id="queuePatientContent"></div>
+    </div>
+</div>
+
 <script>
 // Queue Kebab Menu Functionality
 let queueKebabDropdown = null;
@@ -1242,8 +1334,18 @@ function createQueueKebabDropdown() {
     queueKebabBackdrop.addEventListener('click', closeQueueKebabDropdown);
 }
 
-function getQueueMenuItems(queueId, status) {
+function getQueueMenuItems(queueId, status, patientId) {
     let menuHTML = '';
+    
+    menuHTML += `
+        <a href="javascript:void(0)" onclick="viewPatientQueue(${patientId})">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+            </svg>
+            View Patient
+        </a>
+    `;
     
     if (status === 'waiting') {
         if (inProcedurePatient) {
@@ -1296,10 +1398,6 @@ function getQueueMenuItems(queueId, status) {
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
             Treatment
         </a>
-        <a href="../shared/quick_session.php?queue_id=${queueId}" class="primary">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-            Session
-        </a>
     `;
     
     return menuHTML;
@@ -1344,10 +1442,11 @@ function openQueueKebabDropdown(button) {
     }
 
     const queueId = button.dataset.queueId;
+    const patientId = button.dataset.patientId || '0';
     const row = button.closest('.queue-row');
     const status = row.dataset.status;
 
-    queueKebabDropdown.innerHTML = getQueueMenuItems(queueId, status);
+    queueKebabDropdown.innerHTML = getQueueMenuItems(queueId, status, patientId);
     positionQueueKebabDropdown(button);
 
     queueKebabDropdown.classList.add('show');
@@ -1568,6 +1667,185 @@ function updateQueueStatus(queueId, status) {
         alert('Error updating status');
     });
 }
+
+// View Patient Record Details
+function viewPatientQueue(patientId) {
+    document.getElementById('queuePatientModal').classList.add('active');
+    document.getElementById('queueModalPatientName').textContent = 'Loading...';
+    document.getElementById('queuePatientContent').innerHTML = '<div style="text-align:center;padding:3rem;"><p>Loading patient details...</p></div>';
+
+    fetch('../user-patient/patient_record_details.php?id=' + encodeURIComponent(patientId))
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const p = data.patient;
+                const m = data.medical_history || {};
+                const d = data.dental_history || {};
+                const q = data.queue_item || {};
+                const fullName = `${p.first_name || ''} ${p.middle_name || ''} ${p.last_name || ''} ${p.suffix || ''}`.trim() || 'Unknown';
+                const conditions = m.medical_conditions || 'None';
+                const allergies = m.allergies || 'None';
+                const medications = m.current_medications || 'None';
+
+                document.getElementById('queueModalPatientName').textContent = fullName;
+                document.getElementById('queuePatientContent').innerHTML = `
+                    <div class="patient-info-grid">
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">First Name</div>
+                            <div class="patient-info-value">${p.first_name || 'N/A'}</div>
+                        </div>
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Middle Name</div>
+                            <div class="patient-info-value">${p.middle_name || ''}</div>
+                        </div>
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Last Name</div>
+                            <div class="patient-info-value">${p.last_name || 'N/A'}</div>
+                        </div>
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Phone</div>
+                            <div class="patient-info-value">${p.phone || 'N/A'}</div>
+                        </div>
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Age</div>
+                            <div class="patient-info-value">${p.age || 'N/A'} years</div>
+                        </div>
+                        <div class="patient-info-item">
+                            <div class="patient-info-label">Gender</div>
+                            <div class="patient-info-value">${p.gender || 'N/A'}</div>
+                        </div>
+                        <div class="patient-info-item" style="grid-column: 1 / -1;">
+                            <div class="patient-info-label">Address</div>
+                            <div class="patient-info-value">${p.street_address || 'N/A'}${p.city ? ', ' + p.city : ''}${p.province ? ', ' + p.province : ''}</div>
+                        </div>
+                    </div>
+                    <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                        <h3 style="font-size: 1rem; font-weight: 600; color: #1e40af; margin-bottom: 16px;">Service Requested</h3>
+                        <div class="patient-info-grid">
+                            <div class="patient-info-item">
+                                <div class="patient-info-label">Treatment Type</div>
+                                <div class="patient-info-value">${q.treatment_type || 'Consultation'}</div>
+                            </div>
+                            <div class="patient-info-item">
+                                <div class="patient-info-label">Selected Teeth</div>
+                                <div class="patient-info-value">${q.teeth_numbers ? q.teeth_numbers : 'None specified'}</div>
+                            </div>
+                            <div class="patient-info-item">
+                                <div class="patient-info-label">Status</div>
+                                <div class="patient-info-value">${q.status ? q.status.replace(/_/g, ' ') : 'None'}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="queueBillingSummary"></div>
+                    <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                        <h3 style="font-size: 1rem; font-weight: 600; color: #dc2626; margin-bottom: 16px;">Medical History</h3>
+                        <div class="patient-info-grid">
+                            <div class="patient-info-item">
+                                <div class="patient-info-label">Allergies</div>
+                                <div class="patient-info-value">${allergies}</div>
+                            </div>
+                            <div class="patient-info-item">
+                                <div class="patient-info-label">Conditions</div>
+                                <div class="patient-info-value">${conditions}</div>
+                            </div>
+                            <div class="patient-info-item" style="grid-column: 1 / -1;">
+                                <div class="patient-info-label">Current Medications</div>
+                                <div class="patient-info-value">${medications}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="background: #f9fafb; border-radius: 12px; padding: 20px;">
+                        <h3 style="font-size: 1rem; font-weight: 600; color: #374151; margin-bottom: 16px;">Dental History</h3>
+                        <div class="patient-info-grid">
+                            <div class="patient-info-item">
+                                <div class="patient-info-label">Previous Dentist</div>
+                                <div class="patient-info-value">${d.previous_dentist || 'N/A'}</div>
+                            </div>
+                            <div class="patient-info-item">
+                                <div class="patient-info-label">Last Visit</div>
+                                <div class="patient-info-value">${d.last_visit_date || 'N/A'}</div>
+                            </div>
+                            <div class="patient-info-item" style="grid-column: 1 / -1;">
+                                <div class="patient-info-label">Current Complaints</div>
+                                <div class="patient-info-value">${d.current_complaints || 'None'}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                loadQueueBillingSummary(patientId);
+            } else {
+                alert('Patient details not found');
+                document.getElementById('queuePatientModal').classList.remove('active');
+            }
+        })
+        .catch(() => {
+            alert('Unable to load patient details');
+            document.getElementById('queuePatientModal').classList.remove('active');
+        });
+}
+
+function loadQueueBillingSummary(patientId) {
+    fetch('../shared/billing_actions.php?action=get_details&patient_id=' + encodeURIComponent(patientId))
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('queueBillingSummary');
+            if (!container) return;
+
+            if (data.success && data.billing_id) {
+                var billingId = data.billing_id;
+                return fetch('../shared/billing_actions.php?action=get_billing&billing_id=' + billingId)
+                    .then(r => r.json())
+                    .then(billData => {
+                        if (billData.success && billData.billing) {
+                            var b = billData.billing;
+                            var statusColor = (b.payment_status || '').toLowerCase() === 'paid' ? '#166534' : '#92400e';
+                            var statusBg = (b.payment_status || '').toLowerCase() === 'paid' ? '#dcfce7' : ((b.payment_status || '').toLowerCase() === 'partial' ? '#fef3c7' : '#fee2e2');
+                            var statusText = (b.payment_status || 'Unpaid').charAt(0).toUpperCase() + (b.payment_status || 'Unpaid').slice(1).toLowerCase();
+                            container.innerHTML = renderBillingSummaryHTML(b, statusColor, statusBg, statusText);
+                        } else {
+                            container.innerHTML = renderNoBillingHTML();
+                        }
+                    });
+            } else {
+                container.innerHTML = renderNoBillingHTML();
+            }
+        })
+        .catch(() => {
+            var container = document.getElementById('queueBillingSummary');
+            if (container) container.innerHTML = renderNoBillingHTML();
+        });
+}
+
+function renderBillingSummaryHTML(b, statusColor, statusBg, statusText) {
+    var paidAmt = parseFloat(b.paid_amount || 0);
+    var totalAmt = parseFloat(b.total_amount || 0);
+    var balanceAmt = parseFloat(b.balance || 0);
+    return '<div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; margin-bottom: 20px;">' +
+        '<h3 style="font-size: 1rem; font-weight: 600; color: #166534; margin-bottom: 16px;">Billing Summary</h3>' +
+        '<div class="patient-info-grid">' +
+        '<div class="patient-info-item"><div class="patient-info-label">Invoice #</div><div class="patient-info-value">INV-' + String(b.id).padStart(4, '0') + '</div></div>' +
+        '<div class="patient-info-item"><div class="patient-info-label">Total Amount</div><div class="patient-info-value">P' + totalAmt.toFixed(2) + '</div></div>' +
+        '<div class="patient-info-item"><div class="patient-info-label">Paid Amount</div><div class="patient-info-value" style="color: #166534;">P' + paidAmt.toFixed(2) + '</div></div>' +
+        '<div class="patient-info-item"><div class="patient-info-label">Balance</div><div class="patient-info-value" style="color: ' + (balanceAmt > 0 ? '#dc2626' : '#166534') + '; font-weight: 700;">P' + balanceAmt.toFixed(2) + '</div></div>' +
+        '<div class="patient-info-item"><div class="patient-info-label">Payment Status</div><div class="patient-info-value"><span style="background:' + statusBg + '; color:' + statusColor + '; padding: 2px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase;">' + statusText + '</span></div></div>' +
+        '<div class="patient-info-item"><div class="patient-info-label">Billing Date</div><div class="patient-info-value">' + (b.billing_date || 'N/A') + '</div></div>' +
+        '<div class="patient-info-item"><div class="patient-info-label">Due Date</div><div class="patient-info-value">' + (b.due_date || 'Not set') + '</div></div>' +
+        '</div></div>';
+}
+
+function renderNoBillingHTML() {
+    return '<div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; margin-bottom: 20px;">' +
+        '<h3 style="font-size: 1rem; font-weight: 600; color: #166534; margin-bottom: 16px;">Billing Summary</h3>' +
+        '<p style="color: #6b7280; margin: 0;">No billing record found for this patient.</p></div>';
+}
+
+function closeQueuePatientModal() {
+    document.getElementById('queuePatientModal').classList.remove('active');
+}
+
+document.getElementById('queuePatientModal').addEventListener('click', function(e) {
+    if (e.target === this) closeQueuePatientModal();
+});
 
 // Tab Navigation
 document.querySelectorAll('.tab-item').forEach(tab => {

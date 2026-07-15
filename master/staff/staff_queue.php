@@ -863,6 +863,71 @@ div.main-content {
     margin: 0;
 }
 
+/* Complete Procedure Modal */
+.complete-procedure-modal {
+    background:
+        radial-gradient(circle at top right, rgba(14, 165, 233, 0.18), transparent 32%),
+        radial-gradient(circle at bottom left, rgba(34, 197, 94, 0.14), transparent 28%),
+        linear-gradient(180deg, #ffffff 0%, #f7fcff 100%);
+    border-radius: 22px;
+    padding: 0;
+    width: 90%;
+    max-width: 560px;
+    overflow: hidden;
+    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.24);
+    border: 1px solid rgba(14, 165, 233, 0.12);
+}
+.cp-bg-orb { position: absolute; border-radius: 999px; pointer-events: none; filter: blur(8px); opacity: 0.55; }
+.cp-bg-orb-a { width: 140px; height: 140px; right: -30px; top: 88px; background: radial-gradient(circle, rgba(14, 165, 233, 0.2) 0%, rgba(14, 165, 233, 0) 72%); }
+.cp-bg-orb-b { width: 160px; height: 160px; left: -40px; bottom: -30px; background: radial-gradient(circle, rgba(34, 197, 94, 0.16) 0%, rgba(34, 197, 94, 0) 74%); }
+.cp-banner {
+    display: flex; align-items: center; gap: 16px; padding: 24px 26px 18px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0) 42%), linear-gradient(135deg, #0b7db3 0%, #0891b2 38%, #0f9f53 100%);
+    color: white; position: relative;
+}
+.cp-icon-wrap {
+    width: 54px; height: 54px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
+    background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.22); backdrop-filter: blur(6px); flex-shrink: 0;
+}
+.cp-icon { display: flex; align-items: center; justify-content: center; }
+.cp-icon svg { width: 26px; height: 26px; fill: currentColor; }
+.cp-kicker { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; opacity: 0.9; font-weight: 700; }
+.cp-close {
+    margin-left: auto; background: rgba(255, 255, 255, 0.12); color: white;
+    border: 1px solid rgba(255, 255, 255, 0.18); width: 40px; height: 40px; border-radius: 12px;
+    font-size: 1.5rem; cursor: pointer; backdrop-filter: blur(8px);
+}
+.cp-body { padding: 24px 26px 12px; position: relative; }
+.cp-text { color: #1f2937; font-size: 1.06rem; line-height: 1.6; margin: 0 0 16px; font-weight: 500; }
+.cp-highlight {
+    display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 16px;
+    background: linear-gradient(135deg, #ecfeff 0%, #f0fdf4 100%); border: 1px solid #d9f99d; margin-bottom: 14px;
+}
+.cp-highlight-icon {
+    width: 42px; height: 42px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
+    background: white; box-shadow: 0 10px 24px rgba(8, 145, 178, 0.12); font-size: 1.25rem; flex-shrink: 0;
+}
+.cp-highlight-label { color: #0f766e; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 3px; }
+.cp-highlight-value { color: #1f2937; font-size: 0.95rem; font-weight: 600; }
+.cp-note {
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px;
+    background: #f0fdf4; color: #166534; font-size: 0.92rem; border: 1px solid #dcfce7;
+}
+.cp-note-dot { width: 10px; height: 10px; border-radius: 999px; background: #22c55e; box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.14); flex-shrink: 0; }
+.cp-actions { display: flex; justify-content: flex-end; gap: 12px; padding: 18px 26px 26px; }
+.cp-btn-cancel, .cp-btn-confirm {
+    border: none; border-radius: 14px; padding: 13px 20px; cursor: pointer; font-weight: 700; font-size: 0.97rem;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+.cp-btn-cancel { background: #eef6fb; color: #315266; border: 1px solid #d8e9f4; }
+.cp-btn-confirm { background: linear-gradient(135deg, #0891b2 0%, #0f9f53 100%); color: white; box-shadow: 0 14px 28px rgba(8, 145, 178, 0.24); }
+.cp-btn-cancel:hover, .cp-btn-confirm:hover, .cp-close:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08); }
+@media (max-width: 640px) {
+    .cp-banner, .cp-body, .cp-actions { padding-left: 18px; padding-right: 18px; }
+    .cp-actions { flex-direction: column-reverse; }
+    .cp-btn-cancel, .cp-btn-confirm { width: 100%; }
+}
+
 
 </style>
 
@@ -1157,7 +1222,7 @@ function getQueueMenuItems(queueId, patientId, status, appointmentId = '', sourc
         `;
     }
 
-    // In Procedure: Show only View
+    // In Procedure: Show View and Complete
     if (status === 'in_procedure') {
         return `
         <a href="javascript:void(0)" data-action="view" data-queue-id="${queueId}" data-patient-id="${patientId}">
@@ -1166,6 +1231,10 @@ function getQueueMenuItems(queueId, patientId, status, appointmentId = '', sourc
                 <circle cx="12" cy="12" r="3"/>
             </svg>
             View
+        </a>
+        <a href="javascript:void(0)" data-action="complete" data-queue-id="${queueId}" data-patient-id="${patientId}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+            Complete
         </a>
         `;
     }
@@ -1352,6 +1421,9 @@ function handleQueueKebabClick(e) {
         case 'view':
             viewPatientQueue(patientId);
             break;
+        case 'complete':
+            openCompleteProcedureModal(queueId);
+            break;
         case 'hold':
             holdPatientQueue(queueId);
             break;
@@ -1388,6 +1460,10 @@ document.addEventListener('click', function(e) {
 
 // View Patient
 function viewPatientQueue(patientId) {
+    document.getElementById('queuePatientModal').classList.add('active');
+    document.getElementById('queueModalPatientName').textContent = 'Loading...';
+    document.getElementById('queuePatientContent').innerHTML = '<div style="text-align:center;padding:3rem;"><p>Loading patient details...</p></div>';
+
     fetch('../user-patient/patient_record_details.php?id=' + encodeURIComponent(patientId))
         .then(response => response.json())
         .then(data => {
@@ -1450,6 +1526,7 @@ function viewPatientQueue(patientId) {
                             </div>
                         </div>
                     </div>
+                    <div id="queueBillingSummary"></div>
                     <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
                         <h3 style="font-size: 1rem; font-weight: 600; color: #dc2626; margin-bottom: 16px;">Medical History</h3>
                         <div class="patient-info-grid">
@@ -1485,14 +1562,71 @@ function viewPatientQueue(patientId) {
                         </div>
                     </div>
                 `;
-                document.getElementById('queuePatientModal').classList.add('active');
+                loadQueueBillingSummary(patientId);
             } else {
                 alert('Patient details not found');
+                document.getElementById('queuePatientModal').classList.remove('active');
             }
         })
         .catch(() => {
             alert('Unable to load patient details');
+            document.getElementById('queuePatientModal').classList.remove('active');
         });
+}
+
+function loadQueueBillingSummary(patientId) {
+    fetch('../shared/billing_actions.php?action=get_details&patient_id=' + encodeURIComponent(patientId))
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('queueBillingSummary');
+            if (!container) return;
+
+            if (data.success && data.billing_id) {
+                var billingId = data.billing_id;
+                return fetch('../shared/billing_actions.php?action=get_billing&billing_id=' + billingId)
+                    .then(r => r.json())
+                    .then(billData => {
+                        if (billData.success && billData.billing) {
+                            var b = billData.billing;
+                            var statusColor = (b.payment_status || '').toLowerCase() === 'paid' ? '#166534' : '#92400e';
+                            var statusBg = (b.payment_status || '').toLowerCase() === 'paid' ? '#dcfce7' : ((b.payment_status || '').toLowerCase() === 'partial' ? '#fef3c7' : '#fee2e2');
+                            var statusText = (b.payment_status || 'Unpaid').charAt(0).toUpperCase() + (b.payment_status || 'Unpaid').slice(1).toLowerCase();
+                            container.innerHTML = renderBillingSummaryHTML(b, statusColor, statusBg, statusText);
+                        } else {
+                            container.innerHTML = renderNoBillingHTML();
+                        }
+                    });
+            } else {
+                container.innerHTML = renderNoBillingHTML();
+            }
+        })
+        .catch(() => {
+            var container = document.getElementById('queueBillingSummary');
+            if (container) container.innerHTML = renderNoBillingHTML();
+        });
+}
+
+function renderBillingSummaryHTML(b, statusColor, statusBg, statusText) {
+    var paidAmt = parseFloat(b.paid_amount || 0);
+    var totalAmt = parseFloat(b.total_amount || 0);
+    var balanceAmt = parseFloat(b.balance || 0);
+    return '<div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; margin-bottom: 20px;">' +
+        '<h3 style="font-size: 1rem; font-weight: 600; color: #166534; margin-bottom: 16px;">Billing Summary</h3>' +
+        '<div class="patient-info-grid">' +
+        '<div class="patient-info-item"><div class="patient-info-label">Invoice #</div><div class="patient-info-value">INV-' + String(b.id).padStart(4, '0') + '</div></div>' +
+        '<div class="patient-info-item"><div class="patient-info-label">Total Amount</div><div class="patient-info-value">P' + totalAmt.toFixed(2) + '</div></div>' +
+        '<div class="patient-info-item"><div class="patient-info-label">Paid Amount</div><div class="patient-info-value" style="color: #166534;">P' + paidAmt.toFixed(2) + '</div></div>' +
+        '<div class="patient-info-item"><div class="patient-info-label">Balance</div><div class="patient-info-value" style="color: ' + (balanceAmt > 0 ? '#dc2626' : '#166534') + '; font-weight: 700;">P' + balanceAmt.toFixed(2) + '</div></div>' +
+        '<div class="patient-info-item"><div class="patient-info-label">Payment Status</div><div class="patient-info-value"><span style="background:' + statusBg + '; color:' + statusColor + '; padding: 2px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase;">' + statusText + '</span></div></div>' +
+        '<div class="patient-info-item"><div class="patient-info-label">Billing Date</div><div class="patient-info-value">' + (b.billing_date || 'N/A') + '</div></div>' +
+        '<div class="patient-info-item"><div class="patient-info-label">Due Date</div><div class="patient-info-value">' + (b.due_date || 'Not set') + '</div></div>' +
+        '</div></div>';
+}
+
+function renderNoBillingHTML() {
+    return '<div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; margin-bottom: 20px;">' +
+        '<h3 style="font-size: 1rem; font-weight: 600; color: #166534; margin-bottom: 16px;">Billing Summary</h3>' +
+        '<p style="color: #6b7280; margin: 0;">No billing record found for this patient.</p></div>';
 }
 
 // Hold Patient
@@ -1668,8 +1802,43 @@ document.getElementById('queuePatientModal')?.addEventListener('click', function
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeQueuePatientModal();
+        closeCompleteProcedureModal();
     }
 });
+
+// Complete Procedure Modal
+function openCompleteProcedureModal(queueId) {
+    document.getElementById('completeProcedureQueueId').value = queueId;
+    document.getElementById('completeProcedureModal').style.display = 'flex';
+}
+
+function closeCompleteProcedureModal() {
+    document.getElementById('completeProcedureModal').style.display = 'none';
+    document.getElementById('completeProcedureQueueId').value = '';
+}
+
+function confirmCompleteProcedure() {
+    const queueId = document.getElementById('completeProcedureQueueId').value;
+    if (!queueId) return;
+
+    fetch('../shared/queue_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'complete', queue_id: queueId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeCompleteProcedureModal();
+            location.reload();
+        } else {
+            alert('Error: ' + (data.message || 'Unable to complete procedure'));
+        }
+    })
+    .catch(() => {
+        alert('Unable to complete procedure');
+    });
+}
 
 function getQueueTeethDisplayText(teethString) {
     if (!teethString || teethString.trim() === '') {
@@ -1696,5 +1865,46 @@ function getQueueTeethDisplayText(teethString) {
     return parts.length ? parts.join(' + ') : teeth.sort((a, b) => a - b).join(', ');
 }
 </script>
+
+<!-- Complete Procedure Modal -->
+<div id="completeProcedureModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
+    <div class="complete-procedure-modal" style="position: relative; z-index: 100000;">
+        <div class="cp-bg-orb cp-bg-orb-a"></div>
+        <div class="cp-bg-orb cp-bg-orb-b"></div>
+        <div class="cp-banner">
+            <div class="cp-icon-wrap">
+                <span class="cp-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M9.2 16.2 5.5 12.5l-1.4 1.4 5.1 5.1L20 8.2l-1.4-1.4z"></path>
+                    </svg>
+                </span>
+            </div>
+            <div>
+                <div class="cp-kicker">Staff Queue</div>
+                <h2 style="font-size: 1.55rem; font-weight: 700; margin: 6px 0 0;">Complete Procedure</h2>
+            </div>
+            <button onclick="closeCompleteProcedureModal()" class="cp-close">&times;</button>
+        </div>
+        <div class="cp-body">
+            <p class="cp-text">Mark procedure as complete and move this patient to billing?</p>
+            <div class="cp-highlight">
+                <div class="cp-highlight-icon">&#129463;</div>
+                <div>
+                    <div class="cp-highlight-label">Patient Care Flow</div>
+                    <div class="cp-highlight-value">Procedure finishes here, billing continues next.</div>
+                </div>
+            </div>
+            <div class="cp-note">
+                <span class="cp-note-dot"></span>
+                The dashboard and payment list will refresh after confirmation.
+            </div>
+        </div>
+        <input type="hidden" id="completeProcedureQueueId">
+        <div class="cp-actions">
+            <button type="button" onclick="closeCompleteProcedureModal()" class="cp-btn-cancel">Keep Open</button>
+            <button type="button" onclick="confirmCompleteProcedure()" class="cp-btn-confirm">Yes, Complete</button>
+        </div>
+    </div>
+</div>
 
 <?php require_once '../../includes/staff_layout_end.php'; ?>

@@ -1828,9 +1828,7 @@ document.addEventListener('keydown', function(e) {
                 <label style="display:block;margin-bottom:0.5rem;font-weight:500;color:#374151;">Payment Method</label>
                 <select id="recordPaymentMethod" style="width:100%;padding:0.5rem;border:1px solid #e5e7eb;border-radius:8px;font-size:0.9rem;background:white;box-sizing:border-box;">
                     <option value="cash">Cash</option>
-                    <option value="card">Card</option>
                     <option value="gcash">GCash</option>
-                    <option value="maya">Maya</option>
                     <option value="bank_transfer">Bank Transfer</option>
                     <option value="installment">Installment</option>
                 </select>

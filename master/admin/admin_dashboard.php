@@ -17,13 +17,9 @@ $totalAppointments = 0;
 $totalRevenue = 0;
 $pendingPayments = 0;
 $completedToday = 0;
-$monthlyRevenueData = [];
-$chartYear = (int)date('Y');
-$monthlyRevenueData = [];
-$chartYear = (int)date('Y');
 $topServices = [];
-    $liveQueue = [];
-    $todayAppointments = [];
+$liveQueue = [];
+$todayAppointments = [];
     $today = new DateTime();
 $startDate = new DateTime($today->format('Y-m-01'));
 $endDate = clone $today;
@@ -56,23 +52,10 @@ try {
           AND DATE(completed_at) = CURDATE()
     ")->fetchColumn() ?? 0);
 
-    // Current 6 months data for dashboard revenue overview (current year only)
+    // Current 6 months data for dashboard revenue overview
     $chartYear = (int)date('Y');
-    $halfYearStart = $chartYear . '-01-01';
+    $halfYearStart = date('Y-m-d', strtotime('-5 months first day of this month'));
     $halfYearEnd = date('Y-m-t');
-
-    $stmt = $pdo->prepare("
-        SELECT DATE_FORMAT(billing_date, '%Y-%m') AS ym,
-               COALESCE(SUM(paid_amount), 0) AS total
-        FROM billing
-        WHERE billing_date BETWEEN ? AND ?
-        GROUP BY ym
-        ORDER BY ym ASC
-    ");
-    $stmt->execute([$halfYearStart, $halfYearEnd]);
-    $halfYearRevenueData = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    $chartYear = (int)date('Y');
 
     $stmt = $pdo->query("
             SELECT service_name, COUNT(*) AS total
@@ -237,7 +220,7 @@ try {
                 <div class="dashboard-row" style="display: flex; flex-direction: row; gap: 20px; width: 100%;">
                     <!-- Revenue Overview -->
                     <div class="section-card" style="flex: 1; min-width: 300px;">
-                        <h2 class="section-title">6-Month Revenue (<?php echo date('Y'); ?>)</h2>
+                        <h2 class="section-title">6-Month Revenue</h2>
                         <div style="display: flex; align-items: flex-end; gap: 15px; height: 180px; padding: 10px 20px 30px 20px; border-bottom: 1px solid #e5e7eb;">
                                 <?php 
                                 // Get last 6 months dynamically
@@ -256,20 +239,18 @@ try {
                                     $sixMonthsData[$ym] = 0;
                                 }
                                 
-                                // Fetch actual revenue data directly - include ALL months with data
-                                $revenueStmt = $pdo->query("
+                                // Fetch actual revenue data for the 6-month window
+                                $revenueStmt = $pdo->prepare("
                                     SELECT DATE_FORMAT(billing_date, '%Y-%m') AS ym, SUM(paid_amount) AS total
                                     FROM billing
-                                    WHERE billing_date >= '2025-11-01'
+                                    WHERE billing_date BETWEEN ? AND ?
                                     GROUP BY ym
                                     ORDER BY ym
                                 ");
+                                $revenueStmt->execute([$halfYearStart, $halfYearEnd]);
                                 while ($row = $revenueStmt->fetch(PDO::FETCH_ASSOC)) {
                                     $sixMonthsData[$row['ym']] = (float)$row['total'];
                                 }
-                                
-                                // Filter to only show months with data in recent range
-                                $sixMonthsFiltered = array_filter($sixMonthsData, function($v) { return $v > 0 || true; });
                                 
                                 $maxRevenue = max($sixMonthsData);
                                 if ($maxRevenue == 0) $maxRevenue = 1;
@@ -317,6 +298,7 @@ try {
                                             <th style="text-align: left; padding: 10px 12px; color: #6b7280; font-weight: 600; font-size: 12px;">Patient Name</th>
                                             <th style="text-align: left; padding: 10px 12px; color: #6b7280; font-weight: 600; font-size: 12px;">Treatment</th>
                                             <th style="text-align: left; padding: 10px 12px; color: #6b7280; font-weight: 600; font-size: 12px;">Status</th>
+                                            <th style="text-align: left; padding: 10px 12px; color: #6b7280; font-weight: 600; font-size: 12px;">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -357,6 +339,11 @@ try {
                                                 <td style="padding: 12px; color: #374151;"><?php echo htmlspecialchars(trim($queueItem['patient_name'])); ?></td>
                                                 <td style="padding: 12px; color: #374151;"><?php echo htmlspecialchars($queueItem['treatment_type'] ?: 'General'); ?></td>
                                                 <td style="padding: 12px;"><span style="display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; <?php echo $badgeStyle; ?>"><?php echo $statusLabel; ?></span></td>
+                                                <td style="padding: 12px;">
+                                                    <?php if (($queueItem['status_name'] ?? '') === 'in_procedure'): ?>
+                                                        <button onclick="openCompleteProcedureModal(<?php echo $queueItem['id']; ?>)" style="padding: 4px 10px; background: #2563eb; color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">Complete</button>
+                                                    <?php endif; ?>
+                                                </td>
                                             </tr>
                                         <?php endforeach; ?>
                                     </tbody>
@@ -478,6 +465,47 @@ try {
 
             </aside>
 
+<!-- Complete Procedure Modal -->
+<div id="completeProcedureModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
+    <div class="complete-procedure-modal" style="position: relative; z-index: 100000;">
+        <div class="cp-bg-orb cp-bg-orb-a"></div>
+        <div class="cp-bg-orb cp-bg-orb-b"></div>
+        <div class="cp-banner">
+            <div class="cp-icon-wrap">
+                <span class="cp-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M9.2 16.2 5.5 12.5l-1.4 1.4 5.1 5.1L20 8.2l-1.4-1.4z"></path>
+                    </svg>
+                </span>
+            </div>
+            <div>
+                <div class="cp-kicker">Admin Dashboard</div>
+                <h2 style="font-size: 1.55rem; font-weight: 700; margin: 6px 0 0;">Complete Procedure</h2>
+            </div>
+            <button onclick="closeCompleteProcedureModal()" class="cp-close">&times;</button>
+        </div>
+        <div class="cp-body">
+            <p class="cp-text">Mark procedure as complete and move this patient to billing?</p>
+            <div class="cp-highlight">
+                <div class="cp-highlight-icon">&#129463;</div>
+                <div>
+                    <div class="cp-highlight-label">Patient Care Flow</div>
+                    <div class="cp-highlight-value">Procedure finishes here, billing continues next.</div>
+                </div>
+            </div>
+            <div class="cp-note">
+                <span class="cp-note-dot"></span>
+                The dashboard and payment list will refresh after confirmation.
+            </div>
+        </div>
+        <input type="hidden" id="completeProcedureQueueId">
+        <div class="cp-actions">
+            <button type="button" onclick="closeCompleteProcedureModal()" class="cp-btn-cancel">Keep Open</button>
+            <button type="button" onclick="confirmCompleteProcedure()" class="cp-btn-confirm">Yes, Complete</button>
+        </div>
+    </div>
+</div>
+
 <?php
 // Include the layout end
 require_once __DIR__ . '/../../includes/admin_layout_end.php';
@@ -497,4 +525,116 @@ require_once __DIR__ . '/../../includes/admin_layout_end.php';
     width: 100%;
 }
 
+</style>
+
+<script>
+// Complete Procedure Modal
+function openCompleteProcedureModal(queueId) {
+    document.getElementById('completeProcedureQueueId').value = queueId;
+    document.getElementById('completeProcedureModal').style.display = 'flex';
+}
+
+function closeCompleteProcedureModal() {
+    document.getElementById('completeProcedureModal').style.display = 'none';
+    document.getElementById('completeProcedureQueueId').value = '';
+}
+
+function confirmCompleteProcedure() {
+    const queueId = document.getElementById('completeProcedureQueueId').value;
+    if (!queueId) return;
+
+    fetch('../shared/queue_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'complete', queue_id: queueId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeCompleteProcedureModal();
+            location.reload();
+        } else {
+            alert('Error: ' + (data.message || 'Unable to complete procedure'));
+        }
+    })
+    .catch(() => {
+        alert('Unable to complete procedure');
+    });
+}
+
+window.onclick = function(event) {
+    const cpModal = document.getElementById('completeProcedureModal');
+    if (event.target === cpModal) closeCompleteProcedureModal();
+};
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeCompleteProcedureModal();
+});
+</script>
+
+<style>
+/* Complete Procedure Modal */
+.complete-procedure-modal {
+    background:
+        radial-gradient(circle at top right, rgba(14, 165, 233, 0.18), transparent 32%),
+        radial-gradient(circle at bottom left, rgba(34, 197, 94, 0.14), transparent 28%),
+        linear-gradient(180deg, #ffffff 0%, #f7fcff 100%);
+    border-radius: 22px;
+    padding: 0;
+    width: 90%;
+    max-width: 560px;
+    overflow: hidden;
+    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.24);
+    border: 1px solid rgba(14, 165, 233, 0.12);
+}
+.cp-bg-orb { position: absolute; border-radius: 999px; pointer-events: none; filter: blur(8px); opacity: 0.55; }
+.cp-bg-orb-a { width: 140px; height: 140px; right: -30px; top: 88px; background: radial-gradient(circle, rgba(14, 165, 233, 0.2) 0%, rgba(14, 165, 233, 0) 72%); }
+.cp-bg-orb-b { width: 160px; height: 160px; left: -40px; bottom: -30px; background: radial-gradient(circle, rgba(34, 197, 94, 0.16) 0%, rgba(34, 197, 94, 0) 74%); }
+.cp-banner {
+    display: flex; align-items: center; gap: 16px; padding: 24px 26px 18px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0) 42%), linear-gradient(135deg, #0b7db3 0%, #0891b2 38%, #0f9f53 100%);
+    color: white; position: relative;
+}
+.cp-icon-wrap {
+    width: 54px; height: 54px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
+    background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.22); backdrop-filter: blur(6px); flex-shrink: 0;
+}
+.cp-icon { display: flex; align-items: center; justify-content: center; }
+.cp-icon svg { width: 26px; height: 26px; fill: currentColor; }
+.cp-kicker { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; opacity: 0.9; font-weight: 700; }
+.cp-close {
+    margin-left: auto; background: rgba(255, 255, 255, 0.12); color: white;
+    border: 1px solid rgba(255, 255, 255, 0.18); width: 40px; height: 40px; border-radius: 12px;
+    font-size: 1.5rem; cursor: pointer; backdrop-filter: blur(8px);
+}
+.cp-body { padding: 24px 26px 12px; position: relative; }
+.cp-text { color: #1f2937; font-size: 1.06rem; line-height: 1.6; margin: 0 0 16px; font-weight: 500; }
+.cp-highlight {
+    display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 16px;
+    background: linear-gradient(135deg, #ecfeff 0%, #f0fdf4 100%); border: 1px solid #d9f99d; margin-bottom: 14px;
+}
+.cp-highlight-icon {
+    width: 42px; height: 42px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
+    background: white; box-shadow: 0 10px 24px rgba(8, 145, 178, 0.12); font-size: 1.25rem; flex-shrink: 0;
+}
+.cp-highlight-label { color: #0f766e; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 3px; }
+.cp-highlight-value { color: #1f2937; font-size: 0.95rem; font-weight: 600; }
+.cp-note {
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px;
+    background: #f0fdf4; color: #166534; font-size: 0.92rem; border: 1px solid #dcfce7;
+}
+.cp-note-dot { width: 10px; height: 10px; border-radius: 999px; background: #22c55e; box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.14); flex-shrink: 0; }
+.cp-actions { display: flex; justify-content: flex-end; gap: 12px; padding: 18px 26px 26px; }
+.cp-btn-cancel, .cp-btn-confirm {
+    border: none; border-radius: 14px; padding: 13px 20px; cursor: pointer; font-weight: 700; font-size: 0.97rem;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+.cp-btn-cancel { background: #eef6fb; color: #315266; border: 1px solid #d8e9f4; }
+.cp-btn-confirm { background: linear-gradient(135deg, #0891b2 0%, #0f9f53 100%); color: white; box-shadow: 0 14px 28px rgba(8, 145, 178, 0.24); }
+.cp-btn-cancel:hover, .cp-btn-confirm:hover, .cp-close:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08); }
+@media (max-width: 640px) {
+    .cp-banner, .cp-body, .cp-actions { padding-left: 18px; padding-right: 18px; }
+    .cp-actions { flex-direction: column-reverse; }
+    .cp-btn-cancel, .cp-btn-confirm { width: 100%; }
+}
 </style>

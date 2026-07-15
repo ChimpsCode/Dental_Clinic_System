@@ -340,9 +340,6 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                 </td>
                                 <td>
                                     <span class="treatment-type"><?php echo htmlspecialchars($record['treatment_type'] ?: 'General Checkup'); ?></span>
-                                    <?php if ($record['teeth_numbers']): ?>
-                                    <span class="teeth-info">Teeth: <?php echo htmlspecialchars($record['teeth_numbers']); ?></span>
-                                    <?php endif; ?>
                                 </td>
                                 <td><strong>P<?php echo number_format($calculatedAmount, 2); ?></strong></td>
                                 <td>
@@ -496,12 +493,20 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                         <p>Are you sure you want to mark this as <strong>Paid</strong>?</p>
                         <div class="payment-details">
                             <div class="detail-row">
-                                <span class="detail-label">Amount:</span>
-                                <span class="detail-value" id="confirmPaymentAmount">P0.00</span>
-                            </div>
-                            <div class="detail-row">
                                 <span class="detail-label">Treatment:</span>
                                 <span class="detail-value" id="confirmPaymentTreatment">-</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Total Amount:</span>
+                                <span class="detail-value" id="confirmPaymentTotalAmount">P0.00</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Already Paid:</span>
+                                <span class="detail-value" id="confirmPaymentPaidSoFar">P0.00</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Balance to Pay:</span>
+                                <span class="detail-value" id="confirmPaymentBalance" style="font-weight: 700; color: #059669;">P0.00</span>
                             </div>
                         </div>
                         <input type="hidden" id="confirmPaymentQueueId">
@@ -551,9 +556,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                             <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Payment Method</label>
                             <select id="recordPaymentMethod" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 0.9rem; background: white; box-sizing: border-box;">
                                 <option value="cash">Cash</option>
-                                <option value="card">Card</option>
                                 <option value="gcash">GCash</option>
-                                <option value="maya">Maya</option>
                                 <option value="bank_transfer">Bank Transfer</option>
                                 <option value="installment">Installment</option>
                             </select>
@@ -615,6 +618,23 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     <div class="modal-actions">
                         <button type="button" class="btn-cancel" onclick="closeSetDueDateModal()">Cancel</button>
                         <button type="button" class="btn-primary" onclick="confirmSetDueDate()">Save</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Print Invoice Modal -->
+            <div id="printPaymentModal" class="modal-overlay" style="display: none;">
+                <div class="modal" style="max-width: 450px;">
+                    <div class="modal-header">
+                        <h2>Print Invoice</h2>
+                        <button class="modal-close" onclick="closePrintPaymentModal()">&times;</button>
+                    </div>
+                    <div class="modal-body" id="printPaymentContent">
+                        <!-- Invoice preview loaded dynamically -->
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-cancel" onclick="closePrintPaymentModal()">Close</button>
+                        <button type="button" class="btn-primary" onclick="confirmPrint()">Print</button>
                     </div>
                 </div>
             </div>
@@ -1142,6 +1162,29 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
             </style>
 
             <script>
+                var staffPaymentData = {};
+
+                <?php foreach ($paymentRecords as $record): ?>
+                <?php if (!empty($record['billing_id'])): ?>
+                staffPaymentData[<?php echo (int)$record['billing_id']; ?>] = {
+                    billing_id: <?php echo (int)$record['billing_id']; ?>,
+                    patient_id: <?php echo (int)$record['patient_id']; ?>,
+                    queue_id: <?php echo (int)($record['queue_id'] ?? 0); ?>,
+                    patient: '<?php echo addslashes($record['patient_name'] ?? ''); ?>',
+                    phone: '<?php echo addslashes($record['patient_phone'] ?? ''); ?>',
+                    services: '<?php echo addslashes($record['treatment_type'] ?: 'General Checkup'); ?>',
+                    amount: <?php echo $record['amount'] ?? 0; ?>,
+                    paid_amount: <?php echo (float)($record['paid_amount'] ?? 0); ?>,
+                    balance: <?php echo max(0, ($record['amount'] ?? 0) - (float)($record['paid_amount'] ?? 0)); ?>,
+                    date: '<?php echo date('Y-m-d', strtotime($record['billing_date'])); ?>',
+                    status: '<?php echo htmlspecialchars($record['payment_status'] ?? 'Unpaid'); ?>',
+                    invoice_id: '<?php echo !empty($record['queue_id']) ? ("Q-" . str_pad($record['queue_id'], 4, '0', STR_PAD_LEFT)) : ("INV-" . str_pad($record['billing_id'], 4, '0', STR_PAD_LEFT)); ?>'
+                };
+                <?php endif; ?>
+                <?php endforeach; ?>
+
+                var currentPrintBillingId = null;
+
                 // Portal Pattern: Move modals to body level to escape stacking context
                 // This ensures modals appear above sidebar and all other elements
                 (function() {
@@ -1150,6 +1193,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     const recordPaymentModal = document.getElementById('recordPaymentModal');
                     const paymentHistoryModal = document.getElementById('paymentHistoryModal');
                     const setDueDateModal = document.getElementById('setDueDateModal');
+                    const printPaymentModal = document.getElementById('printPaymentModal');
                     
                     if (paymentModal) {
                         document.body.appendChild(paymentModal);
@@ -1165,6 +1209,9 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     }
                     if (setDueDateModal) {
                         document.body.appendChild(setDueDateModal);
+                    }
+                    if (printPaymentModal) {
+                        document.body.appendChild(printPaymentModal);
                     }
                 })();
 
@@ -1214,11 +1261,11 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                         ${!isPaid ? `
                         <a href="javascript:void(0)" data-action="record-payment" data-billing-id="${billingId}" data-queue-id="${queueId}" data-patient-id="${patientId}" data-amount="${amount}" data-treatment="${treatment}" data-paid-amount="${paidAmount}" data-balance="${balance}">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
-                                <path fill="none" stroke="currentColor" stroke-width="2" d="M12 2v20M2 12h20"/>
+                                <path fill="none" stroke="currentColor" stroke-width="2" d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
                             </svg>
                             Record Payment
                         </a>
-                        <a href="javascript:void(0)" data-action="mark-paid" data-billing-id="${billingId}" data-queue-id="${queueId}" data-patient-id="${patientId}" data-amount="${amount}" data-treatment="${treatment}">
+                        <a href="javascript:void(0)" data-action="mark-paid" data-billing-id="${billingId}" data-queue-id="${queueId}" data-patient-id="${patientId}" data-amount="${amount}" data-treatment="${treatment}" data-paid-amount="${paidAmount}" data-balance="${balance}">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
                                 <path fill="none" stroke="currentColor" stroke-width="2" d="M20 6 9 17l-5-5"/>
                             </svg>
@@ -1230,6 +1277,12 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                             </svg>
                             Set Due Date
                         </a>` : ''}
+                        <a href="javascript:void(0)" data-action="print" data-invoice-id="${queueId}" data-billing-id="${billingId}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
+                                <path fill="none" stroke="currentColor" stroke-width="2" d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8" fill="none" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                            Print Invoice
+                        </a>
                     `;
                 }
 
@@ -1328,10 +1381,13 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                             openRecordPayment(queueId, patientId, amount, treatment, billingId, paidAmount, balance);
                             break;
                         case 'mark-paid':
-                            markAsPaid(queueId, patientId, amount, treatment, billingId);
+                            markAsPaid(queueId, patientId, amount, treatment, billingId, paidAmount, balance);
                             break;
                         case 'set-due-date':
                             openSetDueDate(billingId);
+                            break;
+                        case 'print':
+                            printPayment(billingId);
                             break;
                     }
                 }
@@ -1452,10 +1508,6 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                             <span class="detail-value">${data.treatment_type || 'General Checkup'}</span>
                                         </div>
                                         <div class="detail-row">
-                                            <span class="detail-label">Teeth Numbers:</span>
-                                            <span class="detail-value">${data.teeth_numbers || 'N/A'}</span>
-                                        </div>
-                                        <div class="detail-row">
                                             <span class="detail-label">Queue Status:</span>
                                             <span class="detail-value">${data.queue_status}</span>
                                         </div>
@@ -1494,17 +1546,23 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     document.getElementById('paymentModal').style.display = 'none';
                 }
 
-                function markAsPaid(queueId, patientId, amount, treatment, billingId) {
+                function markAsPaid(queueId, patientId, amount, treatment, billingId, paidAmount, balance) {
                     // Close kebab menu
                     closePayKebabDropdown();
+                    
+                    var balanceVal = parseFloat(balance || 0);
+                    var paidVal = parseFloat(paidAmount || 0);
+                    var amountVal = parseFloat(amount || 0);
                     
                     // Set modal values
                     document.getElementById('confirmPaymentQueueId').value = queueId;
                     document.getElementById('confirmPaymentPatientId').value = patientId;
                     document.getElementById('confirmPaymentBillingId').value = billingId || 0;
-                    document.getElementById('confirmPaymentAmountValue').value = amount;
+                    document.getElementById('confirmPaymentAmountValue').value = balanceVal > 0 ? balanceVal : amountVal;
                     document.getElementById('confirmPaymentTreatmentValue').value = treatment;
-                    document.getElementById('confirmPaymentAmount').textContent = 'P' + parseFloat(amount).toFixed(2);
+                    document.getElementById('confirmPaymentTotalAmount').textContent = 'P' + amountVal.toFixed(2);
+                    document.getElementById('confirmPaymentPaidSoFar').textContent = 'P' + paidVal.toFixed(2);
+                    document.getElementById('confirmPaymentBalance').textContent = 'P' + (balanceVal > 0 ? balanceVal : amountVal).toFixed(2);
                     document.getElementById('confirmPaymentTreatment').textContent = treatment || 'General Checkup';
                     
                     // Show modal
@@ -1728,6 +1786,89 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     });
                 }
 
+                function printPayment(billingId) {
+                    closePayKebabDropdown();
+                    if (!billingId || billingId === '0') {
+                        alert('No billing record found for this patient.');
+                        return;
+                    }
+
+                    currentPrintBillingId = billingId;
+                    var p = staffPaymentData[billingId];
+
+                    if (p) {
+                        renderPrintInvoice(p);
+                    } else {
+                        fetch('../shared/billing_actions.php?action=get_billing&billing_id=' + encodeURIComponent(billingId))
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success && data.billing) {
+                                    var b = data.billing;
+                                    var fullName = [b.first_name || '', b.middle_name || '', b.last_name || '', b.suffix || ''].filter(Boolean).join(' ') || 'N/A';
+                                    renderPrintInvoice({
+                                        invoice_id: 'INV-' + String(b.id).padStart(4, '0'),
+                                        patient: fullName,
+                                        phone: b.phone || '',
+                                        services: b.treatment_type || 'General Service',
+                                        amount: b.total_amount || 0,
+                                        paid_amount: b.paid_amount || 0,
+                                        balance: b.balance || 0,
+                                        date: b.billing_date || '',
+                                        dueDate: b.due_date || '',
+                                        status: b.payment_status || 'Unpaid'
+                                    });
+                                } else {
+                                    alert('Error loading billing details.');
+                                }
+                            })
+                            .catch(() => alert('Error loading billing details.'));
+                    }
+                }
+
+                function renderPrintInvoice(p) {
+                    var statusBadge = (p.status || '').toLowerCase() === 'paid'
+                        ? '<span style="background: #d1fae5; color: #065f46; padding: 4px 12px; border-radius: 9999px; font-size: 0.85rem;">PAID</span>'
+                        : '<span style="background: #fee2e2; color: #991b1b; padding: 4px 12px; border-radius: 9999px; font-size: 0.85rem;">UNPAID</span>';
+
+                    document.getElementById('printPaymentContent').innerHTML =
+                        '<div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px;">' +
+                        '<div style="text-align: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #e5e7eb;">' +
+                        '<h3 style="margin: 0 0 8px; font-size: 1.5rem;">Dental Clinic</h3>' +
+                        '<p style="margin: 0; color: #6b7280; font-size: 0.875rem;">Smiles Dental Care Center</p>' +
+                        '<p style="margin: 4px 0 0; color: #6b7280; font-size: 0.75rem;">123 Dental Street, City</p></div>' +
+                        '<div style="display: flex; justify-content: space-between; margin-bottom: 16px;">' +
+                        '<div><span style="color: #6b7280; font-size: 0.875rem;">Invoice #:</span> <strong>' + (p.invoice_id || 'N/A') + '</strong></div>' +
+                        '<div><span style="color: #6b7280; font-size: 0.875rem;">Date:</span> ' + (p.date || 'N/A') + '</div></div>' +
+                        '<div style="margin-bottom: 16px;"><span style="color: #6b7280; font-size: 0.875rem;">Patient:</span> <strong>' + (p.patient || 'N/A') + '</strong></div>' +
+                        '<div style="margin-bottom: 16px;"><span style="color: #6b7280; font-size: 0.875rem;">Services:</span> ' + (p.services || 'N/A') + '</div>' +
+                        '<div style="margin-bottom: 16px;"><span style="color: #6b7280; font-size: 0.875rem;">Due Date:</span> ' + (p.dueDate || 'N/A') + '</div>' +
+                        '<div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin: 24px 0; text-align: center;">' +
+                        '<span style="color: #6b7280; font-size: 0.875rem;">Total Amount</span><br>' +
+                        '<span style="font-size: 2rem; font-weight: 700; color: #059669;">P' + parseFloat(p.amount).toFixed(2) + '</span></div>' +
+                        '<div style="text-align: center;">' + statusBadge + '</div>' +
+                        '<div style="text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #e5e7eb; color: #9ca3af; font-size: 0.75rem;">' +
+                        '<p style="margin: 0;">Thank you for choosing our dental clinic!</p>' +
+                        '<p style="margin: 4px 0 0;">Please keep this receipt for your records.</p></div></div>';
+
+                    document.getElementById('printPaymentModal').style.display = 'flex';
+                }
+
+                function closePrintPaymentModal() {
+                    document.getElementById('printPaymentModal').style.display = 'none';
+                    currentPrintBillingId = null;
+                }
+
+                function confirmPrint() {
+                    if (currentPrintBillingId) {
+                        fetch('../shared/billing_actions.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'mark_printed', billing_id: currentPrintBillingId })
+                        }).catch(() => {});
+                    }
+                    window.print();
+                }
+
                 // Close modals when clicking outside
                 document.getElementById('paymentModal').addEventListener('click', function(e) {
                     if (e.target === this) {
@@ -1756,6 +1897,12 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                 document.getElementById('setDueDateModal').addEventListener('click', function(e) {
                     if (e.target === this) {
                         closeSetDueDateModal();
+                    }
+                });
+
+                document.getElementById('printPaymentModal').addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        closePrintPaymentModal();
                     }
                 });
 

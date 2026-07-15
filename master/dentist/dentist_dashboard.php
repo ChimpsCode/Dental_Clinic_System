@@ -460,26 +460,37 @@ function startProcedure(queueId) {
 }
 
 function completeProcedure(queueId) {
-    if (!confirm('Mark procedure as complete?')) return;
-    
+    document.getElementById('completeProcedureQueueId').value = queueId;
+    document.getElementById('completeProcedureModal').style.display = 'flex';
+}
+
+function closeCompleteProcedureModal() {
+    document.getElementById('completeProcedureModal').style.display = 'none';
+    document.getElementById('completeProcedureQueueId').value = '';
+}
+
+function confirmCompleteProcedure() {
+    const queueId = document.getElementById('completeProcedureQueueId').value;
+    if (!queueId) return;
+
     fetch('../shared/queue_actions.php', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'action=complete&queue_id=' + queueId
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'complete', queue_id: queueId })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            closeCompleteProcedureModal();
             const amount = data.amount || 0;
             alert('Procedure Completed!\n\nTotal Amount: ₱' + amount.toLocaleString('en-PH', {minimumFractionDigits: 2}) + '\n\nPatient moved to billing.');
             location.reload();
         } else {
-            alert('Error: ' + data.message);
+            alert('Error: ' + (data.message || 'Unable to complete procedure'));
         }
     })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Failed to complete procedure');
+    .catch(() => {
+        alert('Unable to complete procedure');
     });
 }
 
@@ -760,10 +771,10 @@ function viewPatientDetails(patientId) {
                             <div>
                                 <div style="font-size:0.75rem;color:#6b7280;margin-bottom:4px;">Payment Method</div>
                                 <select id="paymentMethodInput" style="padding:8px;border:2px solid #d1d5db;border-radius:8px;font-size:0.9rem;font-weight:600;">
-                                    <option value="Cash">Cash</option>
-                                    <option value="GCash">GCash</option>
-                                    <option value="Bank Transfer">Bank Transfer</option>
-                                    <option value="Card">Card</option>
+                                    <option value="cash">Cash</option>
+                                    <option value="gcash">GCash</option>
+                                    <option value="bank_transfer">Bank Transfer</option>
+                                    <option value="installment">Installment</option>
                                 </select>
                             </div>
                             <button onclick="recordPayment(${p.id}, ${q.id})" class="btn-primary" style="padding:8px 20px;background:#16a34a;margin-top:16px;">Confirm Payment</button>
@@ -1041,7 +1052,17 @@ document.addEventListener('DOMContentLoaded', function() {
     if (modal) {
         document.body.appendChild(modal);
     }
+    const cpModal = document.getElementById('completeProcedureModal');
+    if (cpModal) {
+        document.body.appendChild(cpModal);
+    }
 });
+
+// Close modals on outside click
+window.onclick = function(event) {
+    const cpModal = document.getElementById('completeProcedureModal');
+    if (event.target === cpModal) closeCompleteProcedureModal();
+};
 </script>
 
 <!-- Modal Structure (Moved to root level via JS) -->
@@ -1052,6 +1073,47 @@ document.addEventListener('DOMContentLoaded', function() {
             <button onclick="closePatientModal()" style="background:none;border:none;font-size:1.8rem;cursor:pointer;color:#64748b;line-height:1;">&times;</button>
         </div>
         <div class="fullscreen-modal-body" id="patientModalContent"></div>
+    </div>
+</div>
+
+<!-- Complete Procedure Modal -->
+<div id="completeProcedureModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
+    <div class="complete-procedure-modal" style="position: relative; z-index: 100000;">
+        <div class="cp-bg-orb cp-bg-orb-a"></div>
+        <div class="cp-bg-orb cp-bg-orb-b"></div>
+        <div class="cp-banner">
+            <div class="cp-icon-wrap">
+                <span class="cp-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M9.2 16.2 5.5 12.5l-1.4 1.4 5.1 5.1L20 8.2l-1.4-1.4z"></path>
+                    </svg>
+                </span>
+            </div>
+            <div>
+                <div class="cp-kicker">Dentist Queue</div>
+                <h2 style="font-size: 1.55rem; font-weight: 700; margin: 6px 0 0;">Complete Procedure</h2>
+            </div>
+            <button onclick="closeCompleteProcedureModal()" class="cp-close">&times;</button>
+        </div>
+        <div class="cp-body">
+            <p class="cp-text">Mark procedure as complete and move this patient to billing?</p>
+            <div class="cp-highlight">
+                <div class="cp-highlight-icon">&#129463;</div>
+                <div>
+                    <div class="cp-highlight-label">Patient Care Flow</div>
+                    <div class="cp-highlight-value">Procedure finishes here, billing continues next.</div>
+                </div>
+            </div>
+            <div class="cp-note">
+                <span class="cp-note-dot"></span>
+                The dashboard and payment list will refresh after confirmation.
+            </div>
+        </div>
+        <input type="hidden" id="completeProcedureQueueId">
+        <div class="cp-actions">
+            <button type="button" onclick="closeCompleteProcedureModal()" class="cp-btn-cancel">Keep Open</button>
+            <button type="button" onclick="confirmCompleteProcedure()" class="cp-btn-confirm">Yes, Complete</button>
+        </div>
     </div>
 </div>
 
@@ -1131,6 +1193,71 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 .tooth-wrapper.editing .tooth-face { border-color: #3b82f6; border-width: 2px; animation: toothPulse 1.5s infinite; }
 @keyframes toothPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.5); } 50% { box-shadow: 0 0 0 8px rgba(59,130,246,0); } }
+
+/* Complete Procedure Modal */
+.complete-procedure-modal {
+    background:
+        radial-gradient(circle at top right, rgba(14, 165, 233, 0.18), transparent 32%),
+        radial-gradient(circle at bottom left, rgba(34, 197, 94, 0.14), transparent 28%),
+        linear-gradient(180deg, #ffffff 0%, #f7fcff 100%);
+    border-radius: 22px;
+    padding: 0;
+    width: 90%;
+    max-width: 560px;
+    overflow: hidden;
+    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.24);
+    border: 1px solid rgba(14, 165, 233, 0.12);
+}
+.cp-bg-orb { position: absolute; border-radius: 999px; pointer-events: none; filter: blur(8px); opacity: 0.55; }
+.cp-bg-orb-a { width: 140px; height: 140px; right: -30px; top: 88px; background: radial-gradient(circle, rgba(14, 165, 233, 0.2) 0%, rgba(14, 165, 233, 0) 72%); }
+.cp-bg-orb-b { width: 160px; height: 160px; left: -40px; bottom: -30px; background: radial-gradient(circle, rgba(34, 197, 94, 0.16) 0%, rgba(34, 197, 94, 0) 74%); }
+.cp-banner {
+    display: flex; align-items: center; gap: 16px; padding: 24px 26px 18px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0) 42%), linear-gradient(135deg, #0b7db3 0%, #0891b2 38%, #0f9f53 100%);
+    color: white; position: relative;
+}
+.cp-icon-wrap {
+    width: 54px; height: 54px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
+    background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.22); backdrop-filter: blur(6px); flex-shrink: 0;
+}
+.cp-icon { display: flex; align-items: center; justify-content: center; }
+.cp-icon svg { width: 26px; height: 26px; fill: currentColor; }
+.cp-kicker { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; opacity: 0.9; font-weight: 700; }
+.cp-close {
+    margin-left: auto; background: rgba(255, 255, 255, 0.12); color: white;
+    border: 1px solid rgba(255, 255, 255, 0.18); width: 40px; height: 40px; border-radius: 12px;
+    font-size: 1.5rem; cursor: pointer; backdrop-filter: blur(8px);
+}
+.cp-body { padding: 24px 26px 12px; position: relative; }
+.cp-text { color: #1f2937; font-size: 1.06rem; line-height: 1.6; margin: 0 0 16px; font-weight: 500; }
+.cp-highlight {
+    display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 16px;
+    background: linear-gradient(135deg, #ecfeff 0%, #f0fdf4 100%); border: 1px solid #d9f99d; margin-bottom: 14px;
+}
+.cp-highlight-icon {
+    width: 42px; height: 42px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
+    background: white; box-shadow: 0 10px 24px rgba(8, 145, 178, 0.12); font-size: 1.25rem; flex-shrink: 0;
+}
+.cp-highlight-label { color: #0f766e; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 3px; }
+.cp-highlight-value { color: #1f2937; font-size: 0.95rem; font-weight: 600; }
+.cp-note {
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px;
+    background: #f0fdf4; color: #166534; font-size: 0.92rem; border: 1px solid #dcfce7;
+}
+.cp-note-dot { width: 10px; height: 10px; border-radius: 999px; background: #22c55e; box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.14); flex-shrink: 0; }
+.cp-actions { display: flex; justify-content: flex-end; gap: 12px; padding: 18px 26px 26px; }
+.cp-btn-cancel, .cp-btn-confirm {
+    border: none; border-radius: 14px; padding: 13px 20px; cursor: pointer; font-weight: 700; font-size: 0.97rem;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+.cp-btn-cancel { background: #eef6fb; color: #315266; border: 1px solid #d8e9f4; }
+.cp-btn-confirm { background: linear-gradient(135deg, #0891b2 0%, #0f9f53 100%); color: white; box-shadow: 0 14px 28px rgba(8, 145, 178, 0.24); }
+.cp-btn-cancel:hover, .cp-btn-confirm:hover, .cp-close:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08); }
+@media (max-width: 640px) {
+    .cp-banner, .cp-body, .cp-actions { padding-left: 18px; padding-right: 18px; }
+    .cp-actions { flex-direction: column-reverse; }
+    .cp-btn-cancel, .cp-btn-confirm { width: 100%; }
+}
 
 </style>
 

@@ -197,11 +197,13 @@ try {
     ");
     $topServices = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // Top Dentist - join with roles table using role_id
     $stmt = $pdo->prepare("
         SELECT CONCAT(u.first_name, ' ', u.last_name) as full_name, COUNT(*) AS total
         FROM treatments t
         JOIN users u ON u.id = t.doctor_id
-        WHERE u.role = 'dentist'
+        JOIN roles r ON r.id = u.role_id
+        WHERE LOWER(r.role_name) = 'dentist'
           AND t.treatment_date BETWEEN ? AND ?
         GROUP BY u.id
         ORDER BY total DESC
@@ -210,15 +212,17 @@ try {
     $stmt->execute([$startStr, $endStr]);
     $topDentist = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($topDentist) {
-        $topDentistName = $topDentist['full_name'] ?: 'Dentist';
+        $topDentistName = trim($topDentist['full_name'] ?: '') ?: 'Dentist';
         $topDentistCount = (int)$topDentist['total'];
     }
 
+    // Top Staff - join with roles table using role_id
     $stmt = $pdo->prepare("
         SELECT CONCAT(u.first_name, ' ', u.last_name) as full_name, COUNT(*) AS total
         FROM appointments a
         JOIN users u ON u.id = a.created_by
-        WHERE u.role = 'staff'
+        JOIN roles r ON r.id = u.role_id
+        WHERE LOWER(r.role_name) = 'staff'
           AND a.appointment_date BETWEEN ? AND ?
         GROUP BY u.id
         ORDER BY total DESC
@@ -227,7 +231,7 @@ try {
     $stmt->execute([$startStr, $endStr]);
     $topStaff = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($topStaff) {
-        $topStaffName = $topStaff['full_name'] ?: 'Staff';
+        $topStaffName = trim($topStaff['full_name'] ?: '') ?: 'Staff';
         $topStaffCount = (int)$topStaff['total'];
     }
 } catch (Exception $e) {
@@ -285,20 +289,21 @@ try {
                         <h3 class="chart-title">Revenue Overview</h3>
                         <div style="display: flex; align-items: flex-end; gap: 10px; height: 180px; padding: 10px 15px 30px 15px; border-bottom: 1px solid #e5e7eb;">
                                 <?php 
-                                // Get all 12 months directly from database
+                                // Get all 12 months for the chart year
                                 $allMonths = [];
                                 for ($m = 1; $m <= 12; $m++) {
-                                    $ym = sprintf('2026-%02d', $m);
+                                    $ym = sprintf('%d-%02d', $chartYear, $m);
                                     $allMonths[$ym] = 0;
                                 }
                                 
                                 // Fetch actual revenue data
-                                $revenueStmt = $pdo->query("
+                                $revenueStmt = $pdo->prepare("
                                     SELECT DATE_FORMAT(billing_date, '%Y-%m') AS ym, SUM(paid_amount) AS total
                                     FROM billing
-                                    WHERE billing_date LIKE '2026-%'
+                                    WHERE YEAR(billing_date) = ?
                                     GROUP BY ym
                                 ");
+                                $revenueStmt->execute([$chartYear]);
                                 while ($row = $revenueStmt->fetch(PDO::FETCH_ASSOC)) {
                                     if (isset($allMonths[$row['ym']])) {
                                         $allMonths[$row['ym']] = (float)$row['total'];
