@@ -30,7 +30,7 @@ try {
     require_once '../../config/database.php';
     
     // Get patient basic info - only use columns that definitely exist
-    $stmt = $pdo->prepare("SELECT id, first_name, middle_name, last_name, phone, email, gender, date_of_birth FROM patients WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT id, first_name, middle_name, last_name, phone, email, gender, date_of_birth, TIMESTAMPDIFF(YEAR, date_of_birth, CURDATE()) as age FROM patients WHERE id = ?");
     $stmt->execute([$patientId]);
     $patient = $stmt->fetch(PDO::FETCH_ASSOC);
     

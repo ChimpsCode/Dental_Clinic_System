@@ -34,7 +34,7 @@ try {
     
     // Get patients currently in queue
     $stmt = $pdo->query("
-        SELECT q.*, COALESCE(p.first_name, 'Unknown') as first_name, COALESCE(p.middle_name, '') as middle_name, COALESCE(p.last_name, '') as last_name, COALESCE(p.suffix, '') as suffix, COALESCE(p.phone, '') as phone, COALESCE(p.gender, '') as gender, COALESCE(q.status, 'waiting') as status_text
+        SELECT q.*, TIMESTAMPDIFF(YEAR, p.date_of_birth, CURDATE()) as age, COALESCE(p.first_name, 'Unknown') as first_name, COALESCE(p.middle_name, '') as middle_name, COALESCE(p.last_name, '') as last_name, COALESCE(p.suffix, '') as suffix, COALESCE(p.phone, '') as phone, COALESCE(p.gender, '') as gender, COALESCE(q.status, 'waiting') as status_text
         FROM queue q
         LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id
         WHERE q.status IN ('waiting', 'in_procedure') AND q.is_archived = 0
@@ -275,7 +275,7 @@ if (($patient['status_text'] ?? '') === 'in_procedure') {
                             <span style="margin-right: 6px;">🔒</span> WAITING - COMPLETE CURRENT FIRST
                         </button>
                     <?php else: ?>
-                        <button onclick="startProcedure(<?php echo $nextPatient['id']; ?>)" class="action-btn" style="background: #22c55e; color: white; flex: 2; padding: 12px; font-size: 1.1rem; font-weight: 600; border: none; border-radius: 8px; cursor: pointer;">
+                        <button onclick="openStartProcedureModal(<?php echo $nextPatient['id']; ?>, '<?php echo htmlspecialchars(addslashes(trim(($nextPatient['first_name'] ?? '') . ' ' . ($nextPatient['last_name'] ?? '')))); ?>', '<?php echo htmlspecialchars(addslashes($nextPatient['treatment_type'] ?? 'General Checkup')); ?>')" class="action-btn" style="background: #22c55e; color: white; flex: 2; padding: 12px; font-size: 1.1rem; font-weight: 600; border: none; border-radius: 8px; cursor: pointer;">
                             <span style="margin-right: 6px;">▶</span> START PROCEDURE
                         </button>
                     <?php endif; ?>
@@ -436,26 +436,39 @@ let billingPatientId = null;
 let billingQueueId = null;
 let notesSaveTimeout;
 
-// Queue actions
-function startProcedure(queueId) {
-    if (!confirm('Start procedure for this patient?')) return;
-    
+// Start Procedure Modal
+function openStartProcedureModal(queueId, patientName, treatment) {
+    document.getElementById('startProcedureQueueId').value = queueId;
+    document.getElementById('startProcedurePatientName').textContent = patientName || 'Unknown';
+    document.getElementById('startProcedureTreatment').textContent = treatment || 'General Checkup';
+    document.getElementById('startProcedureModal').style.display = 'flex';
+}
+
+function closeStartProcedureModal() {
+    document.getElementById('startProcedureModal').style.display = 'none';
+    document.getElementById('startProcedureQueueId').value = '';
+}
+
+function confirmStartProcedure() {
+    var queueId = document.getElementById('startProcedureQueueId').value;
+    if (!queueId) return;
+
     fetch('../shared/queue_actions.php', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'action=start_procedure&queue_id=' + queueId
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'start_procedure', queue_id: parseInt(queueId) })
     })
-    .then(response => response.json())
-    .then(data => {
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
         if (data.success) {
+            closeStartProcedureModal();
             location.reload();
         } else {
-            alert('Error: ' + data.message);
+            alert('Error: ' + (data.message || 'Unable to start procedure'));
         }
     })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Failed to start procedure');
+    .catch(function() {
+        alert('Unable to start procedure');
     });
 }
 
@@ -1078,15 +1091,41 @@ document.addEventListener('DOMContentLoaded', function() {
     if (cpModal) {
         document.body.appendChild(cpModal);
     }
+    const spModal = document.getElementById('startProcedureModal');
+    if (spModal) {
+        document.body.appendChild(spModal);
+    }
+    const pcModal = document.getElementById('procedureCompleteModal');
+    if (pcModal) {
+        document.body.appendChild(pcModal);
+    }
 });
 
 // Close modals on outside click
 window.onclick = function(event) {
     const cpModal = document.getElementById('completeProcedureModal');
     const pcModal = document.getElementById('procedureCompleteModal');
+    const spModal = document.getElementById('startProcedureModal');
     if (event.target === cpModal) closeCompleteProcedureModal();
     if (event.target === pcModal) closeProcedureCompleteModal();
+    if (event.target === spModal) closeStartProcedureModal();
 };
+
+// Close modals on ESC key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const spModal = document.getElementById('startProcedureModal');
+        const cpModal = document.getElementById('completeProcedureModal');
+        const pcModal = document.getElementById('procedureCompleteModal');
+        if (spModal && spModal.style.display === 'flex') {
+            closeStartProcedureModal();
+        } else if (cpModal && cpModal.style.display === 'flex') {
+            closeCompleteProcedureModal();
+        } else if (pcModal && pcModal.style.display === 'flex') {
+            closeProcedureCompleteModal();
+        }
+    }
+});
 </script>
 
 <!-- Modal Structure (Moved to root level via JS) -->
@@ -1101,7 +1140,7 @@ window.onclick = function(event) {
 </div>
 
 <!-- Complete Procedure Modal -->
-<div id="completeProcedureModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
+<div id="completeProcedureModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999999; align-items: center; justify-content: center;">
     <div class="complete-procedure-modal" style="position: relative; z-index: 100000;">
         <div class="cp-bg-orb cp-bg-orb-a"></div>
         <div class="cp-bg-orb cp-bg-orb-b"></div>
@@ -1141,8 +1180,56 @@ window.onclick = function(event) {
     </div>
 </div>
 
+<!-- Start Procedure Modal -->
+<div id="startProcedureModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999999; align-items: center; justify-content: center;">
+    <div class="start-procedure-modal" style="position: relative; z-index: 100000;">
+        <div class="sp-bg-orb sp-bg-orb-a"></div>
+        <div class="sp-bg-orb sp-bg-orb-b"></div>
+        <div class="sp-banner">
+            <div class="sp-icon-wrap">
+                <span class="sp-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </span>
+            </div>
+            <div>
+                <div class="sp-kicker">Dentist Dashboard</div>
+                <h2 style="font-size: 1.55rem; font-weight: 700; margin: 6px 0 0;">Start Procedure</h2>
+            </div>
+            <button onclick="closeStartProcedureModal()" class="sp-close">&times;</button>
+        </div>
+        <div class="sp-body">
+            <p class="sp-text">You are about to start the procedure for this patient.</p>
+            <div class="sp-highlight">
+                <div class="sp-highlight-icon">&#129463;</div>
+                <div>
+                    <div class="sp-highlight-label">Patient</div>
+                    <div class="sp-highlight-value" id="startProcedurePatientName">-</div>
+                </div>
+            </div>
+            <div class="sp-highlight">
+                <div class="sp-highlight-icon">&#128137;</div>
+                <div>
+                    <div class="sp-highlight-label">Treatment</div>
+                    <div class="sp-highlight-value" id="startProcedureTreatment">-</div>
+                </div>
+            </div>
+            <div class="sp-note">
+                <span class="sp-note-dot"></span>
+                This will move the patient to "In Procedure" status.
+            </div>
+        </div>
+        <input type="hidden" id="startProcedureQueueId">
+        <div class="sp-actions">
+            <button type="button" onclick="closeStartProcedureModal()" class="sp-btn-cancel">Cancel</button>
+            <button type="button" onclick="confirmStartProcedure()" class="sp-btn-confirm">Start Procedure</button>
+        </div>
+    </div>
+</div>
+
 <!-- Procedure Complete Success Modal -->
-<div id="procedureCompleteModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
+<div id="procedureCompleteModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999999; align-items: center; justify-content: center;">
     <div class="pc-modal" style="position: relative; z-index: 100000;">
         <div class="pc-success-ring">
             <div class="pc-success-check">
@@ -1336,6 +1423,70 @@ window.onclick = function(event) {
     .cp-banner, .cp-body, .cp-actions { padding-left: 18px; padding-right: 18px; }
     .cp-actions { flex-direction: column-reverse; }
     .cp-btn-cancel, .cp-btn-confirm { width: 100%; }
+}
+.start-procedure-modal {
+    position: relative;
+    background:
+        radial-gradient(circle at top right, rgba(14, 165, 233, 0.12), transparent 32%),
+        radial-gradient(circle at bottom left, rgba(34, 197, 94, 0.14), transparent 28%),
+        linear-gradient(180deg, #ffffff 0%, #f7fcff 100%);
+    border-radius: 22px;
+    padding: 0;
+    width: 90%;
+    max-width: 560px;
+    overflow: hidden;
+    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.24);
+    border: 1px solid rgba(14, 165, 233, 0.12);
+}
+.sp-bg-orb { position: absolute; border-radius: 999px; pointer-events: none; filter: blur(8px); opacity: 0.55; }
+.sp-bg-orb-a { width: 140px; height: 140px; right: -30px; top: 88px; background: radial-gradient(circle, rgba(14, 165, 233, 0.2) 0%, rgba(14, 165, 233, 0) 72%); }
+.sp-bg-orb-b { width: 160px; height: 160px; left: -40px; bottom: -30px; background: radial-gradient(circle, rgba(34, 197, 94, 0.16) 0%, rgba(34, 197, 94, 0) 74%); }
+.sp-banner {
+    display: flex; align-items: center; gap: 16px; padding: 24px 26px 18px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0) 42%), linear-gradient(135deg, #0b7db3 0%, #0891b2 38%, #0f9f53 100%);
+    color: white; position: relative;
+}
+.sp-icon-wrap {
+    width: 54px; height: 54px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
+    background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.22); backdrop-filter: blur(6px); flex-shrink: 0;
+}
+.sp-icon { display: flex; align-items: center; justify-content: center; }
+.sp-icon svg { width: 26px; height: 26px; fill: currentColor; }
+.sp-kicker { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; opacity: 0.9; font-weight: 700; }
+.sp-close {
+    margin-left: auto; background: rgba(255, 255, 255, 0.12); color: white;
+    border: 1px solid rgba(255, 255, 255, 0.18); width: 40px; height: 40px; border-radius: 12px;
+    font-size: 1.5rem; cursor: pointer; backdrop-filter: blur(8px);
+}
+.sp-body { padding: 24px 26px 12px; position: relative; }
+.sp-text { color: #1f2937; font-size: 1.06rem; line-height: 1.6; margin: 0 0 16px; font-weight: 500; }
+.sp-highlight {
+    display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 16px;
+    background: linear-gradient(135deg, #ecfeff 0%, #f0fdf4 100%); border: 1px solid #d9f99d; margin-bottom: 14px;
+}
+.sp-highlight-icon {
+    width: 42px; height: 42px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
+    background: white; box-shadow: 0 10px 24px rgba(8, 145, 178, 0.12); font-size: 1.25rem; flex-shrink: 0;
+}
+.sp-highlight-label { color: #0f766e; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 3px; }
+.sp-highlight-value { color: #1f2937; font-size: 0.95rem; font-weight: 600; }
+.sp-note {
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px;
+    background: #f0fdf4; color: #166534; font-size: 0.92rem; border: 1px solid #dcfce7;
+}
+.sp-note-dot { width: 10px; height: 10px; border-radius: 999px; background: #22c55e; box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.14); flex-shrink: 0; }
+.sp-actions { display: flex; justify-content: flex-end; gap: 12px; padding: 18px 26px 26px; }
+.sp-btn-cancel, .sp-btn-confirm {
+    border: none; border-radius: 14px; padding: 13px 20px; cursor: pointer; font-weight: 700; font-size: 0.97rem;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+.sp-btn-cancel { background: #eef6fb; color: #315266; border: 1px solid #d8e9f4; }
+.sp-btn-confirm { background: linear-gradient(135deg, #0891b2 0%, #0f9f53 100%); color: white; box-shadow: 0 14px 28px rgba(8, 145, 178, 0.24); }
+.sp-btn-cancel:hover, .sp-btn-confirm:hover, .sp-close:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08); }
+@media (max-width: 640px) {
+    .sp-banner, .sp-body, .sp-actions { padding-left: 18px; padding-right: 18px; }
+    .sp-actions { flex-direction: column-reverse; }
+    .sp-btn-cancel, .sp-btn-confirm { width: 100%; }
 }
 
 /* Procedure Complete Success Modal */

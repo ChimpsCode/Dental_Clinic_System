@@ -17,9 +17,11 @@ try {
                COALESCE(p.last_name, '') as last_name, 
                COALESCE(p.suffix, '') as suffix, 
                COALESCE(p.phone, '') as phone,
-               COALESCE(q.status, 'waiting') as status_text
+               COALESCE(q.status, 'waiting') as status_text,
+               COALESCE(CONCAT(u_doc.first_name, ' ', u_doc.last_name), 'Unassigned') as assigned_doctor
         FROM queue q 
         LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id
+        LEFT JOIN users u_doc ON q.doctor_id = u_doc.id
         WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'cancelled', 'on_hold') AND q.is_archived = 0
         ORDER BY 
             CASE COALESCE(q.status, 'waiting')
@@ -1038,7 +1040,7 @@ div.main-content {
                                     </span>
                                 </td>
                                 <td><?php echo htmlspecialchars($item['treatment_type'] ?? 'General Checkup'); ?></td>
-                                <td>Dr. Rex</td>
+                                <td><?php echo htmlspecialchars($item['assigned_doctor'] ?? 'Unassigned'); ?></td>
                                 <td>
                                     <div class="time-display">
                                         <span class="time-12hr"><?php echo $time12hr; ?></span>
@@ -1047,7 +1049,7 @@ div.main-content {
                                 </td>
 <td>
                                     <div class="queue-kebab-menu">
-                                        <button class="queue-kebab-btn" data-queue-id="<?php echo $item['id']; ?>" data-patient-id="<?php echo $item['patient_id']; ?>" data-status="<?php echo $item['status_text']; ?>">
+                                        <button class="queue-kebab-btn" data-queue-id="<?php echo $item['id']; ?>" data-patient-id="<?php echo $item['patient_id']; ?>" data-status="<?php echo $item['status_text']; ?>" data-doctor-id="<?php echo htmlspecialchars((string)($item['doctor_id'] ?? '')); ?>">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                                                 <circle cx="12" cy="6" r="2"/>
                                                 <circle cx="12" cy="12" r="2"/>
@@ -1167,6 +1169,26 @@ div.main-content {
     </div>
 </div>
 
+<div id="assignDoctorModal" class="fullscreen-modal-overlay" style="display:none;">
+    <div class="fullscreen-modal-content" style="max-width: 480px;">
+        <div class="fullscreen-modal-header">
+            <h2 style="font-size: 1.25rem; font-weight: 600; margin: 0;">Assign Doctor</h2>
+            <button type="button" onclick="closeAssignDoctorModal()" class="fullscreen-modal-close">&times;</button>
+        </div>
+        <div class="fullscreen-modal-body">
+            <input type="hidden" id="assignDoctorQueueId">
+            <label style="display:block; font-size:0.85rem; font-weight:600; color:#374151; margin-bottom:8px;">Select Dentist</label>
+            <select id="assignDoctorSelect" style="width:100%; padding:12px 16px; border:1px solid #d1d5db; border-radius:8px; font-size:0.9rem; background:white; cursor:pointer;">
+                <option value="">Unassigned</option>
+            </select>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:12px; padding:16px 24px 24px;">
+            <button onclick="closeAssignDoctorModal()" style="padding:10px 20px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:8px; cursor:pointer; font-weight:600; color:#374151;">Cancel</button>
+            <button onclick="assignDoctor()" style="padding:10px 20px; background:#2563eb; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:600;">Assign</button>
+        </div>
+    </div>
+</div>
+
 <script>
 // Queue Kebab Menu - Portal Based (same as patient-records)
 let queueKebabDropdown = null;
@@ -1187,8 +1209,8 @@ function createQueueKebabDropdown() {
     queueKebabBackdrop.addEventListener('click', closeQueueKebabDropdown);
 }
 
-function getQueueMenuItems(queueId, patientId, status) {
-    // In Procedure: Show View, Complete, Back to Waiting
+function getQueueMenuItems(queueId, patientId, status, doctorId = '') {
+    // In Procedure: Show View, Complete, Back to Waiting, and Assign Doctor
     if (status === 'in_procedure') {
         return `
         <a href="javascript:void(0)" data-action="view" data-queue-id="${queueId}" data-patient-id="${patientId}">
@@ -1205,6 +1227,10 @@ function getQueueMenuItems(queueId, patientId, status) {
         <a href="javascript:void(0)" data-action="back_to_waiting" data-queue-id="${queueId}" data-patient-id="${patientId}">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
             Back to Waiting
+        </a>
+        <a href="javascript:void(0)" data-action="assign_doctor" data-queue-id="${queueId}" data-patient-id="${patientId}" data-doctor-id="${doctorId}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Assign Doctor
         </a>
         `;
     }
@@ -1261,7 +1287,7 @@ function getQueueMenuItems(queueId, patientId, status) {
         `;
     }
     
-    // Default: Show View, Hold, Re-queue (if on_hold), Cancel
+    // Default: Show View, Hold, Assign Doctor, Re-queue (if on_hold), Cancel
     return `
         <a href="javascript:void(0)" data-action="view" data-queue-id="${queueId}" data-patient-id="${patientId}">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1276,6 +1302,10 @@ function getQueueMenuItems(queueId, patientId, status) {
                 <rect x="14" y="4" width="4" height="16"></rect>
             </svg>
             Hold
+        </a>
+        <a href="javascript:void(0)" data-action="assign_doctor" data-queue-id="${queueId}" data-patient-id="${patientId}" data-doctor-id="${doctorId}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Assign Doctor
         </a>
         ${status === 'on_hold' ? `
         <a href="javascript:void(0)" data-action="requeue" data-queue-id="${queueId}" data-patient-id="${patientId}">
@@ -1342,8 +1372,9 @@ function openQueueKebabDropdown(button) {
     const queueId = button.dataset.queueId;
     const patientId = button.dataset.patientId;
     const status = button.dataset.status;
+    const doctorId = button.dataset.doctorId || '';
 
-    queueKebabDropdown.innerHTML = getQueueMenuItems(queueId, patientId, status);
+    queueKebabDropdown.innerHTML = getQueueMenuItems(queueId, patientId, status, doctorId);
     positionQueueKebabDropdown(button);
 
     queueKebabDropdown.classList.add('show');
@@ -1378,6 +1409,7 @@ function handleQueueKebabClick(e) {
     const action = link.dataset.action;
     const queueId = parseInt(link.dataset.queueId);
     const patientId = parseInt(link.dataset.patientId);
+    const doctorId = link.dataset.doctorId || '';
 
     closeQueueKebabDropdown();
 
@@ -1402,6 +1434,9 @@ function handleQueueKebabClick(e) {
             break;
         case 'delete':
             deleteQueueItem(queueId);
+            break;
+        case 'assign_doctor':
+            openAssignDoctorModal(queueId, doctorId);
             break;
     }
 }
@@ -1851,6 +1886,76 @@ document.getElementById('deleteModal').addEventListener('click', function(e) {
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeDeleteModal();
 });
+
+// Assign Doctor Modal
+let cachedDoctors = null;
+
+function openAssignDoctorModal(queueId, currentDoctorId) {
+    document.getElementById('assignDoctorQueueId').value = queueId;
+    document.getElementById('assignDoctorModal').style.display = 'flex';
+    var select = document.getElementById('assignDoctorSelect');
+    select.innerHTML = '<option value="">Loading...</option>';
+
+    function populateSelect(doctors) {
+        select.innerHTML = '<option value="">Unassigned</option>';
+        doctors.forEach(function(doc) {
+            var fullName = ((doc.first_name || '') + ' ' + (doc.middle_name || '') + ' ' + (doc.last_name || '')).trim();
+            var opt = document.createElement('option');
+            opt.value = doc.id;
+            opt.textContent = fullName || doc.username;
+            if (String(doc.id) === String(currentDoctorId)) opt.selected = true;
+            select.appendChild(opt);
+        });
+    }
+
+    if (cachedDoctors) {
+        populateSelect(cachedDoctors);
+    } else {
+        fetch('../shared/queue_actions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'get_doctors' })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success && data.doctors) {
+                cachedDoctors = data.doctors;
+                populateSelect(data.doctors);
+            } else {
+                select.innerHTML = '<option value="">No doctors found</option>';
+            }
+        })
+        .catch(function() {
+            select.innerHTML = '<option value="">Failed to load doctors</option>';
+        });
+    }
+}
+
+function closeAssignDoctorModal() {
+    document.getElementById('assignDoctorModal').style.display = 'none';
+}
+
+function assignDoctor() {
+    var queueId = document.getElementById('assignDoctorQueueId').value;
+    var doctorId = document.getElementById('assignDoctorSelect').value;
+
+    fetch('../shared/queue_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'assign_doctor', queue_id: parseInt(queueId), doctor_id: doctorId ? parseInt(doctorId) : null })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message || 'Failed to assign doctor');
+        }
+    })
+    .catch(function() {
+        alert('Error assigning doctor');
+    });
+}
 
 // Tab switching functionality
 document.querySelectorAll('.tab-item').forEach(tab => {

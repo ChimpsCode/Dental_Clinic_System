@@ -1089,6 +1089,71 @@ div.main-content {
         color: #111827;
         font-weight: 500;
     }
+
+/* Start Procedure Modal */
+.start-procedure-modal {
+    background:
+        radial-gradient(circle at top right, rgba(14, 165, 233, 0.18), transparent 32%),
+        radial-gradient(circle at bottom left, rgba(34, 197, 94, 0.14), transparent 28%),
+        linear-gradient(180deg, #ffffff 0%, #f7fcff 100%);
+    border-radius: 22px;
+    padding: 0;
+    width: 90%;
+    max-width: 560px;
+    overflow: hidden;
+    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.24);
+    border: 1px solid rgba(14, 165, 233, 0.12);
+}
+.sp-bg-orb { position: absolute; border-radius: 999px; pointer-events: none; filter: blur(8px); opacity: 0.55; }
+.sp-bg-orb-a { width: 140px; height: 140px; right: -30px; top: 88px; background: radial-gradient(circle, rgba(14, 165, 233, 0.2) 0%, rgba(14, 165, 233, 0) 72%); }
+.sp-bg-orb-b { width: 160px; height: 160px; left: -40px; bottom: -30px; background: radial-gradient(circle, rgba(34, 197, 94, 0.16) 0%, rgba(34, 197, 94, 0) 74%); }
+.sp-banner {
+    display: flex; align-items: center; gap: 16px; padding: 24px 26px 18px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0) 42%), linear-gradient(135deg, #0b7db3 0%, #0891b2 38%, #0f9f53 100%);
+    color: white; position: relative;
+}
+.sp-icon-wrap {
+    width: 54px; height: 54px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
+    background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.22); backdrop-filter: blur(6px); flex-shrink: 0;
+}
+.sp-icon { display: flex; align-items: center; justify-content: center; }
+.sp-icon svg { width: 26px; height: 26px; fill: currentColor; }
+.sp-kicker { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; opacity: 0.9; font-weight: 700; }
+.sp-close {
+    margin-left: auto; background: rgba(255, 255, 255, 0.12); color: white;
+    border: 1px solid rgba(255, 255, 255, 0.18); width: 40px; height: 40px; border-radius: 12px;
+    font-size: 1.5rem; cursor: pointer; backdrop-filter: blur(8px);
+}
+.sp-body { padding: 24px 26px 12px; position: relative; }
+.sp-text { color: #1f2937; font-size: 1.06rem; line-height: 1.6; margin: 0 0 16px; font-weight: 500; }
+.sp-highlight {
+    display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 16px;
+    background: linear-gradient(135deg, #ecfeff 0%, #f0fdf4 100%); border: 1px solid #d9f99d; margin-bottom: 14px;
+}
+.sp-highlight-icon {
+    width: 42px; height: 42px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
+    background: white; box-shadow: 0 10px 24px rgba(8, 145, 178, 0.12); font-size: 1.25rem; flex-shrink: 0;
+}
+.sp-highlight-label { color: #0f766e; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 3px; }
+.sp-highlight-value { color: #1f2937; font-size: 0.95rem; font-weight: 600; }
+.sp-note {
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px;
+    background: #f0fdf4; color: #166534; font-size: 0.92rem; border: 1px solid #dcfce7;
+}
+.sp-note-dot { width: 10px; height: 10px; border-radius: 999px; background: #22c55e; box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.14); flex-shrink: 0; }
+.sp-actions { display: flex; justify-content: flex-end; gap: 12px; padding: 18px 26px 26px; }
+.sp-btn-cancel, .sp-btn-confirm {
+    border: none; border-radius: 14px; padding: 13px 20px; cursor: pointer; font-weight: 700; font-size: 0.97rem;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+.sp-btn-cancel { background: #eef6fb; color: #315266; border: 1px solid #d8e9f4; }
+.sp-btn-confirm { background: linear-gradient(135deg, #0891b2 0%, #0f9f53 100%); color: white; box-shadow: 0 14px 28px rgba(8, 145, 178, 0.24); }
+.sp-btn-cancel:hover, .sp-btn-confirm:hover, .sp-close:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08); }
+@media (max-width: 640px) {
+    .sp-banner, .sp-body, .sp-actions { padding-left: 18px; padding-right: 18px; }
+    .sp-actions { flex-direction: column-reverse; }
+    .sp-btn-cancel, .sp-btn-confirm { width: 100%; }
+}
 </style>
 
 <!-- Summary Widgets -->
@@ -1240,7 +1305,7 @@ div.main-content {
                             </td>
                             <td>
                                 <div class="queue-kebab-menu">
-                                    <button class="queue-kebab-btn" data-queue-id="<?php echo $item['id']; ?>" data-patient-id="<?php echo $item['patient_id']; ?>">
+                                    <button class="queue-kebab-btn" data-queue-id="<?php echo $item['id']; ?>" data-patient-id="<?php echo $item['patient_id']; ?>" data-patient-name="<?php echo htmlspecialchars(($item['first_name'] ?? '') . ' ' . ($item['last_name'] ?? '')); ?>" data-treatment="<?php echo htmlspecialchars($item['treatment_type'] ?? 'General Checkup'); ?>">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                                             <circle cx="12" cy="6" r="2"/>
                                             <circle cx="12" cy="12" r="2"/>
@@ -1311,6 +1376,54 @@ div.main-content {
     </div>
 </div>
 
+<!-- Start Procedure Modal -->
+<div id="startProcedureModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
+    <div class="start-procedure-modal" style="position: relative; z-index: 100000;">
+        <div class="sp-bg-orb sp-bg-orb-a"></div>
+        <div class="sp-bg-orb sp-bg-orb-b"></div>
+        <div class="sp-banner">
+            <div class="sp-icon-wrap">
+                <span class="sp-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </span>
+            </div>
+            <div>
+                <div class="sp-kicker">Dentist Queue</div>
+                <h2 style="font-size: 1.55rem; font-weight: 700; margin: 6px 0 0;">Start Procedure</h2>
+            </div>
+            <button onclick="closeStartProcedureModal()" class="sp-close">&times;</button>
+        </div>
+        <div class="sp-body">
+            <p class="sp-text">You are about to start the procedure for this patient.</p>
+            <div class="sp-highlight">
+                <div class="sp-highlight-icon">&#129463;</div>
+                <div>
+                    <div class="sp-highlight-label">Patient</div>
+                    <div class="sp-highlight-value" id="startProcedurePatientName">-</div>
+                </div>
+            </div>
+            <div class="sp-highlight">
+                <div class="sp-highlight-icon">&#128137;</div>
+                <div>
+                    <div class="sp-highlight-label">Treatment</div>
+                    <div class="sp-highlight-value" id="startProcedureTreatment">-</div>
+                </div>
+            </div>
+            <div class="sp-note">
+                <span class="sp-note-dot"></span>
+                This will move the patient to "In Procedure" status.
+            </div>
+        </div>
+        <input type="hidden" id="startProcedureQueueId">
+        <div class="sp-actions">
+            <button type="button" onclick="closeStartProcedureModal()" class="sp-btn-cancel">Cancel</button>
+            <button type="button" onclick="confirmStartProcedure()" class="sp-btn-confirm">Start Procedure</button>
+        </div>
+    </div>
+</div>
+
 <script>
 // Queue Kebab Menu Functionality
 let queueKebabDropdown = null;
@@ -1334,7 +1447,7 @@ function createQueueKebabDropdown() {
     queueKebabBackdrop.addEventListener('click', closeQueueKebabDropdown);
 }
 
-function getQueueMenuItems(queueId, status, patientId) {
+function getQueueMenuItems(queueId, status, patientId, patientName, treatment) {
     let menuHTML = '';
     
     menuHTML += `
@@ -1357,7 +1470,7 @@ function getQueueMenuItems(queueId, status, patientId) {
             `;
         } else {
             menuHTML += `
-                <a href="javascript:void(0)" onclick="updateQueueStatus(${queueId}, 'in_procedure')">
+                <a href="javascript:void(0)" onclick="openStartProcedureModal(${queueId}, '${patientName.replace(/'/g, "\\'")}', '${treatment.replace(/'/g, "\\'")}')">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                     Start Procedure
                 </a>
@@ -1443,10 +1556,12 @@ function openQueueKebabDropdown(button) {
 
     const queueId = button.dataset.queueId;
     const patientId = button.dataset.patientId || '0';
+    const patientName = button.dataset.patientName || 'Unknown';
+    const treatment = button.dataset.treatment || 'General Checkup';
     const row = button.closest('.queue-row');
     const status = row.dataset.status;
 
-    queueKebabDropdown.innerHTML = getQueueMenuItems(queueId, status, patientId);
+    queueKebabDropdown.innerHTML = getQueueMenuItems(queueId, status, patientId, patientName, treatment);
     positionQueueKebabDropdown(button);
 
     queueKebabDropdown.classList.add('show');
@@ -1512,6 +1627,7 @@ document.addEventListener('keydown', function(e) {
         if (queueKebabDropdown && queueKebabDropdown.classList.contains('show')) {
             closeQueueKebabDropdown();
         }
+        closeStartProcedureModal();
     }
 });
 
@@ -1647,12 +1763,23 @@ function saveQuickPrescription() {
 
 // Update Queue Status
 function updateQueueStatus(queueId, status) {
+    const actionMap = {
+        'in_procedure': 'start_procedure',
+        'completed': 'complete',
+        'on_hold': 'on_hold',
+        'waiting': 'requeue',
+        'cancelled': 'cancel'
+    };
+    const action = actionMap[status];
+    if (!action) {
+        alert('Unknown status: ' + status);
+        return;
+    }
+
     fetch('../shared/queue_actions.php', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: 'action=update_status&queue_id=' + queueId + '&status=' + status
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: action, queue_id: parseInt(queueId) })
     })
     .then(response => response.json())
     .then(data => {
@@ -1665,6 +1792,42 @@ function updateQueueStatus(queueId, status) {
     .catch(error => {
         console.error('Error:', error);
         alert('Error updating status');
+    });
+}
+
+// Start Procedure Modal
+function openStartProcedureModal(queueId, patientName, treatment) {
+    document.getElementById('startProcedureQueueId').value = queueId;
+    document.getElementById('startProcedurePatientName').textContent = patientName || 'Unknown';
+    document.getElementById('startProcedureTreatment').textContent = treatment || 'General Checkup';
+    document.getElementById('startProcedureModal').style.display = 'flex';
+}
+
+function closeStartProcedureModal() {
+    document.getElementById('startProcedureModal').style.display = 'none';
+    document.getElementById('startProcedureQueueId').value = '';
+}
+
+function confirmStartProcedure() {
+    var queueId = document.getElementById('startProcedureQueueId').value;
+    if (!queueId) return;
+
+    fetch('../shared/queue_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'start_procedure', queue_id: parseInt(queueId) })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success) {
+            closeStartProcedureModal();
+            location.reload();
+        } else {
+            alert('Error: ' + (data.message || 'Unable to start procedure'));
+        }
+    })
+    .catch(function() {
+        alert('Unable to start procedure');
     });
 }
 

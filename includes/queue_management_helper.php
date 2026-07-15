@@ -19,6 +19,7 @@ function ensureQueueManagementSchema(PDO $pdo): void
             queue_label VARCHAR(20) NULL,
             queue_date DATE NULL,
             treatment_type VARCHAR(200) NULL,
+            doctor_id INT NULL,
             teeth_numbers VARCHAR(500) NULL,
             procedure_notes TEXT NULL,
             status ENUM('waiting', 'in_procedure', 'pending_payment', 'completed', 'cancelled', 'on_hold') DEFAULT 'waiting',
@@ -54,6 +55,7 @@ function ensureQueueManagementSchema(PDO $pdo): void
         'queue_number' => "ALTER TABLE queue ADD COLUMN queue_number INT NULL AFTER appointment_id",
         'queue_label' => "ALTER TABLE queue ADD COLUMN queue_label VARCHAR(20) NULL AFTER queue_number",
         'queue_date' => "ALTER TABLE queue ADD COLUMN queue_date DATE NULL AFTER queue_label",
+        'doctor_id' => "ALTER TABLE queue ADD COLUMN doctor_id INT NULL AFTER treatment_type",
         'status_id' => "ALTER TABLE queue ADD COLUMN status_id INT NULL DEFAULT 1 AFTER status"
     ];
 
@@ -91,6 +93,10 @@ function ensureQueueManagementSchema(PDO $pdo): void
 
     if (!isset($indexes['idx_queue_appointment_id'])) {
         $pdo->exec("ALTER TABLE queue ADD INDEX idx_queue_appointment_id (appointment_id)");
+    }
+
+    if (!isset($indexes['idx_queue_doctor_id'])) {
+        $pdo->exec("ALTER TABLE queue ADD INDEX idx_queue_doctor_id (doctor_id)");
     }
 
     $pdo->exec("
@@ -193,6 +199,7 @@ function createQueueEntry(PDO $pdo, array $payload): array
     $notes = trim((string)($payload['notes'] ?? ''));
     $priority = isset($payload['priority']) ? (int)$payload['priority'] : 5;
     $queueTime = trim((string)($payload['queue_time'] ?? date('H:i:s')));
+    $doctorId = isset($payload['doctor_id']) && $payload['doctor_id'] !== '' ? (int)$payload['doctor_id'] : null;
 
     $stmt = $pdo->prepare("
         INSERT INTO queue (
@@ -202,6 +209,7 @@ function createQueueEntry(PDO $pdo, array $payload): array
             queue_label,
             queue_date,
             treatment_type,
+            doctor_id,
             teeth_numbers,
             procedure_notes,
             status,
@@ -210,7 +218,7 @@ function createQueueEntry(PDO $pdo, array $payload): array
             notes,
             created_at,
             updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
     ");
     $stmt->execute([
         $patientId,
@@ -219,6 +227,7 @@ function createQueueEntry(PDO $pdo, array $payload): array
         $queueLabel,
         $queueDate,
         $treatmentType !== '' ? $treatmentType : 'General Checkup',
+        $doctorId,
         $teethNumbers !== '' ? $teethNumbers : null,
         $procedureNotes !== '' ? $procedureNotes : null,
         $status,

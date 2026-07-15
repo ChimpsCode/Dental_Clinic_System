@@ -11,7 +11,8 @@ try {
                a.status as appointment_status,
                a.appointment_date,
                a.appointment_time,
-               svc.name as service_name
+               q.status as queue_status,
+               COALESCE(svc.name, q.treatment_type, 'N/A') as service_name
         FROM patients p 
         LEFT JOIN (
             SELECT a1.*
@@ -21,6 +22,13 @@ try {
             )
         ) a ON p.id = a.patient_id
         LEFT JOIN services svc ON a.service_id = svc.id
+        LEFT JOIN (
+            SELECT q1.*
+            FROM queue q1
+            WHERE q1.id = (
+                SELECT MAX(q2.id) FROM queue q2 WHERE q2.patient_id = q1.patient_id
+            )
+        ) q ON p.id = q.patient_id
         WHERE p.is_archived = 0
         GROUP BY p.id
         ORDER BY p.created_at DESC
@@ -107,11 +115,14 @@ try {
     </div>
     <select id="statusFilter" style="padding: 12px 16px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; background: white; cursor: pointer;">
         <option value="">All Status</option>
+        <option value="waiting">Waiting</option>
+        <option value="in_procedure">In Procedure</option>
+        <option value="on_hold">On Hold</option>
+        <option value="completed">Completed</option>
+        <option value="cancelled">Cancelled</option>
         <option value="Scheduled">Scheduled</option>
         <option value="In Queue">In Queue</option>
         <option value="Pending Payment">Pending Payment</option>
-        <option value="Completed">Completed</option>
-        <option value="Cancelled">Cancelled</option>
     </select>
 </div>
 
@@ -521,8 +532,8 @@ let currentPage = 1;
 let perPage = 10;
 let filteredPatients = [...allPatients];
 
-const statusLabels = {'Scheduled':'Scheduled','In Queue':'In Queue','Pending Payment':'Pending Payment','Completed':'Completed','Cancelled':'Cancelled'};
-const statusColors = {'Scheduled':'#dbeafe:#1d4ed8','In Queue':'#fef3c7:#92400e','Pending Payment':'#fed7aa:#c2410c','Completed':'#d1fae5:#065f46','Cancelled':'#fee2e2:#dc2626'};
+const statusLabels = {'waiting':'Waiting','in_procedure':'In Procedure','on_hold':'On Hold','completed':'Completed','cancelled':'Cancelled','Scheduled':'Scheduled','In Queue':'In Queue','Pending Payment':'Pending Payment'};
+const statusColors = {'waiting':'#fef3c7:#92400e','in_procedure':'#dbeafe:#1e40af','on_hold':'#fed7aa:#9a3412','completed':'#d1fae5:#065f46','cancelled':'#fee2e2:#dc2626','Scheduled':'#dbeafe:#1d4ed8','In Queue':'#fef3c7:#92400e','Pending Payment':'#fed7aa:#c2410c'};
 
 // Portal Pattern: Move modals to body level
 (function() {
@@ -549,7 +560,7 @@ function applyFilters() {
 
         let matchesStatus = true;
         if (statusVal) {
-            const s = (p.appointment_status || '');
+            const s = (p.queue_status || p.appointment_status || '');
             matchesStatus = (s === statusVal);
         }
         return matchesSearch && matchesStatus;
@@ -573,7 +584,7 @@ function renderTable() {
     }
 
     tbody.innerHTML = pageData.map(function(p) {
-        const s = (p.appointment_status || '');
+        const s = (p.queue_status || p.appointment_status || '');
         const label = statusLabels[s] || '--';
         const [bg, text] = (statusColors[s] || '#f3f4f6:#6b7280').split(':');
         const age = p.age || 'N/A';

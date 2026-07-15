@@ -27,12 +27,9 @@ if (!$data) {
 $action = $data['action'] ?? '';
 $queueId = $data['queue_id'] ?? ($data['id'] ?? null);
 $patientId = $data['patient_id'] ?? null;
+$doctorId = $data['doctor_id'] ?? null;
 
-$user_id = $_SESSION['user_id'] ?? null;
-$username = $_SESSION['username'] ?? 'unknown';
-$user_role = $_SESSION['role'] ?? 'unknown';
-
-if (!$queueId && !$patientId) {
+if ($action !== 'get_doctors' && !$queueId && !$patientId) {
     echo json_encode(['success' => false, 'message' => 'Queue ID or Patient ID is required']);
     exit();
 }
@@ -276,6 +273,67 @@ try {
             echo json_encode(['success' => true, 'patient' => $patient]);
             break;
             
+        case 'get_doctors':
+            $stmt = $pdo->query("
+                SELECT u.id, u.first_name, u.middle_name, u.last_name
+                FROM users u
+                WHERE LOWER(COALESCE(u.role, '')) = 'dentist'
+                  AND COALESCE(u.status, 'Active') = 'Active'
+                  AND COALESCE(u.is_archived, 0) = 0
+                ORDER BY u.first_name, u.last_name
+            ");
+            $doctors = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            echo json_encode(['success' => true, 'doctors' => $doctors]);
+            break;
+
+        case 'assign_doctor':
+            if (!$queueId) {
+                echo json_encode(['success' => false, 'message' => 'Queue ID is required']);
+                break;
+            }
+
+            if ($doctorId !== null && $doctorId !== '' && $doctorId !== 0) {
+                $stmt = $pdo->prepare("
+                    SELECT 1 FROM users u
+                    WHERE u.id = ?
+                      AND LOWER(COALESCE(u.role, '')) = 'dentist'
+                      AND COALESCE(u.status, 'Active') = 'Active'
+                    LIMIT 1
+                ");
+                $stmt->execute([$doctorId]);
+                if (!$stmt->fetch()) {
+                    echo json_encode(['success' => false, 'message' => 'Invalid doctor. Doctor not found or inactive.']);
+                    break;
+                }
+            } else {
+                $doctorId = null;
+            }
+
+            $stmt = $pdo->prepare("UPDATE queue SET doctor_id = ? WHERE id = ?");
+            $result = $stmt->execute([$doctorId, $queueId]);
+
+            if (!$result || $stmt->rowCount() === 0) {
+                echo json_encode(['success' => false, 'message' => 'Failed to assign doctor']);
+                break;
+            }
+
+            $doctorName = 'Unassigned';
+            if ($doctorId) {
+                $stmt = $pdo->prepare("SELECT CONCAT(first_name, ' ', last_name) AS full_name FROM users WHERE id = ?");
+                $stmt->execute([$doctorId]);
+                $doctorName = $stmt->fetchColumn() ?: 'Unknown';
+            }
+
+            $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name FROM queue q LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED) WHERE q.id = ?");
+            $stmt->execute([$queueId]);
+            $queueItem = $stmt->fetch();
+            $patientName = buildFullName($queueItem);
+
+            logAudit($pdo, $user_id, $username, $user_role, 'assignment', 'queue', 'Assigned doctor to patient: ' . $patientName . ' -> ' . $doctorName, $queueId, 'queue', null, $doctorName);
+
+            echo json_encode(['success' => true, 'message' => 'Doctor assigned successfully', 'doctor_name' => $doctorName]);
+            break;
+
         default:
             echo json_encode(['success' => false, 'message' => 'Invalid action']);
     }
