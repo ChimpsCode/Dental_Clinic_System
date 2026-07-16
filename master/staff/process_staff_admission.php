@@ -296,6 +296,10 @@ if ($appointmentId) {
     }
     $teethNumbers = !empty($selectedTeeth) ? implode(', ', $selectedTeeth) : '';
     
+    // Dental Chart Notes
+    $dentalNotes = $_POST['dentalNotes'] ?? '';
+    $dentalNotes = trim($dentalNotes);
+    
     // Add to Queue - moved AFTER billing commit
     $queueId = 0;
     try {
@@ -306,12 +310,12 @@ if ($appointmentId) {
         
         if ($existingQueue) {
             $queueId = $existingQueue['id'];
-            $stmt = $pdo->prepare("UPDATE queue SET treatment_type = ?, service_id = ?, teeth_numbers = ?, queue_time = NOW() WHERE id = ?");
-            $stmt->execute([$treatmentType, $primaryServiceId, $teethNumbers, $queueId]);
+            $stmt = $pdo->prepare("UPDATE queue SET treatment_type = ?, service_id = ?, teeth_numbers = ?, procedure_notes = ?, queue_time = NOW() WHERE id = ?");
+            $stmt->execute([$treatmentType, $primaryServiceId, $teethNumbers, $dentalNotes, $queueId]);
         } else {
             // Insert new queue entry
-            $stmt = $pdo->prepare("INSERT INTO queue (patient_id, status, priority, treatment_type, service_id, teeth_numbers, queue_time, created_at) VALUES (?, 'waiting', 5, ?, ?, ?, NOW(), NOW())");
-            $stmt->execute([$patientId, $treatmentType, $primaryServiceId, $teethNumbers]);
+            $stmt = $pdo->prepare("INSERT INTO queue (patient_id, status, priority, treatment_type, service_id, teeth_numbers, procedure_notes, queue_time, created_at) VALUES (?, 'waiting', 5, ?, ?, ?, ?, NOW(), NOW())");
+            $stmt->execute([$patientId, $treatmentType, $primaryServiceId, $teethNumbers, $dentalNotes]);
             $queueId = (int)$pdo->lastInsertId();
         }
         

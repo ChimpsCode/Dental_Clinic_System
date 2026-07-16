@@ -937,6 +937,16 @@ elseif ($appointmentId) {
                             </div>
                         </div>
                     </section>
+
+                    <!-- Dental Chart Notes -->
+                    <div id="dentalNotesWrapper" style="display: none; margin-top: 24px;">
+                        <div class="card">
+                            <h3 class="card-title">Dental Chart Notes</h3>
+                            <textarea id="dentalNotes" name="dentalNotes" rows="3"
+                                placeholder="Enter notes about the selected teeth..."
+                                style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:8px;"></textarea>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Footer Actions -->
@@ -1722,6 +1732,8 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
                     tooth.classList.remove('attention');
                 }
             });
+            
+            updateDentalNotes();
         }
 
         // --- OLD FUNCTION (Kept for compatibility, though Step 5 HTML changed) ---
@@ -1754,6 +1766,15 @@ btn.classList.add('bg-blue-200', 'border-blue-400');
             } else {
                 wrapper.classList.add('selected');
             }
+            
+            updateDentalNotes();
+        }
+
+        function updateDentalNotes() {
+            const wrapper = document.getElementById('dentalNotesWrapper');
+            if (!wrapper) return;
+            const hasTeeth = document.querySelectorAll('.tooth-wrapper.selected, .tooth-wrapper.attention').length > 0;
+            wrapper.style.display = hasTeeth ? 'block' : 'none';
         }
 
         // Tooth Type Toggle Functions
@@ -1885,6 +1906,9 @@ btn.classList.add('bg-blue-200', 'border-blue-400');
             
             // Initial check
             initializeToothTypeFromAge();
+            
+            // Update dental notes visibility on load
+            updateDentalNotes();
         });
 
         function handleSubmit() {
@@ -1923,6 +1947,12 @@ btn.classList.add('bg-blue-200', 'border-blue-400');
                 selectedTeeth.push(wrapper.dataset.tooth);
             });
             data.selectedTeeth = selectedTeeth;
+
+            // Get dental chart notes
+            const dentalNotesEl = document.getElementById('dentalNotes');
+            if (dentalNotesEl && dentalNotesEl.value.trim()) {
+                formData.append('dentalNotes', dentalNotesEl.value.trim());
+            }
 
             if (services.length === 0) {
                 showModal('error', 'Missing Services', 'Please select at least one service before submitting.', [
