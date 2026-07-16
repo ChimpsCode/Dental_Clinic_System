@@ -19,6 +19,7 @@ $filteredTotal = 0;
 $currentPage = 1;
 $totalPages = 1;
 $perPage = 10;
+$dbError = '';
 
 try {
     $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : '';
@@ -58,21 +59,32 @@ try {
             break;
     }
 
-    $statsStmt = $pdo->query("
+    $statsSql = "
         SELECT
-            COALESCE(SUM(CASE WHEN payment_status IN ('Paid', 'Partial') THEN paid_amount ELSE 0 END), 0) AS total_collected,
-            COALESCE(SUM(CASE WHEN payment_status IN ('Partial', 'Unpaid', 'Overdue') THEN balance ELSE 0 END), 0) AS pending_payments,
+            COALESCE(SUM(CASE WHEN b.payment_status IN ('Paid', 'Partial') THEN b.paid_amount ELSE 0 END), 0) AS total_collected,
+            COALESCE(SUM(CASE WHEN b.payment_status IN ('Partial', 'Unpaid', 'Overdue') THEN b.balance ELSE 0 END), 0) AS pending_payments,
             COUNT(*) AS total_transactions,
-            SUM(CASE WHEN payment_status IN ('Unpaid', 'Overdue') AND billing_date < CURDATE() THEN 1 ELSE 0 END) AS overdue_count
-        FROM billing
-    ");
+            SUM(CASE
+                WHEN b.payment_status = 'Overdue' THEN 1
+                WHEN b.payment_status = 'Unpaid' AND b.due_date IS NOT NULL AND b.due_date < CURDATE() AND COALESCE(b.balance, 0) > 0 THEN 1
+                ELSE 0
+            END) AS overdue_count
+        FROM billing b
+        LEFT JOIN patients p ON p.id = b.patient_id
+        $whereClause
+    ";
+    $statsStmt = $pdo->prepare($statsSql);
+    foreach ($params as $key => $value) {
+        $statsStmt->bindValue($key, $value);
+    }
+    $statsStmt->execute();
     $stats = $statsStmt->fetch(PDO::FETCH_ASSOC) ?: [];
     $totalCollected = (float)($stats['total_collected'] ?? 0);
     $pendingPayments = (float)($stats['pending_payments'] ?? 0);
     $totalTransactions = (int)($stats['total_transactions'] ?? 0);
     $overdueCount = (int)($stats['overdue_count'] ?? 0);
 
-    $countSql = "SELECT COUNT(*) as total FROM billing b LEFT JOIN patients p ON p.id = b.patient_id $whereClause";
+    $countSql = "SELECT COUNT(DISTINCT b.id) as total FROM billing b LEFT JOIN patients p ON p.id = b.patient_id $whereClause";
     $countStmt = $pdo->prepare($countSql);
     foreach ($params as $key => $value) {
         $countStmt->bindValue($key, $value);
@@ -105,18 +117,25 @@ try {
             q.id AS queue_id
         FROM billing b
         LEFT JOIN patients p ON p.id = b.patient_id
-        LEFT JOIN treatments t ON t.id = b.treatment_id
         LEFT JOIN appointments a ON a.id = b.appointment_id
         LEFT JOIN services svc ON a.service_id = svc.id
-        LEFT JOIN queue q ON q.patient_id = b.patient_id AND DATE(q.created_at) = DATE(b.billing_date)
+        LEFT JOIN (
+            SELECT patient_id, DATE(created_at) AS created_date,
+                   MIN(id) AS id,
+                   MIN(treatment_type) AS treatment_type
+            FROM queue
+            GROUP BY patient_id, DATE(created_at)
+        ) q ON q.patient_id = b.patient_id AND q.created_date = DATE(b.billing_date)
         $whereClause
         ORDER BY b.billing_date DESC
-        LIMIT $perPage OFFSET $offset
+        LIMIT :limit OFFSET :offset
     ";
     $stmt = $pdo->prepare($sql);
     foreach ($params as $key => $value) {
         $stmt->bindValue($key, $value);
     }
+    $stmt->bindValue(':limit', (int)$perPage, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
     $stmt->execute();
     $billingRecords = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -124,6 +143,7 @@ try {
     $showingEnd = min($offset + $perPage, $filteredTotal);
 } catch (Exception $e) {
     $billingRecords = [];
+    $dbError = $e->getMessage();
 }
 
 require_once __DIR__ . '/../../includes/admin_layout_start.php';
@@ -161,6 +181,12 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                         </div>
                     </div>
                 </div>
+
+                <?php if ($dbError): ?>
+                <div style="padding: 16px; background: #fee2e2; color: #dc2626; border: 1px solid #f87171; border-radius: 8px; margin-bottom: 16px; font-family: sans-serif;">
+                    <strong>Database Error:</strong> <?php echo htmlspecialchars($dbError); ?>
+                </div>
+                <?php endif; ?>
 
                 <!-- Search and Filter -->
                 <form method="GET" class="search-filters">
