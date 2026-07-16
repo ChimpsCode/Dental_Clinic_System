@@ -680,6 +680,7 @@ function viewPatientRecord(patientId) {
             const d = data.dental_history || {};
             const q = data.queue_item;
             const b = data.billing || {};
+            const allBillings = data.all_billings || [];
             const payments = data.payments || [];
             
             const allergies = m.allergies || 'None';
@@ -687,11 +688,29 @@ function viewPatientRecord(patientId) {
             const conditions = m.medical_conditions || 'None';
             
             const billingId = b.id || '0';
-            const totalAmount = parseFloat(b.total_amount || 0);
-            const paidAmount = parseFloat(b.paid_amount || 0);
-            const balance = parseFloat(b.balance || 0);
-            const payStatus = (b.payment_status || 'unpaid').toLowerCase();
-            const isPaid = payStatus === 'paid';
+            window._currentAllBillings = allBillings;
+            // Use combined totals from all billings
+            var totalAmount = 0, paidAmount = 0, balance = 0;
+            if (allBillings.length > 0) {
+                allBillings.forEach(function(bl) {
+                    totalAmount += parseFloat(bl.total_amount || 0);
+                    paidAmount += parseFloat(bl.paid_amount || 0);
+                    balance += parseFloat(bl.balance || 0);
+                });
+            } else {
+                totalAmount = parseFloat(b.total_amount || 0);
+                paidAmount = parseFloat(b.paid_amount || 0);
+                balance = parseFloat(b.balance || 0);
+            }
+            var payStatus = (b.payment_status || 'unpaid').toLowerCase();
+            var overallPaid = true;
+            if (allBillings.length > 0) {
+                allBillings.forEach(function(bl) {
+                    if ((bl.payment_status || 'unpaid').toLowerCase() !== 'paid') overallPaid = false;
+                });
+                payStatus = overallPaid ? 'paid' : (allBillings.every(function(bl){return (bl.payment_status||'unpaid').toLowerCase()==='paid'||(bl.payment_status||'unpaid').toLowerCase()==='partial';}) ? 'partial' : 'unpaid');
+            }
+            const isPaid = allBillings.length > 0 ? overallPaid : payStatus === 'paid';
             const dueDate = b.due_date || null;
             
             document.getElementById('staffModalPatientName').innerText = (p.first_name || '') + ' ' + (p.last_name || '');
@@ -801,23 +820,37 @@ function viewPatientRecord(patientId) {
                 ${billingId !== '0' ? `
                 <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:20px;margin-bottom:20px;">
                     <h3 style="font-size:1rem;font-weight:600;color:#166534;margin-bottom:16px;">💰 Billing Summary</h3>
+                    <div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:14px;">
+                        <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+                            <thead><tr style="background:#f0fdf4;">
+                                <th style="padding:10px 12px;text-align:left;color:#166534;font-weight:600;">Service</th>
+                                <th style="padding:10px 12px;text-align:right;color:#166534;font-weight:600;">Amount</th>
+                                <th style="padding:10px 12px;text-align:right;color:#166534;font-weight:600;">Paid</th>
+                                <th style="padding:10px 12px;text-align:right;color:#166534;font-weight:600;">Balance</th>
+                                <th style="padding:10px 12px;text-align:center;color:#166534;font-weight:600;">Status</th>
+                            </tr></thead><tbody>
+                            ${allBillings.map(function(bl) {
+                                var st = (bl.payment_status || 'unpaid').toLowerCase();
+                                var sBg = '#fee2e2', sClr = '#991b1b', sLbl = 'UNPAID';
+                                var rowBg = '#fff5f5';
+                                if (st === 'paid') { sBg = '#dcfce7'; sClr = '#15803d'; sLbl = 'PAID'; rowBg = '#f0fdf4'; }
+                                else if (st === 'partial') { sBg = '#fef3c7'; sClr = '#92400e'; sLbl = 'PARTIAL'; rowBg = '#fffbeb'; }
+                                return '<tr style="border-top:1px solid #f1f5f9;background:' + rowBg + ';">' +
+                                    '<td style="padding:10px 12px;color:#374151;font-weight:500;">' + (bl.service_name || 'General Service') + '</td>' +
+                                    '<td style="padding:10px 12px;text-align:right;color:#111827;font-weight:600;">P' + parseFloat(bl.total_amount).toFixed(2) + '</td>' +
+                                    '<td style="padding:10px 12px;text-align:right;color:#16a34a;font-weight:600;">P' + parseFloat(bl.paid_amount).toFixed(2) + '</td>' +
+                                    '<td style="padding:10px 12px;text-align:right;color:' + (parseFloat(bl.balance) > 0 ? '#dc2626' : '#16a34a') + ';font-weight:600;">P' + parseFloat(bl.balance).toFixed(2) + '</td>' +
+                                    '<td style="padding:10px 12px;text-align:center;"><span style="background:' + sBg + ';color:' + sClr + ';padding:3px 10px;border-radius:9999px;font-size:0.75rem;font-weight:600;">' + sLbl + '</span></td></tr>';
+                            }).join('')}
+                            <tr style="border-top:2px solid #d1d5db;background:#f0fdf4;">
+                                <td style="padding:10px 12px;color:#166534;font-weight:700;">TOTAL</td>
+                                <td style="padding:10px 12px;text-align:right;color:#166534;font-weight:700;">P' + totalAmount.toFixed(2) + '</td>
+                                <td style="padding:10px 12px;text-align:right;color:#16a34a;font-weight:700;">P' + paidAmount.toFixed(2) + '</td>
+                                <td style="padding:10px 12px;text-align:right;color:' + (balance > 0 ? '#dc2626' : '#16a34a') + ';font-weight:700;">P' + balance.toFixed(2) + '</td>
+                                <td style="padding:10px 12px;text-align:center;">${formatPayStatus(payStatus)}</td>
+                            </tr>
+                            </tbody></table></div>
                     <div class="patient-info-grid">
-                        <div class="patient-info-item">
-                            <div class="patient-info-label">Total Amount</div>
-                            <div class="patient-info-value">P${totalAmount.toFixed(2)}</div>
-                        </div>
-                        <div class="patient-info-item">
-                            <div class="patient-info-label">Paid Amount</div>
-                            <div class="patient-info-value">P${paidAmount.toFixed(2)}</div>
-                        </div>
-                        <div class="patient-info-item">
-                            <div class="patient-info-label">Balance</div>
-                            <div class="patient-info-value" style="color:${balance > 0 ? '#dc2626' : '#16a34a'};font-weight:600;">P${balance.toFixed(2)}</div>
-                        </div>
-                        <div class="patient-info-item">
-                            <div class="patient-info-label">Payment Status</div>
-                            <div class="patient-info-value">${formatPayStatus(payStatus)}</div>
-                        </div>
                         <div class="patient-info-item">
                             <div class="patient-info-label">Due Date</div>
                             <div class="patient-info-value">${dueDate ? formatDueDate(dueDate) : '<span style="color:#9ca3af;">Not set</span>'}</div>
@@ -1185,8 +1218,31 @@ function openRecordPayment(patientId, billingId, totalAmount, paidAmount, balanc
     document.getElementById('recordPaymentTotalAmount').textContent = 'P' + parseFloat(totalAmount || 0).toFixed(2);
     document.getElementById('recordPaymentPaidSoFar').textContent = 'P' + parseFloat(paidAmount || 0).toFixed(2);
     document.getElementById('recordPaymentBalance').textContent = 'P' + parseFloat(balance || 0).toFixed(2);
-    document.getElementById('recordPaymentAmount').value = balance || 0;
+    document.getElementById('recordPaymentAmount').value = parseFloat(balance || 0).toFixed(2);
     document.getElementById('recordPaymentMethod').value = 'cash';
+
+    var breakdownHtml = '';
+    var bills = window._currentAllBillings || [];
+    var unpaidBills = bills.filter(function(bl) {
+        return (bl.payment_status || 'unpaid').toLowerCase() !== 'paid';
+    });
+    if (unpaidBills.length > 0) {
+        breakdownHtml = '<div style="font-weight:600;color:#374151;margin-bottom:8px;font-size:0.85rem;">Unpaid Services:</div>';
+        breakdownHtml += '<table style="width:100%;border-collapse:collapse;font-size:0.82rem;">';
+        unpaidBills.forEach(function(bl) {
+            var st = (bl.payment_status || 'unpaid').toLowerCase();
+            var sBg = '#fee2e2', sClr = '#991b1b', sLbl = 'UNPAID';
+            if (st === 'partial') { sBg = '#fef3c7'; sClr = '#92400e'; sLbl = 'PARTIAL'; }
+            breakdownHtml += '<tr style="border-top:1px solid #e5e7eb;">' +
+                '<td style="padding:6px 0;color:#374151;font-weight:500;">' + (bl.service_name || 'General Service') + '</td>' +
+                '<td style="padding:6px 0;text-align:right;color:#dc2626;font-weight:600;">P' + parseFloat(bl.balance).toFixed(2) + '</td>' +
+                '<td style="padding:6px 8px;text-align:right;"><span style="background:' + sBg + ';color:' + sClr + ';padding:1px 6px;border-radius:9999px;font-size:0.7rem;font-weight:600;">' + sLbl + '</span></td></tr>';
+        });
+        breakdownHtml += '</table>';
+    } else {
+        breakdownHtml = '<div style="color:#16a34a;text-align:center;padding:4px;">All services paid</div>';
+    }
+    document.getElementById('recordPaymentBreakdown').innerHTML = breakdownHtml;
     document.getElementById('recordPaymentModal').style.display = 'flex';
 }
 
@@ -1467,24 +1523,20 @@ function getStaffPatientTeethDisplayText(teethString) {
 <div id="recordPaymentModal" class="modal-overlay">
     <div class="modal-backdrop"></div>
     <div class="modal-container">
-        <div class="modal" style="max-width:440px;">
-            <h2 style="margin:0 0 20px;font-size:1.25rem;font-weight:600;">Record Payment</h2>
+        <div class="modal" style="max-width:480px;">
+            <h2 style="margin:0 0 16px;font-size:1.25rem;font-weight:600;">💰 Record Payment</h2>
             <input type="hidden" id="recordPaymentPatientId">
             <input type="hidden" id="recordPaymentBillingId">
-            <div style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:20px;">
-                <div class="patient-info-grid" style="margin-bottom:0;">
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Total Amount</div>
-                        <div class="patient-info-value" id="recordPaymentTotalAmount">P0.00</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Paid So Far</div>
-                        <div class="patient-info-value" id="recordPaymentPaidSoFar" style="color:#059669;">P0.00</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Balance</div>
-                        <div class="patient-info-value" id="recordPaymentBalance" style="color:#dc2626;font-weight:600;">P0.00</div>
-                    </div>
+            <div id="recordPaymentBreakdown" style="background:#f9fafb;border-radius:8px;padding:14px;margin-bottom:16px;border:1px solid #e5e7eb;">
+            </div>
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px;margin-bottom:16px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="color:#166534;font-weight:600;font-size:0.95rem;">Total Outstanding Balance</span>
+                    <span id="recordPaymentBalance" style="color:#dc2626;font-weight:700;font-size:1.15rem;">P0.00</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:0.85rem;">
+                    <span style="color:#6b7280;">Total Amount: <span id="recordPaymentTotalAmount">P0.00</span></span>
+                    <span style="color:#6b7280;">Paid So Far: <span id="recordPaymentPaidSoFar" style="color:#16a34a;">P0.00</span></span>
                 </div>
             </div>
             <div class="form-group">

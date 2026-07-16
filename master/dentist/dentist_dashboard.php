@@ -534,6 +534,12 @@ let billingAdjEditMode = false;
 let currentStandardPrice = 0;
 let currentTotalAmount = 0;
 
+function escapeHtml(value) {
+    const div = document.createElement('div');
+    div.appendChild(document.createTextNode(value));
+    return div.innerHTML;
+}
+
 function toggleBillingEdit() {
     const inputContainer = document.getElementById('adjustmentInputContainer');
     const adjustmentDisplay = document.getElementById('detailsAdjustmentAmount');
@@ -760,6 +766,8 @@ function viewPatientDetails(patientId) {
                         <h3 style="font-size:1rem;font-weight:600;color:#92400e;margin:0;">💰 Billing Management</h3>
                         <button onclick="toggleBillingEdit()" class="btn-primary" id="adjustPriceBtn" style="padding:6px 12px;font-size:0.8rem;background:#f59e0b;">Adjust Price</button>
                     </div>
+                    <!-- Billing Records List -->
+                    <div id="billingRecordsList" style="margin-bottom:16px;"></div>
                     <div class="patient-info-grid">
                         <div class="patient-info-item">
                             <div class="patient-info-label">Standard Price (Services)</div>
@@ -991,6 +999,41 @@ function loadBillingInfo(patientId) {
             const procPriceEl = document.getElementById('modalProcedurePrice');
             if (procPriceEl) {
                 procPriceEl.innerText = '₱' + standardPrice.toLocaleString('en-PH', {minimumFractionDigits: 2});
+            }
+            
+            // Render billing records list
+            const listEl = document.getElementById('billingRecordsList');
+            if (listEl) {
+                const allBillings = b.all_billings || [];
+                if (allBillings.length > 1) {
+                    let html = '<div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:12px;">';
+                    html += '<table style="width:100%;border-collapse:collapse;font-size:0.85rem;">';
+                    html += '<thead><tr style="background:#fef3c7;">';
+                    html += '<th style="padding:8px 10px;text-align:left;color:#92400e;font-weight:600;">Service</th>';
+                    html += '<th style="padding:8px 10px;text-align:right;color:#92400e;font-weight:600;">Amount</th>';
+                    html += '<th style="padding:8px 10px;text-align:right;color:#92400e;font-weight:600;">Paid</th>';
+                    html += '<th style="padding:8px 10px;text-align:right;color:#92400e;font-weight:600;">Balance</th>';
+                    html += '<th style="padding:8px 10px;text-align:center;color:#92400e;font-weight:600;">Status</th>';
+                    html += '</tr></thead><tbody>';
+                    allBillings.forEach(function(bl) {
+                        const st = (bl.payment_status || 'unpaid').toLowerCase();
+                        let sBg = '#fee2e2', sClr = '#991b1b', sLbl = 'UNPAID';
+                        if (st === 'paid') { sBg = '#dcfce7'; sClr = '#15803d'; sLbl = 'PAID'; }
+                        else if (st === 'partial') { sBg = '#fef3c7'; sClr = '#92400e'; sLbl = 'PARTIAL'; }
+                        else if (st === 'overdue') { sBg = '#fee2e2'; sClr = '#991b1b'; sLbl = 'OVERDUE'; }
+                        html += '<tr style="border-top:1px solid #f1f5f9;">';
+                        html += '<td style="padding:8px 10px;color:#374151;font-weight:500;">' + escapeHtml(bl.service_name || 'Service') + '</td>';
+                        html += '<td style="padding:8px 10px;text-align:right;color:#111827;font-weight:600;">₱' + bl.total_amount.toLocaleString('en-PH', {minimumFractionDigits: 2}) + '</td>';
+                        html += '<td style="padding:8px 10px;text-align:right;color:#16a34a;font-weight:600;">₱' + bl.paid_amount.toLocaleString('en-PH', {minimumFractionDigits: 2}) + '</td>';
+                        html += '<td style="padding:8px 10px;text-align:right;color:#dc2626;font-weight:600;">₱' + bl.balance.toLocaleString('en-PH', {minimumFractionDigits: 2}) + '</td>';
+                        html += '<td style="padding:8px 10px;text-align:center;"><span style="background:' + sBg + ';color:' + sClr + ';padding:2px 8px;border-radius:9999px;font-size:0.75rem;font-weight:600;">' + sLbl + '</span></td>';
+                        html += '</tr>';
+                    });
+                    html += '</tbody></table></div>';
+                    listEl.innerHTML = html;
+                } else {
+                    listEl.innerHTML = '';
+                }
             }
             
             document.getElementById('detailsEstimatedAmount').innerText = '₱' + standardPrice.toLocaleString('en-PH', {minimumFractionDigits: 2});

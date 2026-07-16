@@ -90,11 +90,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             
             // Fallback: if no appointment service, try queue
             if (empty($serviceId) && is_array($queueItem) && !empty($queueItem['service_id'])) {
-                $serviceId = $queueItem['service_id'];
-                $svcStmt = $pdo->prepare("SELECT name, price FROM services WHERE id = ? AND is_active = 1");
-                $svcStmt->execute([$serviceId]);
+                $svcStmt = $pdo->prepare("SELECT id, name, price FROM services WHERE id = ? AND is_active = 1");
+                $svcStmt->execute([$queueItem['service_id']]);
                 $svc = $svcStmt->fetch(PDO::FETCH_ASSOC);
                 if ($svc) {
+                    $serviceId = $svc['id'];
                     $serviceName = $svc['name'];
                     $estimatedAmount = floatval($svc['price']);
                 }
@@ -102,13 +102,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             
             // If still no service, try to find by treatment name from queue
             if (empty($serviceId) && is_array($queueItem) && !empty($queueItem['treatment_type'])) {
-                $svcStmt = $pdo->prepare("SELECT id, name, price FROM services WHERE name LIKE ? LIMIT 1");
-                $svcStmt->execute(['%' . $queueItem['treatment_type'] . '%']);
-                $svc = $svcStmt->fetch(PDO::FETCH_ASSOC);
-                if ($svc) {
-                    $serviceId = $svc['id'];
-                    $serviceName = $svc['name'];
-                    $estimatedAmount = floatval($svc['price']);
+                $treatmentNames = array_map('trim', explode(',', $queueItem['treatment_type']));
+                $estimatedAmount = 0;
+                $matchedNames = [];
+                foreach ($treatmentNames as $singleTreatment) {
+                    if (empty($singleTreatment)) continue;
+                    $svcStmt = $pdo->prepare("SELECT id, name, price FROM services WHERE name LIKE ? LIMIT 1");
+                    $svcStmt->execute(['%' . $singleTreatment . '%']);
+                    $svc = $svcStmt->fetch(PDO::FETCH_ASSOC);
+                    if ($svc) {
+                        if (empty($serviceId)) $serviceId = $svc['id'];
+                        $estimatedAmount += floatval($svc['price']);
+                        $matchedNames[] = $svc['name'];
+                    }
+                }
+                if (!empty($matchedNames)) {
+                    $serviceName = implode(', ', $matchedNames);
                 }
             }
             
@@ -124,17 +133,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 }
             }
             
-            error_log("DEBUG billing - patient_id: $patientId, serviceName: $serviceName, estimatedAmount: $estimatedAmount");
+            error_log("DEBUG billing - patient_id: $patientId, serviceName: $serviceName, estimatedAmount: $estimatedAmount, serviceId: $serviceId");
             
-            // Get billing record
+            // Get ALL billing records for this patient
             $billingStmt = $pdo->prepare("
-                SELECT b.* FROM billing b
+                SELECT b.*, 
+                       COALESCE(svc.name, q.treatment_type, 'Service') as service_name
+                FROM billing b
+                LEFT JOIN appointments a ON b.appointment_id = a.id
+                LEFT JOIN services svc ON a.service_id = svc.id
+                LEFT JOIN queue q ON DATE(b.billing_date) = DATE(q.created_at) AND q.patient_id = b.patient_id
                 WHERE b.patient_id = ?
-                ORDER BY b.created_at DESC
-                LIMIT 1
+                ORDER BY b.created_at ASC
             ");
             $billingStmt->execute([$patientId]);
-            $billing = $billingStmt->fetch(PDO::FETCH_ASSOC);
+            $allBillings = $billingStmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Calculate summary totals
+            $totalAllAmount = 0;
+            $totalPaidAmount = 0;
+            $totalBalance = 0;
+            foreach ($allBillings as $bl) {
+                $totalAllAmount += floatval($bl['total_amount'] ?? 0);
+                $totalPaidAmount += floatval($bl['paid_amount'] ?? 0);
+                $totalBalance += floatval($bl['balance'] ?? 0);
+            }
+            
+            // Get the latest billing for single-record display fields
+            $billing = !empty($allBillings) ? end($allBillings) : null;
             
             // If no billing record exists, create default values
             $totalAmount = 0;
@@ -184,7 +210,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                     'paid_amount' => $paidAmount,
                     'balance' => $balance,
                     'payment_status' => $paymentStatus,
-                    'billing_notes' => $billingNotes
+                    'billing_notes' => $billingNotes,
+                    'all_billings' => array_map(function($bl) {
+                        return [
+                            'id' => $bl['id'],
+                            'service_name' => $bl['service_name'] ?? 'Service',
+                            'total_amount' => floatval($bl['total_amount'] ?? 0),
+                            'paid_amount' => floatval($bl['paid_amount'] ?? 0),
+                            'balance' => floatval($bl['balance'] ?? 0),
+                            'payment_status' => strtolower($bl['payment_status'] ?? 'unpaid'),
+                            'billing_date' => $bl['billing_date'] ?? '',
+                            'notes' => $bl['notes'] ?? ''
+                        ];
+                    }, $allBillings),
+                    'summary_total' => $totalAllAmount,
+                    'summary_paid' => $totalPaidAmount,
+                    'summary_balance' => $totalBalance
                 ]
             ]);
         } catch (Exception $e) {

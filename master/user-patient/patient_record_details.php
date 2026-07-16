@@ -82,18 +82,24 @@ try {
         $queueItem = null;
     }
     
-    // Get billing data
+    // Get billing data - ALL records for this patient with service names
     $billing = null;
+    $allBillings = [];
     try {
         $stmt = $pdo->prepare("
-            SELECT id, total_amount, paid_amount, balance, payment_status, billing_date, due_date, notes
-            FROM billing
-            WHERE patient_id = ?
-            ORDER BY created_at DESC
-            LIMIT 1
+            SELECT b.id, b.total_amount, b.paid_amount, b.balance, b.payment_status,
+                   b.billing_date, b.due_date, b.notes, b.appointment_id, b.patient_id,
+                   COALESCE(svc.name, q.treatment_type, 'General Service') as service_name
+            FROM billing b
+            LEFT JOIN appointments a ON b.appointment_id = a.id
+            LEFT JOIN services svc ON a.service_id = svc.id
+            LEFT JOIN queue q ON DATE(b.billing_date) = DATE(q.created_at) AND q.patient_id = b.patient_id
+            WHERE b.patient_id = ?
+            ORDER BY b.created_at ASC
         ");
         $stmt->execute([$patientId]);
-        $billing = $stmt->fetch(PDO::FETCH_ASSOC);
+        $allBillings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $billing = !empty($allBillings) ? end($allBillings) : null;
     } catch (Exception $e) {
         $billing = null;
     }
@@ -121,6 +127,7 @@ try {
         'dental_history' => $dentalHistory,
         'queue_item' => $queueItem,
         'billing' => $billing,
+        'all_billings' => $allBillings,
         'payments' => $payments
     ]);
     

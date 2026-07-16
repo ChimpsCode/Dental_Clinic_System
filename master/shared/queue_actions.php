@@ -123,10 +123,26 @@ try {
             $patientId = $queueItem['patient_id'];
             $patientName = buildFullName($queueItem);
             $treatmentType = $queueItem['treatment_type'] ?? 'consultation';
-            $stmt = $pdo->prepare("SELECT price FROM services WHERE LOWER(name) = ? AND is_active = 1 LIMIT 1");
-            $stmt->execute([strtolower($treatmentType)]);
+            $estimatedAmount = 0;
+            // Try exact match first, then flexible match
+            $stmt = $pdo->prepare("SELECT price FROM services WHERE LOWER(name) = LOWER(?) AND is_active = 1 LIMIT 1");
+            $stmt->execute([$treatmentType]);
             $service = $stmt->fetch();
-            $estimatedAmount = $service['price'] ?? 500;
+            if ($service) {
+                $estimatedAmount = floatval($service['price']);
+            } else {
+                // Fallback: try LIKE match on individual names
+                $treatmentNames = array_map('trim', explode(',', $treatmentType));
+                $stmt = $pdo->prepare("SELECT price FROM services WHERE name LIKE ? AND is_active = 1 LIMIT 1");
+                foreach ($treatmentNames as $name) {
+                    if (empty($name)) continue;
+                    $stmt->execute(['%' . $name . '%']);
+                    $service = $stmt->fetch();
+                    if ($service) {
+                        $estimatedAmount += floatval($service['price']);
+                    }
+                }
+            }
             
             $pdo->beginTransaction();
             
@@ -146,22 +162,32 @@ try {
             
             $pdo->commit();
             
-            // Fetch the real billing record for this patient to get actual balance
+            // Fetch ALL billing records for this patient to get actual totals
             $billingData = null;
             $stmt = $pdo->prepare("
                 SELECT b.id as billing_id, b.total_amount, b.paid_amount, b.balance, b.payment_status
                 FROM billing b
                 WHERE b.patient_id = ?
-                ORDER BY b.created_at DESC
-                LIMIT 1
+                ORDER BY b.created_at ASC
             ");
             $stmt->execute([$patientId]);
-            $billingData = $stmt->fetch(PDO::FETCH_ASSOC);
+            $allBillings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $billingData = !empty($allBillings) ? end($allBillings) : null;
+            
+            // Calculate summary totals
+            $summaryTotal = 0;
+            $summaryPaid = 0;
+            $summaryBalance = 0;
+            foreach ($allBillings as $bl) {
+                $summaryTotal += floatval($bl['total_amount'] ?? 0);
+                $summaryPaid += floatval($bl['paid_amount'] ?? 0);
+                $summaryBalance += floatval($bl['balance'] ?? 0);
+            }
             
             if ($billingData) {
-                $totalAmount = floatval($billingData['total_amount']);
-                $paidAmount = floatval($billingData['paid_amount']);
-                $balance = floatval($billingData['balance']);
+                $totalAmount = $summaryTotal;
+                $paidAmount = $summaryPaid;
+                $balance = $summaryBalance;
                 $paymentStatus = $billingData['payment_status'];
             } else {
                 $totalAmount = $estimatedAmount;

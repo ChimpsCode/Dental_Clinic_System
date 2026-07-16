@@ -551,12 +551,13 @@ try {
                             <select name="treatment_type" id="treatmentType" class="form-control" required onchange="handleServiceChange()">
                                 <option value="">Select a service...</option>
                                 <?php foreach ($services as $service): ?>
-                                    <option value="<?php echo htmlspecialchars($service['name']); ?>" data-mode="<?php echo $service['mode']; ?>">
-                                        <?php echo htmlspecialchars($service['name']); ?>
+                                    <option value="<?php echo htmlspecialchars($service['name']); ?>" data-mode="<?php echo $service['mode']; ?>" data-id="<?php echo $service['id']; ?>">
+                                        <?php echo htmlspecialchars($service['name']); ?> (₱<?php echo number_format($service['price'], 2); ?>)
                                     </option>
                                 <?php endforeach; ?>
-                                <option value="Other" data-mode="SINGLE">Other (Custom)</option>
+                                <option value="Other" data-mode="SINGLE" data-id="">Other (Custom)</option>
                             </select>
+                            <input type="hidden" name="service_id" id="serviceIdInput" value="">
                         </div>
 
                         <div class="form-group" id="customTreatmentGroup" style="display: none;">
@@ -779,6 +780,8 @@ try {
             const selectedOption = select.options[select.selectedIndex];
             const mode = selectedOption.dataset.mode || 'SINGLE';
             const serviceName = select.value;
+            const serviceId = selectedOption.dataset.id || '';
+            document.getElementById('serviceIdInput').value = serviceId;
 
             // Show/hide custom treatment input
             if (serviceName === 'Other') {

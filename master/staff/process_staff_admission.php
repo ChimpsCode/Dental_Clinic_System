@@ -367,6 +367,18 @@ if ($appointmentId) {
         }
     }
     
+    // Fallback: if name matching failed, look up prices directly by service IDs
+    if ($totalAmount <= 0 && !empty($serviceIds)) {
+        try {
+            $svcIds = array_map('intval', $serviceIds);
+            $placeholders = implode(',', array_fill(0, count($svcIds), '?'));
+            $svcStmt = $pdo->prepare("SELECT SUM(price) FROM services WHERE id IN ($placeholders)");
+            $svcStmt->execute($svcIds);
+            $sum = $svcStmt->fetchColumn();
+            if ($sum) $totalAmount = floatval($sum);
+        } catch (Exception $e) {}
+    }
+    
     $billingNotes = 'Initial billing from admission - Services: ' . $treatmentType;
     
     try {
