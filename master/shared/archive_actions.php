@@ -166,12 +166,21 @@ function handleGetArchivedUsers($pdo, $page, $limit, $offset, $search) {
     $countStmt->execute($params);
     $total = $countStmt->fetchColumn();
     
+    // Check if archived_at column exists in users table
+    $hasArchivedAt = false;
+    $colCheck = $pdo->query("SHOW COLUMNS FROM users LIKE 'archived_at'");
+    if ($colCheck->fetch(PDO::FETCH_ASSOC)) {
+        $hasArchivedAt = true;
+    }
+    
+    $dateCol = $hasArchivedAt ? 'archived_at' : 'created_at';
+    
     // Get records
-    $sql = "SELECT u.id, u.first_name, u.middle_name, u.last_name, u.email, u.archived_at,
+    $sql = "SELECT u.id, u.first_name, u.middle_name, u.last_name, u.email, u.$dateCol as archived_at,
             COALESCE(u.role, 'Patient') as role_name
             FROM users u
             WHERE $where
-            ORDER BY u.archived_at DESC
+            ORDER BY u.$dateCol DESC
             LIMIT $limit OFFSET $offset";
     
     $stmt = $pdo->prepare($sql);
@@ -246,70 +255,99 @@ function handleGetArchivedAppointments($pdo, $page, $limit, $offset, $search, $d
 
 /**
  * Get archived patients with separate name fields
+ * Includes both patients table records and archived user accounts with role='Patient'
  */
 function handleGetArchivedPatients($pdo, $page, $limit, $offset, $search, $dateFrom, $dateTo) {
-    // Build WHERE clause
-    $where = "is_archived = 1";
-    $params = [];
-    
-    // Search by name (any name field)
+    // Search by name
+    $searchClause = '';
+    $searchParams = [];
     if (!empty($search)) {
-        $where .= " AND (first_name LIKE ? OR middle_name LIKE ? OR last_name LIKE ?)";
+        $searchClause = " AND (first_name LIKE ? OR middle_name LIKE ? OR last_name LIKE ?)";
         $searchParam = "%$search%";
-        $params[] = $searchParam;
-        $params[] = $searchParam;
-        $params[] = $searchParam;
+        $searchParams = [$searchParam, $searchParam, $searchParam];
     }
     
-    // Date filter
+    // Date filter for patients (uses deleted_at or created_at)
+    $dateFromClausePat = '';
+    $dateToClausePat = '';
+    $dateFromClauseUsr = '';
+    $dateToClauseUsr = '';
+    $dateParams = [];
     if (!empty($dateFrom)) {
-        $where .= " AND DATE(deleted_at) >= ?";
-        $params[] = $dateFrom;
+        $dateFromClausePat = " AND DATE(COALESCE(deleted_at, created_at)) >= ?";
+        $dateFromClauseUsr = " AND DATE(created_at) >= ?";
+        $dateParams[] = $dateFrom;
     }
-    
     if (!empty($dateTo)) {
-        $where .= " AND DATE(deleted_at) <= ?";
-        $params[] = $dateTo;
+        $dateToClausePat = " AND DATE(COALESCE(deleted_at, created_at)) <= ?";
+        $dateToClauseUsr = " AND DATE(created_at) <= ?";
+        $dateParams[] = $dateTo;
     }
     
-    // Get total count
-    $countSql = "SELECT COUNT(*) FROM patients WHERE $where";
-    $countStmt = $pdo->prepare($countSql);
-    $countStmt->execute($params);
-    $total = $countStmt->fetchColumn();
+    // Count from patients table
+    $countPatSql = "SELECT COUNT(*) FROM patients WHERE is_archived = 1$searchClause$dateFromClausePat$dateToClausePat";
+    $countPatStmt = $pdo->prepare($countPatSql);
+    $countPatStmt->execute(array_merge($searchParams, $dateParams));
+    $totalPatients = (int)$countPatStmt->fetchColumn();
     
-    // Check if deleted_at column exists
+    // Count from users table (role='Patient')
+    $countUsrSql = "SELECT COUNT(*) FROM users WHERE is_archived = 1 AND role = 'Patient'$searchClause$dateFromClauseUsr$dateToClauseUsr";
+    $countUsrStmt = $pdo->prepare($countUsrSql);
+    $countUsrStmt->execute(array_merge($searchParams, $dateParams));
+    $totalUsers = (int)$countUsrStmt->fetchColumn();
+    
+    $total = $totalPatients + $totalUsers;
+    
+    // Check if deleted_at column exists in patients table
     $hasDeletedAt = false;
     $colCheck = $pdo->query("SHOW COLUMNS FROM patients LIKE 'deleted_at'");
     if ($colCheck->fetch(PDO::FETCH_ASSOC)) {
         $hasDeletedAt = true;
     }
+    $dateColPat = $hasDeletedAt ? 'deleted_at' : 'created_at';
     
-    $dateCol = $hasDeletedAt ? 'deleted_at' : 'created_at';
-    
-    // Get records with separate name fields
-    $sql = "SELECT id, 
-            first_name,
-            middle_name,
-            last_name,
-            suffix,
-            date_of_birth,
-            gender,
-            phone,
-            email,
-            $dateCol as deleted_at
+    // Get patients table records
+    $patSql = "SELECT 
+            CONCAT('pat_', id) as id,
+            first_name, middle_name, last_name, suffix,
+            date_of_birth, gender, phone, email,
+            COALESCE($dateColPat, created_at) as deleted_at
             FROM patients
-            WHERE $where
-            ORDER BY $dateCol DESC
-            LIMIT $limit OFFSET $offset";
+            WHERE is_archived = 1$searchClause$dateFromClausePat$dateToClausePat
+            ORDER BY deleted_at DESC";
     
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-    $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $patStmt = $pdo->prepare($patSql);
+    $patStmt->execute(array_merge($searchParams, $dateParams));
+    $patientRecords = $patStmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Get users table records (archived patient accounts)
+    $usrSql = "SELECT 
+            CONCAT('usr_', id) as id,
+            first_name, middle_name, last_name, '' as suffix,
+            date_of_birth, gender, phone, email,
+            created_at as deleted_at
+            FROM users
+            WHERE is_archived = 1 AND role = 'Patient'$searchClause$dateFromClauseUsr$dateToClauseUsr
+            ORDER BY deleted_at DESC";
+    
+    $usrStmt = $pdo->prepare($usrSql);
+    $usrStmt->execute(array_merge($searchParams, $dateParams));
+    $userRecords = $usrStmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Merge and sort records by deleted_at DESC
+    $allRecords = array_merge($patientRecords, $userRecords);
+    usort($allRecords, function($a, $b) {
+        $dateA = $a['deleted_at'] ?? '';
+        $dateB = $b['deleted_at'] ?? '';
+        return strcmp($dateB, $dateA);
+    });
+    
+    // Apply LIMIT and OFFSET in PHP
+    $pageRecords = array_slice($allRecords, $offset, $limit);
     
     echo json_encode([
         'success' => true,
-        'records' => $records,
+        'records' => $pageRecords,
         'total' => (int)$total,
         'pages' => (int)ceil($total / $limit),
         'current_page' => $page
@@ -376,18 +414,104 @@ function handleRestore($pdo, $module, $ids) {
         return;
     }
     
-    // Sanitize IDs
-    $ids = array_filter($ids, 'is_numeric');
-    $ids = array_map('intval', $ids);
-    
-    if (empty($ids)) {
-        echo json_encode(['success' => false, 'message' => 'Invalid record IDs']);
-        return;
-    }
-    
-    $placeholders = implode(',', array_fill(0, count($ids), '?'));
-    
     try {
+        // Check if archived_at column exists in users table
+        $hasArchivedAt = (bool)$pdo->query("SHOW COLUMNS FROM users LIKE 'archived_at'")->fetch(PDO::FETCH_ASSOC);
+        $userRestoreSet = $hasArchivedAt ? "is_archived = 0, archived_at = NULL" : "is_archived = 0";
+        
+        // Special handling for patients module (supports prefixed IDs: pat_X, usr_X)
+        if ($module === 'patients') {
+            $patientIds = [];
+            $userIds = [];
+            foreach ($ids as $rawId) {
+                $rawId = trim((string)$rawId);
+                if (strpos($rawId, 'pat_') === 0) {
+                    $numId = (int)substr($rawId, 4);
+                    if ($numId > 0) $patientIds[] = $numId;
+                } elseif (strpos($rawId, 'usr_') === 0) {
+                    $numId = (int)substr($rawId, 4);
+                    if ($numId > 0) $userIds[] = $numId;
+                }
+            }
+            
+            $totalRestored = 0;
+            
+            // Restore patient records
+            if (!empty($patientIds)) {
+                $placeholders = implode(',', array_fill(0, count($patientIds), '?'));
+                $patStmt = $pdo->prepare("UPDATE patients SET is_archived = 0, deleted_at = NULL WHERE id IN ($placeholders) AND is_archived = 1");
+                $patStmt->execute($patientIds);
+                $totalRestored += $patStmt->rowCount();
+                
+                // Also restore matching users
+                foreach ($patientIds as $pid) {
+                    $patInfo = $pdo->prepare("SELECT first_name, last_name, email FROM patients WHERE id = ?");
+                    $patInfo->execute([$pid]);
+                    $patient = $patInfo->fetch(PDO::FETCH_ASSOC);
+                    if ($patient) {
+                        $email = trim($patient['email'] ?? '');
+                        if ($email !== '') {
+                            $usrUpd = $pdo->prepare("UPDATE users SET $userRestoreSet WHERE email = ? AND is_archived = 1");
+                            $usrUpd->execute([$email]);
+                        }
+                        $firstName = trim($patient['first_name'] ?? '');
+                        $lastName = trim($patient['last_name'] ?? '');
+                        if ($firstName && $lastName) {
+                            $usrUpd = $pdo->prepare("UPDATE users SET $userRestoreSet WHERE first_name = ? AND last_name = ? AND is_archived = 1");
+                            $usrUpd->execute([$firstName, $lastName]);
+                        }
+                    }
+                }
+            }
+            
+            // Restore user records (patient accounts)
+            if (!empty($userIds)) {
+                $placeholders = implode(',', array_fill(0, count($userIds), '?'));
+                
+                // Get user details before restoring (to cascade to patients table)
+                $userStmt = $pdo->prepare("SELECT first_name, last_name, email FROM users WHERE id IN ($placeholders)");
+                $userStmt->execute($userIds);
+                $usersToRestore = $userStmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                $usrStmt = $pdo->prepare("UPDATE users SET $userRestoreSet WHERE id IN ($placeholders) AND is_archived = 1");
+                $usrStmt->execute($userIds);
+                $totalRestored += $usrStmt->rowCount();
+                
+                // Cascase to patients table
+                foreach ($usersToRestore as $user) {
+                    $email = trim($user['email'] ?? '');
+                    if ($email !== '') {
+                        $patUpd = $pdo->prepare("UPDATE patients SET is_archived = 0, deleted_at = NULL WHERE email = ? AND is_archived = 1");
+                        $patUpd->execute([$email]);
+                    }
+                    $firstName = trim($user['first_name'] ?? '');
+                    $lastName = trim($user['last_name'] ?? '');
+                    if ($firstName && $lastName) {
+                        $patUpd = $pdo->prepare("UPDATE patients SET is_archived = 0, deleted_at = NULL WHERE first_name = ? AND last_name = ? AND is_archived = 1");
+                        $patUpd->execute([$firstName, $lastName]);
+                    }
+                }
+            }
+            
+            echo json_encode([
+                'success' => true,
+                'message' => $totalRestored . ' record(s) restored successfully',
+                'count' => $totalRestored
+            ]);
+            return;
+        }
+        
+        // Sanitize IDs for other modules
+        $ids = array_filter($ids, 'is_numeric');
+        $ids = array_map('intval', $ids);
+        
+        if (empty($ids)) {
+            echo json_encode(['success' => false, 'message' => 'Invalid record IDs']);
+            return;
+        }
+        
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        
         // Special handling for users table
         if ($module === 'users') {
             // Get user details before restoring
@@ -396,29 +520,21 @@ function handleRestore($pdo, $module, $ids) {
             $usersToRestore = $userStmt->fetchAll(PDO::FETCH_ASSOC);
             
             // Restore users
-            $stmt = $pdo->prepare("UPDATE users SET is_archived = 0, archived_at = NULL WHERE id IN ($placeholders)");
+            $stmt = $pdo->prepare("UPDATE users SET $userRestoreSet WHERE id IN ($placeholders)");
             $result = $stmt->execute($ids);
             
             // Also restore matching patients in patients table
             foreach ($usersToRestore as $user) {
-                $restored = false;
-                // Try email match first (more reliable)
                 $email = trim($user['email'] ?? '');
                 if ($email !== '') {
                     $patientCheck = $pdo->prepare("UPDATE patients SET is_archived = 0, deleted_at = NULL WHERE email = ? AND is_archived = 1");
                     $patientCheck->execute([$email]);
-                    if ($patientCheck->rowCount() > 0) {
-                        $restored = true;
-                    }
                 }
-                // Fall back to name match
-                if (!$restored) {
-                    $firstName = trim($user['first_name'] ?? '');
-                    $lastName = trim($user['last_name'] ?? '');
-                    if ($firstName && $lastName) {
-                        $patientCheck = $pdo->prepare("UPDATE patients SET is_archived = 0, deleted_at = NULL WHERE first_name = ? AND last_name = ? AND is_archived = 1");
-                        $patientCheck->execute([$firstName, $lastName]);
-                    }
+                $firstName = trim($user['first_name'] ?? '');
+                $lastName = trim($user['last_name'] ?? '');
+                if ($firstName && $lastName) {
+                    $patientCheck = $pdo->prepare("UPDATE patients SET is_archived = 0, deleted_at = NULL WHERE first_name = ? AND last_name = ? AND is_archived = 1");
+                    $patientCheck->execute([$firstName, $lastName]);
                 }
             }
         } else {
@@ -428,36 +544,6 @@ function handleRestore($pdo, $module, $ids) {
         
         if ($result) {
             $count = $stmt->rowCount();
-            
-            // Also restore matching user in users table if restoring patient
-            if ($module === 'patients') {
-                foreach ($ids as $patientId) {
-                    $patientStmt = $pdo->prepare("SELECT first_name, last_name, email FROM patients WHERE id = ?");
-                    $patientStmt->execute([$patientId]);
-                    $patient = $patientStmt->fetch(PDO::FETCH_ASSOC);
-                    if ($patient) {
-                        $restored = false;
-                        // Try email match first (more reliable)
-                        $email = trim($patient['email'] ?? '');
-                        if ($email !== '') {
-                            $userRestore = $pdo->prepare("UPDATE users SET is_archived = 0, archived_at = NULL WHERE email = ? AND is_archived = 1");
-                            $userRestore->execute([$email]);
-                            if ($userRestore->rowCount() > 0) {
-                                $restored = true;
-                            }
-                        }
-                        // Fall back to name match
-                        if (!$restored) {
-                            $firstName = trim($patient['first_name'] ?? '');
-                            $lastName = trim($patient['last_name'] ?? '');
-                            if ($firstName && $lastName) {
-                                $userRestore = $pdo->prepare("UPDATE users SET is_archived = 0, archived_at = NULL WHERE first_name = ? AND last_name = ? AND is_archived = 1");
-                                $userRestore->execute([$firstName, $lastName]);
-                            }
-                        }
-                    }
-                }
-            }
             
             echo json_encode([
                 'success' => true,
@@ -485,18 +571,119 @@ function handleDeleteForever($pdo, $module, $ids) {
         return;
     }
     
-    // Sanitize IDs
-    $ids = array_filter($ids, 'is_numeric');
-    $ids = array_map('intval', $ids);
-    
-    if (empty($ids)) {
-        echo json_encode(['success' => false, 'message' => 'Invalid record IDs']);
-        return;
-    }
-    
-    $placeholders = implode(',', array_fill(0, count($ids), '?'));
-    
     try {
+        // Special handling for patients module (supports prefixed IDs: pat_X, usr_X)
+        if ($module === 'patients') {
+            $patientIds = [];
+            $userIds = [];
+            foreach ($ids as $rawId) {
+                $rawId = trim((string)$rawId);
+                if (strpos($rawId, 'pat_') === 0) {
+                    $numId = (int)substr($rawId, 4);
+                    if ($numId > 0) $patientIds[] = $numId;
+                } elseif (strpos($rawId, 'usr_') === 0) {
+                    $numId = (int)substr($rawId, 4);
+                    if ($numId > 0) $userIds[] = $numId;
+                }
+            }
+            
+            $totalDeleted = 0;
+            
+            // Delete patient records
+            if (!empty($patientIds)) {
+                $placeholders = implode(',', array_fill(0, count($patientIds), '?'));
+                $pdo->beginTransaction();
+                try {
+                    // Get emails of patients being deleted
+                    $patStmt = $pdo->prepare("SELECT email FROM patients WHERE id IN ($placeholders) AND is_archived = 1");
+                    $patStmt->execute($patientIds);
+                    $patientEmails = $patStmt->fetchAll(PDO::FETCH_COLUMN);
+                    $patientEmails = array_filter(array_unique($patientEmails));
+                    
+                    // Delete related records first
+                    $pdo->prepare("DELETE FROM medical_history WHERE patient_id IN ($placeholders)")->execute($patientIds);
+                    $pdo->prepare("DELETE FROM dental_history WHERE patient_id IN ($placeholders)")->execute($patientIds);
+                    $pdo->prepare("DELETE FROM queue WHERE patient_id IN ($placeholders)")->execute($patientIds);
+                    $pdo->prepare("DELETE FROM appointments WHERE patient_id IN ($placeholders)")->execute($patientIds);
+                    
+                    // Find and delete matching users by email
+                    if (!empty($patientEmails)) {
+                        $emailPlaceholders = implode(',', array_fill(0, count($patientEmails), '?'));
+                        $usrDel = $pdo->prepare("DELETE FROM users WHERE email IN ($emailPlaceholders) AND is_archived = 1")->execute(array_values($patientEmails));
+                    }
+                    
+                    // Delete the patients
+                    $delStmt = $pdo->prepare("DELETE FROM patients WHERE id IN ($placeholders) AND is_archived = 1");
+                    $delStmt->execute($patientIds);
+                    $totalDeleted += $delStmt->rowCount();
+                    
+                    $pdo->commit();
+                } catch (Exception $e) {
+                    $pdo->rollBack();
+                    throw $e;
+                }
+            }
+            
+            // Delete user records (patient accounts)
+            if (!empty($userIds)) {
+                $placeholders = implode(',', array_fill(0, count($userIds), '?'));
+                $pdo->beginTransaction();
+                try {
+                    // Get emails of users being deleted
+                    $userStmt = $pdo->prepare("SELECT email FROM users WHERE id IN ($placeholders) AND is_archived = 1");
+                    $userStmt->execute($userIds);
+                    $userEmails = $userStmt->fetchAll(PDO::FETCH_COLUMN);
+                    $userEmails = array_filter(array_unique($userEmails));
+                    
+                    if (!empty($userEmails)) {
+                        $emailPlaceholders = implode(',', array_fill(0, count($userEmails), '?'));
+                        
+                        // Find matching patients by email
+                        $patStmt = $pdo->prepare("SELECT id FROM patients WHERE email IN ($emailPlaceholders) AND is_archived = 1");
+                        $patStmt->execute(array_values($userEmails));
+                        $matchingPatientIds = $patStmt->fetchAll(PDO::FETCH_COLUMN);
+                        
+                        if (!empty($matchingPatientIds)) {
+                            $patPlaceholders = implode(',', array_fill(0, count($matchingPatientIds), '?'));
+                            $pdo->prepare("DELETE FROM medical_history WHERE patient_id IN ($patPlaceholders)")->execute($matchingPatientIds);
+                            $pdo->prepare("DELETE FROM dental_history WHERE patient_id IN ($patPlaceholders)")->execute($matchingPatientIds);
+                            $pdo->prepare("DELETE FROM queue WHERE patient_id IN ($patPlaceholders)")->execute($matchingPatientIds);
+                            $pdo->prepare("DELETE FROM appointments WHERE patient_id IN ($patPlaceholders)")->execute($matchingPatientIds);
+                            $pdo->prepare("DELETE FROM patients WHERE id IN ($patPlaceholders) AND is_archived = 1")->execute($matchingPatientIds);
+                        }
+                    }
+                    
+                    // Delete the users last
+                    $delStmt = $pdo->prepare("DELETE FROM users WHERE id IN ($placeholders) AND is_archived = 1");
+                    $delStmt->execute($userIds);
+                    $totalDeleted += $delStmt->rowCount();
+                    
+                    $pdo->commit();
+                } catch (Exception $e) {
+                    $pdo->rollBack();
+                    throw $e;
+                }
+            }
+            
+            echo json_encode([
+                'success' => true,
+                'message' => $totalDeleted . ' record(s) permanently deleted',
+                'count' => $totalDeleted
+            ]);
+            return;
+        }
+        
+        // Sanitize IDs for other modules
+        $ids = array_filter($ids, 'is_numeric');
+        $ids = array_map('intval', $ids);
+        
+        if (empty($ids)) {
+            echo json_encode(['success' => false, 'message' => 'Invalid record IDs']);
+            return;
+        }
+        
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        
         if ($module === 'users') {
             // ---------- USERS: cascade to patients ----------
             $pdo->beginTransaction();
@@ -528,38 +715,6 @@ function handleDeleteForever($pdo, $module, $ids) {
                 
                 // Delete the users last
                 $stmt = $pdo->prepare("DELETE FROM users WHERE id IN ($placeholders) AND is_archived = 1");
-                $result = $stmt->execute($ids);
-                
-                $pdo->commit();
-            } catch (Exception $e) {
-                $pdo->rollBack();
-                throw $e;
-            }
-            
-        } elseif ($module === 'patients') {
-            // ---------- PATIENTS: cascade to users ----------
-            $pdo->beginTransaction();
-            try {
-                // Get emails of patients being deleted
-                $patStmt = $pdo->prepare("SELECT email FROM patients WHERE id IN ($placeholders) AND is_archived = 1");
-                $patStmt->execute($ids);
-                $patientEmails = $patStmt->fetchAll(PDO::FETCH_COLUMN);
-                $patientEmails = array_filter(array_unique($patientEmails));
-                
-                // Delete related records first
-                $pdo->prepare("DELETE FROM medical_history WHERE patient_id IN ($placeholders)")->execute($ids);
-                $pdo->prepare("DELETE FROM dental_history WHERE patient_id IN ($placeholders)")->execute($ids);
-                $pdo->prepare("DELETE FROM queue WHERE patient_id IN ($placeholders)")->execute($ids);
-                $pdo->prepare("DELETE FROM appointments WHERE patient_id IN ($placeholders)")->execute($ids);
-                
-                // Find and delete matching users by email
-                if (!empty($patientEmails)) {
-                    $emailPlaceholders = implode(',', array_fill(0, count($patientEmails), '?'));
-                    $pdo->prepare("DELETE FROM users WHERE email IN ($emailPlaceholders) AND is_archived = 1")->execute(array_values($patientEmails));
-                }
-                
-                // Delete the patients
-                $stmt = $pdo->prepare("DELETE FROM patients WHERE id IN ($placeholders) AND is_archived = 1");
                 $result = $stmt->execute($ids);
                 
                 $pdo->commit();

@@ -291,16 +291,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
-                            <div class="toggle-setting">
-                                <div class="toggle-info">
-                                    <span class="toggle-label">Low Stock Alerts</span>
-                                    <span class="toggle-description">Notify when supplies are running low</span>
-                                </div>
-                                <label class="toggle-switch">
-                                    <input type="checkbox">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
+                            
                             <button type="submit" class="btn-primary">Save Settings</button>
                         </form>
                     </div>

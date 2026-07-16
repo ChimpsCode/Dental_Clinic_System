@@ -41,9 +41,9 @@ $archivedCounts = [
 ];
 
 if ($archiveReady) {
-    // Patients count from patients table
+    // Patients count from patients table + archived patient user accounts
     try {
-        $stmt = $pdo->query("SELECT COUNT(*) FROM patients WHERE is_archived = 1");
+        $stmt = $pdo->query("SELECT (SELECT COUNT(*) FROM patients WHERE is_archived = 1) + (SELECT COUNT(*) FROM users WHERE is_archived = 1 AND role = 'Patient')");
         $archivedCounts['patients'] = (int)$stmt->fetchColumn();
     } catch (Exception $e) {
         $archivedCounts['patients'] = 0;

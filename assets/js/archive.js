@@ -434,7 +434,7 @@ function renderPatientTable(records) {
             <td style="text-align: center;">
                 <input type="checkbox" class="record-checkbox patients-checkbox"
                        value="${patient.id}"
-                       onchange="updateSelection('patients', ${patient.id}, this.checked)">
+                       onchange="updateSelection('patients', '${patient.id}', this.checked)">
             </td>
             <td>
                 <div style="font-weight: 500; color: #111827;">${escapeHtml(patient.first_name || 'N/A')}</div>
@@ -1370,7 +1370,7 @@ function showRestoreConfirmModal(module, id) {
         <p style="margin: 0 0 25px 0; color: #6b7280; font-size: 15px;">It will reappear in the main list.</p>
         <div style="display: flex; gap: 12px; justify-content: center;">
             <button onclick="closeRestoreModal()" style="padding: 12px 24px; background: #f3f4f6; color: #374151; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500;">Cancel</button>
-            <button onclick="confirmRestoreById('${module}', ${id})" style="padding: 12px 24px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500;">Restore</button>
+            <button onclick="confirmRestoreById('${module}', '${id}')" style="padding: 12px 24px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500;">Restore</button>
         </div>
     `;
     
@@ -1519,7 +1519,7 @@ function handleArchiveKebabAction(e) {
     e.preventDefault();
     const action = link.dataset.action;
     const module = link.dataset.module;
-    const id = parseInt(link.dataset.id, 10);
+    const id = link.dataset.id;
 
     closeArchiveKebabDropdown();
 
