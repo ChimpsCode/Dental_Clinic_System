@@ -528,9 +528,9 @@ function viewPatientDetails(patientId) {
                             }).join('')}
                             <tr style="border-top:2px solid #d1d5db;background:#f0fdf4;">
                                 <td style="padding:10px 12px;color:#166534;font-weight:700;">TOTAL</td>
-                                <td style="padding:10px 12px;text-align:right;color:#166534;font-weight:700;">P' + totalAmount.toFixed(2) + '</td>
-                                <td style="padding:10px 12px;text-align:right;color:#16a34a;font-weight:700;">P' + paidAmount.toFixed(2) + '</td>
-                                <td style="padding:10px 12px;text-align:right;color:' + (balance > 0 ? '#dc2626' : '#16a34a') + ';font-weight:700;">P' + balance.toFixed(2) + '</td>
+                                <td style="padding:10px 12px;text-align:right;color:#166534;font-weight:700;">P${totalAmount.toFixed(2)}</td>
+                                <td style="padding:10px 12px;text-align:right;color:#16a34a;font-weight:700;">P${paidAmount.toFixed(2)}</td>
+                                <td style="padding:10px 12px;text-align:right;color:${balance > 0 ? '#dc2626' : '#16a34a'};font-weight:700;">P${balance.toFixed(2)}</td>
                                 <td style="padding:10px 12px;text-align:center;">${formatPayStatus(payStatus)}</td>
                             </tr>
                             </tbody></table></div>
