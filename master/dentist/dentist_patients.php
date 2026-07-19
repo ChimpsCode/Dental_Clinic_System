@@ -1467,18 +1467,31 @@ function getDentistTeethDisplayText(teethString) {
 </div>
                     </div>
                     
-                    <div style="display: flex; gap: 16px;">
-                        <div class="form-group" style="flex: 1;">
-                            <label>Total Sessions</label>
-                            <input type="number" name="total_sessions" class="form-control" value="1" min="1" max="20">
+                    <div class="form-group" style="margin-bottom:16px;">
+                        <label>Number of Sessions</label>
+                        <div id="sessionCountBtns" style="display:flex; gap:6px; flex-wrap:wrap;">
+                            <button type="button" class="sess-btn active" data-count="1" onclick="setSessionCount(1)">1</button>
+                            <button type="button" class="sess-btn" data-count="2" onclick="setSessionCount(2)">2</button>
+                            <button type="button" class="sess-btn" data-count="3" onclick="setSessionCount(3)">3</button>
+                            <button type="button" class="sess-btn" data-count="4" onclick="setSessionCount(4)">4</button>
+                            <button type="button" class="sess-btn" data-count="5" onclick="setSessionCount(5)">5</button>
+                            <button type="button" class="sess-btn" data-count="6" onclick="setSessionCount(6)">6</button>
+                            <button type="button" class="sess-btn" data-count="7" onclick="setSessionCount(7)">7</button>
+                            <button type="button" class="sess-btn" data-count="8" onclick="setSessionCount(8)">8</button>
                         </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label>Next Session Date</label>
-                            <input type="date" name="next_session_date" id="tpNextSessionDate" class="form-control">
-                            <div id="tpTimeSlots" class="time-slots" style="display: none; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px;"></div>
-                            <input type="hidden" name="next_session_time" id="tpNextSessionTime" value="">
-                        </div>
+                        <input type="hidden" name="total_sessions" id="tpTotalSessions" value="1">
+                        <input type="hidden" name="auto_schedule_all" id="tpAutoScheduleAll" value="0">
                     </div>
+
+                    <div id="sessionRowsContainer"></div>
+
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:400; font-size:0.85rem;">
+                            <input type="checkbox" id="tpAutoScheduleCheck" onchange="document.getElementById('tpAutoScheduleAll').value=this.checked?'1':'0'">
+                            Auto-schedule all sessions on calendar
+                        </label>
+                    </div>
+
                     
                     <div class="form-group">
                         <label>Estimated Cost</label>
@@ -1834,11 +1847,6 @@ function openTreatmentPlanModal(patientId) {
     document.getElementById('tpPlansList').style.display = 'none';
     document.getElementById('tpNoPlans').style.display = 'none';
     document.getElementById('tpLoading').style.display = 'block';
-    document.getElementById('tpTimeSlots').style.display = 'none';
-    document.getElementById('tpNextSessionTime').value = '';
-    
-    // Add date listener
-    addTpDateListener();
     
     // Show/hide buttons
     document.getElementById('tpBtnCreate').style.display = 'inline-flex';
@@ -1934,7 +1942,7 @@ function renderTreatmentPlans(plans) {
                         <div style="font-weight: 500;">${plan.next_session_date ? new Date(plan.next_session_date).toLocaleDateString() : 'Not scheduled'}</div>
                     </div>
                 </div>
-                
+                ${renderSessionsHtml(plan.sessions_data)}
                 ${plan.notes ? `
                     <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
                         <div style="color: #6b7280; font-size: 0.8rem; margin-bottom: 4px;">Notes</div>
@@ -1979,6 +1987,31 @@ function renderTreatmentHistory(history) {
     container.innerHTML = html;
 }
 
+function renderSessionsHtml(sessionsData) {
+    if (!sessionsData) return '';
+    try {
+        const sessions = JSON.parse(sessionsData);
+        if (!sessions.length) return '';
+        let sHtml = '<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;"><div style="color: #6b7280; font-size: 0.8rem; margin-bottom: 6px;">All Sessions</div><div style="font-size: 0.85rem;">';
+        sessions.forEach(function(s, idx) {
+            const parts = [];
+            if (s.date) {
+                const d = new Date(s.date + 'T' + (s.time || '00:00:00'));
+                parts.push(d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }));
+            }
+            if (s.time) {
+                const d = new Date('2000-01-01T' + s.time);
+                parts.push(d.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' }));
+            }
+            sHtml += '<div style="margin-bottom: 3px;"><span style="font-weight:500;">Session ' + (idx + 1) + ':</span> ' + (parts.length ? parts.join(' @ ') : '<span style="color:#9ca3af;">Not scheduled</span>') + '</div>';
+        });
+        sHtml += '</div></div>';
+        return sHtml;
+    } catch(e) {
+        return '';
+    }
+}
+
 function closeTreatmentPlanModal() {
     document.getElementById('treatmentPlanModal').style.display = 'none';
     document.body.style.overflow = '';
@@ -1986,6 +2019,11 @@ function closeTreatmentPlanModal() {
     
     // Reset form state
     document.getElementById('tpNewPlanForm').reset();
+    document.getElementById('sessionRowsContainer').innerHTML = '';
+    document.querySelectorAll('.sess-btn').forEach(btn => btn.classList.toggle('active', parseInt(btn.dataset.count) === 1));
+    document.getElementById('tpTotalSessions').value = '1';
+    document.getElementById('tpAutoScheduleAll').value = '0';
+    document.getElementById('tpAutoScheduleCheck').checked = false;
 }
 
 function showTpCreateForm() {
@@ -1997,6 +2035,11 @@ function showTpCreateForm() {
     // Reset form fields
     document.getElementById('tpTreatmentName').value = '';
     document.querySelector('input[name="estimated_cost"]').value = '';
+    document.getElementById('tpAutoScheduleAll').value = '0';
+    document.getElementById('tpAutoScheduleCheck').checked = false;
+    
+    // Initialize session rows with default count 1
+    setSessionCount(1);
     
     // Hide Upper/Lower Arch buttons initially until a treatment is selected
     const btnUpper = document.getElementById('btnSelectUpper');
@@ -2128,29 +2171,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('primaryLowerRight')) document.getElementById('primaryLowerRight').innerHTML = primaryLowerRight;
     if (document.getElementById('primaryLowerLeft')) document.getElementById('primaryLowerLeft').innerHTML = primaryLowerLeft;
     
-    // Add time slot listener
-    const nextSessionDateInput = document.getElementById('tpNextSessionDate');
-    if (nextSessionDateInput) {
-        nextSessionDateInput.addEventListener('change', function() {
-            const date = this.value;
-            if (date) {
-                loadTpTimeSlots(date);
-            } else {
-                document.getElementById('tpTimeSlots').style.display = 'none';
-            }
-        });
-    }
-    
-    // Also add treatment change listener to update time slots when treatment changes
-    const treatmentSelect = document.getElementById('tpTreatmentName');
-    if (treatmentSelect) {
-        treatmentSelect.addEventListener('change', function() {
-            const dateInput = document.getElementById('tpNextSessionDate');
-            if (dateInput && dateInput.value) {
-                loadTpTimeSlots(dateInput.value);
-            }
-        });
-    }
 });
 
 
@@ -2282,14 +2302,20 @@ document.getElementById('addAptTreatment').addEventListener('change', function()
     loadTimeSlotsGrid(document.getElementById('addAptDate').value, this.value, 'addAptTimeSlots', 'addAptTime', 'addAptTreatment', 'addAptTimePrompt');
 });
 
-// --- EVENT LISTENERS FOR THE TREATMENT PLAN MODAL ---
-document.getElementById('tpNextSessionDate').addEventListener('change', function() {
-    loadTimeSlotsGrid(this.value, document.getElementById('tpTreatmentName').value, 'tpTimeSlots', 'tpNextSessionTime', 'tpTreatmentName', null);
-});
-
+// --- EVENT LISTENER FOR TREATMENT NAME CHANGE (affects session time slots) ---
 document.getElementById('tpTreatmentName').addEventListener('change', function() {
-    loadTimeSlotsGrid(document.getElementById('tpNextSessionDate').value, this.value, 'tpTimeSlots', 'tpNextSessionTime', 'tpTreatmentName', null);
-    autoPopulateTreatmentType(); // Keeps your existing auto-fill logic intact
+    autoPopulateTreatmentType();
+    // Reload time slots for all visible session rows
+    const dateInputs = document.querySelectorAll('#sessionRowsContainer .session-date');
+    dateInputs.forEach(function(input) {
+        if (input.value) {
+            const row = input.closest('.session-row');
+            const idx = Array.from(row.parentNode.children).indexOf(row) + 1;
+            const slotContainer = document.getElementById('sessionSlots_' + idx);
+            const hiddenInput = document.getElementById('sessionTime_' + idx);
+            loadSessionTimeSlots(input.value, idx, slotContainer, hiddenInput);
+        }
+    });
 });
 
 // Important: When you open the Add Appointment Modal, reset the form and trigger the service load
@@ -2309,73 +2335,6 @@ function formatTime12h(time24) {
     const period = hours >= 12 ? 'PM' : 'AM';
     const hour12 = hours % 12 || 12;
     return `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`;
-}
-
-function loadTpTimeSlots(date) {
-    const treatmentSelect = document.getElementById('tpTreatmentName');
-    const serviceId = treatmentSelect.value;
-    
-    let url = '../user-patient/get_slots.php?date=' + encodeURIComponent(date);
-    if (serviceId) {
-        url += '&service_id=' + encodeURIComponent(serviceId);
-    }
-    
-    fetch(url)
-    .then(res => res.json())
-    .then(data => {
-        const slotsContainer = document.getElementById('tpTimeSlots');
-        slotsContainer.innerHTML = '';
-        slotsContainer.style.display = 'grid';
-        
-        if (!data.success) {
-            slotsContainer.innerHTML = '<div style="color: #dc2626; grid-column: 1/-1;">' + (data.message || 'Error loading slots') + '</div>';
-            return;
-        }
-        
-        if (!data.is_open) {
-            slotsContainer.innerHTML = '<div style="color: #dc2626; grid-column: 1/-1;">' + data.message + '</div>';
-            return;
-        }
-        
-        if (data.is_past) {
-            slotsContainer.innerHTML = '<div style="color: #dc2626; grid-column: 1/-1;">Cannot schedule on past dates</div>';
-            return;
-        }
-        
-        const available = data.available_slots || [];
-        const booked = data.booked_slots || [];
-        
-        if (available.length === 0) {
-            slotsContainer.innerHTML = '<div style="color: #dc2626; grid-column: 1/-1;">No available time slots</div>';
-            return;
-        }
-        
-        available.forEach(slot => {
-            const btn = document.createElement('div');
-            btn.className = 'time-slot available';
-            btn.textContent = formatTime12h(slot);
-            btn.dataset.time = slot;
-            btn.onclick = function() {
-                document.querySelectorAll('#tpTimeSlots .time-slot').forEach(s => s.classList.remove('selected'));
-                this.classList.add('selected');
-                document.getElementById('tpNextSessionTime').value = this.dataset.time;
-            };
-            slotsContainer.appendChild(btn);
-        });
-        
-        booked.forEach(slot => {
-            const btn = document.createElement('div');
-            btn.className = 'time-slot unavailable';
-            btn.textContent = formatTime12h(slot);
-            btn.style.cursor = 'not-allowed';
-            btn.style.opacity = '0.6';
-            slotsContainer.appendChild(btn);
-        });
-    })
-    .catch(err => {
-        const slotsContainer = document.getElementById('tpTimeSlots');
-        slotsContainer.innerHTML = '<div style="color: #dc2626; grid-column: 1/-1;">Error loading time slots</div>';
-    });
 }
 
 function selectAllUpper() {
@@ -2420,20 +2379,6 @@ function selectAllLower() {
     document.getElementById('selectedTeethText').textContent = selectedTeeth.length > 0 ? selectedTeeth.join(', ') : 'None';
 }
 
-function addTpDateListener() {
-    const nextSessionDateInput = document.getElementById('tpNextSessionDate');
-    if (nextSessionDateInput) {
-        nextSessionDateInput.addEventListener('change', function() {
-            const date = this.value;
-            if (date) {
-                loadTpTimeSlots(date);
-            } else {
-                document.getElementById('tpTimeSlots').style.display = 'none';
-            }
-        });
-    }
-}
-
 function autoPopulateTreatmentType() {
     const select = document.getElementById('tpTreatmentName');
     const selectedOption = select.options[select.selectedIndex];
@@ -2471,25 +2416,110 @@ function autoPopulateTreatmentType() {
     }
 }
 
+function setSessionCount(n) {
+    document.getElementById('tpTotalSessions').value = n;
+    document.querySelectorAll('.sess-btn').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.count) === n);
+    });
+
+    const container = document.getElementById('sessionRowsContainer');
+    container.innerHTML = '';
+
+    for (let i = 1; i <= n; i++) {
+        const row = document.createElement('div');
+        row.className = 'session-row';
+        row.innerHTML =
+            '<div class="session-row-header">Session ' + i + '</div>' +
+            '<div class="session-row-fields">' +
+                '<input type="date" name="session_date_' + i + '" class="form-control session-date" min="' + new Date().toISOString().split('T')[0] + '">' +
+                '<div class="session-time-wrapper">' +
+                    '<div class="session-time-slots" id="sessionSlots_' + i + '" data-session="' + i + '"></div>' +
+                    '<input type="hidden" name="session_time_' + i + '" id="sessionTime_' + i + '" value="">' +
+                '</div>' +
+            '</div>';
+        container.appendChild(row);
+
+            row.querySelector('.session-date').addEventListener('change', function() {
+                const date = this.value;
+                const slotContainer = document.getElementById('sessionSlots_' + i);
+                const hiddenInput = document.getElementById('sessionTime_' + i);
+                if (date) {
+                    loadSessionTimeSlots(date, i, slotContainer, hiddenInput);
+                } else {
+                    slotContainer.innerHTML = '';
+                    hiddenInput.value = '';
+                }
+            });
+    }
+}
+
+function loadSessionTimeSlots(date, sessionNum, container, hiddenInput) {
+    const treatmentSelect = document.getElementById('tpTreatmentName');
+    const serviceId = treatmentSelect ? treatmentSelect.value : '';
+
+    let url = '../user-patient/get_slots.php?date=' + encodeURIComponent(date);
+    if (serviceId) {
+        url += '&service_id=' + encodeURIComponent(serviceId);
+    }
+
+    container.innerHTML = '<span style="color:#6b7280;font-size:0.8rem;">Loading...</span>';
+
+    fetch(url)
+    .then(res => res.json())
+    .then(data => {
+        container.innerHTML = '';
+
+        if (!data.success || !data.is_open || data.is_past) {
+            container.innerHTML = '<span style="color:#dc2626;font-size:0.8rem;">' + (data.message || 'Unavailable') + '</span>';
+            return;
+        }
+
+        const available = data.available_slots || [];
+        if (available.length === 0) {
+            container.innerHTML = '<span style="color:#6b7280;font-size:0.8rem;">No available slots</span>';
+            return;
+        }
+
+        available.forEach(slot => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'time-slot-btn';
+            btn.textContent = formatTime12h(slot);
+            btn.onclick = function() {
+                container.querySelectorAll('.time-slot-btn').forEach(b => {
+                    b.style.background = '#f3f4f6';
+                    b.style.color = '#374151';
+                });
+                this.style.background = '#3b82f6';
+                this.style.color = 'white';
+                hiddenInput.value = slot;
+            };
+            container.appendChild(btn);
+        });
+    })
+    .catch(() => {
+        container.innerHTML = '<span style="color:#dc2626;font-size:0.8rem;">Error loading slots</span>';
+    });
+}
+
 function saveTreatmentPlan() {
     const form = document.getElementById('tpNewPlanForm');
     const formData = new FormData(form);
     const data = Object.fromEntries(formData);
-    
+
     if (!data.treatment_name) {
         alert('Please select a treatment name');
         return;
     }
-    
-    // Validate date and time if provided
-    const sessionDate = document.getElementById('tpNextSessionDate').value;
-    const sessionTime = document.getElementById('tpNextSessionTime').value;
-    
-    if ((sessionDate && !sessionTime) || (!sessionDate && sessionTime)) {
-        alert('Please provide both date and time for the next session, or leave both empty.');
-        return;
+
+    // Set first session date/time as next_session_date/time for backward compat
+    const firstDate = document.querySelector('[name="session_date_1"]');
+    const firstTime = document.getElementById('sessionTime_1');
+    if (firstDate && firstDate.value) {
+        formData.set('next_session_date', firstDate.value);
+        formData.set('next_session_time', firstTime ? firstTime.value : '');
     }
-    
+
     fetch('../shared/process_treatment_plan.php', {
         method: 'POST',
         body: formData
@@ -2672,6 +2702,77 @@ setInterval(() => {
     0% { transform: scale(1); }
     50% { transform: scale(0.95); }
     100% { transform: scale(1); }
+}
+
+/* Session Button Styles */
+.sess-btn {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 2px solid #e2e8f0;
+    background: #ffffff;
+    color: #475569;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.sess-btn:hover {
+    border-color: #3b82f6;
+    color: #3b82f6;
+    background: #eff6ff;
+}
+.sess-btn.active {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: #ffffff;
+    box-shadow: 0 4px 8px rgba(59,130,246,0.3);
+}
+.session-row {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+}
+.session-row-header {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+}
+.session-row-fields {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+.session-row-fields .session-date {
+    width: 180px;
+    flex-shrink: 0;
+}
+.session-time-wrapper {
+    flex: 1;
+}
+.session-time-slots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.time-slot-btn {
+    padding: 6px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #f3f4f6;
+    color: #374151;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.time-slot-btn:hover {
+    border-color: #3b82f6;
+    background: #eff6ff;
 }
 
 /* Time Slot Styles */

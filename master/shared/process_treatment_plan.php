@@ -84,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 $plan_id = $_POST['plan_id'] ?? null;
 $patient_id = $_POST['patient_id'] ?? null;
 $plan_name = $_POST['treatment_name'] ?? $_POST['plan_name'] ?? '';
-$total_sessions = $_POST['total_sessions'] ?? 1;
+$total_sessions = (int)($_POST['total_sessions'] ?? 1);
 $estimated_cost = $_POST['estimated_cost'] ?? null;
 $status = $_POST['status'] ?? 'Active';
 $notes = $_POST['notes'] ?? '';
@@ -92,6 +92,21 @@ $teeth_numbers = $_POST['teeth_numbers'] ?? '';
 $session_date = $_POST['next_session_date'] ?? null;
 $session_time = $_POST['session_time'] ?? $_POST['next_session_time'] ?? null;
 $doctor_id = $_SESSION['user_id'];
+$auto_schedule_all = ($_POST['auto_schedule_all'] ?? '0') === '1';
+
+// Build sessions_data from individual session fields
+$sessionsData = [];
+for ($i = 1; $i <= $total_sessions; $i++) {
+    $sd = $_POST["session_date_{$i}"] ?? null;
+    $st = $_POST["session_time_{$i}"] ?? null;
+    if (!empty($sd)) {
+        $sessionsData[] = [
+            'date' => $sd,
+            'time' => !empty($st) ? date("H:i:s", strtotime($st)) : null,
+        ];
+    }
+}
+$sessionsJson = !empty($sessionsData) ? json_encode($sessionsData) : null;
 
 if (!$patient_id || !$plan_name) {
     echo json_encode(['success' => false, 'message' => 'Patient and Plan Name required']);
@@ -99,31 +114,49 @@ if (!$patient_id || !$plan_name) {
 }
 
 try {
-    // Start a transaction so if the appointment fails, the plan rolls back too
     $pdo->beginTransaction();
 
-    // Parse time to 24-hour format for MySQL
+    // Parse first session time to 24-hour format for MySQL
     $apptTime = null;
     if (!empty($session_time)) {
         $apptTime = date("H:i:s", strtotime($session_time));
     }
 
     if ($plan_id) {
-        // UPDATE EXISTING PLAN
-        $stmt = $pdo->prepare("UPDATE treatment_plans SET plan_name = ?, total_sessions = ?, total_estimated_cost = ?, overall_status = ?, notes = ?, teeth_numbers = ?, next_session_date = ?, next_session_time = ?, updated_at = NOW() WHERE id = ? AND patient_id = ?");
-        $stmt->execute([$plan_name, $total_sessions, $estimated_cost ?: null, $status, $notes, $teeth_numbers, $session_date ?: null, $apptTime ?: null, $plan_id, $patient_id]);
+        $stmt = $pdo->prepare("UPDATE treatment_plans SET plan_name = ?, total_sessions = ?, total_estimated_cost = ?, overall_status = ?, notes = ?, teeth_numbers = ?, sessions_data = ?, next_session_date = ?, next_session_time = ?, updated_at = NOW() WHERE id = ? AND patient_id = ?");
+        $stmt->execute([$plan_name, $total_sessions, $estimated_cost ?: null, $status, $notes, $teeth_numbers, $sessionsJson, $session_date ?: null, $apptTime ?: null, $plan_id, $patient_id]);
         $message = 'Treatment plan updated';
     } else {
-        // CREATE NEW PLAN
-        $stmt = $pdo->prepare("INSERT INTO treatment_plans (patient_id, doctor_id, plan_name, total_sessions, total_estimated_cost, overall_status, notes, teeth_numbers, next_session_date, next_session_time, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
-        $stmt->execute([$patient_id, $doctor_id, $plan_name, $total_sessions, $estimated_cost ?: null, $status, $notes, $teeth_numbers, $session_date ?: null, $apptTime ?: null]);
-        
+        $stmt = $pdo->prepare("INSERT INTO treatment_plans (patient_id, doctor_id, plan_name, total_sessions, total_estimated_cost, overall_status, notes, teeth_numbers, sessions_data, next_session_date, next_session_time, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
+        $stmt->execute([$patient_id, $doctor_id, $plan_name, $total_sessions, $estimated_cost ?: null, $status, $notes, $teeth_numbers, $sessionsJson, $session_date ?: null, $apptTime ?: null]);
+
         $planId = $pdo->lastInsertId();
         $message = 'Treatment plan created';
-        
-        // AUTO-CREATE APPOINTMENT
+
+        // AUTO-CREATE APPOINTMENT(S)
+        $appointmentsToCreate = [];
         if (!empty($session_date) && !empty($apptTime)) {
-            // DOUBLE-BOOKING CHECK: Check if there's already an appointment at this time
+            $appointmentsToCreate[] = ['date' => $session_date, 'time' => $apptTime, 'is_first' => true];
+        }
+        if ($auto_schedule_all && !empty($sessionsData)) {
+            foreach ($sessionsData as $s) {
+                if (!empty($s['date']) && !empty($s['time'])) {
+                    $alreadyListed = false;
+                    foreach ($appointmentsToCreate as $existing) {
+                        if ($existing['date'] === $s['date'] && $existing['time'] === $s['time']) {
+                            $alreadyListed = true;
+                            break;
+                        }
+                    }
+                    if (!$alreadyListed) {
+                        $appointmentsToCreate[] = ['date' => $s['date'], 'time' => $s['time'], 'is_first' => false];
+                    }
+                }
+            }
+        }
+
+        $createdApptIds = [];
+        foreach ($appointmentsToCreate as $a) {
             $conflictCheck = $pdo->prepare("
                 SELECT a.id, a.reference_code, p.first_name, p.last_name 
                 FROM appointments a 
@@ -133,16 +166,18 @@ try {
                 AND a.is_archived = 0
                 AND a.status NOT IN ('Cancelled')
             ");
-            $conflictCheck->execute([$session_date, $apptTime]);
+            $conflictCheck->execute([$a['date'], $a['time']]);
             $conflict = $conflictCheck->fetch(PDO::FETCH_ASSOC);
-            
+
             if ($conflict) {
-                throw new Exception("Time slot conflict! There is already an appointment ($conflict[reference_code]) for $conflict[first_name] $conflict[last_name] at this time.");
+                if ($a['is_first']) {
+                    throw new Exception("Time slot conflict! There is already an appointment ($conflict[reference_code]) for $conflict[first_name] $conflict[last_name] at this time.");
+                }
+                continue;
             }
-            
-            $refCode = 'APT' . strtoupper(substr(md5(uniqid()), 0, 6));
-            
-            // Get service info
+
+            $refCode = 'APT' . strtoupper(substr(md5(uniqid() . $a['date'] . $a['time']), 0, 6));
+
             $serviceId = null;
             $duration = 30;
             $svc = $pdo->prepare("SELECT id, duration_minutes FROM services WHERE name = ? LIMIT 1");
@@ -151,44 +186,55 @@ try {
                 $serviceId = $row['id'];
                 $duration = $row['duration_minutes'] ?? 30;
             }
-            
-            // Create the appointment
+
             $ins = $pdo->prepare("
                 INSERT INTO appointments 
                 (reference_code, patient_id, service_id, status, appointment_date, appointment_time, duration_minutes, booked_by_id, created_by, created_at, is_archived) 
                 VALUES (?, ?, ?, 'Scheduled', ?, ?, ?, ?, ?, NOW(), 0)
             ");
-            $ins->execute([$refCode, $patient_id, $serviceId, $session_date, $apptTime, $duration, $doctor_id, $doctor_id]);
-            
-            $apptId = $pdo->lastInsertId();
+            $ins->execute([$refCode, $patient_id, $serviceId, $a['date'], $a['time'], $duration, $doctor_id, $doctor_id]);
 
-            // Check if patient should transition from New Patient to Returning Patient
-            try {
-                require_once __DIR__ . '/../../includes/patient_type_helper.php';
-                maybeTransitionToReturningPatient($pdo, $patient_id);
-            } catch (Exception $e) {
-                // Silent fail - non-critical
+            $apptId = $pdo->lastInsertId();
+            $createdApptIds[] = $apptId;
+
+            if ($a['is_first']) {
+                try {
+                    require_once __DIR__ . '/../../includes/patient_type_helper.php';
+                    maybeTransitionToReturningPatient($pdo, $patient_id);
+                } catch (Exception $e) {}
+
+                $linkStmt = $pdo->prepare("UPDATE treatment_plans SET appointment_id = ?, updated_at = NOW() WHERE id = ?");
+                $linkStmt->execute([$apptId, $planId]);
             }
-            
-            // Link the appointment to the treatment plan
-            $linkStmt = $pdo->prepare("UPDATE treatment_plans SET appointment_id = ?, updated_at = NOW() WHERE id = ?");
-            $linkStmt->execute([$apptId, $planId]);
-            
-            $message = "Treatment plan created. Appointment #$refCode has been scheduled for $session_date at $session_time.";
+        }
+
+        if (!empty($appointmentsToCreate)) {
+            $count = count($createdApptIds);
+            $message = "Treatment plan created. {$count} appointment(s) scheduled.";
         }
     }
-    
-    // Commit the transaction
+
     $pdo->commit();
+
+    // Send email notification for sessions within threshold
+    if (!empty($sessionsData)) {
+        try {
+            require_once __DIR__ . '/../../includes/session_notification_helper.php';
+            $thresholdStmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'session_notification_threshold' LIMIT 1");
+            $thresholdStmt->execute();
+            $threshold = (int)($thresholdStmt->fetchColumn() ?: 2);
+            sendSessionNotification($pdo, $patient_id, $plan_name, $sessionsData, $threshold);
+        } catch (Exception $e) {}
+    }
+
     echo json_encode([
         'success' => true, 
         'message' => $message,
         'plan_id' => $planId ?? $plan_id,
         'appointment_id' => $apptId ?? null
     ]);
-    
+
 } catch (Exception $e) {
-    // If anything fails, revert all changes so we don't end up with ghost plans
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
