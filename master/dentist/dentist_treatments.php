@@ -332,10 +332,6 @@ require_once '../../includes/dentist_layout_start.php';
                 <?php endif; ?>
             </div>
             
-<div class="form-group">
-                <label>Plan Name *</label>
-                <input type="text" name="plan_name" id="plan_name" class="form-control" required placeholder="e.g., Root Canal Treatment, Braces, etc.">
-            </div>
             
             <div class="form-group" style="margin-bottom:16px;">
                 <label>Number of Sessions</label>
@@ -350,17 +346,9 @@ require_once '../../includes/dentist_layout_start.php';
                     <button type="button" class="sess-btn" data-count="8" onclick="setSessionCount(8)">8</button>
                 </div>
                 <input type="hidden" name="total_sessions" id="total_sessions" value="1">
-                <input type="hidden" name="auto_schedule_all" id="tpAutoScheduleAll" value="0">
             </div>
 
             <div id="sessionRowsContainer"></div>
-
-            <div class="form-group" style="margin-bottom:8px;">
-                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:400; font-size:0.85rem;">
-                    <input type="checkbox" id="tpAutoScheduleCheck" onchange="document.getElementById('tpAutoScheduleAll').value=this.checked?'1':'0'">
-                    Auto-schedule all sessions on calendar
-                </label>
-            </div>
 
             <div class="form-group">
                 <label>Teeth Numbers</label>
@@ -432,6 +420,8 @@ require_once '../../includes/dentist_layout_start.php';
 
 <script>
     const treatmentPlans = <?php echo json_encode($treatmentPlans); ?>;
+    const allServices = <?php echo json_encode($services); ?>;
+    window._cachedServices = allServices;
     let currentPlanId = null;
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -518,7 +508,7 @@ require_once '../../includes/dentist_layout_start.php';
         }
     });
 
-    function setSessionCount(n) {
+    function setSessionCount(n, existingSessions) {
         document.getElementById('total_sessions').value = n;
         document.querySelectorAll('.sess-btn').forEach(btn => {
             btn.classList.toggle('active', parseInt(btn.dataset.count) === n);
@@ -528,31 +518,306 @@ require_once '../../includes/dentist_layout_start.php';
         container.innerHTML = '';
 
         for (let i = 1; i <= n; i++) {
+            const existing = existingSessions && existingSessions[i - 1];
             const row = document.createElement('div');
             row.className = 'session-row';
-            row.innerHTML =
-                '<div class="session-row-header">Session ' + i + '</div>' +
-                '<div class="session-row-fields">' +
-                    '<input type="date" name="session_date_' + i + '" class="form-control session-date" min="' + new Date().toISOString().split('T')[0] + '">' +
-                    '<div class="session-time-wrapper">' +
-                        '<div class="session-time-slots" id="sessionSlots_' + i + '" data-session="' + i + '"></div>' +
-                        '<input type="hidden" name="session_time_' + i + '" id="sessionTime_' + i + '" value="">' +
-                    '</div>' +
-                '</div>';
-            container.appendChild(row);
+            row.dataset.session = i;
 
-            row.querySelector('.session-date').addEventListener('change', function() {
-                const date = this.value;
-                const slotContainer = document.getElementById('sessionSlots_' + i);
-                const hiddenInput = document.getElementById('sessionTime_' + i);
-                if (date) {
-                    loadSessionTimeSlots(date, i, slotContainer, hiddenInput);
-                } else {
-                    slotContainer.innerHTML = '';
-                    hiddenInput.value = '';
-                }
-            });
+            if (existing && existing.date) {
+                buildTransitionedRow(row, i, existing);
+            } else {
+                buildInitialRow(row, i);
+            }
+
+            container.appendChild(row);
         }
+    }
+
+    function buildInitialRow(row, i) {
+        row.innerHTML =
+            '<div class="session-row-header">Session ' + i + '</div>' +
+            '<div class="session-row-fields">' +
+                '<input type="date" name="session_date_' + i + '" class="form-control session-date" min="' + new Date().toISOString().split('T')[0] + '">' +
+                '<div class="session-time-wrapper">' +
+                    '<div class="session-time-slots" id="sessionSlots_' + i + '"></div>' +
+                    '<input type="hidden" name="session_time_' + i + '" id="sessionTime_' + i + '" class="session-time-hidden" value="">' +
+                '</div>' +
+            '</div>';
+
+        row.querySelector('.session-date').addEventListener('change', function() {
+            const date = this.value;
+            const slotContainer = document.getElementById('sessionSlots_' + i);
+            const hiddenInput = document.getElementById('sessionTime_' + i);
+            if (date) {
+                loadSessionTimeSlots(date, i, slotContainer, hiddenInput);
+            } else {
+                slotContainer.innerHTML = '';
+                hiddenInput.value = '';
+            }
+        });
+    }
+
+    function buildTransitionedRow(row, i, existing) {
+        row.innerHTML = '<div class="session-row-header">Session ' + i + '</div>';
+
+        const content = document.createElement('div');
+        content.className = 'session-row-content';
+
+        const leftCol = document.createElement('div');
+        leftCol.className = 'session-left';
+        const leftInner = document.createElement('div');
+        leftInner.className = 'session-left-inner';
+
+        const dateInput = document.createElement('input');
+        dateInput.type = 'date';
+        dateInput.name = 'session_date_' + i;
+        dateInput.className = 'form-control session-date';
+        dateInput.min = new Date().toISOString().split('T')[0];
+        dateInput.value = existing.date || '';
+        leftInner.appendChild(dateInput);
+
+        const timeDisplay = document.createElement('div');
+        timeDisplay.className = 'session-selected-time';
+        if (existing.time) {
+            const label = document.createElement('span');
+            label.className = 'session-time-label';
+            label.textContent = '\uD83D\uDD50 ' + formatTime12h(existing.time);
+            timeDisplay.appendChild(label);
+        }
+        const changeBtn = document.createElement('button');
+        changeBtn.type = 'button';
+        changeBtn.className = 'session-change-time';
+        changeBtn.textContent = 'Change';
+        changeBtn.onclick = function() { deselectTimeSlot(row); };
+        timeDisplay.appendChild(changeBtn);
+        leftInner.appendChild(timeDisplay);
+        leftCol.appendChild(leftInner);
+
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = 'session_time_' + i;
+        hiddenInput.id = 'sessionTime_' + i;
+        hiddenInput.className = 'session-time-hidden';
+        hiddenInput.value = existing.time || '';
+
+        const rightCol = document.createElement('div');
+        rightCol.className = 'session-right';
+        const rightInner = document.createElement('div');
+        rightInner.className = 'session-right-inner';
+
+        const treatmentField = document.createElement('div');
+        treatmentField.className = 'session-field';
+        const treatLabel = document.createElement('label');
+        treatLabel.className = 'session-field-label';
+        treatLabel.textContent = 'Treatment';
+        treatmentField.appendChild(treatLabel);
+
+        const treatSelect = document.createElement('select');
+        treatSelect.name = 'session_treatment_' + i;
+        treatSelect.className = 'form-control session-treatment';
+        treatmentField.appendChild(treatSelect);
+
+        const otherDiv = document.createElement('div');
+        otherDiv.className = 'session-other-treatment';
+        otherDiv.style.display = 'none';
+        const otherInput = document.createElement('input');
+        otherInput.type = 'text';
+        otherInput.name = 'session_treatment_other_' + i;
+        otherInput.className = 'form-control';
+        otherInput.placeholder = 'Enter custom treatment name';
+        otherDiv.appendChild(otherInput);
+        treatmentField.appendChild(otherDiv);
+
+        const notesField = document.createElement('div');
+        notesField.className = 'session-field';
+        const notesLabel = document.createElement('label');
+        notesLabel.className = 'session-field-label';
+        notesLabel.textContent = 'Notes';
+        notesField.appendChild(notesLabel);
+        const notesTextarea = document.createElement('textarea');
+        notesTextarea.name = 'session_notes_' + i;
+        notesTextarea.className = 'form-control session-notes';
+        notesTextarea.rows = 2;
+        notesTextarea.placeholder = 'Notes for this session...';
+        if (existing.notes) notesTextarea.value = existing.notes;
+        notesField.appendChild(notesTextarea);
+
+        rightInner.appendChild(treatmentField);
+        rightInner.appendChild(notesField);
+        rightCol.appendChild(rightInner);
+
+        content.appendChild(leftCol);
+        content.appendChild(rightCol);
+        row.appendChild(hiddenInput);
+        row.appendChild(content);
+
+        populateSessionTreatmentDropdown(treatSelect);
+        if (existing.treatment) {
+            let matched = false;
+            for (let opt of treatSelect.options) {
+                if (opt.value === existing.treatment) {
+                    treatSelect.value = existing.treatment;
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                treatSelect.value = '__other__';
+                otherDiv.style.display = 'block';
+                otherInput.value = existing.treatment;
+            }
+        }
+
+        treatSelect.addEventListener('change', function() {
+            otherDiv.style.display = this.value === '__other__' ? 'block' : 'none';
+        });
+
+        dateInput.addEventListener('change', function() {
+            if (this.value !== existing.date) {
+                deselectTimeSlot(row);
+            }
+        });
+    }
+
+    function selectTimeSlot(row, timeStr) {
+        const dateInput = row.querySelector('.session-date');
+        const hiddenInput = row.querySelector('.session-time-hidden');
+        const fields = row.querySelector('.session-row-fields');
+        const sessionNum = row.dataset.session;
+        if (!hiddenInput || !fields) return;
+
+        hiddenInput.value = timeStr;
+        fields.remove();
+
+        const content = document.createElement('div');
+        content.className = 'session-row-content';
+
+        const leftCol = document.createElement('div');
+        leftCol.className = 'session-left';
+        const leftInner = document.createElement('div');
+        leftInner.className = 'session-left-inner';
+        leftInner.appendChild(dateInput);
+
+        const timeDisplay = document.createElement('div');
+        timeDisplay.className = 'session-selected-time';
+        const label = document.createElement('span');
+        label.className = 'session-time-label';
+        label.textContent = '\uD83D\uDD50 ' + formatTime12h(timeStr);
+        timeDisplay.appendChild(label);
+        const changeBtn = document.createElement('button');
+        changeBtn.type = 'button';
+        changeBtn.className = 'session-change-time';
+        changeBtn.textContent = 'Change';
+        changeBtn.onclick = function() { deselectTimeSlot(row); };
+        timeDisplay.appendChild(changeBtn);
+        leftInner.appendChild(timeDisplay);
+        leftCol.appendChild(leftInner);
+
+        const rightCol = document.createElement('div');
+        rightCol.className = 'session-right';
+        const rightInner = document.createElement('div');
+        rightInner.className = 'session-right-inner';
+
+        const treatmentField = document.createElement('div');
+        treatmentField.className = 'session-field';
+        const treatLabel = document.createElement('label');
+        treatLabel.className = 'session-field-label';
+        treatLabel.textContent = 'Treatment';
+        treatmentField.appendChild(treatLabel);
+        const treatSelect = document.createElement('select');
+        treatSelect.name = 'session_treatment_' + sessionNum;
+        treatSelect.className = 'form-control session-treatment';
+        treatmentField.appendChild(treatSelect);
+        const otherDiv = document.createElement('div');
+        otherDiv.className = 'session-other-treatment';
+        otherDiv.style.display = 'none';
+        const otherInput = document.createElement('input');
+        otherInput.type = 'text';
+        otherInput.name = 'session_treatment_other_' + sessionNum;
+        otherInput.className = 'form-control';
+        otherInput.placeholder = 'Enter custom treatment name';
+        otherDiv.appendChild(otherInput);
+        treatmentField.appendChild(otherDiv);
+
+        const notesField = document.createElement('div');
+        notesField.className = 'session-field';
+        const notesLabel = document.createElement('label');
+        notesLabel.className = 'session-field-label';
+        notesLabel.textContent = 'Notes';
+        notesField.appendChild(notesLabel);
+        const notesTextarea = document.createElement('textarea');
+        notesTextarea.name = 'session_notes_' + sessionNum;
+        notesTextarea.className = 'form-control session-notes';
+        notesTextarea.rows = 2;
+        notesTextarea.placeholder = 'Notes for this session...';
+        notesField.appendChild(notesTextarea);
+
+        rightInner.appendChild(treatmentField);
+        rightInner.appendChild(notesField);
+        rightCol.appendChild(rightInner);
+
+        content.appendChild(leftCol);
+        content.appendChild(rightCol);
+        row.appendChild(content);
+
+        populateSessionTreatmentDropdown(treatSelect);
+
+        treatSelect.addEventListener('change', function() {
+            otherDiv.style.display = this.value === '__other__' ? 'block' : 'none';
+        });
+    }
+
+    function deselectTimeSlot(row) {
+        const dateInput = row.querySelector('.session-date');
+        const hiddenInput = row.querySelector('.session-time-hidden');
+        const content = row.querySelector('.session-row-content');
+        const sessionNum = row.dataset.session;
+        if (!hiddenInput) return;
+
+        hiddenInput.value = '';
+        if (content) content.remove();
+
+        const fields = document.createElement('div');
+        fields.className = 'session-row-fields';
+        fields.appendChild(dateInput);
+
+        const timeWrapper = document.createElement('div');
+        timeWrapper.className = 'session-time-wrapper';
+        const slotContainer = document.createElement('div');
+        slotContainer.className = 'session-time-slots';
+        slotContainer.id = 'sessionSlots_' + sessionNum;
+        timeWrapper.appendChild(slotContainer);
+
+        const newHidden = document.createElement('input');
+        newHidden.type = 'hidden';
+        newHidden.name = 'session_time_' + sessionNum;
+        newHidden.id = 'sessionTime_' + sessionNum;
+        newHidden.className = 'session-time-hidden';
+        newHidden.value = '';
+        timeWrapper.appendChild(newHidden);
+
+        fields.appendChild(timeWrapper);
+        row.appendChild(fields);
+
+        const currentDate = dateInput.value;
+        if (currentDate) {
+            loadSessionTimeSlots(currentDate, sessionNum, slotContainer, newHidden);
+        }
+    }
+
+    function populateSessionTreatmentDropdown(selectEl) {
+        selectEl.innerHTML = '<option value="">Select Treatment</option>';
+        const services = window._cachedServices || [];
+        services.forEach(function(s) {
+            const opt = document.createElement('option');
+            opt.value = s.name;
+            opt.textContent = s.name + (s.duration_minutes ? ' (' + s.duration_minutes + ' min)' : '');
+            selectEl.appendChild(opt);
+        });
+        const otherOpt = document.createElement('option');
+        otherOpt.value = '__other__';
+        otherOpt.textContent = 'Others';
+        selectEl.appendChild(otherOpt);
     }
 
     function loadSessionTimeSlots(date, sessionNum, container, hiddenInput) {
@@ -582,13 +847,7 @@ require_once '../../includes/dentist_layout_start.php';
                 btn.className = 'time-slot-btn';
                 btn.textContent = formatTime12h(slot);
                 btn.onclick = function() {
-                    container.querySelectorAll('.time-slot-btn').forEach(b => {
-                        b.style.background = '#f3f4f6';
-                        b.style.color = '#374151';
-                    });
-                    this.style.background = '#3b82f6';
-                    this.style.color = 'white';
-                    hiddenInput.value = slot;
+                    selectTimeSlot(container.closest('.session-row'), slot);
                 };
                 container.appendChild(btn);
             });
@@ -603,6 +862,10 @@ require_once '../../includes/dentist_layout_start.php';
         const period = hours >= 12 ? 'PM' : 'AM';
         const hour12 = hours % 12 || 12;
         return hour12 + ':' + minutes.toString().padStart(2, '0') + ' ' + period;
+    }
+
+    function escapeHtml(str) {
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
     function renderSessionsHtml(sessionsData) {
@@ -621,7 +884,15 @@ require_once '../../includes/dentist_layout_start.php';
                     const d = new Date('2000-01-01T' + s.time);
                     parts.push(d.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' }));
                 }
-                sHtml += '<div style="margin-bottom: 3px;"><span style="font-weight:500;">Session ' + (idx + 1) + ':</span> ' + (parts.length ? parts.join(' @ ') : '<span style="color:#9ca3af;">Not scheduled</span>') + '</div>';
+                let sessionStr = '<div style="margin-bottom: 4px;"><span style="font-weight:500;">Session ' + (idx + 1) + ':</span> ' + (parts.length ? parts.join(' @ ') : '<span style="color:#9ca3af;">Not scheduled</span>');
+                if (s.treatment) {
+                    sessionStr += ' <span style="color:#059669;">\u2014 ' + escapeHtml(s.treatment) + '</span>';
+                }
+                sessionStr += '</div>';
+                if (s.notes) {
+                    sessionStr += '<div style="margin: 0 0 6px 16px; font-size: 0.8rem; color: #6b7280;">\uD83D\uDCDD ' + escapeHtml(s.notes) + '</div>';
+                }
+                sHtml += sessionStr;
             });
             sHtml += '</div></div>';
             return sHtml;
@@ -645,8 +916,6 @@ require_once '../../includes/dentist_layout_start.php';
         document.getElementById('treatmentPlanModalTitle').textContent = 'New Treatment Plan';
         document.getElementById('treatmentPlanForm').reset();
         document.getElementById('plan_id').value = '';
-        document.getElementById('tpAutoScheduleAll').value = '0';
-        document.getElementById('tpAutoScheduleCheck').checked = false;
         
         // Safely handle patient select - it may not exist if no patients are available
         const patientSelect = document.getElementById('patientSelect');
@@ -666,8 +935,6 @@ require_once '../../includes/dentist_layout_start.php';
         document.getElementById('sessionRowsContainer').innerHTML = '';
         document.querySelectorAll('.sess-btn').forEach(btn => btn.classList.toggle('active', parseInt(btn.dataset.count) === 1));
         document.getElementById('total_sessions').value = '1';
-        document.getElementById('tpAutoScheduleAll').value = '0';
-        document.getElementById('tpAutoScheduleCheck').checked = false;
     }
 
     function closeViewPlanModal() {
@@ -842,8 +1109,6 @@ require_once '../../includes/dentist_layout_start.php';
         document.getElementById('treatmentPlanModalTitle').textContent = 'New Treatment Plan';
         document.getElementById('treatmentPlanForm').reset();
         document.getElementById('plan_id').value = '';
-        document.getElementById('tpAutoScheduleAll').value = '0';
-        document.getElementById('tpAutoScheduleCheck').checked = false;
         
         const patientSelect = document.getElementById('patientSelect');
         if (patientSelect) {
@@ -872,47 +1137,20 @@ require_once '../../includes/dentist_layout_start.php';
         document.getElementById('plan_id').value = plan.id;
         document.getElementById('patientSelect').value = plan.patient_id || '';
         document.getElementById('patientSelect').disabled = true;
-        document.getElementById('plan_name').value = plan.plan_name || '';
         document.getElementById('teeth_numbers').value = plan.teeth_numbers || '';
         document.getElementById('notes').value = plan.notes || '';
         document.getElementById('estimated_cost').value = plan.total_estimated_cost || '';
         document.getElementById('status').value = plan.overall_status || 'Active';
-        document.getElementById('tpAutoScheduleAll').value = '0';
-        document.getElementById('tpAutoScheduleCheck').checked = false;
         
         // Restore session rows from saved sessions_data
         const totalSessions = parseInt(plan.total_sessions) || 1;
-        setSessionCount(totalSessions);
-        
+        let existingSessions = [];
         if (plan.sessions_data) {
             try {
-                const sessions = JSON.parse(plan.sessions_data);
-                sessions.forEach(function(s, idx) {
-                    const i = idx + 1;
-                    const dateInput = document.querySelector('[name="session_date_' + i + '"]');
-                    const timeInput = document.getElementById('sessionTime_' + i);
-                    if (dateInput && s.date) {
-                        dateInput.value = s.date;
-                    }
-                    if (timeInput && s.time) {
-                        timeInput.value = s.time;
-                        // Load and select time slot
-                        const slotContainer = document.getElementById('sessionSlots_' + i);
-                        if (slotContainer && s.date) {
-                            loadSessionTimeSlots(s.date, i, slotContainer, timeInput);
-                            setTimeout(function() {
-                                slotContainer.querySelectorAll('.time-slot-btn').forEach(function(btn) {
-                                    if (btn.textContent === formatTime12h(s.time)) {
-                                        btn.style.background = '#3b82f6';
-                                        btn.style.color = 'white';
-                                    }
-                                });
-                            }, 300);
-                        }
-                    }
-                });
+                existingSessions = JSON.parse(plan.sessions_data);
             } catch(e) {}
         }
+        setSessionCount(totalSessions, existingSessions);
         
         document.getElementById('treatmentPlanModal').style.display = 'flex';
     }
@@ -927,6 +1165,23 @@ require_once '../../includes/dentist_layout_start.php';
         e.preventDefault();
         
         const formData = new FormData(this);
+        
+        // Validate each session has a treatment if date and time are set
+        const totalSessions = parseInt(document.getElementById('total_sessions').value) || 0;
+        for (let i = 1; i <= totalSessions; i++) {
+            const dateInput = document.querySelector('[name="session_date_' + i + '"]');
+            const timeInput = document.getElementById('sessionTime_' + i);
+            if (dateInput && dateInput.value && timeInput && timeInput.value) {
+                const treatmentSelect = document.querySelector('[name="session_treatment_' + i + '"]');
+                const treatmentOther = document.querySelector('[name="session_treatment_other_' + i + '"]');
+                const treatment = treatmentSelect ? treatmentSelect.value : '';
+                const treatmentOtherVal = treatmentOther ? treatmentOther.value : '';
+                if (!treatment && !treatmentOtherVal) {
+                    alert('Session ' + i + ' has a date/time but no treatment selected. Please choose a treatment for every scheduled session.');
+                    return;
+                }
+            }
+        }
         
         // Set first session date/time as next_session_date/time for backward compat
         const firstDate = document.querySelector('[name="session_date_1"]');
@@ -1048,19 +1303,20 @@ require_once '../../includes/dentist_layout_start.php';
 .session-row {
     background: #f8fafc;
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 10px;
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 12px;
 }
 .session-row-header {
     font-size: 0.85rem;
-    font-weight: 600;
-    color: #374151;
-    margin-bottom: 8px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 10px;
+    letter-spacing: 0.02em;
 }
 .session-row-fields {
     display: flex;
-    gap: 10px;
+    gap: 12px;
     align-items: flex-start;
 }
 .session-row-fields .session-date {
@@ -1088,6 +1344,83 @@ require_once '../../includes/dentist_layout_start.php';
 .time-slot-btn:hover {
     border-color: #3b82f6;
     background: #eff6ff;
+}
+
+/* Transitioned session row layout */
+.session-row-content {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+.session-left {
+    flex: 0 0 200px;
+    min-width: 180px;
+}
+.session-left-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.session-left-inner .session-date {
+    width: 100%;
+}
+.session-selected-time {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+.session-time-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #1e40af;
+}
+.session-change-time {
+    font-size: 0.75rem;
+    color: #3b82f6;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 2px 4px;
+}
+.session-change-time:hover {
+    color: #1d4ed8;
+}
+.session-right {
+    flex: 1;
+    min-width: 0;
+}
+.session-right-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.session-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.session-field-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.session-treatment {
+    width: 100%;
+}
+.session-other-treatment {
+    margin-top: 6px;
+}
+.session-notes {
+    width: 100%;
+    resize: vertical;
+    min-height: 50px;
 }
 
 /* Time Slot Button Styles */

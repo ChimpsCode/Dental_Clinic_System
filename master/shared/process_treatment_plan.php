@@ -85,6 +85,22 @@ $plan_id = $_POST['plan_id'] ?? null;
 $patient_id = $_POST['patient_id'] ?? null;
 $plan_name = $_POST['treatment_name'] ?? $_POST['plan_name'] ?? '';
 $total_sessions = (int)($_POST['total_sessions'] ?? 1);
+
+// If no plan_name provided, derive from first session's treatment or use default
+if (empty($plan_name)) {
+    for ($i = 1; $i <= $total_sessions; $i++) {
+        $stx = $_POST["session_treatment_{$i}"] ?? '';
+        $stxOther = $_POST["session_treatment_other_{$i}"] ?? '';
+        $treatment = !empty($stxOther) ? $stxOther : $stx;
+        if (!empty($treatment)) {
+            $plan_name = $treatment;
+            break;
+        }
+    }
+}
+if (empty($plan_name)) {
+    $plan_name = 'Treatment Plan';
+}
 $estimated_cost = $_POST['estimated_cost'] ?? null;
 $status = $_POST['status'] ?? 'Active';
 $notes = $_POST['notes'] ?? '';
@@ -92,18 +108,22 @@ $teeth_numbers = $_POST['teeth_numbers'] ?? '';
 $session_date = $_POST['next_session_date'] ?? null;
 $session_time = $_POST['session_time'] ?? $_POST['next_session_time'] ?? null;
 $doctor_id = $_SESSION['user_id'];
-$auto_schedule_all = ($_POST['auto_schedule_all'] ?? '0') === '1';
 
 // Build sessions_data from individual session fields
 $sessionsData = [];
 for ($i = 1; $i <= $total_sessions; $i++) {
     $sd = $_POST["session_date_{$i}"] ?? null;
     $st = $_POST["session_time_{$i}"] ?? null;
+    $stx = $_POST["session_treatment_{$i}"] ?? '';
+    $stxOther = $_POST["session_treatment_other_{$i}"] ?? '';
+    $snotes = $_POST["session_notes_{$i}"] ?? '';
     if (!empty($sd)) {
-        $sessionsData[] = [
-            'date' => $sd,
-            'time' => !empty($st) ? date("H:i:s", strtotime($st)) : null,
-        ];
+        $entry = ['date' => $sd];
+        if (!empty($st)) $entry['time'] = date("H:i:s", strtotime($st));
+        $treatment = !empty($stxOther) ? $stxOther : $stx;
+        if (!empty($treatment)) $entry['treatment'] = $treatment;
+        if (!empty($snotes)) $entry['notes'] = $snotes;
+        $sessionsData[] = $entry;
     }
 }
 $sessionsJson = !empty($sessionsData) ? json_encode($sessionsData) : null;
@@ -133,12 +153,10 @@ try {
         $planId = $pdo->lastInsertId();
         $message = 'Treatment plan created';
 
-        // AUTO-CREATE APPOINTMENT(S)
+        // AUTO-CREATE APPOINTMENT(S) FOR ALL SCHEDULED SESSIONS
         $appointmentsToCreate = [];
-        if (!empty($session_date) && !empty($apptTime)) {
-            $appointmentsToCreate[] = ['date' => $session_date, 'time' => $apptTime, 'is_first' => true];
-        }
-        if ($auto_schedule_all && !empty($sessionsData)) {
+        if (!empty($sessionsData)) {
+            $isFirst = true;
             foreach ($sessionsData as $s) {
                 if (!empty($s['date']) && !empty($s['time'])) {
                     $alreadyListed = false;
@@ -149,7 +167,9 @@ try {
                         }
                     }
                     if (!$alreadyListed) {
-                        $appointmentsToCreate[] = ['date' => $s['date'], 'time' => $s['time'], 'is_first' => false];
+                        $treatment = !empty($s['treatment']) ? $s['treatment'] : $plan_name;
+                        $appointmentsToCreate[] = ['date' => $s['date'], 'time' => $s['time'], 'is_first' => $isFirst, 'treatment' => $treatment];
+                        $isFirst = false;
                     }
                 }
             }
@@ -180,8 +200,9 @@ try {
 
             $serviceId = null;
             $duration = 30;
+            $svcName = !empty($a['treatment']) ? $a['treatment'] : $plan_name;
             $svc = $pdo->prepare("SELECT id, duration_minutes FROM services WHERE name = ? LIMIT 1");
-            $svc->execute([$plan_name]);
+            $svc->execute([$svcName]);
             if ($row = $svc->fetch(PDO::FETCH_ASSOC)) {
                 $serviceId = $row['id'];
                 $duration = $row['duration_minutes'] ?? 30;
