@@ -236,4 +236,19 @@ if ($action === 'save_auto_cancel_settings') {
     exit;
 }
 
+if ($action === 'save_security_settings') {
+    $sessionTimeout = (int)($_POST['session_timeout'] ?? 30);
+    if (!in_array($sessionTimeout, [15, 30, 60, 120])) {
+        $sessionTimeout = 30;
+    }
+    $twoFactorAuth = ($_POST['two_factor_auth'] ?? '0') === '1' ? '1' : '0';
+
+    $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
+    $stmt->execute(['session_timeout', (string)$sessionTimeout]);
+    $stmt->execute(['two_factor_auth', $twoFactorAuth]);
+
+    echo json_encode(['success' => true, 'message' => 'Security settings saved successfully']);
+    exit;
+}
+
 echo json_encode(['success' => false, 'message' => 'Invalid action']);

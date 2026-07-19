@@ -917,7 +917,7 @@ $assets = [
               .then(function(data) {
                 if (data.exists) {
                   if (data.is_archived) {
-                    alert('This email was previously used and is no longer active. Please contact support to restore your account.');
+                    alert('This email was previously used and is no longer active. Please contact the clinic to restore your account.');
                     return;
                   }
                   document.getElementById('welcome-back-email').value = bookingData.email;

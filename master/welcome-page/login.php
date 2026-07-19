@@ -319,6 +319,122 @@ if (
     }
 }
 
+// Handle 2FA clear (when user goes back to login)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'clear_2fa') {
+    unset($_SESSION['2fa_user_id'], $_SESSION['2fa_code'], $_SESSION['2fa_code_expiry'], $_SESSION['2fa_user_data']);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['success' => true]);
+    exit();
+}
+
+// Handle 2FA verification
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'verify_2fa') {
+    header('Content-Type: application/json; charset=utf-8');
+    $code = trim($_POST['code'] ?? '');
+    $userId = (int)($_SESSION['2fa_user_id'] ?? 0);
+    $storedHash = $_SESSION['2fa_code'] ?? '';
+    $expiry = (int)($_SESSION['2fa_code_expiry'] ?? 0);
+
+    if ($userId === 0 || empty($storedHash) || time() > $expiry) {
+        echo json_encode(['success' => false, 'message' => 'Code expired. Please login again.']);
+        exit();
+    }
+
+    if (empty($code) || !password_verify($code, $storedHash)) {
+        echo json_encode(['success' => false, 'message' => 'Invalid verification code.']);
+        exit();
+    }
+
+    $user = $_SESSION['2fa_user_data'] ?? null;
+    if (!$user) {
+        echo json_encode(['success' => false, 'message' => 'Session expired. Please login again.']);
+        exit();
+    }
+
+    // Clear 2FA session data
+    unset($_SESSION['2fa_user_id'], $_SESSION['2fa_code'], $_SESSION['2fa_code_expiry'], $_SESSION['2fa_user_data']);
+
+    // Complete login
+    $_SESSION['user_id'] = $user['id'];
+    $_SESSION['username'] = $user['username'];
+    $_SESSION['email'] = $user['email'] ?? '';
+    $_SESSION['profile_picture'] = $user['profile_picture'] ?? null;
+
+    if (isset($user['role'])) {
+        $role = strtolower($user['role']);
+    } else {
+        $role = 'user';
+    }
+    if ($role === 'patient') $role = 'user';
+    if ($role === 'administrator') $role = 'admin';
+    $_SESSION['role'] = $role;
+    $_SESSION['user_role'] = $role;
+
+    if ($role === 'user') {
+        $patientId = ensurePatientRecordForUser($pdo, $user);
+        if ($patientId) {
+            $_SESSION['patient_id'] = $patientId;
+        }
+    }
+
+    $firstName = trim($user['first_name'] ?? '');
+    $lastName = trim($user['last_name'] ?? '');
+    $firstNameOnly = explode(' ', $firstName)[0] ?? '';
+    $_SESSION['user_name'] = $firstName;
+
+    if ($role === 'dentist') {
+        $_SESSION['display_name'] = 'Dr. ' . trim($firstNameOnly ?: 'Dentist');
+    } else {
+        $roleLabel = ['admin' => 'Admin', 'staff' => 'Staff', 'user' => 'User'];
+        $_SESSION['display_name'] = trim($firstNameOnly ?: ($roleLabel[$role] ?? $user['username']));
+    }
+
+    $isFirstLogin = false;
+    try {
+        $colStmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'first_login'");
+        if ($colStmt && $colStmt->fetch(PDO::FETCH_ASSOC)) {
+            $isFirstLogin = isset($user['first_login']) && (int)$user['first_login'] === 1;
+            if ($isFirstLogin) {
+                $upd = $pdo->prepare("UPDATE users SET first_login = 0 WHERE id = ?");
+                $upd->execute([$user['id']]);
+            }
+        }
+    } catch (Exception $e) {}
+    $_SESSION['first_login'] = $isFirstLogin ? 1 : 0;
+
+    try {
+        $priorLoginStmt = $pdo->prepare("SELECT COUNT(*) FROM audit_logs WHERE user_id = ? AND action_type = 'login'");
+        $priorLoginStmt->execute([$user['id']]);
+        $_SESSION['is_new_patient'] = ((int)$priorLoginStmt->fetchColumn() === 0);
+    } catch (Exception $e) {
+        $_SESSION['is_new_patient'] = false;
+    }
+
+    require_once '../../includes/audit_helper.php';
+    $recentCheck = $pdo->prepare("SELECT id FROM audit_logs WHERE username = ? AND action_type = 'login' AND created_at > DATE_SUB(NOW(), INTERVAL 5 SECOND) ORDER BY id DESC LIMIT 1");
+    $recentCheck->execute([$user['username']]);
+    if (!$recentCheck->fetch()) {
+        logAudit($pdo, $user['id'], $user['username'], $role, 'login', 'users', 'Successful login (2FA) from ' . ($_SERVER['HTTP_USER_AGENT'] ? 'web browser' : 'unknown device'));
+    }
+
+    try {
+        updateUserSessionColumns($pdo, (int)$user['id'], [
+            'last_active' => 'UTC_TIMESTAMP()',
+            'last_logout' => 'NULL',
+            'is_logged_in' => '1',
+        ]);
+    } catch (Exception $e) {}
+
+    if ($role === 'admin') $redirect = '../admin/admin_dashboard.php';
+    elseif ($role === 'staff') $redirect = '../staff/staff-dashboard.php';
+    elseif ($role === 'dentist') $redirect = '../dentist/dentist_dashboard.php';
+    elseif ($role === 'user') $redirect = '../user-patient/patient-dashboard.php';
+    else $redirect = '../../dashboard.php';
+
+    echo json_encode(['success' => true, 'message' => 'Logged in successfully', 'redirect' => $redirect, 'role' => $role]);
+    exit();
+}
+
 // Handle AJAX login request
 if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' && 
     isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
@@ -365,6 +481,50 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
         if ($user && verifyAndUpgradePassword($pdo, $user, $password)) {
             // Clear existing session and set new session data
             session_regenerate_id(false);
+
+            // Check if 2FA is enabled for this user (skip if no email)
+            $twoFactorEnabled = (int)($user['two_factor_enabled'] ?? 0);
+            $userEmail = trim($user['email'] ?? '');
+            if ($twoFactorEnabled && !empty($userEmail)) {
+                // Clear any stale 2FA data from previous attempts
+                unset($_SESSION['2fa_user_id'], $_SESSION['2fa_code'], $_SESSION['2fa_code_expiry'], $_SESSION['2fa_user_data']);
+
+                $twoFactorCode = (string)random_int(100000, 999999);
+                $_SESSION['2fa_user_id'] = (int)$user['id'];
+                $_SESSION['2fa_code'] = password_hash($twoFactorCode, PASSWORD_DEFAULT);
+                $_SESSION['2fa_code_expiry'] = time() + 300;
+                $_SESSION['2fa_user_data'] = $user;
+
+                try {
+                    require_once '../../config/mailer_config.php';
+                    $phpMailerBase = __DIR__ . '/../../PHPMailer/src';
+                    if (file_exists($phpMailerBase . '/PHPMailer.php')) {
+                        require_once $phpMailerBase . '/Exception.php';
+                        require_once $phpMailerBase . '/PHPMailer.php';
+                        require_once $phpMailerBase . '/SMTP.php';
+
+                        $mailer = new \PHPMailer\PHPMailer\PHPMailer(true);
+                        $mailer->isSMTP();
+                        $mailer->Host = gethostbyname(SMTP_HOST);
+                        $mailer->SMTPAuth = true;
+                        $mailer->Username = SMTP_USER;
+                        $mailer->Password = SMTP_PASS;
+                        $mailer->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+                        $mailer->Port = SMTP_PORT;
+                        $mailer->SMTPOptions = ['ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true]];
+                        $mailer->setFrom(MAIL_FROM, MAIL_FROM_NAME);
+                        $mailer->addAddress($user['email'], $user['username']);
+                        $mailer->isHTML(true);
+                        $mailer->Subject = 'RF Dental Clinic - Two-Factor Authentication Code';
+                        $mailer->Body = '<p>Hi ' . htmlspecialchars($user['username']) . ',</p><p>Your 2FA verification code is:</p><p style="font-size:22px;font-weight:bold;letter-spacing:4px;">' . htmlspecialchars($twoFactorCode) . '</p><p>This code expires in 5 minutes.</p>';
+                        $mailer->AltBody = 'Your 2FA code is: ' . $twoFactorCode;
+                        $mailer->send();
+                    }
+                } catch (Exception $e) {}
+
+                echo json_encode(['success' => true, 'two_factor_required' => true, 'message' => 'Verification code sent to your email']);
+                exit();
+            }
             
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
@@ -831,6 +991,39 @@ $showDeletedMsg = isset($_GET['deleted']) && $_GET['deleted'] === '1';
                         });
                     </script>
                 <?php endif; ?>
+            </div>
+
+            <!-- Two-Factor Authentication (inline) -->
+            <div class="login-form-container" id="twoFactorContainer" style="display: none;">
+                <div class="logo-container">
+                    <img src="<?php echo htmlspecialchars($loginLogo); ?>" alt="RF Logo" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display:none;">
+                        <path d="M50 20 L30 40 L30 60 L50 80 L70 60 L70 40 Z" fill="#2563eb" stroke="#2563eb" stroke-width="2"/>
+                        <text x="50" y="45" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">R</text>
+                        <text x="50" y="70" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">F</text>
+                    </svg>
+                </div>
+
+                <h1 class="clinic-name">Two-Factor Authentication</h1>
+                <p class="login-subtitle" style="text-align:center; margin-bottom: 16px;">
+                    Enter the 6-digit code sent to your email.
+                </p>
+
+                <div class="alert alert-error" id="twoFactorError" style="display: none;"></div>
+
+                <form id="twoFactorForm" onsubmit="return false;">
+                    <div class="input-group">
+                        <input type="text" id="twoFactorCode" placeholder="Enter verification code" maxlength="6" inputmode="numeric" style="text-align: center; letter-spacing: 6px; font-size: 18px;">
+                    </div>
+                    <button type="button" class="login-btn" id="twoFactorVerifyBtn">
+                        <span id="twoFactorVerifyBtnText">Verify Code</span>
+                    </button>
+                </form>
+
+                <div class="form-links" style="margin-top: 16px; justify-content: center;">
+                    <span>Didn't receive the code? </span>
+                    <a href="#login" class="link" id="backToLoginFrom2faLink">Back to login</a>
+                </div>
             </div>
 
             <!-- Forgot Password (inline) -->

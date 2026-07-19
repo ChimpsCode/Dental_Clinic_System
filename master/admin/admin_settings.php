@@ -324,14 +324,14 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
                     <div class="settings-section">
                         <h3 class="section-title">🔒 Security</h3>
-                        <form class="settings-form">
+                        <form class="settings-form" id="securitySettingsForm">
                             <div class="toggle-setting">
                                 <div class="toggle-info">
                                     <span class="toggle-label">Two-Factor Authentication</span>
                                     <span class="toggle-description">Add extra security to admin accounts</span>
                                 </div>
                                 <label class="toggle-switch">
-                                    <input type="checkbox">
+                                    <input type="checkbox" id="twoFactorAuth" <?php echo ($settings['two_factor_auth'] ?? '0') === '1' ? 'checked' : ''; ?>>
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
@@ -340,11 +340,11 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                     <span class="toggle-label">Session Timeout</span>
                                     <span class="toggle-description">Auto logout after inactivity</span>
                                 </div>
-                                <select class="form-control" style="width: auto;">
-                                    <option value="15">15 minutes</option>
-                                    <option value="30" selected>30 minutes</option>
-                                    <option value="60">1 hour</option>
-                                    <option value="120">2 hours</option>
+                                <select class="form-control" id="sessionTimeout" style="width: auto;">
+                                    <option value="15" <?php echo ($settings['session_timeout'] ?? '30') == '15' ? 'selected' : ''; ?>>15 minutes</option>
+                                    <option value="30" <?php echo ($settings['session_timeout'] ?? '30') == '30' ? 'selected' : ''; ?>>30 minutes</option>
+                                    <option value="60" <?php echo ($settings['session_timeout'] ?? '30') == '60' ? 'selected' : ''; ?>>1 hour</option>
+                                    <option value="120" <?php echo ($settings['session_timeout'] ?? '30') == '120' ? 'selected' : ''; ?>>2 hours</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -483,6 +483,31 @@ document.getElementById('autoCancelForm').addEventListener('submit', function(e)
     })
     .catch(() => {
         alert('Failed to save auto-cancel settings');
+    });
+});
+
+document.getElementById('securitySettingsForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData();
+    formData.append('action', 'save_security_settings');
+    formData.append('two_factor_auth', document.getElementById('twoFactorAuth').checked ? '1' : '0');
+    formData.append('session_timeout', document.getElementById('sessionTimeout').value);
+
+    fetch('settings_actions.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert('Security settings saved successfully!');
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(() => {
+        alert('Failed to save security settings');
     });
 });
 

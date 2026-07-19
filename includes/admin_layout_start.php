@@ -2,7 +2,25 @@
 
 ob_start();
 
+// Read session timeout from database settings, default to 600 (10 minutes)
 $__sessionLifetime = 600;
+if (isset($pdo)) {
+    try {
+        $toStmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'session_timeout' LIMIT 1");
+        $toStmt->execute();
+        $toVal = $toStmt->fetchColumn();
+        if ($toVal !== false && $toVal !== null) {
+            $minutes = (int)$toVal;
+            if ($minutes > 0) {
+                $__sessionLifetime = $minutes * 60;
+            }
+        }
+    } catch (Exception $e) {}
+}
+
+// Also store as cookie for JS-based timeout tracking
+$__sessionTimeoutMinutes = $__sessionLifetime / 60;
+
 if (session_status() === PHP_SESSION_NONE) {
     session_set_cookie_params([
         'lifetime' => $__sessionLifetime,

@@ -13,6 +13,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const refreshCaptcha = document.getElementById('refreshCaptcha');
     const captchaInput = document.getElementById('captchaInput');
 
+    // 2FA elements
+    const twoFactorContainer = document.getElementById('twoFactorContainer');
+    const twoFactorForm = document.getElementById('twoFactorForm');
+    const twoFactorCode = document.getElementById('twoFactorCode');
+    const twoFactorVerifyBtn = document.getElementById('twoFactorVerifyBtn');
+    const twoFactorVerifyBtnText = document.getElementById('twoFactorVerifyBtnText');
+    const twoFactorError = document.getElementById('twoFactorError');
+    const backToLoginFrom2faLink = document.getElementById('backToLoginFrom2faLink');
+
     console.log('=== PAGE LOADED ===');
     console.log('Login form:', loginForm);
     console.log('Login button:', loginBtn);
@@ -188,12 +197,19 @@ document.addEventListener('DOMContentLoaded', function() {
     function showLogin() {
         if (registrationContainer) registrationContainer.style.display = 'none';
         if (forgotContainer) forgotContainer.style.display = 'none';
+        if (twoFactorContainer) twoFactorContainer.style.display = 'none';
         if (loginContainer) loginContainer.style.display = 'block';
         document.title = 'RF Dental Clinic - Login';
         if (window.location.hash !== '#login') {
             history.replaceState(null, '', '#login');
         }
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        // Clear any stale 2FA session data
+        fetch('../../master/welcome-page/login.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'action=clear_2fa'
+        }).catch(function(){});        
     }
 
     function showForgot() {
@@ -207,7 +223,18 @@ document.addEventListener('DOMContentLoaded', function() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    [createAccountLink, backToLoginLink, forgotPasswordLink, backToLoginFromForgotLink].forEach(link => {
+    function showTwoFactor() {
+        if (loginContainer) loginContainer.style.display = 'none';
+        if (registrationContainer) registrationContainer.style.display = 'none';
+        if (forgotContainer) forgotContainer.style.display = 'none';
+        if (twoFactorContainer) twoFactorContainer.style.display = 'block';
+        document.title = 'Two-Factor Auth - RF Dental Clinic';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (twoFactorCode) { twoFactorCode.value = ''; twoFactorCode.focus(); }
+        if (twoFactorError) twoFactorError.style.display = 'none';
+    }
+
+    [createAccountLink, backToLoginLink, forgotPasswordLink, backToLoginFromForgotLink, backToLoginFrom2faLink].forEach(link => {
         if (link) {
             link.addEventListener('click', function(e) {
                 e.preventDefault();
@@ -859,6 +886,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 if (data.success === true) {
+                    if (data.two_factor_required === true) {
+                        console.log('=== 2FA REQUIRED ===');
+                        showToast('Info', data.message || 'Verification code sent to your email', 'success');
+                        showTwoFactor();
+                        return;
+                    }
+
                     console.log('=== LOGIN SUCCESSFUL ===');
                     console.log('Showing toast...');
                     
@@ -918,6 +952,62 @@ document.addEventListener('DOMContentLoaded', function() {
                     showToast('Error', 'An error occurred. Please try again.', 'error');
                 }
             });
+        });
+    }
+
+    // 2FA verification handler
+    if (twoFactorVerifyBtn) {
+        twoFactorVerifyBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const code = twoFactorCode ? twoFactorCode.value.trim() : '';
+            
+            if (!code || code.length !== 6) {
+                if (twoFactorError) { twoFactorError.textContent = 'Please enter a valid 6-digit code'; twoFactorError.style.display = 'block'; }
+                return;
+            }
+            
+            twoFactorVerifyBtn.disabled = true;
+            twoFactorVerifyBtnText.textContent = 'Verifying...';
+            if (twoFactorError) twoFactorError.style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('action', 'verify_2fa');
+            formData.append('code', code);
+
+            fetch('../../master/welcome-page/login.php', {
+                method: 'POST',
+                body: formData,
+                credentials: 'include'
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Success', 'Login successful!', 'success');
+                    const targetRedirect = data.redirect
+                        ? new URL(data.redirect, window.location.href).toString()
+                        : new URL('../../dashboard.php', window.location.href).toString();
+                    setTimeout(() => { window.location.replace(targetRedirect); }, 1000);
+                } else {
+                    showToast('Error', data.message || 'Invalid code', 'error');
+                    if (twoFactorCode) { twoFactorCode.value = ''; twoFactorCode.focus(); }
+                    twoFactorVerifyBtn.disabled = false;
+                    twoFactorVerifyBtnText.textContent = 'Verify Code';
+                }
+            })
+            .catch(() => {
+                showToast('Error', 'Verification failed. Please try again.', 'error');
+                twoFactorVerifyBtn.disabled = false;
+                twoFactorVerifyBtnText.textContent = 'Verify Code';
+            });
+        });
+    }
+
+    // Enter key for 2FA
+    if (twoFactorCode) {
+        twoFactorCode.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && twoFactorVerifyBtn && !twoFactorVerifyBtn.disabled) {
+                twoFactorVerifyBtn.click();
+            }
         });
     }
 

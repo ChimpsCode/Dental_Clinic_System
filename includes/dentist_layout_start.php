@@ -7,8 +7,25 @@
 
 ob_start();
 
-// Set 10-minute session lifetime
+// Read session timeout from database settings, default to 600 (10 minutes)
 $__sessionLifetime = 600;
+if (isset($pdo)) {
+    try {
+        $toStmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'session_timeout' LIMIT 1");
+        $toStmt->execute();
+        $toVal = $toStmt->fetchColumn();
+        if ($toVal !== false && $toVal !== null) {
+            $minutes = (int)$toVal;
+            if ($minutes > 0) {
+                $__sessionLifetime = $minutes * 60;
+            }
+        }
+    } catch (Exception $e) {}
+}
+
+// Also store as cookie for JS-based timeout tracking
+$__sessionTimeoutMinutes = $__sessionLifetime / 60;
+
 if (session_status() === PHP_SESSION_NONE) {
     session_set_cookie_params([
         'lifetime' => $__sessionLifetime,
@@ -516,9 +533,10 @@ try {
                     <div class="user-profile-dropdown" id="userProfileDropdownMenu" style="display:none;">
                         <div class="dropdown-divider"></div>
                         <a href="../dentist/dentist_profile.php" class="dropdown-item settings">
-                            <svg xmlns="http://www.w3.org/2000/svg" height="32" width="32" viewBox="0 0 590 520" fill="currentColor"><!--!Font Awesome Free v7.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.-->
-                                <path d="M463 448.2C440.9 409.8 399.4 384 352 384L288 384C240.6 384 199.1 409.8 177 448.2C212.2 487.4 263.2 512 320 512C376.8 512 427.8 487.3 463 448.2zM64 320C64 178.6 178.6 64 320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320zM320 336C359.8 336 392 303.8 392 264C392 224.2 359.8 192 320 192C280.2 192 248 224.2 248 264C248 303.8 280.2 336 320 336z"/></svg>
-                            <span>Profile</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.64l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.49-.41h-3.84c-.25 0-.45.17-.49.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.09-.47 0-.59.22L2.74 8.87c-.12.22-.07.5.12.64l2.03 1.58c-.05.3-.07.62-.07.94 0 .33.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.64l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.49.41h3.84c.25 0 .45-.17.49-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.09.47 0 .59-.22l1.92-3.32c.12-.22.07-.5-.12-.64l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+                            </svg>
+                            <span>Settings</span>
                         </a>
                         <a href="../../logout.php" class="dropdown-item logout">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
