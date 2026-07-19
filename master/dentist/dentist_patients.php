@@ -2066,7 +2066,7 @@ function toggleToothTp(element) {
 
 function clearTeeth() {
     selectedTeeth = [];
-    document.querySelectorAll('.tooth-wrapper.selected').forEach(el => el.classList.remove('selected'));
+    document.querySelectorAll('.tooth.selected').forEach(el => el.classList.remove('selected'));
     document.getElementById('tpTeethNumbers').value = '';
     document.getElementById('selectedTeethText').textContent = 'None';
 }
@@ -2091,22 +2091,37 @@ function switchTeethType(type) {
     }
 }
 
+// Get tooth size class
+function getToothClass(num) {
+    const n = parseInt(num);
+    const molars = [18,17,16,26,27,28,48,47,46,36,37,38];
+    const incisors = [11,12,21,22,41,42,31,32];
+    const canines = [13,23,43,33];
+    if (molars.includes(n)) return 'molar';
+    if (incisors.includes(n)) return 'incisor';
+    if (canines.includes(n)) return 'canine';
+    return 'premolar';
+}
+
 // Initialize teeth on load
 document.addEventListener('DOMContentLoaded', function() {
-    const adultUpperRight = [18,17,16,15,14,13,12,11].map(n => `<div class="tooth-wrapper" data-tooth="${n}" onclick="toggleToothTp(this)"><div class="tooth-face">${n}</div></div>`).join('');
-    const adultUpperLeft = [21,22,23,24,25,26,27,28].map(n => `<div class="tooth-wrapper" data-tooth="${n}" onclick="toggleToothTp(this)"><div class="tooth-face">${n}</div></div>`).join('');
-    const adultLowerRight = [48,47,46,45,44,43,42,41].map(n => `<div class="tooth-wrapper" data-tooth="${n}" onclick="toggleToothTp(this)"><div class="tooth-face">${n}</div></div>`).join('');
-    const adultLowerLeft = [31,32,33,34,35,36,37,38].map(n => `<div class="tooth-wrapper" data-tooth="${n}" onclick="toggleToothTp(this)"><div class="tooth-face">${n}</div></div>`).join('');
+    function renderTooth(n) {
+        return `<div class="tooth ${getToothClass(n)}" data-tooth="${n}" onclick="toggleToothTp(this)">${n}</div>`;
+    }
+    const adultUpperRight = [18,17,16,15,14,13,12,11].map(renderTooth).join('');
+    const adultUpperLeft = [21,22,23,24,25,26,27,28].map(renderTooth).join('');
+    const adultLowerRight = [48,47,46,45,44,43,42,41].map(renderTooth).join('');
+    const adultLowerLeft = [31,32,33,34,35,36,37,38].map(renderTooth).join('');
     
     if (document.getElementById('adultUpperRight')) document.getElementById('adultUpperRight').innerHTML = adultUpperRight;
     if (document.getElementById('adultUpperLeft')) document.getElementById('adultUpperLeft').innerHTML = adultUpperLeft;
     if (document.getElementById('adultLowerRight')) document.getElementById('adultLowerRight').innerHTML = adultLowerRight;
     if (document.getElementById('adultLowerLeft')) document.getElementById('adultLowerLeft').innerHTML = adultLowerLeft;
     
-    const primaryUpperRight = [55,54,53,52,51].map(n => `<div class="tooth-wrapper" data-tooth="${n}" onclick="toggleToothTp(this)"><div class="tooth-face">${n}</div></div>`).join('');
-    const primaryUpperLeft = [61,62,63,64,65].map(n => `<div class="tooth-wrapper" data-tooth="${n}" onclick="toggleToothTp(this)"><div class="tooth-face">${n}</div></div>`).join('');
-    const primaryLowerRight = [85,84,83,82,81].map(n => `<div class="tooth-wrapper" data-tooth="${n}" onclick="toggleToothTp(this)"><div class="tooth-face">${n}</div></div>`).join('');
-    const primaryLowerLeft = [71,72,73,74,75].map(n => `<div class="tooth-wrapper" data-tooth="${n}" onclick="toggleToothTp(this)"><div class="tooth-face">${n}</div></div>`).join('');
+    const primaryUpperRight = [55,54,53,52,51].map(renderTooth).join('');
+    const primaryUpperLeft = [61,62,63,64,65].map(renderTooth).join('');
+    const primaryLowerRight = [85,84,83,82,81].map(renderTooth).join('');
+    const primaryLowerLeft = [71,72,73,74,75].map(renderTooth).join('');
     
     if (document.getElementById('primaryUpperRight')) document.getElementById('primaryUpperRight').innerHTML = primaryUpperRight;
     if (document.getElementById('primaryUpperLeft')) document.getElementById('primaryUpperLeft').innerHTML = primaryUpperLeft;
@@ -2338,7 +2353,7 @@ function loadTpTimeSlots(date) {
         available.forEach(slot => {
             const btn = document.createElement('div');
             btn.className = 'time-slot available';
-            btn.textContent = slot;
+            btn.textContent = formatTime12h(slot);
             btn.dataset.time = slot;
             btn.onclick = function() {
                 document.querySelectorAll('#tpTimeSlots .time-slot').forEach(s => s.classList.remove('selected'));
@@ -2351,7 +2366,7 @@ function loadTpTimeSlots(date) {
         booked.forEach(slot => {
             const btn = document.createElement('div');
             btn.className = 'time-slot unavailable';
-            btn.textContent = slot;
+            btn.textContent = formatTime12h(slot);
             btn.style.cursor = 'not-allowed';
             btn.style.opacity = '0.6';
             slotsContainer.appendChild(btn);
@@ -2373,7 +2388,7 @@ function selectAllUpper() {
     }
     
     upperTeeth.forEach(num => {
-        const el = document.querySelector(`.tooth-wrapper[data-tooth="${num}"]`);
+        const el = document.querySelector(`.tooth[data-tooth="${num}"]`);
         if (el && !selectedTeeth.includes(num.toString())) {
             selectedTeeth.push(num.toString());
             el.classList.add('selected');
@@ -2394,7 +2409,7 @@ function selectAllLower() {
     }
     
     lowerTeeth.forEach(num => {
-        const el = document.querySelector(`.tooth-wrapper[data-tooth="${num}"]`);
+        const el = document.querySelector(`.tooth[data-tooth="${num}"]`);
         if (el && !selectedTeeth.includes(num.toString())) {
             selectedTeeth.push(num.toString());
             el.classList.add('selected');
@@ -2601,37 +2616,110 @@ setInterval(() => {
 
 <style>
 /* Tooth Chart Styles */
-.tooth-box {
-    width: 28px;
-    height: 28px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.7rem;
-    font-weight: 600;
-    background: white;
-    border: 1px solid #d1d5db;
-    border-radius: 4px;
+.tooth-chart-modal {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+}
+.tooth {
+    width: 34px; height: 42px;
+    background: linear-gradient(145deg, #ffffff 0%, #f5f5f5 30%, #e8e8e8 70%, #d0d0d0 100%);
+    border-radius: 7px 7px 9px 9px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: #455a64;
     cursor: pointer;
-    transition: all 0.15s ease;
-    color: #374151;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2), 0 4px 8px rgba(0,0,0,0.15), inset 0 1px 2px rgba(255,255,255,0.9), inset 0 -1px 2px rgba(0,0,0,0.1);
+    border: 1px solid #bdbdbd;
+    user-select: none;
 }
-.tooth-box:hover {
+.tooth::before {
+    content: '';
+    position: absolute; top: 3px; left: 5px; right: 5px; height: 7px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 100%);
+    border-radius: 3px 3px 1px 1px;
+}
+.tooth:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 8px 16px rgba(37,99,235,0.3), 0 4px 8px rgba(37,99,235,0.2), inset 0 1px 2px rgba(255,255,255,0.9), inset 0 -1px 2px rgba(0,0,0,0.1);
+    border-color: #2563eb; z-index: 10;
+}
+.tooth.selected {
+    background: linear-gradient(145deg, #dbeafe 0%, #bfdbfe 30%, #93c5fd 70%, #60a5fa 100%);
     border-color: #2563eb;
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 8px 16px rgba(37,99,235,0.4), 0 4px 8px rgba(37,99,235,0.3), inset 0 2px 4px rgba(255,255,255,0.5), inset 0 -2px 4px rgba(0,0,0,0.1);
+    color: #1e40af;
+}
+.tooth.selected::after {
+    content: '✓';
+    position: absolute; top: -8px; right: -8px;
+    width: 18px; height: 18px;
+    background: linear-gradient(145deg, #22c55e 0%, #16a34a 100%);
+    color: white; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: bold;
+    box-shadow: 0 2px 4px rgba(34,197,94,0.4);
+    border: 2px solid white;
+}
+.tooth.molar { width: 38px; height: 48px; }
+.tooth.incisor { width: 26px; height: 36px; }
+.tooth.canine { width: 28px; height: 40px; }
+.tooth.premolar { width: 30px; height: 42px; }
+@keyframes toothPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.95); }
+    100% { transform: scale(1); }
+}
+
+/* Time Slot Styles */
+.time-slots {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-top: 8px;
+}
+.time-slot {
+    padding: 8px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: #ffffff;
+    color: #1e293b;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.time-slot.available:hover {
+    border-color: #3b82f6;
     background: #eff6ff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(59,130,246,0.15);
 }
-.tooth-box.selected {
-    background: #2563eb;
-    border-color: #2563eb;
+.time-slot.available.selected {
+    background: #3b82f6;
+    border-color: #3b82f6;
     color: white;
+    box-shadow: 0 4px 8px rgba(59,130,246,0.3);
+}
+.time-slot.unavailable {
+    background: #f8fafc;
+    color: #94a3b8;
+    text-decoration: line-through;
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 
 @media (max-width: 480px) {
-    .tooth-box {
-        width: 22px;
-        height: 22px;
-        font-size: 0.6rem;
-    }
+    .tooth { width: 28px; height: 36px; font-size: 8px; }
+    .tooth.molar { width: 32px; height: 40px; }
+    .tooth.incisor { width: 22px; height: 30px; }
+    .tooth.canine { width: 24px; height: 34px; }
+    .tooth.premolar { width: 26px; height: 36px; }
 }
 
 /* Table Styles - Match admin_patients */
