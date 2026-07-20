@@ -1,5 +1,5 @@
 <?php
-$pageTitle = 'My Profile';
+$pageTitle = 'Settings';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/staff_layout_start.php';
 
@@ -115,10 +115,6 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 </style>
 
 <div class="content-main">
-    <div class="page-header">
-        <h2>My Profile</h2>
-        <p class="page-subtitle">Manage your profile picture and personal information</p>
-    </div>
 
     <?php if ($message): ?>
         <div class="alert alert-<?php echo $messageType; ?>"><?php echo htmlspecialchars($message); ?></div>

@@ -28,9 +28,32 @@ if (session_status() === PHP_SESSION_NONE) {
         'httponly' => true,
         'samesite' => 'Lax'
     ]);
+    ini_set('session.cookie_lifetime', $__sessionLifetime);
     ini_set('session.gc_maxlifetime', $__sessionLifetime);
     session_start();
 }
+
+$__sessionNow = time();
+$__sessionTimeoutSeconds = max(60, (int)$__sessionLifetime);
+
+if (isset($_SESSION['session_expires_at']) && $__sessionNow > (int)$_SESSION['session_expires_at']) {
+    session_unset();
+    session_destroy();
+    session_write_close();
+    ob_end_clean();
+    header('Location: ../../master/welcome-page/login.php?expired=1');
+    exit();
+}
+
+if (!isset($_SESSION['last_activity'])) {
+    $_SESSION['last_activity'] = $__sessionNow;
+}
+if (!isset($_SESSION['session_expires_at'])) {
+    $_SESSION['session_expires_at'] = $__sessionNow + $__sessionTimeoutSeconds;
+}
+
+$_SESSION['last_activity'] = $__sessionNow;
+$_SESSION['session_expires_at'] = $__sessionNow + $__sessionTimeoutSeconds;
 
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
