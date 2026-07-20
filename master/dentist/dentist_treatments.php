@@ -599,6 +599,7 @@ require_once '../../includes/dentist_layout_start.php';
         dateInput.name = 'session_date_' + i;
         dateInput.className = 'form-control session-date';
         dateInput.min = new Date().toISOString().split('T')[0];
+        dateInput.disabled = true;
         rightInner.appendChild(dateInput);
 
         const timeWrapper = document.createElement('div');
@@ -620,6 +621,12 @@ require_once '../../includes/dentist_layout_start.php';
 
         treatSelect.addEventListener('change', function() {
             otherDiv.style.display = this.value === '__other__' ? 'block' : 'none';
+            dateInput.disabled = !this.value;
+            if (!this.value) {
+                dateInput.value = '';
+                slotContainer.innerHTML = '';
+                hiddenInput.value = '';
+            }
         });
 
         dateInput.addEventListener('change', function() {
@@ -1423,6 +1430,12 @@ require_once '../../includes/dentist_layout_start.php';
 }
 .session-right-inner .session-date {
     width: 100%;
+}
+.session-right-inner .session-date:disabled {
+    background: #f3f4f6;
+    color: #9ca3af;
+    cursor: not-allowed;
+    opacity: 0.7;
 }
 .session-selected-time {
     display: flex;
