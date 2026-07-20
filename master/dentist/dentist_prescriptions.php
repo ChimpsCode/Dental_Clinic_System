@@ -3,25 +3,65 @@ $pageTitle = 'Prescriptions';
 require_once '../../config/database.php';
 require_once '../../includes/dentist_layout_start.php';
 
+function ensurePrescriptionTableColumnsForListing(PDO $pdo): void {
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+
+    try {
+        $columns = [];
+        $stmt = $pdo->query('SHOW COLUMNS FROM prescriptions');
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $columns[] = $row['Field'];
+        }
+
+        $alterStatements = [];
+        if (!in_array('doctor_id', $columns, true)) {
+            $alterStatements[] = 'ALTER TABLE prescriptions ADD COLUMN doctor_id INT(11) NULL';
+        }
+        if (!in_array('medications', $columns, true)) {
+            $alterStatements[] = 'ALTER TABLE prescriptions ADD COLUMN medications TEXT NULL';
+        }
+        if (!in_array('instructions', $columns, true)) {
+            $alterStatements[] = 'ALTER TABLE prescriptions ADD COLUMN instructions TEXT NULL';
+        }
+        if (!in_array('created_at', $columns, true)) {
+            $alterStatements[] = 'ALTER TABLE prescriptions ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP';
+        }
+        if (!in_array('updated_at', $columns, true)) {
+            $alterStatements[] = 'ALTER TABLE prescriptions ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP';
+        }
+
+        foreach ($alterStatements as $sql) {
+            $pdo->exec($sql);
+        }
+    } catch (Exception $e) {
+        error_log('Failed to ensure prescriptions listing columns: ' . $e->getMessage());
+    }
+}
+
 try {
     require_once '../../config/database.php';
+    ensurePrescriptionTableColumnsForListing($pdo);
     
     // Get recent prescriptions for display
     $stmt = $pdo->query("
         SELECT pr.*, 
                CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
-               p.age,
+               TIMESTAMPDIFF(YEAR, p.date_of_birth, CURDATE()) AS age,
                u.username AS doctor_name
-        FROM `" . DB_NAME . "`.prescriptions pr
-        LEFT JOIN `" . DB_NAME . "`.patients p ON pr.patient_id = p.id
-        LEFT JOIN `" . DB_NAME . "`.users u ON pr.doctor_id = u.id
+        FROM prescriptions pr
+        LEFT JOIN patients p ON pr.patient_id = p.id
+        LEFT JOIN users u ON pr.doctor_id = u.id
         ORDER BY pr.issue_date DESC, pr.created_at DESC
         LIMIT 20
     ");
     $prescriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Get today's prescription count
-    $todayStmt = $pdo->query("SELECT COUNT(*) FROM `" . DB_NAME . "`.prescriptions WHERE DATE(created_at) = CURDATE()");
+    $todayStmt = $pdo->query("SELECT COUNT(*) FROM prescriptions WHERE DATE(created_at) = CURDATE()");
     $todayCount = $todayStmt->fetchColumn();
     
 } catch (Exception $e) {
@@ -472,14 +512,14 @@ try {
                                 </td>
                                 <td>
                                     <div class="prescription-actions">
-                                        <button class="kebab-btn" aria-label="Actions" onclick="toggleKebab(<?php echo $prescription['id']; ?>, event)">
+                                        <button type="button" class="kebab-btn" aria-label="Actions" onclick="toggleKebabMenu(event, this)">
                                             &#8942;
                                         </button>
                                         <div class="kebab-menu" id="kebab-<?php echo $prescription['id']; ?>">
-                                            <button onclick="viewPrescription(<?php echo $prescription['id']; ?>)">View</button>
-                                            <button onclick="editPrescription(<?php echo $prescription['id']; ?>)">Edit</button>
-                                            <button onclick="printPrescription(<?php echo $prescription['id']; ?>)">Print</button>
-                                            <button class="danger" onclick="deletePrescription(<?php echo $prescription['id']; ?>)">Delete</button>
+                                            <button type="button" onclick="viewPrescription(<?php echo $prescription['id']; ?>)">View</button>
+                                            <button type="button" onclick="editPrescription(<?php echo $prescription['id']; ?>)">Edit</button>
+                                            <button type="button" onclick="printPrescription(<?php echo $prescription['id']; ?>)">Print</button>
+                                            <button type="button" class="danger" onclick="deletePrescription(<?php echo $prescription['id']; ?>)">Delete</button>
                                         </div>
                                     </div>
                                 </td>
@@ -650,7 +690,7 @@ function openNewPrescriptionModal() {
     document.getElementById('patientSearch').value = '';
     document.getElementById('issueDate').value = new Date().toISOString().split('T')[0];
     resetPatientSafetyInfo();
-    document.getElementById('printPrescriptionBtn').style.display = 'none';
+    setPrescriptionFormMode('edit');
     document.getElementById('prescriptionModal').style.display = 'flex';
 }
 
@@ -676,8 +716,163 @@ function openPatientPrescriptionModal(patientId) {
     });
 
     document.getElementById('issueDate').value = new Date().toISOString().split('T')[0];
-    document.getElementById('printPrescriptionBtn').style.display = 'none';
+    setPrescriptionFormMode('edit');
     document.getElementById('prescriptionModal').style.display = 'flex';
+}
+
+function setPrescriptionFormMode(mode) {
+    const isReadOnly = mode === 'view';
+    const fields = ['patientSearch', 'issueDate', 'diagnosis', 'medications', 'instructions'];
+    fields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.disabled = isReadOnly;
+        }
+    });
+
+    const saveBtn = document.querySelector('#prescriptionModal .btn-primary');
+    if (saveBtn) {
+        saveBtn.style.display = isReadOnly ? 'none' : 'inline-block';
+    }
+
+    const printBtn = document.getElementById('printPrescriptionBtn');
+    if (printBtn) {
+        printBtn.style.display = isReadOnly ? 'inline-block' : 'none';
+    }
+}
+
+function fillPrescriptionForm(prescription) {
+    if (!prescription) {
+        return;
+    }
+
+    document.getElementById('prescriptionId').value = prescription.id || '';
+    document.getElementById('patientId').value = prescription.patient_id || '';
+    document.getElementById('patientSearch').value = prescription.patient_name || '';
+    document.getElementById('issueDate').value = prescription.issue_date || '';
+    document.getElementById('diagnosis').value = prescription.diagnosis || '';
+    document.getElementById('medications').value = prescription.medications || '';
+    document.getElementById('instructions').value = prescription.instructions || '';
+    loadPatientSafetyInfo(prescription.patient_id);
+}
+
+function getPrescriptionDetails(prescriptionId, callback) {
+    fetch('prescription_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get_prescription', prescription_id: prescriptionId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            callback(data.prescription);
+        } else {
+            alert('Unable to load prescription details: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Prescription details error:', error);
+        alert('An error occurred while loading the prescription.');
+    });
+}
+
+function viewPrescription(prescriptionId) {
+    currentPrescriptionId = prescriptionId;
+    getPrescriptionDetails(prescriptionId, prescription => {
+        document.getElementById('modalTitle').textContent = 'View Prescription';
+        fillPrescriptionForm(prescription);
+        setPrescriptionFormMode('view');
+        document.getElementById('prescriptionModal').style.display = 'flex';
+    });
+}
+
+function editPrescription(prescriptionId) {
+    currentPrescriptionId = prescriptionId;
+    getPrescriptionDetails(prescriptionId, prescription => {
+        document.getElementById('modalTitle').textContent = 'Edit Prescription';
+        fillPrescriptionForm(prescription);
+        setPrescriptionFormMode('edit');
+        const printBtn = document.getElementById('printPrescriptionBtn');
+        if (printBtn) {
+            printBtn.style.display = 'none';
+        }
+        document.getElementById('prescriptionModal').style.display = 'flex';
+    });
+}
+
+function printPrescription(prescriptionId = null) {
+    const idToPrint = prescriptionId || currentPrescriptionId;
+    if (!idToPrint) {
+        alert('Please select a prescription to print.');
+        return;
+    }
+
+    getPrescriptionDetails(idToPrint, prescription => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert('Please allow popups to print the prescription.');
+            return;
+        }
+
+        const html = `
+            <html>
+            <head>
+                <title>Prescription #${prescription.id}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 24px; color: #111827; }
+                    h1 { font-size: 1.5rem; margin-bottom: 16px; }
+                    .field { margin-bottom: 12px; }
+                    .field label { font-weight: 700; display: block; margin-bottom: 4px; }
+                    .field div { padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; }
+                </style>
+            </head>
+            <body>
+                <h1>Prescription #${prescription.id}</h1>
+                <div class="field"><label>Patient</label><div>${prescription.patient_name || ''} (${prescription.age || 'N/A'})</div></div>
+                <div class="field"><label>Doctor</label><div>${prescription.doctor_name || ''}</div></div>
+                <div class="field"><label>Issue Date</label><div>${prescription.issue_date || ''}</div></div>
+                <div class="field"><label>Diagnosis</label><div>${prescription.diagnosis || ''}</div></div>
+                <div class="field"><label>Medications</label><div>${prescription.medications || ''}</div></div>
+                <div class="field"><label>Instructions</label><div>${prescription.instructions || ''}</div></div>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.open();
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+    });
+}
+
+function deletePrescription(prescriptionId) {
+    if (!confirm('Are you sure you want to delete this prescription?')) {
+        return;
+    }
+
+    fetch('prescription_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete_prescription', prescription_id: prescriptionId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const row = document.querySelector(`tr.prescription-row[data-id="${prescriptionId}"]`);
+            if (row) {
+                row.remove();
+            }
+            closePrescriptionModal();
+            alert(data.message);
+        } else {
+            alert('Unable to delete prescription: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Delete prescription error:', error);
+        alert('An error occurred while deleting the prescription.');
+    });
 }
 
 function loadPatientSafetyInfo(patientId) {

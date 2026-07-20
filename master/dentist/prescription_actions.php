@@ -10,6 +10,45 @@ if (session_status() === PHP_SESSION_NONE) {
 
 require_once __DIR__ . '/../../config/database.php';
 
+function ensurePrescriptionTableColumns(PDO $pdo): void {
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+
+    try {
+        $columns = [];
+        $stmt = $pdo->query('SHOW COLUMNS FROM prescriptions');
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $columns[] = $row['Field'];
+        }
+
+        $alterStatements = [];
+        if (!in_array('doctor_id', $columns, true)) {
+            $alterStatements[] = 'ALTER TABLE prescriptions ADD COLUMN doctor_id INT(11) NULL';
+        }
+        if (!in_array('medications', $columns, true)) {
+            $alterStatements[] = 'ALTER TABLE prescriptions ADD COLUMN medications TEXT NULL';
+        }
+        if (!in_array('instructions', $columns, true)) {
+            $alterStatements[] = 'ALTER TABLE prescriptions ADD COLUMN instructions TEXT NULL';
+        }
+        if (!in_array('created_at', $columns, true)) {
+            $alterStatements[] = 'ALTER TABLE prescriptions ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP';
+        }
+        if (!in_array('updated_at', $columns, true)) {
+            $alterStatements[] = 'ALTER TABLE prescriptions ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP';
+        }
+
+        foreach ($alterStatements as $sql) {
+            $pdo->exec($sql);
+        }
+    } catch (Exception $e) {
+        error_log('Failed to ensure prescription table columns: ' . $e->getMessage());
+    }
+}
+
 header('Content-Type: application/json');
 
 $response = ['success' => false, 'message' => 'Invalid action'];
@@ -29,12 +68,15 @@ if ($current_role !== 'dentist') {
 $input = json_decode(file_get_contents('php://input'), true);
 $action = $input['action'] ?? '';
 
+ensurePrescriptionTableColumns($pdo);
+
 try {
     switch ($action) {
         case 'get_patients':
             // Get all patients for dropdown (legacy)
             $stmt = $pdo->query("
-                SELECT id, CONCAT(first_name, ' ', last_name) as patient_name, age
+                SELECT id, CONCAT(first_name, ' ', last_name) as patient_name,
+                       TIMESTAMPDIFF(YEAR, date_of_birth, CURDATE()) as age
                 FROM patients 
                 ORDER BY first_name, last_name
             ");
@@ -53,7 +95,8 @@ try {
             }
             
             $stmt = $pdo->prepare("
-                SELECT id, CONCAT(first_name, ' ', last_name) as patient_name, age
+                SELECT id, CONCAT(first_name, ' ', last_name) as patient_name,
+                       TIMESTAMPDIFF(YEAR, date_of_birth, CURDATE()) as age
                 FROM patients 
                 WHERE first_name LIKE ? OR last_name LIKE ? OR CONCAT(first_name, ' ', last_name) LIKE ?
                 ORDER BY first_name, last_name
@@ -139,7 +182,7 @@ try {
             
             $stmt = $pdo->prepare("
                 SELECT p.id, CONCAT(p.first_name, ' ', p.last_name) as patient_name, 
-                       p.age, p.phone,
+                       TIMESTAMPDIFF(YEAR, p.date_of_birth, CURDATE()) as age, p.phone,
                        mh.allergies, mh.current_medications, mh.medical_conditions,
                        mh.blood_pressure, mh.heart_rate, mh.other_notes
                 FROM patients p
@@ -213,7 +256,7 @@ try {
             $stmt = $pdo->prepare("
                 SELECT pr.*, 
                        CONCAT(p.first_name, ' ', p.last_name) as patient_name,
-                       p.age, p.phone,
+                       TIMESTAMPDIFF(YEAR, p.date_of_birth, CURDATE()) as age, p.phone,
                        u.username as doctor_name
                 FROM prescriptions pr
                 LEFT JOIN patients p ON pr.patient_id = p.id

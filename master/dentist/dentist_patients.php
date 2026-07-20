@@ -1007,7 +1007,7 @@ function handlePatientKebabClick(e) {
             openAddAppointmentModal(id);
             break;
         case 'session':
-            window.location.href = 'quick_session.php?patient_id=' + id;
+            window.location.href = '../shared/quick_session.php?patient_id=' + id;
             break;
         case 'treatment_plan':
             openTreatmentPlanModal(id);
