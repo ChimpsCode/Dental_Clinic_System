@@ -234,9 +234,33 @@ try {
                         $firstName = htmlspecialchars($apt['first_name'] ?? '');
                         $middleName = htmlspecialchars($apt['middle_name'] ?? '');
                         $lastName = htmlspecialchars($apt['last_name'] ?? '');
-                        $appointmentDate = new DateTime($apt['appointment_date']);
-                        $appointmentTime = $appointmentDate->format('h:i A');
-                        $appointmentDateStr = $appointmentDate->format('M d, Y');
+
+                        $appointmentDateInput = $apt['appointment_date'] ?? '';
+                        $appointmentTimeInput = $apt['appointment_time'] ?? '';
+                        $appointmentDateTime = null;
+
+                        if ($appointmentDateInput) {
+                            $candidate = $appointmentDateInput;
+                            if ($appointmentTimeInput) {
+                                $candidate .= ' ' . $appointmentTimeInput;
+                            }
+
+                            try {
+                                $appointmentDateTime = new DateTime($candidate);
+                            } catch (Exception $e) {
+                                $appointmentDateTime = null;
+                            }
+                        }
+
+                        $appointmentTime = $appointmentDateTime ? $appointmentDateTime->format('h:i A') : '';
+                        $appointmentDateStr = $appointmentDateTime ? $appointmentDateTime->format('M d, Y') : '';
+
+                        if (!$appointmentDateStr && $appointmentDateInput) {
+                            $appointmentDateStr = date('M d, Y', strtotime($appointmentDateInput));
+                        }
+                        if (!$appointmentTime && $appointmentTimeInput) {
+                            $appointmentTime = date('h:i A', strtotime($appointmentTimeInput));
+                        }
                         
                         // Robust status resolution
                         $status = $apt['status_label'] ?? $apt['status'] ?? 'Scheduled';

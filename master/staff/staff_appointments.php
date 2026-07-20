@@ -274,12 +274,17 @@ require_once '../../includes/staff_layout_start.php';
                                     <div><?php echo date('M d, Y', strtotime($appt['appointment_date'])); ?></div>
                                     <div style="font-size: 0.85rem; color: #6b7280;">
                                         <?php 
-                                        $time = $appt['appointment_time'] ?? '';
-                                        if ($time) {
-                                            echo date('h:i A', strtotime($time));
-                                        } else {
-                                            echo 'N/A';
+                                        $appointmentDateInput = $appt['appointment_date'] ?? '';
+                                        $appointmentTimeInput = $appt['appointment_time'] ?? '';
+                                        $displayTime = '';
+
+                                        if ($appointmentTimeInput) {
+                                            $displayTime = date('h:i A', strtotime($appointmentTimeInput));
+                                        } elseif ($appointmentDateInput) {
+                                            $displayTime = date('h:i A', strtotime($appointmentDateInput));
                                         }
+
+                                        echo $displayTime ? htmlspecialchars($displayTime) : 'N/A';
                                         ?>
                                     </div>
                                 </td>

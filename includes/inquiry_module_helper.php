@@ -14,11 +14,63 @@ function inquiryModuleColumnExists(PDO $pdo, string $table, string $column): boo
     return (bool)$stmt->fetch(PDO::FETCH_ASSOC);
 }
 
+function tableExists(PDO $pdo, string $table): bool
+{
+    $stmt = $pdo->prepare(" 
+        SELECT 1
+        FROM information_schema.TABLES
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = ?
+        LIMIT 1
+    ");
+    $stmt->execute([$table]);
+    return (bool)$stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+function getColumnDefinition(PDO $pdo, string $table, string $column): ?array
+{
+    $stmt = $pdo->prepare(" 
+        SELECT COLUMN_NAME, COLUMN_TYPE, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = ?
+          AND COLUMN_NAME = ?
+        LIMIT 1
+    ");
+    $stmt->execute([$table, $column]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $row ?: null;
+}
+
 function ensureInquiryModuleSchema(PDO $pdo): void
 {
     static $ensured = false;
     if ($ensured) {
         return;
+    }
+
+    if (!tableExists($pdo, 'inquiry_statuses')) {
+        $pdo->exec(" 
+            CREATE TABLE IF NOT EXISTS inquiry_statuses (
+                id INT(11) NOT NULL AUTO_INCREMENT,
+                status_name VARCHAR(50) NOT NULL,
+                PRIMARY KEY (id),
+                UNIQUE KEY uk_inquiry_status_name (status_name)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+        ");
+        $pdo->exec("INSERT IGNORE INTO inquiry_statuses (status_name) VALUES ('Unread'), ('Read'), ('Replied')");
+    }
+
+    if (!tableExists($pdo, 'appointment_statuses')) {
+        $pdo->exec(" 
+            CREATE TABLE IF NOT EXISTS appointment_statuses (
+                id INT(11) NOT NULL AUTO_INCREMENT,
+                status_name VARCHAR(50) NOT NULL,
+                PRIMARY KEY (id),
+                UNIQUE KEY uk_appointment_status_name (status_name)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+        ");
+        $pdo->exec("INSERT IGNORE INTO appointment_statuses (status_name) VALUES ('Pending'), ('Confirmed'), ('Cancelled'), ('Completed')");
     }
 
     if (!inquiryModuleColumnExists($pdo, 'inquiries', 'status')) {
@@ -213,13 +265,53 @@ function updateInquiryRecord(PDO $pdo, int $id, array $data, bool $touchUpdatedA
 
 function getInquiryStatuses(): array
 {
-    return ['Unread', 'Read', 'Replied'];
+    return ['Unread', 'Read', 'Replied', 'Pending', 'Answered', 'Booked', 'New Admission'];
 }
 
-function normalizeInquiryStatus(?string $status): string
+function getCompatibleEnumValue(PDO $pdo, string $table, string $column, ?string $preferredValue, array $fallbacks = [], ?string $defaultValue = null): string
+{
+    $preferredValue = trim((string)($preferredValue ?? ''));
+    $columnDef = getColumnDefinition($pdo, $table, $column);
+
+    if ($columnDef && preg_match('/^enum\((.*)\)$/i', (string)($columnDef['COLUMN_TYPE'] ?? ''), $matches)) {
+        $allowedValues = array_map(static function (string $value): string {
+            return trim($value, " '");
+        }, explode(',', $matches[1]));
+
+        $candidates = array_values(array_filter(array_unique(array_merge([$preferredValue], $fallbacks, $allowedValues)), static function (string $value): bool {
+            return $value !== '';
+        }));
+
+        foreach ($candidates as $candidate) {
+            if (in_array($candidate, $allowedValues, true)) {
+                return $candidate;
+            }
+        }
+
+        return $allowedValues[0] ?? ($defaultValue ?? 'Pending');
+    }
+
+    return $preferredValue !== '' ? $preferredValue : ($defaultValue ?? 'Pending');
+}
+
+function getCompatibleInquiryStatus(PDO $pdo, ?string $preferredStatus): string
+{
+    return getCompatibleEnumValue($pdo, 'inquiries', 'status', $preferredStatus, ['Pending', 'Unread', 'Read', 'Replied', 'Answered', 'Booked', 'New Admission'], 'Pending');
+}
+
+function getCompatibleInquirySource(PDO $pdo, ?string $preferredSource): string
+{
+    return getCompatibleEnumValue($pdo, 'inquiries', 'source', $preferredSource, ['Patient Portal', 'Walk-in', 'Phone call', 'Fb messenger'], 'Walk-in');
+}
+
+function normalizeInquiryStatus(PDO $pdo, ?string $status): string
 {
     $allowed = getInquiryStatuses();
-    return in_array($status, $allowed, true) ? $status : 'Unread';
+    $preferred = trim((string)($status ?? ''));
+    if ($preferred === '') {
+        return getCompatibleInquiryStatus($pdo, 'Pending');
+    }
+    return in_array($preferred, $allowed, true) ? $preferred : getCompatibleInquiryStatus($pdo, $preferred);
 }
 
 function fetchInquiryServices(PDO $pdo): array

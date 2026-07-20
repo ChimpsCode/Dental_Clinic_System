@@ -37,6 +37,10 @@ function inquiryCanPatient(string $role): bool
 
 function resolveInquiryStatusId(PDO $pdo, string $statusName): ?int
 {
+    if (!tableExists($pdo, 'inquiry_statuses')) {
+        return null;
+    }
+
     $stmt = $pdo->prepare("SELECT id FROM inquiry_statuses WHERE status_name = ? LIMIT 1");
     $stmt->execute([$statusName]);
     $statusId = $stmt->fetchColumn();
@@ -45,6 +49,10 @@ function resolveInquiryStatusId(PDO $pdo, string $statusName): ?int
 
 function resolveAppointmentStatusId(PDO $pdo, string $statusName): ?int
 {
+    if (!tableExists($pdo, 'appointment_statuses')) {
+        return null;
+    }
+
     $stmt = $pdo->prepare("SELECT id FROM appointment_statuses WHERE status_name = ? LIMIT 1");
     $stmt->execute([$statusName]);
     $statusId = $stmt->fetchColumn();
@@ -510,11 +518,14 @@ if ($action === 'create') {
         inquiryJson(['success' => false, 'message' => 'Concern / Message is required.']);
     }
 
+    $compatibleStatus = getCompatibleInquiryStatus($pdo, 'Unread');
+    $source = getCompatibleInquirySource($pdo, 'Patient Portal');
+
     $existingStmt = $pdo->prepare("
         SELECT id, status FROM inquiries
         WHERE patient_id = ?
           AND COALESCE(is_archived, 0) = 0
-          AND status IN ('Unread', 'Read', 'Replied')
+          AND status IN ('Unread', 'Read', 'Replied', 'Pending', 'Answered', 'Booked', 'New Admission')
         ORDER BY created_at DESC, id DESC
         LIMIT 1
     ");
@@ -542,7 +553,7 @@ if ($action === 'create') {
         'phone' => $phone,
         'email' => $email,
         'concern' => $concern,
-        'status' => 'Unread',
+        'status' => $compatibleStatus,
         'assigned_staff_id' => null,
         'notes' => null,
         'source' => $source,
@@ -567,7 +578,7 @@ if ($action === 'create') {
     if (inquiryColumnExists($pdo, 'inquiries', 'status_id')) {
         $statusId = null;
         $statusLookup = $pdo->prepare("SELECT id FROM inquiry_statuses WHERE status_name = ? LIMIT 1");
-        $statusLookup->execute(['Unread']);
+        $statusLookup->execute([$compatibleStatus]);
         $statusId = $statusLookup->fetchColumn();
         if ($statusId !== false) {
             $columns[] = 'status_id';
@@ -614,7 +625,7 @@ if ($action === 'update') {
     $preferredTime = trim((string)($inquiry['preferred_time'] ?? '')) ?: null;
     $painLevel = trim((string)($inquiry['pain_level'] ?? '')) ?: null;
     $urgency = in_array($_POST['urgency'] ?? '', ['Low', 'Medium', 'High'], true) ? $_POST['urgency'] : ($inquiry['urgency'] ?? 'Low');
-    $status = normalizeInquiryStatus($_POST['status'] ?? ($inquiry['status'] ?? 'Pending'));
+    $status = normalizeInquiryStatus($pdo, $_POST['status'] ?? ($inquiry['status'] ?? 'Pending'));
     $assignedStaffId = !empty($_POST['assigned_staff_id']) ? (int)$_POST['assigned_staff_id'] : null;
     $confirmedDate = trim($_POST['confirmed_date'] ?? '') ?: null;
     $confirmedTime = trim($_POST['confirmed_time'] ?? '') ?: null;
@@ -680,7 +691,7 @@ if ($action === 'update') {
 }
 
 if ($action === 'status') {
-    $status = normalizeInquiryStatus($_POST['status'] ?? '');
+    $status = normalizeInquiryStatus($pdo, $_POST['status'] ?? '');
     $statusUpdate = ['status' => $status];
     if (inquiryColumnExists($pdo, 'inquiries', 'status_id')) {
         $statusUpdate['status_id'] = resolveInquiryStatusId($pdo, $status);
@@ -690,7 +701,7 @@ if ($action === 'status') {
 }
 
 if ($action === 'update_staff_schedule') {
-    $status = normalizeInquiryStatus($_POST['status'] ?? ($inquiry['status'] ?? 'Pending'));
+    $status = normalizeInquiryStatus($pdo, $_POST['status'] ?? ($inquiry['status'] ?? 'Pending'));
     $assignedStaffId = !empty($_POST['assigned_staff_id']) ? (int)$_POST['assigned_staff_id'] : null;
     $confirmedDate = trim($_POST['confirmed_date'] ?? '') ?: null;
     $confirmedTime = trim($_POST['confirmed_time'] ?? '') ?: null;
