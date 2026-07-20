@@ -1016,17 +1016,14 @@ div.main-content {
     .fullscreen-modal-overlay {
         display: none;
         position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
+        inset: 0;
+        background: rgba(15, 23, 42, 0.65);
         justify-content: center;
-        z-index: 99999;
+        align-items: center;
+        z-index: 2147483647;
     }
     .fullscreen-modal-overlay.active {
         display: flex;
-        align-items: center;
     }
     .fullscreen-modal-content {
         background: white;
@@ -2005,6 +2002,18 @@ function renderNoBillingHTML() {
 function closeQueuePatientModal() {
     document.getElementById('queuePatientModal').classList.remove('active');
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    const queuePatientModal = document.getElementById('queuePatientModal');
+    const assignDoctorModal = document.getElementById('assignDoctorModal');
+
+    if (queuePatientModal && queuePatientModal.parentElement !== document.body) {
+        document.body.appendChild(queuePatientModal);
+    }
+    if (assignDoctorModal && assignDoctorModal.parentElement !== document.body) {
+        document.body.appendChild(assignDoctorModal);
+    }
+});
 
 document.getElementById('queuePatientModal').addEventListener('click', function(e) {
     if (e.target === this) closeQueuePatientModal();
