@@ -266,7 +266,7 @@ try {
                         $status = $apt['status_label'] ?? $apt['status'] ?? 'Scheduled';
                         $statusText = $status;
                     ?>
-                    <tr class="appointment-row" data-id="<?php echo $apt['id']; ?>" data-date="<?php echo $apt['appointment_date']; ?>" data-time="<?php echo $appointmentTime; ?>" data-name="<?php echo strtolower($firstName . ' ' . $lastName); ?>" data-first-name="<?php echo htmlspecialchars($firstName); ?>" data-middle-name="<?php echo htmlspecialchars($middleName); ?>" data-last-name="<?php echo htmlspecialchars($lastName); ?>" data-phone="<?php echo htmlspecialchars($apt['phone'] ?? ''); ?>" data-status="<?php echo $statusText; ?>" data-type="<?php echo htmlspecialchars($apt['treatment'] ?? 'Consultation'); ?>" data-notes="<?php echo htmlspecialchars($apt['notes'] ?? ''); ?>" data-price="<?php echo htmlspecialchars($apt['service_price'] ?? '500'); ?>">
+                    <tr class="appointment-row" data-id="<?php echo $apt['id']; ?>" data-date="<?php echo $apt['appointment_date']; ?>" data-time="<?php echo $appointmentTime; ?>" data-name="<?php echo strtolower($firstName . ' ' . $lastName); ?>" data-first-name="<?php echo htmlspecialchars($firstName); ?>" data-middle-name="<?php echo htmlspecialchars($middleName); ?>" data-last-name="<?php echo htmlspecialchars($lastName); ?>" data-phone="<?php echo htmlspecialchars($apt['phone'] ?? ''); ?>" data-status="<?php echo $statusText; ?>" data-type="<?php echo htmlspecialchars($apt['service_name'] ?? $apt['treatment'] ?? 'Consultation'); ?>" data-notes="<?php echo htmlspecialchars($apt['notes'] ?? ''); ?>" data-price="<?php echo htmlspecialchars($apt['service_price'] ?? '500'); ?>">
                         <td><?php echo $firstName ?: '-'; ?></td>
                         <td><?php echo $middleName ?: '-'; ?></td>
                         <td><?php echo $lastName ?: '-'; ?></td>
@@ -801,7 +801,7 @@ function viewAppointment(id) {
             <div><span style="color: #6b7280;">Phone:</span> <span style="font-weight: 500; margin-left: 8px;">${appointment.phone || 'N/A'}</span></div>
             <div><span style="color: #6b7280;">Date:</span> <span style="font-weight: 500; margin-left: 8px;">${dateStr}</span></div>
             <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${timeStr}</span></div>
-            <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${appointment.treatment || 'Consultation'}</span></div>
+            <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${appointment.service_name || appointment.treatment || 'Consultation'}</span></div>
             <div><span style="color: #6b7280;">Status:</span> <span class="status-badge ${getStatusBadgeClass(appointment.status)}" style="margin-left: 8px;">${appointment.status || 'Pending'}</span></div>
             ${appointment.notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${appointment.notes}</p></div>` : ''}
         </div>
@@ -821,9 +821,12 @@ function editAppointment(id) {
     document.getElementById('edit_last_name').value = appointment.last_name || '';
     document.getElementById('edit_phone').value = appointment.phone || '';
     document.getElementById('edit_email').value = appointment.email || '';
-    document.getElementById('edit_treatment').value = appointment.treatment || 'Consultation';
-pointment.treatment || 'General Checkup';
-etElementById('editAppointmentModal').style.display = 'flex';
+    document.getElementById('edit_treatment').value = appointment.service_name || appointment.treatment || 'Consultation';
+    document.getElementById('edit_appointment_date').value = appointment.appointment_date ? String(appointment.appointment_date).split(' ')[0] : '';
+    document.getElementById('edit_appointment_time').value = appointment.appointment_time || '';
+    document.getElementById('edit_status').value = appointment.status || 'scheduled';
+    document.getElementById('edit_notes').value = appointment.notes || '';
+    document.getElementById('editAppointmentModal').style.display = 'flex';
 }
 
 function closeEditAppointmentModal() {
