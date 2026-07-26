@@ -24,6 +24,40 @@ $user_id = (int)$_SESSION['user_id'];
 try {
     require_once '../../config/database.php';
 
+    // Ensure medical_history table has all required columns
+    static $mhSchemaReady = false;
+    if (!$mhSchemaReady) {
+        $mhSchemaReady = true;
+        $mhColumns = [];
+        try {
+            $colStmt = $pdo->query("SHOW COLUMNS FROM medical_history");
+            foreach ($colStmt->fetchAll(PDO::FETCH_ASSOC) as $col) {
+                $mhColumns[$col['Field']] = true;
+            }
+        } catch (Exception $e) {}
+
+        $requiredMhCols = [
+            'current_medications' => "ALTER TABLE medical_history ADD COLUMN current_medications TEXT NULL AFTER allergies",
+            'past_surgeries' => "ALTER TABLE medical_history ADD COLUMN past_surgeries TEXT NULL AFTER medical_conditions",
+            'heart_condition' => "ALTER TABLE medical_history ADD COLUMN heart_condition TINYINT(1) DEFAULT 0 AFTER past_surgeries",
+            'diabetes' => "ALTER TABLE medical_history ADD COLUMN diabetes TINYINT(1) DEFAULT 0 AFTER heart_condition",
+            'bleeding_disorder' => "ALTER TABLE medical_history ADD COLUMN bleeding_disorder TINYINT(1) DEFAULT 0 AFTER diabetes",
+            'pregnancy' => "ALTER TABLE medical_history ADD COLUMN pregnancy TINYINT(1) DEFAULT 0 AFTER bleeding_disorder",
+            'blood_pressure' => "ALTER TABLE medical_history ADD COLUMN blood_pressure TINYINT(1) DEFAULT 0 AFTER pregnancy",
+            'hiv_aids' => "ALTER TABLE medical_history ADD COLUMN hiv_aids TINYINT(1) DEFAULT 0 AFTER blood_pressure",
+            'hepatitis' => "ALTER TABLE medical_history ADD COLUMN hepatitis TINYINT(1) DEFAULT 0 AFTER hiv_aids",
+            'tuberculosis' => "ALTER TABLE medical_history ADD COLUMN tuberculosis TINYINT(1) DEFAULT 0 AFTER hepatitis",
+            'asthma' => "ALTER TABLE medical_history ADD COLUMN asthma TINYINT(1) DEFAULT 0 AFTER tuberculosis",
+            'others' => "ALTER TABLE medical_history ADD COLUMN others TEXT NULL AFTER asthma",
+        ];
+
+        foreach ($requiredMhCols as $field => $sql) {
+            if (!isset($mhColumns[$field])) {
+                try { $pdo->exec($sql); } catch (Exception $e) {}
+            }
+        }
+    }
+
     $method = $_SERVER['REQUEST_METHOD'];
     $action = $_GET['action'] ?? ($_POST['action'] ?? '');
 
@@ -194,6 +228,66 @@ try {
             $stmt = $pdo->prepare("UPDATE consultations SET dental_medical_history_notes = ? WHERE id = ?");
             $stmt->execute([$input['dental_medical_history_notes'] ?? '', $consultId]);
             echo json_encode(['success' => true, 'message' => 'History saved']);
+            break;
+
+        case 'save_medical_history':
+            $input = json_decode(file_get_contents('php://input'), true);
+            $patientId = (int)($input['patient_id'] ?? 0);
+            $medData = $input['medical_data'] ?? [];
+            if (!$patientId) {
+                echo json_encode(['success' => false, 'message' => 'Patient ID required']);
+                break;
+            }
+
+            $checkboxFields = ['heart_condition', 'diabetes', 'bleeding_disorder', 'pregnancy', 'blood_pressure', 'hiv_aids', 'hepatitis', 'tuberculosis', 'asthma'];
+            $textFields = ['allergies', 'current_medications', 'medical_conditions', 'past_surgeries', 'others'];
+
+            // Check if medical_history record exists for this patient
+            $stmt = $pdo->prepare("SELECT id FROM medical_history WHERE patient_id = ? ORDER BY id DESC LIMIT 1");
+            $stmt->execute([$patientId]);
+            $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($existing) {
+                $setParts = [];
+                $values = [];
+                foreach ($checkboxFields as $f) {
+                    if (array_key_exists($f, $medData)) {
+                        $setParts[] = "$f = ?";
+                        $values[] = (int)$medData[$f];
+                    }
+                }
+                foreach ($textFields as $f) {
+                    if (array_key_exists($f, $medData)) {
+                        $setParts[] = "$f = ?";
+                        $values[] = $medData[$f];
+                    }
+                }
+                if (!empty($setParts)) {
+                    $values[] = $existing['id'];
+                    $stmt = $pdo->prepare("UPDATE medical_history SET " . implode(', ', $setParts) . " WHERE id = ?");
+                    $stmt->execute($values);
+                }
+            } else {
+                $colList = ['patient_id'];
+                $valList = [$patientId];
+                foreach ($checkboxFields as $f) {
+                    if (array_key_exists($f, $medData)) {
+                        $colList[] = $f;
+                        $valList[] = (int)$medData[$f];
+                    }
+                }
+                foreach ($textFields as $f) {
+                    if (array_key_exists($f, $medData)) {
+                        $colList[] = $f;
+                        $valList[] = $medData[$f];
+                    }
+                }
+                $placeholders = implode(', ', array_fill(0, count($valList), '?'));
+                $stmt = $pdo->prepare("INSERT INTO medical_history (" . implode(', ', $colList) . ") VALUES ($placeholders)");
+                $stmt->execute($valList);
+            }
+
+            echo json_encode(['success' => true, 'message' => 'Medical history saved']);
             break;
 
         case 'save_prescription':

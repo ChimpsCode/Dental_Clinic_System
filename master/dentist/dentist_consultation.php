@@ -672,6 +672,82 @@ try {
     color: #1f2937;
     font-weight: 500;
 }
+.history-item .h-value.danger {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+/* Medical History Checkboxes */
+.mh-checklist {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px;
+}
+.mh-check-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    user-select: none;
+}
+.mh-check-item:hover {
+    border-color: #93c5fd;
+    background: #f0f7ff;
+}
+.mh-check-item.checked {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+.mh-check-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #3b82f6;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.mh-check-item .mh-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #334155;
+}
+.mh-text-group {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+}
+.mh-text-item label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+.mh-text-item input[type="text"] {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.mh-text-item input[type="text"]:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+}
+.mh-save-status {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-top: 8px;
+    min-height: 18px;
+}
 
 /* Prescription */
 .prescription-item-card {
@@ -1607,34 +1683,102 @@ function populateHistory() {
         return;
     }
 
-    var items = [
-        { label: 'Allergies', value: mh.allergies },
-        { label: 'Current Medications', value: mh.current_medications },
-        { label: 'Medical Conditions', value: mh.medical_conditions },
-        { label: 'Past Surgeries', value: mh.past_surgeries },
-        { label: 'Heart Conditions', value: mh.heart_condition },
-        { label: 'Diabetes', value: mh.diabetes },
-        { label: 'Bleeding Disorder', value: mh.bleeding_disorder },
-        { label: 'Pregnancy', value: mh.pregnancy },
-        { label: 'Blood Pressure', value: mh.blood_pressure },
-        { label: 'HIV/AIDS', value: mh.hiv_aids },
-        { label: 'Hepatitis', value: mh.hepatitis },
-        { label: 'Tuberculosis', value: mh.tuberculosis },
-        { label: 'Asthma', value: mh.asthma },
-        { label: 'Others', value: mh.others }
+    var checkboxFields = [
+        { key: 'heart_condition', label: 'Heart Conditions' },
+        { key: 'diabetes', label: 'Diabetes' },
+        { key: 'bleeding_disorder', label: 'Bleeding Disorder' },
+        { key: 'pregnancy', label: 'Pregnancy' },
+        { key: 'blood_pressure', label: 'Blood Pressure Issues' },
+        { key: 'hiv_aids', label: 'HIV/AIDS' },
+        { key: 'hepatitis', label: 'Hepatitis' },
+        { key: 'tuberculosis', label: 'Tuberculosis' },
+        { key: 'asthma', label: 'Asthma' }
     ];
 
-    var html = '<div class="history-grid">';
-    items.forEach(function(item) {
-        var val = item.value;
-        if (val === null || val === undefined || val === '' || val === '0' || val === 'None' || val === 'none') {
-            val = '—';
-        }
-        var isDanger = (item.label === 'Allergies' && val !== '—');
-        html += '<div class="history-item"><div class="h-label">' + item.label + '</div><div class="h-value' + (isDanger ? ' danger' : '') + '">' + val + '</div></div>';
+    var textFields = [
+        { key: 'allergies', label: 'Allergies' },
+        { key: 'current_medications', label: 'Current Medications' },
+        { key: 'medical_conditions', label: 'Medical Conditions' },
+        { key: 'past_surgeries', label: 'Past Surgeries' },
+        { key: 'others', label: 'Others' }
+    ];
+
+    var html = '<div class="mh-checklist">';
+    checkboxFields.forEach(function(field) {
+        var checked = (mh[field.key] == 1 || mh[field.key] === '1' || mh[field.key] === 'Yes' || mh[field.key] === 'yes');
+        var cls = checked ? 'mh-check-item checked' : 'mh-check-item';
+        html += '<label class="' + cls + '">';
+        html += '<input type="checkbox" data-mh-field="' + field.key + '" ' + (checked ? 'checked' : '') + ' onchange="onMhCheckboxChange(this)">';
+        html += '<span class="mh-label">' + field.label + '</span>';
+        html += '</label>';
     });
     html += '</div>';
+
+    html += '<div class="mh-text-group">';
+    textFields.forEach(function(field) {
+        var val = mh[field.key] || '';
+        html += '<div class="mh-text-item">';
+        html += '<label>' + field.label + '</label>';
+        html += '<input type="text" data-mh-field="' + field.key + '" value="' + val.replace(/"/g, '&quot;') + '" placeholder="None" oninput="onMhTextInput(this)">';
+        html += '</div>';
+    });
+    html += '</div>';
+
+    html += '<div class="mh-save-status" id="mhSaveStatus"></div>';
     container.innerHTML = html;
+}
+
+function onMhCheckboxChange(el) {
+    var label = el.closest('.mh-check-item');
+    if (el.checked) {
+        label.classList.add('checked');
+    } else {
+        label.classList.remove('checked');
+    }
+    saveMedicalHistory();
+}
+
+function onMhTextInput(el) {
+    clearTimeout(window._mhSaveTimeout);
+    window._mhSaveTimeout = setTimeout(saveMedicalHistory, 1000);
+}
+
+function saveMedicalHistory() {
+    if (!currentConsultation || !currentConsultation.patient_id) return;
+    var statusEl = document.getElementById('mhSaveStatus');
+    if (statusEl) statusEl.textContent = 'Saving...';
+
+    var data = {};
+    document.querySelectorAll('#existingMedicalHistory [data-mh-field]').forEach(function(el) {
+        var field = el.getAttribute('data-mh-field');
+        if (el.type === 'checkbox') {
+            data[field] = el.checked ? 1 : 0;
+        } else {
+            data[field] = el.value;
+        }
+    });
+
+    fetch('consultation_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'save_medical_history',
+            patient_id: currentConsultation.patient_id,
+            medical_data: data
+        })
+    }).then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (d.success) {
+            if (statusEl) {
+                statusEl.textContent = 'Saved!';
+                setTimeout(function() { statusEl.textContent = ''; }, 2000);
+            }
+        } else {
+            if (statusEl) statusEl.textContent = 'Error: ' + (d.message || 'Unknown');
+        }
+    }).catch(function() {
+        if (statusEl) statusEl.textContent = 'Save failed';
+    });
 }
 
 function debounceHistorySave() {
