@@ -70,7 +70,6 @@ try {
                                    FROM queue q 
                                    LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED) 
                                    WHERE q.status = 'in_procedure'
-                                   AND DATE(q.created_at) = CURDATE() 
                                    LIMIT 1");
             $stmt->execute();
             $existingProcedure = $stmt->fetch();

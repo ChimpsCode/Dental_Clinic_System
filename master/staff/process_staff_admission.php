@@ -22,6 +22,7 @@ if (!in_array($role, ['staff', 'dentist', 'admin'])) {
 }
 
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/queue_management_helper.php';
 
 header('Content-Type: application/json');
 
@@ -302,27 +303,38 @@ if ($appointmentId) {
     
     // Add to Queue - moved AFTER billing commit
     $queueId = 0;
+    $queueNumber = 0;
     try {
-        // Check if patient is already in an active queue
-        $checkQueue = $pdo->prepare("SELECT id FROM queue WHERE patient_id = ? AND status = 'waiting' AND is_archived = 0 LIMIT 1");
-        $checkQueue->execute([$patientId]);
-        $existingQueue = $checkQueue->fetch();
+        // Check if patient is already in an active queue today
+        $existingQueue = fetchLatestQueueEntryForPatient($pdo, $patientId, date('Y-m-d'));
         
-        if ($existingQueue) {
-            $queueId = $existingQueue['id'];
-            $stmt = $pdo->prepare("UPDATE queue SET treatment_type = ?, service_id = ?, teeth_numbers = ?, procedure_notes = ?, queue_time = NOW() WHERE id = ?");
-            $stmt->execute([$treatmentType, $primaryServiceId, $teethNumbers, $dentalNotes, $queueId]);
+        if ($existingQueue && in_array($existingQueue['status'], ['waiting', 'in_procedure', 'on_hold'])) {
+            // Update existing queue entry with new treatment info
+            $stmt = $pdo->prepare("UPDATE queue SET treatment_type = ?, teeth_numbers = ?, procedure_notes = ?, queue_time = NOW() WHERE id = ?");
+            $stmt->execute([$treatmentType, $teethNumbers, $dentalNotes, $existingQueue['id']]);
+            $queueId = (int)$existingQueue['id'];
+            $queueNumber = (int)($existingQueue['queue_number'] ?? 0);
         } else {
-            // Insert new queue entry
-            $stmt = $pdo->prepare("INSERT INTO queue (patient_id, status, priority, treatment_type, service_id, teeth_numbers, procedure_notes, queue_time, created_at) VALUES (?, 'waiting', 5, ?, ?, ?, ?, NOW(), NOW())");
-            $stmt->execute([$patientId, $treatmentType, $primaryServiceId, $teethNumbers, $dentalNotes]);
-            $queueId = (int)$pdo->lastInsertId();
+            // Create new queue entry through helper
+            $queueEntry = createQueueEntry($pdo, [
+                'patient_id'      => $patientId,
+                'queue_date'      => date('Y-m-d'),
+                'treatment_type'  => $treatmentType,
+                'teeth_numbers'   => $teethNumbers,
+                'procedure_notes' => $dentalNotes,
+                'queue_time'      => date('H:i:s'),
+                'status'          => 'waiting',
+                'priority'        => 5,
+            ]);
+            $queueId = (int)$queueEntry['id'];
+            $queueNumber = (int)($queueEntry['queue_number'] ?? 0);
         }
         
-        error_log("Queue insert: patientId=$patientId, treatmentType=$treatmentType, serviceId=$primaryServiceId, queueId=$queueId");
+        error_log("Queue insert: patientId=$patientId, treatmentType=$treatmentType, queueId=$queueId, queueNumber=$queueNumber");
     } catch (Exception $qErr) {
         error_log("Queue insert ERROR: " . $qErr->getMessage());
         $queueId = 0;
+        $queueNumber = 0;
     }
     
     // Create Billing Record
@@ -438,7 +450,7 @@ if ($appointmentId) {
     // Debug: verify queue was added
     $debugQueueCheck = null;
     try {
-        $debugStmt = $pdo->query("SELECT id FROM queue WHERE patient_id = " . (int)$patientId . " ORDER BY id DESC LIMIT 1");
+        $debugStmt = $pdo->query("SELECT id, queue_number FROM queue WHERE patient_id = " . (int)$patientId . " ORDER BY id DESC LIMIT 1");
         $debugQueueCheck = $debugStmt->fetch();
     } catch (Exception $e) {}
     
@@ -447,9 +459,9 @@ if ($appointmentId) {
         'message' => 'Patient admitted and added to queue successfully!',
         'patient_id' => $patientId,
         'queue_id' => $queueId,
+        'queue_number' => $queueNumber,
         'billing_id' => $billingId,
         'total_amount' => $totalAmount,
-        'debug_queue_check' => $debugQueueCheck,
         'debug_treatment' => $treatmentType,
         'debug_appointment_id' => $appointmentId
     ]);

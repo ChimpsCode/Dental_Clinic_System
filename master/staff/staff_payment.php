@@ -98,6 +98,7 @@ try {
     // Build the query with pagination
     $sql = "SELECT 
                 q.id as queue_id,
+                q.queue_number,
                 b.patient_id,
                 q.treatment_type,
                 q.teeth_numbers,
@@ -329,7 +330,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                 $calculatedAmount = $record['amount'] > 0 ? $record['amount'] : calculateAmount($record['treatment_type'], $servicesMap);
                             ?>
                             <tr data-queue-id="<?php echo (int)($record['queue_id'] ?? 0); ?>" data-patient-id="<?php echo (int)$record['patient_id']; ?>" data-billing-id="<?php echo (int)$record['billing_id']; ?>">
-                                <td><strong><?php echo !empty($record['queue_id']) ? ('Q-' . str_pad($record['queue_id'], 4, '0', STR_PAD_LEFT)) : ('INV-' . str_pad($record['billing_id'], 4, '0', STR_PAD_LEFT)); ?></strong></td>
+                                <td><strong><?php echo !empty($record['queue_number']) ? ('#' . $record['queue_number']) : ('INV-' . str_pad($record['billing_id'], 4, '0', STR_PAD_LEFT)); ?></strong></td>
                                 <td>
                                     <div class="patient-info">
                                         <span class="patient-name"><?php echo htmlspecialchars($record['patient_name']); ?></span>
@@ -1173,7 +1174,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     balance: <?php echo max(0, ($record['amount'] ?? 0) - (float)($record['paid_amount'] ?? 0)); ?>,
                     date: '<?php echo date('Y-m-d', strtotime($record['billing_date'])); ?>',
                     status: '<?php echo htmlspecialchars($record['payment_status'] ?? 'Unpaid'); ?>',
-                    invoice_id: '<?php echo !empty($record['queue_id']) ? ("Q-" . str_pad($record['queue_id'], 4, '0', STR_PAD_LEFT)) : ("INV-" . str_pad($record['billing_id'], 4, '0', STR_PAD_LEFT)); ?>'
+                    invoice_id: '<?php echo !empty($record['queue_number']) ? ('#' . $record['queue_number']) : ("INV-" . str_pad($record['billing_id'], 4, '0', STR_PAD_LEFT)); ?>'
                 };
                 <?php endif; ?>
                 <?php endforeach; ?>

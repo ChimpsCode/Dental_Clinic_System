@@ -2,6 +2,11 @@
 $pageTitle = 'Queue Management';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/admin_layout_start.php';
+require_once __DIR__ . '/../../includes/queue_management_helper.php';
+
+// Auto-archive stale entries from previous days
+$today = date('Y-m-d');
+archiveStaleQueueEntries($pdo, $today);
 
 // Pagination settings
 $itemsPerPage = 7;
@@ -10,7 +15,7 @@ if ($currentPage < 1) $currentPage = 1;
 
 try {
     // Get ALL queue data for counts (without pagination)
-    $allStmt = $pdo->query("
+    $allStmt = $pdo->prepare("
         SELECT q.*, 
                COALESCE(p.first_name, 'Unknown') as first_name, 
                COALESCE(p.middle_name, '') as middle_name, 
@@ -22,7 +27,8 @@ try {
         FROM queue q 
         LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id
         LEFT JOIN users u_doc ON q.doctor_id = u_doc.id
-        WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'cancelled', 'on_hold') AND q.is_archived = 0
+        WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'on_hold') AND q.is_archived = 0
+          AND COALESCE(q.queue_date, DATE(q.created_at)) = ?
         ORDER BY 
             CASE COALESCE(q.status, 'waiting')
                 WHEN 'in_procedure' THEN 1 
@@ -32,6 +38,7 @@ try {
             END,
             q.queue_time ASC
     ");
+    $allStmt->execute([$today]);
     $allQueueItems = $allStmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Calculate counts
@@ -1020,7 +1027,7 @@ div.main-content {
                             $statusLabel = ucwords(str_replace('_', ' ', $item['status_text'] ?? 'waiting'));
                         ?>
                             <tr class="queue-row" data-status="<?php echo $item['status_text'] ?? 'waiting'; ?>" data-name="<?php echo strtolower(($item['first_name'] ?? '')); ?>">
-                                <td><?php echo str_pad($item['id'], 3, '0', STR_PAD_LEFT); ?></td>
+                                <td><?php echo '#' . ($item['queue_number'] ?? '?'); ?></td>
                                 <td>
                                     <div class="patient-name"><?php echo htmlspecialchars($item['first_name'] ?: 'Unknown'); ?></div>
                                 </td>

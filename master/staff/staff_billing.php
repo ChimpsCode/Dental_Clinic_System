@@ -84,6 +84,7 @@ try {
     // Build the query with pagination
     $sql = "SELECT 
                 q.id as queue_id,
+                q.queue_number,
                 q.patient_id,
                 q.treatment_type,
                 q.teeth_numbers,
@@ -279,7 +280,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                 $balance = max(0, $calculatedAmount - $paidAmount);
                             ?>
                             <tr data-queue-id="<?php echo $record['queue_id']; ?>" data-patient-id="<?php echo $record['patient_id']; ?>" data-billing-id="<?php echo (int)($record['billing_id'] ?? 0); ?>">
-                                <td><strong>Q-<?php echo str_pad($record['queue_id'], 4, '0', STR_PAD_LEFT); ?></strong></td>
+                                <td><strong><?php echo !empty($record['queue_number']) ? ('#' . $record['queue_number']) : ('INV-' . str_pad($record['billing_id'], 4, '0', STR_PAD_LEFT)); ?></strong></td>
                                 <td>
                                     <div class="patient-info">
                                         <span class="patient-name"><?php echo htmlspecialchars($record['patient_name']); ?></span>

@@ -104,6 +104,36 @@ function ensureQueueManagementSchema(PDO $pdo): void
         SET queue_date = DATE(created_at)
         WHERE queue_date IS NULL
     ");
+
+    // Backfill queue_number for existing entries that are missing it, ordered by creation time per day
+    try {
+        $dailyGroups = $pdo->query("
+            SELECT DISTINCT COALESCE(queue_date, DATE(created_at)) as qdate
+            FROM queue
+            WHERE queue_number IS NULL
+            ORDER BY qdate ASC
+        ")->fetchAll(PDO::FETCH_COLUMN);
+
+        foreach ($dailyGroups as $qdate) {
+            $stmt = $pdo->prepare("
+                SELECT id FROM queue
+                WHERE COALESCE(queue_date, DATE(created_at)) = ?
+                  AND queue_number IS NULL
+                ORDER BY queue_time ASC, created_at ASC
+            ");
+            $stmt->execute([$qdate]);
+            $rows = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+            $num = 1;
+            foreach ($rows as $rowId) {
+                $upd = $pdo->prepare("UPDATE queue SET queue_number = ?, queue_label = ? WHERE id = ?");
+                $upd->execute([$num, '#' . $num, $rowId]);
+                $num++;
+            }
+        }
+    } catch (Exception $e) {
+        // Backfill is best-effort
+    }
 }
 
 function getTodayQueueDateSql(string $alias = 'q'): string
@@ -113,7 +143,28 @@ function getTodayQueueDateSql(string $alias = 'q'): string
 
 function buildQueueLabel(int $queueNumber): string
 {
-    return 'Q-' . str_pad((string)$queueNumber, 3, '0', STR_PAD_LEFT);
+    return '#' . $queueNumber;
+}
+
+function archiveStaleQueueEntries(PDO $pdo, string $today = ''): int
+{
+    ensureQueueManagementSchema($pdo);
+
+    if ($today === '') {
+        $today = date('Y-m-d');
+    }
+
+    $stmt = $pdo->prepare("
+        UPDATE queue
+        SET status = 'cancelled',
+            notes = CONCAT(COALESCE(notes, ''), ' [Auto-archived: stale entry from previous day]'),
+            updated_at = NOW()
+        WHERE status IN ('waiting', 'in_procedure', 'on_hold')
+          AND COALESCE(queue_date, DATE(created_at)) < ?
+          AND COALESCE(is_archived, 0) = 0
+    ");
+    $stmt->execute([$today]);
+    return $stmt->rowCount();
 }
 
 function getNextDailyQueueNumber(PDO $pdo, string $queueDate): int

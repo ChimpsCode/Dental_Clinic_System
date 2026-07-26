@@ -7,6 +7,7 @@ header('Content-Type: application/json');
 
 session_start();
 require_once '../../config/database.php';
+require_once '../../includes/queue_management_helper.php';
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -66,19 +67,21 @@ try {
 
     error_log("Quick Session - serviceId=$serviceId, treatment_type=$treatment_type, totalAmount=$totalAmount");
 
-    // Generate queue number (simple increment)
-    $stmt = $pdo->query("SELECT COUNT(*) + 1 as next_num FROM queue WHERE DATE(created_at) = CURDATE()");
-    $nextNum = $stmt->fetch();
-    $queue_number = 'Q-' . str_pad($nextNum['next_num'] ?? 1, 3, '0', STR_PAD_LEFT);
-
-    // Insert into queue - status 'waiting'
-    $stmt = $pdo->prepare("
-        INSERT INTO queue (patient_id, treatment_type, service_id, teeth_numbers, status, priority, queue_time, notes, created_at)
-        VALUES (?, ?, ?, ?, 'waiting', ?, NOW(), ?, NOW())
-    ");
-    $stmt->execute([$patient_id, $treatment_type, $serviceId, $teeth_numbers, $priority, $full_notes]);
+    // Create queue entry through helper
+    $queueEntry = createQueueEntry($pdo, [
+        'patient_id'     => $patient_id,
+        'queue_date'     => date('Y-m-d'),
+        'treatment_type' => $treatment_type,
+        'service_id'     => $serviceId,
+        'teeth_numbers'  => $teeth_numbers,
+        'notes'          => $full_notes,
+        'queue_time'     => date('H:i:s'),
+        'status'         => 'waiting',
+        'priority'       => $priority,
+    ]);
     
-    $queue_id = $pdo->lastInsertId();
+    $queue_id = (int)$queueEntry['id'];
+    $queue_number = (int)($queueEntry['queue_number'] ?? 0);
 
     // Create billing record
     $billingId = null;
@@ -103,6 +106,7 @@ try {
         'message' => 'Patient added to queue successfully!',
         'queue_id' => $queue_id,
         'queue_number' => $queue_number,
+        'queue_label' => '#' . $queue_number,
         'patient_name' => $patient_name
     ]);
 

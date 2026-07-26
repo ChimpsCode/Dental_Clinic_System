@@ -462,7 +462,7 @@ function confirmStartProcedure() {
     .then(function(data) {
         if (data.success) {
             closeStartProcedureModal();
-            location.reload();
+            window.location.href = 'dentist_consultation.php?queue_id=' + queueId;
         } else {
             alert('Error: ' + (data.message || 'Unable to start procedure'));
         }

@@ -2,6 +2,11 @@
 $pageTitle = 'Queue Management';
 require_once '../../config/database.php';
 require_once '../../includes/dentist_layout_start.php';
+require_once '../../includes/queue_management_helper.php';
+
+// Auto-archive stale entries from previous days
+$today = date('Y-m-d');
+archiveStaleQueueEntries($pdo, $today);
 
 // Pagination settings
 $itemsPerPage = 5;
@@ -10,7 +15,7 @@ if ($currentPage < 1) $currentPage = 1;
 
 try {
     // Get ALL queue data for counts (without pagination)
-    $allStmt = $pdo->query("
+    $allStmt = $pdo->prepare("
         SELECT q.*, 
                COALESCE(p.first_name, 'Unknown') as first_name, 
                COALESCE(p.middle_name, '') as middle_name, 
@@ -20,7 +25,8 @@ try {
                COALESCE(q.status, 'waiting') as status_text
         FROM queue q 
         LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id
-        WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'cancelled', 'on_hold') AND q.is_archived = 0
+        WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'on_hold') AND q.is_archived = 0
+          AND COALESCE(q.queue_date, DATE(q.created_at)) = ?
         ORDER BY 
             CASE COALESCE(q.status, 'waiting')
                 WHEN 'in_procedure' THEN 1 
@@ -30,6 +36,7 @@ try {
             END,
             q.queue_time ASC
     ");
+    $allStmt->execute([$today]);
     $allQueueItems = $allStmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Calculate counts
@@ -1278,7 +1285,7 @@ div.main-content {
                         $displayStatus = ucfirst(str_replace('_', ' ', $statusText));
                     ?>
                         <tr class="queue-row" data-status="<?php echo $statusText; ?>" data-name="<?php echo strtolower(htmlspecialchars($item['first_name'] ?? '')); ?>" data-treatment="<?php echo strtolower(htmlspecialchars($item['treatment_type'] ?? '')); ?>">
-                            <td><?php echo $showingStart + $index; ?></td>
+                            <td><?php echo '#' . ($item['queue_number'] ?? ($showingStart + $index)); ?></td>
                             <td>
                                 <div class="patient-name"><?php echo htmlspecialchars($item['first_name'] ?: 'Unknown'); ?></div>
                             </td>

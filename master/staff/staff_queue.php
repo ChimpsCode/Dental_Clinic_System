@@ -2,6 +2,11 @@
 $pageTitle = 'Queue Management';
 require_once '../../config/database.php';
 require_once '../../includes/staff_layout_start.php';
+require_once '../../includes/queue_management_helper.php';
+
+// Auto-archive stale entries from previous days
+$today = date('Y-m-d');
+archiveStaleQueueEntries($pdo, $today);
 
 // Pagination settings
 $itemsPerPage = 7;
@@ -10,7 +15,7 @@ if ($currentPage < 1) $currentPage = 1;
 
 try {
     // Get ALL queue data for counts (without pagination)
-    $allStmt = $pdo->query("
+    $allStmt = $pdo->prepare("
         SELECT q.*, 
                COALESCE(p.first_name, 'Unknown') as first_name, 
                COALESCE(p.middle_name, '') as middle_name, 
@@ -25,11 +30,13 @@ try {
         FROM queue q 
         LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id
         LEFT JOIN users u_doc ON q.doctor_id = u_doc.id
-        WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'cancelled', 'on_hold') AND q.is_archived = 0
+        WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'on_hold') AND q.is_archived = 0
+          AND COALESCE(q.queue_date, DATE(q.created_at)) = ?
     ");
+    $allStmt->execute([$today]);
     $allQueueItems = $allStmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $appointmentStmt = $pdo->query("
+    $appointmentStmt = $pdo->prepare("
         SELECT 
             NULL as id,
             a.patient_id,
@@ -57,14 +64,16 @@ try {
         LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
         LEFT JOIN services s ON s.id = a.service_id
         WHERE a.status IN ('In Queue')
+          AND DATE(a.appointment_date) = ?
           AND NOT EXISTS (
               SELECT 1
               FROM queue q
               WHERE CAST(q.patient_id AS UNSIGNED) = CAST(a.patient_id AS UNSIGNED)
                 AND q.is_archived = 0
-                AND q.status IN ('waiting', 'in_procedure', 'completed', 'cancelled', 'on_hold')
+                AND q.status IN ('waiting', 'in_procedure', 'on_hold')
           )
     ");
+    $appointmentStmt->execute([$today]);
     $appointmentQueueItems = $appointmentStmt->fetchAll(PDO::FETCH_ASSOC);
 
     $allQueueItems = array_merge($allQueueItems, $appointmentQueueItems);
@@ -1056,11 +1065,11 @@ div.main-content {
                             $statusText = $item['status_text'] ?? 'waiting';
                             $statusClass = strtolower(str_replace(' ', '-', $statusText));
                             $statusLabel = ucwords($statusText);
-                            $rowNumber = $item['id'] ?? $item['appointment_id'] ?? ($index + 1);
+                            $rowNumber = $item['queue_number'] ?? ($item['id'] ?? ($index + 1));
                             $fullNameSearch = strtolower(trim(($item['first_name'] ?? '') . ' ' . ($item['middle_name'] ?? '') . ' ' . ($item['last_name'] ?? '')));
                         ?>
                             <tr class="queue-row" data-status="<?php echo $statusText; ?>" data-name="<?php echo htmlspecialchars($fullNameSearch); ?>">
-                                <td><?php echo str_pad((string)$rowNumber, 3, '0', STR_PAD_LEFT); ?></td>
+                                <td><?php echo '#' . $rowNumber; ?></td>
                                 <td>
                                     <div class="patient-name"><?php echo htmlspecialchars($item['first_name'] ?: 'Unknown'); ?></div>
                                 </td>
