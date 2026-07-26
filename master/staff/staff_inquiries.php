@@ -739,10 +739,8 @@ require_once '../../includes/staff_layout_start.php';
                 <label for="sourceFilter">Source Filter</label>
                 <select id="sourceFilter" class="filter-select">
                     <option value="All">All Sources</option>
-                    <option value="Facebook">Facebook</option>
-                    <option value="Walk-in">Walk-in</option>
-                    <option value="Referral">Referral</option>
-                    <option value="Website">Website</option>
+                    <option value="Fb messenger">FB Messenger</option>
+                    <option value="Website">Clinic Website</option>
                     <option value="Patient Portal">Patient Portal</option>
                 </select>
             </div>
@@ -992,7 +990,7 @@ function renderTable() {
                             font-size:14px;
                             flex-shrink:0">${escapeHtml(getInitials((inquiry.first_name||'')+' '+(inquiry.last_name||'')))}</div>
                         `}
-                        <div class="patient-name">${displayFirstName || '-'}</div>
+                        <div class="patient-name">${displayFirstName || '-'}${inquiry.fb_sender_id ? ' <span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;background:#e0f2fe;color:#0369a1;padding:2px 7px;border-radius:999px;vertical-align:middle;" title="Facebook Messenger"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.04 2 11c0 2.83 1.39 5.35 3.56 7.02V22l3.33-1.83c.89.25 1.84.38 2.83.38h.28c5.52 0 10-4.04 10-9S17.52 2 12 2zm1.07 12.14l-2.54-2.72L6.5 14.14l5.08-5.4 2.59 2.72 4.97-2.72-5.07 5.4z"/></svg>FB</span>' : ''}</div>
                     </div>
                 </td>
                 <td><div class="patient-name">${displayMiddleName || '-'}</div></td>
@@ -1400,7 +1398,10 @@ async function openReplyModal(id) {
 
     const channelInfo = document.getElementById('replyChannelInfo');
     const isPortal = (inquiry.source || '') === 'Patient Portal' && inquiry.patient_id;
-    if (isPortal) {
+    const isFBMessenger = (inquiry.source || '') === 'Fb messenger' && inquiry.fb_sender_id;
+    if (isFBMessenger) {
+        channelInfo.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0369a1" stroke-width="2"><path d="M12 2C6.48 2 2 6.04 2 11c0 2.83 1.39 5.35 3.56 7.02V22l3.33-1.83c.89.25 1.84.38 2.83.38h.28c5.52 0 10-4.04 10-9S17.52 2 12 2z"/></svg> Reply will be sent via Facebook Messenger';
+    } else if (isPortal) {
         channelInfo.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Reply will appear in patient\'s account messages';
     } else {
         channelInfo.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M22 12v1a5 5 0 0 1-5 5h-1"/></svg> Reply will be sent via email with a conversation link to ' + escapeHtml(inquiry.email || 'the sender');
@@ -1431,7 +1432,18 @@ document.getElementById('replyForm').addEventListener('submit', async (event) =>
     btn.disabled = true;
 
     try {
-        const data = await postAction({ action: 'staff_reply', id, message });
+        const inquiry = inquiryMap[String(id)];
+        const isFBMessenger = inquiry && (inquiry.source || '') === 'Fb messenger' && inquiry.fb_sender_id;
+        let data;
+        if (isFBMessenger) {
+            const formData = new FormData();
+            formData.append('id', id);
+            formData.append('message', message);
+            const resp = await fetch('../api/fb_send_reply.php', { method: 'POST', body: formData });
+            data = await resp.json();
+        } else {
+            data = await postAction({ action: 'staff_reply', id, message });
+        }
         if (!data.success) {
             showToast(data.message || 'Unable to send reply.', true);
             btn.disabled = false;
@@ -1450,7 +1462,8 @@ document.getElementById('replyForm').addEventListener('submit', async (event) =>
         textarea.focus();
         showToast('Reply sent.');
     } catch (error) {
-        showToast('Something went wrong while sending the reply.', true);
+        console.error('Reply error:', error);
+        showToast('Something went wrong while sending the reply. ' + (error.message || ''), true);
         btn.disabled = false;
     }
 });

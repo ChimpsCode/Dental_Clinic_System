@@ -955,6 +955,10 @@ if ($action === 'staff_reply') {
             VALUES (?, ?, ?, 'admin', 'admin', NOW())
         ");
         $msgStmt->execute([$patientId, $staffUserId, $replyMessage]);
+    } elseif (($inquiry['source'] ?? '') === 'Fb messenger' && !empty($inquiry['fb_sender_id'])) {
+        require_once __DIR__ . '/../../config/facebook_config.php';
+        require_once __DIR__ . '/../../includes/fb_messenger_helper.php';
+        sendFBMessage((string)$inquiry['fb_sender_id'], $replyMessage);
     } elseif (in_array($inquiry['source'] ?? '', ['Website', 'Facebook', 'Walk-in', 'Referral']) || empty($inquiry['patient_id'])) {
         $recipientEmail = trim($inquiry['email'] ?? '');
         if ($recipientEmail !== '') {

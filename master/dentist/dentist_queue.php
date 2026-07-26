@@ -116,6 +116,7 @@ try {
     color: #111827;
 }
 
+
 .queue-kebab-dropdown-portal {
     display: none;
     position: fixed;
@@ -1509,6 +1510,19 @@ function getQueueMenuItems(queueId, status, patientId, patientName, treatment) {
             Treatment
         </a>
     `;
+
+    if (status === 'waiting' || status === 'on_hold') {
+        menuHTML += `
+            <a href="javascript:void(0)" class="danger" onclick="cancelPatientQueue(${queueId})">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+                Cancel
+            </a>
+        `;
+    }
     
     return menuHTML;
 }
@@ -1790,6 +1804,12 @@ function updateQueueStatus(queueId, status) {
         console.error('Error:', error);
         alert('Error updating status');
     });
+}
+
+// Cancel Patient
+function cancelPatientQueue(queueId) {
+    if (!confirm('Cancel this patient from the queue?')) return;
+    updateQueueStatus(queueId, 'cancelled');
 }
 
 // Start Procedure Modal

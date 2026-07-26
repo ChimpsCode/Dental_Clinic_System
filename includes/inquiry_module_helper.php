@@ -173,6 +173,10 @@ function ensureInquiryModuleSchema(PDO $pdo): void
 
     ensureInquiryReplySchema($pdo);
 
+    if (!inquiryModuleColumnExists($pdo, 'inquiries', 'fb_sender_id')) {
+        $pdo->exec("ALTER TABLE inquiries ADD COLUMN fb_sender_id VARCHAR(100) NULL AFTER source");
+    }
+
     $ensured = true;
 }
 
