@@ -900,6 +900,8 @@ try {
                 Patient: <span id="consultPatientName">Select a patient from the queue below</span>
                 &nbsp;&nbsp;|&nbsp;&nbsp;
                 Queue No: <span id="consultQueueNo">-</span>
+                &nbsp;&nbsp;|&nbsp;&nbsp;
+                Treatment: <span id="consultTreatment">-</span>
             </div>
         </div>
         <button class="consult-complete-btn" onclick="completeConsultation()" id="consultCompleteBtn" style="display:none;">
@@ -916,6 +918,7 @@ try {
                  data-queue-id="<?php echo $pt['queue_id']; ?>"
                  data-patient-name="<?php echo htmlspecialchars($pt['full_name']); ?>"
                  data-queue-number="<?php echo $pt['queue_number']; ?>"
+                 data-treatment="<?php echo htmlspecialchars($pt['treatment_type'] ?? ''); ?>"
                  onclick="selectConsultPatient(this)">
                 <span class="chip-num">#<?php echo $pt['queue_number'] ?? $pt['queue_id']; ?></span>
                 <?php echo htmlspecialchars($pt['full_name']); ?>
@@ -1303,6 +1306,7 @@ function loadConsultation(queueId) {
             document.getElementById('consultPanels').style.display = 'block';
             document.getElementById('consultPatientName').textContent = data.consultation.patient_name;
             document.getElementById('consultQueueNo').textContent = '#' + (data.consultation.queue_number || data.consultation.queue_id);
+            document.getElementById('consultTreatment').textContent = data.consultation.treatment_type || '-';
             document.getElementById('consultCompleteBtn').style.display = 'flex';
             populateDentalExam();
             populateNotes();

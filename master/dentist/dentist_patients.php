@@ -355,6 +355,7 @@ function viewPatientDetails(patientId) {
         const p = data.patient;
         const m = data.medical_history || {};
         const dentalHistory = data.dental_history || [];
+        const odontogramSessions = data.odontogram_sessions || [];
         const completedPlans = data.completed_plans || [];
         const q = data.queue_item;
         const b = data.billing || {};
@@ -564,6 +565,32 @@ function viewPatientDetails(patientId) {
                     <p style="color:#9ca3af;text-align:center;padding:12px;">No billing record found for this patient.</p>
                 </div>
                 `}
+
+                <!-- Odontogram History -->
+                <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-top: 20px;">
+                    <h3 style="font-size: 1rem; font-weight: 600; color: #374151; margin-bottom: 16px;">🦷 Odontogram History</h3>
+                    ${odontogramSessions.length > 0 ? `
+                        <div style="display:flex;flex-direction:column;gap:10px;">
+                            ${odontogramSessions.map(function(session) {
+                                var sessionDate = session.created_at ? new Date(session.created_at).toLocaleDateString('en-PH', { year:'numeric', month:'long', day:'numeric' }) : 'N/A';
+                                var sessionTime = session.created_at ? new Date(session.created_at).toLocaleTimeString('en-PH', { hour:'2-digit', minute:'2-digit' }) : '';
+                                var dentistName = session.dentist_first_name ? 'Dr. ' + session.dentist_first_name + ' ' + session.dentist_last_name : 'Unknown Dentist';
+                                var findingsCount = 0;
+                                try { var fd = typeof session.teeth_data === 'string' ? JSON.parse(session.teeth_data) : session.teeth_data; findingsCount = fd ? fd.length : 0; } catch(e) { findingsCount = 0; }
+                                window._odontogramSessionMap[session.id] = { date: sessionDate, time: sessionTime, dentist: dentistName, teeth_data: session.teeth_data };
+                                return '<div style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;">'+
+                                    '<div>'+
+                                        '<div style="font-weight:600;color:#111827;font-size:0.95rem;">'+sessionDate+' <span style="color:#6b7280;font-weight:400;font-size:0.85rem;">'+sessionTime+'</span></div>'+
+                                        '<div style="font-size:0.85rem;color:#6b7280;margin-top:4px;">'+dentistName+' &middot; <span style="color:#0ea5e9;">'+findingsCount+' finding'+(findingsCount!==1?'s':'')+'</span></div>'+
+                                    '</div>'+
+                                    '<button onclick="openOdontogramSession('+session.id+')" style="padding:8px 16px;background:#3b82f6;color:white;border:none;border-radius:8px;font-size:0.85rem;font-weight:500;cursor:pointer;white-space:nowrap;">View Chart</button>'+
+                                '</div>';
+                            }).join('')}
+                        </div>
+                    ` : `
+                        <p style="color:#6b7280;text-align:center;padding:20px;background:#f3f4f6;border-radius:8px;">No odontogram records found.</p>
+                    `}
+                </div>
 
                 <!-- Dental History - Past Treatments -->
                 <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-top: 20px;">
@@ -2911,6 +2938,153 @@ setInterval(() => {
         })
         .catch(() => {});
 }, 10000);
+
+// ===================== ODONTOGRAM READ-ONLY =====================
+var odontogramTeethFindings = [];
+window._odontogramSessionMap = {};
+var odAdultUpperRight = [18,17,16,15,14,13,12,11];
+var odAdultUpperLeft = [21,22,23,24,25,26,27,28];
+var odAdultLowerRight = [48,47,46,45,44,43,42,41];
+var odAdultLowerLeft = [31,32,33,34,35,36,37,38];
+var odPedUpperRight = [55,54,53,52,51];
+var odPedUpperLeft = [61,62,63,64,65];
+var odPedLowerRight = [85,84,83,82,81];
+var odPedLowerLeft = [71,72,73,74,75];
+var OD_SVG_SIZE = 44, OD_CX = 22, OD_CY = 22, OD_R = 10;
+
+function odGetSurfaceColor(toothNum, surface) {
+    var f = odontogramTeethFindings.find(function(x) { return x.tooth === toothNum && x.surface === surface; });
+    if (!f) return null;
+    if (f.type === 'pathology') return '#ef4444';
+    if (f.type === 'treatment') return '#7dd3fc';
+    return null;
+}
+function odGetWholeToothColor(toothNum) {
+    var f = odontogramTeethFindings.find(function(x) { return x.tooth === toothNum && !x.surface; });
+    if (!f) return null;
+    if (f.type === 'pathology') return '#ef4444';
+    if (f.type === 'treatment') return '#7dd3fc';
+    if (f.type === 'surgery') return '#ef4444';
+    if (f.type === 'condition') return '#ef4444';
+    return null;
+}
+function odCreateToothSVG(toothNum) {
+    var S = OD_SVG_SIZE, C = OD_CX, CY = OD_CY, R = OD_R;
+    var wholeFill = odGetWholeToothColor(toothNum);
+    var labelColor = '#94a3b8';
+    var svg = '<svg width="'+S+'" height="'+S+'" viewBox="0 0 '+S+' '+S+'" xmlns="http://www.w3.org/2000/svg">';
+    svg += '<rect x="1" y="1" width="'+(S-2)+'" height="'+(S-2)+'" fill="'+(wholeFill || 'white')+'" stroke="#94a3b8" stroke-width="1.5" rx="2"/>';
+    var bFill = odGetSurfaceColor(toothNum,'B') || wholeFill || 'white';
+    var pFill = odGetSurfaceColor(toothNum,'P') || wholeFill || 'white';
+    var leftFill = odGetSurfaceColor(toothNum,'D') || wholeFill || 'white';
+    var rightFill = odGetSurfaceColor(toothNum,'M') || wholeFill || 'white';
+    var oFill = odGetSurfaceColor(toothNum,'O') || wholeFill || 'white';
+    svg += '<polygon points="1,1 '+C+','+CY+' '+(S-1)+',1" fill="'+bFill+'" stroke="#94a3b8" stroke-width="0.8"/>';
+    svg += '<polygon points="1,'+(S-1)+' '+C+','+CY+' '+(S-1)+','+(S-1)+'" fill="'+pFill+'" stroke="#94a3b8" stroke-width="0.8"/>';
+    svg += '<polygon points="1,1 '+C+','+CY+' 1,'+(S-1)+'" fill="'+leftFill+'" stroke="#94a3b8" stroke-width="0.8"/>';
+    svg += '<polygon points="'+(S-1)+',1 '+C+','+CY+' '+(S-1)+','+(S-1)+'" fill="'+rightFill+'" stroke="#94a3b8" stroke-width="0.8"/>';
+    svg += '<circle cx="'+C+'" cy="'+CY+'" r="'+R+'" fill="'+oFill+'" stroke="#94a3b8" stroke-width="1"/>';
+    svg += '<text x="'+C+'" y="'+(CY+3)+'" text-anchor="middle" font-size="7" font-weight="700" fill="'+labelColor+'" pointer-events="none">O</text>';
+    svg += '<text x="'+C+'" y="9" text-anchor="middle" font-size="5" font-weight="700" fill="'+labelColor+'" pointer-events="none">B</text>';
+    svg += '<text x="'+C+'" y="'+(S-3)+'" text-anchor="middle" font-size="5" font-weight="700" fill="'+labelColor+'" pointer-events="none">P</text>';
+    svg += '<text x="5" y="'+(CY+2)+'" text-anchor="middle" font-size="5" font-weight="700" fill="'+labelColor+'" pointer-events="none">D</text>';
+    svg += '<text x="'+(S-5)+'" y="'+(CY+2)+'" text-anchor="middle" font-size="5" font-weight="700" fill="'+labelColor+'" pointer-events="none">M</text>';
+    svg += '</svg>';
+    return svg;
+}
+function odRenderToothColumn(toothNum) {
+    var findings = odontogramTeethFindings.filter(function(f) { return f.tooth === toothNum; });
+    var badgesHtml = '';
+    findings.forEach(function(f) {
+        var txt = f.surface ? f.surface+':'+f.code : f.code;
+        var cls = 'odontogram-tooth-finding-badge ' + f.type;
+        badgesHtml += '<span class="'+cls+'">'+txt+'</span>';
+    });
+    return '<div class="odontogram-tooth-col">'+
+        '<div class="odontogram-tooth-num-label">'+toothNum+'</div>'+
+        '<div class="odontogram-tooth-svg-wrap">'+odCreateToothSVG(toothNum)+'</div>'+
+        '<div class="odontogram-tooth-findings-below">'+badgesHtml+'</div>'+
+    '</div>';
+}
+function odRenderQuadrant(containerId, teeth, label, mirror) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    var html = '<div class="odontogram-quadrant-block">';
+    html += '<div class="odontogram-quadrant-label">'+label+'</div>';
+    html += '<div class="odontogram-tooth-row">';
+    var arr = mirror ? teeth.slice().reverse() : teeth;
+    arr.forEach(function(t) { html += odRenderToothColumn(t); });
+    html += '</div></div>';
+    container.innerHTML = html;
+}
+function odRenderToothChart() {
+    var upperRow = document.getElementById('odAdultTeethChart');
+    var lowerRow = document.getElementById('odPedTeethChart');
+    if (!upperRow || !lowerRow) return;
+    var html = '<div class="odontogram-quadrant-row"><div id="odAdultUR" style="display:flex;"></div><div id="odAdultUL" style="display:flex;"></div></div>';
+    html += '<div style="border-top:2px dashed #d1d5db;margin:4px 20px;"></div>';
+    html += '<div class="odontogram-quadrant-row"><div id="odAdultLR" style="display:flex;"></div><div id="odAdultLL" style="display:flex;"></div></div>';
+    upperRow.innerHTML = html;
+    var phtml = '<div class="odontogram-quadrant-row"><div id="odPedUR" style="display:flex;"></div><div id="odPedUL" style="display:flex;"></div></div>';
+    phtml += '<div style="border-top:2px dashed #d1d5db;margin:4px 20px;"></div>';
+    phtml += '<div class="odontogram-quadrant-row"><div id="odPedLR" style="display:flex;"></div><div id="odPedLL" style="display:flex;"></div></div>';
+    lowerRow.innerHTML = phtml;
+    odRenderQuadrant('odAdultUR', odAdultUpperRight, 'Upper Right', false);
+    odRenderQuadrant('odAdultUL', odAdultUpperLeft, 'Upper Left', false);
+    odRenderQuadrant('odAdultLR', odAdultLowerRight, 'Lower Right', false);
+    odRenderQuadrant('odAdultLL', odAdultLowerLeft, 'Lower Left', false);
+    odRenderQuadrant('odPedUR', odPedUpperRight, 'Upper Right', false);
+    odRenderQuadrant('odPedUL', odPedUpperLeft, 'Upper Left', false);
+    odRenderQuadrant('odPedLR', odPedLowerRight, 'Lower Right', false);
+    odRenderQuadrant('odPedLL', odPedLowerLeft, 'Lower Left', false);
+}
+function odRenderFindings() {
+    var container = document.getElementById('odFindingsChips');
+    if (!container) return;
+    if (odontogramTeethFindings.length === 0) {
+        container.innerHTML = '<span style="color:#94a3b8;font-size:0.78rem;">No findings recorded.</span>';
+        return;
+    }
+    var html = '';
+    odontogramTeethFindings.forEach(function(f) {
+        var label = '#' + f.tooth;
+        if (f.surface) label += ' [' + f.surface + ']';
+        label += ' - ' + f.code + ' ' + f.label;
+        html += '<span class="odontogram-finding-chip">' + label + '</span>';
+    });
+    container.innerHTML = html;
+}
+function openOdontogramSession(sessionId) {
+    var s = window._odontogramSessionMap[sessionId];
+    if (!s) return;
+    var dateStr = s.date + (s.time ? ' ' + s.time : '');
+    openOdontogramModal(sessionId, dateStr, s.dentist, s.teeth_data);
+}
+function openOdontogramModal(sessionId, dateStr, dentistName, findingsJson) {
+    try {
+        odontogramTeethFindings = typeof findingsJson === 'string' ? JSON.parse(findingsJson) : findingsJson;
+    } catch(e) { odontogramTeethFindings = []; }
+    document.getElementById('odontogramModalTitle').textContent = 'Odontogram - ' + dateStr + (dentistName ? ' | ' + dentistName : '');
+    var content = '<div class="odontogram-chart-area">';
+    content += '<div class="odontogram-chart-section-label">Adult Teeth</div>';
+    content += '<div id="odAdultTeethChart"></div>';
+    content += '<div class="odontogram-chart-section-label" style="margin-top:16px;">Pediatric Teeth</div>';
+    content += '<div id="odPedTeethChart"></div>';
+    content += '<div class="odontogram-findings-display"><h5>Tooth Findings</h5><div id="odFindingsChips"></div></div>';
+    content += '</div>';
+    document.getElementById('odontogramModalContent').innerHTML = content;
+    document.getElementById('odontogramModalOverlay').classList.add('active');
+    odRenderToothChart();
+    odRenderFindings();
+}
+function closeOdontogramModal(e) {
+    if (e.target === document.getElementById('odontogramModalOverlay')) {
+        closeOdontogramModalDirect();
+    }
+}
+function closeOdontogramModalDirect() {
+    document.getElementById('odontogramModalOverlay').classList.remove('active');
+}
 </script>
 
 
@@ -3733,7 +3907,215 @@ setInterval(() => {
     
 }
 
+/* Odontogram History Styles */
+.odontogram-chart-area {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+}
+.odontogram-legend-readonly {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+}
+.odontogram-legend-readonly h5 {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 8px 0;
+    text-transform: uppercase;
+}
+.odontogram-legend-readonly .legend-section { margin-bottom: 6px; }
+.odontogram-legend-readonly .legend-section-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+}
+.odontogram-legend-readonly .legend-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+}
+.odontogram-legend-readonly .legend-item {
+    font-size: 0.75rem;
+    color: #475569;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+.odontogram-legend-readonly .legend-color {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+.odontogram-legend-readonly .legend-color.decayed { background: #ef4444; }
+.odontogram-legend-readonly .legend-color.treatment { background: #7dd3fc; }
+.odontogram-legend-readonly .legend-color.extraction { background: #f59e0b; }
+.odontogram-legend-readonly .legend-color.missing { background: #94a3b8; }
+.odontogram-legend-readonly .legend-color.impacted { background: #a78bfa; }
+.odontogram-legend-readonly .legend-color.other-cond { background: #6ee7b7; }
+.odontogram-chart-section-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    text-align: center;
+    margin: 10px 0 6px;
+}
+.odontogram-quadrant-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2px;
+}
+.odontogram-quadrant-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.odontogram-quadrant-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+}
+.odontogram-tooth-row {
+    display: flex;
+    gap: 2px;
+    align-items: flex-start;
+}
+.odontogram-tooth-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 48px;
+}
+.odontogram-tooth-num-label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: #64748b;
+    margin-bottom: 2px;
+    text-align: center;
+}
+.odontogram-tooth-svg-wrap {
+    position: relative;
+}
+.odontogram-tooth-svg-wrap svg {
+    display: block;
+}
+.odontogram-tooth-findings-below {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1px;
+    margin-top: 1px;
+    min-height: 12px;
+}
+.odontogram-tooth-finding-badge {
+    font-size: 0.5rem;
+    font-weight: 700;
+    padding: 0 3px;
+    border-radius: 2px;
+    line-height: 1.3;
+}
+.odontogram-tooth-finding-badge.pathology { background: #fecaca; color: #991b1b; }
+.odontogram-tooth-finding-badge.treatment { background: #bae6fd; color: #0369a1; }
+.odontogram-tooth-finding-badge.condition { background: #e2e8f0; color: #475569; }
+.odontogram-tooth-finding-badge.surgery { background: #fef3c7; color: #92400e; }
+
+/* Odontogram Modal Overlay */
+.odontogram-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 999999;
+    align-items: center;
+    justify-content: center;
+}
+.odontogram-modal-overlay.active {
+    display: flex;
+}
+.odontogram-modal-box {
+    background: white;
+    border-radius: 16px;
+    max-width: 900px;
+    width: 95%;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.odontogram-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.odontogram-modal-header h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+}
+.odontogram-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #64748b;
+    padding: 4px 8px;
+}
+.odontogram-modal-close:hover { color: #0f172a; }
+.odontogram-findings-display {
+    margin-top: 14px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 14px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+.odontogram-findings-display h5 {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    margin: 0 0 8px 0;
+}
+.odontogram-finding-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 0.72rem;
+    color: #334155;
+    margin: 2px;
+}
+
 </style>
+
+<!-- Odontogram History Modal -->
+<div id="odontogramModalOverlay" class="odontogram-modal-overlay" onclick="closeOdontogramModal(event)">
+    <div class="odontogram-modal-box" onclick="event.stopPropagation()">
+        <div class="odontogram-modal-header">
+            <h3 id="odontogramModalTitle">Odontogram - Session</h3>
+            <button class="odontogram-modal-close" onclick="closeOdontogramModalDirect()">&times;</button>
+        </div>
+        <div id="odontogramModalContent"></div>
+    </div>
+</div>
 
 <!-- Record Payment Modal -->
 <div id="recordPaymentModal" class="modal-overlay" style="display:none;">

@@ -180,7 +180,7 @@ try {
 .dentist-cal-day { min-height: 100px; padding: 8px; border: 1px solid #e5e7eb; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s; }
 .dentist-cal-day:hover { border-color: #3f75ea; background: #f0f7ff; }
 .dentist-cal-day.today { background: #dcf0ff; border-color: #3f75ea; }
-.dentist-cal-day.empty { background: #f9fafb; cursor: default; border-color: #f3f4f6; }
+.dentist-cal-day.empty { background: #ededed; cursor: default; border-color: #f3f4f6; }
 .dentist-cal-day.empty:hover { background: #f9fafb; border-color: #f3f4f6; }
 .dentist-cal-day.closed { background: #fef2f2; border-color: #fecaca; }
 .dentist-cal-day .day-num { font-weight: 500; font-size: 14px; color: #374151; margin-bottom: 4px; }

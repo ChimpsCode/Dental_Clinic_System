@@ -168,7 +168,7 @@ try {
 
             <!-- Up Next -->
             <div class="section-card">
-                <h2 class="section-title">⏭️ Up Next</h2>
+                <h2 class="section-title">📋 IN THE QUEUE</h2>
                 <div class="patient-list" id="up-next-list">
                     <?php if (empty($waitingItems)): ?>
                         <div style="text-align: center; padding: 0; color: #6b7280;">
@@ -181,12 +181,19 @@ try {
                         ?>
                         <div class="patient-item" id="next-<?php echo $item['id']; ?>">
                             <div class="patient-info">
-                                <div class="patient-name"><?php echo htmlspecialchars($waitingPatientName ?: 'Unknown'); ?></div>
-                                <div class="patient-details">
-                                    <span class="status-badge waiting">Waiting</span>
-                                    <span class="patient-time"><?php echo htmlspecialchars($item['queue_time'] ?? ''); ?></span>
+                                <div style="display:flex;align-items:center;gap:14px;">
+                                    <div style="min-width:44px;height:44px;background:#f3f4f6;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;color:#6b7280;font-size:1.05rem;flex-shrink:0;">
+                                        #<?php echo htmlspecialchars($item['queue_number'] ?? ($item['id'] ?? '')); ?>
+                                    </div>
+                                    <div style="min-width:0;">
+                                        <div class="patient-name"><?php echo htmlspecialchars($waitingPatientName ?: 'Unknown'); ?></div>
+                                        <div class="patient-details" style="margin-top:4px;">
+                                            <span class="status-badge waiting">Waiting</span>
+                                            <span class="patient-time"><?php echo htmlspecialchars($item['queue_time'] ?? ''); ?></span>
+                                        </div>
+                                        <div class="patient-treatment"><?php echo htmlspecialchars($item['treatment_type'] ?? ''); ?></div>
+                                    </div>
                                 </div>
-                                <div class="patient-treatment"><?php echo htmlspecialchars($item['treatment_type'] ?? ''); ?></div>
                             </div>
                             <div class="patient-actions">
                                 <button class="action-btn text-btn" onclick="viewPatientDashboard(<?php echo $item['patient_id']; ?>)">View</button>

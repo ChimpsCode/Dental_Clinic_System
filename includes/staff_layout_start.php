@@ -355,210 +355,39 @@ try {
         .see-all-btn:hover {
             background: #eff6ff;
         }
-        
-        /* Header right spacing */
-        .header-right {
+        .nav-dropdown {
+            border-top: 1px solid #e5e7eb;
+            margin-top: 8px;
+            padding-top: 0;
+        }
+        .nav-dropdown:first-child {
+            border-top: none;
+            margin-top: 0;
+        }
+        .nav-dropdown-toggle {
             display: flex;
             align-items: center;
-            gap: 16px;
-        }
-        .top-header {
-            position: sticky;
-            top: 0;
-            z-index: 50;
-        }
-
-        /* Page transition loader */
-        .page-loader {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
+            gap: 8px;
             width: 100%;
-            height: 3px;
-            background: linear-gradient(90deg, #0ea5e9, #0284c7);
-            z-index: 9999;
-            animation: loading 1s ease-in-out infinite;
-        }
-
-        @keyframes loading {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-        }
-
-        .floating-message-btn {
-            position: fixed;
-            right: 24px;
-            bottom: 24px;
-            width: 58px;
-            height: 58px;
-            border-radius: 50%;
-            background: #2563eb !important;
-            color: #ffffff !important;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            text-decoration: none !important;
-            box-shadow: 0 14px 28px rgba(37, 99, 235, 0.28);
-            z-index: 2000;
-            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-        }
-
-        .floating-message-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 18px 32px rgba(37, 99, 235, 0.34);
-            background: #1d4ed8 !important;
-        }
-
-        .floating-message-btn i {
-            font-size: 22px;
-        }
-        .staff-unread-badge {
-            position: absolute;
-            top: -2px;
-            right: -2px;
-            min-width: 22px;
-            height: 22px;
-            padding: 0 6px;
-            border-radius: 999px;
-            background: #dc2626;
-            color: #ffffff;
+            padding: 10px 20px;
             font-size: 11px;
             font-weight: 700;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border: 2px solid #ffffff;
-            line-height: 1;
-        }
-        
-        /* Notification Tabs */
-        .notification-tabs {
-            display: flex;
-            border-bottom: 1px solid #eef2f7;
-            padding: 0 12px;
-        }
-        .notification-tab {
-            padding: 10px 16px;
-            font-size: 13px;
-            font-weight: 500;
-            color: #6b7280;
+            color: rgba(0, 0, 0, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
             background: none;
             border: none;
-            cursor: pointer;
-            position: relative;
-            transition: color 0.2s;
+            cursor: default;
         }
-        .notification-tab:hover { color: #0f172a; }
-        .notification-tab.active { color: #0ea5e9; }
-        .notification-tab.active::after {
-            content: '';
-            position: absolute;
-            bottom: -1px;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: #0ea5e9;
-            border-radius: 2px 2px 0 0;
+        .nav-dropdown-content {
+            overflow: hidden;
         }
-        .notification-tab .tab-count {
-            font-size: 11px;
-            background: #e2e8f0;
-            color: #64748b;
-            padding: 1px 6px;
-            border-radius: 999px;
-            margin-left: 4px;
-            
+        .nav-dropdown-content.open {
+            max-height: 500px;
         }
-        .notification-tab.active .tab-count {
-            background: #e0f2fe;
-            color: #0ea5e9;
+        .nav-dropdown-item {
+            padding-left: 28px !important;
         }
-        
-        /* Notification Read/Unread */
-        .header-notifications .notification-item.unread {
-            background: #e0f2fe;
-            border-left: 3px solid #0ea5e9;
-            margin-bottom: 5px;
-        }
-        .header-notifications .notification-item.read {
-            background: #ffffff;
-            opacity: 0.85;
-        }
-        .header-notifications .notification-item:hover {
-            background: #f1f5f9;
-        }
-        .header-notifications .notification-item.unread:hover {
-            background: #bae6fd;
-        }
-        .header-notifications .notification-item .notification-content {
-            flex: 1;
-            min-width: 0;
-            
-        }
-        .header-notifications .notification-item .notification-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 8px;
-            
-        }
-        
-        /* Kebab Menu */
-        .notification-kebab {
-            position: relative;
-            opacity: 0;
-            transition: opacity 0.2s;
-            
-        }
-        .notification-item:hover .notification-kebab { opacity: 1; }
-        .kebab-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 4px;
-            border-radius: 4px;
-            color: #64748b;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            
-        }
-        .kebab-btn:hover { background: #e2e8f0; color: #0f172a; }
-        .kebab-menu {
-            position: absolute;
-            top: 100%;
-            right: 0;
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            min-width: 120px;
-            z-index: 10;
-            display: none;
-            
-        }
-        .kebab-menu.show { display: block; }
-        .kebab-menu button {
-            width: 100%;
-            padding: 8px 12px;
-            font-size: 13px;
-            color: #374151;
-            background: none;
-            border: none;
-            text-align: left;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            
-        }
-        .kebab-menu button:hover { background: #f8fafc; }
-        .kebab-menu button:first-child { border-radius: 8px 8px 0 0; }
-        .kebab-menu button:last-child { border-radius: 0 0 8px 8px; }
-        .kebab-menu button.delete-btn { color: #dc2626; }
-        .kebab-menu button.delete-btn:hover { background: #fef2f2; }
-        html, body { overflow-x: hidden; width: 100%; }
     </style>
 </head>
 <body data-user-id="<?php echo (int)($_SESSION['user_id'] ?? 0); ?>">
@@ -571,68 +400,85 @@ try {
         </div>
         
         <nav class="sidebar-nav">
-            <a href="staff-dashboard.php" class="nav-item <?php echo isActivePage('staff-dashboard.php') ? 'active' : ''; ?>">
-                <span class="nav-item-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M3 12a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1zm0 8a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1zm10 0a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1zm1-17a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1z"/>
-                    </svg>
-                </span>
-                <span>Dashboard</span>
-            </a>
+            <div class="nav-dropdown">
+                <div class="nav-dropdown-toggle">
+                    MAIN
+                </div>
+                <div class="nav-dropdown-content open">
+                    <a href="staff-dashboard.php" class="nav-item nav-dropdown-item <?php echo isActivePage('staff-dashboard.php') ? 'active' : ''; ?>">
+                        <span class="nav-item-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M3 12a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1zm0 8a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1zm10 0a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1zm1-17a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1z"/>
+                            </svg>
+                        </span>
+                        <span>Dashboard</span>
+                    </a>
+                </div>
+            </div>
 
-            <a href="staff_new_admission.php" class="nav-item <?php echo isActivePage('staff_new_admission.php') ? 'active' : ''; ?>">
-                <span class="nav-item-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M15.25 18.75q.3 0 .525-.225T16 18t-.225-.525t-.525-.225t-.525.225T14.5 18t.225.525t.525.225m2.75 0q.3 0 .525-.225T18.75 18t-.225-.525T18 17.25t-.525.225t-.225.525t.525.225M5 21q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h14q.825 0 1.413.588T21 5v6.7q-.475-.225-.975-.387T19 11.075V5H5v14h6.05q.075.55.238 1.05t.387.95zm0-3v1V5v6.075V11zm2-1h4.075q.075-.525.238-1.025t.362-.975H7zm0-4h6.1q.8-.75 1.788-1.25T17 11.075V11H7zm0-4h10V7H7zm11 14q-2.075 0-3.537-1.463T13 18t1.463-3.537T18 13t3.538 1.463T23 18t-1.463 3.538T18 23"/>
-                    </svg>
-                </span>
-                <span>New Admission</span>
-            </a>
-            
-            <a href="staff_inquiries.php" class="nav-item <?php echo isActivePage('staff_inquiries.php') ? 'active' : ''; ?>">
-                <span class="nav-item-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                    </svg>
-                </span>
-                <span>Inquiries</span>
-            </a>
-            
-            <a href="staff_queue.php" class="nav-item <?php echo isActivePage('staff_queue.php') ? 'active' : ''; ?>">
-                <span class="nav-item-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M4 6H2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm6 12v-2H8v2h2zm2-2h2v2h-2v-2zm0-3a1 1 0 0 0 1-1H7a1 1 0 0 0-1 1v3h10V7a1 1 0 0 0-1-1h-5a1 1 0 0 0-1 1z"/>
-                    </svg>
-                </span>
-                <span>Queue Management</span>
-            </a>
-            
-            <a href="staff_patient_records.php" class="nav-item <?php echo isActivePage('staff_patient_records.php') ? 'active' : ''; ?>">
-                <span class="nav-item-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3s1.34 3 3 3m-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5S5 6.34 5 8s1.34 3 3 3m0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5m8 0c-.29 0-.62.02-.97.05c1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5"/>
-                    </svg>
-                </span>
-                <span>Patient Records</span>
-            </a>
-            
-            <a href="staff_appointments.php" class="nav-item <?php echo isActivePage('staff_appointments.php') ? 'active' : ''; ?>">
-                <span class="nav-item-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M19 4h-2V3a1 1 0 0 0-2 0v1H9V3a1 1 0 0 0-2 0v1H5a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3m1 15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-7h16Zm0-9H4V7a1 1 0 0 1 1-1h2v1a1 1 0 0 0 2 0V6h6v1a1 1 0 0 0 2 0V6h2a1 1 0 0 1 1 1Z"/>
-                    </svg>
-                </span>
-                <span>Appointments</span>
-            </a>
-            
-            <a href="staff_payment.php" class="nav-item <?php echo isActivePage('staff_payment.php') ? 'active' : ''; ?>">
-                <span class="nav-item-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
-                    </svg>
-                </span>
-                <span>Payment</span>
-            </a>
+            <div class="nav-dropdown">
+                <div class="nav-dropdown-toggle">
+                    OPERATIONS
+                </div>
+                <div class="nav-dropdown-content open">
+                    <a href="staff_new_admission.php" class="nav-item nav-dropdown-item <?php echo isActivePage('staff_new_admission.php') ? 'active' : ''; ?>">
+                        <span class="nav-item-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M15.25 18.75q.3 0 .525-.225T16 18t-.225-.525t-.525-.225t-.525.225T14.5 18t.225.525t.525.225m2.75 0q.3 0 .525-.225T18.75 18t-.225-.525T18 17.25t-.525.225t-.225.525t.525.225M5 21q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h14q.825 0 1.413.588T21 5v6.7q-.475-.225-.975-.387T19 11.075V5H5v14h6.05q.075.55.238 1.05t.387.95zm0-3v1V5v6.075V11zm2-1h4.075q.075-.525.238-1.025t.362-.975H7zm0-4h6.1q.8-.75 1.788-1.25T17 11.075V11H7zm0-4h10V7H7zm11 14q-2.075 0-3.537-1.463T13 18t1.463-3.537T18 13t3.538 1.463T23 18t-1.463 3.538T18 23"/>
+                            </svg>
+                        </span>
+                        <span>New Admission</span>
+                    </a>
+                    <a href="staff_inquiries.php" class="nav-item nav-dropdown-item <?php echo isActivePage('staff_inquiries.php') ? 'active' : ''; ?>">
+                        <span class="nav-item-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                            </svg>
+                        </span>
+                        <span>Inquiries</span>
+                    </a>
+                    <a href="staff_queue.php" class="nav-item nav-dropdown-item <?php echo isActivePage('staff_queue.php') ? 'active' : ''; ?>">
+                        <span class="nav-item-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M4 6H2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm6 12v-2H8v2h2zm2-2h2v2h-2v-2zm0-3a1 1 0 0 0 1-1H7a1 1 0 0 0-1 1v3h10V7a1 1 0 0 0-1-1h-5a1 1 0 0 0-1 1z"/>
+                            </svg>
+                        </span>
+                        <span>Queue Management</span>
+                    </a>
+                    <a href="staff_appointments.php" class="nav-item nav-dropdown-item <?php echo isActivePage('staff_appointments.php') ? 'active' : ''; ?>">
+                        <span class="nav-item-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M19 4h-2V3a1 1 0 0 0-2 0v1H9V3a1 1 0 0 0-2 0v1H5a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3m1 15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-7h16Zm0-9H4V7a1 1 0 0 1 1-1h2v1a1 1 0 0 0 2 0V6h6v1a1 1 0 0 0 2 0V6h2a1 1 0 0 1 1 1Z"/>
+                            </svg>
+                        </span>
+                        <span>Appointments</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="nav-dropdown">
+                <div class="nav-dropdown-toggle">
+                    PATIENTS &amp; BILLING
+                </div>
+                <div class="nav-dropdown-content open">
+                    <a href="staff_patient_records.php" class="nav-item nav-dropdown-item <?php echo isActivePage('staff_patient_records.php') ? 'active' : ''; ?>">
+                        <span class="nav-item-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3s1.34 3 3 3m-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5S5 6.34 5 8s1.34 3 3 3m0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5m8 0c-.29 0-.62.02-.97.05c1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5"/>
+                            </svg>
+                        </span>
+                        <span>Patient Records</span>
+                    </a>
+                    <a href="staff_payment.php" class="nav-item nav-dropdown-item <?php echo isActivePage('staff_payment.php') ? 'active' : ''; ?>">
+                        <span class="nav-item-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
+                            </svg>
+                        </span>
+                        <span>Payment</span>
+                    </a>
+                </div>
+            </div>
         </nav>
     </aside>
 

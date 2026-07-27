@@ -339,6 +339,39 @@ try {
         .see-all-btn:hover {
             background: #eff6ff;
         }
+        .nav-dropdown {
+            border-top: 1px solid #e5e7eb;
+            margin-top: 8px;
+            padding-top: 0;
+        }
+        .nav-dropdown:first-child {
+            border-top: none;
+            margin-top: 0;
+        }
+        .nav-dropdown-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 10px 20px;
+            font-size: 11px;
+            font-weight: 700;
+            color: rgba(0, 0, 0, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            background: none;
+            border: none;
+            cursor: default;
+        }
+        .nav-dropdown-content {
+            overflow: hidden;
+        }
+        .nav-dropdown-content.open {
+            max-height: 500px;
+        }
+        .nav-dropdown-item {
+            padding-left: 28px !important;
+        }
     </style>
 </head>
 <body data-user-id="<?php echo (int)($_SESSION['user_id'] ?? 0); ?>">
@@ -349,74 +382,85 @@ try {
         </div>
         
         <nav class="sidebar-nav">
-            <a href="dentist_dashboard.php" class="nav-item <?php echo isActivePage('dentist_dashboard.php') ? 'active' : ''; ?>">
-                <span class="nav-item-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M3 12a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1zm0 8a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1zm10 0a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1zm1-17a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1z"/>
-                    </svg>
-                </span>
-                <span>Dashboard</span>
-            </a>
-            
-            <a href="dentist_appointments.php" class="nav-item <?php echo isActivePage('dentist_appointments.php') ? 'active' : ''; ?>">
-                <span class="nav-item-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M19 4h-2V3a1 1 0 0 0-2 0v1H9V3a1 1 0 0 0-2 0v1H5a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3m1 15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-7h16Zm0-9H4V7a1 1 0 0 1 1-1h2v1a1 1 0 0 0 2 0V6h6v1a1 1 0 0 0 2 0V6h2a1 1 0 0 1 1 1Z"/>
-                    </svg>
-                </span>
-                <span>Appointments</span>
-            </a>
-            
-             <a href="dentist_patients.php" class="nav-item <?php echo isActivePage('dentist_patients.php') ? 'active' : ''; ?>">
-                 <span class="nav-item-icon">
-                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                         <path fill="currentColor" d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3s1.34 3 3 3m-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5S5 6.34 5 8s1.34 3 3 3m0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5m8 0c-.29 0-.62.02-.97.05c1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5"/>
-                     </svg>
-                 </span>
-                 <span>Patient Records</span>
-             </a>
-            
-            <a href="dentist_treatments.php" class="nav-item <?php echo isActivePage('dentist_treatments.php') ? 'active' : ''; ?>">
-                <span class="nav-item-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                    </svg>
-                </span>
-                <span>Treatment Plan</span>
-            </a>
+            <div class="nav-dropdown">
+                <div class="nav-dropdown-toggle" style="cursor:default;">
+                    MAIN
+                </div>
+                <div class="nav-dropdown-content open">
+                    <a href="dentist_dashboard.php" class="nav-item nav-dropdown-item <?php echo isActivePage('dentist_dashboard.php') ? 'active' : ''; ?>">
+                        <span class="nav-item-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M3 12a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1zm0 8a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1zm10 0a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1zm1-17a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1z"/>
+                            </svg>
+                        </span>
+                        <span>Dashboard</span>
+                    </a>
+                </div>
+            </div>
 
-            <a href="dentist_consultation.php" class="nav-item <?php echo isActivePage('dentist_consultation.php') ? 'active' : ''; ?>">
-                <span class="nav-item-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/>
-                    </svg>
-                </span>
-                <span>Consultation</span>
-            </a>
+            <div class="nav-dropdown">
+                <div class="nav-dropdown-toggle" style="cursor:default;">
+                    PATIENT CARE
+                </div>
+                <div class="nav-dropdown-content open">
+                    <a href="dentist_patients.php" class="nav-item nav-dropdown-item <?php echo isActivePage('dentist_patients.php') ? 'active' : ''; ?>">
+                        <span class="nav-item-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3s1.34 3 3 3m-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5S5 6.34 5 8s1.34 3 3 3m0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5m8 0c-.29 0-.62.02-.97.05c1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5"/>
+                            </svg>
+                        </span>
+                        <span>Patient Records</span>
+                    </a>
+                    <a href="dentist_treatments.php" class="nav-item nav-dropdown-item <?php echo isActivePage('dentist_treatments.php') ? 'active' : ''; ?>">
+                        <span class="nav-item-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                            </svg>
+                        </span>
+                        <span>Treatment Plan</span>
+                    </a>
+                    <a href="dentist_consultation.php" class="nav-item nav-dropdown-item <?php echo isActivePage('dentist_consultation.php') ? 'active' : ''; ?>">
+                        <span class="nav-item-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/>
+                            </svg>
+                        </span>
+                        <span>Consultation</span>
+                    </a>
+                    <a href="dentist_prescriptions.php" class="nav-item nav-dropdown-item <?php echo isActivePage('dentist_prescriptions.php') ? 'active' : ''; ?>">
+                        <span class="nav-item-icon">
+                            <svg fill="currentColor" width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M188.9707,188l19.51465-19.51465a12.0001,12.0001,0,0,0-16.9707-16.9707L172,171.0293l-34.01074-34.01062A55.99228,55.99228,0,0,0,120,28H72A12,12,0,0,0,60,40V192a12,12,0,0,0,24,0V140h23.0293l48,48-19.51465,19.51465a12.0001,12.0001,0,0,0,16.9707,16.9707L172,204.9707l19.51465,19.51465a12.0001,12.0001,0,0,0,16.9707-16.9707ZM84,52h36a32,32,0,0,1,0,64H84Z"/>
+                            </svg>
+                        </span>
+                        <span>Prescriptions</span>
+                    </a>
+                </div>
+            </div>
 
-            <a href="dentist_prescriptions.php" class="nav-item <?php echo isActivePage('dentist_prescriptions.php') ? 'active' : ''; ?>">
-                <span class="nav-item-icon">
-                    
-<svg fill="#272020" width="24" height="24" viewBox="0 0 256 256" id="Flat" xmlns="http://www.w3.org/2000/svg">
-  <path d="M188.9707,188l19.51465-19.51465a12.0001,12.0001,0,0,0-16.9707-16.9707L172,171.0293l-34.01074-34.01062A55.99228,55.99228,0,0,0,120,28H72A12,12,0,0,0,60,40V192a12,12,0,0,0,24,0V140h23.0293l48,48-19.51465,19.51465a12.0001,12.0001,0,0,0,16.9707,16.9707L172,204.9707l19.51465,19.51465a12.0001,12.0001,0,0,0,16.9707-16.9707ZM84,52h36a32,32,0,0,1,0,64H84Z"/>
-</svg>
-                </span>
-                <span>Prescriptions</span>
-            </a>
-
-            
-
-
-
-
-            <a href="dentist_queue.php" class="nav-item <?php echo isActivePage('dentist_queue.php') ? 'active' : ''; ?>">
-                <span class="nav-item-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M4 6H2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm6 12v-2H8v2h2zm2-2h2v2h-2v-2zm0-3a1 1 0 0 0 1-1H7a1 1 0 0 0-1 1v3h10V7a1 1 0 0 0-1-1h-5a1 1 0 0 0-1 1z"/>
-                    </svg>
-                </span>
-                <span>Queue Management</span>
-            </a>
+            <div class="nav-dropdown">
+                <div class="nav-dropdown-toggle" style="cursor:default;">
+                    OPERATIONS
+                </div>
+                <div class="nav-dropdown-content open">
+                    <a href="dentist_appointments.php" class="nav-item nav-dropdown-item <?php echo isActivePage('dentist_appointments.php') ? 'active' : ''; ?>">
+                        <span class="nav-item-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M19 4h-2V3a1 1 0 0 0-2 0v1H9V3a1 1 0 0 0-2 0v1H5a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3m1 15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-7h16Zm0-9H4V7a1 1 0 0 1 1-1h2v1a1 1 0 0 0 2 0V6h6v1a1 1 0 0 0 2 0V6h2a1 1 0 0 1 1 1Z"/>
+                            </svg>
+                        </span>
+                        <span>Appointments</span>
+                    </a>
+                    <a href="dentist_queue.php" class="nav-item nav-dropdown-item <?php echo isActivePage('dentist_queue.php') ? 'active' : ''; ?>">
+                        <span class="nav-item-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M4 6H2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm6 12v-2H8v2h2zm2-2h2v2h-2v-2zm0-3a1 1 0 0 0 1-1H7a1 1 0 0 0-1 1v3h10V7a1 1 0 0 0-1-1h-5a1 1 0 0 0-1 1z"/>
+                            </svg>
+                        </span>
+                        <span>Queue Management</span>
+                    </a>
+                </div>
+            </div>
         </nav>
         
     </aside>

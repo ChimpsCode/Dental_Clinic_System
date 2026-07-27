@@ -120,6 +120,26 @@ try {
         $payments = [];
     }
     
+    // Get odontogram sessions (consultations with teeth_data)
+    $odontogramSessions = [];
+    try {
+        $stmt = $pdo->prepare("
+            SELECT c.id, c.teeth_data, c.created_at, c.consultation_notes,
+                   q.treatment_type, q.teeth_numbers,
+                   u.first_name AS dentist_first_name, u.last_name AS dentist_last_name
+            FROM consultations c
+            LEFT JOIN queue q ON q.id = c.queue_id
+            LEFT JOIN users u ON u.id = c.dentist_id
+            WHERE c.patient_id = ? AND c.teeth_data IS NOT NULL AND c.teeth_data != '[]' AND c.teeth_data != 'null'
+            ORDER BY c.created_at DESC
+            LIMIT 20
+        ");
+        $stmt->execute([$patientId]);
+        $odontogramSessions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        $odontogramSessions = [];
+    }
+    
     echo json_encode([
         'success' => true,
         'patient' => $patient,
@@ -128,7 +148,8 @@ try {
         'queue_item' => $queueItem,
         'billing' => $billing,
         'all_billings' => $allBillings,
-        'payments' => $payments
+        'payments' => $payments,
+        'odontogram_sessions' => $odontogramSessions
     ]);
     
 } catch (Exception $e) {
