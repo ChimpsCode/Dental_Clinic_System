@@ -5,31 +5,70 @@ require_once '../../includes/dentist_layout_start.php';
 
 $user_id = (int)$_SESSION['user_id'];
 $initialQueueId = isset($_GET['queue_id']) ? (int)$_GET['queue_id'] : 0;
+$pastConsultId = isset($_GET['past_consultation_id']) ? (int)$_GET['past_consultation_id'] : 0;
+$isPastView = false;
+$pastConsultData = null;
 
-$queuePatients = [];
-$today = date('Y-m-d');
-try {
-    $stmt = $pdo->prepare("
-        SELECT q.id as queue_id, q.queue_number, q.status, q.patient_id, q.treatment_type,
-               p.first_name, p.middle_name, p.last_name, p.suffix
-        FROM queue q
-        LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED)
-        WHERE q.status IN ('in_procedure', 'waiting')
-          AND COALESCE(q.queue_date, DATE(q.created_at)) = ?
-        ORDER BY q.queue_number ASC, q.created_at ASC
-    ");
-    $stmt->execute([$today]);
-    $queuePatients = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    foreach ($queuePatients as &$pt) {
-        $parts = array_filter([$pt['first_name'] ?? '', $pt['middle_name'] ?? '', $pt['last_name'] ?? '', $pt['suffix'] ?? '']);
-        $pt['full_name'] = implode(' ', $parts);
+if ($pastConsultId) {
+    $isPastView = true;
+    try {
+        $stmt = $pdo->prepare("
+            SELECT c.*, q.treatment_type AS queue_treatment_type, q.queue_number,
+                   p.first_name, p.middle_name, p.last_name, p.suffix,
+                   u.first_name AS dentist_first_name, u.last_name AS dentist_last_name
+            FROM consultations c
+            LEFT JOIN queue q ON q.id = c.queue_id
+            LEFT JOIN patients p ON p.id = CAST(c.patient_id AS UNSIGNED)
+            LEFT JOIN users u ON u.id = c.dentist_id
+            WHERE c.id = ?
+        ");
+        $stmt->execute([$pastConsultId]);
+        $pastConsultData = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($pastConsultData) {
+            $parts = array_filter([$pastConsultData['first_name'] ?? '', $pastConsultData['middle_name'] ?? '', $pastConsultData['last_name'] ?? '', $pastConsultData['suffix'] ?? '']);
+            $pastConsultData['patient_name'] = implode(' ', $parts);
+            $pastConsultData['treatment_type'] = $pastConsultData['queue_treatment_type'] ?? '';
+            $pastConsultData['dentist_name'] = implode(' ', array_filter([$pastConsultData['dentist_first_name'] ?? '', $pastConsultData['dentist_last_name'] ?? ''])) ?: 'Unknown';
+            if (is_string($pastConsultData['teeth_data'] ?? '')) {
+                $pastConsultData['teeth_data'] = json_decode($pastConsultData['teeth_data'], true);
+            }
+            if (is_string($pastConsultData['prescription_data'] ?? '')) {
+                $pastConsultData['prescription_data'] = json_decode($pastConsultData['prescription_data'], true);
+            }
+            $stmt2 = $pdo->prepare("SELECT * FROM medical_history WHERE patient_id = ? ORDER BY id DESC LIMIT 1");
+            $stmt2->execute([$pastConsultData['patient_id']]);
+            $pastConsultData['medical_history'] = $stmt2->fetch(PDO::FETCH_ASSOC);
+        }
+    } catch (Exception $e) {
+        $pastConsultData = null;
     }
-    unset($pt);
-} catch (Exception $e) {
-    $queuePatients = [];
 }
 
-// Get services for prescription lookup
+$queuePatients = [];
+if (!$isPastView) {
+    $today = date('Y-m-d');
+    try {
+        $stmt = $pdo->prepare("
+            SELECT q.id as queue_id, q.queue_number, q.status, q.patient_id, q.treatment_type,
+                   p.first_name, p.middle_name, p.last_name, p.suffix
+            FROM queue q
+            LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED)
+            WHERE q.status IN ('in_procedure', 'waiting')
+              AND COALESCE(q.queue_date, DATE(q.created_at)) = ?
+            ORDER BY q.queue_number ASC, q.created_at ASC
+        ");
+        $stmt->execute([$today]);
+        $queuePatients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($queuePatients as &$pt) {
+            $parts = array_filter([$pt['first_name'] ?? '', $pt['middle_name'] ?? '', $pt['last_name'] ?? '', $pt['suffix'] ?? '']);
+            $pt['full_name'] = implode(' ', $parts);
+        }
+        unset($pt);
+    } catch (Exception $e) {
+        $queuePatients = [];
+    }
+}
+
 $services = [];
 try {
     $services = $pdo->query("SELECT id, name FROM services WHERE is_active = 1 ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
@@ -889,43 +928,330 @@ try {
 .sig-name-input:focus {
     border-color: #0ea5e9;
 }
+
+/* Past Consultations */
+.past-consult-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-bottom: 12px;
+}
+.past-consult-toggle:hover {
+    background: #dcfce7;
+}
+.past-consult-toggle h4 {
+    margin: 0;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #166534;
+}
+.past-consult-toggle .toggle-count {
+    background: #166534;
+    color: white;
+    padding: 2px 10px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-left: 8px;
+}
+.past-consult-toggle .toggle-arrow {
+    transition: transform 0.2s;
+    color: #166534;
+}
+.past-consult-toggle.open .toggle-arrow {
+    transform: rotate(180deg);
+}
+.past-consult-list {
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+.past-consult-list.open {
+    display: flex;
+}
+.past-consult-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    overflow: hidden;
+}
+.past-consult-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.past-consult-card-header:hover {
+    background: #f8fafc;
+}
+.past-consult-card-header .card-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.past-consult-card-header .card-date {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+.past-consult-card-header .card-treatment {
+    font-size: 0.8rem;
+    color: #0ea5e9;
+    font-weight: 600;
+    background: #f0f9ff;
+    padding: 3px 10px;
+    border-radius: 6px;
+}
+.past-consult-card-header .card-dentist {
+    font-size: 0.78rem;
+    color: #64748b;
+}
+.past-consult-card-header .card-arrow {
+    color: #94a3b8;
+    transition: transform 0.2s;
+    font-size: 0.85rem;
+}
+.past-consult-card.expanded .card-arrow {
+    transform: rotate(180deg);
+}
+.past-consult-card-body {
+    display: none;
+    padding: 14px 16px;
+    border-top: 1px solid #f1f5f9;
+    background: #fafbfc;
+}
+.past-consult-card.expanded .past-consult-card-body {
+    display: block;
+}
+.past-consult-detail-group {
+    margin-bottom: 12px;
+}
+.past-consult-detail-group:last-child {
+    margin-bottom: 0;
+}
+.past-consult-detail-group .detail-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+}
+.past-consult-detail-group .detail-value {
+    font-size: 0.85rem;
+    color: #334155;
+    line-height: 1.5;
+}
+.past-consult-detail-group .detail-value.empty {
+    color: #94a3b8;
+    font-style: italic;
+}
+.past-teeth-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.past-teeth-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 5px;
+    padding: 2px 8px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #475569;
+}
+.past-teeth-chip.pathology { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+.past-teeth-chip.treatment { background: #f0f9ff; border-color: #bae6fd; color: #0369a1; }
+.past-teeth-chip.condition { background: #f1f5f9; border-color: #e2e8f0; color: #475569; }
+.past-teeth-chip.surgery { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.past-prescription-item {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 6px;
+    font-size: 0.82rem;
+}
+.past-prescription-item:last-child { margin-bottom: 0; }
+.past-prescription-item .med-name { font-weight: 700; color: #1e293b; }
+.past-prescription-item .med-detail { color: #64748b; margin-top: 2px; }
+
+/* Past View Mode */
+.past-view-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.35);
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: white;
+}
+.past-view-badge svg { opacity: 0.9; }
+.past-view-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+.past-view-back-btn:hover {
+    background: rgba(255,255,255,0.25);
+}
+.consult-queue-chip.past {
+    background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
+    border: 2px solid #86efac;
+    color: #166534;
+    cursor: default;
+    position: relative;
+}
+.consult-queue-chip.past:hover {
+    border-color: #86efac;
+    color: #166534;
+    transform: none;
+    filter: none;
+}
+.consult-queue-chip.past .chip-num {
+    background: rgba(22, 101, 52, 0.1);
+}
+.past-chip-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(22, 101, 52, 0.15);
+    color: #166534;
+    border: none;
+    cursor: pointer;
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-left: 6px;
+    padding: 0;
+    line-height: 1;
+    transition: all 0.15s;
+    flex-shrink: 0;
+}
+.past-chip-close:hover {
+    background: #dc2626;
+    color: white;
+}
+.past-chip-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #16a34a;
+    background: rgba(22, 101, 52, 0.08);
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-right: 4px;
+}
+.read-only-overlay-msg {
+    display: none;
+    text-align: center;
+    padding: 10px;
+    background: #fefce8;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #92400e;
+    margin-bottom: 12px;
+}
+.is-past-view .read-only-overlay-msg { display: block; }
+.is-past-view select { pointer-events: none; }
+.is-past-view input:not([type="hidden"]) { pointer-events: none; }
+.is-past-view textarea { pointer-events: none; }
+.is-past-view .tooth-svg-wrap { pointer-events: none !important; cursor: default !important; }
+.is-past-view .tooth-svg-wrap:hover { transform: none; filter: none; }
+.is-past-view .add-presc-btn { display: none; }
+.is-past-view .consult-complete-btn { display: none !important; }
 </style>
 
-<div class="consult-container">
+<div class="consult-container <?php echo $isPastView ? 'is-past-view' : ''; ?>">
     <!-- Header -->
     <div class="consult-header">
         <div class="consult-header-left">
-            <h2>Consultation in Progress</h2>
+            <h2><?php echo $isPastView ? 'Past Consultation' : 'Consultation in Progress'; ?></h2>
             <div class="consult-patient-info">
-                Patient: <span id="consultPatientName">Select a patient from the queue below</span>
+                <?php if ($isPastView && $pastConsultData): ?>
+                    <span class="past-view-badge">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
+                        READ ONLY
+                    </span>
+                    &nbsp;&nbsp;
+                <?php endif; ?>
+                Patient: <span id="consultPatientName"><?php echo $isPastView ? htmlspecialchars($pastConsultData['patient_name'] ?? 'Unknown') : 'Select a patient from the queue below'; ?></span>
                 &nbsp;&nbsp;|&nbsp;&nbsp;
-                Queue No: <span id="consultQueueNo">-</span>
+                Queue No: <span id="consultQueueNo"><?php echo $isPastView ? '#' . htmlspecialchars($pastConsultData['queue_number'] ?? '-') : '-'; ?></span>
                 &nbsp;&nbsp;|&nbsp;&nbsp;
-                Treatment: <span id="consultTreatment">-</span>
+                Treatment: <span id="consultTreatment"><?php echo $isPastView ? htmlspecialchars($pastConsultData['treatment_type'] ?? '-') : '-'; ?></span>
             </div>
         </div>
-        <button class="consult-complete-btn" onclick="completeConsultation()" id="consultCompleteBtn" style="display:none;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            Complete Consultation
-        </button>
+        <?php if ($isPastView): ?>
+            <a href="dentist_patients.php" class="past-view-back-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                Back to Patient Records
+            </a>
+        <?php else: ?>
+            <button class="consult-complete-btn" onclick="completeConsultation()" id="consultCompleteBtn" style="display:none;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                Complete Consultation
+            </button>
+        <?php endif; ?>
     </div>
 
     <!-- Queue Bar -->
     <div class="consult-queue-bar" id="consultQueueBar">
-        <span class="consult-queue-label">Consulting Queue:</span>
-        <?php foreach ($queuePatients as $pt): ?>
-            <div class="consult-queue-chip <?php echo ($initialQueueId == $pt['queue_id']) ? 'active' : ''; ?>"
-                 data-queue-id="<?php echo $pt['queue_id']; ?>"
-                 data-patient-name="<?php echo htmlspecialchars($pt['full_name']); ?>"
-                 data-queue-number="<?php echo $pt['queue_number']; ?>"
-                 data-treatment="<?php echo htmlspecialchars($pt['treatment_type'] ?? ''); ?>"
-                 onclick="selectConsultPatient(this)">
-                <span class="chip-num">#<?php echo $pt['queue_number'] ?? $pt['queue_id']; ?></span>
-                <?php echo htmlspecialchars($pt['full_name']); ?>
+        <span class="consult-queue-label"><?php echo $isPastView ? 'Viewing:' : 'Consulting Queue:'; ?></span>
+        <?php if ($isPastView && $pastConsultData): ?>
+            <div class="consult-queue-chip past">
+                <span class="past-chip-label">Past</span>
+                <span class="chip-num">#<?php echo htmlspecialchars($pastConsultData['queue_number'] ?? '-'); ?></span>
+                <?php echo htmlspecialchars($pastConsultData['patient_name'] ?? 'Unknown'); ?>
+                <button class="past-chip-close" onclick="window.location.href='dentist_patients.php'" title="Close">&times;</button>
             </div>
-        <?php endforeach; ?>
-        <?php if (empty($queuePatients)): ?>
-            <span style="font-size:0.82rem;color:#94a3b8;">No patients in queue</span>
+        <?php else: ?>
+            <?php foreach ($queuePatients as $pt): ?>
+                <div class="consult-queue-chip <?php echo ($initialQueueId == $pt['queue_id']) ? 'active' : ''; ?>"
+                     data-queue-id="<?php echo $pt['queue_id']; ?>"
+                     data-patient-name="<?php echo htmlspecialchars($pt['full_name']); ?>"
+                     data-queue-number="<?php echo $pt['queue_number']; ?>"
+                     data-treatment="<?php echo htmlspecialchars($pt['treatment_type'] ?? ''); ?>"
+                     onclick="selectConsultPatient(this)">
+                    <span class="chip-num">#<?php echo $pt['queue_number'] ?? $pt['queue_id']; ?></span>
+                    <?php echo htmlspecialchars($pt['full_name']); ?>
+                </div>
+            <?php endforeach; ?>
+            <?php if (empty($queuePatients)): ?>
+                <span style="font-size:0.82rem;color:#94a3b8;">No patients in queue</span>
+            <?php endif; ?>
         <?php endif; ?>
     </div>
 
@@ -947,10 +1273,20 @@ try {
             <p>Click a patient from the consulting queue above to begin consultation.</p>
         </div>
 
+        <!-- Past Consultations (for returning patients) -->
+        <div id="pastConsultationsSection" style="display:none;">
+            <div class="past-consult-toggle" id="pastConsultToggle" onclick="togglePastConsultations()">
+                <h4>Past Consultations <span class="toggle-count" id="pastConsultCount">0</span></h4>
+                <span class="toggle-arrow">▼</span>
+            </div>
+            <div class="past-consult-list" id="pastConsultList"></div>
+        </div>
+
         <!-- Panels -->
         <div id="consultPanels" style="display:none;">
             <!-- Dental Examination -->
             <div class="consult-tab-panel active" id="panel-dental-exam">
+                <?php if ($isPastView): ?><div class="read-only-overlay-msg">This is a completed past consultation. All data is read-only.</div><?php endif; ?>
                 <div class="dental-exam-grid">
                     <div class="dental-exam-form">
                         <!-- Periodontal -->
@@ -1100,6 +1436,7 @@ try {
 
             <!-- Notes -->
             <div class="consult-tab-panel" id="panel-notes">
+                <?php if ($isPastView): ?><div class="read-only-overlay-msg">This is a completed past consultation. All data is read-only.</div><?php endif; ?>
                 <div style="max-width:700px;">
                     <h3 style="font-size:1rem;font-weight:700;color:#1e293b;margin:0 0 12px;">Consultation Notes</h3>
                     <textarea class="notes-textarea" id="consultNotes" placeholder="Enter consultation notes here..." oninput="debounceNotesSave()"></textarea>
@@ -1109,6 +1446,7 @@ try {
 
             <!-- Dental & Medical History -->
             <div class="consult-tab-panel" id="panel-history">
+                <?php if ($isPastView): ?><div class="read-only-overlay-msg">This is a completed past consultation. All data is read-only.</div><?php endif; ?>
                 <div id="medicalHistoryDisplay">
                     <div class="history-section">
                         <h4>Existing Medical History</h4>
@@ -1124,6 +1462,7 @@ try {
 
             <!-- Prescription -->
             <div class="consult-tab-panel" id="panel-prescription">
+                <?php if ($isPastView): ?><div class="read-only-overlay-msg">This is a completed past consultation. All data is read-only.</div><?php endif; ?>
                 <div style="max-width:700px;">
                     <h3 style="font-size:1rem;font-weight:700;color:#1e293b;margin:0 0 16px;">Prescription</h3>
                     <div id="prescriptionItems"></div>
@@ -1136,6 +1475,7 @@ try {
 
             <!-- Informed Consent -->
             <div class="consult-tab-panel" id="panel-consent">
+                <?php if ($isPastView): ?><div class="read-only-overlay-msg">This is a completed past consultation. All data is read-only.</div><?php endif; ?>
                 <div class="consent-form-container">
                     <h4>INFORMED CONSENT FOR DENTAL PROCEDURE</h4>
                     <p class="consent-clinic-name" id="consentClinicName">RF Dental Clinic</p>
@@ -1281,6 +1621,8 @@ try {
 // ===================== STATE =====================
 var currentConsultation = null;
 var currentQueueId = <?php echo $initialQueueId; ?>;
+var isPastView = <?php echo $isPastView ? 'true' : 'false'; ?>;
+var pastConsultId = <?php echo $pastConsultId; ?>;
 var teethFindings = [];
 var currentToothNumber = null;
 var currentToothSurface = null;
@@ -1315,6 +1657,7 @@ function loadConsultation(queueId) {
             populateConsent();
             renderToothFindings();
             renderToothButtons();
+            loadPastConsultations(data.consultation.patient_id, data.consultation.id);
         }
     });
 }
@@ -1357,7 +1700,7 @@ function toggleOthersInput() {
 }
 
 function saveDentalExam() {
-    if (!currentConsultation) return;
+    if (isPastView || !currentConsultation) return;
     var payload = {
         consultation_id: currentConsultation.id,
         periodontal_screening: document.getElementById('periodontalScreening').value,
@@ -1655,13 +1998,14 @@ function populateNotes() {
 }
 
 function debounceNotesSave() {
+    if (isPastView) return;
     clearTimeout(notesSaveTimeout);
     notesSaveTimeout = setTimeout(saveNotes, 2000);
     document.getElementById('notesSaveStatus').textContent = 'Unsaved changes...';
 }
 
 function saveNotes() {
-    if (!currentConsultation) return;
+    if (isPastView || !currentConsultation) return;
     document.getElementById('notesSaveStatus').textContent = 'Saving...';
     fetch('consultation_actions.php', {
         method: 'POST',
@@ -1733,6 +2077,7 @@ function populateHistory() {
 }
 
 function onMhCheckboxChange(el) {
+    if (isPastView) return;
     var label = el.closest('.mh-check-item');
     if (el.checked) {
         label.classList.add('checked');
@@ -1743,12 +2088,13 @@ function onMhCheckboxChange(el) {
 }
 
 function onMhTextInput(el) {
+    if (isPastView) return;
     clearTimeout(window._mhSaveTimeout);
     window._mhSaveTimeout = setTimeout(saveMedicalHistory, 1000);
 }
 
 function saveMedicalHistory() {
-    if (!currentConsultation || !currentConsultation.patient_id) return;
+    if (isPastView || !currentConsultation || !currentConsultation.patient_id) return;
     var statusEl = document.getElementById('mhSaveStatus');
     if (statusEl) statusEl.textContent = 'Saving...';
 
@@ -1786,13 +2132,14 @@ function saveMedicalHistory() {
 }
 
 function debounceHistorySave() {
+    if (isPastView) return;
     clearTimeout(historySaveTimeout);
     historySaveTimeout = setTimeout(saveHistory, 2000);
     document.getElementById('historySaveStatus').textContent = 'Unsaved changes...';
 }
 
 function saveHistory() {
-    if (!currentConsultation) return;
+    if (isPastView || !currentConsultation) return;
     document.getElementById('historySaveStatus').textContent = 'Saving...';
     fetch('consultation_actions.php', {
         method: 'POST',
@@ -1832,7 +2179,7 @@ function populatePrescription() {
 }
 
 function addPrescriptionItem() {
-    if (!currentConsultation) return;
+    if (isPastView || !currentConsultation) return;
     if (!currentConsultation.prescription_data) currentConsultation.prescription_data = [];
     currentConsultation.prescription_data.push({ name: '', dosage: '', frequency: '', duration: '', instructions: '' });
     populatePrescription();
@@ -1848,7 +2195,7 @@ function updatePrescItem(idx, field, value) {
 }
 
 function savePrescription() {
-    if (!currentConsultation) return;
+    if (isPastView || !currentConsultation) return;
     fetch('consultation_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1886,6 +2233,7 @@ function toggleGuardianName() {
 }
 
 function signConsent(type) {
+    if (isPastView) return;
     if (type === 'patient') {
         document.getElementById('patientSigLine').textContent = 'Signed';
         document.getElementById('patientSigLine').classList.add('signed');
@@ -1898,7 +2246,7 @@ function signConsent(type) {
 }
 
 function saveConsent() {
-    if (!currentConsultation) return;
+    if (isPastView || !currentConsultation) return;
     var payload = {
         action: 'save_consent',
         consultation_id: currentConsultation.id,
@@ -1944,6 +2292,186 @@ function completeConsultation() {
     });
 }
 
+// ===================== PAST CONSULTATION VIEW =====================
+function loadPastConsultationData(consultId) {
+    fetch('consultation_actions.php?action=get_past_consultation&id=' + consultId)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success && data.consultation) {
+            currentConsultation = data.consultation;
+            teethFindings = data.consultation.teeth_data || [];
+            document.getElementById('consultEmptyState').style.display = 'none';
+            document.getElementById('consultPanels').style.display = 'block';
+            populateDentalExam();
+            populateNotes();
+            populateHistory();
+            populatePrescription();
+            populateConsent();
+            renderToothFindings();
+            renderToothButtons();
+            loadPastConsultations(data.consultation.patient_id, data.consultation.id);
+            applyReadOnlyMode();
+        } else {
+            alert('Consultation not found.');
+        }
+    });
+}
+
+function applyReadOnlyMode() {
+    document.querySelectorAll('#consultPanels select').forEach(function(el) { el.disabled = true; });
+    document.querySelectorAll('#consultPanels input[type="text"]').forEach(function(el) { el.readOnly = true; });
+    document.querySelectorAll('#consultPanels input[type="date"]').forEach(function(el) { el.readOnly = true; });
+    document.querySelectorAll('#consultPanels textarea').forEach(function(el) { el.readOnly = true; });
+    document.querySelectorAll('#consultPanels input[type="checkbox"]').forEach(function(el) { el.disabled = true; });
+    var saveBtns = document.querySelectorAll('#panel-prescription .consult-complete-btn, #panel-consent .consult-complete-btn');
+    saveBtns.forEach(function(b) { b.style.display = 'none'; });
+    if (document.getElementById('notesSaveStatus')) document.getElementById('notesSaveStatus').textContent = '';
+    if (document.getElementById('historySaveStatus')) document.getElementById('historySaveStatus').textContent = '';
+}
+
+// ===================== PAST CONSULTATIONS =====================
+function togglePastConsultations() {
+    var toggle = document.getElementById('pastConsultToggle');
+    var list = document.getElementById('pastConsultList');
+    toggle.classList.toggle('open');
+    list.classList.toggle('open');
+}
+
+function loadPastConsultations(patientId, currentConsultId) {
+    if (!patientId) return;
+    fetch('consultation_actions.php?action=get_patient_consultation_history&patient_id=' + patientId + '&exclude_consultation_id=' + (currentConsultId || 0))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        var section = document.getElementById('pastConsultationsSection');
+        var list = document.getElementById('pastConsultList');
+        var countEl = document.getElementById('pastConsultCount');
+
+        if (!data.success || !data.consultations || data.consultations.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+
+        var consults = data.consultations;
+        countEl.textContent = consults.length;
+        section.style.display = 'block';
+
+        var html = '';
+        consults.forEach(function(c, idx) {
+            var date = c.created_at ? new Date(c.created_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+            var time = c.created_at ? new Date(c.created_at).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '';
+            var treatment = c.queue_treatment_type || c.consent_procedure || 'General Consultation';
+            var dentist = c.dentist_name || 'Unknown';
+
+            html += '<div class="past-consult-card" id="pastCard_' + idx + '">';
+            html += '<div class="past-consult-card-header" onclick="togglePastCard(' + idx + ')">';
+            html += '<div class="card-left">';
+            html += '<span class="card-date">' + date + ' <span style="color:#64748b;font-weight:400;font-size:0.78rem;">' + time + '</span></span>';
+            html += '<span class="card-treatment">' + escapeHtml(treatment) + '</span>';
+            html += '<span class="card-dentist">Dr. ' + escapeHtml(dentist) + '</span>';
+            html += '</div>';
+            html += '<span class="card-arrow">▼</span>';
+            html += '</div>';
+
+            html += '<div class="past-consult-card-body">';
+
+            // Dental Exam Summary
+            var examFields = [];
+            if (c.periodontal_screening) examFields.push('Periodontal: ' + c.periodontal_screening);
+            if (parseInt(c.occlusion_class_molar)) examFields.push('Class Molar');
+            if (parseInt(c.occlusion_overjet)) examFields.push('Overjet');
+            if (parseInt(c.occlusion_overbite)) examFields.push('Overbite');
+            if (parseInt(c.occlusion_midline_deviation)) examFields.push('Midline Deviation');
+            if (parseInt(c.occlusion_crossbite)) examFields.push('Crossbite');
+            if (parseInt(c.appliances_orthodontic)) examFields.push('Orthodontic');
+            if (parseInt(c.appliances_skyplate)) examFields.push('Skyplate');
+            if (parseInt(c.appliances_others)) examFields.push('Appliances: ' + (c.appliances_others_text || 'Other'));
+            if (parseInt(c.tmd_clenching)) examFields.push('TMD: Clenching');
+            if (parseInt(c.tmd_clicking)) examFields.push('TMD: Clicking');
+            if (parseInt(c.tmd_trismus)) examFields.push('TMD: Trismus');
+            if (parseInt(c.tmd_muscle_spasm)) examFields.push('TMD: Muscle Spasm');
+
+            if (examFields.length > 0) {
+                html += '<div class="past-consult-detail-group">';
+                html += '<div class="detail-label">Dental Examination</div>';
+                html += '<div class="detail-value">' + escapeHtml(examFields.join(', ')) + '</div>';
+                html += '</div>';
+            }
+
+            // Teeth Findings
+            var teethData = c.teeth_data || [];
+            if (teethData.length > 0) {
+                html += '<div class="past-consult-detail-group">';
+                html += '<div class="detail-label">Tooth Findings (' + teethData.length + ')</div>';
+                html += '<div class="past-teeth-chips">';
+                teethData.forEach(function(f) {
+                    var label = '#' + f.tooth;
+                    if (f.surface) label += ' [' + f.surface + ']';
+                    label += ' ' + f.code;
+                    html += '<span class="past-teeth-chip ' + (f.type || '') + '">' + escapeHtml(label) + '</span>';
+                });
+                html += '</div></div>';
+            }
+
+            // Notes
+            if (c.consultation_notes && c.consultation_notes.trim()) {
+                html += '<div class="past-consult-detail-group">';
+                html += '<div class="detail-label">Consultation Notes</div>';
+                html += '<div class="detail-value">' + escapeHtml(c.consultation_notes) + '</div>';
+                html += '</div>';
+            }
+
+            // Dental History Notes
+            if (c.dental_medical_history_notes && c.dental_medical_history_notes.trim()) {
+                html += '<div class="past-consult-detail-group">';
+                html += '<div class="detail-label">Dental History Notes</div>';
+                html += '<div class="detail-value">' + escapeHtml(c.dental_medical_history_notes) + '</div>';
+                html += '</div>';
+            }
+
+            // Prescription
+            var presc = c.prescription_data || [];
+            if (presc.length > 0) {
+                html += '<div class="past-consult-detail-group">';
+                html += '<div class="detail-label">Prescription</div>';
+                presc.forEach(function(p) {
+                    html += '<div class="past-prescription-item">';
+                    html += '<div class="med-name">' + escapeHtml(p.name || 'Unnamed') + '</div>';
+                    var details = [];
+                    if (p.dosage) details.push(p.dosage);
+                    if (p.frequency) details.push(p.frequency);
+                    if (p.duration) details.push(p.duration);
+                    if (details.length) html += '<div class="med-detail">' + escapeHtml(details.join(' · ')) + '</div>';
+                    if (p.instructions) html += '<div class="med-detail" style="font-style:italic;">' + escapeHtml(p.instructions) + '</div>';
+                    html += '</div>';
+                });
+                html += '</div>';
+            }
+
+            // Consent
+            if (c.consent_procedure || c.consent_date) {
+                html += '<div class="past-consult-detail-group">';
+                html += '<div class="detail-label">Consent</div>';
+                var consentParts = [];
+                if (c.consent_procedure) consentParts.push('Procedure: ' + c.consent_procedure);
+                if (c.consent_provider) consentParts.push('Provider: ' + c.consent_provider);
+                if (c.consent_date) consentParts.push('Date: ' + c.consent_date);
+                if (c.consent_place) consentParts.push('Place: ' + c.consent_place);
+                html += '<div class="detail-value">' + escapeHtml(consentParts.join(' · ')) + '</div>';
+                html += '</div>';
+            }
+
+            html += '</div></div>';
+        });
+
+        list.innerHTML = html;
+    });
+}
+
+function togglePastCard(idx) {
+    var card = document.getElementById('pastCard_' + idx);
+    if (card) card.classList.toggle('expanded');
+}
+
 // ===================== HELPERS =====================
 function escapeHtml(text) {
     var div = document.createElement('div');
@@ -1956,7 +2484,9 @@ document.addEventListener('DOMContentLoaded', function() {
     var modalOverlay = document.getElementById('toothModalOverlay');
     if (modalOverlay) document.body.appendChild(modalOverlay);
     renderToothButtons();
-    <?php if ($initialQueueId): ?>
+    <?php if ($isPastView && $pastConsultData): ?>
+    loadPastConsultationData(<?php echo $pastConsultId; ?>);
+    <?php elseif ($initialQueueId): ?>
     var initialChip = document.querySelector('.consult-queue-chip[data-queue-id="<?php echo $initialQueueId; ?>"]');
     if (initialChip) {
         loadConsultation(<?php echo $initialQueueId; ?>);

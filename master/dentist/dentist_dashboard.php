@@ -1486,7 +1486,7 @@ document.addEventListener('keydown', function(e) {
 .sp-bg-orb-b { width: 160px; height: 160px; left: -40px; bottom: -30px; background: radial-gradient(circle, rgba(34, 197, 94, 0.16) 0%, rgba(34, 197, 94, 0) 74%); }
 .sp-banner {
     display: flex; align-items: center; gap: 16px; padding: 24px 26px 18px;
-    background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0) 42%), linear-gradient(135deg, #0b7db3 0%, #0891b2 38%, #0f9f53 100%);
+    background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0) 42%), linear-gradient(135deg, #2444d5 0%, #412fa3be 48%, #0891b2 90%);
     color: white; position: relative;
 }
 .sp-icon-wrap {
@@ -1524,7 +1524,7 @@ document.addEventListener('keydown', function(e) {
     transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 .sp-btn-cancel { background: #eef6fb; color: #315266; border: 1px solid #d8e9f4; }
-.sp-btn-confirm { background: linear-gradient(135deg, #0891b2 0%, #0f9f53 100%); color: white; box-shadow: 0 14px 28px rgba(8, 145, 178, 0.24); }
+.sp-btn-confirm { background: linear-gradient(135deg, #2444d5 0%, #412fa3be 48%, #0891b2 90%); color: white; box-shadow: 0 14px 28px rgba(8, 145, 178, 0.24); }
 .sp-btn-cancel:hover, .sp-btn-confirm:hover, .sp-close:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08); }
 @media (max-width: 640px) {
     .sp-banner, .sp-body, .sp-actions { padding-left: 18px; padding-right: 18px; }

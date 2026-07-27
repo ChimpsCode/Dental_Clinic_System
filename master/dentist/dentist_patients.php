@@ -328,6 +328,15 @@ function escapeHtml(str) {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function toggleConsultHistoryCard(idx) {
+    var body = document.getElementById('consultHistBody_' + idx);
+    var arrow = document.getElementById('consultHistArrow_' + idx);
+    if (!body) return;
+    var isVisible = body.style.display !== 'none';
+    body.style.display = isVisible ? 'none' : 'block';
+    if (arrow) arrow.style.transform = isVisible ? '' : 'rotate(180deg)';
+}
+
 // View patient details - Full screen modal with medical history
 function viewPatientDetails(patientId) {
     console.log('View Details clicked for patient:', patientId);
@@ -356,6 +365,7 @@ function viewPatientDetails(patientId) {
         const m = data.medical_history || {};
         const dentalHistory = data.dental_history || [];
         const odontogramSessions = data.odontogram_sessions || [];
+        const consultationHistory = data.consultation_history || [];
         const completedPlans = data.completed_plans || [];
         const q = data.queue_item;
         const b = data.billing || {};
@@ -566,29 +576,120 @@ function viewPatientDetails(patientId) {
                 </div>
                 `}
 
-                <!-- Odontogram History -->
+                <!-- Consultation History -->
                 <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-top: 20px;">
-                    <h3 style="font-size: 1rem; font-weight: 600; color: #374151; margin-bottom: 16px;">🦷 Odontogram History</h3>
-                    ${odontogramSessions.length > 0 ? `
+                    <h3 style="font-size: 1rem; font-weight: 600; color: #374151; margin-bottom: 16px;">📋 Consultation History</h3>
+                    ${consultationHistory.length > 0 ? `
                         <div style="display:flex;flex-direction:column;gap:10px;">
-                            ${odontogramSessions.map(function(session) {
-                                var sessionDate = session.created_at ? new Date(session.created_at).toLocaleDateString('en-PH', { year:'numeric', month:'long', day:'numeric' }) : 'N/A';
-                                var sessionTime = session.created_at ? new Date(session.created_at).toLocaleTimeString('en-PH', { hour:'2-digit', minute:'2-digit' }) : '';
-                                var dentistName = session.dentist_first_name ? 'Dr. ' + session.dentist_first_name + ' ' + session.dentist_last_name : 'Unknown Dentist';
-                                var findingsCount = 0;
-                                try { var fd = typeof session.teeth_data === 'string' ? JSON.parse(session.teeth_data) : session.teeth_data; findingsCount = fd ? fd.length : 0; } catch(e) { findingsCount = 0; }
-                                window._odontogramSessionMap[session.id] = { date: sessionDate, time: sessionTime, dentist: dentistName, teeth_data: session.teeth_data };
-                                return '<div style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;">'+
-                                    '<div>'+
-                                        '<div style="font-weight:600;color:#111827;font-size:0.95rem;">'+sessionDate+' <span style="color:#6b7280;font-weight:400;font-size:0.85rem;">'+sessionTime+'</span></div>'+
-                                        '<div style="font-size:0.85rem;color:#6b7280;margin-top:4px;">'+dentistName+' &middot; <span style="color:#0ea5e9;">'+findingsCount+' finding'+(findingsCount!==1?'s':'')+'</span></div>'+
+                            ${consultationHistory.map(function(c, cidx) {
+                                var cDate = c.created_at ? new Date(c.created_at).toLocaleDateString('en-PH', { year:'numeric', month:'long', day:'numeric' }) : 'N/A';
+                                var cTime = c.created_at ? new Date(c.created_at).toLocaleTimeString('en-PH', { hour:'2-digit', minute:'2-digit' }) : '';
+                                var cDentist = c.dentist_first_name ? 'Dr. ' + c.dentist_first_name + ' ' + c.dentist_last_name : 'Unknown Dentist';
+                                var cTreatment = c.queue_treatment_type || c.consent_procedure || 'General Consultation';
+                                var cStatus = (c.consultation_status || 'completed').toLowerCase();
+                                var statusBg = cStatus === 'completed' ? '#d1fae5' : cStatus === 'in_progress' ? '#dbeafe' : '#f3f4f6';
+                                var statusClr = cStatus === 'completed' ? '#065f46' : cStatus === 'in_progress' ? '#1e40af' : '#6b7280';
+                                var statusLbl = cStatus.charAt(0).toUpperCase() + cStatus.slice(1).replace('_', ' ');
+
+                                var teethData = c.teeth_data || [];
+                                var presc = c.prescription_data || [];
+
+                                var examParts = [];
+                                if (c.periodontal_screening) examParts.push('Periodontal: ' + c.periodontal_screening);
+                                if (parseInt(c.occlusion_class_molar)) examParts.push('Class Molar');
+                                if (parseInt(c.occlusion_overjet)) examParts.push('Overjet');
+                                if (parseInt(c.occlusion_overbite)) examParts.push('Overbite');
+                                if (parseInt(c.occlusion_midline_deviation)) examParts.push('Midline Dev.');
+                                if (parseInt(c.occlusion_crossbite)) examParts.push('Crossbite');
+                                if (parseInt(c.appliances_orthodontic)) examParts.push('Orthodontic');
+                                if (parseInt(c.appliances_skyplate)) examParts.push('Skyplate');
+                                if (parseInt(c.appliances_others)) examParts.push('Appliances: ' + (c.appliances_others_text || 'Other'));
+                                if (parseInt(c.tmd_clenching)) examParts.push('TMD: Clenching');
+                                if (parseInt(c.tmd_clicking)) examParts.push('TMD: Clicking');
+                                if (parseInt(c.tmd_trismus)) examParts.push('TMD: Trismus');
+                                if (parseInt(c.tmd_muscle_spasm)) examParts.push('TMD: Muscle Spasm');
+
+                                return '<div style="background:white;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">'+
+                                    '<div onclick="toggleConsultHistoryCard('+cidx+')" style="padding:14px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'white\'">'+
+                                        '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">'+
+                                            '<span style="font-weight:600;color:#111827;font-size:0.95rem;">'+cDate+' <span style="color:#6b7280;font-weight:400;font-size:0.85rem;">'+cTime+'</span></span>'+
+                                            '<span style="background:#f0f9ff;color:#0ea5e9;padding:3px 10px;border-radius:6px;font-size:0.78rem;font-weight:600;">'+escapeHtml(cTreatment)+'</span>'+
+                                            '<span style="font-size:0.85rem;color:#6b7280;">'+cDentist+'</span>'+
+                                            '<span style="background:'+statusBg+';color:'+statusClr+';padding:3px 10px;border-radius:9999px;font-size:0.72rem;font-weight:600;">'+statusLbl+'</span>'+
+                                        '</div>'+
+                                        '<div style="display:flex;align-items:center;gap:8px;">'+
+                                            '<button onclick="event.stopPropagation();window.location.href=\'dentist_consultation.php?past_consultation_id='+c.id+'\'" style="padding:6px 14px;background:linear-gradient(135deg,#059669,#10b981);color:white;border:none;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:5px;box-shadow:0 1px 3px rgba(0,0,0,0.1);transition:all 0.15s;" onmouseover="this.style.boxShadow=\'0 2px 6px rgba(0,0,0,0.15)\';this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.boxShadow=\'0 1px 3px rgba(0,0,0,0.1)\';this.style.transform=\'none\'">'+
+                                                '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11 8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'+
+                                                'View Full'+
+                                            '</button>'+
+                                            '<span id="consultHistArrow_'+cidx+'" style="color:#94a3b8;font-size:0.85rem;transition:transform 0.2s;cursor:pointer;" onclick="event.stopPropagation();toggleConsultHistoryCard('+cidx+')">▼</span>'+
+                                        '</div>'+
                                     '</div>'+
-                                    '<button onclick="openOdontogramSession('+session.id+')" style="padding:8px 16px;background:#3b82f6;color:white;border:none;border-radius:8px;font-size:0.85rem;font-weight:500;cursor:pointer;white-space:nowrap;">View Chart</button>'+
-                                '</div>';
+                                    '<div id="consultHistBody_'+cidx+'" style="display:none;padding:14px 16px;border-top:1px solid #f1f5f9;background:#fafbfc;">';
+
+                                var bodyHtml = '';
+
+                                if (examParts.length > 0) {
+                                    bodyHtml += '<div style="margin-bottom:12px;"><div style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:6px;">Dental Examination</div>';
+                                    bodyHtml += '<div style="font-size:0.85rem;color:#334155;">'+escapeHtml(examParts.join(', '))+'</div></div>';
+                                }
+
+                                if (teethData.length > 0) {
+                                    bodyHtml += '<div style="margin-bottom:12px;"><div style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:6px;">Tooth Findings ('+teethData.length+')</div>';
+                                    bodyHtml += '<div style="display:flex;flex-wrap:wrap;gap:4px;">';
+                                    teethData.forEach(function(f) {
+                                        var lbl = '#'+f.tooth;
+                                        if (f.surface) lbl += ' ['+f.surface+']';
+                                        lbl += ' '+f.code;
+                                        var chipBg = f.type==='pathology'?'#fef2f2':f.type==='treatment'?'#f0f9ff':'#f1f5f9';
+                                        var chipClr = f.type==='pathology'?'#991b1b':f.type==='treatment'?'#0369a1':'#475569';
+                                        var chipBdr = f.type==='pathology'?'#fecaca':f.type==='treatment'?'#bae6fd':'#e2e8f0';
+                                        bodyHtml += '<span style="background:'+chipBg+';border:1px solid '+chipBdr+';color:'+chipClr+';padding:2px 8px;border-radius:5px;font-size:0.72rem;font-weight:600;">'+escapeHtml(lbl)+'</span>';
+                                    });
+                                    bodyHtml += '</div></div>';
+                                }
+
+                                if (c.consultation_notes && c.consultation_notes.trim()) {
+                                    bodyHtml += '<div style="margin-bottom:12px;"><div style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:6px;">Consultation Notes</div>';
+                                    bodyHtml += '<div style="font-size:0.85rem;color:#334155;line-height:1.5;">'+escapeHtml(c.consultation_notes)+'</div></div>';
+                                }
+
+                                if (c.dental_medical_history_notes && c.dental_medical_history_notes.trim()) {
+                                    bodyHtml += '<div style="margin-bottom:12px;"><div style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:6px;">Dental History Notes</div>';
+                                    bodyHtml += '<div style="font-size:0.85rem;color:#334155;line-height:1.5;">'+escapeHtml(c.dental_medical_history_notes)+'</div></div>';
+                                }
+
+                                if (presc.length > 0) {
+                                    bodyHtml += '<div style="margin-bottom:12px;"><div style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:6px;">Prescription</div>';
+                                    presc.forEach(function(p) {
+                                        bodyHtml += '<div style="background:white;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;margin-bottom:6px;font-size:0.82rem;">';
+                                        bodyHtml += '<div style="font-weight:700;color:#1e293b;">'+escapeHtml(p.name||'Unnamed')+'</div>';
+                                        var details = [];
+                                        if (p.dosage) details.push(p.dosage);
+                                        if (p.frequency) details.push(p.frequency);
+                                        if (p.duration) details.push(p.duration);
+                                        if (details.length) bodyHtml += '<div style="color:#64748b;margin-top:2px;">'+escapeHtml(details.join(' · '))+'</div>';
+                                        if (p.instructions) bodyHtml += '<div style="color:#64748b;font-style:italic;margin-top:2px;">'+escapeHtml(p.instructions)+'</div>';
+                                        bodyHtml += '</div>';
+                                    });
+                                    bodyHtml += '</div>';
+                                }
+
+                                if (c.consent_procedure || c.consent_date) {
+                                    var cp = [];
+                                    if (c.consent_procedure) cp.push('Procedure: '+c.consent_procedure);
+                                    if (c.consent_provider) cp.push('Provider: '+c.consent_provider);
+                                    if (c.consent_date) cp.push('Date: '+c.consent_date);
+                                    if (c.consent_place) cp.push('Place: '+c.consent_place);
+                                    bodyHtml += '<div style="margin-bottom:4px;"><div style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:6px;">Consent</div>';
+                                    bodyHtml += '<div style="font-size:0.85rem;color:#334155;">'+escapeHtml(cp.join(' · '))+'</div></div>';
+                                }
+
+                                return bodyHtml + '</div></div>';
                             }).join('')}
                         </div>
                     ` : `
-                        <p style="color:#6b7280;text-align:center;padding:20px;background:#f3f4f6;border-radius:8px;">No odontogram records found.</p>
+                        <p style="color:#6b7280;text-align:center;padding:20px;background:#f3f4f6;border-radius:8px;">No consultation records found.</p>
                     `}
                 </div>
 

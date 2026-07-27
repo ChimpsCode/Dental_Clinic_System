@@ -120,24 +120,41 @@ try {
         $payments = [];
     }
     
-    // Get odontogram sessions (consultations with teeth_data)
-    $odontogramSessions = [];
+    // Get full consultation history (all consultations, not just those with teeth_data)
+    $consultationHistory = [];
     try {
         $stmt = $pdo->prepare("
-            SELECT c.id, c.teeth_data, c.created_at, c.consultation_notes,
-                   q.treatment_type, q.teeth_numbers,
+            SELECT c.id, c.teeth_data, c.created_at, c.status AS consultation_status,
+                   c.consultation_notes, c.dental_medical_history_notes, c.prescription_data,
+                   c.periodontal_screening,
+                   c.occlusion_class_molar, c.occlusion_overjet, c.occlusion_overbite,
+                   c.occlusion_midline_deviation, c.occlusion_crossbite,
+                   c.appliances_orthodontic, c.appliances_skyplate, c.appliances_others, c.appliances_others_text,
+                   c.tmd_clenching, c.tmd_clicking, c.tmd_trismus, c.tmd_muscle_spasm,
+                   c.consent_provider, c.consent_procedure, c.consent_date, c.consent_place,
+                   c.consent_given,
+                   q.treatment_type AS queue_treatment_type, q.queue_number,
                    u.first_name AS dentist_first_name, u.last_name AS dentist_last_name
             FROM consultations c
             LEFT JOIN queue q ON q.id = c.queue_id
             LEFT JOIN users u ON u.id = c.dentist_id
-            WHERE c.patient_id = ? AND c.teeth_data IS NOT NULL AND c.teeth_data != '[]' AND c.teeth_data != 'null'
+            WHERE c.patient_id = ?
             ORDER BY c.created_at DESC
             LIMIT 20
         ");
         $stmt->execute([$patientId]);
-        $odontogramSessions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $consultationHistory = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($consultationHistory as &$ch) {
+            if (is_string($ch['teeth_data'] ?? '')) {
+                $ch['teeth_data'] = json_decode($ch['teeth_data'], true);
+            }
+            if (is_string($ch['prescription_data'] ?? '')) {
+                $ch['prescription_data'] = json_decode($ch['prescription_data'], true);
+            }
+        }
+        unset($ch);
     } catch (Exception $e) {
-        $odontogramSessions = [];
+        $consultationHistory = [];
     }
     
     echo json_encode([
@@ -149,7 +166,8 @@ try {
         'billing' => $billing,
         'all_billings' => $allBillings,
         'payments' => $payments,
-        'odontogram_sessions' => $odontogramSessions
+        'odontogram_sessions' => $consultationHistory,
+        'consultation_history' => $consultationHistory
     ]);
     
 } catch (Exception $e) {

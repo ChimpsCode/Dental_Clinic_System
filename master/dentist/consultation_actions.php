@@ -424,6 +424,90 @@ try {
             }
             break;
 
+        case 'get_patient_consultation_history':
+            $patientId = (int)($_GET['patient_id'] ?? 0);
+            $excludeId = (int)($_GET['exclude_consultation_id'] ?? 0);
+            if (!$patientId) {
+                echo json_encode(['success' => false, 'message' => 'Patient ID required']);
+                break;
+            }
+
+            $sql = "SELECT c.*, q.treatment_type AS queue_treatment_type, q.queue_number,
+                           u.first_name AS dentist_first_name, u.last_name AS dentist_last_name
+                    FROM consultations c
+                    LEFT JOIN queue q ON q.id = c.queue_id
+                    LEFT JOIN users u ON u.id = c.dentist_id
+                    WHERE c.patient_id = ? AND c.status = 'completed'";
+            $params = [$patientId];
+            if ($excludeId) {
+                $sql .= " AND c.id != ?";
+                $params[] = $excludeId;
+            }
+            $sql .= " ORDER BY c.created_at DESC LIMIT 20";
+
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($rows as &$row) {
+                if (is_string($row['teeth_data'] ?? '')) {
+                    $row['teeth_data'] = json_decode($row['teeth_data'], true);
+                }
+                if (is_string($row['prescription_data'] ?? '')) {
+                    $row['prescription_data'] = json_decode($row['prescription_data'], true);
+                }
+                $parts = array_filter([$row['dentist_first_name'] ?? '', $row['dentist_last_name'] ?? '']);
+                $row['dentist_name'] = implode(' ', $parts) ?: 'Unknown';
+            }
+            unset($row);
+
+            echo json_encode(['success' => true, 'consultations' => $rows]);
+            break;
+
+        case 'get_past_consultation':
+            $consultId = (int)($_GET['id'] ?? 0);
+            if (!$consultId) {
+                echo json_encode(['success' => false, 'message' => 'Consultation ID required']);
+                break;
+            }
+
+            $stmt = $pdo->prepare("
+                SELECT c.*, q.treatment_type AS queue_treatment_type, q.queue_number,
+                       p.first_name, p.middle_name, p.last_name, p.suffix,
+                       u.first_name AS dentist_first_name, u.last_name AS dentist_last_name
+                FROM consultations c
+                LEFT JOIN queue q ON q.id = c.queue_id
+                LEFT JOIN patients p ON p.id = CAST(c.patient_id AS UNSIGNED)
+                LEFT JOIN users u ON u.id = c.dentist_id
+                WHERE c.id = ?
+            ");
+            $stmt->execute([$consultId]);
+            $consultation = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$consultation) {
+                echo json_encode(['success' => false, 'message' => 'Consultation not found']);
+                break;
+            }
+
+            $parts = array_filter([$consultation['first_name'] ?? '', $consultation['middle_name'] ?? '', $consultation['last_name'] ?? '', $consultation['suffix'] ?? '']);
+            $consultation['patient_name'] = implode(' ', $parts);
+            $consultation['treatment_type'] = $consultation['queue_treatment_type'] ?? '';
+            $consultation['dentist_name'] = implode(' ', array_filter([$consultation['dentist_first_name'] ?? '', $consultation['dentist_last_name'] ?? ''])) ?: 'Unknown';
+
+            $stmt = $pdo->prepare("SELECT * FROM medical_history WHERE patient_id = ? ORDER BY id DESC LIMIT 1");
+            $stmt->execute([$consultation['patient_id']]);
+            $consultation['medical_history'] = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (is_string($consultation['teeth_data'] ?? '')) {
+                $consultation['teeth_data'] = json_decode($consultation['teeth_data'], true);
+            }
+            if (is_string($consultation['prescription_data'] ?? '')) {
+                $consultation['prescription_data'] = json_decode($consultation['prescription_data'], true);
+            }
+
+            echo json_encode(['success' => true, 'consultation' => $consultation]);
+            break;
+
         default:
             echo json_encode(['success' => false, 'message' => 'Invalid action']);
     }
