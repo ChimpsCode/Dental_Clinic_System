@@ -2533,14 +2533,9 @@ function saveNotes() {
 
 // ===================== MEDICAL HISTORY =====================
 function populateHistory() {
-    var mh = currentConsultation.medical_history;
+    var mh = currentConsultation.medical_history || {};
     var container = document.getElementById('existingMedicalHistory');
     document.getElementById('dentalHistoryNotes').value = currentConsultation.dental_medical_history_notes || '';
-
-    if (!mh) {
-        container.innerHTML = '<p style="color:#94a3b8;font-size:0.88rem;">No medical history records found for this patient.</p>';
-        return;
-    }
 
     var checkboxFields = [
         { key: 'heart_condition', label: 'Heart Conditions' },
@@ -2562,9 +2557,37 @@ function populateHistory() {
         { key: 'others', label: 'Others' }
     ];
 
+    var admitMap = {
+        'heart_disease': 'heart_condition',
+        'diabetes': 'diabetes',
+        'asthma': 'asthma',
+        'high_bp': 'blood_pressure',
+        'bleeding_disorder': 'bleeding_disorder',
+        'pregnancy': 'pregnancy',
+        'hiv_aids': 'hiv_aids',
+        'hepatitis': 'hepatitis',
+        'tuberculosis': 'tuberculosis',
+        'allergies': 'allergies',
+        'surgery': 'past_surgeries'
+    };
+
+    var conditionsText = (mh.medical_conditions || '').toLowerCase();
+    var conditionsList = conditionsText.length > 0 ? conditionsText.split(',').map(function(s) { return s.trim(); }) : [];
+
     var html = '<div class="mh-checklist">';
     checkboxFields.forEach(function(field) {
         var checked = (mh[field.key] == 1 || mh[field.key] === '1' || mh[field.key] === 'Yes' || mh[field.key] === 'yes');
+
+        if (!checked) {
+            conditionsList.forEach(function(cond) {
+                for (var admitVal in admitMap) {
+                    if (admitMap[admitVal] === field.key && cond === admitVal) {
+                        checked = true;
+                    }
+                }
+            });
+        }
+
         var cls = checked ? 'mh-check-item checked' : 'mh-check-item';
         html += '<label class="' + cls + '">';
         html += '<input type="checkbox" data-mh-field="' + field.key + '" ' + (checked ? 'checked' : '') + ' onchange="onMhCheckboxChange(this)">';
