@@ -71,7 +71,7 @@ if (!$isPastView) {
 
 $services = [];
 try {
-    $services = $pdo->query("SELECT id, name FROM services WHERE is_active = 1 ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
+    $services = $pdo->query("SELECT id, name, duration_minutes FROM services WHERE is_active = 1 ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
     $services = [];
 }
@@ -1217,6 +1217,206 @@ try {
 .is-past-view .tooth-svg-wrap:hover { transform: none; filter: none; }
 .is-past-view .add-presc-btn { display: none; }
 .is-past-view .consult-complete-btn { display: none !important; }
+
+/* Treatment Plan Tab Styles */
+#panel-treatment-plan .sess-btn {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 2px solid #e2e8f0;
+    background: #ffffff;
+    color: #475569;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+#panel-treatment-plan .sess-btn:hover {
+    border-color: #3b82f6;
+    color: #3b82f6;
+    background: #eff6ff;
+}
+#panel-treatment-plan .sess-btn.active {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: #ffffff;
+    box-shadow: 0 4px 8px rgba(59,130,246,0.3);
+}
+#panel-treatment-plan .session-row {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 12px;
+}
+#panel-treatment-plan .session-row-header {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 10px;
+    letter-spacing: 0.02em;
+}
+#panel-treatment-plan .session-row-content {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+#panel-treatment-plan .session-left {
+    flex: 1;
+    min-width: 0;
+}
+#panel-treatment-plan .session-left-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+#panel-treatment-plan .session-right {
+    flex: 0 0 280px;
+    min-width: 250px;
+}
+#panel-treatment-plan .session-right-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+#panel-treatment-plan .session-right-inner .session-date {
+    width: 100%;
+}
+#panel-treatment-plan .session-right-inner .session-date:disabled {
+    background: #f3f4f6;
+    color: #9ca3af;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+#panel-treatment-plan .session-selected-time {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+#panel-treatment-plan .session-time-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #1e40af;
+}
+#panel-treatment-plan .session-change-time {
+    font-size: 0.75rem;
+    color: #3b82f6;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 2px 4px;
+}
+#panel-treatment-plan .session-change-time:hover {
+    color: #1d4ed8;
+}
+#panel-treatment-plan .session-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+#panel-treatment-plan .session-field-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+#panel-treatment-plan .session-treatment {
+    width: 100%;
+}
+#panel-treatment-plan .session-other-treatment {
+    margin-top: 6px;
+}
+#panel-treatment-plan .session-notes {
+    width: 100%;
+    resize: vertical;
+    min-height: 50px;
+}
+#panel-treatment-plan .session-time-slots {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
+    gap: 4px;
+}
+#panel-treatment-plan .time-slot-btn {
+    padding: 8px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f3f4f6;
+    color: #374151;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+#panel-treatment-plan .time-slot-btn:hover {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+#panel-treatment-plan .time-slot-btn.booked {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #dc2626;
+    cursor: not-allowed;
+    opacity: 0.7;
+    text-decoration: line-through;
+}
+#panel-treatment-plan .time-slot-btn.booked:hover {
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+#panel-treatment-plan .tp-plan-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+#panel-treatment-plan .tp-plan-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+#panel-treatment-plan .tp-plan-name {
+    font-weight: 600;
+    color: #1e293b;
+    font-size: 0.9rem;
+}
+#panel-treatment-plan .tp-plan-status {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 12px;
+    text-transform: uppercase;
+}
+#panel-treatment-plan .tp-plan-status.active { background: #dcfce7; color: #166534; }
+#panel-treatment-plan .tp-plan-status.completed { background: #dbeafe; color: #1e40af; }
+#panel-treatment-plan .tp-plan-status.on-hold { background: #fef3c7; color: #92400e; }
+#panel-treatment-plan .tp-plan-status.cancelled { background: #fee2e2; color: #991b1b; }
+#panel-treatment-plan .tp-plan-status.in-progress { background: #e0e7ff; color: #3730a3; }
+#panel-treatment-plan .tp-plan-meta {
+    font-size: 0.8rem;
+    color: #6b7280;
+    margin-bottom: 4px;
+}
+#panel-treatment-plan .tp-plan-sessions {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #e5e7eb;
+}
+#panel-treatment-plan .tp-plan-session-item {
+    font-size: 0.8rem;
+    margin-bottom: 3px;
+}
+#panel-treatment-plan .tp-plan-session-item span { font-weight: 500; }
+#panel-treatment-plan .tp-plan-treatment-label { color: #059669; }
+#panel-treatment-plan .tp-plan-notes { font-size: 0.78rem; color: #6b7280; margin-top: 4px; }
 </style>
 
 <div class="consult-container <?php echo $isPastView ? 'is-past-view' : ''; ?>">
@@ -1285,6 +1485,7 @@ try {
         <button class="consult-tab-btn active" data-tab="dental-exam" onclick="switchConsultTab(this, 'dental-exam')">Dental Examination</button>
         <button class="consult-tab-btn" data-tab="notes" onclick="switchConsultTab(this, 'notes')">Notes</button>
         <button class="consult-tab-btn" data-tab="history" onclick="switchConsultTab(this, 'history')">Dental & Medical History</button>
+        <button class="consult-tab-btn" data-tab="treatment-plan" onclick="switchConsultTab(this, 'treatment-plan')">Treatment Plan</button>
         <button class="consult-tab-btn" data-tab="prescription" onclick="switchConsultTab(this, 'prescription')">Prescription</button>
         <button class="consult-tab-btn" data-tab="consent" onclick="switchConsultTab(this, 'consent')">Informed Consent</button>
     </div>
@@ -1482,6 +1683,86 @@ try {
                     <h4>Dental History Notes</h4>
                     <textarea class="notes-textarea" id="dentalHistoryNotes" style="min-height:150px;" placeholder="Add dental history observations..." oninput="debounceHistorySave()"></textarea>
                     <div class="notes-save-status" id="historySaveStatus"></div>
+                </div>
+            </div>
+
+            <!-- Treatment Plan -->
+            <div class="consult-tab-panel" id="panel-treatment-plan">
+                <?php if ($isPastView): ?><div class="read-only-overlay-msg">This is a completed past consultation. All data is read-only.</div><?php endif; ?>
+
+                <!-- Existing Plans -->
+                <div id="tpExistingPlansSection" style="margin-bottom:24px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                        <h3 style="font-size:1rem;font-weight:700;color:#1e293b;margin:0;">Existing Treatment Plans</h3>
+                        <span class="tp-plan-count" id="tpPlanCount" style="display:none;background:#e0f2fe;color:#0369a1;padding:2px 10px;border-radius:12px;font-size:0.75rem;font-weight:600;"></span>
+                    </div>
+                    <div id="tpExistingPlansContainer">
+                        <p style="color:#94a3b8;font-size:0.875rem;">Loading...</p>
+                    </div>
+                </div>
+
+                <!-- New Treatment Plan Form -->
+                <div id="tpNewPlanSection">
+                    <h3 style="font-size:1rem;font-weight:700;color:#1e293b;margin:0 0 16px;">New Treatment Plan</h3>
+                    <form id="consultTreatmentPlanForm" onsubmit="saveConsultTreatmentPlan(event)">
+                        <input type="hidden" name="plan_id" id="tp_plan_id" value="">
+                        <input type="hidden" name="patient_id" id="tp_patient_id" value="">
+
+                        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                            <span style="font-size:0.875rem;color:#15803d;font-weight:500;" id="tpPatientLabel">—</span>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label style="font-weight:600;color:#374151;margin-bottom:6px;display:block;">Number of Sessions</label>
+                            <div id="tpSessionCountBtns" style="display:flex;gap:6px;flex-wrap:wrap;">
+                                <button type="button" class="sess-btn active" data-count="1" onclick="tpSetSessionCount(1)">1</button>
+                                <button type="button" class="sess-btn" data-count="2" onclick="tpSetSessionCount(2)">2</button>
+                                <button type="button" class="sess-btn" data-count="3" onclick="tpSetSessionCount(3)">3</button>
+                                <button type="button" class="sess-btn" data-count="4" onclick="tpSetSessionCount(4)">4</button>
+                                <button type="button" class="sess-btn" data-count="5" onclick="tpSetSessionCount(5)">5</button>
+                                <button type="button" class="sess-btn" data-count="6" onclick="tpSetSessionCount(6)">6</button>
+                                <button type="button" class="sess-btn" data-count="7" onclick="tpSetSessionCount(7)">7</button>
+                                <button type="button" class="sess-btn" data-count="8" onclick="tpSetSessionCount(8)">8</button>
+                            </div>
+                            <input type="hidden" name="total_sessions" id="tp_total_sessions" value="1">
+                        </div>
+
+                        <div id="tpSessionRowsContainer"></div>
+
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label style="font-weight:600;color:#374151;margin-bottom:6px;display:block;">Teeth Numbers</label>
+                            <input type="text" name="teeth_numbers" id="tp_teeth_numbers" class="form-control" placeholder="e.g., 11, 12, 13" style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:0.875rem;">
+                            <small style="color:#6b7280;">Enter tooth numbers separated by commas</small>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label style="font-weight:600;color:#374151;margin-bottom:6px;display:block;">Notes</label>
+                            <textarea name="notes" id="tp_notes" rows="3" class="form-control" placeholder="Additional treatment notes..." style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:0.875rem;resize:vertical;"></textarea>
+                        </div>
+
+                        <div style="display:flex;gap:16px;margin-bottom:16px;">
+                            <div class="form-group" style="flex:1;">
+                                <label style="font-weight:600;color:#374151;margin-bottom:6px;display:block;">Estimated Cost (₱)</label>
+                                <input type="number" name="estimated_cost" id="tp_estimated_cost" class="form-control" placeholder="0.00" step="0.01" style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:0.875rem;">
+                            </div>
+                            <div class="form-group" style="flex:1;">
+                                <label style="font-weight:600;color:#374151;margin-bottom:6px;display:block;">Status</label>
+                                <select name="status" id="tp_status" class="form-control" style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:0.875rem;">
+                                    <option value="Active">Active</option>
+                                    <option value="In-Progress">In-Progress</option>
+                                    <option value="Completed">Completed</option>
+                                    <option value="On-Hold">On-Hold</option>
+                                    <option value="Cancelled">Cancelled</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style="display:flex;justify-content:flex-end;gap:10px;padding-top:16px;border-top:1px solid #e5e7eb;">
+                            <button type="button" class="consult-complete-btn" style="background:#6b7280;color:white;" onclick="resetConsultTpForm()">Reset</button>
+                            <button type="submit" class="consult-complete-btn" style="background:#0ea5e9;color:white;" id="tpSaveBtn">Save Treatment Plan</button>
+                        </div>
+                    </form>
                 </div>
             </div>
 
@@ -1683,6 +1964,10 @@ function loadConsultation(queueId) {
             renderToothFindings();
             renderToothButtons();
             loadPastConsultations(data.consultation.patient_id, data.consultation.id);
+            document.getElementById('tp_patient_id').value = data.consultation.patient_id;
+            document.getElementById('tpPatientLabel').textContent = data.consultation.patient_name;
+            resetConsultTpForm();
+            loadConsultTreatmentPlans();
         } else {
             console.error('Consultation load failed:', data.message || 'Unknown error');
         }
@@ -2340,6 +2625,10 @@ function loadPastConsultationData(consultId) {
             renderToothFindings();
             renderToothButtons();
             loadPastConsultations(data.consultation.patient_id, data.consultation.id);
+            document.getElementById('tp_patient_id').value = data.consultation.patient_id;
+            document.getElementById('tpPatientLabel').textContent = data.consultation.patient_name;
+            resetConsultTpForm();
+            loadConsultTreatmentPlans();
             applyReadOnlyMode();
         } else {
             alert('Consultation not found.');
@@ -2357,6 +2646,7 @@ function applyReadOnlyMode() {
     saveBtns.forEach(function(b) { b.style.display = 'none'; });
     if (document.getElementById('notesSaveStatus')) document.getElementById('notesSaveStatus').textContent = '';
     if (document.getElementById('historySaveStatus')) document.getElementById('historySaveStatus').textContent = '';
+    tpReadOnlyMode();
 }
 
 // ===================== PAST CONSULTATIONS =====================
@@ -2504,6 +2794,591 @@ function togglePastCard(idx) {
     if (card) card.classList.toggle('expanded');
 }
 
+// ===================== TREATMENT PLAN =====================
+function loadConsultTreatmentPlans() {
+    if (!currentConsultation || !currentConsultation.patient_id) return;
+    var container = document.getElementById('tpExistingPlansContainer');
+    if (!container) return;
+    container.innerHTML = '<p style="color:#94a3b8;font-size:0.875rem;">Loading...</p>';
+
+    fetch('../shared/process_treatment_plan.php?patient_id=' + currentConsultation.patient_id)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success && data.plans && data.plans.length > 0) {
+            renderConsultPlans(data.plans);
+            var countEl = document.getElementById('tpPlanCount');
+            if (countEl) {
+                countEl.textContent = data.plans.length + ' plan' + (data.plans.length !== 1 ? 's' : '');
+                countEl.style.display = 'inline';
+            }
+        } else {
+            container.innerHTML = '<p style="color:#94a3b8;font-size:0.875rem;font-style:italic;">No treatment plans yet for this patient.</p>';
+            var countEl2 = document.getElementById('tpPlanCount');
+            if (countEl2) countEl2.style.display = 'none';
+        }
+    })
+    .catch(function(err) {
+        console.error('Error loading treatment plans:', err);
+        container.innerHTML = '<p style="color:#dc2626;font-size:0.875rem;">Error loading plans.</p>';
+    });
+}
+
+function renderConsultPlans(plans) {
+    var container = document.getElementById('tpExistingPlansContainer');
+    container.innerHTML = '';
+    plans.forEach(function(plan) {
+        var card = document.createElement('div');
+        card.className = 'tp-plan-card';
+
+        var statusClass = (plan.status || 'active').toLowerCase().replace(/\s+/g, '-');
+
+        var sessionsHtml = '';
+        if (plan.sessions_data) {
+            try {
+                var sessions = JSON.parse(plan.sessions_data);
+                if (sessions.length > 0) {
+                    sessionsHtml = '<div class="tp-plan-sessions">';
+                    sessions.forEach(function(s, idx) {
+                        var parts = [];
+                        if (s.date) {
+                            var d = new Date(s.date + 'T' + (s.time || '00:00:00'));
+                            parts.push(d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }));
+                        }
+                        if (s.time) {
+                            parts.push(formatTpTime12h(s.time));
+                        }
+                        sessionsHtml += '<div class="tp-plan-session-item"><span>Session ' + (idx + 1) + ':</span> ';
+                        sessionsHtml += parts.length ? parts.join(' @ ') : '<span style="color:#9ca3af;">Not scheduled</span>';
+                        if (s.treatment) {
+                            sessionsHtml += ' <span class="tp-plan-treatment-label">— ' + escapeHtml(s.treatment) + '</span>';
+                        }
+                        sessionsHtml += '</div>';
+                        if (s.notes) {
+                            sessionsHtml += '<div class="tp-plan-notes">📝 ' + escapeHtml(s.notes) + '</div>';
+                        }
+                    });
+                    sessionsHtml += '</div>';
+                }
+            } catch(e) {}
+        }
+
+        var costHtml = '';
+        if (plan.total_estimated_cost && parseFloat(plan.total_estimated_cost) > 0) {
+            costHtml = ' | Est. Cost: ₱' + parseFloat(plan.total_estimated_cost).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+        }
+
+        card.innerHTML =
+            '<div class="tp-plan-card-header">' +
+                '<span class="tp-plan-name">' + escapeHtml(plan.treatment_name || plan.plan_name || 'Treatment Plan') + '</span>' +
+                '<span class="tp-plan-status ' + statusClass + '">' + escapeHtml(plan.status || 'Active') + '</span>' +
+            '</div>' +
+            '<div class="tp-plan-meta">' + (plan.total_sessions || 1) + ' session(s)' + costHtml +
+            (plan.teeth_numbers ? ' | Teeth: ' + escapeHtml(plan.teeth_numbers) : '') +
+            '</div>' +
+            (plan.notes ? '<div class="tp-plan-notes">📝 ' + escapeHtml(plan.notes) + '</div>' : '') +
+            sessionsHtml;
+
+        container.appendChild(card);
+    });
+}
+
+function formatTpTime12h(time24) {
+    var parts = time24.split(':');
+    var hours = parseInt(parts[0]);
+    var minutes = parseInt(parts[1]);
+    var period = hours >= 12 ? 'PM' : 'AM';
+    var hour12 = hours % 12 || 12;
+    return hour12 + ':' + (minutes < 10 ? '0' : '') + minutes + ' ' + period;
+}
+
+function tpSetSessionCount(n, existingSessions) {
+    document.getElementById('tp_total_sessions').value = n;
+    document.querySelectorAll('#tpSessionCountBtns .sess-btn').forEach(function(btn) {
+        btn.classList.toggle('active', parseInt(btn.getAttribute('data-count')) === n);
+    });
+
+    var container = document.getElementById('tpSessionRowsContainer');
+    container.innerHTML = '';
+
+    for (var i = 1; i <= n; i++) {
+        var existing = existingSessions && existingSessions[i - 1];
+        var row = document.createElement('div');
+        row.className = 'session-row';
+        row.setAttribute('data-session', i);
+
+        if (existing && existing.date) {
+            tpBuildTransitionedRow(row, i, existing);
+        } else {
+            tpBuildInitialRow(row, i);
+        }
+
+        container.appendChild(row);
+    }
+}
+
+function tpBuildInitialRow(row, i) {
+    row.innerHTML = '<div class="session-row-header">Session ' + i + '</div>';
+
+    var hiddenInput = document.createElement('input');
+    hiddenInput.type = 'hidden';
+    hiddenInput.name = 'session_time_' + i;
+    hiddenInput.id = 'tpSessionTime_' + i;
+    hiddenInput.className = 'session-time-hidden';
+    hiddenInput.value = '';
+
+    var content = document.createElement('div');
+    content.className = 'session-row-content';
+
+    var leftCol = document.createElement('div');
+    leftCol.className = 'session-left';
+    var leftInner = document.createElement('div');
+    leftInner.className = 'session-left-inner';
+
+    var treatmentField = document.createElement('div');
+    treatmentField.className = 'session-field';
+    var treatLabel = document.createElement('label');
+    treatLabel.className = 'session-field-label';
+    treatLabel.textContent = 'Treatment';
+    treatmentField.appendChild(treatLabel);
+    var treatSelect = document.createElement('select');
+    treatSelect.name = 'session_treatment_' + i;
+    treatSelect.className = 'form-control session-treatment';
+    treatmentField.appendChild(treatSelect);
+    var otherDiv = document.createElement('div');
+    otherDiv.className = 'session-other-treatment';
+    otherDiv.style.display = 'none';
+    var otherInput = document.createElement('input');
+    otherInput.type = 'text';
+    otherInput.name = 'session_treatment_other_' + i;
+    otherInput.className = 'form-control';
+    otherInput.placeholder = 'Enter custom treatment name';
+    otherDiv.appendChild(otherInput);
+    treatmentField.appendChild(otherDiv);
+
+    var notesField = document.createElement('div');
+    notesField.className = 'session-field';
+    var notesLabel = document.createElement('label');
+    notesLabel.className = 'session-field-label';
+    notesLabel.textContent = 'Notes';
+    notesField.appendChild(notesLabel);
+    var notesTextarea = document.createElement('textarea');
+    notesTextarea.name = 'session_notes_' + i;
+    notesTextarea.className = 'form-control session-notes';
+    notesTextarea.rows = 2;
+    notesTextarea.placeholder = 'Notes for this session...';
+    notesField.appendChild(notesTextarea);
+
+    leftInner.appendChild(treatmentField);
+    leftInner.appendChild(notesField);
+    leftCol.appendChild(leftInner);
+
+    var rightCol = document.createElement('div');
+    rightCol.className = 'session-right';
+    var rightInner = document.createElement('div');
+    rightInner.className = 'session-right-inner';
+
+    var dateInput = document.createElement('input');
+    dateInput.type = 'date';
+    dateInput.name = 'session_date_' + i;
+    dateInput.className = 'form-control session-date';
+    dateInput.min = new Date().toISOString().split('T')[0];
+    dateInput.disabled = true;
+    rightInner.appendChild(dateInput);
+
+    var timeWrapper = document.createElement('div');
+    timeWrapper.className = 'session-time-wrapper';
+    var slotContainer = document.createElement('div');
+    slotContainer.className = 'session-time-slots';
+    slotContainer.id = 'tpSessionSlots_' + i;
+    timeWrapper.appendChild(slotContainer);
+    rightInner.appendChild(timeWrapper);
+
+    rightCol.appendChild(rightInner);
+
+    content.appendChild(leftCol);
+    content.appendChild(rightCol);
+    row.appendChild(hiddenInput);
+    row.appendChild(content);
+
+    tpPopulateSessionTreatmentDropdown(treatSelect);
+
+    treatSelect.addEventListener('change', function() {
+        otherDiv.style.display = this.value === '__other__' ? 'block' : 'none';
+        dateInput.disabled = !this.value;
+        if (!this.value) {
+            dateInput.value = '';
+            slotContainer.innerHTML = '';
+            hiddenInput.value = '';
+        }
+    });
+
+    dateInput.addEventListener('change', function() {
+        var date = this.value;
+        if (date) {
+            tpLoadSessionTimeSlots(date, i, slotContainer, hiddenInput);
+        } else {
+            slotContainer.innerHTML = '';
+            hiddenInput.value = '';
+        }
+    });
+}
+
+function tpBuildTransitionedRow(row, i, existing) {
+    row.innerHTML = '<div class="session-row-header">Session ' + i + '</div>';
+
+    var content = document.createElement('div');
+    content.className = 'session-row-content';
+
+    var hiddenInput = document.createElement('input');
+    hiddenInput.type = 'hidden';
+    hiddenInput.name = 'session_time_' + i;
+    hiddenInput.id = 'tpSessionTime_' + i;
+    hiddenInput.className = 'session-time-hidden';
+    hiddenInput.value = existing.time || '';
+
+    var leftCol = document.createElement('div');
+    leftCol.className = 'session-left';
+    var leftInner = document.createElement('div');
+    leftInner.className = 'session-left-inner';
+
+    var treatmentField = document.createElement('div');
+    treatmentField.className = 'session-field';
+    var treatLabel = document.createElement('label');
+    treatLabel.className = 'session-field-label';
+    treatLabel.textContent = 'Treatment';
+    treatmentField.appendChild(treatLabel);
+
+    var treatSelect = document.createElement('select');
+    treatSelect.name = 'session_treatment_' + i;
+    treatSelect.className = 'form-control session-treatment';
+    treatmentField.appendChild(treatSelect);
+
+    var otherDiv = document.createElement('div');
+    otherDiv.className = 'session-other-treatment';
+    otherDiv.style.display = 'none';
+    var otherInput = document.createElement('input');
+    otherInput.type = 'text';
+    otherInput.name = 'session_treatment_other_' + i;
+    otherInput.className = 'form-control';
+    otherInput.placeholder = 'Enter custom treatment name';
+    otherDiv.appendChild(otherInput);
+    treatmentField.appendChild(otherDiv);
+
+    var notesField = document.createElement('div');
+    notesField.className = 'session-field';
+    var notesLabel = document.createElement('label');
+    notesLabel.className = 'session-field-label';
+    notesLabel.textContent = 'Notes';
+    notesField.appendChild(notesLabel);
+    var notesTextarea = document.createElement('textarea');
+    notesTextarea.name = 'session_notes_' + i;
+    notesTextarea.className = 'form-control session-notes';
+    notesTextarea.rows = 2;
+    notesTextarea.placeholder = 'Notes for this session...';
+    if (existing.notes) notesTextarea.value = existing.notes;
+    notesField.appendChild(notesTextarea);
+
+    leftInner.appendChild(treatmentField);
+    leftInner.appendChild(notesField);
+    leftCol.appendChild(leftInner);
+
+    var rightCol = document.createElement('div');
+    rightCol.className = 'session-right';
+    var rightInner = document.createElement('div');
+    rightInner.className = 'session-right-inner';
+
+    var dateInput = document.createElement('input');
+    dateInput.type = 'date';
+    dateInput.name = 'session_date_' + i;
+    dateInput.className = 'form-control session-date';
+    dateInput.min = new Date().toISOString().split('T')[0];
+    dateInput.value = existing.date || '';
+    rightInner.appendChild(dateInput);
+
+    var timeDisplay = document.createElement('div');
+    timeDisplay.className = 'session-selected-time';
+    if (existing.time) {
+        var label = document.createElement('span');
+        label.className = 'session-time-label';
+        label.textContent = '\uD83D\uDD50 ' + tpFormatTimeRange(existing.time, existing.treatment || '');
+        timeDisplay.appendChild(label);
+    }
+    var changeBtn = document.createElement('button');
+    changeBtn.type = 'button';
+    changeBtn.className = 'session-change-time';
+    changeBtn.textContent = 'Change';
+    changeBtn.onclick = function() { tpDeselectTimeSlot(row); };
+    timeDisplay.appendChild(changeBtn);
+    rightInner.appendChild(timeDisplay);
+    rightCol.appendChild(rightInner);
+
+    content.appendChild(leftCol);
+    content.appendChild(rightCol);
+    row.appendChild(hiddenInput);
+    row.appendChild(content);
+
+    tpPopulateSessionTreatmentDropdown(treatSelect);
+    if (existing.treatment) {
+        var matched = false;
+        for (var oi = 0; oi < treatSelect.options.length; oi++) {
+            if (treatSelect.options[oi].value === existing.treatment) {
+                treatSelect.value = existing.treatment;
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) {
+            treatSelect.value = '__other__';
+            otherDiv.style.display = 'block';
+            otherInput.value = existing.treatment;
+        }
+    }
+
+    treatSelect.addEventListener('change', function() {
+        otherDiv.style.display = this.value === '__other__' ? 'block' : 'none';
+        tpUpdateTimeDisplay(row);
+    });
+    otherInput.addEventListener('input', function() {
+        if (treatSelect.value === '__other__') {
+            tpUpdateTimeDisplay(row);
+        }
+    });
+
+    dateInput.addEventListener('change', function() {
+        if (this.value !== existing.date) {
+            tpDeselectTimeSlot(row);
+        }
+    });
+}
+
+function tpSelectTimeSlot(row, timeStr) {
+    var hiddenInput = row.querySelector('.session-time-hidden');
+    var timeWrapper = row.querySelector('.session-time-wrapper');
+    if (!timeWrapper) return;
+
+    hiddenInput.value = timeStr;
+    timeWrapper.innerHTML = '';
+
+    var timeDisplay = document.createElement('div');
+    timeDisplay.className = 'session-selected-time';
+    var label = document.createElement('span');
+    label.className = 'session-time-label';
+    label.textContent = '\uD83D\uDD50 ' + tpFormatTimeRange(timeStr, '');
+    timeDisplay.appendChild(label);
+    var changeBtn = document.createElement('button');
+    changeBtn.type = 'button';
+    changeBtn.className = 'session-change-time';
+    changeBtn.textContent = 'Change';
+    changeBtn.onclick = function() { tpDeselectTimeSlot(row); };
+    timeDisplay.appendChild(changeBtn);
+    timeWrapper.appendChild(timeDisplay);
+}
+
+function tpDeselectTimeSlot(row) {
+    var hiddenInput = row.querySelector('.session-time-hidden');
+    var timeWrapper = row.querySelector('.session-time-wrapper');
+    var dateInput = row.querySelector('.session-date');
+    var sessionNum = row.getAttribute('data-session');
+    if (!timeWrapper) return;
+
+    hiddenInput.value = '';
+    timeWrapper.innerHTML = '';
+
+    var slotContainer = document.createElement('div');
+    slotContainer.className = 'session-time-slots';
+    slotContainer.id = 'tpSessionSlots_' + sessionNum;
+    timeWrapper.appendChild(slotContainer);
+
+    var currentDate = dateInput.value;
+    if (currentDate) {
+        tpLoadSessionTimeSlots(currentDate, sessionNum, slotContainer, hiddenInput);
+    }
+}
+
+function tpPopulateSessionTreatmentDropdown(selectEl) {
+    selectEl.innerHTML = '<option value="">Select Treatment</option>';
+    var services = window._cachedServices || [];
+    services.forEach(function(s) {
+        var opt = document.createElement('option');
+        opt.value = s.name;
+        opt.textContent = s.name + (s.duration_minutes ? ' (' + s.duration_minutes + ' min)' : '');
+        selectEl.appendChild(opt);
+    });
+    var otherOpt = document.createElement('option');
+    otherOpt.value = '__other__';
+    otherOpt.textContent = 'Others';
+    selectEl.appendChild(otherOpt);
+}
+
+function tpLoadSessionTimeSlots(date, sessionNum, container, hiddenInput) {
+    var url = '../user-patient/get_slots.php?date=' + encodeURIComponent(date);
+    container.innerHTML = '<span style="color:#6b7280;font-size:0.8rem;">Loading...</span>';
+
+    fetch(url)
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+        container.innerHTML = '';
+
+        if (!data.success || !data.is_open || data.is_past) {
+            container.innerHTML = '<span style="color:#dc2626;font-size:0.8rem;">' + (data.message || 'Unavailable') + '</span>';
+            return;
+        }
+
+        var available = data.available_slots || [];
+        if (available.length === 0) {
+            container.innerHTML = '<span style="color:#6b7280;font-size:0.8rem;">No available slots</span>';
+            return;
+        }
+
+        var bookedSet = new Set(data.booked_slots || []);
+        var allSlots = (data.available_slots || []).concat(data.booked_slots || []);
+        allSlots.sort();
+        var seen = {};
+        allSlots.forEach(function(slot) {
+            if (seen[slot]) return;
+            seen[slot] = true;
+            var isBooked = bookedSet.has(slot);
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            if (isBooked) {
+                btn.className = 'time-slot-btn booked';
+                btn.disabled = true;
+                btn.title = 'Already booked';
+            } else {
+                btn.className = 'time-slot-btn';
+                btn.onclick = (function(s) {
+                    return function() {
+                        tpSelectTimeSlot(container.closest('.session-row'), s);
+                    };
+                })(slot);
+            }
+            btn.textContent = tpFormatTime12h(slot);
+            container.appendChild(btn);
+        });
+    })
+    .catch(function() {
+        container.innerHTML = '<span style="color:#dc2626;font-size:0.8rem;">Error loading slots</span>';
+    });
+}
+
+function tpFormatTime12h(time24) {
+    var parts = time24.split(':');
+    var hours = parseInt(parts[0]);
+    var minutes = parseInt(parts[1]);
+    var period = hours >= 12 ? 'PM' : 'AM';
+    var hour12 = hours % 12 || 12;
+    return hour12 + ':' + (minutes < 10 ? '0' : '') + minutes + ' ' + period;
+}
+
+function tpFormatTimeRange(startTime, treatmentName) {
+    var duration = 30;
+    if (treatmentName) {
+        var services = window._cachedServices || [];
+        for (var si = 0; si < services.length; si++) {
+            if (services[si].name === treatmentName && services[si].duration_minutes) {
+                duration = parseInt(services[si].duration_minutes);
+                break;
+            }
+        }
+    }
+    var timeParts = startTime.split(':');
+    var h = parseInt(timeParts[0]);
+    var m = parseInt(timeParts[1]);
+    var totalMin = h * 60 + m + duration;
+    var endH = Math.floor(totalMin / 60) % 24;
+    var endM = totalMin % 60;
+    var endStr = (endH < 10 ? '0' : '') + endH + ':' + (endM < 10 ? '0' : '') + endM;
+    return tpFormatTime12h(startTime) + ' - ' + tpFormatTime12h(endStr);
+}
+
+function tpUpdateTimeDisplay(row) {
+    var label = row.querySelector('.session-time-label');
+    var hiddenInput = row.querySelector('.session-time-hidden');
+    if (!label || !hiddenInput || !hiddenInput.value) return;
+    var treatSelect = row.querySelector('.session-treatment');
+    var treatment = treatSelect ? treatSelect.value : '';
+    var otherInput = row.querySelector('.session-other-treatment input');
+    var treatmentName = treatment === '__other__' ? (otherInput ? otherInput.value : '') : treatment;
+    label.textContent = '\uD83D\uDD50 ' + tpFormatTimeRange(hiddenInput.value, treatmentName);
+}
+
+function saveConsultTreatmentPlan(e) {
+    e.preventDefault();
+    if (isPastView || !currentConsultation) return;
+
+    var form = document.getElementById('consultTreatmentPlanForm');
+    var formData = new FormData(form);
+
+    formData.set('patient_id', currentConsultation.patient_id);
+
+    var totalSessions = parseInt(document.getElementById('tp_total_sessions').value) || 0;
+    for (var i = 1; i <= totalSessions; i++) {
+        var dateInput = document.querySelector('#tpSessionRowsContainer [name="session_date_' + i + '"]');
+        var timeInput = document.getElementById('tpSessionTime_' + i);
+        if (dateInput && dateInput.value && timeInput && timeInput.value) {
+            var treatmentSelect = document.querySelector('#tpSessionRowsContainer [name="session_treatment_' + i + '"]');
+            var treatmentOther = document.querySelector('#tpSessionRowsContainer [name="session_treatment_other_' + i + '"]');
+            var treatment = treatmentSelect ? treatmentSelect.value : '';
+            var treatmentOtherVal = treatmentOther ? treatmentOther.value : '';
+            if (!treatment && !treatmentOtherVal) {
+                alert('Session ' + i + ' has a date/time but no treatment selected. Please choose a treatment for every scheduled session.');
+                return;
+            }
+        }
+    }
+
+    var firstDate = document.querySelector('#tpSessionRowsContainer [name="session_date_1"]');
+    var firstTime = document.getElementById('tpSessionTime_1');
+    if (firstDate && firstDate.value) {
+        formData.set('next_session_date', firstDate.value);
+        formData.set('next_session_time', firstTime ? firstTime.value : '');
+    }
+
+    var saveBtn = document.getElementById('tpSaveBtn');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
+
+    fetch('../shared/process_treatment_plan.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Treatment Plan'; }
+        alert(data.message);
+        if (data.success) {
+            resetConsultTpForm();
+            loadConsultTreatmentPlans();
+        }
+    })
+    .catch(function(error) {
+        console.error('Error saving treatment plan:', error);
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Treatment Plan'; }
+        alert('Error saving treatment plan');
+    });
+}
+
+function resetConsultTpForm() {
+    document.getElementById('tp_plan_id').value = '';
+    document.getElementById('tp_teeth_numbers').value = '';
+    document.getElementById('tp_notes').value = '';
+    document.getElementById('tp_estimated_cost').value = '';
+    document.getElementById('tp_status').value = 'Active';
+    tpSetSessionCount(1);
+}
+
+function tpReadOnlyMode() {
+    document.querySelectorAll('#panel-treatment-plan select').forEach(function(el) { el.disabled = true; });
+    document.querySelectorAll('#panel-treatment-plan input[type="text"]').forEach(function(el) { el.readOnly = true; });
+    document.querySelectorAll('#panel-treatment-plan input[type="date"]').forEach(function(el) { el.readOnly = true; });
+    document.querySelectorAll('#panel-treatment-plan input[type="number"]').forEach(function(el) { el.readOnly = true; });
+    document.querySelectorAll('#panel-treatment-plan textarea').forEach(function(el) { el.readOnly = true; });
+    document.querySelectorAll('#panel-treatment-plan .sess-btn').forEach(function(el) { el.disabled = true; });
+    var saveBtn = document.getElementById('tpSaveBtn');
+    if (saveBtn) saveBtn.style.display = 'none';
+    var resetBtns = document.querySelectorAll('#panel-treatment-plan .consult-complete-btn');
+    resetBtns.forEach(function(b) { b.style.display = 'none'; });
+}
+
 // ===================== HELPERS =====================
 function escapeHtml(text) {
     var div = document.createElement('div');
@@ -2516,6 +3391,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var modalOverlay = document.getElementById('toothModalOverlay');
     if (modalOverlay) document.body.appendChild(modalOverlay);
     renderToothButtons();
+    window._cachedServices = <?php echo json_encode($services); ?>;
     <?php if ($isPastView && $pastConsultData): ?>
     loadPastConsultationData(<?php echo $pastConsultId; ?>);
     <?php elseif ($initialQueueId): ?>
