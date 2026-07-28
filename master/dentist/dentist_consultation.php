@@ -1087,6 +1087,31 @@ try {
 .past-prescription-item:last-child { margin-bottom: 0; }
 .past-prescription-item .med-name { font-weight: 700; color: #1e293b; }
 .past-prescription-item .med-detail { color: #64748b; margin-top: 2px; }
+.past-consult-view-full {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #e2e8f0;
+}
+.past-consult-view-full a {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    background: linear-gradient(135deg, #059669, #10b981);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+.past-consult-view-full a:hover {
+    background: linear-gradient(135deg, #047857, #059669);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
 
 /* Past View Mode */
 .past-view-badge {
@@ -1658,7 +1683,12 @@ function loadConsultation(queueId) {
             renderToothFindings();
             renderToothButtons();
             loadPastConsultations(data.consultation.patient_id, data.consultation.id);
+        } else {
+            console.error('Consultation load failed:', data.message || 'Unknown error');
         }
+    })
+    .catch(function(err) {
+        console.error('Fetch error loading consultation:', err);
     });
 }
 
@@ -2459,6 +2489,8 @@ function loadPastConsultations(patientId, currentConsultId) {
                 html += '<div class="detail-value">' + escapeHtml(consentParts.join(' · ')) + '</div>';
                 html += '</div>';
             }
+
+            html += '<div class="past-consult-view-full"><a href="dentist_consultation.php?past_consultation_id=' + c.id + '" title="Open full read-only view of this consultation">🔍 View Full</a></div>';
 
             html += '</div></div>';
         });

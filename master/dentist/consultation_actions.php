@@ -56,6 +56,8 @@ try {
                 try { $pdo->exec($sql); } catch (Exception $e) {}
             }
         }
+
+        ob_clean();
     }
 
     $method = $_SERVER['REQUEST_METHOD'];
@@ -88,12 +90,14 @@ try {
             }
             unset($pt);
 
+            ob_clean();
             echo json_encode(['success' => true, 'patients' => $patients]);
             break;
 
         case 'get_consultation':
             $queueId = (int)($_GET['queue_id'] ?? 0);
             if (!$queueId) {
+                ob_clean();
                 echo json_encode(['success' => false, 'message' => 'Queue ID required']);
                 break;
             }
@@ -110,6 +114,7 @@ try {
                 $queue = $stmt->fetch(PDO::FETCH_ASSOC);
 
                 if (!$queue) {
+                    ob_clean();
                     echo json_encode(['success' => false, 'message' => 'Queue item not found']);
                     break;
                 }
@@ -153,6 +158,7 @@ try {
                 $consultation['prescription_data'] = json_decode($consultation['prescription_data'], true);
             }
 
+            ob_clean();
             echo json_encode(['success' => true, 'consultation' => $consultation]);
             break;
 
@@ -161,6 +167,7 @@ try {
             if (!$input) { $input = $_POST; }
             $consultId = (int)($input['consultation_id'] ?? 0);
             if (!$consultId) {
+                ob_clean();
                 echo json_encode(['success' => false, 'message' => 'Consultation ID required']);
                 break;
             }
@@ -203,6 +210,7 @@ try {
                 $consultId
             ]);
 
+            ob_clean();
             echo json_encode(['success' => true, 'message' => 'Dental examination saved']);
             break;
 
@@ -210,11 +218,13 @@ try {
             $input = json_decode(file_get_contents('php://input'), true);
             $consultId = (int)($input['consultation_id'] ?? 0);
             if (!$consultId) {
+                ob_clean();
                 echo json_encode(['success' => false, 'message' => 'Consultation ID required']);
                 break;
             }
             $stmt = $pdo->prepare("UPDATE consultations SET consultation_notes = ? WHERE id = ?");
             $stmt->execute([$input['consultation_notes'] ?? '', $consultId]);
+            ob_clean();
             echo json_encode(['success' => true, 'message' => 'Notes saved']);
             break;
 
@@ -222,11 +232,13 @@ try {
             $input = json_decode(file_get_contents('php://input'), true);
             $consultId = (int)($input['consultation_id'] ?? 0);
             if (!$consultId) {
+                ob_clean();
                 echo json_encode(['success' => false, 'message' => 'Consultation ID required']);
                 break;
             }
             $stmt = $pdo->prepare("UPDATE consultations SET dental_medical_history_notes = ? WHERE id = ?");
             $stmt->execute([$input['dental_medical_history_notes'] ?? '', $consultId]);
+            ob_clean();
             echo json_encode(['success' => true, 'message' => 'History saved']);
             break;
 
@@ -235,6 +247,7 @@ try {
             $patientId = (int)($input['patient_id'] ?? 0);
             $medData = $input['medical_data'] ?? [];
             if (!$patientId) {
+                ob_clean();
                 echo json_encode(['success' => false, 'message' => 'Patient ID required']);
                 break;
             }
@@ -287,6 +300,7 @@ try {
                 $stmt->execute($valList);
             }
 
+            ob_clean();
             echo json_encode(['success' => true, 'message' => 'Medical history saved']);
             break;
 
@@ -294,12 +308,14 @@ try {
             $input = json_decode(file_get_contents('php://input'), true);
             $consultId = (int)($input['consultation_id'] ?? 0);
             if (!$consultId) {
+                ob_clean();
                 echo json_encode(['success' => false, 'message' => 'Consultation ID required']);
                 break;
             }
             $prescJson = !empty($input['prescription_data']) ? json_encode($input['prescription_data']) : null;
             $stmt = $pdo->prepare("UPDATE consultations SET prescription_data = ? WHERE id = ?");
             $stmt->execute([$prescJson, $consultId]);
+            ob_clean();
             echo json_encode(['success' => true, 'message' => 'Prescription saved']);
             break;
 
@@ -307,6 +323,7 @@ try {
             $input = json_decode(file_get_contents('php://input'), true);
             $consultId = (int)($input['consultation_id'] ?? 0);
             if (!$consultId) {
+                ob_clean();
                 echo json_encode(['success' => false, 'message' => 'Consultation ID required']);
                 break;
             }
@@ -342,6 +359,7 @@ try {
                 $input['consent_witness_sign_name'] ?? null,
                 $consultId
             ]);
+            ob_clean();
             echo json_encode(['success' => true, 'message' => 'Consent saved']);
             break;
 
@@ -349,6 +367,7 @@ try {
             $input = json_decode(file_get_contents('php://input'), true);
             $consultId = (int)($input['consultation_id'] ?? 0);
             if (!$consultId) {
+                ob_clean();
                 echo json_encode(['success' => false, 'message' => 'Consultation ID required']);
                 break;
             }
@@ -410,6 +429,7 @@ try {
                     $paymentStatus = $billing['payment_status'];
                 }
 
+                ob_clean();
                 echo json_encode([
                     'success' => true,
                     'message' => 'Consultation completed',
@@ -420,6 +440,7 @@ try {
                     'payment_status' => $paymentStatus
                 ]);
             } else {
+                ob_clean();
                 echo json_encode(['success' => true, 'message' => 'Consultation completed']);
             }
             break;
@@ -428,6 +449,7 @@ try {
             $patientId = (int)($_GET['patient_id'] ?? 0);
             $excludeId = (int)($_GET['exclude_consultation_id'] ?? 0);
             if (!$patientId) {
+                ob_clean();
                 echo json_encode(['success' => false, 'message' => 'Patient ID required']);
                 break;
             }
@@ -461,12 +483,14 @@ try {
             }
             unset($row);
 
+            ob_clean();
             echo json_encode(['success' => true, 'consultations' => $rows]);
             break;
 
         case 'get_past_consultation':
             $consultId = (int)($_GET['id'] ?? 0);
             if (!$consultId) {
+                ob_clean();
                 echo json_encode(['success' => false, 'message' => 'Consultation ID required']);
                 break;
             }
@@ -485,6 +509,7 @@ try {
             $consultation = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$consultation) {
+                ob_clean();
                 echo json_encode(['success' => false, 'message' => 'Consultation not found']);
                 break;
             }
@@ -505,15 +530,18 @@ try {
                 $consultation['prescription_data'] = json_decode($consultation['prescription_data'], true);
             }
 
+            ob_clean();
             echo json_encode(['success' => true, 'consultation' => $consultation]);
             break;
 
         default:
+            ob_clean();
             echo json_encode(['success' => false, 'message' => 'Invalid action']);
     }
 
 } catch (Exception $e) {
     error_log("Consultation Action Error: " . $e->getMessage());
+    ob_clean();
     echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
 }
 ob_end_flush();
