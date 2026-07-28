@@ -103,7 +103,7 @@ try {
         'status' => 'waiting'
     ]);
 
-    $updateStmt = $pdo->prepare("UPDATE appointments SET status = 'arrived', updated_at = NOW() WHERE id = ?");
+    $updateStmt = $pdo->prepare("UPDATE appointments SET status = 'arrived' WHERE id = ?");
     $updateStmt->execute([$appointmentId]);
 
     $pdo->commit();

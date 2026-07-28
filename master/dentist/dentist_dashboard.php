@@ -830,28 +830,9 @@ function viewPatientDetails(patientId) {
 
 
 
-                <!-- Teeth Section -->
-                <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:20px;margin-bottom:20px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                        <h3 style="font-size:1rem;font-weight:600;color:#15803d;margin:0;">🦷 Teeth Selection</h3>
-                        <button id="editTeethBtn" onclick="toggleTeethEditMode(${q.id})" class="btn-primary" style="padding:6px 12px;font-size:0.8rem;">Edit Teeth</button>
-                    </div>
-                    <div id="toothChartContainer">${generateToothChartHTML(q.teeth_numbers || '')}</div>
-                    <div id="selectedTeethDisplay" style="font-size:0.85rem;color:#374151;margin-top:10px;font-weight:500;">Selected: ${q.teeth_numbers || 'None'}</div>
-                    <div id="teethEditActions" style="display:none;margin-top:12px;gap:8px;">
-                         <button onclick="saveTeethChanges(${q.id})" class="btn-primary" style="padding:8px 16px;">Save Changes</button>
-                         <button onclick="cancelTeethEdit()" class="btn-cancel" style="padding:8px 16px;">Cancel</button>
-                    </div>
-                </div>
+                
 
-                <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:12px;padding:20px;margin-bottom:20px;">
-                    <h3 style="font-size:1rem;font-weight:600;color:#d97706;margin-bottom:12px;">📝 Procedure Notes</h3>
-                    <textarea id="procedureNotes" rows="4" style="width:100%;padding:12px;border:1px solid #e5e7eb;border-radius:8px;font-size:0.9rem;" placeholder="Start typing notes...">${q.procedure_notes || ''}</textarea>
-                    <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;">
-                        <span id="notesSaveStatus" style="font-size:0.8rem;color:#6b7280;"></span>
-                        <button onclick="saveProcedureNotes(${q.id})" class="btn-primary" style="padding:6px 12px;font-size:0.85rem;">Save Notes</button>
-                    </div>
-                </div>
+                
 
                 <div style="margin-top:24px;display:flex;justify-content:flex-end;gap:12px;">
                     <button onclick="closePatientModal()" class="btn-cancel">Close</button>

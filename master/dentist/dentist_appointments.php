@@ -1167,19 +1167,6 @@ function openApptKebabDropdown(button) {
         `;
     }
 
-    if (isArrived) {
-        html += `
-            <a href="javascript:void(0)" onclick="forwardToQueue(${apptId})">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M22 12h-16"/>
-                    <path d="M12 5l7 7-7 7"/>
-                    <path d="M3 5v14"/>
-                </svg>
-                Forward to Queue
-            </a>
-        `;
-    }
-
     if (!isCancelled) {
         html += `
             <a href="javascript:void(0)" onclick="openCancelReasonModal(${apptId})" style="color: #dc2626;">
@@ -1235,7 +1222,7 @@ function closeApptKebabDropdown() {
 
     function markArrived(id) {
         closeApptKebabDropdown();
-        if (confirm('Mark this patient as arrived?')) {
+        if (confirm('Mark this patient as arrived?\n\nThey will be automatically added to today\'s queue.')) {
             fetch('../shared/mark_arrived.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1244,6 +1231,7 @@ function closeApptKebabDropdown() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    alert(data.message || 'Patient marked as arrived');
                     location.reload();
                 } else {
                     alert(data.message || 'Error marking as arrived');

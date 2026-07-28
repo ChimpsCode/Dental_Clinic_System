@@ -1271,7 +1271,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
     }
 
     function markArrived(id) {
-        if (confirm('Mark this patient as arrived?')) {
+        if (confirm('Mark this patient as arrived?\n\nThey will be automatically added to today\'s queue.')) {
             fetch('../shared/mark_arrived.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1280,6 +1280,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    alert(data.message || 'Patient marked as arrived');
                     location.reload();
                 } else {
                     alert(data.message || 'Error marking as arrived');

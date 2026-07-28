@@ -1185,19 +1185,6 @@ require_once '../../includes/staff_layout_start.php';
                 </a>
             `;
         }
-
-        if (isArrived) {
-            menuItems += `
-                <a href="javascript:void(0)" data-action="forward_to_queue" data-id="${apptId}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22 12h-16"/>
-                        <path d="M12 5l7 7-7 7"/>
-                        <path d="M3 5v14"/>
-                    </svg>
-                    Forward to Queue
-                </a>
-            `;
-        }
         
         // Show Delete button if cancelled, Cancel button if not
         if (isCancelled) {
@@ -1324,9 +1311,6 @@ require_once '../../includes/staff_layout_start.php';
                 case 'mark_arrived':
                     markArrived(id);
                     break;
-                case 'forward_to_queue':
-                    forwardToQueue(id);
-                    break;
                 case 'delete':
                     deleteAppointment(id);
                     break;
@@ -1366,7 +1350,7 @@ require_once '../../includes/staff_layout_start.php';
     }
 
     function markArrived(id) {
-        if (confirm('Mark this patient as arrived?')) {
+        if (confirm('Mark this patient as arrived?\n\nThey will be automatically added to today\'s queue.')) {
             fetch('../shared/mark_arrived.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1375,6 +1359,7 @@ require_once '../../includes/staff_layout_start.php';
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    alert(data.message || 'Patient marked as arrived');
                     location.reload();
                 } else {
                     alert(data.message || 'Error marking as arrived');
@@ -1384,29 +1369,6 @@ require_once '../../includes/staff_layout_start.php';
                 console.error('Error:', error);
                 alert('Error marking as arrived');
             });
-        }
-    }
-
-    function forwardToQueue(id) {
-        const appt = appointments.find(a => a.id == id);
-        if (!appt) return;
-        
-        if (confirm('Forward this appointment to Queue?\n\nThis will open the admission form where you can select the service and teeth before adding to the queue.')) {
-            let url = 'staff_new_admission.php?appointment_id=' + id;
-            
-            if (appt.first_name) url += '&first_name=' + encodeURIComponent(appt.first_name);
-            if (appt.middle_name) url += '&middle_name=' + encodeURIComponent(appt.middle_name);
-            if (appt.last_name) url += '&last_name=' + encodeURIComponent(appt.last_name);
-            if (appt.phone) url += '&phone=' + encodeURIComponent(appt.phone);
-            if (appt.email) url += '&email=' + encodeURIComponent(appt.email);
-            if (appt.address) url += '&address=' + encodeURIComponent(appt.address);
-            if (appt.date_of_birth) url += '&date_of_birth=' + encodeURIComponent(appt.date_of_birth);
-            if (appt.gender) url += '&gender=' + encodeURIComponent(appt.gender);
-            if (appt.city) url += '&city=' + encodeURIComponent(appt.city);
-            if (appt.province) url += '&province=' + encodeURIComponent(appt.province);
-            if (appt.zip_code) url += '&zip_code=' + encodeURIComponent(appt.zip_code);
-            
-            window.location.href = url;
         }
     }
 

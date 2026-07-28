@@ -171,18 +171,11 @@ if ($appointmentId) {
 
     // Update appointment status to In Queue
     try {
-        $stmt = $pdo->prepare("UPDATE appointments SET patient_id = ?, status = 'In Queue', updated_at = NOW() WHERE id = ?");
+        $stmt = $pdo->prepare("UPDATE appointments SET patient_id = ?, status = 'In Queue' WHERE id = ?");
         $stmt->execute([$patientId, $appointmentId]);
         $updateSuccess = true;
     } catch (Exception $e) {
-        // Fallback without updated_at
-        try {
-            $stmt = $pdo->prepare("UPDATE appointments SET patient_id = ?, status = 'In Queue' WHERE id = ?");
-            $stmt->execute([$patientId, $appointmentId]);
-            $updateSuccess = true;
-        } catch (Exception $e2) {
-            error_log("Failed to update appointment: " . $e2->getMessage());
-        }
+        error_log("Failed to update appointment: " . $e->getMessage());
     }
 
     error_log("Appointment status successfully updated to In Queue");
