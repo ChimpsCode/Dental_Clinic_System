@@ -1436,7 +1436,7 @@ let queueKebabBackdrop = null;
 let queueActiveButton = null;
 
 // Track if there's a procedure currently in progress
-const inProcedurePatient = <?php echo $inProcedurePatient ? json_encode(['id' => $inProcedurePatient['id'], 'name' => trim(($inProcedurePatient['first_name'] ?? '') . ' ' . ($inProcedurePatient['last_name'] ?? ''))]) : 'null'; ?>;
+var inProcedurePatient = <?php echo $inProcedurePatient ? json_encode(['id' => $inProcedurePatient['id'], 'name' => trim(($inProcedurePatient['first_name'] ?? '') . ' ' . ($inProcedurePatient['last_name'] ?? ''))]) : 'null'; ?>;
 
 function createQueueKebabDropdown() {
     queueKebabDropdown = document.createElement('div');
@@ -2101,6 +2101,149 @@ if (queueSearch) {
 if (statusFilter) {
     statusFilter.addEventListener('change', filterTable);
 }
+
+// Queue auto-polling
+var previousQueueHash = '';
+var POLL_INTERVAL_MS = 8000;
+var ITEMS_PER_PAGE = 5;
+
+function startQueuePolling() {
+    setInterval(function() {
+        fetch('../shared/queue_poll.php')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data.success) return;
+                if (data.hash !== previousQueueHash) {
+                    previousQueueHash = data.hash;
+                    refreshQueueTable(data);
+                }
+            })
+            .catch(function(e) { console.error('Queue poll error:', e); });
+    }, POLL_INTERVAL_MS);
+}
+
+function refreshQueueTable(data) {
+    var tbody = document.getElementById('queueTableBody');
+    if (!tbody) return;
+
+    var items = data.items;
+    var counts = data.counts;
+
+    // Update tab counts (dentist: All, Waiting, In Procedure, Completed, Cancelled)
+    var tabs = document.querySelectorAll('.tab-item');
+    for (var t = 0; t < tabs.length; t++) {
+        var tab = tabs[t];
+        var countSpan = tab.querySelector('.tab-count');
+        if (!countSpan) continue;
+        var tabName = tab.dataset.tab;
+        if (tabName === 'all') countSpan.textContent = counts.total;
+        else if (tabName === 'in_procedure') countSpan.textContent = counts.in_procedure;
+        else if (tabName === 'completed') countSpan.textContent = counts.completed;
+        else if (tabName === 'on_hold') countSpan.textContent = counts.on_hold;
+        else if (tabName === 'waiting') countSpan.textContent = counts.waiting;
+    }
+
+    // Update inProcedurePatient for kebab menu
+    var inProc = null;
+    for (var i = 0; i < items.length; i++) {
+        if (items[i].status === 'in_procedure') {
+            inProc = { id: items[i].id, name: (items[i].first_name || '') + ' ' + (items[i].last_name || '') };
+            break;
+        }
+    }
+    inProcedurePatient = inProc;
+
+    // Empty state
+    if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state">' +
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">' +
+            '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>' +
+            '</svg><h3>No patients in queue</h3><p>No queue items for today</p></div></td></tr>';
+        updatePaginationInfo(items.length, 1);
+        return;
+    }
+
+    // Pagination
+    var currentPage = 1;
+    var activeBtn = document.querySelector('.pagination-btn.active');
+    if (activeBtn) currentPage = parseInt(activeBtn.textContent) || 1;
+    var totalPages = Math.max(1, Math.ceil(items.length / ITEMS_PER_PAGE));
+    if (currentPage > totalPages) currentPage = totalPages;
+    var offset = (currentPage - 1) * ITEMS_PER_PAGE;
+    var pageItems = items.slice(offset, offset + ITEMS_PER_PAGE);
+    var showingStart = items.length > 0 ? offset + 1 : 0;
+    var showingEnd = Math.min(offset + ITEMS_PER_PAGE, items.length);
+
+    // Build rows
+    var html = '';
+    for (var i = 0; i < pageItems.length; i++) {
+        var item = pageItems[i];
+        var time12hr = formatQueueTime(item.queue_time);
+        var statusText = item.status || 'waiting';
+        var statusClass = statusText.replace(/_/g, '-');
+        var displayStatus = statusText.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+        var rowNumber = item.queue_number || (showingStart + i);
+        var patientName = (item.first_name || 'Unknown') + ' ' + (item.last_name || '');
+        var treatment = item.treatment_type || 'Consultation';
+
+        html += '<tr class="queue-row" data-status="' + statusText + '" data-name="' + (item.first_name || '').toLowerCase() + '" data-treatment="' + treatment.toLowerCase() + '">';
+        html += '<td>#' + rowNumber + '</td>';
+        html += '<td><div class="patient-name">' + escapeHtml(item.first_name || 'Unknown') + '</div></td>';
+        html += '<td>' + escapeHtml(item.middle_name || '') + '</td>';
+        html += '<td><div class="patient-name">' + escapeHtml(item.last_name || 'Unknown') + '</div></td>';
+        html += '<td><div style="font-size: 0.8rem; color: #6b7280;">' + escapeHtml(item.phone || '') + '</div></td>';
+        html += '<td><span class="status-badge ' + statusClass + '"><span class="status-dot"></span>' + displayStatus + '</span></td>';
+        html += '<td>' + escapeHtml(treatment) + '</td>';
+        html += '<td><div class="time-display"><span class="time-12hr">' + time12hr + '</span></div></td>';
+        html += '<td><div class="queue-kebab-menu"><button class="queue-kebab-btn" data-queue-id="' + item.id + '" data-patient-id="' + item.patient_id + '" data-patient-name="' + escapeHtml(patientName) + '" data-treatment="' + escapeHtml(treatment) + '">';
+        html += '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="18" r="2"/></svg>';
+        html += '</button></div></td>';
+        html += '</tr>';
+    }
+    tbody.innerHTML = html;
+    updatePaginationInfo(items.length, currentPage);
+
+    // Re-apply filters
+    var activeTab = document.querySelector('.tab-item.active');
+    if (activeTab) filterQueueTable(activeTab.dataset.tab);
+    if (typeof filterTable === 'function') { try { filterTable(); } catch(e) {} }
+}
+
+function formatQueueTime(timeStr) {
+    if (!timeStr) return 'N/A';
+    var parts = timeStr.split(':');
+    if (parts.length < 2) return timeStr;
+    var h = parseInt(parts[0], 10);
+    var m = parseInt(parts[1], 10);
+    var ampm = h >= 12 ? 'PM' : 'AM';
+    if (h === 0) h = 12;
+    else if (h > 12) h = h - 12;
+    return h + ':' + (m < 10 ? '0' + m : m) + ' ' + ampm;
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    var d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+function updatePaginationInfo(totalItems, currentPage) {
+    var info = document.querySelector('.pagination-info');
+    if (!info) return;
+    if (totalItems === 0) {
+        info.textContent = 'Showing 0-0 of 0 queue items';
+        return;
+    }
+    var totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+    if (currentPage > totalPages) currentPage = totalPages;
+    var offset = (currentPage - 1) * ITEMS_PER_PAGE;
+    var start = offset + 1;
+    var end = Math.min(offset + ITEMS_PER_PAGE, totalItems);
+    info.textContent = 'Showing ' + start + '-' + end + ' of ' + totalItems + ' queue items';
+}
+
+document.addEventListener('DOMContentLoaded', startQueuePolling);
 </script>
 
 <?php require_once '../../includes/dentist_layout_end.php'; ?>

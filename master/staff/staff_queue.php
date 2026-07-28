@@ -39,6 +39,7 @@ try {
     $appointmentStmt = $pdo->prepare("
         SELECT 
             NULL as id,
+            NULL as queue_number,
             a.patient_id,
             a.status,
             a.created_at,
@@ -1987,6 +1988,138 @@ function getQueueTeethDisplayText(teethString) {
 
     return parts.length ? parts.join(' + ') : teeth.sort((a, b) => a - b).join(', ');
 }
+
+// Queue auto-polling
+var previousQueueHash = '';
+var POLL_INTERVAL_MS = 8000;
+var ITEMS_PER_PAGE = 7;
+
+function startQueuePolling() {
+    setInterval(function() {
+        fetch('../shared/queue_poll.php')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data.success) return;
+                if (data.hash !== previousQueueHash) {
+                    previousQueueHash = data.hash;
+                    refreshQueueTable(data);
+                }
+            })
+            .catch(function(e) { console.error('Queue poll error:', e); });
+    }, POLL_INTERVAL_MS);
+}
+
+function refreshQueueTable(data) {
+    var tbody = document.getElementById('queueTableBody');
+    if (!tbody) return;
+
+    var items = data.items;
+    var counts = data.counts;
+
+    // Update tab counts (staff: All, Waiting, In Procedure, On Hold, Completed)
+    var tabs = document.querySelectorAll('.tab-item');
+    for (var t = 0; t < tabs.length; t++) {
+        var tab = tabs[t];
+        var countSpan = tab.querySelector('.tab-count');
+        if (!countSpan) continue;
+        var tabName = tab.dataset.tab;
+        if (tabName === 'all') countSpan.textContent = counts.total;
+        else if (tabName === 'in_procedure') countSpan.textContent = counts.in_procedure;
+        else if (tabName === 'completed') countSpan.textContent = counts.completed;
+        else if (tabName === 'on_hold') countSpan.textContent = counts.on_hold;
+        else if (tabName === 'waiting') countSpan.textContent = counts.waiting;
+    }
+
+    // Empty state
+    if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state">' +
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">' +
+            '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>' +
+            '</svg><h3>No patients in queue</h3><p>Add new patients to get started with queue management</p></div></td></tr>';
+        updatePaginationInfo(items.length, 1);
+        return;
+    }
+
+    // Pagination
+    var currentPage = 1;
+    var activeBtn = document.querySelector('.pagination-btn.active');
+    if (activeBtn) currentPage = parseInt(activeBtn.textContent) || 1;
+    var totalPages = Math.max(1, Math.ceil(items.length / ITEMS_PER_PAGE));
+    if (currentPage > totalPages) currentPage = totalPages;
+    var offset = (currentPage - 1) * ITEMS_PER_PAGE;
+    var pageItems = items.slice(offset, offset + ITEMS_PER_PAGE);
+    var showingStart = items.length > 0 ? offset + 1 : 0;
+    var showingEnd = Math.min(offset + ITEMS_PER_PAGE, items.length);
+
+    // Build rows
+    var html = '';
+    for (var i = 0; i < pageItems.length; i++) {
+        var item = pageItems[i];
+        var time12hr = formatQueueTime(item.queue_time);
+        var statusText = item.status || 'waiting';
+        var statusClass = statusText.toLowerCase().replace(/ /g, '-');
+        var statusLabel = statusText.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+        var rowNumber = item.queue_number || (showingStart + i);
+        var fullNameSearch = ((item.first_name || '') + ' ' + (item.middle_name || '') + ' ' + (item.last_name || '')).toLowerCase();
+
+        html += '<tr class="queue-row" data-status="' + statusText + '" data-name="' + escapeHtml(fullNameSearch) + '">';
+        html += '<td>#' + rowNumber + '</td>';
+        html += '<td><div class="patient-name">' + escapeHtml(item.first_name || 'Unknown') + '</div></td>';
+        html += '<td>' + escapeHtml(item.middle_name || '') + '</td>';
+        html += '<td><div class="patient-name">' + escapeHtml(item.last_name || 'Unknown') + '</div></td>';
+        html += '<td><div style="font-size: 0.75rem; color: #6b7280;">' + escapeHtml(item.phone || 'N/A') + '</div></td>';
+        html += '<td><span class="status-badge ' + statusClass + '"><span class="status-dot"></span>' + statusLabel + '</span></td>';
+        html += '<td>' + escapeHtml(item.treatment_type || 'General Checkup') + '</td>';
+        html += '<td>' + escapeHtml(item.assigned_doctor || 'Dr. Rex') + '</td>';
+        html += '<td><div class="time-display"><span class="time-12hr">' + time12hr + '</span></div></td>';
+        html += '<td><div class="queue-kebab-menu"><button class="queue-kebab-btn" data-queue-id="' + escapeHtml(String(item.id || '')) + '" data-appointment-id="' + escapeHtml(String(item.appointment_id || '')) + '" data-patient-id="' + item.patient_id + '" data-status="' + statusText + '" data-source-type="queue" data-doctor-id="' + escapeHtml(String(item.doctor_id || '')) + '">';
+        html += '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="18" r="2"/></svg>';
+        html += '</button></div></td>';
+        html += '</tr>';
+    }
+    tbody.innerHTML = html;
+    updatePaginationInfo(items.length, currentPage);
+
+    // Re-apply tab/search filters
+    var activeTab = document.querySelector('.tab-item.active');
+    if (activeTab) filterQueueTable(activeTab.dataset.tab);
+}
+
+function formatQueueTime(timeStr) {
+    if (!timeStr) return 'N/A';
+    var parts = timeStr.split(':');
+    if (parts.length < 2) return timeStr;
+    var h = parseInt(parts[0], 10);
+    var m = parseInt(parts[1], 10);
+    var ampm = h >= 12 ? 'PM' : 'AM';
+    if (h === 0) h = 12;
+    else if (h > 12) h = h - 12;
+    return h + ':' + (m < 10 ? '0' + m : m) + ' ' + ampm;
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    var d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+function updatePaginationInfo(totalItems, currentPage) {
+    var info = document.querySelector('.pagination-info');
+    if (!info) return;
+    if (totalItems === 0) {
+        info.textContent = 'Showing 0-0 of 0 patients';
+        return;
+    }
+    var totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+    if (currentPage > totalPages) currentPage = totalPages;
+    var offset = (currentPage - 1) * ITEMS_PER_PAGE;
+    var start = offset + 1;
+    var end = Math.min(offset + ITEMS_PER_PAGE, totalItems);
+    info.textContent = 'Showing ' + start + '-' + end + ' of ' + totalItems + ' patients';
+}
+
+document.addEventListener('DOMContentLoaded', startQueuePolling);
 </script>
 
 <!-- Complete Procedure Modal -->

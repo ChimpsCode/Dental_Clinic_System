@@ -1124,6 +1124,31 @@ pollDashboardInquiryBadge();
 if (dashboardInquiryPollTimer) clearInterval(dashboardInquiryPollTimer);
 dashboardInquiryPollTimer = setInterval(pollDashboardInquiryList, 8000);
 
+// Queue count auto-polling for dashboard
+var sdQueueCountHash = '';
+
+function pollDashboardQueueCounts() {
+    fetch('../shared/queue_poll.php')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.success) return;
+            if (data.hash !== sdQueueCountHash) {
+                sdQueueCountHash = data.hash;
+                var c = data.counts;
+                var el = document.getElementById('count-waiting');
+                if (el) el.textContent = c.waiting;
+                el = document.getElementById('count-completed');
+                if (el) el.textContent = c.completed;
+                el = document.getElementById('count-skipped');
+                if (el) el.textContent = c.on_hold;
+            }
+        })
+        .catch(function(e) { console.error('Dashboard queue poll error:', e); });
+}
+
+setInterval(pollDashboardQueueCounts, 10000);
+pollDashboardQueueCounts();
+
 // Portal fixed elements to body to avoid ancestor transform/scroll issues
 (function() {
     const fab = document.getElementById('dashboardInquiryFab');

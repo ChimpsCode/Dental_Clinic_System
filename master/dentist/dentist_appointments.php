@@ -227,7 +227,7 @@ try {
                 <th>Actions</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="appointmentsTableBody">
             <?php if (!empty($appointments)): ?>
                 <?php foreach ($appointments as $apt): ?>
                     <?php
@@ -1094,6 +1094,60 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.appendChild(viewModalPortal);
     }
 });
+
+// Appointment status auto-polling
+var apptPollHashDentist = '';
+
+function startAppointmentPolling() {
+    setInterval(function() {
+        fetch('../shared/appointments_poll.php')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data.success) return;
+                if (data.hash !== apptPollHashDentist) {
+                    apptPollHashDentist = data.hash;
+                    refreshAppointmentStatuses(data.appointments);
+                }
+            })
+            .catch(function(e) { console.error('Appointment poll error:', e); });
+    }, 10000);
+}
+
+function refreshAppointmentStatuses(appts) {
+    var statusMap = {};
+    for (var i = 0; i < appts.length; i++) {
+        statusMap[appts[i].id] = appts[i].status;
+    }
+    var rows = document.querySelectorAll('.appointment-row');
+    for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        var apptId = parseInt(row.dataset.id);
+        if (!apptId || !statusMap[apptId]) continue;
+        var newStatus = statusMap[apptId];
+        var currentStatus = row.dataset.status;
+        if (newStatus.toLowerCase() === currentStatus.toLowerCase()) continue;
+        row.dataset.status = newStatus.toLowerCase();
+        var kebab = row.querySelector('.appt-kebab-btn');
+        if (kebab) kebab.dataset.status = newStatus;
+        var badge = row.querySelector('.status-badge');
+        if (badge) {
+            badge.textContent = newStatus;
+            badge.style.cssText = getApptBadgeStyle(newStatus);
+        }
+    }
+}
+
+function getApptBadgeStyle(status) {
+    var s = status.toLowerCase();
+    if (s === 'completed') return 'background: #d1fae5; color: #065f46;';
+    if (s === 'cancelled') return 'background: #fee2e2; color: #991b1b;';
+    if (s === 'in queue') return 'background: #fef3c7; color: #92400e;';
+    if (s.indexOf('pending') !== -1) return 'background: #fed7aa; color: #c2410c;';
+    if (s.indexOf('arrived') !== -1) return 'background: #ccfbf1; color: #0f766e;';
+    return 'background: #e0f2fe; color: #0369a1;';
+}
+
+document.addEventListener('DOMContentLoaded', startAppointmentPolling);
 </script>
 
 <!-- Kebab Menu Functions -->

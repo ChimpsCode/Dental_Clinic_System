@@ -7,6 +7,7 @@
 $pageTitle = 'Dashboard';
 
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/queue_management_helper.php';
 
 // Include the layout start
 require_once __DIR__ . '/../../includes/admin_layout_start.php';
@@ -27,6 +28,7 @@ $startStr = $startDate->format('Y-m-d');
 $endStr = $endDate->format('Y-m-d');
 
 try {
+    ensureQueueManagementSchema($pdo);
     // Total Patients (only active, not archived)
     $totalPatients = (int)($pdo->query("SELECT COUNT(*) FROM patients WHERE is_archived = 0")->fetchColumn() ?? 0);
     
@@ -83,7 +85,7 @@ try {
     // Get live queue data (next 5 patients in line)
     try {
         $stmt = $pdo->query("
-            SELECT q.id, q.status, q.queue_time, q.treatment_type,
+            SELECT q.id, q.status, q.queue_time, q.treatment_type, q.queue_number,
                    COALESCE(CONCAT(p.first_name, ' ', COALESCE(p.middle_name, ''), ' ', p.last_name), 'Unknown') AS patient_name,
                    q.status as status_name
             FROM queue q
@@ -201,7 +203,7 @@ try {
                     <div class="summary-card">
                         <div class="summary-icon green">✓</div>
                         <div class="summary-info">
-                            <h3><?php echo $completedToday; ?></h3>
+                            <h3 id="ad-completed-today"><?php echo $completedToday; ?></h3>
                             <p>Completed Today</p>
                         </div>
                     </div>
@@ -335,7 +337,7 @@ try {
                                                 }
                                             ?>
                                             <tr style="border-bottom: 1px solid #f3f4f6;">
-                                                <td style="padding: 12px; color: #374151;"><?php echo $index + 1; ?></td>
+                                                <td style="padding: 12px; color: #374151;">#<?php echo $queueItem['queue_number'] ?? '?'; ?></td>
                                                 <td style="padding: 12px; color: #374151;"><?php echo htmlspecialchars(trim($queueItem['patient_name'])); ?></td>
                                                 <td style="padding: 12px; color: #374151;"><?php echo htmlspecialchars($queueItem['treatment_type'] ?: 'General'); ?></td>
                                                 <td style="padding: 12px;"><span style="display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; <?php echo $badgeStyle; ?>"><?php echo $statusLabel; ?></span></td>
@@ -570,6 +572,26 @@ window.onclick = function(event) {
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeCompleteProcedureModal();
 });
+
+// Queue count auto-polling for admin dashboard
+var adQueueCountHash = '';
+
+function pollAdminQueueCounts() {
+    fetch('../shared/queue_poll.php')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.success) return;
+            if (data.hash !== adQueueCountHash) {
+                adQueueCountHash = data.hash;
+                var el = document.getElementById('ad-completed-today');
+                if (el) el.textContent = data.counts.completed;
+            }
+        })
+        .catch(function(e) { console.error('Admin queue poll error:', e); });
+}
+
+setInterval(pollAdminQueueCounts, 10000);
+pollAdminQueueCounts();
 </script>
 
 <style>

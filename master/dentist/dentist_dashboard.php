@@ -1,9 +1,11 @@
 <?php
 $pageTitle = 'Dentist Dashboard';
 require_once '../../config/database.php';
+require_once '../../includes/queue_management_helper.php';
 require_once '../../includes/dentist_layout_start.php';
 
 try {
+    ensureQueueManagementSchema($pdo);
     require_once '../../config/database.php';
     
     // Get queue statistics - use status column directly
@@ -93,35 +95,35 @@ try {
     <div class="summary-card">
         <div class="summary-icon yellow">⏰</div>
         <div class="summary-info">
-            <h3><?php echo $waitingCount; ?></h3>
+            <h3 id="dd-waiting"><?php echo $waitingCount; ?></h3>
             <p>Waiting</p>
         </div>
     </div>
     <div class="summary-card">
         <div class="summary-icon blue" style="background: #dbeafe; color: #1d4ed8;">⚙️</div>
         <div class="summary-info">
-            <h3><?php echo $inProcedureCount; ?></h3>
+            <h3 id="dd-in-procedure"><?php echo $inProcedureCount; ?></h3>
             <p>In Procedure</p>
         </div>
     </div>
     <div class="summary-card">
         <div class="summary-icon green">✓</div>
         <div class="summary-info">
-            <h3><?php echo $completedToday; ?></h3>
+            <h3 id="dd-completed"><?php echo $completedToday; ?></h3>
             <p>Completed Today</p>
         </div>
     </div>
     <div class="summary-card">
         <div class="summary-icon red" style="background: #fef3c7; color: #b45309;">⏸️</div>
         <div class="summary-info">
-            <h3><?php echo $onHoldCount; ?></h3>
+            <h3 id="dd-on-hold"><?php echo $onHoldCount; ?></h3>
             <p>On Hold</p>
         </div>
     </div>
 </div>
 
 <div class="two-column">
-    <div class="left-column">
+    <div class="left-column" id="dd-queue-left">
         <?php 
         // Find patient currently in procedure
         $inProcedurePatient = null;
@@ -175,8 +177,8 @@ if (($patient['status_text'] ?? '') === 'in_procedure') {
                         </div>
                     </div>
                     <div style="text-align: right;">
-                        <div style="font-size: 2rem; font-weight: 700; color: #3b82f6;">NOW</div>
-                        <div style="font-size: 0.85rem; color: #6b7280;">in progress</div>
+                        <div style="font-size: 2rem; font-weight: 700; color: #3b82f6;">#<?php echo $inProcedurePatient['queue_number'] ?? '?'; ?></div>
+                        <div style="font-size: 0.85rem; color: #6b7280;">in procedure</div>
                     </div>
                 </div>
                 
@@ -248,7 +250,7 @@ if (($patient['status_text'] ?? '') === 'in_procedure') {
                         </div>
                     </div>
                     <div style="text-align: right;">
-                        <div style="font-size: 2rem; font-weight: 700; color: #22c55e;">#1</div>
+                        <div style="font-size: 2rem; font-weight: 700; color: #22c55e;">#<?php echo $nextPatient['queue_number'] ?? '1'; ?></div>
                         <div style="font-size: 0.85rem; color: #6b7280;">in queue</div>
                     </div>
                 </div>
@@ -291,20 +293,17 @@ if (($patient['status_text'] ?? '') === 'in_procedure') {
                 <h2 class="section-title" style="margin: 0; color: #374151;">
                     <span style="font-size: 1.5rem;">📋</span> IN THE QUEUE
                 </h2>
-                <span style="background: #6b7280; color: white; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 0.9rem;">
+                <span id="dd-queue-waiting-badge" style="background: #6b7280; color: white; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 0.9rem;">
                     <?php echo count($upcomingPatients); ?> waiting
                 </span>
             </div>
             
             <div style="display: flex; flex-direction: column; gap: 8px;">
-                <?php $queuePos = ($inProcedurePatient ? 2 : 1); ?>
-                <?php foreach ($upcomingPatients as $up): 
-                    $queuePos++;
-                ?>
+                <?php foreach ($upcomingPatients as $up): ?>
                 <div style="background: white; border-radius: 10px; padding: 14px 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #d1d5db;">
                     <div style="display: flex; align-items: center; gap: 14px; flex: 1;">
                         <div style="width: 36px; height: 36px; background: #f3f4f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #6b7280; font-size: 0.9rem; flex-shrink: 0;">
-                            #<?php echo $queuePos; ?>
+                            #<?php echo $up['queue_number'] ?? '?'; ?>
                         </div>
                         <div>
                             <div style="font-weight: 600; color: #111827; font-size: 1rem;">
@@ -374,7 +373,7 @@ if (($patient['status_text'] ?? '') === 'in_procedure') {
                     <div style="font-size: 0.85rem; color: #6b7280;">New Patients (30 days)</div>
                 </div>
                 <div style="background: #f3f4f6; padding: 12px; border-radius: 8px;">
-                    <div style="font-size: 1.5rem; font-weight: 700; color: #0891b2;"><?php echo count($queuePatients); ?></div>
+                    <div id="dd-active-queue" style="font-size: 1.5rem; font-weight: 700; color: #0891b2;"><?php echo count($queuePatients); ?></div>
                     <div style="font-size: 0.85rem; color: #6b7280;">Active Queue</div>
                 </div>
             </div>
@@ -1150,6 +1149,242 @@ document.addEventListener('keydown', function(e) {
         }
     }
 });
+
+// Queue auto-polling for dashboard (counts + queue list)
+var ddQueueHash = '';
+
+function pollDashboardQueue() {
+    fetch('../shared/queue_poll.php')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.success) return;
+            if (data.hash !== ddQueueHash) {
+                ddQueueHash = data.hash;
+                refreshDashboardQueue(data);
+            }
+        })
+        .catch(function(e) { console.error('Dashboard queue poll error:', e); });
+}
+
+function refreshDashboardQueue(data) {
+    var c = data.counts;
+    var items = data.items;
+
+    // Update summary card counts
+    var el;
+    el = document.getElementById('dd-waiting');
+    if (el) el.textContent = c.waiting;
+    el = document.getElementById('dd-in-procedure');
+    if (el) el.textContent = c.in_procedure;
+    el = document.getElementById('dd-completed');
+    if (el) el.textContent = c.completed;
+    el = document.getElementById('dd-on-hold');
+    if (el) el.textContent = c.on_hold;
+    el = document.getElementById('dd-active-queue');
+    if (el) el.textContent = c.waiting + c.in_procedure + c.on_hold;
+
+    // Update the left-column queue sections (in_procedure, next, queue list, empty state)
+    var leftCol = document.getElementById('dd-queue-left');
+    if (!leftCol) return;
+
+    // Separate items by status, preserving order
+    var inProcedure = null;
+    var waitingItems = [];
+    for (var i = 0; i < items.length; i++) {
+        if (items[i].status === 'in_procedure') {
+            inProcedure = items[i];
+        } else if (items[i].status === 'waiting') {
+            waitingItems.push(items[i]);
+        }
+    }
+
+    var nextPatient = waitingItems.length > 0 ? waitingItems[0] : null;
+    var upcomingPatients = waitingItems.slice(1);
+    var hasQueueContent = inProcedure || nextPatient || upcomingPatients.length > 0;
+
+    // Build the left column HTML
+    var html = '';
+
+    // IN PROCEDURE section
+    if (inProcedure) {
+        html += buildInProcedureHTML(inProcedure);
+    }
+
+    // NEXT PATIENT section
+    if (nextPatient) {
+        html += buildNextPatientHTML(nextPatient, inProcedure);
+    }
+
+    // IN THE QUEUE section
+    if (upcomingPatients.length > 0) {
+        html += buildInQueueHTML(upcomingPatients);
+    }
+
+    // Empty state (only when nothing in queue)
+    if (!hasQueueContent) {
+        html += buildEmptyQueueHTML();
+    }
+
+    // Replace left column content — but keep non-queue elements safe.
+    // The left column currently has ONLY queue content (no appointments after it).
+    // We only replace if there's actual change in queue-related content.
+    // But to preserve any non-queue elements, we use a targeted approach:
+    // We find and replace only the sections we built above.
+    // For simplicity, since the left col is 100% queue-related, full replace is fine.
+    leftCol.innerHTML = html;
+
+    // Update the waiting badge in the queue section too
+    el = document.getElementById('dd-queue-waiting-badge');
+    if (el) el.textContent = c.waiting + ' waiting';
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    var d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+function formatQueueTime(timeStr) {
+    if (!timeStr) return 'N/A';
+    var parts = timeStr.split(':');
+    if (parts.length < 2) return timeStr;
+    var h = parseInt(parts[0], 10);
+    var m = parseInt(parts[1], 10);
+    var ampm = h >= 12 ? 'PM' : 'AM';
+    if (h === 0) h = 12;
+    else if (h > 12) h = h - 12;
+    return h + ':' + (m < 10 ? '0' + m : m) + ' ' + ampm;
+}
+
+function buildInProcedureHTML(p) {
+    var name = escapeHtml(p.first_name || '');
+    var middle = p.middle_name ? '<span style="font-weight:400;color:#6b7280;"> ' + escapeHtml(p.middle_name) + '</span>' : '';
+    var lastName = escapeHtml(p.last_name || '');
+    var gender = escapeHtml(p.gender || 'Unknown');
+    var age = p.age || '--';
+    var phone = escapeHtml(p.phone || 'No phone');
+    var treatment = escapeHtml(p.treatment_type || 'Consultation');
+    var teeth = p.teeth_numbers ? escapeHtml(p.teeth_numbers) : 'Not specified';
+    var startedAt = formatQueueTime(p.queue_time);
+    var pid = p.patient_id;
+    var qid = p.id;
+
+    return '<div class="section-card" style="border:2px solid #3b82f6;background:linear-gradient(135deg,#eff6ff 0%,#dbeafe 100%);">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">' +
+        '<h2 class="section-title" style="margin:0;color:#1e40af;"><span style="font-size:1.5rem;">⚕️</span> IN PROCEDURE</h2>' +
+        '<span style="background:#3b82f6;color:white;padding:6px 16px;border-radius:20px;font-weight:700;font-size:0.9rem;animation:pulse 2s infinite;">ACTIVE NOW</span>' +
+        '</div>' +
+        '<div style="background:white;border-radius:12px;padding:24px;box-shadow:0 4px 15px rgba(0,0,0,0.08);">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;">' +
+        '<div><div style="font-size:1.75rem;font-weight:700;color:#111827;margin-bottom:8px;">' + name + middle + ' ' + lastName + '</div>' +
+        '<div style="display:flex;gap:12px;align-items:center;">' +
+        '<span style="background:#dbeafe;color:#1e40af;padding:4px 12px;border-radius:16px;font-size:0.85rem;font-weight:600;">' + gender + '</span>' +
+        '<span style="color:#6b7280;font-size:0.9rem;">' + age + ' years old</span>' +
+        '<span style="color:#6b7280;font-size:0.9rem;">📞 ' + phone + '</span>' +
+        '</div></div>' +
+        '<div style="text-align:right;"><div style="font-size:2rem;font-weight:700;color:#3b82f6;">#' + (p.queue_number || '?') + '</div><div style="font-size:0.85rem;color:#6b7280;">in procedure</div></div>' +
+        '</div>' +
+        '<div style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:20px;">' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">' +
+        '<div><div style="font-size:0.75rem;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Treatment</div><div style="font-weight:600;color:#111827;">' + treatment + '</div></div>' +
+        '<div><div style="font-size:0.75rem;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Teeth</div><div style="font-weight:600;color:#111827;">' + teeth + '</div></div>' +
+        '<div><div style="font-size:0.75rem;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Started At</div><div style="font-weight:600;color:#111827;">' + startedAt + '</div></div>' +
+        '</div></div>' +
+        '<div style="display:flex;gap:12px;">' +
+        '<button onclick="viewPatientDetails(' + pid + ')" class="action-btn" style="background:#6b7280;color:white;flex:1;padding:12px;font-size:1rem;border:none;border-radius:8px;cursor:pointer;"><span style="margin-right:6px;">👁</span> View Details</button>' +
+        '<button onclick="completeProcedure(' + qid + ')" class="action-btn" style="background:#2563eb;color:white;flex:2;padding:12px;font-size:1.1rem;font-weight:600;border:none;border-radius:8px;cursor:pointer;"><span style="margin-right:6px;">✓</span> COMPLETE PROCEDURE</button>' +
+        '</div></div></div>';
+}
+
+function buildNextPatientHTML(p, inProc) {
+    var name = escapeHtml(p.first_name || '');
+    var middle = p.middle_name ? '<span style="font-weight:400;color:#6b7280;"> ' + escapeHtml(p.middle_name) + '</span>' : '';
+    var lastName = escapeHtml(p.last_name || '');
+    var gender = escapeHtml(p.gender || 'Unknown');
+    var age = p.age || '--';
+    var treatment = escapeHtml(p.treatment_type || 'Consultation');
+    var queuedAt = formatQueueTime(p.queue_time);
+    var pid = p.patient_id;
+    var qid = p.id;
+    var patientName = escapeHtml((p.first_name || '') + ' ' + (p.last_name || ''));
+
+    return '<div class="section-card" style="border:2px solid #22c55e;background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">' +
+        '<h2 class="section-title" style="margin:0;color:#15803d;"><span style="font-size:1.5rem;">🎯</span> NEXT PATIENT</h2>' +
+        '<span style="background:#22c55e;color:white;padding:6px 16px;border-radius:20px;font-weight:700;font-size:0.9rem;">UP NOW</span>' +
+        '</div>' +
+        '<div style="background:white;border-radius:12px;padding:24px;box-shadow:0 4px 15px rgba(0,0,0,0.08);">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;">' +
+        '<div><div style="font-size:1.75rem;font-weight:700;color:#111827;margin-bottom:8px;">' + name + middle + ' ' + lastName + '</div>' +
+        '<div style="display:flex;gap:12px;align-items:center;">' +
+        '<span style="background:#dbeafe;color:#1e40af;padding:4px 12px;border-radius:16px;font-size:0.85rem;font-weight:600;">' + gender + '</span>' +
+        '<span style="color:#6b7280;font-size:0.9rem;">' + age + ' years old</span>' +
+        '</div></div>' +
+        '<div style="text-align:right;"><div style="font-size:2rem;font-weight:700;color:#22c55e;">#' + (p.queue_number || '1') + '</div><div style="font-size:0.85rem;color:#6b7280;">in queue</div></div>' +
+        '</div>' +
+        '<div style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:20px;">' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">' +
+        '<div><div style="font-size:0.75rem;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Treatment</div><div style="font-weight:600;color:#111827;">' + treatment + '</div></div>' +
+        '<div><div style="font-size:0.75rem;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Queued At</div><div style="font-weight:600;color:#111827;">' + queuedAt + '</div></div>' +
+        '</div></div>' +
+        '<div style="display:flex;gap:12px;">' +
+        '<button onclick="viewPatientDetails(' + pid + ')" class="action-btn" style="background:#6b7280;color:white;flex:1;padding:12px;font-size:1rem;border:none;border-radius:8px;cursor:pointer;"><span style="margin-right:6px;">👁</span> View Details</button>' +
+        (inProc
+            ? '<button disabled class="action-btn" style="background:#9ca3af;color:white;flex:2;padding:12px;font-size:1.1rem;font-weight:600;cursor:not-allowed;opacity:0.6;" title="Complete current procedure first"><span style="margin-right:6px;">🔒</span> WAITING - COMPLETE CURRENT FIRST</button>'
+            : '<button onclick="openStartProcedureModal(' + qid + ',\'' + patientName.replace(/'/g, "\\'") + '\',\'' + treatment.replace(/'/g, "\\'") + '\')" class="action-btn" style="background:#22c55e;color:white;flex:2;padding:12px;font-size:1.1rem;font-weight:600;border:none;border-radius:8px;cursor:pointer;"><span style="margin-right:6px;">▶</span> START PROCEDURE</button>'
+        ) +
+        '</div></div></div>';
+}
+
+function buildInQueueHTML(upcoming) {
+    var items = '';
+    for (var i = 0; i < upcoming.length; i++) {
+        var p = upcoming[i];
+        var name = escapeHtml(p.first_name || '');
+        var middle = p.middle_name ? ' ' + escapeHtml(p.middle_name) : '';
+        var lastName = escapeHtml(p.last_name || '');
+        var gender = escapeHtml(p.gender || 'Unknown');
+        var treatment = escapeHtml(p.treatment_type || 'Consultation');
+        var time = formatQueueTime(p.queue_time);
+        var pid = p.patient_id;
+
+        items += '<div style="background:white;border-radius:10px;padding:14px 18px;box-shadow:0 1px 3px rgba(0,0,0,0.06);display:flex;justify-content:space-between;align-items:center;border-left:4px solid #d1d5db;">' +
+            '<div style="display:flex;align-items:center;gap:14px;flex:1;">' +
+            '<div style="width:36px;height:36px;background:#f3f4f6;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#6b7280;font-size:0.9rem;flex-shrink:0;">#' + (p.queue_number || '?') + '</div>' +
+            '<div>' +
+            '<div style="font-weight:600;color:#111827;font-size:1rem;">' + name + middle + ' ' + lastName + '</div>' +
+            '<div style="display:flex;gap:8px;align-items:center;margin-top:4px;">' +
+            '<span style="background:#dbeafe;color:#1e40af;padding:2px 10px;border-radius:12px;font-size:0.75rem;font-weight:600;">' + gender + '</span>' +
+            '<span style="color:#6b7280;font-size:0.8rem;">' + treatment + '</span>' +
+            '<span style="color:#9ca3af;font-size:0.75rem;">⏰ ' + time + '</span>' +
+            '</div></div></div>' +
+            '<button onclick="viewPatientDetails(' + pid + ')" style="background:#f3f4f6;border:none;border-radius:8px;padding:8px 14px;color:#374151;font-weight:600;font-size:0.85rem;cursor:pointer;white-space:nowrap;transition:background 0.2s;" onmouseover="this.style.background=\'#e5e7eb\'" onmouseout="this.style.background=\'#f3f4f6\'">👁 View</button>' +
+            '</div>';
+    }
+
+    var totalWaiting = upcoming.length + 1;
+    return '<div class="section-card" style="border:1px solid #e5e7eb;background:linear-gradient(135deg,#f9fafb 0%,#f3f4f6 100%);">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">' +
+        '<h2 class="section-title" style="margin:0;color:#374151;"><span style="font-size:1.5rem;">📋</span> IN THE QUEUE</h2>' +
+        '<span id="dd-queue-waiting-badge" style="background:#6b7280;color:white;padding:6px 16px;border-radius:20px;font-weight:700;font-size:0.9rem;">' + totalWaiting + ' waiting</span>' +
+        '</div>' +
+        '<div style="display:flex;flex-direction:column;gap:8px;">' + items + '</div></div>';
+}
+
+function buildEmptyQueueHTML() {
+    return '<div class="section-card" style="text-align:center;padding:60px 40px;background:linear-gradient(135deg,#f9fafb 0%,#f3f4f6 100%);border:2px dashed #d1d5db;">' +
+        '<div style="font-size:4rem;margin-bottom:20px;">🪑</div>' +
+        '<h2 style="color:#374151;font-size:1.5rem;margin-bottom:12px;">No Patients in Queue</h2>' +
+        '<p style="color:#6b7280;font-size:1rem;margin-bottom:24px;">There are no patients waiting for treatment at the moment.<br>Patients will appear here when they are added to the queue by staff.</p>' +
+        '<div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap;">' +
+        '<a href="dentist_queue.php" style="background:#2563eb;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">View Full Queue</a>' +
+        '<a href="dentist_appointments.php" style="background:#6b7280;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">View Appointments</a>' +
+        '</div></div>';
+}
+
+setInterval(pollDashboardQueue, 10000);
+pollDashboardQueue();
 </script>
 
 <!-- Modal Structure (Moved to root level via JS) -->
