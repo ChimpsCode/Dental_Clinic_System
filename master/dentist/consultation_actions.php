@@ -534,6 +534,33 @@ try {
             echo json_encode(['success' => true, 'consultation' => $consultation]);
             break;
 
+        case 'get_doctor_signature':
+            $stmt = $pdo->prepare("SELECT signature_data FROM users WHERE id = ?");
+            $stmt->execute([$user_id]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            ob_clean();
+            echo json_encode([
+                'success' => true,
+                'signature_data' => $row['signature_data'] ?? null
+            ]);
+            break;
+
+        case 'save_doctor_signature':
+            $input = json_decode(file_get_contents('php://input'), true);
+            $sigData = $input['signature_data'] ?? null;
+            $stmt = $pdo->prepare("UPDATE users SET signature_data = ? WHERE id = ?");
+            $stmt->execute([$sigData, $user_id]);
+            ob_clean();
+            echo json_encode(['success' => true, 'message' => 'Doctor signature saved']);
+            break;
+
+        case 'delete_doctor_signature':
+            $stmt = $pdo->prepare("UPDATE users SET signature_data = NULL WHERE id = ?");
+            $stmt->execute([$user_id]);
+            ob_clean();
+            echo json_encode(['success' => true, 'message' => 'Doctor signature removed']);
+            break;
+
         default:
             ob_clean();
             echo json_encode(['success' => false, 'message' => 'Invalid action']);

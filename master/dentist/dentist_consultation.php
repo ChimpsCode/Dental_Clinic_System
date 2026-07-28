@@ -1417,6 +1417,169 @@ try {
 #panel-treatment-plan .tp-plan-session-item span { font-weight: 500; }
 #panel-treatment-plan .tp-plan-treatment-label { color: #059669; }
 #panel-treatment-plan .tp-plan-notes { font-size: 0.78rem; color: #6b7280; margin-top: 4px; }
+
+/* Signature Pad Modal */
+.sig-pad-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+.sig-pad-dialog {
+    background: white;
+    border-radius: 16px;
+    width: 540px;
+    max-width: 95vw;
+    padding: 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+.sig-pad-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+.sig-pad-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+.sig-pad-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #64748b;
+    padding: 4px 8px;
+    border-radius: 6px;
+    line-height: 1;
+}
+.sig-pad-close:hover {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+.sig-pad-canvas-wrap {
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+    background: #fafbfc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    position: relative;
+}
+.sig-pad-canvas-wrap canvas {
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    cursor: crosshair;
+    display: block;
+    max-width: 100%;
+}
+.sig-pad-hint {
+    text-align: center;
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin: 10px 0;
+}
+.sig-pad-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 12px;
+}
+.sig-pad-btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+.sig-pad-btn.clear {
+    background: #f1f5f9;
+    color: #475569;
+}
+.sig-pad-btn.clear:hover {
+    background: #e2e8f0;
+}
+.sig-pad-btn.cancel {
+    background: #fee2e2;
+    color: #991b1b;
+}
+.sig-pad-btn.cancel:hover {
+    background: #fecaca;
+}
+.sig-pad-btn.apply {
+    background: #0ea5e9;
+    color: white;
+}
+.sig-pad-btn.apply:hover {
+    background: #0284c7;
+}
+
+/* Signature preview images */
+.sig-preview-img {
+    max-height: 44px;
+    max-width: 100%;
+    object-fit: contain;
+    margin-bottom: 2px;
+}
+.sig-line {
+    position: relative;
+    min-height: 54px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    cursor: pointer;
+    padding: 6px 8px 4px;
+    transition: background 0.15s;
+    border-radius: 4px;
+}
+.sig-line:hover {
+    background: rgba(14, 165, 233, 0.04);
+}
+.sig-line.signed {
+    color: #0891b2;
+    font-weight: 700;
+    font-size: 1rem;
+}
+.sig-delete-btn {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    line-height: 20px;
+    text-align: center;
+    cursor: pointer;
+    display: none;
+    padding: 0;
+}
+.sig-delete-btn:hover {
+    background: #dc2626;
+}
+.sig-line:hover .sig-delete-btn {
+    display: block;
+}
 </style>
 
 <div class="consult-container <?php echo $isPastView ? 'is-past-view' : ''; ?>">
@@ -1833,23 +1996,33 @@ try {
                         <input type="text" class="sig-name-input" id="consentPlaceInput" value="RF Dental Clinic" style="text-align:left;border-bottom:1px solid #d1d5db;border-top:none;border-left:none;border-right:none;border-radius:0;">
                     </div>
 
-                    <div class="consent-signature-grid">
-                        <div class="sig-block">
-                            <div class="sig-line" id="patientSigLine" onclick="signConsent('patient')" title="Tap to sign">Tap to sign</div>
-                            <div class="sig-label">Patient / Guardian</div>
-                            <input type="text" class="sig-name-input" id="consentPatientSignName" placeholder="Printed Name">
-                        </div>
-                        <div class="sig-block">
-                            <div class="sig-line signed" id="doctorSigLine" onclick="signConsent('doctor')" title="Doctor signature"><?php echo htmlspecialchars($_SESSION['username'] ?? 'Doctor'); ?></div>
-                            <div class="sig-label">Doctor</div>
-                            <input type="text" class="sig-name-input" id="consentDoctorSignName" value="<?php echo htmlspecialchars($_SESSION['username'] ?? ''); ?>" readonly style="background:#f1f5f9;">
-                        </div>
-                        <div class="sig-block">
-                            <div class="sig-line" id="witnessSigLine" onclick="signConsent('witness')" title="Tap to sign">Tap to sign</div>
-                            <div class="sig-label">Witness</div>
-                            <input type="text" class="sig-name-input" id="consentWitnessSignName" placeholder="Printed Name">
-                        </div>
-                    </div>
+        <div class="consent-signature-grid">
+            <div class="sig-block">
+                <div class="sig-line" id="patientSigLine" onclick="openSigPad('patient')" title="Tap to sign">
+                    <img id="patientSigImg" class="sig-preview-img" style="display:none;" alt="">
+                    <span id="patientSigText">Tap to sign</span>
+                </div>
+                <div class="sig-label">Patient / Guardian</div>
+                <input type="text" class="sig-name-input" id="consentPatientSignName" placeholder="Printed Name">
+            </div>
+            <div class="sig-block">
+                <div class="sig-line" id="doctorSigLine" onclick="openSigPad('doctor')" title="Tap to sign">
+                    <img id="doctorSigImg" class="sig-preview-img" style="display:none;" alt="">
+                    <span id="doctorSigText">Tap to sign</span>
+                    <button id="doctorSigDelete" class="sig-delete-btn" style="display:none;" onclick="event.stopPropagation(); deleteDoctorSig()" title="Remove saved signature">&times;</button>
+                </div>
+                <div class="sig-label">Doctor</div>
+                <input type="text" class="sig-name-input" id="consentDoctorSignName" value="<?php echo htmlspecialchars($_SESSION['username'] ?? ''); ?>" readonly style="background:#f1f5f9;">
+            </div>
+            <div class="sig-block">
+                <div class="sig-line" id="witnessSigLine" onclick="openSigPad('witness')" title="Tap to sign">
+                    <img id="witnessSigImg" class="sig-preview-img" style="display:none;" alt="">
+                    <span id="witnessSigText">Tap to sign</span>
+                </div>
+                <div class="sig-label">Witness</div>
+                <input type="text" class="sig-name-input" id="consentWitnessSignName" placeholder="Printed Name">
+            </div>
+        </div>
 
                     <div style="margin-top:20px;text-align:right;">
                         <button class="consult-complete-btn" style="background:#0ea5e9;color:white;" onclick="saveConsent()">Save Consent</button>
@@ -1923,6 +2096,26 @@ try {
     </div>
 </div>
 
+<!-- Signature Pad Modal -->
+<div id="sigPadModal" class="sig-pad-overlay" style="display:none;">
+    <div class="sig-pad-dialog">
+        <div class="sig-pad-header">
+            <h3 id="sigPadTitle">Sign</h3>
+            <button onclick="closeSigPadModal()" class="sig-pad-close">&times;</button>
+        </div>
+        <div class="sig-pad-canvas-wrap">
+            <canvas id="sigPadCanvas" width="460" height="200"></canvas>
+        </div>
+        <div class="sig-pad-hint">Draw your signature above using finger or mouse</div>
+        <div class="sig-pad-actions">
+            <button class="sig-pad-btn clear" onclick="clearSigPad()">Clear</button>
+            <button class="sig-pad-btn cancel" onclick="closeSigPadModal()">Cancel</button>
+            <button class="sig-pad-btn apply" onclick="applySigPad()">Apply Signature</button>
+        </div>
+    </div>
+</div>
+
+<script src="../../assets/js/signature_pad.min.js"></script>
 <script>
 // ===================== STATE =====================
 var currentConsultation = null;
@@ -1934,6 +2127,9 @@ var currentToothNumber = null;
 var currentToothSurface = null;
 var notesSaveTimeout = null;
 var historySaveTimeout = null;
+var signaturePad = null;
+var currentSigType = null;
+var sigData = { patient: null, doctor: null, witness: null };
 
 // ===================== QUEUE SELECTION =====================
 function selectConsultPatient(chip) {
@@ -2533,31 +2729,173 @@ function populateConsent() {
     document.getElementById('consentPlaceInput').value = c.consent_place || 'RF Dental Clinic';
     document.getElementById('consentPatientSignName').value = c.consent_patient_sign_name || '';
     document.getElementById('consentWitnessSignName').value = c.consent_witness_sign_name || '';
-    if (c.consent_patient_signature) {
-        document.getElementById('patientSigLine').textContent = 'Signed';
+    if (c.consent_patient_signature && c.consent_patient_signature !== 'signed') {
+        sigData.patient = c.consent_patient_signature;
+        setSigBlockVisual('patient', c.consent_patient_signature);
+    } else if (c.consent_patient_signature === 'signed') {
+        sigData.patient = null;
+        setSigBlockVisual('patient', null);
         document.getElementById('patientSigLine').classList.add('signed');
+        document.getElementById('patientSigText').textContent = '✓ Signed';
+        document.getElementById('patientSigText').style.color = '#0891b2';
+        document.getElementById('patientSigText').style.fontWeight = '700';
     }
-    if (c.consent_witness_signature) {
-        document.getElementById('witnessSigLine').textContent = 'Signed';
+    if (c.consent_witness_signature && c.consent_witness_signature !== 'signed') {
+        sigData.witness = c.consent_witness_signature;
+        setSigBlockVisual('witness', c.consent_witness_signature);
+    } else if (c.consent_witness_signature === 'signed') {
+        sigData.witness = null;
+        setSigBlockVisual('witness', null);
         document.getElementById('witnessSigLine').classList.add('signed');
+        document.getElementById('witnessSigText').textContent = '✓ Signed';
+        document.getElementById('witnessSigText').style.color = '#0891b2';
+        document.getElementById('witnessSigText').style.fontWeight = '700';
     }
+    loadDoctorSignature();
 }
 
 function toggleGuardianName() {
     document.getElementById('guardianNameWrapper').style.display = document.getElementById('consentGuardianCheck').checked ? 'block' : 'none';
 }
 
-function signConsent(type) {
+// ===================== SIGNATURE PAD =====================
+function openSigPad(type) {
     if (isPastView) return;
-    if (type === 'patient') {
-        document.getElementById('patientSigLine').textContent = 'Signed';
-        document.getElementById('patientSigLine').classList.add('signed');
-    } else if (type === 'doctor') {
-        // Already signed
-    } else if (type === 'witness') {
-        document.getElementById('witnessSigLine').textContent = 'Signed';
-        document.getElementById('witnessSigLine').classList.add('signed');
+    if (typeof SignaturePad === 'undefined') {
+        alert('Signature library failed to load. Please check your internet connection and reload the page.');
+        return;
     }
+    currentSigType = type;
+    var titles = { patient: 'Sign — Patient', doctor: 'Sign — Doctor', witness: 'Sign — Witness' };
+    document.getElementById('sigPadTitle').textContent = titles[type] || 'Sign';
+    var modal = document.getElementById('sigPadModal');
+    modal.style.display = 'flex';
+
+    function initPad() {
+        var canvas = document.getElementById('sigPadCanvas');
+        if (!canvas) return;
+        var wrap = canvas.parentElement;
+        var rect = wrap.getBoundingClientRect();
+        var w = Math.floor(rect.width) || 460;
+        var h = 200;
+        var ratio = Math.max(window.devicePixelRatio || 1, 1);
+        canvas.width = Math.floor(w * ratio);
+        canvas.height = Math.floor(h * ratio);
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+
+        signaturePad = new SignaturePad(canvas, {
+            backgroundColor: 'rgba(255, 255, 255, 0)',
+            penColor: '#1e293b',
+            velocityFilterWeight: 0.7,
+            minWidth: 0.5,
+            maxWidth: 2.5
+        });
+
+        if (sigData[type]) {
+            var img = new Image();
+            img.onload = function() {
+                var ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            };
+            img.src = sigData[type];
+        }
+    }
+
+    requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+            initPad();
+        });
+    });
+}
+
+function clearSigPad() {
+    if (signaturePad) signaturePad.clear();
+}
+
+function applySigPad() {
+    if (!signaturePad || !currentSigType) return;
+    if (signaturePad.isEmpty()) {
+        alert('Please draw a signature first.');
+        return;
+    }
+    var dataUrl = signaturePad.toDataURL();
+    sigData[currentSigType] = dataUrl;
+    setSigBlockVisual(currentSigType, dataUrl);
+
+    if (currentSigType === 'doctor') {
+        fetch('consultation_actions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'save_doctor_signature', signature_data: dataUrl })
+        }).then(function(r) { return r.json(); })
+        .then(function(d) { console.log(d.message || 'Doctor signature saved'); })
+        .catch(function(e) { console.error('Error saving doctor signature:', e); });
+    }
+
+    closeSigPadModal();
+}
+
+function closeSigPadModal() {
+    document.getElementById('sigPadModal').style.display = 'none';
+    if (signaturePad) {
+        signaturePad.clear();
+        signaturePad = null;
+    }
+    currentSigType = null;
+}
+
+function deleteDoctorSig() {
+    if (!confirm('Remove saved doctor signature?')) return;
+    sigData.doctor = null;
+    setSigBlockVisual('doctor', null);
+    fetch('consultation_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete_doctor_signature' })
+    }).then(function(r) { return r.json(); })
+    .then(function(d) { console.log(d.message || 'Doctor signature removed'); })
+    .catch(function(e) { console.error('Error deleting doctor signature:', e); });
+}
+
+function setSigBlockVisual(type, dataUrl) {
+    var imgId = type + 'SigImg';
+    var textId = type + 'SigText';
+    var lineId = type + 'SigLine';
+    var img = document.getElementById(imgId);
+    var text = document.getElementById(textId);
+    var line = document.getElementById(lineId);
+    var deleteBtn = document.getElementById('doctorSigDelete');
+
+    if (dataUrl) {
+        img.src = dataUrl;
+        img.style.display = 'block';
+        text.textContent = '✓ Signed';
+        text.style.color = '#0891b2';
+        text.style.fontWeight = '700';
+        line.classList.add('signed');
+        if (type === 'doctor' && deleteBtn) deleteBtn.style.display = 'block';
+    } else {
+        img.src = '';
+        img.style.display = 'none';
+        text.textContent = 'Tap to sign';
+        text.style.color = '';
+        text.style.fontWeight = '';
+        line.classList.remove('signed');
+        if (type === 'doctor' && deleteBtn) deleteBtn.style.display = 'none';
+    }
+}
+
+function loadDoctorSignature() {
+    return fetch('consultation_actions.php?action=get_doctor_signature')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success && data.signature_data) {
+            sigData.doctor = data.signature_data;
+            setSigBlockVisual('doctor', data.signature_data);
+        }
+    })
+    .catch(function(e) { console.error('Error loading doctor signature:', e); });
 }
 
 function saveConsent() {
@@ -2570,12 +2908,12 @@ function saveConsent() {
         consent_procedure: document.getElementById('consentProcedureInput').value,
         consent_by_guardian: document.getElementById('consentGuardianCheck').checked ? 1 : 0,
         consent_guardian_name: document.getElementById('consentGuardianNameInput').value,
-        consent_given: document.getElementById('patientSigLine').classList.contains('signed') ? 1 : 0,
+        consent_given: sigData.patient ? 1 : 0,
         consent_date: document.getElementById('consentDateInput').value,
         consent_place: document.getElementById('consentPlaceInput').value,
-        consent_patient_signature: document.getElementById('patientSigLine').classList.contains('signed') ? 'signed' : null,
-        consent_doctor_signature: 'signed',
-        consent_witness_signature: document.getElementById('witnessSigLine').classList.contains('signed') ? 'signed' : null,
+        consent_patient_signature: sigData.patient || null,
+        consent_doctor_signature: sigData.doctor || null,
+        consent_witness_signature: sigData.witness || null,
         consent_patient_sign_name: document.getElementById('consentPatientSignName').value,
         consent_witness_sign_name: document.getElementById('consentWitnessSignName').value
     };
@@ -2646,6 +2984,9 @@ function applyReadOnlyMode() {
     saveBtns.forEach(function(b) { b.style.display = 'none'; });
     if (document.getElementById('notesSaveStatus')) document.getElementById('notesSaveStatus').textContent = '';
     if (document.getElementById('historySaveStatus')) document.getElementById('historySaveStatus').textContent = '';
+    document.querySelectorAll('.sig-line').forEach(function(el) { el.onclick = null; el.style.cursor = 'default'; });
+    var delBtn = document.getElementById('doctorSigDelete');
+    if (delBtn) delBtn.style.display = 'none';
     tpReadOnlyMode();
 }
 
@@ -3390,6 +3731,8 @@ function escapeHtml(text) {
 document.addEventListener('DOMContentLoaded', function() {
     var modalOverlay = document.getElementById('toothModalOverlay');
     if (modalOverlay) document.body.appendChild(modalOverlay);
+    var sigPadModal = document.getElementById('sigPadModal');
+    if (sigPadModal) document.body.appendChild(sigPadModal);
     renderToothButtons();
     window._cachedServices = <?php echo json_encode($services); ?>;
     <?php if ($isPastView && $pastConsultData): ?>
