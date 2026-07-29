@@ -29,6 +29,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 try {
     require_once '../../config/database.php';
     
+    // Check if dentist_id column exists
+    $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'dentist_id'");
+    $hasDentistCol = $checkCol->rowCount() > 0;
+
     if ($action === 'edit') {
         // EDIT EXISTING APPOINTMENT
         $appointment_id = $_POST['id'] ?? $_POST['appointment_id'] ?? null;
@@ -56,21 +60,21 @@ try {
             exit();
         }
         
-        // Update appointment
-        $stmt = $pdo->prepare("UPDATE appointments SET 
-            first_name = ?, 
-            middle_name = ?, 
-            last_name = ?, 
-            phone = ?,
-            email = COALESCE(NULLIF(?, ''), email),
-            appointment_date = ?, 
-            appointment_time = ?, 
-            treatment = ?, 
-            notes = ?, 
-            status = ?,
-            updated_at = NOW() 
-            WHERE id = ?");
-        $stmt->execute([
+    // Update appointment
+        $updateCols = [
+            'first_name = ?',
+            'middle_name = ?',
+            'last_name = ?',
+            'phone = ?',
+            'email = COALESCE(NULLIF(?, \'\'), email)',
+            'appointment_date = ?',
+            'appointment_time = ?',
+            'treatment = ?',
+            'notes = ?',
+            'status = ?',
+            'updated_at = NOW()'
+        ];
+        $updateParams = [
             $first_name,
             $middle_name,
             $last_name,
@@ -80,9 +84,17 @@ try {
             $appointment_time,
             $treatment,
             $notes,
-            $status,
-            $appointment_id
-        ]);
+            $status
+        ];
+
+        if ($hasDentistCol) {
+            $updateCols[] = 'dentist_id = ?';
+            $updateParams[] = (int)$_SESSION['user_id'];
+        }
+
+        $updateParams[] = $appointment_id;
+        $stmt = $pdo->prepare("UPDATE appointments SET " . implode(', ', $updateCols) . " WHERE id = ?");
+        $stmt->execute($updateParams);
         
         echo json_encode([
             'success' => true, 
@@ -163,11 +175,6 @@ try {
     // Always generate unique reference_code 
     $refCode = 'DENT-' . strtoupper(substr(uniqid(), -6));
     
-    // Create appointment
-    $stmt = $pdo->prepare("INSERT INTO appointments 
-        (patient_id, appointment_date, appointment_time, service_id, notes, status, created_by, reference_code, created_at) 
-        VALUES (?, ?, ?, ?, ?, 'Scheduled', ?, ?, NOW())");
-    
     // Resolve service_id
     $service_id = null;
     try {
@@ -176,15 +183,19 @@ try {
         $service_id = $svcStmt->fetchColumn() ?: null;
     } catch (Exception $e) {}
 
-    $stmt->execute([
-        $patient_id,
-        $appointment_date,
-        $appointment_time,
-        $service_id,
-        $notes,
-        $_SESSION['user_id'] ?? null,
-        $refCode
-    ]);
+    // Build INSERT dynamically
+    $columns = ['patient_id', 'appointment_date', 'appointment_time', 'service_id', 'notes', 'status', 'created_by', 'reference_code', 'created_at'];
+    $placeholders = ['?', '?', '?', '?', '?', "'Scheduled'", '?', '?', 'NOW()'];
+    $values = [$patient_id, $appointment_date, $appointment_time, $service_id, $notes, $_SESSION['user_id'] ?? null, $refCode];
+
+    if ($hasDentistCol) {
+        $columns[] = 'dentist_id';
+        $placeholders[] = '?';
+        $values[] = (int)$_SESSION['user_id'];
+    }
+
+    $stmt = $pdo->prepare("INSERT INTO appointments (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $placeholders) . ")");
+    $stmt->execute($values);
     
     $appointment_id = $pdo->lastInsertId();
 

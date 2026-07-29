@@ -835,6 +835,9 @@ if ($action === 'convert_to_appointment') {
 
     $pdo->beginTransaction();
 
+    // Resolve dentist_id if provided
+    $dentistId = !empty($_POST['dentist_id']) ? (int)$_POST['dentist_id'] : null;
+
     $appointmentData = [
         'patient_id' => resolveInquiryPatientId($pdo, $inquiry),
         'service_id' => $inquiry['service_id'] ?: null,
@@ -848,6 +851,7 @@ if ($action === 'convert_to_appointment') {
         'is_registered_patient' => !empty($inquiry['patient_id']) ? 1 : 0,
         'booked_by_id' => $assignedStaffId ?: (int)$_SESSION['user_id'],
         'booking_type' => 'staff',
+        'dentist_id' => $dentistId,
     ];
     $appointmentColumns = [];
     $appointmentPlaceholders = [];

@@ -53,11 +53,13 @@ try {
         COALESCE(p.zip_code, '') as zip_code,
         s.name as service_name,
         a.status as status_label,
-        tp.id as treatment_plan_id, tp.plan_name as treatment_plan_name
+        tp.id as treatment_plan_id, tp.plan_name as treatment_plan_name,
+        CONCAT(d.first_name, ' ', d.last_name) as dentist_name
         FROM appointments a 
         LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
         LEFT JOIN services s ON a.service_id = s.id
         LEFT JOIN treatment_plans tp ON a.id = tp.appointment_id
+        LEFT JOIN users d ON a.dentist_id = d.id
         WHERE (a.is_archived = 0 OR a.is_archived IS NULL)
         ORDER BY a.appointment_date DESC, a.id DESC";
     $allAppointments = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
@@ -243,14 +245,15 @@ require_once '../../includes/staff_layout_start.php';
                         <th>Last Name</th>
                         <th>Date & Time</th>
                         <th>Treatment</th>
+                        <th>Dentist</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="appointmentsTableBody">
                     <?php if (empty($appointments)): ?>
-                        <tr>
-                            <td colspan="7" style="text-align: center; padding: 60px; color: #6b7280;">
+                            <tr>
+                                <td colspan="8" style="text-align: center; padding: 60px; color: #6b7280;">
                                 <p style="font-size: 1.1rem; margin-bottom: 8px;">No appointments found</p>
                             </td>
                         </tr>
@@ -294,6 +297,7 @@ require_once '../../includes/staff_layout_start.php';
                                         <br><span class="status-badge" style="background: #fef3c7; color: #92400e; font-size: 0.7rem; margin-top: 4px; display: inline-block;">📋 Treatment Plan</span>
                                     <?php endif; ?>
                                 </td>
+                                <td><?php echo htmlspecialchars($appt['dentist_name'] ?? 'Unassigned'); ?></td>
                                 <td>
                                     <?php 
                                         $badgeClass = 'status-scheduled';
@@ -424,11 +428,12 @@ require_once '../../includes/staff_layout_start.php';
 </div>
 
 <div id="appointmentModal" class="modal-overlay">
-    <div class="modal" style="width: 550px;">
+    <div class="modal" style="width: 600px;">
         <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Schedule New Appointment</h2>
         <form id="appointmentForm">
             <input type="hidden" name="appointment_id" id="appointmentId">
             <input type="hidden" name="patient_id" id="appointmentPatientId">
+            <input type="hidden" name="appointment_time" id="selectedTimeInput">
             <div class="form-row">
                 <div class="form-group" style="flex: 1;">
                     <label>First Name *</label>
@@ -453,37 +458,41 @@ require_once '../../includes/staff_layout_start.php';
                     <input type="email" name="email" class="form-control" placeholder="example@email.com">
                 </div>
             </div>
-            <div class="form-row">
-                <div class="form-group" style="flex: 1;">
-                    <label>Appointment Date *</label>
-                    <input type="date" name="appointment_date" required class="form-control">
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <div style="font-size: 13px; font-weight: 600; color: #166534; margin-bottom: 12px;">Select Appointment Slot</div>
+                <div class="form-row" style="margin-bottom: 12px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Treatment * <span style="font-size: 11px; color: #6b7280; font-weight: 400;">(select first to set duration)</span></label>
+                        <select name="treatment" id="staffServiceSelect" class="form-control" required>
+                            <option value="">-- Select Treatment --</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Dentist <span style="font-size: 11px; color: #6b7280; font-weight: 400;">(optional)</span></label>
+                        <select name="dentist_id" id="staffDentistSelect" class="form-control">
+                            <option value="">Any Available Dentist</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="form-group" style="flex: 1;">
-                    <label>Time *</label>
-                    <input type="time" name="appointment_time" required class="form-control">
+                <div class="form-row" style="margin-bottom: 12px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Date *</label>
+                        <input type="date" name="appointment_date" id="staffApptDate" required class="form-control">
+                    </div>
                 </div>
-            </div>
-            <div class="form-group">
-                <label>Treatment</label>
-                <select name="treatment" class="form-control">
-                    <option value="General Checkup">General Checkup</option>
-                    <option value="Teeth Cleaning">Teeth Cleaning</option>
-                    <option value="Root Canal">Root Canal</option>
-                    <option value="Tooth Extraction">Tooth Extraction</option>
-                    <option value="Dental Fillings">Dental Fillings</option>
-                    <option value="Braces Adjustment">Braces Adjustment</option>
-                    <option value="Denture Fitting">Denture Fitting</option>
-                    <option value="Oral Prophylaxis">Oral Prophylaxis</option>
-                    <option value="Other">Other</option>
-                </select>
+                <div id="staffSlotGrid" style="margin-top: 8px;">
+                    <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 13px; background: #f8fafc; border-radius: 8px; border: 1px dashed #d1d5db;">
+                        Select a treatment, date, and optionally a dentist to see available time slots
+                    </div>
+                </div>
             </div>
             <div class="form-group">
                 <label>Notes</label>
-                <textarea name="notes" rows="3" class="form-control" placeholder="Additional notes or instructions..."></textarea>
+                <textarea name="notes" rows="2" class="form-control" placeholder="Additional notes or instructions..."></textarea>
             </div>
             <div class="modal-actions">
                 <button type="button" onclick="closeAppointmentModal()" class="btn-cancel">Cancel</button>
-                <button type="submit" class="btn-primary">Schedule Appointment</button>
+                <button type="submit" class="btn-primary" id="staffScheduleBtn" disabled>Schedule Appointment</button>
             </div>
         </form>
     </div>
@@ -960,19 +969,161 @@ require_once '../../includes/staff_layout_start.php';
         });
     }
 
+    var selectedStaffSlot = null;
+
     function openAppointmentModal() {
         document.getElementById('appointmentModal').style.display = 'flex';
     }
 
+    function loadStaffServices(callback) {
+        fetch('../shared/get_services.php')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var select = document.getElementById('staffServiceSelect');
+                select.innerHTML = '<option value="">-- Select Treatment --</option>';
+                if (data.success && data.services) {
+                    data.services.forEach(function(svc) {
+                        var opt = document.createElement('option');
+                        opt.value = svc.id;
+                        opt.textContent = svc.name + ' (' + (svc.duration_minutes || 30) + ' min)';
+                        opt.setAttribute('data-duration', svc.duration_minutes || 30);
+                        select.appendChild(opt);
+                    });
+                }
+                if (typeof callback === 'function') callback();
+            });
+    }
+
+    function loadStaffDentists(callback) {
+        fetch('../shared/get_dentists.php')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var select = document.getElementById('staffDentistSelect');
+                select.innerHTML = '<option value="">Any Available Dentist</option>';
+                if (data.success && data.dentists) {
+                    data.dentists.forEach(function(d) {
+                        var opt = document.createElement('option');
+                        opt.value = d.id;
+                        opt.textContent = d.first_name + ' ' + d.last_name;
+                        select.appendChild(opt);
+                    });
+                }
+                if (typeof callback === 'function') callback();
+            });
+    }
+
+    function loadStaffSlots(callback) {
+        var serviceId = document.getElementById('staffServiceSelect').value;
+        var dentistId = document.getElementById('staffDentistSelect').value;
+        var date = document.getElementById('staffApptDate').value;
+        var grid = document.getElementById('staffSlotGrid');
+        var btn = document.getElementById('staffScheduleBtn');
+
+        if (!serviceId || !date) {
+            grid.innerHTML = '<div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 13px; background: #f8fafc; border-radius: 8px; border: 1px dashed #d1d5db;">Select a treatment, date, and optionally a dentist to see available time slots</div>';
+            btn.disabled = true;
+            if (typeof callback === 'function') callback();
+            return;
+        }
+
+        selectedStaffSlot = null;
+        btn.disabled = true;
+        grid.innerHTML = '<div style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading available slots...</div>';
+
+        var url = '../user-patient/get_slots.php?date=' + date + '&service_id=' + serviceId;
+        if (dentistId) url += '&dentist_id=' + dentistId;
+
+        fetch(url)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                grid.innerHTML = '';
+                if (!data.is_open) {
+                    grid.innerHTML = '<div style="text-align: center; padding: 20px; color: #d97706; font-size: 13px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;">' + (data.message || 'No slots available') + '</div>';
+                    if (typeof callback === 'function') callback();
+                    return;
+                }
+
+                var legend = document.createElement('div');
+                legend.style.cssText = 'display: flex; gap: 16px; margin-bottom: 10px; font-size: 12px; color: #475569;';
+                legend.innerHTML = '<span style="color:#15803d;"><span style="background:#dcfce7;border:2px solid #15803d;display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:4px;vertical-align:middle;"></span> Available</span><span style="color:#991b1b;"><span style="background:#fee2e2;border:2px solid #991b1b;display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:4px;vertical-align:middle;"></span> Booked</span>';
+                grid.appendChild(legend);
+
+                var allSlots = (data.available_slots || []).concat(data.booked_slots || []).sort();
+                if (allSlots.length === 0) {
+                    grid.innerHTML += '<div style="text-align: center; padding: 20px; color: #d97706; font-size: 13px;">No time slots available for this selection</div>';
+                    if (typeof callback === 'function') callback();
+                    return;
+                }
+
+                var slotGrid = document.createElement('div');
+                slotGrid.style.cssText = 'display: flex; flex-wrap: wrap; gap: 6px;';
+
+                var bookedArr = data.booked_slots || [];
+
+                allSlots.forEach(function(slot) {
+                    var s = document.createElement('div');
+                    var isBooked = bookedArr.indexOf(slot) !== -1;
+                    s.style.cssText = 'padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: ' + (isBooked ? 'not-allowed' : 'pointer') + '; border: 2px solid ' + (isBooked ? '#fecaca' : '#bbf7d0') + '; background: ' + (isBooked ? '#fef2f2' : '#f0fdf4') + '; color: ' + (isBooked ? '#991b1b' : '#166534') + '; transition: all 0.15s;';
+                    s.textContent = formatStaffTime(slot);
+
+                    if (!isBooked) {
+                        s.dataset.time = slot;
+                        s.onclick = function() {
+                            document.querySelectorAll('#staffSlotGrid .slot-item').forEach(function(el) {
+                                el.style.borderColor = '#bbf7d0';
+                                el.style.background = '#f0fdf4';
+                            });
+                            this.style.borderColor = '#15803d';
+                            this.style.background = '#bbf7d0';
+                            selectedStaffSlot = slot;
+                            document.getElementById('selectedTimeInput').value = slot;
+                            document.getElementById('staffScheduleBtn').disabled = false;
+                        };
+                        s.classList.add('slot-item');
+                    }
+                    slotGrid.appendChild(s);
+                });
+
+                grid.appendChild(slotGrid);
+
+                if (data.business_hours) {
+                    var info = document.createElement('div');
+                    info.style.cssText = 'margin-top: 10px; font-size: 11px; color: #94a3b8;';
+                    info.textContent = 'Business hours: ' + data.business_hours.open + ' - ' + data.business_hours.close + ' | Slot duration: ' + data.service_duration + ' min';
+                    grid.appendChild(info);
+                }
+
+                if (typeof callback === 'function') callback();
+            })
+            .catch(function(err) {
+                grid.innerHTML = '<div style="text-align: center; padding: 20px; color: #dc2626; font-size: 13px;">Error loading slots: ' + err.message + '</div>';
+                if (typeof callback === 'function') callback();
+            });
+    }
+
+    function formatStaffTime(t) {
+        var parts = t.split(':');
+        var h = parseInt(parts[0]);
+        var m = parts[1];
+        var ampm = h >= 12 ? 'PM' : 'AM';
+        if (h > 12) h -= 12;
+        if (h === 0) h = 12;
+        return h + ':' + m + ' ' + ampm;
+    }
+
     function prepareNewAppointmentModal() {
         const form = document.getElementById('appointmentForm');
-        if (form) {
-            form.reset();
-        }
+        if (form) form.reset();
         document.getElementById('appointmentId').value = '';
         document.getElementById('appointmentPatientId').value = '';
+        document.getElementById('selectedTimeInput').value = '';
+        document.getElementById('staffScheduleBtn').disabled = true;
+        selectedStaffSlot = null;
         document.querySelector('#appointmentModal h2').textContent = 'Schedule New Appointment';
         document.querySelector('#appointmentForm button[type="submit"]').textContent = 'Schedule Appointment';
+        document.getElementById('staffSlotGrid').innerHTML = '<div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 13px; background: #f8fafc; border-radius: 8px; border: 1px dashed #d1d5db;">Select a treatment, date, and optionally a dentist to see available time slots</div>';
+        loadStaffServices();
+        loadStaffDentists();
         openAppointmentModal();
     }
 
@@ -999,22 +1150,25 @@ require_once '../../includes/staff_layout_start.php';
 
     document.getElementById('appointmentForm').addEventListener('submit', function(e) {
         e.preventDefault();
-        const formData = new FormData(this);
+        var formData = new FormData(this);
         
-        for (var pair of formData.entries()) {
-            console.log(pair[0]+ ', '+ pair[1]); 
+        // Add service_id from the treatment dropdown
+        var serviceId = document.getElementById('staffServiceSelect').value;
+        if (serviceId) formData.set('service_id', serviceId);
+        
+        // dentist_id already in formData from the select
+        
+        // Set the appointment_time from selected slot
+        if (selectedStaffSlot) {
+            formData.set('appointment_time', selectedStaffSlot);
         }
         
         fetch('../shared/process_appointment.php', {
             method: 'POST',
             body: formData
         })
-        .then(response => {
-            console.log('Response status:', response.status);
-            return response.json();
-        })
-        .then(data => {
-            console.log('Response data:', data);
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
             if (data.success) {
                 closeAppointmentModal();
                 location.reload();
@@ -1022,11 +1176,15 @@ require_once '../../includes/staff_layout_start.php';
                 alert(data.message || 'Error scheduling appointment');
             }
         })
-        .catch(error => {
-            console.error('Error:', error);
+        .catch(function(error) {
             alert('Error scheduling appointment: ' + error.message);
         });
     });
+
+    // Event listeners for slot loading
+    document.getElementById('staffServiceSelect').addEventListener('change', loadStaffSlots);
+    document.getElementById('staffDentistSelect').addEventListener('change', loadStaffSlots);
+    document.getElementById('staffApptDate').addEventListener('change', loadStaffSlots);
 
     function viewAppointment(id) {
         const appt = appointments.find(a => a.id == id);
@@ -1049,6 +1207,7 @@ require_once '../../includes/staff_layout_start.php';
                 <div><span style="color: #6b7280;">Date:</span> <span style="font-weight: 500; margin-left: 8px;">${new Date(appt.appointment_date).toLocaleDateString()}</span></div>
                 <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.appointment_time ? new Date('1970-01-01 ' + appt.appointment_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'N/A'}</span></div>
                 <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.service_name || appt.treatment || 'General'}</span></div>
+                <div><span style="color: #6b7280;">Dentist:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.dentist_name || 'Unassigned'}</span></div>
                 <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${getAppointmentDisplayStatus(appt) === 'Completed' ? '#dcfce7' : getAppointmentDisplayStatus(appt) === 'Cancelled' ? '#fee2e2' : getAppointmentDisplayStatus(appt).toLowerCase() === 'arrived' ? '#ccfbf1' : '#e0f2fe'}; color: ${getAppointmentDisplayStatus(appt) === 'Completed' ? '#15803d' : getAppointmentDisplayStatus(appt) === 'Cancelled' ? '#dc2626' : getAppointmentDisplayStatus(appt).toLowerCase() === 'arrived' ? '#0f766e' : '#0369a1'};">${getAppointmentDisplayStatus(appt)}</span></div>
                 ${appt.notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${appt.notes}</p></div>` : ''}
             </div>
@@ -1334,14 +1493,52 @@ require_once '../../includes/staff_layout_start.php';
         if (form.elements.email) {
             form.elements.email.value = appt.email || '';
         }
-        form.elements.appointment_date.value = appt.appointment_date ? String(appt.appointment_date).split(' ')[0] : '';
-        form.elements.appointment_time.value = appt.appointment_time ? String(appt.appointment_time).slice(0, 5) : '';
-        form.elements.treatment.value = appt.service_name || appt.treatment || 'General Checkup';
         form.elements.notes.value = appt.notes || '';
 
         document.querySelector('#appointmentModal h2').textContent = 'Edit Appointment';
         document.querySelector('#appointmentForm button[type="submit"]').textContent = 'Save Changes';
-        openAppointmentModal();
+
+        // Load services and dentists, then set values and load slots
+        loadStaffServices(function() {
+            var svcSelect = document.getElementById('staffServiceSelect');
+            if (appt.service_id) {
+                svcSelect.value = appt.service_id;
+            } else {
+                // Fallback: find by service_name
+                for (var i = 0; i < svcSelect.options.length; i++) {
+                    if (svcSelect.options[i].text.indexOf(appt.service_name || appt.treatment) !== -1) {
+                        svcSelect.value = svcSelect.options[i].value;
+                        break;
+                    }
+                }
+            }
+
+            loadStaffDentists(function() {
+                var dentSelect = document.getElementById('staffDentistSelect');
+                if (appt.dentist_id) {
+                    dentSelect.value = appt.dentist_id;
+                }
+
+                var dateInput = document.getElementById('staffApptDate');
+                dateInput.value = appt.appointment_date ? String(appt.appointment_date).split(' ')[0] : '';
+
+                openAppointmentModal();
+
+                // Load slots and auto-select the current time
+                loadStaffSlots(function() {
+                    var currentTime = appt.appointment_time ? String(appt.appointment_time).slice(0, 5) : '';
+                    if (currentTime) {
+                        var slotItems = document.querySelectorAll('#staffSlotGrid .slot-item');
+                        for (var i = 0; i < slotItems.length; i++) {
+                            if (slotItems[i].dataset.time === currentTime) {
+                                slotItems[i].click();
+                                break;
+                            }
+                        }
+                    }
+                });
+            });
+        });
     }
 
     function getAppointmentDisplayStatus(appt) {

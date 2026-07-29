@@ -91,11 +91,6 @@ try {
     $treatment = $serviceName;
     $notes = 'Created from inquiry. Source: ' . ($inquiry['source'] ?? 'Unknown');
     
-    // Create appointment
-    $stmt = $pdo->prepare("INSERT INTO appointments 
-        (patient_id, appointment_date, appointment_time, service_id, notes, status, created_by, created_at) 
-        VALUES (?, ?, ?, ?, ?, 'Scheduled', ?, NOW())");
-    
     // Resolve service_id
     $service_id = null;
     try {
@@ -103,15 +98,24 @@ try {
         $svcStmt->execute([$treatment]);
         $service_id = $svcStmt->fetchColumn() ?: null;
     } catch (Exception $e) {}
+    
+    // Check if dentist_id column exists
+    $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'dentist_id'");
+    $hasDentistCol = $checkCol->rowCount() > 0;
 
-    $stmt->execute([
-        $patient_id, 
-        $today, 
-        $defaultTime, 
-        $service_id,
-        $notes, 
-        $_SESSION['user_id'] ?? 1
-    ]);
+    // Build INSERT dynamically
+    $columns = ['patient_id', 'appointment_date', 'appointment_time', 'service_id', 'notes', 'status', 'created_by', 'created_at'];
+    $placeholders = ['?', '?', '?', '?', '?', "'Scheduled'", '?', 'NOW()'];
+    $values = [$patient_id, $today, $defaultTime, $service_id, $notes, $_SESSION['user_id'] ?? 1];
+
+    if ($hasDentistCol) {
+        $columns[] = 'dentist_id';
+        $placeholders[] = '?';
+        $values[] = (int)$_SESSION['user_id'];
+    }
+
+    $stmt = $pdo->prepare("INSERT INTO appointments (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $placeholders) . ")");
+    $stmt->execute($values);
     
     $appointment_id = $pdo->lastInsertId();
     

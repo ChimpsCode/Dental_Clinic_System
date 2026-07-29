@@ -55,10 +55,12 @@ try {
                          p.first_name, p.middle_name, p.last_name,
                          COALESCE(p.phone, '') AS phone,
                          s.name as service_name,
-                         a.status as status_label
+                         a.status as status_label,
+                         CONCAT(d.first_name, ' ', d.last_name) as dentist_name
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id
                          LEFT JOIN services s ON a.service_id = s.id
+                         LEFT JOIN users d ON a.dentist_id = d.id
                          " . $whereClause);
     $allAppointments = $allStmt->fetchAll(PDO::FETCH_ASSOC);
     
@@ -68,11 +70,13 @@ try {
                          COALESCE(p.phone, '') AS phone,
                          s.name as service_name,
                          a.status as status_label,
-                         tp.id as treatment_plan_id, tp.plan_name as treatment_plan_name
+                         tp.id as treatment_plan_id, tp.plan_name as treatment_plan_name,
+                         CONCAT(d.first_name, ' ', d.last_name) as dentist_name
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id 
                          LEFT JOIN services s ON a.service_id = s.id
                          LEFT JOIN treatment_plans tp ON a.id = tp.appointment_id
+                         LEFT JOIN users d ON a.dentist_id = d.id
                          $whereClause
                          ORDER BY a.created_at DESC
                          LIMIT :limit OFFSET :offset");
@@ -198,7 +202,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     <div class="page-header">
                     <h2>Appointments Management</h2>
                     <div style="display: flex; gap: 10px;">
-                        <button class="btn-primary" onclick="openAppointmentModal()">+ New Appointment</button>
+                        <button class="btn-primary" onclick="prepareNewAppointmentModal()">+ New Appointment</button>
                     </div>
                 </div>
                 </div>
@@ -213,6 +217,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                 <th>Last Name</th>
                                 <th>Date & Time</th>
                                 <th>Treatment</th>
+                                <th>Dentist</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -220,7 +225,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                         <tbody id="appointmentsTableBody">
                             <?php if (empty($appointments)): ?>
                                 <tr>
-                                    <td colspan="7" style="text-align: center; padding: 60px; color: #6b7280;">
+                                    <td colspan="8" style="text-align: center; padding: 60px; color: #6b7280;">
                                         <p style="font-size: 1.1rem; margin-bottom: 8px;">No appointments found</p>
                                     </td>
                                 </tr>
@@ -250,6 +255,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                                 <br><span class="status-badge" style="background: #fef3c7; color: #92400e; font-size: 0.7rem; margin-top: 4px; display: inline-block;">📋 Treatment Plan</span>
                                             <?php endif; ?>
                                         </td>
+                                        <td><?php echo htmlspecialchars($appt['dentist_name'] ?? 'Unassigned'); ?></td>
                                         <td>
                                             <?php 
                                                 // Robust status resolution
@@ -390,6 +396,9 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
     <div class="modal" style="width: 600px;">
         <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Schedule New Appointment</h2>
         <form id="appointmentForm">
+            <input type="hidden" name="appointment_id" id="appointmentId">
+            <input type="hidden" name="patient_id" id="appointmentPatientId">
+            <input type="hidden" name="appointment_time" id="selectedTimeInput">
             <div class="form-row">
                 <div class="form-group" style="flex: 1;">
                     <label>First Name *</label>
@@ -414,37 +423,41 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     <input type="email" name="email" class="form-control" placeholder="patient@email.com">
                 </div>
             </div>
-            <div class="form-row">
-                <div class="form-group" style="flex: 1;">
-                    <label>Appointment Date *</label>
-                    <input type="date" name="appointment_date" required class="form-control">
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <div style="font-size: 13px; font-weight: 600; color: #166534; margin-bottom: 12px;">Select Appointment Slot</div>
+                <div class="form-row" style="margin-bottom: 12px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Treatment * <span style="font-size: 11px; color: #6b7280; font-weight: 400;">(select first to set duration)</span></label>
+                        <select name="treatment" id="adminServiceSelect" class="form-control" required>
+                            <option value="">-- Select Treatment --</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Dentist <span style="font-size: 11px; color: #6b7280; font-weight: 400;">(optional)</span></label>
+                        <select name="dentist_id" id="adminDentistSelect" class="form-control">
+                            <option value="">Any Available Dentist</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="form-group" style="flex: 1;">
-                    <label>Time *</label>
-                    <input type="time" name="appointment_time" required class="form-control">
+                <div class="form-row" style="margin-bottom: 12px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Date *</label>
+                        <input type="date" name="appointment_date" id="adminApptDate" required class="form-control">
+                    </div>
                 </div>
-            </div>
-            <div class="form-group">
-                <label>Treatment</label>
-                <select name="treatment" class="form-control">
-                    <option value="General Checkup">General Checkup</option>
-                    <option value="Teeth Cleaning">Teeth Cleaning</option>
-                    <option value="Root Canal">Root Canal</option>
-                    <option value="Tooth Extraction">Tooth Extraction</option>
-                    <option value="Dental Fillings">Dental Fillings</option>
-                    <option value="Braces Adjustment">Braces Adjustment</option>
-                    <option value="Denture Fitting">Denture Fitting</option>
-                    <option value="Oral Prophylaxis">Oral Prophylaxis</option>
-                    <option value="Other">Other</option>
-                </select>
+                <div id="adminSlotGrid" style="margin-top: 8px;">
+                    <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 13px; background: #f8fafc; border-radius: 8px; border: 1px dashed #d1d5db;">
+                        Select a treatment, date, and optionally a dentist to see available time slots
+                    </div>
+                </div>
             </div>
             <div class="form-group">
                 <label>Notes</label>
-                <textarea name="notes" rows="3" class="form-control" placeholder="Additional notes or instructions..."></textarea>
+                <textarea name="notes" rows="2" class="form-control" placeholder="Additional notes or instructions..."></textarea>
             </div>
             <div class="modal-actions">
                 <button type="button" onclick="closeAppointmentModal()" class="btn-cancel">Cancel</button>
-                <button type="submit" class="btn-primary">Schedule Appointment</button>
+                <button type="submit" class="btn-primary" id="adminScheduleBtn" disabled>Schedule Appointment</button>
             </div>
         </form>
     </div>
@@ -924,13 +937,173 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         });
     }
 
+    var selectedAdminSlot = null;
+
+    function loadAdminServices(callback) {
+        fetch('../shared/get_services.php')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var select = document.getElementById('adminServiceSelect');
+                select.innerHTML = '<option value="">-- Select Treatment --</option>';
+                if (data.success && data.services) {
+                    data.services.forEach(function(svc) {
+                        var opt = document.createElement('option');
+                        opt.value = svc.id;
+                        opt.textContent = svc.name + ' (' + (svc.duration_minutes || 30) + ' min)';
+                        opt.setAttribute('data-duration', svc.duration_minutes || 30);
+                        select.appendChild(opt);
+                    });
+                }
+                if (typeof callback === 'function') callback();
+            });
+    }
+
+    function loadAdminDentists(callback) {
+        fetch('../shared/get_dentists.php')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var select = document.getElementById('adminDentistSelect');
+                select.innerHTML = '<option value="">Any Available Dentist</option>';
+                if (data.success && data.dentists) {
+                    data.dentists.forEach(function(d) {
+                        var opt = document.createElement('option');
+                        opt.value = d.id;
+                        opt.textContent = d.first_name + ' ' + d.last_name;
+                        select.appendChild(opt);
+                    });
+                }
+                if (typeof callback === 'function') callback();
+            });
+    }
+
+    function loadAdminSlots(callback) {
+        var serviceId = document.getElementById('adminServiceSelect').value;
+        var dentistId = document.getElementById('adminDentistSelect').value;
+        var date = document.getElementById('adminApptDate').value;
+        var grid = document.getElementById('adminSlotGrid');
+        var btn = document.getElementById('adminScheduleBtn');
+
+        if (!serviceId || !date) {
+            grid.innerHTML = '<div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 13px; background: #f8fafc; border-radius: 8px; border: 1px dashed #d1d5db;">Select a treatment, date, and optionally a dentist to see available time slots</div>';
+            btn.disabled = true;
+            if (typeof callback === 'function') callback();
+            return;
+        }
+
+        selectedAdminSlot = null;
+        btn.disabled = true;
+        grid.innerHTML = '<div style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading available slots...</div>';
+
+        var url = '../user-patient/get_slots.php?date=' + date + '&service_id=' + serviceId;
+        if (dentistId) url += '&dentist_id=' + dentistId;
+
+        fetch(url)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                grid.innerHTML = '';
+                if (!data.is_open) {
+                    grid.innerHTML = '<div style="text-align: center; padding: 20px; color: #d97706; font-size: 13px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;">' + (data.message || 'No slots available') + '</div>';
+                    if (typeof callback === 'function') callback();
+                    return;
+                }
+
+                var legend = document.createElement('div');
+                legend.style.cssText = 'display: flex; gap: 16px; margin-bottom: 10px; font-size: 12px; color: #475569;';
+                legend.innerHTML = '<span style="color:#15803d;"><span style="background:#dcfce7;border:2px solid #15803d;display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:4px;vertical-align:middle;"></span> Available</span><span style="color:#991b1b;"><span style="background:#fee2e2;border:2px solid #991b1b;display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:4px;vertical-align:middle;"></span> Booked</span>';
+                grid.appendChild(legend);
+
+                var allSlots = (data.available_slots || []).concat(data.booked_slots || []).sort();
+                if (allSlots.length === 0) {
+                    grid.innerHTML += '<div style="text-align: center; padding: 20px; color: #d97706; font-size: 13px;">No time slots available for this selection</div>';
+                    if (typeof callback === 'function') callback();
+                    return;
+                }
+
+                var slotGrid = document.createElement('div');
+                slotGrid.style.cssText = 'display: flex; flex-wrap: wrap; gap: 6px;';
+
+                var bookedArr = data.booked_slots || [];
+
+                allSlots.forEach(function(slot) {
+                    var s = document.createElement('div');
+                    var isBooked = bookedArr.indexOf(slot) !== -1;
+                    s.style.cssText = 'padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: ' + (isBooked ? 'not-allowed' : 'pointer') + '; border: 2px solid ' + (isBooked ? '#fecaca' : '#bbf7d0') + '; background: ' + (isBooked ? '#fef2f2' : '#f0fdf4') + '; color: ' + (isBooked ? '#991b1b' : '#166534') + '; transition: all 0.15s;';
+                    s.textContent = formatAdminTime(slot);
+
+                    if (!isBooked) {
+                        s.dataset.time = slot;
+                        s.onclick = function() {
+                            document.querySelectorAll('#adminSlotGrid .slot-item').forEach(function(el) {
+                                el.style.borderColor = '#bbf7d0';
+                                el.style.background = '#f0fdf4';
+                            });
+                            this.style.borderColor = '#15803d';
+                            this.style.background = '#bbf7d0';
+                            selectedAdminSlot = slot;
+                            document.getElementById('selectedTimeInput').value = slot;
+                            document.getElementById('adminScheduleBtn').disabled = false;
+                        };
+                        s.classList.add('slot-item');
+                    }
+                    slotGrid.appendChild(s);
+                });
+
+                grid.appendChild(slotGrid);
+
+                if (data.business_hours) {
+                    var info = document.createElement('div');
+                    info.style.cssText = 'margin-top: 10px; font-size: 11px; color: #94a3b8;';
+                    info.textContent = 'Business hours: ' + data.business_hours.open + ' - ' + data.business_hours.close + ' | Slot duration: ' + data.service_duration + ' min';
+                    grid.appendChild(info);
+                }
+
+                if (typeof callback === 'function') callback();
+            })
+            .catch(function(err) {
+                grid.innerHTML = '<div style="text-align: center; padding: 20px; color: #dc2626; font-size: 13px;">Error loading slots: ' + err.message + '</div>';
+                if (typeof callback === 'function') callback();
+            });
+    }
+
+    function formatAdminTime(t) {
+        var parts = t.split(':');
+        var h = parseInt(parts[0]);
+        var m = parts[1];
+        var ampm = h >= 12 ? 'PM' : 'AM';
+        if (h > 12) h -= 12;
+        if (h === 0) h = 12;
+        return h + ':' + m + ' ' + ampm;
+    }
+
     function openAppointmentModal() {
         document.getElementById('appointmentModal').style.display = 'flex';
     }
 
     function closeAppointmentModal() {
+        document.getElementById('appointmentId').value = '';
+        document.getElementById('appointmentPatientId').value = '';
+        document.querySelector('#appointmentModal h2').textContent = 'Schedule New Appointment';
+        document.querySelector('#appointmentForm button[type="submit"]').textContent = 'Schedule Appointment';
         document.getElementById('appointmentModal').style.display = 'none';
         document.getElementById('appointmentForm').reset();
+        document.getElementById('adminSlotGrid').innerHTML = '<div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 13px; background: #f8fafc; border-radius: 8px; border: 1px dashed #d1d5db;">Select a treatment, date, and optionally a dentist to see available time slots</div>';
+        selectedAdminSlot = null;
+    }
+
+    function prepareNewAppointmentModal() {
+        const form = document.getElementById('appointmentForm');
+        if (form) form.reset();
+        document.getElementById('appointmentId').value = '';
+        document.getElementById('appointmentPatientId').value = '';
+        document.getElementById('selectedTimeInput').value = '';
+        document.getElementById('adminScheduleBtn').disabled = true;
+        selectedAdminSlot = null;
+        document.querySelector('#appointmentModal h2').textContent = 'Schedule New Appointment';
+        document.querySelector('#appointmentForm button[type="submit"]').textContent = 'Schedule Appointment';
+        document.getElementById('adminSlotGrid').innerHTML = '<div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 13px; background: #f8fafc; border-radius: 8px; border: 1px dashed #d1d5db;">Select a treatment, date, and optionally a dentist to see available time slots</div>';
+        loadAdminServices();
+        loadAdminDentists();
+        openAppointmentModal();
     }
 
     function closeViewAppointmentModal() {
@@ -945,16 +1118,30 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         if (e.target === this) closeViewAppointmentModal();
     });
 
+    // Event listeners for slot loading
+    document.getElementById('adminServiceSelect').addEventListener('change', loadAdminSlots);
+    document.getElementById('adminDentistSelect').addEventListener('change', loadAdminSlots);
+    document.getElementById('adminApptDate').addEventListener('change', loadAdminSlots);
+
     document.getElementById('appointmentForm').addEventListener('submit', function(e) {
         e.preventDefault();
-        const formData = new FormData(this);
-        
+        var formData = new FormData(this);
+
+        // Add service_id from the treatment dropdown
+        var serviceId = document.getElementById('adminServiceSelect').value;
+        if (serviceId) formData.set('service_id', serviceId);
+
+        // Set the appointment_time from selected slot
+        if (selectedAdminSlot) {
+            formData.set('appointment_time', selectedAdminSlot);
+        }
+
         fetch('../shared/process_appointment.php', {
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
-        .then(data => {
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
             if (data.success) {
                 closeAppointmentModal();
                 location.reload();
@@ -962,9 +1149,8 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 alert(data.message || 'Error scheduling appointment');
             }
         })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error scheduling appointment');
+        .catch(function(error) {
+            alert('Error scheduling appointment: ' + error.message);
         });
     });
 
@@ -972,13 +1158,21 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         const appt = appointments.find(a => a.id == id);
         if (!appt) return;
         
+        const firstName = appt.first_name || '';
+        const middleName = appt.middle_name || '';
+        const lastName = appt.last_name || '';
+        const displayName = [firstName, middleName, lastName].filter(n => n).join(' ') || 'Unknown';
+        
+        const timeStr = appt.appointment_time ? new Date('1970-01-01 ' + appt.appointment_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'N/A';
+        
         document.getElementById('viewAppointmentContent').innerHTML = `
             <div style="display: flex; flex-direction: column; gap: 16px;">
-                <div><span style="color: #6b7280;">Patient:</span> <span style="font-weight: 600; margin-left: 8px;">${appt.full_name || 'Unknown'}</span></div>
+                <div><span style="color: #6b7280;">Patient:</span> <span style="font-weight: 600; margin-left: 8px;">${displayName}</span></div>
                 <div><span style="color: #6b7280;">Phone:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.phone || 'N/A'}</span></div>
                 <div><span style="color: #6b7280;">Date:</span> <span style="font-weight: 500; margin-left: 8px;">${new Date(appt.appointment_date).toLocaleDateString()}</span></div>
-                <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.appointment_time || 'N/A'}</span></div>
-                <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.treatment || 'General'}</span></div>
+                <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${timeStr}</span></div>
+                <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.service_name || appt.treatment || 'General'}</span></div>
+                <div><span style="color: #6b7280;">Dentist:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.dentist_name || 'Unassigned'}</span></div>
                 <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${appt.status === 'Completed' ? '#dcfce7' : appt.status === 'Cancelled' ? '#fee2e2' : (appt.status || '').toLowerCase() === 'arrived' ? '#ccfbf1' : '#e0f2fe'}; color: ${appt.status === 'Completed' ? '#15803d' : appt.status === 'Cancelled' ? '#dc2626' : (appt.status || '').toLowerCase() === 'arrived' ? '#0f766e' : '#0369a1'};">${appt.status ? appt.status.charAt(0).toUpperCase() + appt.status.slice(1) : 'Pending'}</span></div>
                 ${appt.notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${appt.notes}</p></div>` : ''}
             </div>
@@ -1265,9 +1459,63 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
     function editAppointment(id) {
         const appt = appointments.find(a => a.id == id);
         if (!appt) return;
-        
-        // For now, show alert - you can implement edit modal later
-        alert('Edit functionality for appointment #' + id + ' - Coming soon!');
+
+        const form = document.getElementById('appointmentForm');
+        if (!form) return;
+
+        document.getElementById('appointmentId').value = appt.id || '';
+        document.getElementById('appointmentPatientId').value = appt.patient_id || '';
+        form.elements.first_name.value = appt.first_name || '';
+        form.elements.middle_name.value = appt.middle_name || '';
+        form.elements.last_name.value = appt.last_name || '';
+        form.elements.phone.value = appt.phone || '';
+        if (form.elements.email) {
+            form.elements.email.value = appt.email || '';
+        }
+        form.elements.notes.value = appt.notes || '';
+
+        document.querySelector('#appointmentModal h2').textContent = 'Edit Appointment';
+        document.querySelector('#appointmentForm button[type="submit"]').textContent = 'Save Changes';
+
+        // Load services and dentists, then set values and load slots
+        loadAdminServices(function() {
+            var svcSelect = document.getElementById('adminServiceSelect');
+            if (appt.service_id) {
+                svcSelect.value = appt.service_id;
+            } else {
+                for (var i = 0; i < svcSelect.options.length; i++) {
+                    if (svcSelect.options[i].text.indexOf(appt.service_name || appt.treatment) !== -1) {
+                        svcSelect.value = svcSelect.options[i].value;
+                        break;
+                    }
+                }
+            }
+
+            loadAdminDentists(function() {
+                var dentSelect = document.getElementById('adminDentistSelect');
+                if (appt.dentist_id) {
+                    dentSelect.value = appt.dentist_id;
+                }
+
+                var dateInput = document.getElementById('adminApptDate');
+                dateInput.value = appt.appointment_date ? String(appt.appointment_date).split(' ')[0] : '';
+
+                openAppointmentModal();
+
+                loadAdminSlots(function() {
+                    var currentTime = appt.appointment_time ? String(appt.appointment_time).slice(0, 5) : '';
+                    if (currentTime) {
+                        var slotItems = document.querySelectorAll('#adminSlotGrid .slot-item');
+                        for (var i = 0; i < slotItems.length; i++) {
+                            if (slotItems[i].dataset.time === currentTime) {
+                                slotItems[i].click();
+                                break;
+                            }
+                        }
+                    }
+                });
+            });
+        });
     }
 
     function markArrived(id) {

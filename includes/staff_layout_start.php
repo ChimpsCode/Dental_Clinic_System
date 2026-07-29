@@ -453,6 +453,14 @@ try {
                         </span>
                         <span>Appointments</span>
                     </a>
+                    <a href="staff_dentist_schedule.php" class="nav-item nav-dropdown-item <?php echo isActivePage('staff_dentist_schedule.php') ? 'active' : ''; ?>">
+                        <span class="nav-item-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10s10-4.5 10-10S17.5 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8s8 3.59 8 8s-3.59 8-8 8m2.5-6.5l-3.5-2V7h1v4l3 1.75z"/>
+                            </svg>
+                        </span>
+                        <span>Dentist Schedule</span>
+                    </a>
                 </div>
             </div>
 

@@ -1,4 +1,15 @@
 <?php
+// Set session cookie params with a sensible default before starting the session
+$__loginLifetime = 3600;
+ini_set('session.cookie_lifetime', $__loginLifetime);
+ini_set('session.gc_maxlifetime', $__loginLifetime);
+session_set_cookie_params([
+    'lifetime' => $__loginLifetime,
+    'path' => '/',
+    'secure' => false,
+    'httponly' => true,
+    'samesite' => 'Lax'
+]);
 session_start();
 
 require_once '../../config/database.php';
@@ -10,6 +21,11 @@ $clinicSettings = [];
 foreach ($settingsRows as $key => $value) {
     $clinicSettings[$key] = $value;
 }
+
+// Update session lifetime from database setting (applies on next request)
+$__dbTimeout = max(60, (int)($clinicSettings['session_timeout'] ?? 60) * 60);
+ini_set('session.cookie_lifetime', $__dbTimeout);
+ini_set('session.gc_maxlifetime', $__dbTimeout);
 $clinicName = $clinicSettings['clinic_name'] ?? 'RF Dental Clinic';
 $welcomeLogo = $clinicSettings['welcome_logo'] ?? '';
 $loginLogo = $welcomeLogo ? '../../' . $welcomeLogo : '../../assets/images/Logo.png';

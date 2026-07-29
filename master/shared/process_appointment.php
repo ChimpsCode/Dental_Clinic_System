@@ -1,5 +1,18 @@
 <?php
-session_start();
+ob_start();
+
+$__sessionLifetime = 600;
+if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params([
+        'lifetime' => $__sessionLifetime,
+        'path' => '/',
+        'secure' => false,
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
+    ini_set('session.gc_maxlifetime', $__sessionLifetime);
+    session_start();
+}
 
 error_reporting(0);
 ini_set('display_errors', 0);
@@ -37,6 +50,8 @@ try {
     $appointment_time = $_POST['appointment_time'] ?? '';
     $treatment = $_POST['treatment'] ?? 'General Checkup';
     $notes = trim($_POST['notes'] ?? '');
+    $dentist_id = isset($_POST['dentist_id']) && $_POST['dentist_id'] !== '' ? (int)$_POST['dentist_id'] : null;
+    $service_id = isset($_POST['service_id']) && $_POST['service_id'] !== '' ? (int)$_POST['service_id'] : null;
 
     if (!$patient_id && empty($first_name)) {
         throw new Exception('First name is required');
@@ -188,18 +203,20 @@ try {
         $hasRefCode = false;
     }
     
-    // Correct columns for appointments table
-    // We need to resolve service_id from treatment string if possible, or use a default
-    $service_id = null;
-    try {
-        $svcStmt = $pdo->prepare("SELECT id FROM services WHERE name = ? LIMIT 1");
-        $svcStmt->execute([$treatment]);
-        $service_id = $svcStmt->fetchColumn() ?: null;
-    } catch (Exception $e) {}
+    // Resolve service_id from POST or treatment name
+    if (!$service_id) {
+        try {
+            $svcStmt = $pdo->prepare("SELECT id FROM services WHERE name = ? LIMIT 1");
+            $svcStmt->execute([$treatment]);
+            $service_id = $svcStmt->fetchColumn() ?: null;
+        } catch (Exception $e) {}
+    }
+
+    // Get available columns for dynamic queries
+    $apptColsStmt = $pdo->query("SHOW COLUMNS FROM appointments");
+    $appointmentColumns = array_column($apptColsStmt->fetchAll(PDO::FETCH_ASSOC), 'Field');
 
     if ($appointment_id) {
-        $stmt = $pdo->query("SHOW COLUMNS FROM appointments");
-        $appointmentColumns = array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'Field');
         $updates = [
             'appointment_date = ?',
             'appointment_time = ?',
@@ -207,6 +224,11 @@ try {
             'notes = ?'
         ];
         $params = [$appointment_date, $appointment_time, $service_id, $notes];
+
+        if (in_array('dentist_id', $appointmentColumns)) {
+            $updates[] = 'dentist_id = ?';
+            $params[] = $dentist_id;
+        }
 
         if (in_array('updated_at', $appointmentColumns, true)) {
             $updates[] = 'updated_at = NOW()';
@@ -224,6 +246,12 @@ try {
         $columns = ['patient_id', 'appointment_date', 'appointment_time', 'service_id', 'notes', 'status', 'created_by', 'created_at', 'is_archived'];
         $placeholders = ['?', '?', '?', '?', '?', "'Scheduled'", '?', 'NOW()', '0'];
         $params = [$patient_id, $appointment_date, $appointment_time, $service_id, $notes, $_SESSION['user_id'] ?? 1];
+        
+        if (in_array('dentist_id', $appointmentColumns)) {
+            $columns[] = 'dentist_id';
+            $placeholders[] = '?';
+            $params[] = $dentist_id;
+        }
         
         if ($bookingTypeExists) {
             $columns[] = 'booked_by_id';
