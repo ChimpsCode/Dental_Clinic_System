@@ -621,28 +621,88 @@ elseif ($appointmentId) {
                             <label class="block text-sm font-medium text-slate-600 mb-3">Do you have any of the following?</label>
                             <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                                 <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                                    <input type="checkbox" name="medicalConditions[]" value="heart_disease" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <span class="text-sm text-slate-600">Heart Conditions</span>
+                                </label>
+                                <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
                                     <input type="checkbox" name="medicalConditions[]" value="diabetes" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
                                     <span class="text-sm text-slate-600">Diabetes</span>
                                 </label>
                                 <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
-                                    <input type="checkbox" name="medicalConditions[]" value="heart_disease" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
-                                    <span class="text-sm text-slate-600">Heart Disease</span>
+                                    <input type="checkbox" name="medicalConditions[]" value="bleeding_disorder" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <span class="text-sm text-slate-600">Bleeding Disorder</span>
+                                </label>
+                                <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                                    <input type="checkbox" name="medicalConditions[]" value="pregnancy" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <span class="text-sm text-slate-600">Pregnancy</span>
                                 </label>
                                 <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
                                     <input type="checkbox" name="medicalConditions[]" value="high_bp" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
-                                    <span class="text-sm text-slate-600">High Blood Pressure</span>
+                                    <span class="text-sm text-slate-600">Blood Pressure Issues</span>
+                                </label>
+                                <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                                    <input type="checkbox" name="medicalConditions[]" value="hiv_aids" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <span class="text-sm text-slate-600">HIV/AIDS</span>
+                                </label>
+                                <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                                    <input type="checkbox" name="medicalConditions[]" value="hepatitis" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <span class="text-sm text-slate-600">Hepatitis</span>
+                                </label>
+                                <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                                    <input type="checkbox" name="medicalConditions[]" value="tuberculosis" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <span class="text-sm text-slate-600">Tuberculosis</span>
                                 </label>
                                 <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
                                     <input type="checkbox" name="medicalConditions[]" value="asthma" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
                                     <span class="text-sm text-slate-600">Asthma</span>
                                 </label>
                                 <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
-                                    <input type="checkbox" name="medicalConditions[]" value="allergies" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
-                                    <span class="text-sm text-slate-600">Allergies</span>
+                                    <input type="checkbox" name="medicalConditions[]" value="epilepsy" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <span class="text-sm text-slate-600">Epilepsy/Convulsions</span>
                                 </label>
                                 <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
-                                    <input type="checkbox" name="medicalConditions[]" value="surgery" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
-                                    <span class="text-sm text-slate-600">Previous Surgery</span>
+                                    <input type="checkbox" name="medicalConditions[]" value="std" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <span class="text-sm text-slate-600">Sexually Transmitted Disease</span>
+                                </label>
+                                <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                                    <input type="checkbox" name="medicalConditions[]" value="stomach_ulcer" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <span class="text-sm text-slate-600">Stomach troubles/ulcer</span>
+                                </label>
+                                <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                                    <input type="checkbox" name="medicalConditions[]" value="fainting_seizure" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <span class="text-sm text-slate-600">Fainting seizure</span>
+                                </label>
+                                <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                                    <input type="checkbox" name="medicalConditions[]" value="rapid_weight_loss" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <span class="text-sm text-slate-600">Rapid weight loss</span>
+                                </label>
+                                <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                                    <input type="checkbox" name="medicalConditions[]" value="rheumatic_fever" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <span class="text-sm text-slate-600">Rheumatic fever</span>
+                                </label>
+                                <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                                    <input type="checkbox" name="medicalConditions[]" value="hay_fever" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <span class="text-sm text-slate-600">Hay fever/ allergies</span>
+                                </label>
+                                <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                                    <input type="checkbox" name="medicalConditions[]" value="respiratory_problems" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <span class="text-sm text-slate-600">Respiratory problems</span>
+                                </label>
+                                <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                                    <input type="checkbox" name="medicalConditions[]" value="swollen_ankles" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <span class="text-sm text-slate-600">Swollen ankles</span>
+                                </label>
+                                <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                                    <input type="checkbox" name="medicalConditions[]" value="kidney_disease" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <span class="text-sm text-slate-600">Kidney disease</span>
+                                </label>
+                                <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                                    <input type="checkbox" name="medicalConditions[]" value="chest_pain" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <span class="text-sm text-slate-600">Chest pain</span>
+                                </label>
+                                <label class="medical-condition-item flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                                    <input type="checkbox" name="medicalConditions[]" value="stroke" class="w-4 h-4 text-blue-500 rounded focus:ring-blue-500">
+                                    <span class="text-sm text-slate-600">Stroke</span>
                                 </label>
                             </div>
                         </div>

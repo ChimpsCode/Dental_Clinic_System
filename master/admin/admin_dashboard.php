@@ -82,8 +82,16 @@ try {
         ");
         $topServices = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Get live queue data (next 5 patients in line)
+    // Get live queue data (next 3 patients in line)
     try {
+        // First get total count for "View All" button
+        $totalQueue = (int)($pdo->query("
+            SELECT COUNT(*)
+            FROM queue q
+            WHERE q.status IN ('waiting', 'in_procedure')
+              AND (q.is_archived = 0 OR q.is_archived IS NULL)
+        ")->fetchColumn() ?? 0);
+
         $stmt = $pdo->query("
             SELECT q.id, q.status, q.queue_time, q.treatment_type, q.queue_number,
                    COALESCE(CONCAT(p.first_name, ' ', COALESCE(p.middle_name, ''), ' ', p.last_name), 'Unknown') AS patient_name,
@@ -99,11 +107,12 @@ try {
                     ELSE 3 
                 END,
                 q.queue_time ASC
-            LIMIT 5
+            LIMIT 3
         ");
         $liveQueue = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
         $liveQueue = [];
+        $totalQueue = 0;
     }
     
     // Get upcoming appointments for overview (limit to 3 for dashboard)
@@ -350,6 +359,11 @@ try {
                                         <?php endforeach; ?>
                                     </tbody>
                                 </table>
+                                <?php if ($totalQueue > 3): ?>
+                                    <div style="text-align: center; padding: 12px;">
+                                        <a href="admin_queue.php" style="display: inline-block; padding: 8px 20px; background: #10b981; color: white; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background 0.2s;">View All Queue (<?php echo $totalQueue; ?>)</a>
+                                    </div>
+                                <?php endif; ?>
                             <?php else: ?>
                                 <div class="empty-queue" style="padding: 30px; text-align: center; background: #f0fdf4; border-radius: 8px;">
                                     <p style="font-size: 16px; font-weight: 500; color: #166534; margin: 0;">No patients in queue</p>

@@ -1080,6 +1080,119 @@ header.top-header {
     flex-direction: column;
 }
 
+.quick-stats-panel {
+    background: #ffffff;
+    border: 1px solid #dbeafe;
+    border-radius: 20px;
+    padding: 22px;
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+}
+
+.quick-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.quick-stat-card {
+    position: relative;
+    background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+    border: 1px solid #dbeafe;
+    border-radius: 18px;
+    padding: 18px;
+    overflow: visible;
+    z-index: 1;
+}
+
+.quick-stat-card::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    right: -20px;
+    width: 140px;
+    height: 140px;
+    background: radial-gradient(circle at center, rgba(59, 130, 246, 0.18), transparent 55%);
+    pointer-events: none;
+}
+
+.quick-stat-card:nth-child(2)::before {
+    background: radial-gradient(circle at center, rgba(6, 182, 212, 0.18), transparent 55%);
+}
+
+.quick-stat-label {
+    font-size: 0.9rem;
+    color: #475569;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.quick-stat-value {
+    font-size: 2.15rem;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1;
+}
+
+.quick-stat-chart {
+    position: relative;
+    margin-top: 16px;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(59, 130, 246, 0.12);
+    overflow: visible;
+    z-index: 1;
+}
+
+.quick-stat-track,
+.quick-stat-fill,
+.quick-stat-empty {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    border-radius: 999px;
+}
+
+.quick-stat-track {
+    width: 100%;
+    background: rgba(148, 163, 184, 0.22);
+}
+
+.quick-stat-fill {
+    background: linear-gradient(90deg, #2563eb 0%, #60a5fa 100%);
+}
+
+.quick-stat-empty {
+    background: rgba(191, 219, 254, 0.55);
+    cursor: help;
+}
+
+.quick-stat-tooltip {
+    position: absolute;
+    top: -42px;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: all 0.2s ease;
+    background: #0f172a;
+    color: #fff;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    z-index: 9999;
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.2);
+}
+
+.quick-stat-fill:hover .quick-stat-tooltip,
+.quick-stat-empty:hover .quick-stat-tooltip {
+    opacity: 1;
+    visibility: visible;
+}
+
 .notification-box h3 {
     font-size: 1rem;
     font-weight: 700;

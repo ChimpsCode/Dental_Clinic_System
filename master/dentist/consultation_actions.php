@@ -48,7 +48,19 @@ try {
             'hepatitis' => "ALTER TABLE medical_history ADD COLUMN hepatitis TINYINT(1) DEFAULT 0 AFTER hiv_aids",
             'tuberculosis' => "ALTER TABLE medical_history ADD COLUMN tuberculosis TINYINT(1) DEFAULT 0 AFTER hepatitis",
             'asthma' => "ALTER TABLE medical_history ADD COLUMN asthma TINYINT(1) DEFAULT 0 AFTER tuberculosis",
-            'others' => "ALTER TABLE medical_history ADD COLUMN others TEXT NULL AFTER asthma",
+            'epilepsy' => "ALTER TABLE medical_history ADD COLUMN epilepsy TINYINT(1) DEFAULT 0 AFTER asthma",
+            'std' => "ALTER TABLE medical_history ADD COLUMN std TINYINT(1) DEFAULT 0 AFTER epilepsy",
+            'stomach_ulcer' => "ALTER TABLE medical_history ADD COLUMN stomach_ulcer TINYINT(1) DEFAULT 0 AFTER std",
+            'fainting_seizure' => "ALTER TABLE medical_history ADD COLUMN fainting_seizure TINYINT(1) DEFAULT 0 AFTER stomach_ulcer",
+            'rapid_weight_loss' => "ALTER TABLE medical_history ADD COLUMN rapid_weight_loss TINYINT(1) DEFAULT 0 AFTER fainting_seizure",
+            'rheumatic_fever' => "ALTER TABLE medical_history ADD COLUMN rheumatic_fever TINYINT(1) DEFAULT 0 AFTER rapid_weight_loss",
+            'hay_fever' => "ALTER TABLE medical_history ADD COLUMN hay_fever TINYINT(1) DEFAULT 0 AFTER rheumatic_fever",
+            'respiratory_problems' => "ALTER TABLE medical_history ADD COLUMN respiratory_problems TINYINT(1) DEFAULT 0 AFTER hay_fever",
+            'swollen_ankles' => "ALTER TABLE medical_history ADD COLUMN swollen_ankles TINYINT(1) DEFAULT 0 AFTER respiratory_problems",
+            'kidney_disease' => "ALTER TABLE medical_history ADD COLUMN kidney_disease TINYINT(1) DEFAULT 0 AFTER swollen_ankles",
+            'chest_pain' => "ALTER TABLE medical_history ADD COLUMN chest_pain TINYINT(1) DEFAULT 0 AFTER kidney_disease",
+            'stroke' => "ALTER TABLE medical_history ADD COLUMN stroke TINYINT(1) DEFAULT 0 AFTER chest_pain",
+            'others' => "ALTER TABLE medical_history ADD COLUMN others TEXT NULL AFTER stroke",
         ];
 
         foreach ($requiredMhCols as $field => $sql) {
@@ -252,7 +264,7 @@ try {
                 break;
             }
 
-            $checkboxFields = ['heart_condition', 'diabetes', 'bleeding_disorder', 'pregnancy', 'blood_pressure', 'hiv_aids', 'hepatitis', 'tuberculosis', 'asthma'];
+            $checkboxFields = ['heart_condition', 'diabetes', 'bleeding_disorder', 'pregnancy', 'blood_pressure', 'hiv_aids', 'hepatitis', 'tuberculosis', 'asthma', 'epilepsy', 'std', 'stomach_ulcer', 'fainting_seizure', 'rapid_weight_loss', 'rheumatic_fever', 'hay_fever', 'respiratory_problems', 'swollen_ankles', 'kidney_disease', 'chest_pain', 'stroke'];
             $textFields = ['allergies', 'current_medications', 'medical_conditions', 'past_surgeries', 'others'];
 
             // Check if medical_history record exists for this patient

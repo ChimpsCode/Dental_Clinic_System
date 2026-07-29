@@ -57,9 +57,29 @@ try {
     }
     unset($patient); // Break reference
     
-    // Get recent patients (last 30 days)
-    $stmt = $pdo->query("SELECT COUNT(*) FROM patients WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)");
-    $newPatientsMonth = $stmt->fetchColumn();
+    // Get new patients for this week and last week
+    $stmt = $pdo->query("SELECT COUNT(*) FROM patients WHERE YEARWEEK(created_at, 1) = YEARWEEK(CURDATE(), 1)");
+    $newPatientsThisWeek = (int)$stmt->fetchColumn();
+
+    $stmt = $pdo->query("SELECT COUNT(*) FROM patients WHERE YEARWEEK(created_at, 1) = YEARWEEK(DATE_SUB(CURDATE(), INTERVAL 1 WEEK), 1)");
+    $newPatientsLastWeek = (int)$stmt->fetchColumn();
+
+    $newPatientsTotalForChart = max(1, $newPatientsThisWeek + $newPatientsLastWeek);
+    $newPatientsChartFillPercent = (int)round(($newPatientsThisWeek / $newPatientsTotalForChart) * 100);
+    $newPatientsChartFillPercent = max(12, min(88, $newPatientsChartFillPercent));
+    $newPatientsChartEmptyPercent = 100 - $newPatientsChartFillPercent;
+
+    // Get active queue counts for today and yesterday
+    $stmt = $pdo->query("SELECT COUNT(*) FROM queue WHERE status IN ('waiting', 'in_procedure') AND is_archived = 0 AND DATE(queue_time) = CURDATE()");
+    $activeQueueToday = (int)$stmt->fetchColumn();
+
+    $stmt = $pdo->query("SELECT COUNT(*) FROM queue WHERE status IN ('waiting', 'in_procedure') AND is_archived = 0 AND DATE(queue_time) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)");
+    $activeQueueYesterday = (int)$stmt->fetchColumn();
+
+    $queueTotalForChart = max(1, $activeQueueToday + $activeQueueYesterday);
+    $queueChartFillPercent = (int)round(($activeQueueToday / $queueTotalForChart) * 100);
+    $queueChartFillPercent = max(12, min(88, $queueChartFillPercent));
+    $queueChartEmptyPercent = 100 - $queueChartFillPercent;
     
     // Get today's appointments for overview
     $apptStmt = $pdo->query("
@@ -85,7 +105,14 @@ try {
     $completedToday = 0;
     $onHoldCount = 0;
     $queuePatients = [];
-    $newPatientsMonth = 0;
+    $newPatientsThisWeek = 0;
+    $newPatientsLastWeek = 0;
+    $newPatientsChartFillPercent = 0;
+    $newPatientsChartEmptyPercent = 0;
+    $activeQueueToday = 0;
+    $activeQueueYesterday = 0;
+    $queueChartFillPercent = 0;
+    $queueChartEmptyPercent = 0;
     $todayAppointments = [];
 }
 ?>
@@ -365,16 +392,34 @@ if (($patient['status_text'] ?? '') === 'in_procedure') {
 
     <!-- Right Column: Notifications & Quick Actions -->
     <div class="right-column">
-        <div class="notification-box" style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
-            <h3 style="font-size: 1rem; font-weight: 600; color: #111827; margin-bottom: 16px;">📊 Quick Stats</h3>
-            <div style="display: flex; flex-direction: column; gap: 12px;">
-                <div style="background: #f3f4f6; padding: 12px; border-radius: 8px;">
-                    <div style="font-size: 1.5rem; font-weight: 700; color: #059669;"><?php echo $newPatientsMonth; ?></div>
-                    <div style="font-size: 0.85rem; color: #6b7280;">New Patients (30 days)</div>
+        <div class="notification-box quick-stats-panel">
+            <h3>📊 Quick Stats</h3>
+            <div class="quick-stats-grid">
+                <div class="quick-stat-card">
+                    <div class="quick-stat-label">New <br>Patients (This Week)</div>
+                    <div class="quick-stat-value"><?php echo $newPatientsThisWeek; ?></div>
+                    <div class="quick-stat-chart">
+                        <span class="quick-stat-track"></span>
+                        <span class="quick-stat-fill" style="width: <?php echo $newPatientsChartFillPercent; ?>%;">
+                            <span class="quick-stat-tooltip">This week: <?php echo $newPatientsThisWeek; ?></span>
+                        </span>
+                        <span class="quick-stat-empty" style="left: <?php echo $newPatientsChartFillPercent; ?>%; width: <?php echo $newPatientsChartEmptyPercent; ?>%;">
+                            <span class="quick-stat-tooltip">Last week: <?php echo $newPatientsLastWeek; ?></span>
+                        </span>
+                    </div>
                 </div>
-                <div style="background: #f3f4f6; padding: 12px; border-radius: 8px;">
-                    <div id="dd-active-queue" style="font-size: 1.5rem; font-weight: 700; color: #0891b2;"><?php echo count($queuePatients); ?></div>
-                    <div style="font-size: 0.85rem; color: #6b7280;">Active Queue</div>
+                <div class="quick-stat-card">
+                    <div class="quick-stat-label">Active Queue (Today)</div>
+                    <div class="quick-stat-value" id="dd-active-queue"><?php echo $activeQueueToday; ?></div>
+                    <div class="quick-stat-chart">
+                        <span class="quick-stat-track"></span>
+                        <span class="quick-stat-fill" style="width: <?php echo $queueChartFillPercent; ?>%;">
+                            <span class="quick-stat-tooltip">Today: <?php echo $activeQueueToday; ?></span>
+                        </span>
+                        <span class="quick-stat-empty" style="left: <?php echo $queueChartFillPercent; ?>%; width: <?php echo $queueChartEmptyPercent; ?>%;">
+                            <span class="quick-stat-tooltip">Yesterday: <?php echo $activeQueueYesterday; ?></span>
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>

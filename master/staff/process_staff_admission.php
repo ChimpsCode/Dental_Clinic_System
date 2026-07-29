@@ -236,6 +236,38 @@ if ($appointmentId) {
             if (in_array('medical_conditions', $mhAvailable)) { $mhColList[] = 'medical_conditions'; $mhValues[] = is_array($medicalConditions) ? implode(', ', $medicalConditions) : $medicalConditions; }
             if (in_array('current_medications', $mhAvailable)) { $mhColList[] = 'current_medications'; $mhValues[] = $medications; }
             
+            // Set individual boolean columns for each selected condition
+            $conditionDbMap = [
+                'diabetes' => 'diabetes',
+                'heart_disease' => 'heart_condition',
+                'high_bp' => 'blood_pressure',
+                'asthma' => 'asthma',
+                'bleeding_disorder' => 'bleeding_disorder',
+                'pregnancy' => 'pregnancy',
+                'hiv_aids' => 'hiv_aids',
+                'hepatitis' => 'hepatitis',
+                'tuberculosis' => 'tuberculosis',
+                'epilepsy' => 'epilepsy',
+                'std' => 'std',
+                'stomach_ulcer' => 'stomach_ulcer',
+                'fainting_seizure' => 'fainting_seizure',
+                'rapid_weight_loss' => 'rapid_weight_loss',
+                'rheumatic_fever' => 'rheumatic_fever',
+                'hay_fever' => 'hay_fever',
+                'respiratory_problems' => 'respiratory_problems',
+                'swollen_ankles' => 'swollen_ankles',
+                'kidney_disease' => 'kidney_disease',
+                'chest_pain' => 'chest_pain',
+                'stroke' => 'stroke'
+            ];
+            foreach ($medicalConditions as $cond) {
+                $dbCol = $conditionDbMap[$cond] ?? null;
+                if ($dbCol && in_array($dbCol, $mhAvailable)) {
+                    $mhColList[] = $dbCol;
+                    $mhValues[] = 1;
+                }
+            }
+            
             $mhColsStr = implode(', ', $mhColList);
             $mhPlaceholders = implode(', ', array_fill(0, count($mhValues), '?'));
             $stmt = $pdo->prepare("INSERT IGNORE INTO medical_history ($mhColsStr) VALUES ($mhPlaceholders)");
