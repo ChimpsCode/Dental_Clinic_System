@@ -267,6 +267,7 @@ $pageTitle = 'My Appointments';
         .apt-notes { font-size: 12px; color: #6b7280; margin-top: 4px; }
         .apt-status { display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
         .status-scheduled { background: #e0f2fe; color: #0369a1; }
+        .status-pending-approval { background: #fef3c7; color: #b45309; }
         .status-in-queue { background: #fef3c7; color: #92400e; }
         .status-pending-payment { background: #fed7aa; color: #c2410c; }
         .status-completed { background: #d1fae5; color: #065f46; }
@@ -458,10 +459,11 @@ $pageTitle = 'My Appointments';
                     <?php foreach ($upcoming_appointments as $apt): 
                         $statusName = $apt['status_name'] ?? 'Scheduled';
                         $statusClass = 'status-scheduled';
-                        if (stripos($statusName, 'queue') !== false || stripos($statusName, 'in queue') !== false) $statusClass = 'status-in-queue';
-                        if (stripos($statusName, 'pending') !== false) $statusClass = 'status-pending-payment';
-                        if (stripos($statusName, 'cancel') !== false) $statusClass = 'status-cancelled';
-                        if (stripos($statusName, 'complete') !== false) $statusClass = 'status-completed';
+                        if (stripos($statusName, 'pending approval') !== false) $statusClass = 'status-pending-approval';
+                        elseif (stripos($statusName, 'queue') !== false || stripos($statusName, 'in queue') !== false) $statusClass = 'status-in-queue';
+                        elseif (stripos($statusName, 'pending') !== false) $statusClass = 'status-pending-payment';
+                        elseif (stripos($statusName, 'cancel') !== false) $statusClass = 'status-cancelled';
+                        elseif (stripos($statusName, 'complete') !== false) $statusClass = 'status-completed';
                     ?>
                         <div class="appointment-card">
                             <div class="apt-date">
@@ -496,10 +498,11 @@ $pageTitle = 'My Appointments';
                         <?php 
                         $statusName = $apt['status_name'] ?? 'Completed';
                         $statusClass = 'status-completed';
-                        if (stripos($statusName, 'queue') !== false || stripos($statusName, 'in queue') !== false) $statusClass = 'status-in-queue';
-                        if (stripos($statusName, 'pending') !== false) $statusClass = 'status-pending-payment';
-                        if (stripos($statusName, 'cancel') !== false) $statusClass = 'status-cancelled';
-                        if (stripos($statusName, 'complete') !== false) $statusClass = 'status-completed';
+                        if (stripos($statusName, 'pending approval') !== false) $statusClass = 'status-pending-approval';
+                        elseif (stripos($statusName, 'queue') !== false || stripos($statusName, 'in queue') !== false) $statusClass = 'status-in-queue';
+                        elseif (stripos($statusName, 'pending') !== false) $statusClass = 'status-pending-payment';
+                        elseif (stripos($statusName, 'cancel') !== false) $statusClass = 'status-cancelled';
+                        elseif (stripos($statusName, 'complete') !== false) $statusClass = 'status-completed';
                         ?>
                         <div class="appointment-card">
                             <div class="apt-date" style="background: #f3f4f6;">

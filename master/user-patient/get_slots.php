@@ -244,7 +244,7 @@ try {
         LEFT JOIN services s ON a.service_id = s.id
         WHERE a.appointment_date = ?
           AND COALESCE(a.is_archived, 0) = 0
-          AND LOWER(COALESCE(a.status, 'scheduled')) NOT IN ('cancelled', 'completed', 'no_show')
+          AND LOWER(COALESCE(a.status, 'scheduled')) NOT IN ('cancelled', 'completed', 'no_show', 'pending approval')
     ";
     $apptParams = [$date];
     if ($dentist_id) {

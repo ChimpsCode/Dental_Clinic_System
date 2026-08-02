@@ -16,7 +16,7 @@ function autoCancelNoShows($pdo) {
             FROM appointments a
             LEFT JOIN patients p ON a.patient_id = p.id
             WHERE (a.status_id NOT IN (4, 5) OR a.status_id IS NULL)
-              AND (LOWER(a.status) NOT IN ('completed', 'cancelled') OR a.status IS NULL)
+              AND (LOWER(a.status) NOT IN ('completed', 'cancelled', 'pending approval') OR a.status IS NULL)
               AND a.check_in_time IS NULL
               AND (
                 a.appointment_date < CURDATE()

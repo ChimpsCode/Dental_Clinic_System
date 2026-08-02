@@ -28,6 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 try {
     require_once '../../config/database.php';
+    require_once '../../includes/appointment_approval_helper.php';
     
     // Check if dentist_id column exists
     $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'dentist_id'");
@@ -131,17 +132,14 @@ try {
         $patient_id = $existingPatient['id'];
         
         // CHECK: Prevent double booking - patient can't have appointment same day
-        $checkStmt = $pdo->prepare("
-            SELECT COUNT(*) FROM appointments 
-            WHERE patient_id = ? 
-            AND DATE(appointment_date) = ?
-            AND status IN ('Scheduled', 'In Queue')
-        ");
-        $checkStmt->execute([$patient_id, $appointment_date]);
-        $activeCount = $checkStmt->fetchColumn();
-        
-        if ($activeCount > 0) {
+        if (patientHasActiveAppointmentOnDate($pdo, (int)$patient_id, $appointment_date)) {
             echo json_encode(['success' => false, 'message' => 'This patient already has an active appointment scheduled for ' . $appointment_date . '.']);
+            exit();
+        }
+
+        // CHECK: Patient can only have one pending approval request at a time
+        if (patientHasPendingAppointment($pdo, (int)$patient_id)) {
+            echo json_encode(['success' => false, 'message' => 'This patient already has a booking request pending staff approval.']);
             exit();
         }
         
@@ -185,7 +183,7 @@ try {
 
     // Build INSERT dynamically
     $columns = ['patient_id', 'appointment_date', 'appointment_time', 'service_id', 'notes', 'status', 'created_by', 'reference_code', 'created_at'];
-    $placeholders = ['?', '?', '?', '?', '?', "'Scheduled'", '?', '?', 'NOW()'];
+    $placeholders = ['?', '?', '?', '?', '?', "'Pending Approval'", '?', '?', 'NOW()'];
     $values = [$patient_id, $appointment_date, $appointment_time, $service_id, $notes, $_SESSION['user_id'] ?? null, $refCode];
 
     if ($hasDentistCol) {
@@ -209,7 +207,7 @@ try {
 
     echo json_encode([
         'success' => true, 
-        'message' => 'Appointment scheduled successfully',
+        'message' => 'Appointment request submitted. It will be confirmed once approved by staff.',
         'appointment_id' => $appointment_id
     ]);
     

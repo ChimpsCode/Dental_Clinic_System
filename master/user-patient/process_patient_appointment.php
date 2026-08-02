@@ -3,6 +3,7 @@ header('Content-Type: application/json');
 
 session_start();
 require_once '../../config/database.php';
+require_once '../../includes/appointment_approval_helper.php';
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -30,24 +31,20 @@ try {
 
     $pdo->beginTransaction();
     
+    // CHECK: Patient can only have one pending approval request at a time
+    if (patientHasPendingAppointment($pdo, (int)$patient_id)) {
+        throw new Exception('This patient already has a booking request pending staff approval.');
+    }
+
     // CHECK: Prevent double booking - patient can't have appointment same day
-    $checkStmt = $pdo->prepare("
-        SELECT COUNT(*) FROM appointments 
-        WHERE patient_id = ? 
-        AND DATE(appointment_date) = ?
-        AND status IN ('Scheduled', 'In Queue')
-    ");
-    $checkStmt->execute([$patient_id, $appointment_date]);
-    $activeCount = $checkStmt->fetchColumn();
-    
-    if ($activeCount > 0) {
+    if (patientHasActiveAppointmentOnDate($pdo, (int)$patient_id, $appointment_date)) {
         throw new Exception('You already have an appointment scheduled for ' . $appointment_date . '. Please choose a different date.');
     }
 
     // Create the appointment
     $stmt = $pdo->prepare("INSERT INTO appointments 
         (patient_id, appointment_date, appointment_time, service_id, notes, status, created_by, created_at) 
-        VALUES (?, ?, ?, ?, ?, 'Scheduled', ?, NOW())");
+        VALUES (?, ?, ?, ?, ?, 'Pending Approval', ?, NOW())");
     
     // Resolve service_id
     $service_id = null;
@@ -80,7 +77,7 @@ try {
 
     echo json_encode([
         'success' => true,
-        'message' => 'Appointment scheduled successfully!',
+        'message' => 'Appointment request submitted. It will be confirmed once approved by staff.',
         'appointment_id' => $appointment_id
     ]);
 

@@ -15,6 +15,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 require_once '../../config/database.php';
+require_once '../../includes/appointment_approval_helper.php';
 header('Content-Type: application/json');
 
 // HANDLE GET REQUEST - FETCH PLANS
@@ -184,7 +185,7 @@ try {
                 WHERE a.appointment_date = ? 
                 AND a.appointment_time = ?
                 AND a.is_archived = 0
-                AND a.status NOT IN ('Cancelled')
+                AND a.status NOT IN ('Cancelled', 'Pending Approval')
             ");
             $conflictCheck->execute([$a['date'], $a['time']]);
             $conflict = $conflictCheck->fetch(PDO::FETCH_ASSOC);
@@ -211,7 +212,7 @@ try {
             $ins = $pdo->prepare("
                 INSERT INTO appointments 
                 (reference_code, patient_id, service_id, status, appointment_date, appointment_time, duration_minutes, booked_by_id, created_by, created_at, is_archived) 
-                VALUES (?, ?, ?, 'Scheduled', ?, ?, ?, ?, ?, NOW(), 0)
+                VALUES (?, ?, ?, 'Pending Approval', ?, ?, ?, ?, ?, NOW(), 0)
             ");
             $ins->execute([$refCode, $patient_id, $serviceId, $a['date'], $a['time'], $duration, $doctor_id, $doctor_id]);
 

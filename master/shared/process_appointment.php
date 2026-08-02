@@ -33,6 +33,7 @@ if (!in_array($role, ['staff', 'dentist', 'admin'])) {
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/appointment_approval_helper.php';
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -126,7 +127,7 @@ try {
             SELECT COUNT(*) FROM appointments 
             WHERE patient_id = ? 
             AND DATE(appointment_date) = ?
-            AND status IN ('Scheduled', 'In Queue')
+            AND status IN ('Scheduled', 'In Queue', 'Pending Approval')
             AND id <> ?
         ");
         $checkStmt->execute([$patient_id, $appointment_date, $appointment_id ?: 0]);
@@ -134,6 +135,11 @@ try {
         
         if ($activeCount > 0) {
             throw new Exception('This patient already has an active appointment scheduled for ' . $appointment_date . '. A patient cannot have multiple appointments on the same day.');
+        }
+
+        // CHECK: Patient can only have one pending approval request at a time
+        if (!$appointment_id && patientHasPendingAppointment($pdo, (int)$patient_id)) {
+            throw new Exception('This patient already has a booking request pending staff approval.');
         }
         
         // Also check if patient is currently in queue
@@ -244,7 +250,7 @@ try {
     } else {
         // Build INSERT query dynamically based on existing columns
         $columns = ['patient_id', 'appointment_date', 'appointment_time', 'service_id', 'notes', 'status', 'created_by', 'created_at', 'is_archived'];
-        $placeholders = ['?', '?', '?', '?', '?', "'Scheduled'", '?', 'NOW()', '0'];
+        $placeholders = ['?', '?', '?', '?', '?', "'Pending Approval'", '?', 'NOW()', '0'];
         $params = [$patient_id, $appointment_date, $appointment_time, $service_id, $notes, $_SESSION['user_id'] ?? 1];
         
         if (in_array('dentist_id', $appointmentColumns)) {
@@ -307,7 +313,7 @@ try {
 
     echo json_encode([
         'success' => true,
-        'message' => $existingAppointment ? 'Appointment updated successfully!' : 'Appointment scheduled successfully!'
+        'message' => $existingAppointment ? 'Appointment updated successfully!' : 'Appointment request submitted! It will appear on the calendar once approved.'
     ]);
 
 } catch (Exception $e) {

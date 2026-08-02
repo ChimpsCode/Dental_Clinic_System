@@ -8,11 +8,19 @@ if ($currentPage < 1) $currentPage = 1;
 
 try {
     require_once '../../config/database.php';
+    require_once __DIR__ . '/../../includes/appointment_approval_helper.php';
     
     // Auto-cancel no-show trigger on page visit
     try {
         require_once __DIR__ . '/../../includes/auto_cancel_helper.php';
         autoCancelNoShows($pdo);
+    } catch (Exception $e) {
+        // Silently fail
+    }
+
+    // Auto-decline expired pending approval requests
+    try {
+        autoDeclineExpiredPendingAppointments($pdo);
     } catch (Exception $e) {
         // Silently fail
     }
@@ -85,7 +93,7 @@ try {
     // Simple direct queries for today stats
     $todayCount = (int)$pdo->query("SELECT COUNT(*) FROM appointments WHERE DATE(appointment_date) = CURDATE()")->fetchColumn();
     $completedCount = (int)$pdo->query("SELECT COUNT(*) FROM appointments WHERE status = 'Completed' AND DATE(appointment_date) = CURDATE()")->fetchColumn();
-    $pendingCount = (int)$pdo->query("SELECT COUNT(*) FROM appointments WHERE status IN ('Scheduled','In Queue') AND DATE(appointment_date) = CURDATE()")->fetchColumn();
+    $pendingCount = (int)$pdo->query("SELECT COUNT(*) FROM appointments WHERE status IN ('Scheduled','In Queue','Pending Approval') AND DATE(appointment_date) = CURDATE()")->fetchColumn();
     $cancelledCount = (int)$pdo->query("SELECT COUNT(*) FROM appointments WHERE status = 'Cancelled' AND DATE(appointment_date) = CURDATE()")->fetchColumn();
 } catch (Exception $e) {
     $todayCount = 0;
@@ -95,12 +103,13 @@ try {
 }
 
 // Group appointments by status section
-$sectionLabels = ['scheduled' => 'Scheduled', 'inqueue' => 'In Queue', 'completed' => 'Completed', 'cancelled' => 'Cancelled'];
-$sections = ['scheduled' => [], 'inqueue' => [], 'completed' => [], 'cancelled' => []];
+$sectionLabels = ['pendingapproval' => 'Pending Approval', 'scheduled' => 'Scheduled', 'inqueue' => 'In Queue', 'completed' => 'Completed', 'cancelled' => 'Cancelled'];
+$sections = ['pendingapproval' => [], 'scheduled' => [], 'inqueue' => [], 'completed' => [], 'cancelled' => []];
 foreach ($allAppointments as $appt) {
     $status = strtolower($appt['status_label'] ?? $appt['status'] ?? 'scheduled');
     $section = 'cancelled';
-    if (strpos($status, 'scheduled') !== false || strpos($status, 'arrived') !== false || strpos($status, 'confirmed') !== false || strpos($status, 'rescheduled') !== false) $section = 'scheduled';
+    if (strpos($status, 'pending approval') !== false) $section = 'pendingapproval';
+    elseif (strpos($status, 'scheduled') !== false || strpos($status, 'arrived') !== false || strpos($status, 'confirmed') !== false || strpos($status, 'rescheduled') !== false) $section = 'scheduled';
     elseif (strpos($status, 'queue') !== false || strpos($status, 'pending') !== false) $section = 'inqueue';
     elseif (strpos($status, 'complete') !== false) $section = 'completed';
     $sections[$section][] = $appt;
@@ -248,12 +257,12 @@ require_once '../../includes/staff_layout_start.php';
     <?php endif; ?>
 
     <?php
-    $sectionIcons = ['scheduled' => '📅', 'inqueue' => '⏳', 'completed' => '✅', 'cancelled' => '❌'];
-    $sectionClasses = ['scheduled' => 'scheduled', 'inqueue' => 'inqueue', 'completed' => 'completed', 'cancelled' => 'cancelled'];
-    $sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'completed' => 'countCompleted', 'cancelled' => 'countCancelled'];
+    $sectionIcons = ['pendingapproval' => '🕓', 'scheduled' => '📅', 'inqueue' => '⏳', 'completed' => '✅', 'cancelled' => '❌'];
+    $sectionClasses = ['pendingapproval' => 'pendingapproval', 'scheduled' => 'scheduled', 'inqueue' => 'inqueue', 'completed' => 'completed', 'cancelled' => 'cancelled'];
+    $sectionIds = ['pendingapproval' => 'countPendingapproval', 'scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'completed' => 'countCompleted', 'cancelled' => 'countCancelled'];
     ?>
     <div class="status-grid">
-        <?php foreach (['scheduled', 'inqueue', 'completed', 'cancelled'] as $sec): ?>
+        <?php foreach (['pendingapproval', 'scheduled', 'inqueue', 'completed', 'cancelled'] as $sec): ?>
         <div class="status-section" data-section="<?php echo $sec; ?>">
             <div class="status-section-header <?php echo $sectionClasses[$sec]; ?>">
                 <span class="status-section-title"><?php echo $sectionIcons[$sec]; ?> <?php echo $sectionLabels[$sec]; ?></span>
@@ -274,7 +283,8 @@ require_once '../../includes/staff_layout_start.php';
                         $dentist = htmlspecialchars($appt['dentist_name'] ?? 'Unassigned');
                         $status = $appt['status_label'] ?? $appt['status'] ?? 'Scheduled';
                         $badgeClass = 'status-scheduled';
-                        if (stripos($status, 'arrived') !== false) $badgeClass = 'status-arrived';
+                        if (stripos($status, 'pending approval') !== false) $badgeClass = 'status-pending-approval';
+                        elseif (stripos($status, 'arrived') !== false) $badgeClass = 'status-arrived';
                         elseif (stripos($status, 'queue') !== false) $badgeClass = 'status-in-queue';
                         elseif (stripos($status, 'pending') !== false) $badgeClass = 'status-pending-payment';
                         elseif (stripos($status, 'complete') !== false) $badgeClass = 'status-completed';
@@ -304,6 +314,12 @@ require_once '../../includes/staff_layout_start.php';
                             <span class="mini-card-treatment"><?php echo $treatment; ?> &middot; <?php echo $dentist; ?></span>
                             <span class="status-badge badge-small <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($status); ?></span>
                         </div>
+                        <?php if ($sec === 'pendingapproval'): ?>
+                        <div class="appt-approval-actions">
+                            <button type="button" class="btn-approve" onclick="approveAppointment(<?php echo (int)$appt['id']; ?>)">✓ Approve</button>
+                            <button type="button" class="btn-decline" onclick="declineAppointment(<?php echo (int)$appt['id']; ?>)">✕ Decline</button>
+                        </div>
+                        <?php endif; ?>
                     </div>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -608,6 +624,53 @@ require_once '../../includes/staff_layout_start.php';
     color: #0f766e;
 }
 
+.status-badge.status-pending-approval {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.appt-approval-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #f3f4f6;
+}
+
+.btn-approve {
+    flex: 1;
+    padding: 8px 12px;
+    background: #16a34a;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.btn-approve:hover {
+    background: #15803d;
+}
+
+.btn-decline {
+    flex: 1;
+    padding: 8px 12px;
+    background: #dc2626;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.btn-decline:hover {
+    background: #b91c1c;
+}
+
 .appt-kebab-backdrop {
     display: none;
     position: fixed;
@@ -873,7 +936,7 @@ require_once '../../includes/staff_layout_start.php';
         const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
         const monthEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-        const counts = { scheduled: 0, inqueue: 0, completed: 0, cancelled: 0 };
+        const counts = { pendingapproval: 0, scheduled: 0, inqueue: 0, completed: 0, cancelled: 0 };
 
         document.querySelectorAll('.appointment-mini-card').forEach(card => {
             const nameMatch = !search || card.dataset.name.includes(search);
@@ -898,6 +961,7 @@ require_once '../../includes/staff_layout_start.php';
             }
         });
 
+        document.getElementById('countPendingapproval').textContent = counts.pendingapproval;
         document.getElementById('countScheduled').textContent = counts.scheduled;
         document.getElementById('countInqueue').textContent = counts.inqueue;
         document.getElementById('countCompleted').textContent = counts.completed;
@@ -1223,6 +1287,51 @@ require_once '../../includes/staff_layout_start.php';
         });
         
         closeCancelReasonModal();
+    }
+
+    function approveAppointment(id) {
+        if (!confirm('Approve this appointment request?\n\nThe patient will be notified and the slot will be added to the calendar.')) return;
+        fetch('../shared/approve_appointment.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'approve', appointment_id: id })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message || 'Appointment approved');
+                location.reload();
+            } else {
+                alert(data.message || 'Error approving appointment');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Something went wrong. Please try again.');
+        });
+    }
+
+    function declineAppointment(id) {
+        const reason = prompt('Enter a reason for declining this request (optional):', '');
+        if (reason === null) return;
+        fetch('../shared/approve_appointment.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'decline', appointment_id: id, decline_reason: reason })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message || 'Appointment request declined');
+                location.reload();
+            } else {
+                alert(data.message || 'Error declining appointment');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Something went wrong. Please try again.');
+        });
     }
 
     let apptKebabDropdown = null;
@@ -1584,6 +1693,7 @@ function refreshAppointmentStatuses(appts) {
 
 function getApptBadgeClass(status) {
     var s = status.toLowerCase();
+    if (s.indexOf('pending approval') !== -1) return 'status-pending-approval';
     if (s.indexOf('arrived') !== -1) return 'status-arrived';
     if (s.indexOf('queue') !== -1) return 'status-in-queue';
     if (s.indexOf('pending') !== -1) return 'status-pending-payment';

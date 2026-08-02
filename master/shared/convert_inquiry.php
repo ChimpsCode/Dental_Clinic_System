@@ -29,6 +29,7 @@ if (!$id) {
 
 try {
     require_once '../../config/database.php';
+    require_once '../../includes/appointment_approval_helper.php';
     
     // Get inquiry details
     $stmt = $pdo->prepare("SELECT * FROM inquiries WHERE id = ?");
@@ -73,6 +74,11 @@ try {
         $stmt->execute([$firstName, $middleName, $lastName, $phone]);
         $patient_id = $pdo->lastInsertId();
     }
+
+    // CHECK: Patient can only have one pending approval request at a time
+    if (patientHasPendingAppointment($pdo, (int)$patient_id)) {
+        throw new Exception('This patient already has a booking request pending staff approval.');
+    }
     
     // Get service name from topic (which is now a service_id foreign key)
     $serviceName = 'General Checkup';
@@ -105,7 +111,7 @@ try {
 
     // Build INSERT dynamically
     $columns = ['patient_id', 'appointment_date', 'appointment_time', 'service_id', 'notes', 'status', 'created_by', 'created_at'];
-    $placeholders = ['?', '?', '?', '?', '?', "'Scheduled'", '?', 'NOW()'];
+    $placeholders = ['?', '?', '?', '?', '?', "'Pending Approval'", '?', 'NOW()'];
     $values = [$patient_id, $today, $defaultTime, $service_id, $notes, $_SESSION['user_id'] ?? 1];
 
     if ($hasDentistCol) {

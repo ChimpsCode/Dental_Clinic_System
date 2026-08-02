@@ -850,6 +850,11 @@ $pageTitle = 'Patient Dashboard';
             color: #92400e;
         }
 
+        .status-pending-approval {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
         .status-pending-payment {
             background: #fed7aa;
             color: #c2410c;
@@ -1391,10 +1396,11 @@ $pageTitle = 'Patient Dashboard';
                                         <?php 
                                             $status = $apt['status_label'] ?? $apt['status'] ?? 'Scheduled';
                                             $statusClass = 'status-scheduled';
-                                            if (stripos($status, 'queue') !== false) $statusClass = 'status-in-queue';
-                                            if (stripos($status, 'pending') !== false) $statusClass = 'status-pending-payment';
-                                            if (stripos($status, 'complete') !== false) $statusClass = 'status-completed';
-                                            if (stripos($status, 'cancel') !== false) $statusClass = 'status-cancelled';
+                                            if (stripos($status, 'pending approval') !== false) $statusClass = 'status-pending-approval';
+                                            elseif (stripos($status, 'queue') !== false) $statusClass = 'status-in-queue';
+                                            elseif (stripos($status, 'pending') !== false) $statusClass = 'status-pending-payment';
+                                            elseif (stripos($status, 'complete') !== false) $statusClass = 'status-completed';
+                                            elseif (stripos($status, 'cancel') !== false) $statusClass = 'status-cancelled';
                                         ?>
                                         <span class="appointment-status <?php echo $statusClass; ?>">
                                             <?php echo htmlspecialchars($status); ?>

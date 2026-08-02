@@ -7,6 +7,7 @@ session_start();
 
 try {
     require_once '../../config/database.php';
+    require_once '../../includes/appointment_approval_helper.php';
     require_once '../../includes/sms_functions.php';
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('Invalid request method');
@@ -59,6 +60,16 @@ try {
         }
     }
     
+    // Anti-spam: patient can only have one pending approval request at a time
+    if (patientHasPendingAppointment($pdo, (int)$patient_id)) {
+        throw new Exception('You already have a booking request waiting for staff approval. Please wait for the clinic to approve or decline it before requesting another.');
+    }
+
+    // Anti-spam: patient can't have another active appointment the same day
+    if (patientHasActiveAppointmentOnDate($pdo, (int)$patient_id, $appointment_date)) {
+        throw new Exception('You already have an appointment (or pending request) for ' . $appointment_date . '. Please choose a different date.');
+    }
+
     // Check for overlap conflicts using duration-based overlap logic
     $timeParts = explode(':', $appointment_time);
     $newStartMinutes = (int)$timeParts[0] * 60 + (int)$timeParts[1];
@@ -73,6 +84,8 @@ try {
                 30) as dur
         FROM appointments 
         WHERE appointment_date = ?
+          AND (is_archived = 0 OR is_archived IS NULL)
+          AND LOWER(COALESCE(status, 'scheduled')) NOT IN ('cancelled', 'completed', 'no_show', 'pending approval')
     ");
     $stmt->execute([$appointment_date]);
     $existingBookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -144,7 +157,7 @@ try {
     }
     if (in_array('status', $columns)) {
         $colList[] = 'status';
-        $params[] = 'Scheduled';
+        $params[] = 'Pending Approval';
     }
     
     $sql = "INSERT INTO appointments (" . implode(', ', $colList) . ") VALUES (" . implode(', ', array_fill(0, count($params), '?')) . ")";
@@ -163,47 +176,12 @@ try {
 
     $pdo->commit();
 
-    // Get patient phone for SMS
-    $stmt = $pdo->prepare("SELECT phone FROM patients WHERE id = ?");
-    $stmt->execute([$patient_id]);
-    $patient = $stmt->fetch(PDO::FETCH_ASSOC);
-    $patient_phone = $patient['phone'] ?? null;
-    
-    // Get patient name for SMS
-    $stmt = $pdo->prepare("SELECT first_name, last_name FROM patients WHERE id = ?");
-    $stmt->execute([$patient_id]);
-    $patient_info = $stmt->fetch(PDO::FETCH_ASSOC);
-    $patient_name = ($patient_info['first_name'] ?? '') . ' ' . ($patient_info['last_name'] ?? '');
-    
-    // Send SMS confirmation
-    $sms_sent = false;
-    $sms_error = null;
-    if ($patient_phone) {
-        try {
-            $sms_result = sendAppointmentConfirmationSMS(
-                $patient_phone,
-                $patient_name,
-                $appointment_date,
-                $appointment_time,
-                $treatment
-            );
-            $sms_sent = $sms_result['success'];
-            if (!$sms_sent) {
-                $sms_error = $sms_result['error'];
-                error_log("SMS failed for appointment $appointment_id: " . $sms_error);
-            }
-        } catch (Error $e) {
-            $sms_error = $e->getMessage();
-            error_log("SMS sending error for appointment $appointment_id: " . $sms_error);
-        }
-    }
-
     $formattedDate = date('F j, Y', strtotime($appointment_date));
     $formattedTime = date('g:i A', strtotime($appointment_time));
 
     $response = [
         'success' => true,
-        'message' => "Appointment booked successfully for {$formattedDate} at {$formattedTime}!",
+        'message' => "Your booking request for {$formattedDate} at {$formattedTime} has been submitted and is pending staff approval. You'll be notified once it is confirmed.",
         'appointment_id' => $appointment_id
     ];
     

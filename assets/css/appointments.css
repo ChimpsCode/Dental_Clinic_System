@@ -266,6 +266,10 @@
     border-left: 4px solid #3b82f6;
 }
 
+.status-section-header.pendingapproval {
+    border-left: 4px solid #d97706;
+}
+
 .status-section-header.inqueue {
     border-left: 4px solid #f59e0b;
 }
@@ -296,6 +300,11 @@
 .status-section-header.scheduled .status-section-count {
     background: #dbeafe;
     color: #1d4ed8;
+}
+
+.status-section-header.pendingapproval .status-section-count {
+    background: #fef3c7;
+    color: #b45309;
 }
 
 .status-section-header.inqueue .status-section-count {

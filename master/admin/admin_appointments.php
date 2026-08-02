@@ -102,7 +102,7 @@ try {
     $baseWhere = $countWhereClause ? $countWhereClause . " AND " : "WHERE ";
     $todayCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
     $completedCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere status = 'Completed' AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
-    $pendingCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere status IN ('Scheduled','In Queue') AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
+    $pendingCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere status IN ('Scheduled','In Queue','Pending Approval') AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
     $cancelledCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere status = 'Cancelled' AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
 } catch (Exception $e) {
     $todayCount = 0;
@@ -112,12 +112,13 @@ try {
 }
 
 // Group appointments by status section
-$sectionLabels = ['scheduled' => 'Scheduled', 'inqueue' => 'In Queue', 'completed' => 'Completed', 'cancelled' => 'Cancelled'];
-$sections = ['scheduled' => [], 'inqueue' => [], 'completed' => [], 'cancelled' => []];
+$sectionLabels = ['pendingapproval' => 'Pending Approval', 'scheduled' => 'Scheduled', 'inqueue' => 'In Queue', 'completed' => 'Completed', 'cancelled' => 'Cancelled'];
+$sections = ['pendingapproval' => [], 'scheduled' => [], 'inqueue' => [], 'completed' => [], 'cancelled' => []];
 foreach ($allAppointments as $appt) {
     $status = strtolower($appt['status_label'] ?? $appt['status'] ?? 'scheduled');
     $section = 'cancelled';
-    if (strpos($status, 'scheduled') !== false || strpos($status, 'arrived') !== false || strpos($status, 'confirmed') !== false || strpos($status, 'rescheduled') !== false) $section = 'scheduled';
+    if (strpos($status, 'pending approval') !== false) $section = 'pendingapproval';
+    elseif (strpos($status, 'scheduled') !== false || strpos($status, 'arrived') !== false || strpos($status, 'confirmed') !== false || strpos($status, 'rescheduled') !== false) $section = 'scheduled';
     elseif (strpos($status, 'queue') !== false || strpos($status, 'pending') !== false) $section = 'inqueue';
     elseif (strpos($status, 'complete') !== false) $section = 'completed';
     $sections[$section][] = $appt;
@@ -220,12 +221,12 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 </div>
 
                 <?php
-                $sectionIcons = ['scheduled' => '📅', 'inqueue' => '⏳', 'completed' => '✅', 'cancelled' => '❌'];
-                $sectionClasses = ['scheduled' => 'scheduled', 'inqueue' => 'inqueue', 'completed' => 'completed', 'cancelled' => 'cancelled'];
-                $sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'completed' => 'countCompleted', 'cancelled' => 'countCancelled'];
+                $sectionIcons = ['pendingapproval' => '🕓', 'scheduled' => '📅', 'inqueue' => '⏳', 'completed' => '✅', 'cancelled' => '❌'];
+                $sectionClasses = ['pendingapproval' => 'pendingapproval', 'scheduled' => 'scheduled', 'inqueue' => 'inqueue', 'completed' => 'completed', 'cancelled' => 'cancelled'];
+                $sectionIds = ['pendingapproval' => 'countPendingapproval', 'scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'completed' => 'countCompleted', 'cancelled' => 'countCancelled'];
                 ?>
                 <div class="status-grid">
-                    <?php foreach (['scheduled', 'inqueue', 'completed', 'cancelled'] as $sec): ?>
+                    <?php foreach (['pendingapproval', 'scheduled', 'inqueue', 'completed', 'cancelled'] as $sec): ?>
                     <div class="status-section" data-section="<?php echo $sec; ?>">
                         <div class="status-section-header <?php echo $sectionClasses[$sec]; ?>">
                             <span class="status-section-title"><?php echo $sectionIcons[$sec]; ?> <?php echo $sectionLabels[$sec]; ?></span>
@@ -246,7 +247,8 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                     $dentist = htmlspecialchars($appt['dentist_name'] ?? 'Unassigned');
                                     $status = $appt['status_label'] ?? $appt['status'] ?? 'Scheduled';
                                     $badgeClass = 'status-scheduled';
-                                    if (stripos($status, 'arrived') !== false) $badgeClass = 'status-arrived';
+                                    if (stripos($status, 'pending approval') !== false) $badgeClass = 'status-pending-approval';
+                                    elseif (stripos($status, 'arrived') !== false) $badgeClass = 'status-arrived';
                                     elseif (stripos($status, 'queue') !== false) $badgeClass = 'status-in-queue';
                                     elseif (stripos($status, 'pending') !== false) $badgeClass = 'status-pending';
                                     elseif (stripos($status, 'complete') !== false) $badgeClass = 'status-completed';
@@ -636,6 +638,11 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 .status-badge.status-pending {
     background: #fed7aa;
     color: #c2410c;
+}
+
+.status-badge.status-pending-approval {
+    background: #fef3c7;
+    color: #b45309;
 }
 
 .status-badge.status-pending_payment {

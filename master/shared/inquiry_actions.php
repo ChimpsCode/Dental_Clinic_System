@@ -98,7 +98,7 @@ function inquiryScheduleConflictExists(PDO $pdo, string $date, string $time, ?in
         LEFT JOIN services s ON s.id = a.service_id
         WHERE a.appointment_date = ?
           AND COALESCE(a.is_archived, 0) = 0
-          AND LOWER(COALESCE(a.status, 'scheduled')) NOT IN ('cancelled', 'completed', 'no_show')
+          AND LOWER(COALESCE(a.status, 'scheduled')) NOT IN ('cancelled', 'completed', 'no_show', 'pending approval')
     ");
     $apptStmt->execute([$date]);
     foreach ($apptStmt->fetchAll(PDO::FETCH_ASSOC) as $appointment) {
@@ -846,13 +846,22 @@ if ($action === 'convert_to_appointment') {
         'appointment_time' => $appointmentTime,
         'treatment' => $inquiry['service_name'] ?: 'Consultation',
         'notes' => trim("Converted from inquiry #{$id}. " . ($inquiry['resolved_concern'] ?? '') . ' ' . $notes),
-        'status' => 'scheduled',
+        'status' => 'Pending Approval',
         'created_by' => (int)$_SESSION['user_id'],
         'is_registered_patient' => !empty($inquiry['patient_id']) ? 1 : 0,
         'booked_by_id' => $assignedStaffId ?: (int)$_SESSION['user_id'],
         'booking_type' => 'staff',
         'dentist_id' => $dentistId,
     ];
+
+    // CHECK: Patient can only have one pending approval request at a time
+    if (!empty($appointmentData['patient_id'])) {
+        require_once __DIR__ . '/../../includes/appointment_approval_helper.php';
+        if (patientHasPendingAppointment($pdo, (int)$appointmentData['patient_id'])) {
+            $pdo->rollBack();
+            inquiryJson(['success' => false, 'message' => 'This patient already has a booking request pending staff approval.']);
+        }
+    }
     $appointmentColumns = [];
     $appointmentPlaceholders = [];
     $appointmentValues = [];
@@ -866,7 +875,7 @@ if ($action === 'convert_to_appointment') {
     if (inquiryColumnExists($pdo, 'appointments', 'status_id')) {
         $appointmentColumns[] = 'status_id';
         $appointmentPlaceholders[] = '?';
-        $appointmentValues[] = resolveAppointmentStatusId($pdo, 'Scheduled');
+        $appointmentValues[] = resolveAppointmentStatusId($pdo, 'Pending');
     }
     if (inquiryColumnExists($pdo, 'appointments', 'created_at')) {
         $appointmentColumns[] = 'created_at';
