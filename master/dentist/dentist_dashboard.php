@@ -117,40 +117,42 @@ try {
 }
 ?>
 
-<!-- Summary Cards -->
-<div class="summary-cards" style="margin-bottom: 0px;">
-    <div class="summary-card">
-        <div class="summary-icon yellow">⏰</div>
-        <div class="summary-info">
-            <h3 id="dd-waiting"><?php echo $waitingCount; ?></h3>
-            <p>Waiting</p>
-        </div>
-    </div>
-    <div class="summary-card">
-        <div class="summary-icon blue" style="background: #dbeafe; color: #1d4ed8;">⚙️</div>
-        <div class="summary-info">
-            <h3 id="dd-in-procedure"><?php echo $inProcedureCount; ?></h3>
-            <p>In Procedure</p>
-        </div>
-    </div>
-    <div class="summary-card">
-        <div class="summary-icon green">✓</div>
-        <div class="summary-info">
-            <h3 id="dd-completed"><?php echo $completedToday; ?></h3>
-            <p>Completed Today</p>
-        </div>
-    </div>
-    <div class="summary-card">
-        <div class="summary-icon red" style="background: #fef3c7; color: #b45309;">⏸️</div>
-        <div class="summary-info">
-            <h3 id="dd-on-hold"><?php echo $onHoldCount; ?></h3>
-            <p>On Hold</p>
-        </div>
-    </div>
-</div>
-
 <div class="two-column">
     <div class="left-column" id="dd-queue-left">
+        <!-- Summary Cards -->
+        <div class="summary-cards">
+            <div class="summary-card">
+                <div class="summary-icon yellow">⏰</div>
+                
+                <div class="summary-info">
+                    <h3 id="dd-waiting"><?php echo $waitingCount; ?></h3>
+                    <p>Waiting</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon blue" style="background: #dbeafe; color: #1d4ed8;">⚙️</div>
+                <div class="summary-info">
+                    <h3 id="dd-in-procedure"><?php echo $inProcedureCount; ?></h3>
+                    <p>In Procedure</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon green">✓</div>
+                <div class="summary-info">
+                    <h3 id="dd-completed"><?php echo $completedToday; ?></h3>
+                    <p>Completed Today</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon red" style="background: #fef3c7; color: #b45309;">⏸️</div>
+                <div class="summary-info">
+                    <h3 id="dd-on-hold"><?php echo $onHoldCount; ?></h3>
+                    <p>On Hold</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="dd-queue-content">
         <?php 
         // Find patient currently in procedure
         $inProcedurePatient = null;
@@ -388,10 +390,98 @@ if (($patient['status_text'] ?? '') === 'in_procedure') {
         </div>
         <?php endif; ?>
         </div>
+        </div>
     </div>
 
-    <!-- Right Column: Notifications & Quick Actions -->
+    <!-- Right Column: Schedule, Quick Stats & Appointments -->
+    <?php
+    // Mini Calendar - determine displayed month
+    $dcCalMonthParam = (isset($_GET['cal']) && preg_match('/^\d{4}-\d{2}$/', $_GET['cal'])) ? $_GET['cal'] : date('Y-m');
+    $dcCalYear = (int)substr($dcCalMonthParam, 0, 4);
+    $dcCalMonthNum = (int)substr($dcCalMonthParam, 5, 2);
+    if ($dcCalMonthNum < 1 || $dcCalMonthNum > 12) {
+        $dcCalMonthNum = (int)date('n');
+        $dcCalYear = (int)date('Y');
+    }
+    $dcCalFirstDay = sprintf('%04d-%02d-01', $dcCalYear, $dcCalMonthNum);
+    $dcCalLastDay = date('Y-m-t', strtotime($dcCalFirstDay));
+    $dcCalPrev = date('Y-m', strtotime($dcCalFirstDay . ' -1 month'));
+    $dcCalNext = date('Y-m', strtotime($dcCalFirstDay . ' +1 month'));
+    $dcCalMonthLabel = date('F Y', strtotime($dcCalFirstDay));
+
+    $dcCalByDate = [];
+    $dcCalCounts = [];
+    try {
+        $dcCalStmt = $pdo->prepare("
+            SELECT a.appointment_date, a.appointment_time, a.status,
+                   COALESCE(CONCAT(p.first_name, ' ', COALESCE(p.middle_name, ''), ' ', p.last_name), '') AS patient_name,
+                   s.name AS service_name
+            FROM appointments a
+            LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
+            LEFT JOIN services s ON a.service_id = s.id
+            WHERE a.appointment_date BETWEEN ? AND ?
+              AND (a.is_archived = 0 OR a.is_archived IS NULL)
+            ORDER BY a.appointment_date ASC, a.appointment_time ASC
+        ");
+        $dcCalStmt->execute([$dcCalFirstDay, $dcCalLastDay]);
+        while ($dcCalRow = $dcCalStmt->fetch(PDO::FETCH_ASSOC)) {
+            $d = $dcCalRow['appointment_date'];
+            if (!isset($dcCalByDate[$d])) {
+                $dcCalByDate[$d] = [];
+                $dcCalCounts[$d] = 0;
+            }
+            $dcCalByDate[$d][] = $dcCalRow;
+            $dcCalCounts[$d]++;
+        }
+    } catch (Exception $e) {
+        $dcCalByDate = [];
+        $dcCalCounts = [];
+    }
+    ?>
     <div class="right-column">
+        <!-- Schedule Mini Calendar -->
+        <div class="notification-box dc-cal-panel">
+            
+
+            <div class="mc-header">
+                <button type="button" id="dcCalPrev" class="mc-nav" aria-label="Previous month">&#8249;</button>
+                <span class="mc-title" id="dcCalMonthLabel"><?php echo $dcCalMonthLabel; ?></span>
+                <button type="button" id="dcCalNext" class="mc-nav" aria-label="Next month">&#8250;</button>
+            </div>
+
+            <div class="mc-grid" id="dcCalGrid">
+                <?php
+                $dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                foreach ($dayHeaders as $dh) {
+                    echo '<div class="mc-day-head">' . $dh . '</div>';
+                }
+                $dcFirstDow = (int)date('w', strtotime($dcCalFirstDay));
+                for ($i = 0; $i < $dcFirstDow; $i++) {
+                    echo '<div class="mc-day mc-empty"></div>';
+                }
+                $dcCalDaysInMonth = (int)date('t', strtotime($dcCalFirstDay));
+                for ($d = 1; $d <= $dcCalDaysInMonth; $d++) {
+                    $dateStr = sprintf('%04d-%02d-%02d', $dcCalYear, $dcCalMonthNum, $d);
+                    $hasAppts = isset($dcCalCounts[$dateStr]);
+                    $isToday = ($dateStr === date('Y-m-d'));
+                    $classes = 'mc-day';
+                    if ($hasAppts) { $classes .= ' has-appt'; }
+                    if ($isToday) { $classes .= ' today'; }
+                    ?>
+                    <div class="<?php echo $classes; ?>" <?php if ($hasAppts): ?>onclick="dcCalOpenDay('<?php echo $dateStr; ?>')" title="<?php echo $dcCalCounts[$dateStr]; ?> scheduled"<?php endif; ?>>
+                        <span class="mc-day-num"><?php echo $d; ?></span>
+                        <?php if ($hasAppts): ?>
+                            <span class="mc-dot"></span>
+                        <?php endif; ?>
+                    </div>
+                    <?php
+                }
+                ?>
+            </div>
+
+            
+        </div>
+
         <div class="notification-box quick-stats-panel">
             <h3>📊 Quick Stats</h3>
             <div class="quick-stats-grid">
@@ -426,10 +516,10 @@ if (($patient['status_text'] ?? '') === 'in_procedure') {
         
         
         
-        <!-- Today's Appointments Overview -->
-        <div class="notification-box" style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-top: 20px;">
-            <h3 style="font-size: 1rem; font-weight: 600; color: #111827; margin-bottom: 16px;">📅 Appointments Overview</h3>
-            <div style="max-height: 300px; overflow-y: auto;">
+        <!-- Today's Appointments Overview
+        <div class="notification-box" style="background: white; border-radius: 12px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-top: 16px;">
+            <h3 style="font-size: 1rem; font-weight: 600; color: #111827; margin-bottom: 12px;">📅 Appointments Overview</h3>
+            <div style="max-height: 180px; overflow-y: auto;">
                 <?php if (empty($todayAppointments)): ?>
                     <p style="color: #6b7280; text-align: center; padding: 20px;">No appointments today</p>
                 <?php else: ?>
@@ -467,7 +557,7 @@ if (($patient['status_text'] ?? '') === 'in_procedure') {
                 <?php endif; ?>
             </div>
             <a href="dentist_appointments.php" style="display: block; text-align: center; margin-top: 12px; padding: 8px; background: #f3f4f6; border-radius: 6px; color: #374151; text-decoration: none; font-size: 13px;">View All Appointments</a>
-        </div>
+        </div> -->
     </div>
 </div>
 
@@ -1152,6 +1242,63 @@ function closePatientModal() {
     document.body.style.overflow = '';
 }
 
+// Mini Calendar - Scheduled Patients Modal
+var dentistCalAppointments = <?php echo json_encode($dcCalByDate); ?>;
+
+function dcCalEscapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function dcCalOpenDay(dateStr) {
+    var list = dentistCalAppointments[dateStr] || [];
+    var title = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    document.getElementById('dcCalModalTitle').textContent = title;
+
+    var body = document.getElementById('dcCalModalBody');
+    if (!list.length) {
+        body.innerHTML = '<p style="text-align:center; color:#6b7280; padding:30px 10px;">No scheduled patients on this date.</p>';
+    } else {
+        var rows = list.map(function(a) {
+            var name = (a.patient_name || '').trim();
+            if (!name) name = 'Guest';
+            var t = '--';
+            if (a.appointment_time) {
+                t = new Date('1970-01-01T' + a.appointment_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+            }
+            var status = a.status || 'Scheduled';
+            var badge = 'background:#dbeafe; color:#1d4ed8;';
+            if (status.toLowerCase().indexOf('queue') !== -1) badge = 'background:#fef3c7; color:#92400e;';
+            if (status.toLowerCase().indexOf('pending') !== -1) badge = 'background:#fed7aa; color:#c2410c;';
+            if (status.toLowerCase().indexOf('complete') !== -1) badge = 'background:#dcfce7; color:#15803d;';
+            if (status.toLowerCase().indexOf('cancel') !== -1) badge = 'background:#fee2e2; color:#dc2626;';
+            return '<tr style="border-bottom:1px solid #f3f4f6;">'
+                + '<td style="padding:12px; color:#374151; white-space:nowrap;">' + t + '</td>'
+                + '<td style="padding:12px; color:#374151;">' + dcCalEscapeHtml(name) + '</td>'
+                + '<td style="padding:12px; color:#374151;">' + dcCalEscapeHtml(a.service_name || 'General') + '</td>'
+                + '<td style="padding:12px;"><span style="display:inline-block; padding:4px 10px; border-radius:12px; font-size:11px; font-weight:600; ' + badge + '">' + dcCalEscapeHtml(status) + '</span></td>'
+                + '</tr>';
+        }).join('');
+        body.innerHTML = '<table style="width:100%; border-collapse:collapse; font-size:13px;">'
+            + '<thead><tr style="background:#f9fafb;">'
+            + '<th style="text-align:left; padding:10px 12px; color:#6b7280; font-weight:600; font-size:12px;">Time</th>'
+            + '<th style="text-align:left; padding:10px 12px; color:#6b7280; font-weight:600; font-size:12px;">Patient</th>'
+            + '<th style="text-align:left; padding:10px 12px; color:#6b7280; font-weight:600; font-size:12px;">Service</th>'
+            + '<th style="text-align:left; padding:10px 12px; color:#6b7280; font-weight:600; font-size:12px;">Status</th>'
+            + '</tr></thead>'
+            + '<tbody>' + rows + '</tbody></table>';
+    }
+
+    document.getElementById('dcCalModal').style.display = 'flex';
+}
+
+function dcCalClose() {
+    document.getElementById('dcCalModal').style.display = 'none';
+}
+
 // Move modal to body for total screen coverage
 document.addEventListener('DOMContentLoaded', function() {
     const modal = document.getElementById('patientModal');
@@ -1170,6 +1317,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (pcModal) {
         document.body.appendChild(pcModal);
     }
+    const dcCalEl = document.getElementById('dcCalModal');
+    if (dcCalEl) {
+        document.body.appendChild(dcCalEl);
+    }
 });
 
 // Close modals on outside click
@@ -1177,9 +1328,11 @@ window.onclick = function(event) {
     const cpModal = document.getElementById('completeProcedureModal');
     const pcModal = document.getElementById('procedureCompleteModal');
     const spModal = document.getElementById('startProcedureModal');
+    const dcCalModal = document.getElementById('dcCalModal');
     if (event.target === cpModal) closeCompleteProcedureModal();
     if (event.target === pcModal) closeProcedureCompleteModal();
     if (event.target === spModal) closeStartProcedureModal();
+    if (event.target === dcCalModal) dcCalClose();
 };
 
 // Close modals on ESC key
@@ -1188,12 +1341,15 @@ document.addEventListener('keydown', function(e) {
         const spModal = document.getElementById('startProcedureModal');
         const cpModal = document.getElementById('completeProcedureModal');
         const pcModal = document.getElementById('procedureCompleteModal');
+        const dcCalModal = document.getElementById('dcCalModal');
         if (spModal && spModal.style.display === 'flex') {
             closeStartProcedureModal();
         } else if (cpModal && cpModal.style.display === 'flex') {
             closeCompleteProcedureModal();
         } else if (pcModal && pcModal.style.display === 'flex') {
             closeProcedureCompleteModal();
+        } else if (dcCalModal && dcCalModal.style.display === 'flex') {
+            dcCalClose();
         }
     }
 });
@@ -1231,9 +1387,9 @@ function refreshDashboardQueue(data) {
     el = document.getElementById('dd-active-queue');
     if (el) el.textContent = c.waiting + c.in_procedure + c.on_hold;
 
-    // Update the left-column queue sections (in_procedure, next, queue list, empty state)
-    var leftCol = document.getElementById('dd-queue-left');
-    if (!leftCol) return;
+    // Update the queue sections (in_procedure, next, queue list, empty state)
+    var queueContent = document.getElementById('dd-queue-content');
+    if (!queueContent) return;
 
     // Separate items by status, preserving order
     var inProcedure = null;
@@ -1273,13 +1429,8 @@ function refreshDashboardQueue(data) {
         html += buildEmptyQueueHTML();
     }
 
-    // Replace left column content — but keep non-queue elements safe.
-    // The left column currently has ONLY queue content (no appointments after it).
-    // We only replace if there's actual change in queue-related content.
-    // But to preserve any non-queue elements, we use a targeted approach:
-    // We find and replace only the sections we built above.
-    // For simplicity, since the left col is 100% queue-related, full replace is fine.
-    leftCol.innerHTML = html;
+    // Replace only the queue content, preserving the summary cards above it.
+    queueContent.innerHTML = html;
 
     // Update the waiting badge in the queue section too
     el = document.getElementById('dd-queue-waiting-badge');
@@ -1435,6 +1586,22 @@ setInterval(pollDashboardQueue, 10000);
 pollDashboardQueue();
 </script>
 
+<script src="../../assets/js/calendar_widget.js"></script>
+<script>
+if (typeof MiniCalendar !== 'undefined' && document.getElementById('dcCalPrev')) {
+    MiniCalendar({
+        containerId: 'dcCalGrid',
+        labelId: 'dcCalMonthLabel',
+        prevBtnId: 'dcCalPrev',
+        nextBtnId: 'dcCalNext',
+        endpoint: '../shared/calendar_data.php',
+        openDayFn: 'dcCalOpenDay',
+        appointmentVar: 'dentistCalAppointments',
+        month: '<?php echo $dcCalMonthParam; ?>'
+    });
+}
+</script>
+
 <!-- Modal Structure (Moved to root level via JS) -->
 <div id="patientModal" class="fullscreen-modal-overlay">
     <div class="fullscreen-modal">
@@ -1587,6 +1754,21 @@ pollDashboardQueue();
         </div>
 
         <button type="button" onclick="closeProcedureCompleteModal()" class="pc-btn-done">Done</button>
+    </div>
+</div>
+
+<!-- Schedule Mini Calendar - Scheduled Patients Modal -->
+<div id="dcCalModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 14px; width: 92%; max-width: 640px; max-height: 82vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 24px 60px rgba(15,23,42,0.25); position: relative; z-index: 100000; margin: 20px;">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 18px 22px; background: linear-gradient(135deg, #2444d5 10%, #412fa3be 48%, #0891b2 90%); color: white;">
+            <span style="font-size: 1.3rem;">📅</span>
+            <div>
+                <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.85; font-weight: 700;">Scheduled Patients</div>
+                <h2 id="dcCalModalTitle" style="font-size: 1.15rem; font-weight: 700; margin: 2px 0 0;">—</h2>
+            </div>
+            <button onclick="dcCalClose()" aria-label="Close" style="margin-left: auto; background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.22); width: 34px; height: 34px; border-radius: 10px; font-size: 1.2rem; line-height: 1; cursor: pointer;">&times;</button>
+        </div>
+        <div id="dcCalModalBody" style="padding: 18px 22px; overflow-y: auto;"></div>
     </div>
 </div>
 
@@ -1889,6 +2071,131 @@ pollDashboardQueue();
     transform: translateY(-1px);
     box-shadow: 0 18px 36px rgba(8, 145, 178, 0.32);
 }
+
+/* Mini Calendar */
+.mc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.mc-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1f2937;
+    white-space: nowrap;
+}
+.mc-nav {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+    color: #374151;
+    text-decoration: none;
+    font-size: 16px;
+    line-height: 1;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    cursor: pointer;
+    font-family: inherit;
+    padding: 0;
+}
+.mc-nav:hover {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: #1d4ed8;
+}
+.mc-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+}
+.mc-day-head {
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #6b7280;
+    padding: 3px 0;
+}
+.mc-day {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    height: 30px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #374151;
+    cursor: default;
+    transition: background 0.15s;
+    border: 1px solid transparent;
+}
+.mc-day-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    line-height: 1;
+}
+.mc-day.has-appt {
+    cursor: pointer;
+    background: #eff6ff;
+    border-color: #dbeafe;
+}
+.mc-day.has-appt:hover {
+    background: #dbeafe;
+    border-color: #93c5fd;
+}
+.mc-day.today .mc-day-num {
+    background: #005daa;
+    color: #fff;
+    font-weight: 700;
+}
+.mc-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #2563eb;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+.mc-empty { visibility: hidden; }
+.mc-legend {
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+    font-size: 11px;
+    color: #6b7280;
+}
+.mc-legend-item { display: flex; align-items: center; gap: 5px; }
+.mc-legend-item .mc-dot { margin-top: 0; }
+
+/* Right column fits 100% view height (no page scroll needed) */
+@media (min-width: 1025px) {
+    .right-column {
+        position: sticky;
+        top: 30px;
+        align-self: flex-start;
+        max-height: calc(100vh - 130px);
+        overflow-y: auto;
+    }
+}
+.dc-cal-panel {
+    padding: 14px;
+    margin-bottom: 16px;
+}
+
+
 
 </style>
 
