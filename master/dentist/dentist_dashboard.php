@@ -122,8 +122,9 @@ try {
         <!-- Summary Cards -->
         <div class="summary-cards">
             <div class="summary-card">
-                <div class="summary-icon yellow">⏰</div>
-                
+                <div class="summary-icon yellow">
+                    <img src="../../assets/icons/waiting.png" alt="Waiting" style="width: 24px; height: 24px;">
+                </div>
                 <div class="summary-info">
                     <h3 id="dd-waiting"><?php echo $waitingCount; ?></h3>
                     <p>Waiting</p>
