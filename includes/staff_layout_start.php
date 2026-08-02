@@ -380,6 +380,20 @@ try {
             border: none;
             cursor: default;
         }
+        .header-title h1 {
+    font-size: 20px;
+    color: #1f2937;
+    font-weight: 600;
+    line-height: 1.2;
+    margin: 0;
+}
+
+.header-title p {
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.2;
+    margin: 0;
+}
         .nav-dropdown-content {
             overflow: hidden;
         }

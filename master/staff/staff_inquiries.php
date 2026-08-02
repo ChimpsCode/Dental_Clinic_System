@@ -686,13 +686,12 @@ require_once '../../includes/staff_layout_start.php';
 </style>
 
 <div class="page-shell">
-    <section class="page-card">
-        <div class="page-header">
-            <div class="page-title-wrap">
-                <h1>Inquiry / Consultation</h1>
-                <p>Manage patient inquiries and requests</p>
-            </div>
-            <div class="header-actions">
+    
+
+    <section class="page-card filters-card">
+        <div class="filter-row">
+            <div class="filter-group">
+                <label for="statusFilter">Status Filter</label>
                 <div class="search-wrap">
                     <span class="search-icon" aria-hidden="true">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -703,11 +702,6 @@ require_once '../../includes/staff_layout_start.php';
                     <input id="searchInput" type="text" class="search-input" placeholder="Search patient">
                 </div>
             </div>
-        </div>
-    </section>
-
-    <section class="page-card filters-card">
-        <div class="filter-row">
             <div class="filter-group">
                 <label for="statusFilter">Status Filter</label>
                 <select id="statusFilter" class="filter-select">
@@ -724,15 +718,6 @@ require_once '../../includes/staff_layout_start.php';
                     <option value="Today">Today</option>
                     <option value="This Week">This Week</option>
                     <option value="Custom">Custom Range</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label for="serviceFilter">Service Filter</label>
-                <select id="serviceFilter" class="filter-select">
-                    <option value="All">All Services</option>
-                    <?php foreach ($services as $service): ?>
-                        <option value="<?php echo htmlspecialchars($service['name']); ?>"><?php echo htmlspecialchars($service['name']); ?></option>
-                    <?php endforeach; ?>
                 </select>
             </div>
             <div class="filter-group">
@@ -760,7 +745,7 @@ require_once '../../includes/staff_layout_start.php';
     <section class="table-card">
         <div class="table-head">
             <h2>Patient Inquiry Records</h2>
-            <p>Review requests, update statuses, assign staff, and respond quickly to consultation needs.</p>
+            <p>Review requests and respond to consultation needs.</p>
         </div>
         <div class="results-bar">
             <div id="resultsSummary">Showing 0 inquiries</div>
@@ -840,7 +825,6 @@ const itemsPerPage = 8;
 const searchInput = document.getElementById('searchInput');
 const statusFilter = document.getElementById('statusFilter');
 const dateFilter = document.getElementById('dateFilter');
-const serviceFilter = document.getElementById('serviceFilter');
 const sourceFilter = document.getElementById('sourceFilter');
 const dateFrom = document.getElementById('dateFrom');
 const dateTo = document.getElementById('dateTo');
@@ -929,10 +913,9 @@ function applyFilters() {
 
         const matchesSearch = query === '' || haystack.includes(query);
         const matchesStatus = statusFilter.value === 'All' || (inquiry.status || 'Unread') === statusFilter.value;
-        const matchesService = serviceFilter.value === 'All' || (inquiry.service_name || '') === serviceFilter.value;
         const matchesSource = sourceFilter.value === 'All' || (inquiry.source || 'Website') === sourceFilter.value;
 
-        return matchesSearch && matchesStatus && matchesService && matchesSource && isWithinDateFilter(inquiry);
+        return matchesSearch && matchesStatus && matchesSource && isWithinDateFilter(inquiry);
     });
 
     renderTable();
@@ -1085,7 +1068,6 @@ function resetFilters() {
     searchInput.value = '';
     statusFilter.value = 'All';
     dateFilter.value = 'All';
-    serviceFilter.value = 'All';
     sourceFilter.value = 'All';
     dateFrom.value = '';
     dateTo.value = '';
@@ -1474,7 +1456,7 @@ replyTextarea.addEventListener('input', function () {
     this.style.height = Math.min(this.scrollHeight, 120) + 'px';
 });
 
-[searchInput, statusFilter, serviceFilter, sourceFilter, dateFrom, dateTo].forEach((element) => {
+[searchInput, statusFilter, sourceFilter, dateFrom, dateTo].forEach((element) => {
     element.addEventListener('input', applyFilters);
     element.addEventListener('change', applyFilters);
 });

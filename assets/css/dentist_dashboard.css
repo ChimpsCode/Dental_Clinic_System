@@ -259,9 +259,18 @@ header.top-header {
 }
 
 .header-title h1 {
-    font-size: 1.4rem;
-    font-weight: 700;
-    color: var(--text-main);
+    font-size: 20px;
+    color: #1f2937;
+    font-weight: 600;
+    line-height: 1.2;
+    margin: 0;
+}
+
+.header-title p {
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.2;
+    margin: 0;
 }
 
 .menu-toggle {
@@ -1086,6 +1095,7 @@ header.top-header {
     border-radius: 20px;
     padding: 22px;
     box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+    
 }
 
 .quick-stats-grid {
@@ -1102,6 +1112,7 @@ header.top-header {
     padding: 18px;
     overflow: visible;
     z-index: 1;
+    max-height:145px;
 }
 
 .quick-stat-card::before {
