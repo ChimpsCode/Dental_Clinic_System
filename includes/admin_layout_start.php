@@ -202,6 +202,7 @@ function isActivePage($page) {
     <link rel="icon" type="image/png" href="<?php echo htmlspecialchars($dynamicLogo); ?>">
     <link rel="stylesheet" href="../../assets/css/dashboard.css">
     <link rel="stylesheet" href="../../assets/css/admin.css">
+    <link rel="stylesheet" href="../../assets/css/appointments.css">
 </head>
 <body data-user-id="<?php echo (int)($_SESSION['user_id'] ?? 0); ?>">
     <div id="userModal" class="modal-overlay">

@@ -111,6 +111,18 @@ try {
     $cancelledCount = 0;
 }
 
+// Group appointments by status section
+$sectionLabels = ['scheduled' => 'Scheduled', 'inqueue' => 'In Queue', 'completed' => 'Completed', 'cancelled' => 'Cancelled'];
+$sections = ['scheduled' => [], 'inqueue' => [], 'completed' => [], 'cancelled' => []];
+foreach ($allAppointments as $appt) {
+    $status = strtolower($appt['status_label'] ?? $appt['status'] ?? 'scheduled');
+    $section = 'cancelled';
+    if (strpos($status, 'scheduled') !== false || strpos($status, 'arrived') !== false || strpos($status, 'confirmed') !== false || strpos($status, 'rescheduled') !== false) $section = 'scheduled';
+    elseif (strpos($status, 'queue') !== false || strpos($status, 'pending') !== false) $section = 'inqueue';
+    elseif (strpos($status, 'complete') !== false) $section = 'completed';
+    $sections[$section][] = $appt;
+}
+
 require_once __DIR__ . '/../../includes/admin_layout_start.php';
 ?>
             <div class="content-main">
@@ -207,152 +219,69 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 </div>
                 </div>
 
-                <!-- Appointments Table -->
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>First Name</th>
-                                <th>Middle Name</th>
-                                <th>Last Name</th>
-                                <th>Date & Time</th>
-                                <th>Treatment</th>
-                                <th>Dentist</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="appointmentsTableBody">
-                            <?php if (empty($appointments)): ?>
-                                <tr>
-                                    <td colspan="8" style="text-align: center; padding: 60px; color: #6b7280;">
-                                        <p style="font-size: 1.1rem; margin-bottom: 8px;">No appointments found</p>
-                                    </td>
-                                </tr>
+                <?php
+                $sectionIcons = ['scheduled' => '📅', 'inqueue' => '⏳', 'completed' => '✅', 'cancelled' => '❌'];
+                $sectionClasses = ['scheduled' => 'scheduled', 'inqueue' => 'inqueue', 'completed' => 'completed', 'cancelled' => 'cancelled'];
+                $sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'completed' => 'countCompleted', 'cancelled' => 'countCancelled'];
+                ?>
+                <div class="status-grid">
+                    <?php foreach (['scheduled', 'inqueue', 'completed', 'cancelled'] as $sec): ?>
+                    <div class="status-section" data-section="<?php echo $sec; ?>">
+                        <div class="status-section-header <?php echo $sectionClasses[$sec]; ?>">
+                            <span class="status-section-title"><?php echo $sectionIcons[$sec]; ?> <?php echo $sectionLabels[$sec]; ?></span>
+                            <span class="status-section-count" id="<?php echo $sectionIds[$sec]; ?>"><?php echo count($sections[$sec]); ?></span>
+                        </div>
+                        <div class="status-section-body">
+                            <?php if (empty($sections[$sec])): ?>
+                                <div class="mini-card-empty">No appointments</div>
                             <?php else: ?>
-                                <?php foreach ($appointments as $appt): ?>
-                                    <?php
-                                        $firstName = htmlspecialchars($appt['first_name'] ?? '');
-                                        $middleName = htmlspecialchars($appt['middle_name'] ?? '');
-                                        $lastName = htmlspecialchars($appt['last_name'] ?? '');
-                                        $fullName = trim("$firstName $middleName $lastName") ?: 'Unknown';
-                                    ?>
-                                    <tr class="appointment-row" 
-                                        data-name="<?php echo strtolower($fullName); ?>"
-                                        data-date="<?php echo date('Y-m-d', strtotime($appt['appointment_date'])); ?>"
-                                        data-status="<?php echo strtolower($appt['status_label'] ?? $appt['status'] ?? ''); ?>">
-                                        <td><?php echo $firstName ?: '-'; ?></td>
-                                        <td><?php echo $middleName ?: '-'; ?></td>
-                                        <td><?php echo $lastName ?: '-'; ?></td>
-                                        <td>
-                                            <div><?php echo date('M d, Y', strtotime($appt['appointment_date'])); ?></div>
-                                            <div style="font-size: 0.85rem; color: #6b7280;"><?php echo date('h:i A', strtotime($appt['appointment_time'] ?? '')); ?></div>
-                                            <div style="font-size: 0.85rem; color: #6b7280;">Phone: <?php echo htmlspecialchars($appt['phone'] ?? 'N/A'); ?></div>
-                                        </td>
-                                        <td>
-                                            <?php echo htmlspecialchars($appt['service_name'] ?? 'General'); ?>
-                                            <?php if (!empty($appt['treatment_plan_id'])): ?>
-                                                <br><span class="status-badge" style="background: #fef3c7; color: #92400e; font-size: 0.7rem; margin-top: 4px; display: inline-block;">📋 Treatment Plan</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td><?php echo htmlspecialchars($appt['dentist_name'] ?? 'Unassigned'); ?></td>
-                                        <td>
-                                            <?php 
-                                                // Robust status resolution
-                                                $status = $appt['status_label'] ?? $appt['status'] ?? 'Scheduled';
-                                                
-                                                $statusClass = strtolower($status);
-                                                // Map status to badge class
-                                                $badgeClass = 'status-scheduled';
-                                                if (stripos($status, 'arrived') !== false) $badgeClass = 'status-arrived';
-                                                if (stripos($status, 'queue') !== false) $badgeClass = 'status-in-queue';
-                                                if (stripos($status, 'pending') !== false) $badgeClass = 'status-pending';
-                                                if (stripos($status, 'complete') !== false) $badgeClass = 'status-completed';
-                                                if (stripos($status, 'cancel') !== false) $badgeClass = 'status-cancelled';
-                                            ?>
-                                            <span class="status-badge <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($status); ?></span>
-                                        </td>
-                                        <td>
-                                            <div class="appt-kebab-menu">
-                                                <button class="appt-kebab-btn"
-                                                        data-appt-id="<?php echo $appt['id']; ?>"
-                                                        data-status="<?php echo htmlspecialchars($status); ?>"
-                                                        data-checked-in="<?php echo $appt['check_in_time'] ?? ''; ?>">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                                        <circle cx="12" cy="6" r="2"/>
-                                                        <circle cx="12" cy="12" r="2"/>
-                                                        <circle cx="12" cy="18" r="2"/>
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
+                                <?php foreach ($sections[$sec] as $appt): 
+                                    $fn = htmlspecialchars($appt['first_name'] ?? '');
+                                    $mn = htmlspecialchars($appt['middle_name'] ?? '');
+                                    $ln = htmlspecialchars($appt['last_name'] ?? '');
+                                    $name = trim("$fn $mn $ln") ?: 'Unknown';
+                                    $time = !empty($appt['appointment_time']) ? date('h:i A', strtotime($appt['appointment_time'])) : '';
+                                    $date = date('Y-m-d', strtotime($appt['appointment_date']));
+                                    $treatment = htmlspecialchars($appt['service_name'] ?? 'General');
+                                    $dentist = htmlspecialchars($appt['dentist_name'] ?? 'Unassigned');
+                                    $status = $appt['status_label'] ?? $appt['status'] ?? 'Scheduled';
+                                    $badgeClass = 'status-scheduled';
+                                    if (stripos($status, 'arrived') !== false) $badgeClass = 'status-arrived';
+                                    elseif (stripos($status, 'queue') !== false) $badgeClass = 'status-in-queue';
+                                    elseif (stripos($status, 'pending') !== false) $badgeClass = 'status-pending';
+                                    elseif (stripos($status, 'complete') !== false) $badgeClass = 'status-completed';
+                                    elseif (stripos($status, 'cancel') !== false) $badgeClass = 'status-cancelled';
+                                ?>
+                                <div class="appointment-mini-card" 
+                                     data-name="<?php echo strtolower($name); ?>"
+                                     data-date="<?php echo $date; ?>"
+                                     data-status="<?php echo strtolower($status); ?>">
+                                    <div class="mini-card-top">
+                                        <span class="mini-card-name" title="<?php echo $name; ?>"><?php echo $name; ?></span>
+                                        <span class="mini-card-time"><?php echo $time; ?></span>
+                                        <div class="appt-kebab-menu" style="flex-shrink:0;">
+                                            <button class="appt-kebab-btn"
+                                                    data-appt-id="<?php echo $appt['id']; ?>"
+                                                    data-status="<?php echo htmlspecialchars($status); ?>"
+                                                    data-checked-in="<?php echo $appt['check_in_time'] ?? ''; ?>">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                                    <circle cx="12" cy="6" r="2"/>
+                                                    <circle cx="12" cy="12" r="2"/>
+                                                    <circle cx="12" cy="18" r="2"/>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="mini-card-bottom">
+                                        <span class="mini-card-treatment"><?php echo $treatment; ?> &middot; <?php echo $dentist; ?></span>
+                                        <span class="status-badge badge-small <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($status); ?></span>
+                                    </div>
+                                </div>
                                 <?php endforeach; ?>
                             <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Pagination -->
-                <div class="pagination">
-                    <span class="pagination-info">Showing <?php echo $showingStart; ?>-<?php echo $showingEnd; ?> of <?php echo $totalAppointments; ?> appointments</span>
-                    <div class="pagination-buttons">
-                        <?php if ($currentPage > 1): ?>
-                            <a href="?page=<?php echo $currentPage - 1; ?>" class="pagination-btn">Previous</a>
-                        <?php else: ?>
-                            <button class="pagination-btn" disabled>Previous</button>
-                        <?php endif; ?>
-                        
-                        <?php
-                        $maxVisiblePages = 5;
-                        $startPage = max(1, $currentPage - floor($maxVisiblePages / 2));
-                        $endPage = min($totalPages, $startPage + $maxVisiblePages - 1);
-                        
-                        if ($endPage - $startPage + 1 < $maxVisiblePages) {
-                            $startPage = max(1, $endPage - $maxVisiblePages + 1);
-                        }
-                        
-                        if ($startPage > 1) {
-                            ?>
-                            <a href="?page=1" class="pagination-btn">1</a>
-                            <?php
-                            if ($startPage > 2) {
-                                ?>
-                                <span class="pagination-ellipsis">...</span>
-                                <?php
-                            }
-                        }
-                        
-                        for ($i = $startPage; $i <= $endPage; $i++) {
-                            if ($i == $currentPage) {
-                                ?>
-                                <button class="pagination-btn active"><?php echo $i; ?></button>
-                                <?php
-                            } else {
-                                ?>
-                                <a href="?page=<?php echo $i; ?>" class="pagination-btn"><?php echo $i; ?></a>
-                                <?php
-                            }
-                        }
-                        
-                        if ($endPage < $totalPages) {
-                            if ($endPage < $totalPages - 1) {
-                                ?>
-                                <span class="pagination-ellipsis">...</span>
-                                <?php
-                            }
-                            ?>
-                            <a href="?page=<?php echo $totalPages; ?>" class="pagination-btn"><?php echo $totalPages; ?></a>
-                            <?php
-                        }
-                        ?>
-                        
-                        <?php if ($currentPage < $totalPages): ?>
-                            <a href="?page=<?php echo $currentPage + 1; ?>" class="pagination-btn">Next</a>
-                        <?php else: ?>
-                            <button class="pagination-btn" disabled>Next</button>
-                        <?php endif; ?>
+                        </div>
                     </div>
+                    <?php endforeach; ?>
                 </div>
             </div>
 
@@ -921,20 +850,35 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
         const monthEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-        document.querySelectorAll('.appointment-row').forEach(row => {
-            const nameMatch = !search || row.dataset.name.includes(search);
+        const counts = { scheduled: 0, inqueue: 0, completed: 0, cancelled: 0 };
+
+        document.querySelectorAll('.appointment-mini-card').forEach(card => {
+            const nameMatch = !search || card.dataset.name.includes(search);
             
             let dateMatch = true;
             if (activeFilter === 'today') {
-                dateMatch = row.dataset.date === today;
+                dateMatch = card.dataset.date === today;
             } else if (activeFilter === 'week') {
-                dateMatch = row.dataset.date >= today && row.dataset.date <= weekEnd;
+                dateMatch = card.dataset.date >= today && card.dataset.date <= weekEnd;
             } else if (activeFilter === 'month') {
-                dateMatch = row.dataset.date >= today && row.dataset.date <= monthEnd;
+                dateMatch = card.dataset.date >= today && card.dataset.date <= monthEnd;
             }
             
-            row.style.display = (nameMatch && dateMatch) ? '' : 'none';
+            const show = nameMatch && dateMatch;
+            card.style.display = show ? '' : 'none';
+            if (show) {
+                const section = card.closest('.status-section');
+                if (section) {
+                    const key = section.dataset.section;
+                    if (counts[key] !== undefined) counts[key]++;
+                }
+            }
         });
+
+        document.getElementById('countScheduled').textContent = counts.scheduled;
+        document.getElementById('countInqueue').textContent = counts.inqueue;
+        document.getElementById('countCompleted').textContent = counts.completed;
+        document.getElementById('countCancelled').textContent = counts.cancelled;
     }
 
     var selectedAdminSlot = null;
@@ -1596,22 +1540,22 @@ function refreshAppointmentStatuses(appts) {
     for (var i = 0; i < appts.length; i++) {
         statusMap[appts[i].id] = appts[i].status;
     }
-    var rows = document.querySelectorAll('.appointment-row');
-    for (var i = 0; i < rows.length; i++) {
-        var row = rows[i];
-        var kebab = row.querySelector('.appt-kebab-btn');
+    var cards = document.querySelectorAll('.appointment-mini-card');
+    for (var i = 0; i < cards.length; i++) {
+        var card = cards[i];
+        var kebab = card.querySelector('.appt-kebab-btn');
         if (!kebab) continue;
         var apptId = parseInt(kebab.dataset.apptId);
         if (!apptId || !statusMap[apptId]) continue;
         var newStatus = statusMap[apptId];
-        var currentStatus = row.dataset.status;
+        var currentStatus = card.dataset.status;
         if (newStatus.toLowerCase() === currentStatus.toLowerCase()) continue;
-        row.dataset.status = newStatus.toLowerCase();
+        card.dataset.status = newStatus.toLowerCase();
         kebab.dataset.status = newStatus;
-        var badge = row.querySelector('.status-badge');
+        var badge = card.querySelector('.status-badge');
         if (badge) {
             badge.textContent = newStatus;
-            badge.className = 'status-badge ' + getApptBadgeClass(newStatus);
+            badge.className = 'status-badge badge-small ' + getApptBadgeClass(newStatus);
         }
     }
 }

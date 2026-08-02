@@ -60,6 +60,18 @@ try {
 } catch (Exception $e) {
     $appointments = [];
 }
+
+// Group appointments by status section
+$sectionLabels = ['scheduled' => 'Scheduled', 'inqueue' => 'In Queue', 'completed' => 'Completed', 'cancelled' => 'Cancelled'];
+$sections = ['scheduled' => [], 'inqueue' => [], 'completed' => [], 'cancelled' => []];
+foreach ($appointments as $appt) {
+    $status = strtolower($appt['status_label'] ?? $appt['status'] ?? 'scheduled');
+    $section = 'cancelled';
+    if (strpos($status, 'scheduled') !== false || strpos($status, 'arrived') !== false || strpos($status, 'confirmed') !== false || strpos($status, 'rescheduled') !== false) $section = 'scheduled';
+    elseif (strpos($status, 'queue') !== false || strpos($status, 'pending') !== false) $section = 'inqueue';
+    elseif (strpos($status, 'complete') !== false) $section = 'completed';
+    $sections[$section][] = $appt;
+}
 ?>
 
 <!-- Add extra CSS for status badges -->
@@ -213,105 +225,66 @@ try {
     </div>
 </div>
 
-<!-- Appointments Table -->
-<div class="table-container" style="background: white; border-radius: 8px;">
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>First Name</th>
-                <th>Middle Name</th>
-                <th>Last Name</th>
-                <th>Date & Time</th>
-                <th>Treatment</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody id="appointmentsTableBody">
-            <?php if (!empty($appointments)): ?>
-                <?php foreach ($appointments as $apt): ?>
-                    <?php
-                        $firstName = htmlspecialchars($apt['first_name'] ?? '');
-                        $middleName = htmlspecialchars($apt['middle_name'] ?? '');
-                        $lastName = htmlspecialchars($apt['last_name'] ?? '');
-
-                        $appointmentDateInput = $apt['appointment_date'] ?? '';
-                        $appointmentTimeInput = $apt['appointment_time'] ?? '';
-                        $appointmentDateTime = null;
-
-                        if ($appointmentDateInput) {
-                            $candidate = $appointmentDateInput;
-                            if ($appointmentTimeInput) {
-                                $candidate .= ' ' . $appointmentTimeInput;
-                            }
-
-                            try {
-                                $appointmentDateTime = new DateTime($candidate);
-                            } catch (Exception $e) {
-                                $appointmentDateTime = null;
-                            }
-                        }
-
-                        $appointmentTime = $appointmentDateTime ? $appointmentDateTime->format('h:i A') : '';
-                        $appointmentDateStr = $appointmentDateTime ? $appointmentDateTime->format('M d, Y') : '';
-
-                        if (!$appointmentDateStr && $appointmentDateInput) {
-                            $appointmentDateStr = date('M d, Y', strtotime($appointmentDateInput));
-                        }
-                        if (!$appointmentTime && $appointmentTimeInput) {
-                            $appointmentTime = date('h:i A', strtotime($appointmentTimeInput));
-                        }
-                        
-                        // Robust status resolution
-                        $status = $apt['status_label'] ?? $apt['status'] ?? 'Scheduled';
-                        $statusText = $status;
-                    ?>
-                    <tr class="appointment-row" data-id="<?php echo $apt['id']; ?>" data-date="<?php echo $apt['appointment_date']; ?>" data-time="<?php echo $appointmentTime; ?>" data-name="<?php echo strtolower($firstName . ' ' . $lastName); ?>" data-first-name="<?php echo htmlspecialchars($firstName); ?>" data-middle-name="<?php echo htmlspecialchars($middleName); ?>" data-last-name="<?php echo htmlspecialchars($lastName); ?>" data-phone="<?php echo htmlspecialchars($apt['phone'] ?? ''); ?>" data-status="<?php echo $statusText; ?>" data-type="<?php echo htmlspecialchars($apt['service_name'] ?? $apt['treatment'] ?? 'Consultation'); ?>" data-notes="<?php echo htmlspecialchars($apt['notes'] ?? ''); ?>" data-price="<?php echo htmlspecialchars($apt['service_price'] ?? '500'); ?>">
-                        <td><?php echo $firstName ?: '-'; ?></td>
-                        <td><?php echo $middleName ?: '-'; ?></td>
-                        <td><?php echo $lastName ?: '-'; ?></td>
-                        <td>
-                            <div><?php echo $appointmentDateStr; ?></div>
-                            <div style="font-size: 0.85rem; color: #6b7280;"><?php echo $appointmentTime; ?></div>
-                        </td>
-                        <td>
-                            <?php echo htmlspecialchars($apt['service_name'] ?? 'Consultation'); ?>
-                            <?php if (!empty($apt['treatment_plan_id'])): ?>
-                                <br><span class="status-badge" style="background: #fef3c7; color: #92400e; font-size: 0.7rem; margin-top: 4px; display: inline-block;">📋 Treatment Plan</span>
-                            <?php endif; ?>
-                        </td>
-                         <?php 
-                            $statusColor = match($status) {
-                                'Completed' => 'background: #d1fae5; color: #065f46;',
-                                'Cancelled' => 'background: #fee2e2; color: #991b1b;',
-                                'In Queue' => 'background: #fef3c7; color: #92400e;',
-                                'Pending Payment' => 'background: #fed7aa; color: #c2410c;',
-                                'arrived' => 'background: #ccfbf1; color: #0f766e;',
-                                default => 'background: #e0f2fe; color: #0369a1;' // Scheduled
-                            };
-                         ?>
-                         <td><span class="status-badge" style="<?php echo $statusColor; ?>"><?php echo $statusText; ?></span></td>
-                         <td>
-                                <div class="appt-kebab-menu">
-                                    <button class="appt-kebab-btn" data-appt-id="<?php echo $apt['id']; ?>" data-status="<?php echo htmlspecialchars($statusText); ?>" data-checked-in="<?php echo $apt['check_in_time'] ?? ''; ?>">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                            <circle cx="12" cy="6" r="2"/>
-                                            <circle cx="12" cy="12" r="2"/>
-                                            <circle cx="12" cy="18" r="2"/>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </td>
-                    </tr>
-                <?php endforeach; ?>
+<?php
+$sectionIcons = ['scheduled' => '📅', 'inqueue' => '⏳', 'completed' => '✅', 'cancelled' => '❌'];
+$sectionClasses = ['scheduled' => 'scheduled', 'inqueue' => 'inqueue', 'completed' => 'completed', 'cancelled' => 'cancelled'];
+$sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'completed' => 'countCompleted', 'cancelled' => 'countCancelled'];
+?>
+<div class="status-grid">
+    <?php foreach (['scheduled', 'inqueue', 'completed', 'cancelled'] as $sec): ?>
+    <div class="status-section" data-section="<?php echo $sec; ?>">
+        <div class="status-section-header <?php echo $sectionClasses[$sec]; ?>">
+            <span class="status-section-title"><?php echo $sectionIcons[$sec]; ?> <?php echo $sectionLabels[$sec]; ?></span>
+            <span class="status-section-count" id="<?php echo $sectionIds[$sec]; ?>"><?php echo count($sections[$sec]); ?></span>
+        </div>
+        <div class="status-section-body">
+            <?php if (empty($sections[$sec])): ?>
+                <div class="mini-card-empty">No appointments</div>
             <?php else: ?>
-                <tr>
-                    <td colspan="7" style="text-align: center; padding: 2rem; color: #6b7280;">No appointments found</td>
-                </tr>
+                <?php foreach ($sections[$sec] as $apt): 
+                    $fn = htmlspecialchars($apt['first_name'] ?? '');
+                    $mn = htmlspecialchars($apt['middle_name'] ?? '');
+                    $ln = htmlspecialchars($apt['last_name'] ?? '');
+                    $name = trim("$fn $mn $ln") ?: 'Unknown';
+                    $time = !empty($apt['appointment_time']) ? date('h:i A', strtotime($apt['appointment_time'])) : '';
+                    $date = date('Y-m-d', strtotime($apt['appointment_date']));
+                    $treatment = htmlspecialchars($apt['service_name'] ?? 'Consultation');
+                    $status = $apt['status_label'] ?? $apt['status'] ?? 'Scheduled';
+                    $badgeClass = 'status-scheduled';
+                    if (stripos($status, 'arrived') !== false) $badgeClass = 'status-arrived';
+                    elseif (stripos($status, 'queue') !== false) $badgeClass = 'status-in-queue';
+                    elseif (stripos($status, 'pending') !== false) $badgeClass = 'status-pending';
+                    elseif (stripos($status, 'complete') !== false) $badgeClass = 'status-completed';
+                    elseif (stripos($status, 'cancel') !== false) $badgeClass = 'status-cancelled';
+                ?>
+                <div class="appointment-mini-card" 
+                     data-id="<?php echo $apt['id']; ?>"
+                     data-name="<?php echo strtolower($name); ?>"
+                     data-date="<?php echo $date; ?>"
+                     data-status="<?php echo strtolower($status); ?>">
+                    <div class="mini-card-top">
+                        <span class="mini-card-name" title="<?php echo $name; ?>"><?php echo $name; ?></span>
+                        <span class="mini-card-time"><?php echo $time; ?></span>
+                        <div class="appt-kebab-menu" style="flex-shrink:0;">
+                            <button class="appt-kebab-btn" data-appt-id="<?php echo $apt['id']; ?>" data-status="<?php echo htmlspecialchars($status); ?>" data-checked-in="<?php echo $apt['check_in_time'] ?? ''; ?>">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                    <circle cx="12" cy="6" r="2"/>
+                                    <circle cx="12" cy="12" r="2"/>
+                                    <circle cx="12" cy="18" r="2"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mini-card-bottom">
+                        <span class="mini-card-treatment"><?php echo $treatment; ?></span>
+                        <span class="status-badge badge-small <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($status); ?></span>
+                    </div>
+                </div>
+                <?php endforeach; ?>
             <?php endif; ?>
-        </tbody>
-    </table>
-</div>
+        </div>
+    </div>
+    <?php endforeach; ?>
 </div>
 </div>
 
@@ -708,19 +681,40 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function filterAppointments() {
         const search = document.getElementById('appointmentSearch').value.toLowerCase();
-        const rows = document.querySelectorAll('.appointment-row');
-        
-        rows.forEach(row => {
-            const name = row.dataset.name || '';
-            const date = row.dataset.date || '';
-            const status = row.dataset.status || '';
+        const activeFilter = document.querySelector('.filter-tabs span.active').dataset.filter;
+        const today = new Date().toISOString().split('T')[0];
+        const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const monthEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+        const counts = { scheduled: 0, inqueue: 0, completed: 0, cancelled: 0 };
+
+        document.querySelectorAll('.appointment-mini-card').forEach(card => {
+            const nameMatch = !search || card.dataset.name.includes(search);
             
-            const nameMatch = name.includes(search);
-            const today = new Date().toISOString().split('T')[0];
-            const dateMatch = date === today;
+            let dateMatch = true;
+            if (activeFilter === 'today') {
+                dateMatch = card.dataset.date === today;
+            } else if (activeFilter === 'week') {
+                dateMatch = card.dataset.date >= today && card.dataset.date <= weekEnd;
+            } else if (activeFilter === 'month') {
+                dateMatch = card.dataset.date >= today && card.dataset.date <= monthEnd;
+            }
             
-            row.style.display = (nameMatch || !search) ? '' : 'none';
+            const show = nameMatch && dateMatch;
+            card.style.display = show ? '' : 'none';
+            if (show) {
+                const section = card.closest('.status-section');
+                if (section) {
+                    const key = section.dataset.section;
+                    if (counts[key] !== undefined) counts[key]++;
+                }
+            }
         });
+
+        document.getElementById('countScheduled').textContent = counts.scheduled;
+        document.getElementById('countInqueue').textContent = counts.inqueue;
+        document.getElementById('countCompleted').textContent = counts.completed;
+        document.getElementById('countCancelled').textContent = counts.cancelled;
     }
 
     function getStatusBadgeClass(status) {
@@ -871,22 +865,28 @@ function viewAppointmentDetails(id) {
         closeApptKebabDropdown();
     }
     
-    // Get appointment data from table row data attributes
-    const row = document.querySelector(`.appointment-row[data-id="${id}"]`);
-    if (!row) {
+    // Get appointment data from mini-card data attributes
+    const card = document.querySelector(`.appointment-mini-card[data-id="${id}"]`);
+    if (!card) {
         alert('Appointment not found');
         return;
     }
     
-    const firstName = row.getAttribute('data-first-name') || row.cells[0].textContent.trim();
-    const middleName = row.getAttribute('data-middle-name') || row.cells[1].textContent.trim();
-    const lastName = row.getAttribute('data-last-name') || row.cells[2].textContent.trim();
-    const phone = row.getAttribute('data-phone') || 'N/A';
-    const date = row.getAttribute('data-date') || '';
-    const time = row.getAttribute('data-time') || '';
-    const treatment = row.getAttribute('data-type') || 'Consultation';
-    const status = row.getAttribute('data-status') || 'Scheduled';
-    const notes = row.getAttribute('data-notes') || '';
+    const nameEl = card.querySelector('.mini-card-name');
+    const nameText = nameEl ? nameEl.textContent.trim() : '';
+    const nameParts = nameText.split(/\s+/);
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+    const middleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : '';
+    const phone = card.getAttribute('data-phone') || 'N/A';
+    const date = card.dataset.date || '';
+    const timeEl = card.querySelector('.mini-card-time');
+    const time = timeEl ? timeEl.textContent.trim() : '';
+    const treatmentEl = card.querySelector('.mini-card-treatment');
+    const treatment = treatmentEl ? treatmentEl.textContent.trim() : 'Consultation';
+    const statusRaw = card.dataset.status || 'scheduled';
+    const status = statusRaw.charAt(0).toUpperCase() + statusRaw.slice(1);
+    const notes = card.getAttribute('data-notes') || '';
     
     const appointmentDate = new Date(date + ' ' + time);
     const dateStr = appointmentDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -1118,33 +1118,34 @@ function refreshAppointmentStatuses(appts) {
     for (var i = 0; i < appts.length; i++) {
         statusMap[appts[i].id] = appts[i].status;
     }
-    var rows = document.querySelectorAll('.appointment-row');
-    for (var i = 0; i < rows.length; i++) {
-        var row = rows[i];
-        var apptId = parseInt(row.dataset.id);
+    var cards = document.querySelectorAll('.appointment-mini-card');
+    for (var i = 0; i < cards.length; i++) {
+        var card = cards[i];
+        var kebab = card.querySelector('.appt-kebab-btn');
+        if (!kebab) continue;
+        var apptId = parseInt(kebab.dataset.apptId);
         if (!apptId || !statusMap[apptId]) continue;
         var newStatus = statusMap[apptId];
-        var currentStatus = row.dataset.status;
+        var currentStatus = card.dataset.status;
         if (newStatus.toLowerCase() === currentStatus.toLowerCase()) continue;
-        row.dataset.status = newStatus.toLowerCase();
-        var kebab = row.querySelector('.appt-kebab-btn');
-        if (kebab) kebab.dataset.status = newStatus;
-        var badge = row.querySelector('.status-badge');
+        card.dataset.status = newStatus.toLowerCase();
+        kebab.dataset.status = newStatus;
+        var badge = card.querySelector('.status-badge');
         if (badge) {
             badge.textContent = newStatus;
-            badge.style.cssText = getApptBadgeStyle(newStatus);
+            badge.className = 'status-badge badge-small ' + getDentistApptBadgeClass(newStatus);
         }
     }
 }
 
-function getApptBadgeStyle(status) {
+function getDentistApptBadgeClass(status) {
     var s = status.toLowerCase();
-    if (s === 'completed') return 'background: #d1fae5; color: #065f46;';
-    if (s === 'cancelled') return 'background: #fee2e2; color: #991b1b;';
-    if (s === 'in queue') return 'background: #fef3c7; color: #92400e;';
-    if (s.indexOf('pending') !== -1) return 'background: #fed7aa; color: #c2410c;';
-    if (s.indexOf('arrived') !== -1) return 'background: #ccfbf1; color: #0f766e;';
-    return 'background: #e0f2fe; color: #0369a1;';
+    if (s === 'completed') return 'status-completed';
+    if (s === 'cancelled') return 'status-cancelled';
+    if (s === 'in queue') return 'status-in-queue';
+    if (s.indexOf('pending') !== -1) return 'status-pending';
+    if (s.indexOf('arrived') !== -1) return 'status-arrived';
+    return 'status-scheduled';
 }
 
 document.addEventListener('DOMContentLoaded', startAppointmentPolling);
@@ -1300,13 +1301,16 @@ function closeApptKebabDropdown() {
 
     function forwardToQueue(id) {
         closeApptKebabDropdown();
-        const row = document.querySelector(`.appointment-row[data-id="${id}"]`);
-        if (!row) return;
+        const card = document.querySelector(`.appointment-mini-card[data-id="${id}"]`);
+        if (!card) return;
 
-        const firstName = row.getAttribute('data-first-name') || '';
-        const middleName = row.getAttribute('data-middle-name') || '';
-        const lastName = row.getAttribute('data-last-name') || '';
-        const phone = row.getAttribute('data-phone') || '';
+        const nameEl = card.querySelector('.mini-card-name');
+        const nameText = nameEl ? nameEl.textContent.trim() : '';
+        const nameParts = nameText.split(/\s+/);
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+        const middleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : '';
+        const phone = card.getAttribute('data-phone') || '';
 
         if (confirm('Forward this appointment to Queue?')) {
             let url = '../staff/staff_new_admission.php?appointment_id=' + id;

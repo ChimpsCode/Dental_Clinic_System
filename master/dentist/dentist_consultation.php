@@ -1217,6 +1217,187 @@ try {
 .is-past-view .tooth-svg-wrap:hover { transform: none; filter: none; }
 .is-past-view .add-presc-btn { display: none; }
 .is-past-view .consult-complete-btn { display: none !important; }
+
+/* Complete Consultation Modal */
+.cc-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 9999999;
+    align-items: center;
+    justify-content: center;
+}
+.cc-overlay.active {
+    display: flex;
+}
+.cc-modal {
+    position: relative;
+    z-index: 100000;
+    background:
+        radial-gradient(circle at top right, rgba(14, 165, 233, 0.18), transparent 32%),
+        radial-gradient(circle at bottom left, rgba(34, 197, 94, 0.14), transparent 28%),
+        linear-gradient(180deg, #ffffff 0%, #f7fcff 100%);
+    border-radius: 22px;
+    padding: 0;
+    width: 90%;
+    max-width: 560px;
+    overflow: hidden;
+    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.24);
+    border: 1px solid rgba(14, 165, 233, 0.12);
+}
+.cc-bg-orb {
+    position: absolute;
+    border-radius: 999px;
+    pointer-events: none;
+    filter: blur(8px);
+    opacity: 0.55;
+}
+.cc-bg-orb-a {
+    width: 140px; height: 140px;
+    right: -30px; top: 88px;
+    background: radial-gradient(circle, rgba(14, 165, 233, 0.2) 0%, rgba(14, 165, 233, 0) 72%);
+}
+.cc-bg-orb-b {
+    width: 160px; height: 160px;
+    left: -40px; bottom: -30px;
+    background: radial-gradient(circle, rgba(34, 197, 94, 0.16) 0%, rgba(34, 197, 94, 0) 74%);
+}
+.cc-banner {
+    display: flex; align-items: center; gap: 16px;
+    padding: 24px 26px 18px;
+    background: linear-gradient(135deg, rgba(36, 68, 213), rgba(255, 255, 255, 0) 42%),
+                linear-gradient(135deg, #2444d5 0%, #412fa3be 48%, #0891b2 90%);
+    color: white;
+    position: relative;
+}
+.cc-icon-wrap {
+    width: 54px; height: 54px; border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    backdrop-filter: blur(6px);
+    flex-shrink: 0;
+}
+.cc-icon {
+    display: flex; align-items: center; justify-content: center;
+}
+.cc-icon svg {
+    width: 26px; height: 26px; fill: currentColor;
+}
+.cc-kicker {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    opacity: 0.9;
+    font-weight: 700;
+}
+.cc-close {
+    margin-left: auto;
+    background: rgba(255, 255, 255, 0.12);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    width: 40px; height: 40px;
+    border-radius: 12px;
+    font-size: 1.5rem;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    line-height: 1;
+}
+.cc-body {
+    padding: 24px 26px 12px;
+    position: relative;
+}
+.cc-text {
+    color: #1f2937;
+    font-size: 1.06rem;
+    line-height: 1.6;
+    margin: 0 0 16px;
+    font-weight: 500;
+}
+.cc-highlight {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 16px; border-radius: 16px;
+    background: linear-gradient(135deg, #ecfeff 0%, #f0fdf4 100%);
+    border: 1px solid #d9f99d;
+    margin-bottom: 14px;
+}
+.cc-highlight-icon {
+    width: 42px; height: 42px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    background: white;
+    box-shadow: 0 10px 24px rgba(8, 145, 178, 0.12);
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+.cc-highlight-label {
+    color: #0f766e;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    margin-bottom: 3px;
+}
+.cc-highlight-value {
+    color: #1f2937;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+.cc-note {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; border-radius: 14px;
+    background: #f0fdf4;
+    color: #166534;
+    font-size: 0.92rem;
+    border: 1px solid #dcfce7;
+}
+.cc-note-dot {
+    width: 10px; height: 10px; border-radius: 999px;
+    background: #22c55e;
+    box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.14);
+    flex-shrink: 0;
+}
+.cc-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 18px 26px 26px;
+}
+.cc-btn-cancel, .cc-btn-confirm {
+    border: none;
+    border-radius: 14px;
+    padding: 13px 20px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.97rem;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+.cc-btn-cancel {
+    background: #eef6fb;
+    color: #315266;
+    border: 1px solid #d8e9f4;
+}
+.cc-btn-confirm {
+    background: linear-gradient(135deg, #2444d5 0%, #412fa3be 48%, #0891b2 90%);
+    color: white;
+    box-shadow: 0 14px 28px rgba(8, 145, 178, 0.24);
+}
+.cc-btn-cancel:hover, .cc-btn-confirm:hover, .cc-close:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+}
+@media (max-width: 640px) {
+    .cc-banner, .cc-body, .cc-actions {
+        padding-left: 18px;
+        padding-right: 18px;
+    }
+    .cc-actions {
+        flex-direction: column-reverse;
+    }
+    .cc-btn-cancel, .cc-btn-confirm {
+        width: 100%;
+    }
+}
 </style>
 
 <div class="consult-container <?php echo $isPastView ? 'is-past-view' : ''; ?>">
@@ -1639,6 +1820,46 @@ try {
             <button class="modal-close-btn" onclick="backToToothModalStep1()" style="margin-top:8px;">Back</button>
         </div>
 
+    </div>
+</div>
+
+<!-- Complete Consultation Modal -->
+<div class="cc-overlay" id="completeConsultModal" onclick="if(event.target===this)closeCompleteConsultModal()">
+    <div class="cc-modal" onclick="event.stopPropagation()">
+        <div class="cc-bg-orb cc-bg-orb-a"></div>
+        <div class="cc-bg-orb cc-bg-orb-b"></div>
+        <div class="cc-banner">
+            <div class="cc-icon-wrap">
+                <span class="cc-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M9.2 16.2 5.5 12.5l-1.4 1.4 5.1 5.1L20 8.2l-1.4-1.4z"></path>
+                    </svg>
+                </span>
+            </div>
+            <div>
+                <div class="cc-kicker">Consultation</div>
+                <h2 style="font-size:1.55rem;font-weight:700;margin:6px 0 0;">Complete Consultation</h2>
+            </div>
+            <button onclick="closeCompleteConsultModal()" class="cc-close">&times;</button>
+        </div>
+        <div class="cc-body">
+            <p class="cc-text">Mark this consultation as complete and move this patient to billing?</p>
+            <div class="cc-highlight">
+                <div class="cc-highlight-icon">&#9878;</div>
+                <div>
+                    <div class="cc-highlight-label">Patient Care Flow</div>
+                    <div class="cc-highlight-value">Consultation finishes here, billing continues next.</div>
+                </div>
+            </div>
+            <div class="cc-note">
+                <span class="cc-note-dot"></span>
+                The dashboard and billing list will refresh after confirmation.
+            </div>
+        </div>
+        <div class="cc-actions">
+            <button type="button" onclick="closeCompleteConsultModal()" class="cc-btn-cancel">Cancel</button>
+            <button type="button" onclick="confirmCompleteConsult()" class="cc-btn-confirm">Yes, Complete</button>
+        </div>
     </div>
 </div>
 
@@ -2065,7 +2286,19 @@ function populateHistory() {
         { key: 'hiv_aids', label: 'HIV/AIDS' },
         { key: 'hepatitis', label: 'Hepatitis' },
         { key: 'tuberculosis', label: 'Tuberculosis' },
-        { key: 'asthma', label: 'Asthma' }
+        { key: 'asthma', label: 'Asthma' },
+        { key: 'epilepsy', label: 'Epilepsy' },
+        { key: 'std', label: 'STD' },
+        { key: 'stomach_ulcer', label: 'Stomach Ulcer' },
+        { key: 'fainting_seizure', label: 'Fainting / Seizure' },
+        { key: 'rapid_weight_loss', label: 'Rapid Weight Loss' },
+        { key: 'rheumatic_fever', label: 'Rheumatic Fever' },
+        { key: 'hay_fever', label: 'Hay Fever / Allergies' },
+        { key: 'respiratory_problems', label: 'Respiratory Problems' },
+        { key: 'swollen_ankles', label: 'Swollen Ankles' },
+        { key: 'kidney_disease', label: 'Kidney Disease' },
+        { key: 'chest_pain', label: 'Chest Pain' },
+        { key: 'stroke', label: 'Stroke' }
     ];
 
     var textFields = [
@@ -2080,7 +2313,7 @@ function populateHistory() {
     checkboxFields.forEach(function(field) {
         var checked = (mh[field.key] == 1 || mh[field.key] === '1' || mh[field.key] === 'Yes' || mh[field.key] === 'yes');
         var cls = checked ? 'mh-check-item checked' : 'mh-check-item';
-        html += '<label class="' + cls + '">';D
+        html += '<label class="' + cls + '">';
         html += '<input type="checkbox" data-mh-field="' + field.key + '" ' + (checked ? 'checked' : '') + ' onchange="onMhCheckboxChange(this)">';
         html += '<span class="mh-label">' + field.label + '</span>';
         html += '</label>';
@@ -2300,8 +2533,21 @@ function saveConsent() {
 // ===================== COMPLETE CONSULTATION =====================
 function completeConsultation() {
     if (!currentConsultation) return;
-    if (!confirm('Mark this consultation as complete? This will move the patient to billing.')) return;
+    showCompleteConsultModal();
+}
 
+function showCompleteConsultModal() {
+    var modal = document.getElementById('completeConsultModal');
+    document.body.appendChild(modal);
+    modal.classList.add('active');
+}
+
+function closeCompleteConsultModal() {
+    document.getElementById('completeConsultModal').classList.remove('active');
+}
+
+function confirmCompleteConsult() {
+    closeCompleteConsultModal();
     fetch('consultation_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

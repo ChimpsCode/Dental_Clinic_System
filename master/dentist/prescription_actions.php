@@ -139,7 +139,7 @@ try {
                 SELECT pr.*, 
                        CONCAT(p.first_name, ' ', p.last_name) as patient_name,
                        p.age,
-                       u.username as doctor_name
+                       CONCAT(u.first_name, ' ', u.last_name) as doctor_name
                 FROM prescriptions pr
                 LEFT JOIN patients p ON pr.patient_id = p.id
                 LEFT JOIN users u ON pr.doctor_id = u.id
@@ -257,7 +257,7 @@ try {
                 SELECT pr.*, 
                        CONCAT(p.first_name, ' ', p.last_name) as patient_name,
                        TIMESTAMPDIFF(YEAR, p.date_of_birth, CURDATE()) as age, p.phone,
-                       u.username as doctor_name
+                       CONCAT(u.first_name, ' ', u.last_name) as doctor_name
                 FROM prescriptions pr
                 LEFT JOIN patients p ON pr.patient_id = p.id
                 LEFT JOIN users u ON pr.doctor_id = u.id

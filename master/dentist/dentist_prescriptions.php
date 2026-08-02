@@ -51,7 +51,7 @@ try {
         SELECT pr.*, 
                CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
                TIMESTAMPDIFF(YEAR, p.date_of_birth, CURDATE()) AS age,
-               u.username AS doctor_name
+               CONCAT(u.first_name, ' ', u.last_name) AS doctor_name
         FROM prescriptions pr
         LEFT JOIN patients p ON pr.patient_id = p.id
         LEFT JOIN users u ON pr.doctor_id = u.id
@@ -68,6 +68,19 @@ try {
     $prescriptions = [];
     $todayCount = 0;
 }
+
+// Fetch clinic settings for Rx print
+$clinicName = 'RF Dental Clinic';
+$clinicAddress = '';
+$clinicPhone = '';
+try {
+    $settingsResult = $pdo->query("SELECT setting_key, setting_value FROM settings");
+    while ($row = $settingsResult->fetch(PDO::FETCH_ASSOC)) {
+        if ($row['setting_key'] === 'clinic_name') $clinicName = $row['setting_value'];
+        if ($row['setting_key'] === 'clinic_address') $clinicAddress = $row['setting_value'];
+        if ($row['setting_key'] === 'clinic_phone') $clinicPhone = $row['setting_value'];
+    }
+} catch (Exception $e) {}
 ?>
 
 <style>
@@ -385,6 +398,123 @@ try {
     font-size: 0.75rem;
     color: #64748b;
 }
+
+/* Rx Paper styles */
+.rx-paper {
+    max-width: 680px;
+    margin: 0 auto;
+    background: #fff;
+    border: 2px solid #1e293b;
+    padding: 36px 32px 28px;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    position: relative;
+}
+.rx-paper .rx-header {
+    text-align: center;
+    border-bottom: 2px solid #1e293b;
+    padding-bottom: 14px;
+    margin-bottom: 22px;
+}
+.rx-paper .rx-symbol {
+    font-size: 52px;
+    font-weight: 700;
+    color: #1e293b;
+    text-align: center;
+    letter-spacing: -4px;
+    margin-bottom: 6px;
+    line-height: 1;
+}
+.rx-paper .rx-clinic-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f172a;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.rx-paper .rx-clinic-details {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 4px;
+}
+.rx-paper .rx-divider {
+    border: none;
+    border-top: 1px dashed #94a3b8;
+    margin: 16px 0;
+}
+.rx-paper .rx-info-row {
+    display: flex;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+.rx-paper .rx-info-label {
+    width: 100px;
+    font-weight: 600;
+    color: #475569;
+    flex-shrink: 0;
+}
+.rx-paper .rx-info-value {
+    flex: 1;
+    color: #0f172a;
+}
+.rx-paper .rx-medications {
+    margin: 14px 0;
+}
+.rx-paper .rx-med-item {
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    padding: 4px 0 4px 24px;
+    position: relative;
+    line-height: 1.5;
+}
+.rx-paper .rx-med-item::before {
+    content: '\211E';
+    position: absolute;
+    left: 0;
+    font-size: 16px;
+    font-weight: 700;
+}
+.rx-paper .rx-instructions-box {
+    margin: 12px 0;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border-left: 3px solid #94a3b8;
+    font-size: 13px;
+    color: #475569;
+}
+.rx-paper .rx-footer {
+    margin-top: 28px;
+    border-top: 2px solid #e2e8f0;
+    padding-top: 18px;
+}
+.rx-paper .rx-signature-row {
+    margin-top: 20px;
+    display: flex;
+    align-items: center;
+}
+.rx-paper .rx-signature-line {
+    display: inline-block;
+    width: 260px;
+    border-bottom: 1px solid #0f172a;
+    margin-left: 12px;
+}
+.rx-paper .rx-bottom-bar {
+    text-align: center;
+    font-size: 10px;
+    color: #94a3b8;
+    margin-top: 22px;
+    padding-top: 10px;
+    border-top: 1px solid #e2e8f0;
+}
+.modal-rx {
+    max-width: 800px !important;
+}
+@media print {
+    .rx-paper { border: none; padding: 0; }
+    .rx-paper .rx-header { border-bottom-color: #000; }
+    .rx-paper .rx-divider { border-top-color: #000; }
+    .rx-paper .rx-footer { border-top-color: #000; }
+    .rx-paper .rx-bottom-bar { border-top-color: #000; }
+}
 </style>
 
 
@@ -603,6 +733,64 @@ try {
     
 </div>
 
+<!-- Rx View Modal -->
+<div id="rxViewModal" class="modal-overlay" style="display:none;z-index:999999!important;" onclick="if(event.target===this)closeRxModal()">
+    <div class="modal modal-rx" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h2>Prescription</h2>
+            <button class="modal-close" onclick="closeRxModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="rx-paper" id="rxPaper">
+                <div class="rx-header">
+                    <div class="rx-symbol">&#8478;</div>
+                    <div class="rx-clinic-name" id="rxClinicName"><?php echo htmlspecialchars($clinicName); ?></div>
+                    <div class="rx-clinic-details" id="rxClinicDetails"><?php echo htmlspecialchars(trim($clinicAddress . ' · ' . $clinicPhone, ' ·')); ?></div>
+                </div>
+
+                <div class="rx-info-row">
+                    <span class="rx-info-label">Patient:</span>
+                    <span class="rx-info-value" id="rxPatient"></span>
+                </div>
+                <div class="rx-info-row">
+                    <span class="rx-info-label">Date:</span>
+                    <span class="rx-info-value" id="rxDate"></span>
+                </div>
+                <div class="rx-info-row">
+                    <span class="rx-info-label">Diagnosis:</span>
+                    <span class="rx-info-value" id="rxDiagnosis"></span>
+                </div>
+
+                <hr class="rx-divider">
+
+                <div class="rx-medications" id="rxMedicationsContainer"></div>
+
+                <div class="rx-instructions-box" id="rxInstructionsBox">
+                    <strong>Instructions:</strong> <span id="rxInstructions"></span>
+                </div>
+
+                <div class="rx-footer">
+                    <div class="rx-info-row">
+                        <span class="rx-info-label">Prescriber:</span>
+                        <span class="rx-info-value" id="rxDoctor"></span>
+                    </div>
+                    <div class="rx-signature-row">
+                        <span class="rx-info-label">Signature:</span>
+                        <span class="rx-signature-line"></span>
+                    </div>
+                </div>
+
+                <div class="rx-bottom-bar">
+                    <span id="rxBottomText"><?php echo htmlspecialchars($clinicName); ?> &middot; <?php echo htmlspecialchars(trim($clinicAddress . ' · ' . $clinicPhone, ' ·')); ?></span>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:12px;border-top:1px solid #e2e8f0;padding-top:20px;">
+            <button type="button" class="btn-cancel" onclick="closeRxModal()" style="padding:10px 16px;border:1px solid #e2e8f0;background:white;border-radius:6px;cursor:pointer;color:#334155;">Close</button>
+            <button type="button" class="btn-print" onclick="printRxPrescription(currentRxPrescriptionId)" style="background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe;padding:10px 16px;border-radius:6px;cursor:pointer;font-weight:600;">Print Prescription</button>
+        </div>
+    </div>
+</div>
 
 <script>
     // Fix: Add the missing function to clear the safety info box
@@ -629,6 +817,7 @@ function closePrescriptionModal() {
     
 // I kept your existing JS exactly as is, it will work perfectly with the new IDs and classes!
 let currentPrescriptionId = null;
+let currentRxPrescriptionId = null;
 let searchTimeout = null;
 
 function searchPatients(query) {
@@ -777,12 +966,94 @@ function getPrescriptionDetails(prescriptionId, callback) {
 }
 
 function viewPrescription(prescriptionId) {
-    currentPrescriptionId = prescriptionId;
+    currentRxPrescriptionId = prescriptionId;
     getPrescriptionDetails(prescriptionId, prescription => {
-        document.getElementById('modalTitle').textContent = 'View Prescription';
-        fillPrescriptionForm(prescription);
-        setPrescriptionFormMode('view');
-        document.getElementById('prescriptionModal').style.display = 'flex';
+        document.getElementById('rxPatient').textContent = prescription.patient_name + (prescription.age ? ' (' + prescription.age + ')' : '');
+        document.getElementById('rxDate').textContent = prescription.issue_date || '';
+        document.getElementById('rxDoctor').textContent = prescription.doctor_name || '';
+        document.getElementById('rxDiagnosis').textContent = prescription.diagnosis || '';
+
+        const meds = (prescription.medications || '').split('\n').filter(m => m.trim());
+        const container = document.getElementById('rxMedicationsContainer');
+        if (meds.length === 0) {
+            container.innerHTML = '<div class="rx-med-item" style="padding-left:0;">No medications prescribed</div>';
+        } else {
+            container.innerHTML = meds.map(m => '<div class="rx-med-item">' + escapeHtml(m.trim()) + '</div>').join('');
+        }
+
+        document.getElementById('rxInstructions').textContent = prescription.instructions || 'None';
+
+        document.getElementById('rxViewModal').style.display = 'flex';
+    });
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function closeRxModal() {
+    document.getElementById('rxViewModal').style.display = 'none';
+}
+
+function printRxPrescription(prescriptionId) {
+    const idToPrint = prescriptionId || currentRxPrescriptionId;
+    if (!idToPrint) { alert('Please select a prescription to print.'); return; }
+
+    getPrescriptionDetails(idToPrint, prescription => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) { alert('Please allow popups to print the prescription.'); return; }
+
+        const meds = (prescription.medications || '').split('\n').filter(m => m.trim());
+        const medItems = meds.length > 0
+            ? meds.map(m => '<div style="font-family:\'Courier New\',monospace;font-size:14px;padding:4px 0 4px 24px;position:relative;line-height:1.5;">&#8478; ' + escapeHtml(m.trim()) + '</div>').join('')
+            : '<div style="padding-left:0;">No medications prescribed</div>';
+
+        const clinicName = document.getElementById('rxClinicName').textContent;
+        const clinicDetails = document.getElementById('rxClinicDetails').textContent;
+
+        const html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Prescription #' + prescription.id + '</title>' +
+            '<style>' +
+            '@page { margin: 0.5in; }' +
+            'body { font-family: Georgia, "Times New Roman", serif; margin: 0; padding: 0; color: #111827; }' +
+            '.rx-paper { max-width: 680px; margin: 0 auto; border: 2px solid #1e293b; padding: 36px 32px 28px; position: relative; }' +
+            '.rx-header { text-align: center; border-bottom: 2px solid #1e293b; padding-bottom: 14px; margin-bottom: 22px; }' +
+            '.rx-symbol { font-size: 52px; font-weight: 700; color: #1e293b; text-align: center; letter-spacing: -4px; margin-bottom: 6px; line-height: 1; }' +
+            '.rx-clinic-name { font-size: 18px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.06em; }' +
+            '.rx-clinic-details { font-size: 11px; color: #64748b; margin-top: 4px; }' +
+            '.rx-divider { border: none; border-top: 1px dashed #94a3b8; margin: 16px 0; }' +
+            '.rx-info-row { display: flex; margin-bottom: 10px; font-size: 14px; }' +
+            '.rx-info-label { width: 100px; font-weight: 600; color: #475569; flex-shrink: 0; }' +
+            '.rx-info-value { flex: 1; color: #0f172a; }' +
+            '.rx-instructions-box { margin: 12px 0; padding: 12px 16px; background: #f8fafc; border-left: 3px solid #94a3b8; font-size: 13px; color: #475569; }' +
+            '.rx-footer { margin-top: 28px; border-top: 2px solid #e2e8f0; padding-top: 18px; }' +
+            '.rx-signature-row { margin-top: 20px; display: flex; align-items: center; }' +
+            '.rx-signature-line { display: inline-block; width: 260px; border-bottom: 1px solid #0f172a; margin-left: 12px; }' +
+            '.rx-bottom-bar { text-align: center; font-size: 10px; color: #94a3b8; margin-top: 22px; padding-top: 10px; border-top: 1px solid #e2e8f0; }' +
+            '@media print { .rx-paper { border: none; padding: 0; } .rx-paper .rx-header { border-bottom-color: #000; } .rx-paper .rx-divider { border-top-color: #000; } .rx-paper .rx-footer { border-top-color: #000; } .rx-paper .rx-bottom-bar { border-top-color: #000; } }' +
+            '</style></head><body>' +
+            '<div class="rx-paper">' +
+            '<div class="rx-header"><div class="rx-symbol">&#8478;</div><div class="rx-clinic-name">' + escapeHtml(clinicName) + '</div><div class="rx-clinic-details">' + escapeHtml(clinicDetails) + '</div></div>' +
+            '<div class="rx-info-row"><span class="rx-info-label">Patient:</span><span class="rx-info-value">' + escapeHtml(prescription.patient_name) + (prescription.age ? ' (' + prescription.age + ')' : '') + '</span></div>' +
+            '<div class="rx-info-row"><span class="rx-info-label">Date:</span><span class="rx-info-value">' + (prescription.issue_date || '') + '</span></div>' +
+            '<div class="rx-info-row"><span class="rx-info-label">Diagnosis:</span><span class="rx-info-value">' + escapeHtml(prescription.diagnosis || '') + '</span></div>' +
+            '<hr class="rx-divider">' +
+            '<div>' + medItems + '</div>' +
+            '<div class="rx-instructions-box"><strong>Instructions:</strong> ' + escapeHtml(prescription.instructions || 'None') + '</div>' +
+            '<div class="rx-footer">' +
+            '<div class="rx-info-row"><span class="rx-info-label">Prescriber:</span><span class="rx-info-value">' + escapeHtml(prescription.doctor_name || '') + '</span></div>' +
+            '<div class="rx-signature-row"><span class="rx-info-label">Signature:</span><span class="rx-signature-line"></span></div>' +
+            '</div>' +
+            '<div class="rx-bottom-bar">' + escapeHtml(clinicName) + ' &middot; ' + escapeHtml(clinicDetails) + '</div>' +
+            '</div>' +
+            '</body></html>';
+
+        printWindow.document.open();
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
     });
 }
 
@@ -801,48 +1072,65 @@ function editPrescription(prescriptionId) {
 }
 
 function printPrescription(prescriptionId = null) {
-    const idToPrint = prescriptionId || currentPrescriptionId;
+    const idToPrint = prescriptionId || currentRxPrescriptionId;
     if (!idToPrint) {
         alert('Please select a prescription to print.');
         return;
     }
+    printRxPrescription(idToPrint);
+}
 
-    getPrescriptionDetails(idToPrint, prescription => {
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) {
-            alert('Please allow popups to print the prescription.');
-            return;
+function savePrescription() {
+    const prescriptionId = document.getElementById('prescriptionId').value;
+    const patientId = document.getElementById('patientId').value;
+    const issueDate = document.getElementById('issueDate').value;
+    const diagnosis = document.getElementById('diagnosis').value;
+    const medications = document.getElementById('medications').value;
+    const instructions = document.getElementById('instructions').value;
+
+    if (!patientId) {
+        alert('Please search and select a patient.');
+        return;
+    }
+    if (!medications || !diagnosis) {
+        alert('Medications and diagnosis are required.');
+        return;
+    }
+    if (!issueDate) {
+        alert('Please select an issue date.');
+        return;
+    }
+
+    const action = prescriptionId ? 'update_prescription' : 'create_prescription';
+    const payload = {
+        action: action,
+        patient_id: patientId,
+        medications: medications,
+        diagnosis: diagnosis,
+        instructions: instructions,
+        issue_date: issueDate
+    };
+    if (prescriptionId) {
+        payload.prescription_id = prescriptionId;
+    }
+
+    fetch('prescription_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closePrescriptionModal();
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
         }
-
-        const html = `
-            <html>
-            <head>
-                <title>Prescription #${prescription.id}</title>
-                <style>
-                    body { font-family: Arial, sans-serif; padding: 24px; color: #111827; }
-                    h1 { font-size: 1.5rem; margin-bottom: 16px; }
-                    .field { margin-bottom: 12px; }
-                    .field label { font-weight: 700; display: block; margin-bottom: 4px; }
-                    .field div { padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; }
-                </style>
-            </head>
-            <body>
-                <h1>Prescription #${prescription.id}</h1>
-                <div class="field"><label>Patient</label><div>${prescription.patient_name || ''} (${prescription.age || 'N/A'})</div></div>
-                <div class="field"><label>Doctor</label><div>${prescription.doctor_name || ''}</div></div>
-                <div class="field"><label>Issue Date</label><div>${prescription.issue_date || ''}</div></div>
-                <div class="field"><label>Diagnosis</label><div>${prescription.diagnosis || ''}</div></div>
-                <div class="field"><label>Medications</label><div>${prescription.medications || ''}</div></div>
-                <div class="field"><label>Instructions</label><div>${prescription.instructions || ''}</div></div>
-            </body>
-            </html>
-        `;
-
-        printWindow.document.open();
-        printWindow.document.write(html);
-        printWindow.document.close();
-        printWindow.focus();
-        printWindow.print();
+    })
+    .catch(error => {
+        console.error('Save prescription error:', error);
+        alert('An error occurred while saving the prescription.');
     });
 }
 
@@ -928,10 +1216,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // 3. Portal Pattern: Move modal to body to escape container restrictions
+    // 3. Portal Pattern: Move modals to body to escape container restrictions
     const modal = document.getElementById('prescriptionModal');
     if (modal) {
         document.body.appendChild(modal);
+    }
+    const rxModal = document.getElementById('rxViewModal');
+    if (rxModal) {
+        document.body.appendChild(rxModal);
     }
 });
 </script>

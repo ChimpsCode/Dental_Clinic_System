@@ -71,8 +71,9 @@ try {
     $queueItem = null;
     try {
         $stmt = $pdo->prepare("
-            SELECT q.*, q.status as status_text
+            SELECT q.*, q.status as status_text, s.name as service_name, s.price as service_price
             FROM queue q 
+            LEFT JOIN services s ON q.service_id = s.id
             WHERE q.patient_id = ? AND q.status IN ('waiting', 'in_procedure') AND q.is_archived = 0 
             ORDER BY q.created_at DESC LIMIT 1
         ");
@@ -89,7 +90,8 @@ try {
         $stmt = $pdo->prepare("
             SELECT b.id, b.total_amount, b.paid_amount, b.balance, b.payment_status,
                    b.billing_date, b.due_date, b.notes, b.appointment_id, b.patient_id,
-                   COALESCE(svc.name, q.treatment_type, 'General Service') as service_name
+                    COALESCE(svc.name, q.treatment_type, 'General Service') as service_name,
+                    svc.price as service_price
             FROM billing b
             LEFT JOIN appointments a ON b.appointment_id = a.id
             LEFT JOIN services svc ON a.service_id = svc.id
@@ -157,6 +159,23 @@ try {
         $consultationHistory = [];
     }
     
+    // Get prescriptions for this patient
+    $prescriptions = [];
+    try {
+        $stmt = $pdo->prepare("
+            SELECT pr.*, u.username AS doctor_name
+            FROM prescriptions pr
+            LEFT JOIN users u ON pr.doctor_id = u.id
+            WHERE pr.patient_id = ?
+            ORDER BY pr.issue_date DESC, pr.created_at DESC
+            LIMIT 50
+        ");
+        $stmt->execute([$patientId]);
+        $prescriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        $prescriptions = [];
+    }
+
     echo json_encode([
         'success' => true,
         'patient' => $patient,
@@ -167,7 +186,8 @@ try {
         'all_billings' => $allBillings,
         'payments' => $payments,
         'odontogram_sessions' => $consultationHistory,
-        'consultation_history' => $consultationHistory
+        'consultation_history' => $consultationHistory,
+        'prescriptions' => $prescriptions
     ]);
     
 } catch (Exception $e) {

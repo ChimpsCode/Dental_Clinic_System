@@ -203,6 +203,7 @@ try {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../assets/css/staff_dashboard.css">
+    <link rel="stylesheet" href="../../assets/css/appointments.css">
     <style>
         /* Smooth Page Transitions */
         .content-main {
@@ -484,6 +485,17 @@ try {
                             </svg>
                         </span>
                         <span>Payment</span>
+                    </a>
+                    <a href="staff_prescriptions.php" class="nav-item nav-dropdown-item <?php echo isActivePage('staff_prescriptions.php') ? 'active' : ''; ?>">
+                        <span class="nav-item-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="12" y1="18" x2="12" y2="12"></line>
+                                <line x1="9" y1="15" x2="15" y2="15"></line>
+                            </svg>
+                        </span>
+                        <span>Prescriptions</span>
                     </a>
                 </div>
             </div>

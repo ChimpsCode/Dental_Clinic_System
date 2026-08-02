@@ -1334,21 +1334,21 @@ $assets = [
                     if (regSubmitBtn) regSubmitBtn.disabled = true;
                     return;
                   }
-                  if (!regEmailError) {
-                    regEmailError = document.createElement('span');
-                    regEmailError.style.cssText = 'color:#dc3545;font-size:13px;display:block;margin-top:4px;';
-                    regEmailError.innerHTML = 'This email is already registered. <a href="#" id="loginInsteadLink" style="color:#2563eb;text-decoration:underline;">Log in here</a>';
-                    regEmailInput.parentNode.appendChild(regEmailError);
-                    document.getElementById('loginInsteadLink').addEventListener('click', function(e) {
-                      e.preventDefault();
-                      registrationModal.style.display = 'none';
-                      document.body.style.overflow = '';
-                      document.getElementById('welcome-back-email').value = email;
-                      document.getElementById('welcomeBackUserEmail').textContent = email;
-                      document.getElementById('welcomeBackModal').style.display = 'flex';
-                      document.body.style.overflow = 'hidden';
-                    });
-                  }
+                  // if (!regEmailError) {
+                  //   regEmailError = document.createElement('span');
+                  //   regEmailError.style.cssText = 'color:#dc3545;font-size:13px;display:block;margin-top:4px;';
+                  //   regEmailError.innerHTML = 'This email is already registered. <a href="#" id="loginInsteadLink" style="color:#2563eb;text-decoration:underline;">Log in here</a>';
+                  //   regEmailInput.parentNode.appendChild(regEmailError);
+                  //   document.getElementById('loginInsteadLink').addEventListener('click', function(e) {
+                  //     e.preventDefault();
+                  //     registrationModal.style.display = 'none';
+                  //     document.body.style.overflow = '';
+                  //     document.getElementById('welcome-back-email').value = email;
+                  //     document.getElementById('welcomeBackUserEmail').textContent = email;
+                  //     document.getElementById('welcomeBackModal').style.display = 'flex';
+                  //     document.body.style.overflow = 'hidden';
+                  //   });
+                  // }
                   if (regSubmitBtn) regSubmitBtn.disabled = true;
                 } else {
                   if (regEmailError) { regEmailError.remove(); regEmailError = null; }

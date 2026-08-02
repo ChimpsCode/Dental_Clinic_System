@@ -1124,7 +1124,9 @@ function openBillingEdit(patientId, queueId) {
 
 // Notes Helpers
 function saveProcedureNotes(queueId) {
-    const notes = document.getElementById('procedureNotes').value;
+    const notesEl = document.getElementById('procedureNotes');
+    if (!notesEl) return;
+    const notes = notesEl.value;
     const statusEl = document.getElementById('notesSaveStatus');
     statusEl.textContent = 'Saving...';
     fetch('../shared/save_procedure_notes.php', {
@@ -1138,6 +1140,7 @@ function saveProcedureNotes(queueId) {
 
 function setupNotesAutoSave(queueId) {
     const textarea = document.getElementById('procedureNotes');
+    if (!textarea) return;
     textarea.addEventListener('input', () => {
         clearTimeout(notesSaveTimeout);
         notesSaveTimeout = setTimeout(() => saveProcedureNotes(queueId), 2000);

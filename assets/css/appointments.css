@@ -1,18 +1,6 @@
 /* Appointments Page Styles */
 
 
-.content-area {
-    padding: 0 !important;
-    gap: 0 !important;
-    display: block !important;
-}
-
-.appointments-container {
-    padding: 20px;
-    width: 100%;
-    max-width: 100%;
-}
-
 .appointment-summary-cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -245,4 +233,167 @@
 .appointment-date {
     color: #2563eb;
     font-weight: 500;
+}
+
+/* Status Grid Layout */
+.status-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    height: calc(100vh - 350px);
+    min-height: 500px;
+}
+
+.status-section {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.status-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    border-bottom: 1px solid #e5e7eb;
+    flex-shrink: 0;
+}
+
+.status-section-header.scheduled {
+    border-left: 4px solid #3b82f6;
+}
+
+.status-section-header.inqueue {
+    border-left: 4px solid #f59e0b;
+}
+
+.status-section-header.completed {
+    border-left: 4px solid #10b981;
+}
+
+.status-section-header.cancelled {
+    border-left: 4px solid #ef4444;
+}
+
+.status-section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.status-section-count {
+    background: #f3f4f6;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 9999px;
+}
+
+.status-section-header.scheduled .status-section-count {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.status-section-header.inqueue .status-section-count {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-section-header.completed .status-section-count {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-section-header.cancelled .status-section-count {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.status-section-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    min-height: 0;
+}
+
+.appointment-mini-card {
+    display: flex;
+    flex-direction: column;
+    padding: 10px 12px;
+    border: 1px solid #f3f4f6;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    transition: all 0.15s;
+}
+
+.appointment-mini-card:hover {
+    background: #f9fafb;
+    border-color: #e5e7eb;
+}
+
+.mini-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.mini-card-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: #111827;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mini-card-time {
+    font-size: 13px;
+    color: #2563eb;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.mini-card-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.mini-card-treatment {
+    font-size: 12px;
+    color: #6b7280;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.badge-small {
+    font-size: 10px !important;
+    padding: 2px 8px !important;
+    flex-shrink: 0;
+}
+
+.mini-card-empty {
+    text-align: center;
+    padding: 32px 16px;
+    color: #9ca3af;
+    font-size: 13px;
+}
+
+/* Status section body loading state */
+.status-section-body.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9ca3af;
+    font-size: 13px;
 }
