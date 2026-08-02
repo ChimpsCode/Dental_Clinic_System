@@ -489,17 +489,16 @@ try {
                 <!-- Today's Appointments Overview -->
                     <div class="section-card" >
                         <h2 class="section-title">📅 Upcoming Appointments</h2>
-                        <div style="max-height: 150px; overflow-y: auto;">
+                        <div style="max-height: 250px; overflow-y: auto;">
                             <?php if (empty($todayAppointments)): ?>
                                 <p style="text-align: center; color: #6b7280; padding: 20px;">No upcoming appointments</p>
                             <?php else: ?>
-                                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                                     <thead>
                                         <tr style="background: #f9fafb;">
-                                            <th style="text-align: left; padding: 10px 12px; color: #6b7280; font-weight: 600; font-size: 12px;">Time</th>
-                                            <th style="text-align: left; padding: 10px 12px; color: #6b7280; font-weight: 600; font-size: 12px;">Patient</th>
-                                            <th style="text-align: left; padding: 10px 12px; color: #6b7280; font-weight: 600; font-size: 12px;">Service</th>
-                                            <th style="text-align: left; padding: 10px 12px; color: #6b7280; font-weight: 600; font-size: 12px;">Status</th>
+                                            <th style="text-align: left; padding: 6px 8px; color: #6b7280; font-weight: 600; font-size: 10px;">Time</th>
+                                            <th style="text-align: left; padding: 6px 8px; color: #6b7280; font-weight: 600; font-size: 10px;">Patient</th>
+                                            <th style="text-align: left; padding: 6px 8px; color: #6b7280; font-weight: 600; font-size: 10px;">Status</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -514,11 +513,10 @@ try {
                                             if (stripos($statusLabel, 'cancel') !== false) { $badgeStyle = 'background: #fee2e2; color: #dc2626;'; }
                                         ?>
                                         <tr style="border-bottom: 1px solid #f3f4f6;">
-                                            <td style="padding: 12px; color: #374151;"><?php echo date('h:i A', strtotime($appt['appointment_time'] ?? '')); ?></td>
-                                            <td style="padding: 12px; color: #374151;"><?php echo htmlspecialchars($apptPatientName ?: 'Unknown'); ?></td>
-                                            <td style="padding: 12px; color: #374151;"><?php echo htmlspecialchars($appt['service_name'] ?? 'General'); ?></td>
-                                            <td style="padding: 12px;">
-                                                <span style="display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; <?php echo $badgeStyle; ?>">
+                                            <td style="padding: 8px 6px; color: #374151; font-size: 11px;"><?php echo date('h:i A', strtotime($appt['appointment_time'] ?? '')); ?></td>
+                                            <td style="padding: 8px 6px; color: #374151; font-size: 11px;"><?php echo htmlspecialchars($apptPatientName ?: 'Unknown'); ?></td>
+                                            <td style="padding: 8px 6px;">
+                                                <span style="display: inline-block; padding: 2px 6px; border-radius: 8px; font-size: 9px; font-weight: 600; <?php echo $badgeStyle; ?>">
                                                     <?php echo htmlspecialchars($statusLabel); ?>
                                                 </span>
                                             </td>
@@ -528,8 +526,8 @@ try {
                                 </table>
                             <?php endif; ?>
                         </div>
-                        <a href="admin_appointments.php" style="display: block; text-align: center; margin-top: 12px; padding: 10px; background: #eff6ff; border-radius: 6px; color: #0284c7; text-decoration: none; font-size: 13px; font-weight: 500;">
-                            View All Appointments (<?php echo $totalUpcomingAppts; ?> upcoming) →
+                        <a href="admin_appointments.php" style="display: block; text-align: center; margin-top: 12px; padding: 8px; background: #f3f4f6; border-radius: 6px; color: #374151; text-decoration: none; font-size: 12px;">
+                            View All (<?php echo $totalUpcomingAppts; ?>)
                         </a>
                     </div>
                 
