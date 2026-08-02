@@ -220,7 +220,7 @@ try {
             <div class="content-main">
                 <!-- Summary Cards -->
                 <div class="summary-cards">
-                    <div class="summary-card">
+                    <div class="summary-card card-total-patients">
                         <div class="summary-icon blue">🏥</div>
                         <div class="summary-info">
                             <h3><?php echo $totalPatients; ?></h3>
@@ -228,7 +228,7 @@ try {
                         </div>
                     </div>
                     
-                    <div class="summary-card">
+                    <div class="summary-card card-appointments">
                         <div class="summary-icon green">📅</div>
                         <div class="summary-info">
                             <h3><?php echo $totalAppointments; ?></h3>
@@ -236,7 +236,7 @@ try {
                         </div>
                     </div>
 
-                    <div class="summary-card">
+                    <div class="summary-card card-revenue">
                         <div class="summary-icon green">💰</div>
                         <div class="summary-info">
                             <h3>₱<?php echo number_format($totalRevenue); ?></h3>
@@ -244,7 +244,7 @@ try {
                         </div>
                     </div>
                     
-                    <div class="summary-card">
+                    <div class="summary-card card-pending">
                         <div class="summary-icon yellow">⏳</div>
                         <div class="summary-info">
                             <h3><?php echo $pendingPayments; ?></h3>
@@ -252,7 +252,7 @@ try {
                         </div>
                     </div>
                     
-                    <div class="summary-card">
+                    <div class="summary-card card-completed">
                         <div class="summary-icon green">✓</div>
                         <div class="summary-info">
                             <h3 id="ad-completed-today"><?php echo $completedToday; ?></h3>
@@ -260,7 +260,7 @@ try {
                         </div>
                     </div>
                     
-                    <div class="summary-card">
+                    <div class="summary-card card-collected">
                         <div class="summary-icon blue">💵</div>
                         <div class="summary-info">
                             <h3>₱<?php echo number_format($totalCollected); ?></h3>
@@ -938,4 +938,63 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('adCalPrev'))
 }
 .mc-legend-item { display: flex; align-items: center; gap: 5px; }
 .mc-legend-item .mc-dot { margin-top: 0; }
+
+/* Relaxing summary card colors */
+.summary-cards .summary-card {
+    border: 1px solid transparent;
+    border-radius: 12px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.summary-cards .summary-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.07);
+}
+.summary-cards .card-total-patients {
+    background: linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%);
+    border-color: #80b2cc;
+}
+.summary-cards .card-appointments {
+    background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%);
+    border-color: #6dbeae;
+}
+.summary-cards .card-revenue {
+    background: linear-gradient(135deg, #f0fdf4 0%, #6ded3e 100%);
+    border-color: #44ce1e;
+}
+.summary-cards .card-pending {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    border-color: #a89751;
+}
+.summary-cards .card-completed {
+    background: linear-gradient(135deg, #ecfeff 0%, #cffafe 100%);
+    border-color: #4ab0bc;
+}
+.summary-cards .card-collected {
+    background: linear-gradient(135deg, #b2fac1 0%, #47cf5ed5 100%);
+    border-color: #29a116;
+}
+.summary-cards .card-total-patients .summary-icon {
+    background: #bae6fd;
+    color: #1d4ed8;
+}
+.summary-cards .card-appointments .summary-icon {
+    background: #99f6e4;
+    color: #0f766e;
+}
+.summary-cards .card-revenue .summary-icon {
+    background: #bbf7d0;
+    color: #15803d;
+}
+.summary-cards .card-pending .summary-icon {
+    background: #fde68a;
+    color: #92400e;
+}
+.summary-cards .card-completed .summary-icon {
+    background: #a5f3fc;
+    color: #0e7490;
+}
+.summary-cards .card-collected .summary-icon {
+    background: #ddd6fe;
+    color: #6d28d9;
+}
 </style>

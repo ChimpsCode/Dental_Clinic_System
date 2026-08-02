@@ -2214,19 +2214,19 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('dcCalPrev'))
 }
 .summary-cards .card-waiting {
     background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-    border-color: #fde68a;  
+    border-color: #a89751; 
 }
 .summary-cards .card-in-procedure {
-    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-    border-color: #bfdbfe;
+    background: linear-gradient(135deg, #eff6ff 0%, #c9daf0 100%);
+    border-color: #7393bb;
 }
 .summary-cards .card-completed {
-    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-    border-color: #bbf7d0;
+    background: linear-gradient(135deg, #f0fdf4 0%, #a8ddbb 100%);
+    border-color: #8cc7a1;
 }
 .summary-cards .card-on-hold {
-    background: linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%);
-    border-color: #ddd6fe;
+    background: linear-gradient(135deg, #faf5ff 0%, #c5c0de 100%);
+    border-color: #a49ad0;
 }
 .summary-cards .card-waiting .summary-icon {
     background: #fde68a;
