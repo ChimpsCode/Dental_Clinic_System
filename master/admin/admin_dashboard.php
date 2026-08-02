@@ -147,6 +147,49 @@ try {
         $totalUpcomingAppts = 0;
     }
 
+    // Mini Calendar - determine displayed month
+    $calMonthParam = (isset($_GET['cal']) && preg_match('/^\d{4}-\d{2}$/', $_GET['cal'])) ? $_GET['cal'] : date('Y-m');
+    $calYear = (int)substr($calMonthParam, 0, 4);
+    $calMonthNum = (int)substr($calMonthParam, 5, 2);
+    if ($calMonthNum < 1 || $calMonthNum > 12) {
+        $calMonthNum = (int)date('n');
+        $calYear = (int)date('Y');
+    }
+    $calFirstDay = sprintf('%04d-%02d-01', $calYear, $calMonthNum);
+    $calLastDay = date('Y-m-t', strtotime($calFirstDay));
+    $calPrev = date('Y-m', strtotime($calFirstDay . ' -1 month'));
+    $calNext = date('Y-m', strtotime($calFirstDay . ' +1 month'));
+    $calMonthLabel = date('F Y', strtotime($calFirstDay));
+
+    $calByDate = [];
+    $calCounts = [];
+    try {
+        $calStmt = $pdo->prepare("
+            SELECT a.appointment_date, a.appointment_time, a.status,
+                   COALESCE(CONCAT(p.first_name, ' ', COALESCE(p.middle_name, ''), ' ', p.last_name), '') AS patient_name,
+                   s.name AS service_name
+            FROM appointments a
+            LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
+            LEFT JOIN services s ON a.service_id = s.id
+            WHERE a.appointment_date BETWEEN ? AND ?
+              AND (a.is_archived = 0 OR a.is_archived IS NULL)
+            ORDER BY a.appointment_date ASC, a.appointment_time ASC
+        ");
+        $calStmt->execute([$calFirstDay, $calLastDay]);
+        while ($calRow = $calStmt->fetch(PDO::FETCH_ASSOC)) {
+            $d = $calRow['appointment_date'];
+            if (!isset($calByDate[$d])) {
+                $calByDate[$d] = [];
+                $calCounts[$d] = 0;
+            }
+            $calByDate[$d][] = $calRow;
+            $calCounts[$d]++;
+        }
+    } catch (Exception $e) {
+        $calByDate = [];
+        $calCounts = [];
+    }
+
 } catch (Exception $e) {
     $totalPatients = 0;
     $totalAppointments = 0;
@@ -400,35 +443,53 @@ try {
 
             <!-- Right Sidebar -->
             <aside class="content-sidebar">
-                <!-- Quick Actions -->
+                <!-- Mini Calendar -->
                 <div class="sidebar-section">
-                    <h3 class="sidebar-section-title">Quick Actions</h3>
-                    <p class="sidebar-section-subtitle">Shortcuts to common tasks</p>
+                    
 
-                    <div class="quick-actions quick-actions-sidebar">
-                        <a href="admin_users.php" class="action-card">
-                            <span class="action-icon">👥</span>
-                            <span class="action-text">Manage Users</span>
-                        </a>
-                        <a href="admin_patients.php" class="action-card">
-                            <span class="action-icon">📋</span>
-                            <span class="action-text">View Patients</span>
-                        </a>
-                        <a href="admin_payment.php" class="action-card">
-                            <span class="action-icon">💳</span>
-                            <span class="action-text">Payment Overview</span>
-                        </a>
-                        <a href="admin_audit_trail.php" class="action-card">
-                            <span class="action-icon">📝</span>
-                            <span class="action-text">Audit Logs</span>
-                        </a>
+                    <div class="mc-header">
+                        <button type="button" id="adCalPrev" class="mc-nav" aria-label="Previous month">&#8249;</button>
+                        <span class="mc-title" id="adCalMonthLabel"><?php echo $calMonthLabel; ?></span>
+                        <button type="button" id="adCalNext" class="mc-nav" aria-label="Next month">&#8250;</button>
                     </div>
+
+                    <div class="mc-grid" id="adCalGrid">
+                        <?php
+                        $dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                        foreach ($dayHeaders as $dh) {
+                            echo '<div class="mc-day-head">' . $dh . '</div>';
+                        }
+                        $firstDow = (int)date('w', strtotime($calFirstDay));
+                        for ($i = 0; $i < $firstDow; $i++) {
+                            echo '<div class="mc-day mc-empty"></div>';
+                        }
+                        $calDaysInMonth = (int)date('t', strtotime($calFirstDay));
+                        for ($d = 1; $d <= $calDaysInMonth; $d++) {
+                            $dateStr = sprintf('%04d-%02d-%02d', $calYear, $calMonthNum, $d);
+                            $hasAppts = isset($calCounts[$dateStr]);
+                            $isToday = ($dateStr === date('Y-m-d'));
+                            $classes = 'mc-day';
+                            if ($hasAppts) { $classes .= ' has-appt'; }
+                            if ($isToday) { $classes .= ' today'; }
+                            ?>
+                            <div class="<?php echo $classes; ?>" <?php if ($hasAppts): ?>onclick="adCalOpenDay('<?php echo $dateStr; ?>')" title="<?php echo $calCounts[$dateStr]; ?> scheduled"<?php endif; ?>>
+                                <span class="mc-day-num"><?php echo $d; ?></span>
+                                <?php if ($hasAppts): ?>
+                                    <span class="mc-dot"></span>
+                                <?php endif; ?>
+                            </div>
+                            <?php
+                        }
+                        ?>
+                    </div>
+
+                    
                 </div>
 
                 <!-- Today's Appointments Overview -->
                     <div class="section-card" >
                         <h2 class="section-title">📅 Upcoming Appointments</h2>
-                        <div style="max-height: 180px; overflow-y: auto;">
+                        <div style="max-height: 150px; overflow-y: auto;">
                             <?php if (empty($todayAppointments)): ?>
                                 <p style="text-align: center; color: #6b7280; padding: 20px;">No upcoming appointments</p>
                             <?php else: ?>
@@ -522,6 +583,21 @@ try {
     </div>
 </div>
 
+<!-- Scheduled Patients Modal -->
+<div id="adCalModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 14px; width: 92%; max-width: 640px; max-height: 82vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 24px 60px rgba(15,23,42,0.25); position: relative; z-index: 100000; margin: 20px;">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 18px 22px; background: linear-gradient(135deg, #2444d5 10%, #412fa3be 48%, #0891b2 90%); color: white;">
+            <span style="font-size: 1.3rem;">📅</span>
+            <div>
+                <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.85; font-weight: 700;">Scheduled Patients</div>
+                <h2 id="adCalModalTitle" style="font-size: 1.15rem; font-weight: 700; margin: 2px 0 0;">—</h2>
+            </div>
+            <button onclick="adCalClose()" aria-label="Close" style="margin-left: auto; background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.22); width: 34px; height: 34px; border-radius: 10px; font-size: 1.2rem; line-height: 1; cursor: pointer;">&times;</button>
+        </div>
+        <div id="adCalModalBody" style="padding: 18px 22px; overflow-y: auto;"></div>
+    </div>
+</div>
+
 <?php
 // Include the layout end
 require_once __DIR__ . '/../../includes/admin_layout_end.php';
@@ -581,11 +657,76 @@ function confirmCompleteProcedure() {
 window.onclick = function(event) {
     const cpModal = document.getElementById('completeProcedureModal');
     if (event.target === cpModal) closeCompleteProcedureModal();
+
+    const adCalModal = document.getElementById('adCalModal');
+    if (event.target === adCalModal) adCalClose();
 };
 
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeCompleteProcedureModal();
+    if (e.key === 'Escape') {
+        closeCompleteProcedureModal();
+        adCalClose();
+    }
 });
+
+// Mini Calendar - Scheduled Patients Modal
+var adminCalAppointments = <?php echo json_encode($calByDate); ?>;
+
+function adCalEscapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function adCalOpenDay(dateStr) {
+    var list = adminCalAppointments[dateStr] || [];
+    var title = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    document.getElementById('adCalModalTitle').textContent = title;
+
+    var body = document.getElementById('adCalModalBody');
+    if (!list.length) {
+        body.innerHTML = '<p style="text-align:center; color:#6b7280; padding:30px 10px;">No scheduled patients on this date.</p>';
+    } else {
+        var rows = list.map(function(a) {
+            var name = (a.patient_name || '').trim();
+            if (!name) name = 'Guest';
+            var t = '--';
+            if (a.appointment_time) {
+                t = new Date('1970-01-01T' + a.appointment_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+            }
+            var status = a.status || 'Scheduled';
+            var badge = 'background:#dbeafe; color:#1d4ed8;';
+            if (status.toLowerCase().indexOf('queue') !== -1) badge = 'background:#fef3c7; color:#92400e;';
+            if (status.toLowerCase().indexOf('pending') !== -1) badge = 'background:#fed7aa; color:#c2410c;';
+            if (status.toLowerCase().indexOf('complete') !== -1) badge = 'background:#dcfce7; color:#15803d;';
+            if (status.toLowerCase().indexOf('cancel') !== -1) badge = 'background:#fee2e2; color:#dc2626;';
+            return '<tr style="border-bottom:1px solid #f3f4f6;">'
+                + '<td style="padding:12px; color:#374151; white-space:nowrap;">' + t + '</td>'
+                + '<td style="padding:12px; color:#374151;">' + adCalEscapeHtml(name) + '</td>'
+                + '<td style="padding:12px; color:#374151;">' + adCalEscapeHtml(a.service_name || 'General') + '</td>'
+                + '<td style="padding:12px;"><span style="display:inline-block; padding:4px 10px; border-radius:12px; font-size:11px; font-weight:600; ' + badge + '">' + adCalEscapeHtml(status) + '</span></td>'
+                + '</tr>';
+        }).join('');
+        body.innerHTML = '<table style="width:100%; border-collapse:collapse; font-size:13px;">'
+            + '<thead><tr style="background:#f9fafb;">'
+            + '<th style="text-align:left; padding:10px 12px; color:#6b7280; font-weight:600; font-size:12px;">Time</th>'
+            + '<th style="text-align:left; padding:10px 12px; color:#6b7280; font-weight:600; font-size:12px;">Patient</th>'
+            + '<th style="text-align:left; padding:10px 12px; color:#6b7280; font-weight:600; font-size:12px;">Service</th>'
+            + '<th style="text-align:left; padding:10px 12px; color:#6b7280; font-weight:600; font-size:12px;">Status</th>'
+            + '</tr></thead>'
+            + '<tbody>' + rows + '</tbody></table>';
+    }
+
+    document.getElementById('adCalModal').style.display = 'flex';
+    document.body.classList.add('modal-open');
+}
+
+function adCalClose() {
+    document.getElementById('adCalModal').style.display = 'none';
+    document.body.classList.remove('modal-open');
+}
 
 // Queue count auto-polling for admin dashboard
 var adQueueCountHash = '';
@@ -606,6 +747,22 @@ function pollAdminQueueCounts() {
 
 setInterval(pollAdminQueueCounts, 10000);
 pollAdminQueueCounts();
+</script>
+
+<script src="../../assets/js/calendar_widget.js"></script>
+<script>
+if (typeof MiniCalendar !== 'undefined' && document.getElementById('adCalPrev')) {
+    MiniCalendar({
+        containerId: 'adCalGrid',
+        labelId: 'adCalMonthLabel',
+        prevBtnId: 'adCalPrev',
+        nextBtnId: 'adCalNext',
+        endpoint: '../shared/calendar_data.php',
+        openDayFn: 'adCalOpenDay',
+        appointmentVar: 'adminCalAppointments',
+        month: '<?php echo $calMonthParam; ?>'
+    });
+}
 </script>
 
 <style>
@@ -673,4 +830,114 @@ pollAdminQueueCounts();
     .cp-actions { flex-direction: column-reverse; }
     .cp-btn-cancel, .cp-btn-confirm { width: 100%; }
 }
+</style>
+
+<style>
+/* Mini Calendar */
+.mc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.mc-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1f2937;
+    white-space: nowrap;
+}
+.mc-nav {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+    color: #374151;
+    text-decoration: none;
+    font-size: 16px;
+    line-height: 1;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    cursor: pointer;
+    font-family: inherit;
+    padding: 0;
+}
+.mc-nav:hover {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: #1d4ed8;
+}
+.mc-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+}
+.mc-day-head {
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #6b7280;
+    padding: 4px 0;
+}
+.mc-day {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    height: 34px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #374151;
+    cursor: default;
+    transition: background 0.15s;
+    border: 1px solid transparent;
+}
+.mc-day-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    line-height: 1;
+}
+.mc-day.has-appt {
+    cursor: pointer;
+    background: #eff6ff;
+    border-color: #dbeafe;
+}
+.mc-day.has-appt:hover {
+    background: #dbeafe;
+    border-color: #93c5fd;
+}
+.mc-day.today .mc-day-num {
+    background: #005daa;
+    color: #fff;
+    font-weight: 700;
+}
+.mc-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #2563eb;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+.mc-empty { visibility: hidden; }
+.mc-legend {
+    display: flex;
+    align-items: center;
+    margin-top: 12px;
+    font-size: 11px;
+    color: #6b7280;
+}
+.mc-legend-item { display: flex; align-items: center; gap: 5px; }
+.mc-legend-item .mc-dot { margin-top: 0; }
 </style>
