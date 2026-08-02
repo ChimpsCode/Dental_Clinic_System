@@ -131,21 +131,27 @@ try {
                 </div>
             </div>
             <div class="summary-card card-in-procedure">
-                <div class="summary-icon blue" style="background: #bfdbfe; color: #1d4ed8;">⚙️</div>
+                <div class="summary-icon yellow">
+                    <img src="../../assets/icons/in-procedure.png" alt="In Procedure" style="width: 30px; height: 30px;">
+                </div>
                 <div class="summary-info">
                     <h3 id="dd-in-procedure"><?php echo $inProcedureCount; ?></h3>
                     <p>In Procedure</p>
                 </div>
             </div>
             <div class="summary-card card-completed">
-                <div class="summary-icon green">✓</div>
+                <div class="summary-icon green">
+                    <img src="../../assets/icons/complete.png" alt="Completed" style="width: 30px; height: 30px;">
+                </div>
                 <div class="summary-info">
                     <h3 id="dd-completed"><?php echo $completedToday; ?></h3>
                     <p>Completed Today</p>
                 </div>
             </div>
             <div class="summary-card card-on-hold">
-                <div class="summary-icon red" style="background: #ddd6fe; color: #6d28d9;">⏸️</div>
+                <div class="summary-icon purple">
+                    <img src="../../assets/icons/paused.png" alt="On Hold" style="width: 30px; height: 30px;">
+                </div>
                 <div class="summary-info">
                     <h3 id="dd-on-hold"><?php echo $onHoldCount; ?></h3>
                     <p>On Hold</p>
