@@ -1,75 +1,108 @@
 <?php
 
-define('SMS_API_KEY', '073fbf9a79ffc72ac784df4fb28f832690ac6aa519e01942');
-define('SMS_API_URL', 'https://api.smsmobileapi.com/sendsms/');
-define('SMS_SENDER_NAME', 'RF Dental');
+require_once __DIR__ . '/../config/sms_credentials.php';
 
 function sendSMS($phone, $message) {
     $phone = formatPhoneNumber($phone);
-    
-    $url = SMS_API_URL . '?recipients=' . urlencode($phone) . '&message=' . urlencode($message) . '&apikey=' . SMS_API_KEY;
-    
-    error_log("SMS URL being called: " . $url);
-    
-    $ch = curl_init();
-    curl_setopt_array($ch, [
-        CURLOPT_URL => $url,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 30,
-        CURLOPT_HTTPHEADER => [
-            'Content-Type: application/json',
-        ],
-    ]);
-    
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $error = curl_errno($ch);
-    curl_close($ch);
-    
-    error_log("SMS Response: " . $response);
-    
-    if ($error) {
-        error_log("SMS Error (cURL): " . curl_strerror($error));
-        return ['success' => false, 'error' => curl_strerror($error)];
+    return sendViaTextBee($phone, $message);
+}
+
+function sendViaTextBee($phone, $message) {
+    if (!defined('TEXTBEE_API_KEY') || TEXTBEE_API_KEY === '' || TEXTBEE_API_KEY === 'YOUR_TEXBEE_API_KEY') {
+        error_log("TextBee SMS skipped: TEXTBEE_API_KEY not configured");
+        return ['success' => false, 'error' => 'TextBee API key not configured'];
     }
-    
-    $result = json_decode($response, true);
-    
-    if (isset($result['result']['error']) && $result['result']['error'] == 0) {
+    if (!defined('TEXTBEE_DEVICE_ID') || TEXTBEE_DEVICE_ID === '' || TEXTBEE_DEVICE_ID === 'YOUR_TEXBEE_DEVICE_ID') {
+        error_log("TextBee SMS skipped: TEXTBEE_DEVICE_ID not configured");
+        return ['success' => false, 'error' => 'TextBee device ID not configured'];
+    }
+
+    $recipient = $phone;
+    if (substr($recipient, 0, 1) !== '+') {
+        $recipient = '+' . $recipient;
+    }
+
+    $body = json_encode([
+        'recipients' => [$recipient],
+        'message' => $message,
+    ]);
+
+    $context = stream_context_create(['http' => [
+        'method' => 'POST',
+        'header' => "Content-Type: application/json\r\n" .
+                    "x-api-key: " . TEXTBEE_API_KEY . "\r\n",
+        'content' => $body,
+        'timeout' => 30,
+        'ignore_errors' => true,
+    ]]);
+
+    $url = 'https://api.textbee.dev/api/v1/gateway/devices/' . rawurlencode(TEXTBEE_DEVICE_ID) . '/send-sms';
+    $response = @file_get_contents($url, false, $context);
+
+    $status = 0;
+    if (isset($http_response_header[0]) && preg_match('#HTTP/\S+\s+(\d+)#', $http_response_header[0], $m)) {
+        $status = (int)$m[1];
+    }
+
+    if ($response === false) {
+        $err = error_get_last();
+        $msg = $err['message'] ?? 'Network error while contacting TextBee';
+        error_log("TextBee SMS transport error: " . $msg);
+        return ['success' => false, 'error' => $msg];
+    }
+
+    $data = json_decode($response, true);
+
+    if ($status >= 200 && $status < 300 && is_array($data) && isset($data['data'])) {
         return [
             'success' => true,
             'message' => 'SMS sent successfully',
-            'sms_id' => $result['result']['id'] ?? null
-        ];
-    } else {
-        $errorCode = $result['result']['error'] ?? 'unknown';
-        $errorMsg = 'API Error code: ' . $errorCode;
-        
-        switch ($errorCode) {
-            case '50':
-                $errorMsg = 'Invalid API key or authentication failed. Please check your SMSMobileAPI dashboard for the correct API key.';
-                break;
-            case '51':
-                $errorMsg = 'Insufficient credits. Please top up your SMS credits.';
-                break;
-            case '52':
-                $errorMsg = 'Invalid phone number format.';
-                break;
-            case 'subscription_expire':
-                $errorMsg = 'Your SMSMobileAPI trial has expired. Please renew or purchase credits at smsmobileapi.com.';
-                break;
-            default:
-                $errorMsg = 'SMS API error: ' . ($result['result']['error_message'] ?? $errorCode);
-        }
-        
-        error_log("SMS API Error: " . $errorMsg);
-        return [
-            'success' => false,
-            'error' => $errorMsg,
-            'error_code' => $errorCode,
-            'response' => $result
+            'sms_id' => $data['data']['smsBatchId'] ?? null,
+            'provider_status' => 'Queued'
         ];
     }
+
+    $desc = $data['error'] ?? $data['message'] ?? ('HTTP ' . $status);
+    error_log("TextBee SMS API error (HTTP $status): " . $desc);
+    return ['success' => false, 'error' => 'TextBee error: ' . $desc];
+}
+
+function testTextBeeConnection() {
+    if (!defined('TEXTBEE_API_KEY') || TEXTBEE_API_KEY === '' || TEXTBEE_API_KEY === 'YOUR_TEXBEE_API_KEY') {
+        return ['success' => false, 'error' => 'TextBee API key not configured'];
+    }
+
+    $context = stream_context_create(['http' => [
+        'method' => 'GET',
+        'header' => "Accept: application/json\r\n" .
+                    "x-api-key: " . TEXTBEE_API_KEY . "\r\n",
+        'timeout' => 30,
+        'ignore_errors' => true,
+    ]]);
+
+    $response = @file_get_contents('https://api.textbee.dev/api/v1/gateway/devices', false, $context);
+
+    $status = 0;
+    if (isset($http_response_header[0]) && preg_match('#HTTP/\S+\s+(\d+)#', $http_response_header[0], $m)) {
+        $status = (int)$m[1];
+    }
+
+    if ($response === false) {
+        $err = error_get_last();
+        $msg = $err['message'] ?? 'Network error while contacting TextBee';
+        error_log("TextBee connection test transport error: " . $msg);
+        return ['success' => false, 'error' => $msg];
+    }
+
+    $data = json_decode($response, true);
+
+    if ($status >= 200 && $status < 300 && is_array($data)) {
+        return ['success' => true, 'status' => $status, 'response' => $response];
+    }
+
+    $desc = $data['error'] ?? $data['message'] ?? ('HTTP ' . $status);
+    error_log("TextBee connection test failed (HTTP $status): " . $desc);
+    return ['success' => false, 'status' => $status, 'error' => $desc];
 }
 
 function formatPhoneNumber($phone) {
