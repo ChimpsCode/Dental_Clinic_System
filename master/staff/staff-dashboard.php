@@ -57,6 +57,25 @@ try {
     $pendingApprovalCount = count($pendingApprovalAll);
     $pendingApprovalItems = array_slice($pendingApprovalAll, 0, 5);
 
+    // Upcoming Appointments (within the next 24 hours)
+    $upcomingApptAll = $pdo->query("
+        SELECT a.id, a.appointment_date, a.appointment_time, a.status,
+               COALESCE(p.first_name, 'Unknown') as first_name,
+               COALESCE(p.middle_name, '') as middle_name,
+               COALESCE(p.last_name, '') as last_name,
+               COALESCE(s.name, 'General') as service_name
+        FROM appointments a
+        LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
+        LEFT JOIN services s ON a.service_id = s.id
+        WHERE LOWER(a.status) = 'scheduled'
+          AND TIMESTAMP(a.appointment_date, a.appointment_time) >= NOW()
+          AND TIMESTAMP(a.appointment_date, a.appointment_time) <= NOW() + INTERVAL 24 HOUR
+          AND (a.is_archived = 0 OR a.is_archived IS NULL)
+        ORDER BY a.appointment_date ASC, a.appointment_time ASC
+    ")->fetchAll(PDO::FETCH_ASSOC);
+    $upcomingApptCount = count($upcomingApptAll);
+    $upcomingApptItems = array_slice($upcomingApptAll, 0, 3);
+
     // Helper function to build full name
     function buildPatientName($item) {
         return trim(($item['first_name'] ?? '') . ' ' . ($item['middle_name'] ?? '') . ' ' . ($item['last_name'] ?? '') . ' ' . ($item['suffix'] ?? ''));
@@ -74,6 +93,9 @@ try {
     $pendingApprovalAll = [];
     $pendingApprovalCount = 0;
     $pendingApprovalItems = [];
+    $upcomingApptAll = [];
+    $upcomingApptCount = 0;
+    $upcomingApptItems = [];
 }
 ?>
 
@@ -183,38 +205,39 @@ try {
 
             <!-- Live Queue Controller -->
             <div class="live-queue">
-                <div class="live-queue-header">
-                    <div class="live-queue-title">Live Queue Controller</div>
-                    <div class="now-serving-badge">
-                        <span>
-                        
-                        </span>
-                        <span>In Procedure</span></div>
-                </div>
-                <div class="live-patient">
-                    <?php $inProcedureName = $inProcedureItem ? buildPatientName($inProcedureItem) : ''; ?>
-                    <div class="patient-name" id="live-patient-name"><?php echo $inProcedureItem ? htmlspecialchars($inProcedureName) : 'No Patient'; ?></div>
-                    <div class="patient-details" style="margin-top: 10px;">
-                        <span class="status-badge now-serving">In Chair</span>
-                        <span class="patient-time" id="live-patient-time"><?php echo $inProcedureItem ? htmlspecialchars($inProcedureItem['queue_time']) : '--:--'; ?></span>
+                    <div class="live-queue-header">
+                        <div class="live-queue-title">Live Queue Controller</div>
+                        <div class="now-serving-badge">
+                            <span>
+                            
+                            </span>
+                            <span>In Procedure</span></div>
                     </div>
-                    <div class="patient-treatment" id="live-patient-treatment" style="margin-top: 8px;"><?php echo $inProcedureItem ? htmlspecialchars($inProcedureItem['treatment_type']) : 'Queue Empty'; ?></div>
+                    <div class="live-patient">
+                        <?php $inProcedureName = $inProcedureItem ? buildPatientName($inProcedureItem) : ''; ?>
+                        <div class="patient-name" id="live-patient-name"><?php echo $inProcedureItem ? htmlspecialchars($inProcedureName) : 'No Patient'; ?></div>
+                        <div class="patient-details" style="margin-top: 10px;">
+                            <span class="status-badge now-serving">In Chair</span>
+                            <span class="patient-time" id="live-patient-time"><?php echo $inProcedureItem ? htmlspecialchars($inProcedureItem['queue_time']) : '--:--'; ?></span>
+                        </div>
+                        <div class="patient-treatment" id="live-patient-treatment" style="margin-top: 8px;"><?php echo $inProcedureItem ? htmlspecialchars($inProcedureItem['treatment_type']) : 'Queue Empty'; ?></div>
+                    </div>
+                    <?php if ($inProcedureItem): ?>
+                    <button class="complete-btn" id="completeTreatmentBtn" onclick="completeCurrentPatient(<?php echo $inProcedureItem['id']; ?>)">
+                        <span>✓</span> <span>Complete Treatment</span>
+                    </button>
+                    <?php else: ?>
+                    <button class="complete-btn" id="completeTreatmentBtn" disabled style="background: #9ca3af;">
+                        <span>✓</span> <span>No Patient in Chair</span>
+                    </button>
+                    <?php endif; ?>
+                    <div class="complete-btn-text">Click when patient treatment is finished</div>
                 </div>
-                <?php if ($inProcedureItem): ?>
-                <button class="complete-btn" id="completeTreatmentBtn" onclick="completeCurrentPatient(<?php echo $inProcedureItem['id']; ?>)">
-                    <span>✓</span> <span>Complete Treatment</span>
-                </button>
-                <?php else: ?>
-                <button class="complete-btn" id="completeTreatmentBtn" disabled style="background: #9ca3af;">
-                    <span>✓</span> <span>No Patient in Chair</span>
-                </button>
-                <?php endif; ?>
-                <div class="complete-btn-text">Click when patient treatment is finished</div>
-            </div>
 
             <!-- Up Next + On Hold + Pending Approval -->
             <div class="queue-grid">
                 <div class="queue-grid-left">
+
                 <div class="section-card compact-queue">
                     <h2 class="section-title">📋 IN THE QUEUE <span class="section-count" id="count-up-next"><?php echo count($waitingItems); ?></span></h2>
                     <div class="patient-list" id="up-next-list">
@@ -256,6 +279,7 @@ try {
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </div>
+                    <a href="staff_queue.php" class="see-all-link">View All (<?php echo count($waitingItems); ?>)</a>
                 </div>
 
                 <!-- On Hold -->
@@ -298,6 +322,7 @@ try {
                 </div>
                 </div>
 
+                <div class="queue-grid-right">
                 <!-- Pending Approval -->
                 <div class="section-card compact-queue">
                     <h2 class="section-title">🕓 Pending Approval <span class="section-count pending-count" id="count-pending-approval"><?php echo $pendingApprovalCount; ?></span></h2>
@@ -324,7 +349,7 @@ try {
                                 <div class="patient-actions">
                                     
                                     <button class="action-btn pa-approve" onclick="approveAppointment(<?php echo (int)$appt['id']; ?>)">✓</button>
-                                    <button class="action-btn pa-decline" onclick="declineAppointment(<?php echo (int)$appt['id']; ?>)">✕  </button>
+                                    <button class="action-btn pa-decline" onclick="declineAppointment(<?php echo (int)$appt['id']; ?>)">✕</button>
                                     <button class="action-btn pa-call" title="View phone number" onclick="openCallModal('<?php echo htmlspecialchars($paName ?: 'Unknown', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($appt['phone'] ?? '', ENT_QUOTES); ?>')">
                                         <img src="../../assets/icons/call_button.png" alt="Call">
                                     </button>
@@ -334,6 +359,7 @@ try {
                         <?php endif; ?>
                     </div>
                     <a href="staff_appointments.php" class="see-all-link">View All (<?php echo $pendingApprovalCount; ?>)</a>
+                </div>
                 </div>
             </div>
         </div>
@@ -426,79 +452,34 @@ try {
                 
             </div>
               
-            <!-- Upcoming Appointments Overview -->
-            <?php 
-            $staffTodayAppointments = [];
-            $staffTotalUpcomingAppts = 0;
-            try {
-                $staffTotalUpcomingAppts = (int)($pdo->query("
-                    SELECT COUNT(*)
-                    FROM appointments
-                    WHERE appointment_date >= CURDATE()
-                      AND (is_archived = 0 OR is_archived IS NULL)
-                ")->fetchColumn() ?? 0);
-
-                $staffApptStmt = $pdo->query("
-                    SELECT a.id, a.appointment_date, a.appointment_time, a.status,
-                           COALESCE(p.first_name, 'Unknown') as first_name, 
-                           COALESCE(p.middle_name, '') as middle_name, 
-                           COALESCE(p.last_name, '') as last_name,
-                           s.name as service_name,
-                           a.status as status_name
-                    FROM appointments a
-                    LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
-                    LEFT JOIN services s ON a.service_id = s.id
-                    WHERE a.appointment_date >= CURDATE()
-                      AND (a.is_archived = 0 OR a.is_archived IS NULL)
-                    ORDER BY a.appointment_date ASC, a.appointment_time ASC
-                    LIMIT 3
-                ");
-                $staffTodayAppointments = $staffApptStmt->fetchAll(PDO::FETCH_ASSOC);
-            } catch (Exception $e) {
-                $staffTodayAppointments = [];
-                $staffTotalUpcomingAppts = 0;
-            }
-            ?>
-            <div class="notification-box">
-                <h3>📅 Appointments Overview</h3>
-                <div style="max-height: 250px; overflow-y: auto;">
-                    <?php if (empty($staffTodayAppointments)): ?>
-                        <p style="text-align: center; color: #6b7280; padding: 20px;">No upcoming appointments</p>
+            <!-- Upcoming Appointments (next 24h) -->
+            <div class="section-card compact-queue">
+                <h2 class="section-title">📅 Upcoming Appointments <span class="section-count upcoming-count" id="count-upcoming-appt"><?php echo $upcomingApptCount; ?></span></h2>
+                <div class="patient-list" id="upcoming-appt-list">
+                    <?php if (empty($upcomingApptItems)): ?>
+                        <div style="text-align: center; padding: 0; color: #6b7280;">
+                            <p>No upcoming appointments</p>
+                        </div>
                     <?php else: ?>
-                        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-                            <thead>
-                                <tr style="background: #f9fafb;">
-                                    <th style="text-align: left; padding: 6px 8px; color: #6b7280; font-weight: 600; font-size: 10px;">Time</th>
-                                    <th style="text-align: left; padding: 6px 8px; color: #6b7280; font-weight: 600; font-size: 10px;">Patient</th>
-                                    <th style="text-align: left; padding: 6px 8px; color: #6b7280; font-weight: 600; font-size: 10px;">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($staffTodayAppointments as $appt): 
-                                    $apptPatientName = trim(($appt['first_name'] ?? '') . ' ' . ($appt['middle_name'] ?? '') . ' ' . ($appt['last_name'] ?? ''));
-                                    $statusLabel = $appt['status_name'] ?? 'Scheduled';
-                                    
-                                    $badgeStyle = 'background: #dbeafe; color: #1d4ed8;';
-                                    if (stripos($statusLabel, 'queue') !== false) { $badgeStyle = 'background: #fef3c7; color: #92400e;'; }
-                                    if (stripos($statusLabel, 'pending') !== false) { $badgeStyle = 'background: #fed7aa; color: #c2410c;'; }
-                                    if (stripos($statusLabel, 'complete') !== false) { $badgeStyle = 'background: #dcfce7; color: #15803d;'; }
-                                    if (stripos($statusLabel, 'cancel') !== false) { $badgeStyle = 'background: #fee2e2; color: #dc2626;'; }
-                                ?>
-                                <tr style="border-bottom: 1px solid #f3f4f6;">
-                                    <td style="padding: 8px 6px; color: #374151; font-size: 11px;"><?php echo date('h:i A', strtotime($appt['appointment_time'] ?? '')); ?></td>
-                                    <td style="padding: 8px 6px; color: #374151; font-size: 11px;"><?php echo htmlspecialchars($apptPatientName ?: 'Unknown'); ?></td>
-                                    <td style="padding: 8px 6px;">
-                                        <span style="display: inline-block; padding: 2px 6px; border-radius: 8px; font-size: 9px; font-weight: 600; <?php echo $badgeStyle; ?>">
-                                            <?php echo htmlspecialchars($statusLabel); ?>
-                                        </span>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+                        <?php foreach ($upcomingApptItems as $appt):
+                            $uaName = trim(($appt['first_name'] ?? '') . ' ' . ($appt['middle_name'] ?? '') . ' ' . ($appt['last_name'] ?? ''));
+                            $uaDate = !empty($appt['appointment_date']) ? date('M j', strtotime($appt['appointment_date'])) : '';
+                            $uaTime = !empty($appt['appointment_time']) ? date('h:i A', strtotime($appt['appointment_time'])) : '';
+                        ?>
+                        <div class="patient-item">
+                            <div class="patient-info">
+                                <div class="patient-name"><?php echo htmlspecialchars($uaName ?: 'Unknown'); ?></div>
+                                <div class="patient-details" style="margin-top:3px;">
+                                    <span class="status-badge scheduled">Scheduled</span>
+                                    <span class="patient-time"><?php echo htmlspecialchars(trim($uaDate . ' · ' . $uaTime)); ?></span>
+                                </div>
+                                <div class="patient-treatment"><?php echo htmlspecialchars($appt['service_name'] ?? 'General'); ?></div>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
                     <?php endif; ?>
                 </div>
-                <a href="staff_appointments.php" style="display: block; text-align: center; margin-top: 12px; padding: 8px; background: #f3f4f6; border-radius: 6px; color: #374151; text-decoration: none; font-size: 12px;">View All (<?php echo $staffTotalUpcomingAppts; ?>)</a>
+                <a href="staff_appointments.php?focus=scheduled" class="see-all-btn">View Upcoming Appointments</a>
             </div>
         </div>
     </div>
@@ -567,6 +548,22 @@ try {
         <div style="display: flex; justify-content: flex-end; gap: 12px;">
             <button type="button" onclick="closeDashboardConfirmModal()" style="padding: 10px 20px; background: #f3f4f6; color: #374151; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">Cancel</button>
             <button type="button" id="dashboardConfirmButton" style="padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Confirm</button>
+        </div>
+    </div>
+</div>
+<!-- Dashboard Declining Modal -->
+<div id="dashboardDeclineModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
+    <div class="modal" style="background: white; border-radius: 12px; padding: 24px; width: 90%; max-width: 460px; position: relative; z-index: 100000;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h2 id="dashboardDeclineTitle" style="font-size: 1.25rem; font-weight: 600; margin: 0;">Decline Appointment</h2>
+            <button onclick="closeDashboardDeclineModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">×</button>
+        </div>
+        <p id="dashboardDeclineMessage" style="color: #374151; margin: 0 0 16px;"></p>
+        <label for="dashboardDeclineReason" style="display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 6px;">Reason (optional)</label>
+        <textarea id="dashboardDeclineReason" rows="3" placeholder="Enter a reason for declining this request..." style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; resize: vertical; box-sizing: border-box; margin-bottom: 20px;"></textarea>
+        <div style="display: flex; justify-content: flex-end; gap: 12px;">
+            <button type="button" onclick="closeDashboardDeclineModal()" style="padding: 10px 20px; background: #f3f4f6; color: #374151; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">Cancel</button>
+            <button type="button" id="dashboardDeclineButton" style="padding: 10px 20px; background: #dc2626; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Decline</button>
         </div>
     </div>
 </div>
@@ -648,6 +645,7 @@ try {
 <script>
 const queueItems = <?php echo json_encode($queueItems); ?>;
 let dashboardConfirmHandler = null;
+let dashboardDeclineHandler = null;
 
 // Portal Pattern: Move modals to body level to escape stacking context
 // This ensures modals appear above sidebar and all other elements
@@ -656,6 +654,7 @@ let dashboardConfirmHandler = null;
     const patientRecordModal = document.getElementById('patientRecordModal');
     const completeTreatmentModal = document.getElementById('completeTreatmentModal');
     const dashboardConfirmModal = document.getElementById('dashboardConfirmModal');
+    const dashboardDeclineModal = document.getElementById('dashboardDeclineModal');
     const dashboardMessageModal = document.getElementById('dashboardMessageModal');
     const dashboardCallModal = document.getElementById('dashboardCallModal');
     const scCalModal = document.getElementById('scCalModal');
@@ -671,6 +670,9 @@ let dashboardConfirmHandler = null;
     }
     if (dashboardConfirmModal) {
         document.body.appendChild(dashboardConfirmModal);
+    }
+    if (dashboardDeclineModal) {
+        document.body.appendChild(dashboardDeclineModal);
     }
     if (dashboardMessageModal) {
         document.body.appendChild(dashboardMessageModal);
@@ -717,11 +719,33 @@ function closeDashboardConfirmModal() {
     dashboardConfirmHandler = null;
 }
 
+function openDashboardDeclineModal(message, onConfirm, title = 'Decline Appointment') {
+    document.getElementById('dashboardDeclineTitle').textContent = title;
+    document.getElementById('dashboardDeclineMessage').textContent = message;
+    document.getElementById('dashboardDeclineReason').value = '';
+    dashboardDeclineHandler = onConfirm;
+    document.getElementById('dashboardDeclineModal').style.display = 'flex';
+}
+
+function closeDashboardDeclineModal() {
+    document.getElementById('dashboardDeclineModal').style.display = 'none';
+    dashboardDeclineHandler = null;
+}
+
 document.getElementById('dashboardConfirmButton').addEventListener('click', function() {
     if (typeof dashboardConfirmHandler === 'function') {
         const handler = dashboardConfirmHandler;
         closeDashboardConfirmModal();
         handler();
+    }
+});
+
+document.getElementById('dashboardDeclineButton').addEventListener('click', function() {
+    if (typeof dashboardDeclineHandler === 'function') {
+        const handler = dashboardDeclineHandler;
+        const reason = document.getElementById('dashboardDeclineReason').value.trim();
+        closeDashboardDeclineModal();
+        handler(reason);
     }
 });
 
@@ -844,25 +868,25 @@ function approveAppointment(id) {
 }
 
 function declineAppointment(id) {
-    const reason = prompt('Enter a reason for declining this request (optional):', '');
-    if (reason === null) return;
-    fetch('../shared/approve_appointment.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'decline', appointment_id: id, decline_reason: reason })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showDashboardMessage(data.message || 'Appointment request declined', 'Declined');
-            location.reload();
-        } else {
-            showDashboardMessage(data.message || 'Error declining appointment', 'Approval Status');
-        }
-    })
-    .catch(() => {
-        showDashboardMessage('Something went wrong. Please try again.', 'Approval Status');
-    });
+    openDashboardDeclineModal('Decline this appointment request?\n\nThe patient will be notified.', function(reason) {
+        fetch('../shared/approve_appointment.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'decline', appointment_id: id, decline_reason: reason })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showDashboardMessage(data.message || 'Appointment request declined', 'Declined');
+                location.reload();
+            } else {
+                showDashboardMessage(data.message || 'Error declining appointment', 'Approval Status');
+            }
+        })
+        .catch(() => {
+            showDashboardMessage('Something went wrong. Please try again.', 'Approval Status');
+        });
+    }, 'Decline Appointment');
 }
 
 // Cancelled Modal Functions
@@ -1033,6 +1057,7 @@ window.onclick = function(event) {
     const patientModal = document.getElementById('patientRecordModal');
     const completeTreatmentModal = document.getElementById('completeTreatmentModal');
     const dashboardConfirmModal = document.getElementById('dashboardConfirmModal');
+    const closedashboardDeclineModal = document.getElementById('dashboardDeclineModal');
     const dashboardMessageModal = document.getElementById('dashboardMessageModal');
     const dashboardCallModal = document.getElementById('dashboardCallModal');
     const scCalModal = document.getElementById('scCalModal');
@@ -1040,6 +1065,7 @@ window.onclick = function(event) {
     if (event.target == patientModal) closePatientRecordModal();
     if (event.target == completeTreatmentModal) closeCompleteTreatmentModal();
     if (event.target == dashboardConfirmModal) closeDashboardConfirmModal();
+    if (event.target == closeDashboardDeclineModal) closeDashboardDeclineModal();
     if (event.target == dashboardMessageModal) closeDashboardMessageModal();
     if (event.target == dashboardCallModal) closeCallModal();
     if (event.target == scCalModal) scCalClose();
@@ -1107,6 +1133,8 @@ function scCalClose() {
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeCallModal();
+        closeDashboardConfirmModal();
+        closeDashboardDeclineModal();
         scCalClose();
     }
 });

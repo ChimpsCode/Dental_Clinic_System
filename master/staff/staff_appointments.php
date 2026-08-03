@@ -62,12 +62,23 @@ try {
         s.name as service_name,
         a.status as status_label,
         tp.id as treatment_plan_id, tp.plan_name as treatment_plan_name,
-        CONCAT(d.first_name, ' ', d.last_name) as dentist_name
+        CONCAT(d.first_name, ' ', d.last_name) as dentist_name,
+        q.status as queue_status, q.queue_number, q.queue_label
         FROM appointments a 
         LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
         LEFT JOIN services s ON a.service_id = s.id
         LEFT JOIN treatment_plans tp ON a.id = tp.appointment_id
         LEFT JOIN users d ON a.dentist_id = d.id
+        LEFT JOIN (
+            SELECT q1.appointment_id, q1.status, q1.queue_number, q1.queue_label
+            FROM queue q1
+            INNER JOIN (
+                SELECT appointment_id, MAX(id) AS max_id
+                FROM queue
+                WHERE appointment_id IS NOT NULL AND is_archived = 0
+                GROUP BY appointment_id
+            ) latest ON latest.max_id = q1.id
+        ) q ON q.appointment_id = a.id
         WHERE (a.is_archived = 0 OR a.is_archived IS NULL)
         ORDER BY a.appointment_date DESC, a.id DESC";
     $allAppointments = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
@@ -102,18 +113,43 @@ try {
     $cancelledCount = 0;
 }
 
-// Group appointments by status section
-$sectionLabels = ['pendingapproval' => 'Pending Approval', 'scheduled' => 'Scheduled', 'inqueue' => 'In Queue', 'completed' => 'Completed', 'cancelled' => 'Cancelled'];
-$sections = ['pendingapproval' => [], 'scheduled' => [], 'inqueue' => [], 'completed' => [], 'cancelled' => []];
-foreach ($allAppointments as $appt) {
+// Group appointments into 3 panels: scheduled (left), in queue (right top), pending approval (right bottom)
+$sectionLabels = ['scheduled' => 'Scheduled', 'inqueue' => 'In Queue', 'pendingapproval' => 'Pending Approval'];
+$sections = ['scheduled' => [], 'inqueue' => [], 'pendingapproval' => []];
+
+function staffApptDisplayStatus(array $appt): string {
     $status = strtolower($appt['status_label'] ?? $appt['status'] ?? 'scheduled');
-    $section = 'cancelled';
-    if (strpos($status, 'pending approval') !== false) $section = 'pendingapproval';
-    elseif (strpos($status, 'scheduled') !== false || strpos($status, 'arrived') !== false || strpos($status, 'confirmed') !== false || strpos($status, 'rescheduled') !== false) $section = 'scheduled';
-    elseif (strpos($status, 'queue') !== false || strpos($status, 'pending') !== false) $section = 'inqueue';
-    elseif (strpos($status, 'complete') !== false) $section = 'completed';
-    $sections[$section][] = $appt;
+    $queueStatus = strtolower($appt['queue_status'] ?? '');
+    if (strpos($status, 'pending approval') !== false) return 'Pending Approval';
+    if (strpos($status, 'cancel') !== false || $queueStatus === 'cancelled') return 'Cancelled';
+    if (strpos($status, 'complete') !== false || $queueStatus === 'completed') return 'Completed';
+    if ($queueStatus === 'in_procedure') return 'In Procedure';
+    if (strpos($status, 'pending payment') !== false || $queueStatus === 'pending_payment') return 'Pending Payment';
+    if (strpos($status, 'in queue') !== false || strpos($status, 'arrived') !== false || in_array($queueStatus, ['waiting', 'on_hold'], true)) return 'In Queue';
+    return 'Scheduled';
 }
+
+function staffApptPanel(string $displayStatus): string {
+    if (strpos($displayStatus, 'Pending Approval') !== false) return 'pendingapproval';
+    if ($displayStatus === 'Scheduled') return 'scheduled';
+    return 'inqueue';
+}
+
+$queuePanelOrder = ['In Procedure' => 0, 'In Queue' => 1, 'Pending Payment' => 2, 'Completed' => 3, 'Cancelled' => 4];
+
+foreach ($allAppointments as $appt) {
+    $displayStatus = staffApptDisplayStatus($appt);
+    $appt['display_status'] = $displayStatus;
+    $sections[staffApptPanel($displayStatus)][] = $appt;
+}
+
+// Order the In Queue panel to read like a live board: procedure -> queue -> payment -> done -> cancelled
+usort($sections['inqueue'], function ($a, $b) use ($queuePanelOrder) {
+    $pa = $queuePanelOrder[$a['display_status']] ?? 9;
+    $pb = $queuePanelOrder[$b['display_status']] ?? 9;
+    if ($pa !== $pb) return $pa <=> $pb;
+    return strcmp((string)($b['appointment_date'] ?? ''), (string)($a['appointment_date'] ?? ''));
+});
 
 $inquiryData = null;
 $showModal = false;
@@ -171,6 +207,37 @@ require_once '../../includes/staff_layout_start.php';
 </div>
 
 <style>
+/* Staff appointments dashboard layout:
+   Left = Scheduled (full height), right = In Queue (top) + Pending Approval (bottom) */
+.status-grid.staff-status-grid {
+    grid-template-columns: 3fr 2fr;
+    grid-template-rows: 1fr 1fr;
+}
+
+.status-grid.staff-status-grid .status-section[data-section="scheduled"] {
+    grid-row: 1 / span 2;
+}
+
+.status-badge.status-in-procedure {
+    background: #cffafe;
+    color: #0e7490;
+}
+
+@media (max-width: 1000px) {
+    .status-grid.staff-status-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+        height: auto;
+    }
+    .status-grid.staff-status-grid .status-section[data-section="scheduled"] {
+        grid-row: auto;
+    }
+    .status-grid.staff-status-grid .status-section {
+        min-height: 280px;
+        max-height: 480px;
+    }
+}
+
 @media (max-width: 1200px) {
     .summary-cards {
         grid-template-columns: repeat(3, 1fr) !important;
@@ -227,13 +294,15 @@ require_once '../../includes/staff_layout_start.php';
 .staff-cal-day-modal-item:last-child { border-bottom: none; }
 </style>
 
+
 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
     <button class="view-toggle-btn active" data-view="list">📋 List View</button>
     <button class="view-toggle-btn" data-view="calendar">📅 Calendar View</button>
 </div>
-
 <div class="list-view" id="listView">
+    
     <div class="search-filters">
+        
         <div class="filter-tabs">
             <span class="active" data-filter="all">All</span>
             <span data-filter="today">Today</span>
@@ -257,12 +326,12 @@ require_once '../../includes/staff_layout_start.php';
     <?php endif; ?>
 
     <?php
-    $sectionIcons = ['pendingapproval' => '🕓', 'scheduled' => '📅', 'inqueue' => '⏳', 'completed' => '✅', 'cancelled' => '❌'];
-    $sectionClasses = ['pendingapproval' => 'pendingapproval', 'scheduled' => 'scheduled', 'inqueue' => 'inqueue', 'completed' => 'completed', 'cancelled' => 'cancelled'];
-    $sectionIds = ['pendingapproval' => 'countPendingapproval', 'scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'completed' => 'countCompleted', 'cancelled' => 'countCancelled'];
+    $sectionIcons = ['scheduled' => '📅', 'inqueue' => '⏳', 'pendingapproval' => '🕓'];
+    $sectionClasses = ['scheduled' => 'scheduled', 'inqueue' => 'inqueue', 'pendingapproval' => 'pendingapproval'];
+    $sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'pendingapproval' => 'countPendingapproval'];
     ?>
-    <div class="status-grid">
-        <?php foreach (['pendingapproval', 'scheduled', 'inqueue', 'completed', 'cancelled'] as $sec): ?>
+    <div class="status-grid staff-status-grid">
+        <?php foreach (['scheduled', 'inqueue', 'pendingapproval'] as $sec): ?>
         <div class="status-section" data-section="<?php echo $sec; ?>">
             <div class="status-section-header <?php echo $sectionClasses[$sec]; ?>">
                 <span class="status-section-title"><?php echo $sectionIcons[$sec]; ?> <?php echo $sectionLabels[$sec]; ?></span>
@@ -281,9 +350,11 @@ require_once '../../includes/staff_layout_start.php';
                         $date = date('Y-m-d', strtotime($appt['appointment_date']));
                         $treatment = htmlspecialchars($appt['service_name'] ?? 'General');
                         $dentist = htmlspecialchars($appt['dentist_name'] ?? 'Unassigned');
-                        $status = $appt['status_label'] ?? $appt['status'] ?? 'Scheduled';
+                        $status = $appt['display_status'] ?? ($appt['status_label'] ?? $appt['status'] ?? 'Scheduled');
+                        $isLiveQueue = ($status === 'In Procedure');
                         $badgeClass = 'status-scheduled';
                         if (stripos($status, 'pending approval') !== false) $badgeClass = 'status-pending-approval';
+                        elseif (stripos($status, 'in procedure') !== false) $badgeClass = 'status-in-procedure';
                         elseif (stripos($status, 'arrived') !== false) $badgeClass = 'status-arrived';
                         elseif (stripos($status, 'queue') !== false) $badgeClass = 'status-in-queue';
                         elseif (stripos($status, 'pending') !== false) $badgeClass = 'status-pending-payment';
@@ -293,14 +364,15 @@ require_once '../../includes/staff_layout_start.php';
                     <div class="appointment-mini-card" 
                          data-name="<?php echo strtolower($name); ?>"
                          data-date="<?php echo $date; ?>"
-                         data-status="<?php echo strtolower($status); ?>">
+                         data-status="<?php echo strtolower($status); ?>"
+                         <?php if ($isLiveQueue): ?>data-live-status="1"<?php endif; ?>>
                         <div class="mini-card-top">
                             <span class="mini-card-name" title="<?php echo $name; ?>"><?php echo $name; ?></span>
                             <span class="mini-card-time"><?php echo $time; ?></span>
                             <div class="appt-kebab-menu" style="flex-shrink:0;">
                                 <button class="appt-kebab-btn"
                                         data-appt-id="<?php echo $appt['id']; ?>"
-                                        data-status="<?php echo htmlspecialchars($status); ?>"
+                                        data-status="<?php echo htmlspecialchars($appt['status_label'] ?? $appt['status'] ?? 'Scheduled'); ?>"
                                         data-checked-in="<?php echo $appt['check_in_time'] ?? ''; ?>">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                                         <circle cx="12" cy="6" r="2"/>
@@ -936,7 +1008,7 @@ require_once '../../includes/staff_layout_start.php';
         const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
         const monthEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-        const counts = { pendingapproval: 0, scheduled: 0, inqueue: 0, completed: 0, cancelled: 0 };
+        const counts = { pendingapproval: 0, scheduled: 0, inqueue: 0 };
 
         document.querySelectorAll('.appointment-mini-card').forEach(card => {
             const nameMatch = !search || card.dataset.name.includes(search);
@@ -964,8 +1036,6 @@ require_once '../../includes/staff_layout_start.php';
         document.getElementById('countPendingapproval').textContent = counts.pendingapproval;
         document.getElementById('countScheduled').textContent = counts.scheduled;
         document.getElementById('countInqueue').textContent = counts.inqueue;
-        document.getElementById('countCompleted').textContent = counts.completed;
-        document.getElementById('countCancelled').textContent = counts.cancelled;
     }
 
     var selectedStaffSlot = null;
@@ -1207,7 +1277,7 @@ require_once '../../includes/staff_layout_start.php';
                 <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.appointment_time ? new Date('1970-01-01 ' + appt.appointment_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'N/A'}</span></div>
                 <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.service_name || appt.treatment || 'General'}</span></div>
                 <div><span style="color: #6b7280;">Dentist:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.dentist_name || 'Unassigned'}</span></div>
-                <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${getAppointmentDisplayStatus(appt) === 'Completed' ? '#dcfce7' : getAppointmentDisplayStatus(appt) === 'Cancelled' ? '#fee2e2' : getAppointmentDisplayStatus(appt).toLowerCase() === 'arrived' ? '#ccfbf1' : '#e0f2fe'}; color: ${getAppointmentDisplayStatus(appt) === 'Completed' ? '#15803d' : getAppointmentDisplayStatus(appt) === 'Cancelled' ? '#dc2626' : getAppointmentDisplayStatus(appt).toLowerCase() === 'arrived' ? '#0f766e' : '#0369a1'};">${getAppointmentDisplayStatus(appt)}</span></div>
+                <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${getAppointmentDisplayStatus(appt) === 'Completed' ? '#dcfce7' : getAppointmentDisplayStatus(appt) === 'Cancelled' ? '#fee2e2' : getAppointmentDisplayStatus(appt).toLowerCase() === 'in procedure' ? '#cffafe' : getAppointmentDisplayStatus(appt).toLowerCase() === 'arrived' ? '#ccfbf1' : '#e0f2fe'}; color: ${getAppointmentDisplayStatus(appt) === 'Completed' ? '#15803d' : getAppointmentDisplayStatus(appt) === 'Cancelled' ? '#dc2626' : getAppointmentDisplayStatus(appt).toLowerCase() === 'in procedure' ? '#0e7490' : getAppointmentDisplayStatus(appt).toLowerCase() === 'arrived' ? '#0f766e' : '#0369a1'};">${getAppointmentDisplayStatus(appt)}</span></div>
                 ${appt.notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${appt.notes}</p></div>` : ''}
             </div>
         `;
@@ -1587,7 +1657,15 @@ require_once '../../includes/staff_layout_start.php';
 
     function getAppointmentDisplayStatus(appt) {
         if (!appt) return 'Pending';
-        return appt.status_label || appt.status || 'Scheduled';
+        const s = (appt.status_label || appt.status || 'Scheduled');
+        const qs = (appt.queue_status || '');
+        if (s.toLowerCase().indexOf('pending approval') !== -1) return 'Pending Approval';
+        if (s.toLowerCase().indexOf('cancel') !== -1 || qs === 'cancelled') return 'Cancelled';
+        if (s.toLowerCase().indexOf('complete') !== -1 || qs === 'completed') return 'Completed';
+        if (qs === 'in_procedure') return 'In Procedure';
+        if (s.toLowerCase().indexOf('pending payment') !== -1 || qs === 'pending_payment') return 'Pending Payment';
+        if (s.toLowerCase().indexOf('in queue') !== -1 || s.toLowerCase() === 'arrived' || qs === 'waiting' || qs === 'on_hold') return 'In Queue';
+        return 'Scheduled';
     }
 
     function markArrived(id) {
@@ -1674,6 +1752,8 @@ function refreshAppointmentStatuses(appts) {
     var cards = document.querySelectorAll('.appointment-mini-card');
     for (var i = 0; i < cards.length; i++) {
         var card = cards[i];
+        // Queue-derived status (e.g. In Procedure) is more current than the appointment's own status
+        if (card.dataset.liveStatus === '1') continue;
         var kebab = card.querySelector('.appt-kebab-btn');
         if (!kebab) continue;
         var apptId = parseInt(kebab.dataset.apptId);
@@ -1694,6 +1774,7 @@ function refreshAppointmentStatuses(appts) {
 function getApptBadgeClass(status) {
     var s = status.toLowerCase();
     if (s.indexOf('pending approval') !== -1) return 'status-pending-approval';
+    if (s.indexOf('in procedure') !== -1) return 'status-in-procedure';
     if (s.indexOf('arrived') !== -1) return 'status-arrived';
     if (s.indexOf('queue') !== -1) return 'status-in-queue';
     if (s.indexOf('pending') !== -1) return 'status-pending-payment';
@@ -1703,6 +1784,39 @@ function getApptBadgeClass(status) {
 }
 
 document.addEventListener('DOMContentLoaded', startAppointmentPolling);
+
+// Auto-scroll to Scheduled section when arriving from dashboard Upcoming Appointments
+(function() {
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('focus') !== 'scheduled') return;
+
+    // Ensure List View is active
+    document.querySelectorAll('.view-toggle-btn').forEach(function(b) {
+        b.classList.toggle('active', b.dataset.view === 'list');
+    });
+    var listView = document.getElementById('listView');
+    if (listView) listView.classList.remove('hidden');
+    var calView = document.getElementById('calendarView');
+    if (calView) calView.classList.remove('active');
+
+    // Reset filter to All and clear search
+    document.querySelectorAll('.filter-tabs span').forEach(function(t) {
+        t.classList.toggle('active', t.dataset.filter === 'all');
+    });
+    var searchInput = document.getElementById('searchAppointment');
+    if (searchInput) searchInput.value = '';
+    filterAppointments();
+
+    // Scroll to Scheduled section with a temporary highlight
+    var section = document.querySelector('.status-section[data-section="scheduled"]');
+    if (section) {
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        section.classList.add('highlight-scheduled');
+        setTimeout(function() {
+            section.classList.remove('highlight-scheduled');
+        }, 2500);
+    }
+})();
 </script>
 
 <?php require_once '../../includes/staff_layout_end.php'; ?>

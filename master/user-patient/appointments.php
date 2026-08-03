@@ -132,8 +132,8 @@ foreach ($all_appointments as $apt) {
     }
 }
 
-// Get booked dates for calendar
-$stmt = $pdo->query("SELECT appointment_date, appointment_time FROM appointments WHERE appointment_date >= CURDATE()");
+// Get booked dates for calendar (any active booking that day, excluding cancelled/completed/archived)
+$stmt = $pdo->query("SELECT appointment_date, appointment_time FROM appointments WHERE appointment_date >= CURDATE() AND COALESCE(is_archived, 0) = 0 AND deleted_at IS NULL AND LOWER(COALESCE(status, '')) NOT IN ('cancelled', 'canceled', 'completed')");
 $bookedDates = $stmt->fetchAll(PDO::FETCH_ASSOC);
 foreach ($bookedDates as $booked) {
     $date = date('Y-m-d', strtotime($booked['appointment_date']));
@@ -210,13 +210,23 @@ $pageTitle = 'My Appointments';
         .calendar-nav button:hover { background: #e5e7eb; }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
         .calendar-day-header { text-align: center; font-size: 12px; font-weight: 600; color: #6b7280; padding: 8px 0; text-transform: uppercase; }
-        .calendar-day { min-height: 50px; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 14px; border-radius: 8px; cursor: pointer; transition: all 0.2s; position: relative; font-weight: 500; border: 1px solid #e5e7eb; background: white; }
+        .calendar-day { position: relative; min-height: 46px; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 13px; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-weight: 500; border: 1px solid #e5e7eb; background: white; }
+        .calendar-day .day-num { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; line-height: 1; }
+        .calendar-day .day-dot { width: 5px; height: 5px; border-radius: 50%; background: #2563eb; flex-shrink: 0; }
         .calendar-day:hover:not(.disabled) { background: #f0f7ff; border-color: #005daa; }
         .calendar-day.disabled { color: #d1d5db; cursor: not-allowed; background: #f9fafb; }
-        .calendar-day.today { background: #dcf0ff; border-color: #005daa; }
-        .calendar-day.has-appointment { background: #dbeafe; border-color: #1e40af; color: #1e40af; }
-        .calendar-day.selected { background: #005daa; color: white; border-color: #005daa; }
+        .calendar-day.disabled .day-num { color: #d1d5db; }
+        .calendar-day.has-appointment { background: #78acff; border-color: #3b82f6; }
+        .calendar-day.has-appointment .day-num { color: #fff; }
+        .calendar-day.has-appointment .day-dot { background: #fff; }
+        .calendar-day.today { background: #eff6ff; border-color: #bfdbfe; }
+        .calendar-day.today .day-num { background: #249d77; color: #fff; font-weight: 700; }
+        .calendar-day.today.has-appointment .day-dot { background: #2563eb; }
+        .calendar-day.selected { background: #226eab; border-color: #005daa; }
+        .calendar-day.selected .day-num { color: #fff; }
+        .calendar-day.selected .day-dot { background: #fff; }
         .calendar-day.sunday { background: #fef3c7; color: #92400e; border-color: #fef3c7; }
+        .calendar-day.sunday .day-num { color: #92400e; }
         
         .booking-box { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); height: fit-content; }
         .booking-title { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
@@ -243,13 +253,16 @@ $pageTitle = 'My Appointments';
         
         .selected-date { font-size: 20px; font-weight: 700; color: #005daa; margin-bottom: 16px; text-align: center; }
         
-        .legend { display: flex; gap: 16px; margin-top: 16px; font-size: 12px; color: #6b7280; flex-wrap: wrap; }
+        .legend { display: flex; gap: 16px; margin-top: 16px; font-size: 12px; color: #6b7280; flex-wrap: wrap; align-items: center; }
         .legend-item { display: flex; align-items: center; gap: 6px; }
-        .legend-dot { width: 12px; height: 12px; border-radius: 4px; }
-        .legend-today { background: #dcf0ff; border: 1px solid #005daa; }
-        .legend-appointment { background: #dbeafe; }
+        .legend-dot { width: 14px; height: 14px; border-radius: 4px; position: relative; flex-shrink: 0; }
+        .legend-today { background: #d1fae5; border: 1px solid #a7f3d0; }
+        .legend-today::after { content: ''; position: absolute; inset: 0; margin: auto; width: 10px; height: 10px; border-radius: 50%; background: #249d77; }
+        .legend-selected { background: #005daa; border: 1px solid #005daa; }
+        .legend-appointment { background: #3b82f6; border: 1px solid #3b82f6; }
+        .legend-appointment::after { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 6px; height: 6px; border-radius: 50%; background: #fff; }
         .legend-available { background: white; border: 1px solid #e5e7eb; }
-        .legend-closed { background: #fef3c7; }
+        .legend-closed { background: #fef3c7; border: 1px solid #fef3c7; }
         
         .empty-state { text-align: center; padding: 48px 24px; color: #6b7280; }
         .empty-state i { font-size: 48px; margin-bottom: 16px; color: #d1d5db; }
@@ -399,6 +412,7 @@ $pageTitle = 'My Appointments';
                         <div class="calendar-grid" id="calendarGrid"></div>
                         <div class="legend">
                             <div class="legend-item"><span class="legend-dot legend-today"></span> Today</div>
+                            <div class="legend-item"><span class="legend-dot legend-selected"></span> Selected</div>
                             <div class="legend-item"><span class="legend-dot legend-appointment"></span> Has Appointment</div>
                             <div class="legend-item"><span class="legend-dot legend-available"></span> Available</div>
                             <div class="legend-item"><span class="legend-dot legend-closed"></span> Closed (Sunday)</div>
@@ -582,7 +596,11 @@ $pageTitle = 'My Appointments';
             for (let i = 1; i <= totalDays; i++) {
                 const d = document.createElement('div');
                 d.className = 'calendar-day';
-                d.textContent = i;
+                
+                const num = document.createElement('span');
+                num.className = 'day-num';
+                num.textContent = i;
+                d.appendChild(num);
                 
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
                 const dateObj = new Date(year, month, i);
@@ -600,6 +618,9 @@ $pageTitle = 'My Appointments';
                     const hasAppointment = bookedDatesSlots[dateStr] && bookedDatesSlots[dateStr].length > 0;
                     if (hasAppointment) {
                         d.classList.add('has-appointment');
+                        const dot = document.createElement('span');
+                        dot.className = 'day-dot';
+                        d.appendChild(dot);
                     }
                     
                     d.addEventListener('click', () => selectDate(dateStr, d));
