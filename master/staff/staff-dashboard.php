@@ -2,6 +2,7 @@
 $pageTitle = 'Dashboard';
 require_once '../../config/database.php';
 require_once '../../includes/queue_management_helper.php';
+require_once __DIR__ . '/../../includes/appointment_approval_helper.php';
 require_once '../../includes/staff_layout_start.php';
 
 try {
@@ -35,6 +36,27 @@ try {
 
     $waitingItems = array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'waiting');
 
+    // Pending Approval appointments
+    ensureAppointmentApprovalSchema($pdo);
+    autoDeclineExpiredPendingAppointments($pdo);
+
+    $pendingApprovalAll = $pdo->query("
+        SELECT a.id, a.appointment_date, a.appointment_time, a.status,
+               COALESCE(p.first_name, 'Unknown') as first_name,
+               COALESCE(p.middle_name, '') as middle_name,
+               COALESCE(p.last_name, '') as last_name,
+               COALESCE(p.phone, '') as phone,
+               COALESCE(s.name, 'General') as service_name
+        FROM appointments a
+        LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
+        LEFT JOIN services s ON a.service_id = s.id
+        WHERE LOWER(a.status) = 'pending approval'
+          AND (a.is_archived = 0 OR a.is_archived IS NULL)
+        ORDER BY a.appointment_date ASC, a.appointment_time ASC
+    ")->fetchAll(PDO::FETCH_ASSOC);
+    $pendingApprovalCount = count($pendingApprovalAll);
+    $pendingApprovalItems = array_slice($pendingApprovalAll, 0, 5);
+
     // Helper function to build full name
     function buildPatientName($item) {
         return trim(($item['first_name'] ?? '') . ' ' . ($item['middle_name'] ?? '') . ' ' . ($item['last_name'] ?? '') . ' ' . ($item['suffix'] ?? ''));
@@ -49,6 +71,9 @@ try {
     $cancelledCount = 0;
     $inProcedureItem = null;
     $waitingItems = [];
+    $pendingApprovalAll = [];
+    $pendingApprovalCount = 0;
+    $pendingApprovalItems = [];
 }
 ?>
 
@@ -187,85 +212,128 @@ try {
                 <div class="complete-btn-text">Click when patient treatment is finished</div>
             </div>
 
-            <!-- Up Next -->
-            <div class="section-card">
-                <h2 class="section-title">📋 IN THE QUEUE</h2>
-                <div class="patient-list" id="up-next-list">
-                    <?php if (empty($waitingItems)): ?>
-                        <div style="text-align: center; padding: 0; color: #6b7280;">
-                            <p>No patients waiting</p>
-                            <a href="staff_new_admission.php" class="btn-primary" style="display: inline-block; margin-top: 12px; text-decoration: none;">Add New Patient</a>
-                        </div>
-                <?php else: ?>
-                        <?php foreach (array_slice($waitingItems, 0, 5) as $index => $item):
-                            $waitingPatientName = buildPatientName($item);
-                        ?>
-                        <div class="patient-item" id="next-<?php echo $item['id']; ?>">
-                            <div class="patient-info">
-                                <div style="display:flex;align-items:center;gap:14px;">
-                                    <div style="min-width:44px;height:44px;background:#f3f4f6;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;color:#6b7280;font-size:1.05rem;flex-shrink:0;">
-                                        #<?php echo htmlspecialchars($item['queue_number'] ?? ($item['id'] ?? '')); ?>
-                                    </div>
-                                    <div style="min-width:0;">
-                                        <div class="patient-name"><?php echo htmlspecialchars($waitingPatientName ?: 'Unknown'); ?></div>
-                                        <div class="patient-details" style="margin-top:4px;">
-                                            <span class="status-badge waiting">Waiting</span>
-                                            <span class="patient-time"><?php echo htmlspecialchars($item['queue_time'] ?? ''); ?></span>
-                                        </div>
-                                        <div class="patient-treatment"><?php echo htmlspecialchars($item['treatment_type'] ?? ''); ?></div>
-                                    </div>
-                                </div>
+            <!-- Up Next + On Hold + Pending Approval -->
+            <div class="queue-grid">
+                <div class="queue-grid-left">
+                <div class="section-card compact-queue">
+                    <h2 class="section-title">📋 IN THE QUEUE <span class="section-count" id="count-up-next"><?php echo count($waitingItems); ?></span></h2>
+                    <div class="patient-list" id="up-next-list">
+                        <?php if (empty($waitingItems)): ?>
+                            <div style="text-align: center; padding: 0; color: #6b7280;">
+                                <p>No patients waiting</p>
+                                <a href="staff_new_admission.php" class="btn-primary" style="display: inline-block; margin-top: 12px; text-decoration: none;">Add New Patient</a>
                             </div>
-                            <div class="patient-actions">
-                                <button class="action-btn text-btn" onclick="viewPatientDashboard(<?php echo $item['patient_id']; ?>)">View</button>
-                                <button class="action-btn text-btn" onclick="moveToOnHoldDashboard(<?php echo $item['id']; ?>)">Hold</button>
-                                <button 
-                                    class="action-btn text-btn" 
-                                    style="background-color: red; color: white; border: none; padding: 5px 10px; cursor: pointer;"
-                                    onclick="cancelPatientDashboard(<?php echo $item['id']; ?>)">
-                                    Cancel
-                                </button>
-                            </div>
-                        </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </div>
-            </div>
-
-            <!-- On Hold -->
-            <div class="section-card">
-                <h2 class="section-title">⏸️ On Hold</h2>
-                <div class="patient-list" id="onhold-list">
-                    <?php 
-                    $onHoldItems = array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'on_hold');
-                    if (empty($onHoldItems)): ?>
-                        <div style="text-align: center; padding: 0; color: #6b7280;">
-                            <p>No patients on hold</p>
-                        </div>
                     <?php else: ?>
-                        <?php foreach ($onHoldItems as $item):
-                            $onHoldPatientName = buildPatientName($item);
-                        ?>
-                        <div class="patient-item" id="onhold-<?php echo $item['id']; ?>">
-                            <div class="patient-info">
-                                <div class="patient-name"><?php echo htmlspecialchars($onHoldPatientName ?: 'Unknown'); ?></div>
-                                <div class="patient-details">
-                                    <span class="status-badge cancelled">On Hold</span>
+                            <?php foreach (array_slice($waitingItems, 0, 5) as $index => $item):
+                                $waitingPatientName = buildPatientName($item);
+                            ?>
+                            <div class="patient-item" id="next-<?php echo $item['id']; ?>">
+                                <div class="patient-info">
+                                    <div style="display:flex;align-items:center;gap:10px;">
+                                        <div class="queue-avatar">
+                                            #<?php echo htmlspecialchars($item['queue_number'] ?? ($item['id'] ?? '')); ?>
+                                        </div>
+                                        <div style="min-width:0;">
+                                            <div class="patient-name"><?php echo htmlspecialchars($waitingPatientName ?: 'Unknown'); ?></div>
+                                            <div class="patient-details" style="margin-top:3px;">
+                                                <span class="status-badge waiting">Waiting</span>
+                                                <span class="patient-time"><?php echo htmlspecialchars($item['queue_time'] ?? ''); ?></span>
+                                            </div>
+                                            <div class="patient-treatment"><?php echo htmlspecialchars($item['treatment_type'] ?? ''); ?></div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="patient-treatment"><?php echo htmlspecialchars($item['treatment_type'] ?? ''); ?></div>
+                                <div class="patient-actions">
+                                    <button class="action-btn text-btn" onclick="viewPatientDashboard(<?php echo $item['patient_id']; ?>)">View</button>
+                                    <button class="action-btn text-btn" onclick="moveToOnHoldDashboard(<?php echo $item['id']; ?>)">Hold</button>
+                                    <button 
+                                        class="action-btn text-btn queue-cancel-btn" 
+                                        onclick="cancelPatientDashboard(<?php echo $item['id']; ?>)">
+                                        Cancel
+                                    </button>
+                                </div>
                             </div>
-                            <div class="patient-actions">
-                                <button class="action-btn icon view-btn" onclick="viewPatientDashboard(<?php echo (int)$item['patient_id']; ?>)">
-                                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="16" height="16"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path opacity="0.15" fill-rule="evenodd" clip-rule="evenodd" d="M12 5C5.63636 5 2 12 2 12C2 12 5.63636 19 12 19C18.3636 19 22 12 22 12C22 12 18.3636 5 12 5ZM15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" fill="#000000"></path> <path d="M12 5C5.63636 5 2 12 2 12C2 12 5.63636 19 12 19C18.3636 19 22 12 22 12C22 12 18.3636 5 12 5Z" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
-                                </button>
-                                <button class="action-btn" style="background: #84cc16; color: white; padding: 8px 12px; border-radius: 6px; border: none; font-size: 12px; cursor: pointer;" onclick="requeuePatientDashboard(<?php echo $item['id']; ?>)">Re-queue</button>
-                                <button class="action-btn icon delete-btn">
-                                    <svg viewBox="-2.4 -2.4 28.80 28.80" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#000000" width="16" height="16"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round" stroke="#CCCCCC" stroke-width="0.144"></g><g id="SVGRepo_iconCarrier"> <path d="M5.82907 6.65808H18.6325V19.2906C18.6325 20.3951 17.7371 21.2906 16.6325 21.2906H7.82907C6.7245 21.2906 5.82907 20.3951 5.82907 19.2906V6.65808Z" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M4 5.74365L20.4615 5.74365" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M14.9134 3H9.54816L8.57266 5.74359H15.8889L14.9134 3Z" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></path> <line x1="12.3163" y1="10.4017" x2="12.3163" y2="17.547" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></line> <line x1="9.57266" y1="10.4017" x2="9.57266" y2="17.547" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></line> <line x1="15.0598" y1="10.4017" x2="15.0598" y2="17.547" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></line> </g></svg>
-                                </button>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <!-- On Hold -->
+                <?php
+                $onHoldItems = array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'on_hold');
+                $onHoldCount = count($onHoldItems);
+                ?>
+                <div class="section-card compact-queue">
+                    <h2 class="section-title">⏸️ On Hold <span class="section-count" id="count-on-hold"><?php echo $onHoldCount; ?></span></h2>
+                    <div class="patient-list" id="onhold-list">
+                        <?php if (empty($onHoldItems)): ?>
+                            <div style="text-align: center; padding: 0; color: #6b7280;">
+                                <p>No patients on hold</p>
                             </div>
-                        </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
+                        <?php else: ?>
+                            <?php foreach ($onHoldItems as $item):
+                                $onHoldPatientName = buildPatientName($item);
+                            ?>
+                            <div class="patient-item" id="onhold-<?php echo $item['id']; ?>">
+                                <div class="patient-info">
+                                    <div class="patient-name"><?php echo htmlspecialchars($onHoldPatientName ?: 'Unknown'); ?></div>
+                                    <div class="patient-details" style="margin-top:3px;">
+                                        <span class="status-badge cancelled">On Hold</span>
+                                    </div>
+                                    <div class="patient-treatment"><?php echo htmlspecialchars($item['treatment_type'] ?? ''); ?></div>
+                                </div>
+                                <div class="patient-actions">
+                                    <button class="action-btn icon view-btn" onclick="viewPatientDashboard(<?php echo (int)$item['patient_id']; ?>)">
+                                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="16" height="16"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path opacity="0.15" fill-rule="evenodd" clip-rule="evenodd" d="M12 5C5.63636 5 2 12 2 12C2 12 5.63636 19 12 19C18.3636 19 22 12 22 12C22 12 18.3636 5 12 5ZM15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" fill="#000000"></path> <path d="M12 5C5.63636 5 2 12 2 12C2 12 5.63636 19 12 19C18.3636 19 22 12 22 12C22 12 18.3636 5 12 5Z" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
+                                    </button>
+                                    <button class="action-btn text-btn onhold-requeue-btn" onclick="requeuePatientDashboard(<?php echo $item['id']; ?>)">Re-queue</button>
+                                    <button class="action-btn icon delete-btn">
+                                        <svg viewBox="-2.4 -2.4 28.80 28.80" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#000000" width="16" height="16"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round" stroke="#CCCCCC" stroke-width="0.144"></g><g id="SVGRepo_iconCarrier"> <path d="M5.82907 6.65808H18.6325V19.2906C18.6325 20.3951 17.7371 21.2906 16.6325 21.2906H7.82907C6.7245 21.2906 5.82907 20.3951 5.82907 19.2906V6.65808Z" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M4 5.74365L20.4615 5.74365" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M14.9134 3H9.54816L8.57266 5.74359H15.8889L14.9134 3Z" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></path> <line x1="12.3163" y1="10.4017" x2="12.3163" y2="17.547" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></line> <line x1="9.57266" y1="10.4017" x2="9.57266" y2="17.547" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></line> <line x1="15.0598" y1="10.4017" x2="15.0598" y2="17.547" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></line> </g></svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                </div>
+
+                <!-- Pending Approval -->
+                <div class="section-card compact-queue">
+                    <h2 class="section-title">🕓 Pending Approval <span class="section-count pending-count" id="count-pending-approval"><?php echo $pendingApprovalCount; ?></span></h2>
+                    <div class="patient-list" id="pending-approval-list">
+                        <?php if (empty($pendingApprovalItems)): ?>
+                            <div style="text-align: center; padding: 0; color: #6b7280;">
+                                <p>No pending approvals</p>
+                            </div>
+                        <?php else: ?>
+                            <?php foreach ($pendingApprovalItems as $appt):
+                                $paName = trim(($appt['first_name'] ?? '') . ' ' . ($appt['middle_name'] ?? '') . ' ' . ($appt['last_name'] ?? ''));
+                                $paDate = !empty($appt['appointment_date']) ? date('M j', strtotime($appt['appointment_date'])) : '';
+                                $paTime = !empty($appt['appointment_time']) ? date('h:i A', strtotime($appt['appointment_time'])) : '';
+                            ?>
+                            <div class="patient-item" id="pending-appt-<?php echo $appt['id']; ?>">
+                                <div class="patient-info">
+                                    <div class="patient-name"><?php echo htmlspecialchars($paName ?: 'Unknown'); ?></div>
+                                    <div class="patient-details" style="margin-top:3px;">
+                                        <span class="status-badge pending">Pending</span>
+                                        <span class="patient-time"><?php echo htmlspecialchars(trim($paDate . ' · ' . $paTime)); ?></span>
+                                    </div>
+                                    <div class="patient-treatment"><?php echo htmlspecialchars($appt['service_name'] ?? 'General'); ?></div>
+                                </div>
+                                <div class="patient-actions">
+                                    
+                                    <button class="action-btn pa-approve" onclick="approveAppointment(<?php echo (int)$appt['id']; ?>)">✓</button>
+                                    <button class="action-btn pa-decline" onclick="declineAppointment(<?php echo (int)$appt['id']; ?>)">✕  </button>
+                                    <button class="action-btn pa-call" title="View phone number" onclick="openCallModal('<?php echo htmlspecialchars($paName ?: 'Unknown', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($appt['phone'] ?? '', ENT_QUOTES); ?>')">
+                                        <img src="../../assets/icons/call_button.png" alt="Call">
+                                    </button>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                    <a href="staff_appointments.php" class="see-all-link">View All (<?php echo $pendingApprovalCount; ?>)</a>
                 </div>
             </div>
         </div>
@@ -383,7 +451,7 @@ try {
                     WHERE a.appointment_date >= CURDATE()
                       AND (a.is_archived = 0 OR a.is_archived IS NULL)
                     ORDER BY a.appointment_date ASC, a.appointment_time ASC
-                    LIMIT 5
+                    LIMIT 3
                 ");
                 $staffTodayAppointments = $staffApptStmt->fetchAll(PDO::FETCH_ASSOC);
             } catch (Exception $e) {
@@ -516,6 +584,17 @@ try {
     </div>
 </div>
 
+<!-- Dashboard Call Modal -->
+<div id="dashboardCallModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
+    <div class="modal" style="background: white; border-radius: 12px; padding: 24px; width: 90%; max-width: 360px; position: relative; z-index: 100000;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h2 style="font-size: 1.1rem; font-weight: 600; margin: 0;">📞 Patient Contact</h2>
+            <button onclick="closeCallModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">×</button>
+        </div>
+        <div id="callModalBody" style="color: #374151; text-align: center; padding: 8px 0 4px;"></div>
+    </div>
+</div>
+
 <!-- Inquiry Panel Backdrop -->
 <div class="dashboard-inquiry-backdrop" id="dashboardInquiryBackdrop" onclick="toggleInquiryPanel()"></div>
 
@@ -578,6 +657,7 @@ let dashboardConfirmHandler = null;
     const completeTreatmentModal = document.getElementById('completeTreatmentModal');
     const dashboardConfirmModal = document.getElementById('dashboardConfirmModal');
     const dashboardMessageModal = document.getElementById('dashboardMessageModal');
+    const dashboardCallModal = document.getElementById('dashboardCallModal');
     const scCalModal = document.getElementById('scCalModal');
     
     if (cancelledModal) {
@@ -595,10 +675,25 @@ let dashboardConfirmHandler = null;
     if (dashboardMessageModal) {
         document.body.appendChild(dashboardMessageModal);
     }
+    if (dashboardCallModal) {
+        document.body.appendChild(dashboardCallModal);
+    }
     if (scCalModal) {
         document.body.appendChild(scCalModal);
     }
 })();
+
+function openCallModal(name, phone) {
+    const safePhone = phone || 'No phone number on file';
+    document.getElementById('callModalBody').innerHTML =
+        '<div style="font-size:0.95rem;color:#6b7280;margin-bottom:8px;">' + String(name).replace(/[&<>"']/g, function(c) { return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }) + '</div>' +
+        '<a href="tel:' + encodeURIComponent(safePhone) + '" style="font-size:1.35rem;font-weight:700;color:#2563eb;text-decoration:none;word-break:break-word;">' + String(safePhone).replace(/[&<>"']/g, function(c) { return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }) + '</a>';
+    document.getElementById('dashboardCallModal').style.display = 'flex';
+}
+
+function closeCallModal() {
+    document.getElementById('dashboardCallModal').style.display = 'none';
+}
 
 function showDashboardMessage(message, title = 'Notice') {
     document.getElementById('dashboardMessageTitle').textContent = title;
@@ -722,6 +817,51 @@ function requeuePatientDashboard(queueId) {
     })
     .catch(() => {
         showDashboardMessage('Unable to re-queue patient', 'Queue Status');
+    });
+}
+
+// Pending Approval Actions
+function approveAppointment(id) {
+    openDashboardConfirmModal('Approve this appointment request?\n\nThe patient will be notified and the slot will be added to the calendar.', function() {
+        fetch('../shared/approve_appointment.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'approve', appointment_id: id })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showDashboardMessage(data.message || 'Appointment approved', 'Approved');
+                location.reload();
+            } else {
+                showDashboardMessage(data.message || 'Error approving appointment', 'Approval Status');
+            }
+        })
+        .catch(() => {
+            showDashboardMessage('Something went wrong. Please try again.', 'Approval Status');
+        });
+    }, 'Approve Appointment');
+}
+
+function declineAppointment(id) {
+    const reason = prompt('Enter a reason for declining this request (optional):', '');
+    if (reason === null) return;
+    fetch('../shared/approve_appointment.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'decline', appointment_id: id, decline_reason: reason })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showDashboardMessage(data.message || 'Appointment request declined', 'Declined');
+            location.reload();
+        } else {
+            showDashboardMessage(data.message || 'Error declining appointment', 'Approval Status');
+        }
+    })
+    .catch(() => {
+        showDashboardMessage('Something went wrong. Please try again.', 'Approval Status');
     });
 }
 
@@ -894,12 +1034,14 @@ window.onclick = function(event) {
     const completeTreatmentModal = document.getElementById('completeTreatmentModal');
     const dashboardConfirmModal = document.getElementById('dashboardConfirmModal');
     const dashboardMessageModal = document.getElementById('dashboardMessageModal');
+    const dashboardCallModal = document.getElementById('dashboardCallModal');
     const scCalModal = document.getElementById('scCalModal');
     if (event.target == cancelledModal) closeCancelledModal();
     if (event.target == patientModal) closePatientRecordModal();
     if (event.target == completeTreatmentModal) closeCompleteTreatmentModal();
     if (event.target == dashboardConfirmModal) closeDashboardConfirmModal();
     if (event.target == dashboardMessageModal) closeDashboardMessageModal();
+    if (event.target == dashboardCallModal) closeCallModal();
     if (event.target == scCalModal) scCalClose();
 }
 
@@ -963,10 +1105,11 @@ function scCalClose() {
 }
 
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') scCalClose();
+    if (e.key === 'Escape') {
+        closeCallModal();
+        scCalClose();
+    }
 });
-
-
 
 // Convert teeth numbers to arch labels (matches staff terminology)
 function getStaffTeethDisplayText(teethString) {
@@ -1304,6 +1447,8 @@ function pollDashboardQueueCounts() {
                 sdQueueCountHash = data.hash;
                 var c = data.counts;
                 var el = document.getElementById('count-waiting');
+                if (el) el.textContent = c.waiting;
+                el = document.getElementById('count-up-next');
                 if (el) el.textContent = c.waiting;
                 el = document.getElementById('count-completed');
                 if (el) el.textContent = c.completed;

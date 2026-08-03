@@ -1016,6 +1016,195 @@ header.top-header {
 .status-badge.cancelled { background-color: var(--status-cancelled-bg); color: var(--status-cancelled-text); }
 .patient-time { font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; }
 
+/* IN THE QUEUE + Pending Approval side-by-side grid */
+.queue-grid {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 24px;
+}
+
+.queue-grid .section-card {
+    margin-bottom: 0;
+}
+
+.queue-grid-left {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
+}
+
+.compact-queue .action-btn.icon {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.compact-queue .action-btn.icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+.compact-queue .onhold-requeue-btn {
+    background: #84cc16 !important;
+    color: white !important;
+    border: none !important;
+}
+
+.compact-queue .onhold-requeue-btn:hover {
+    background: #65a30d !important;
+}
+
+/* Compact styling for the queue / pending approval cards */
+.compact-queue .section-title {
+    font-size: 0.95rem;
+    margin-bottom: 10px;
+}
+
+.section-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 20px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.compact-queue .pending-count {
+    background: #fed7aa;
+    color: #c2410c;
+}
+
+.compact-queue .patient-list {
+    gap: 8px;
+}
+
+.compact-queue .patient-item {
+    padding: 8px 10px;
+    border-radius: 8px;
+}
+
+.compact-queue .patient-name {
+    font-size: 0.85rem;
+    line-height: 1.3;
+}
+
+.compact-queue .patient-details {
+    gap: 6px;
+    margin-top: 3px;
+}
+
+.compact-queue .patient-treatment {
+    font-size: 0.75rem;
+    margin-top: 2px;
+}
+
+.compact-queue .patient-time {
+    font-size: 0.72rem;
+}
+
+.compact-queue .status-badge {
+    font-size: 0.62rem;
+    padding: 2px 6px;
+}
+
+.queue-avatar {
+    min-width: 30px;
+    height: 30px;
+    background: #f3f4f6;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    color: #6b7280;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+.compact-queue .action-btn.text-btn {
+    padding: 4px 8px;
+    font-size: 0.72rem;
+    min-width: 0;
+    border-radius: 5px;
+}
+
+.compact-queue .queue-cancel-btn {
+    background-color: #ef4444 !important;
+    color: #fff !important;
+    border: none !important;
+    padding: 4px 8px !important;
+}
+
+.compact-queue .queue-cancel-btn:hover {
+    background-color: #dc2626 !important;
+}
+
+/* Pending Approval approve/decline buttons */
+.compact-queue .pa-call,
+.compact-queue .pa-approve,
+.compact-queue .pa-decline {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border: none;
+    border-radius: 5px;
+    color: #fff;
+    white-space: nowrap;
+}
+
+.compact-queue .pa-call {
+    padding: 2px;
+    background: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.compact-queue .pa-call img {
+    width: 22px;
+    height: 22px;
+    display: block;
+    object-fit: contain;
+}
+
+.compact-queue .pa-call:hover {
+    opacity: 0.85;
+}
+
+.compact-queue .pa-approve {
+    background: #22c55e;
+}
+
+.compact-queue .pa-approve:hover {
+    background: #16a34a;
+}
+
+.compact-queue .pa-decline {
+    background: #ef4444;
+}
+
+.compact-queue .pa-decline:hover {
+    background: #dc2626;
+}
+
+.compact-queue .see-all-link {
+    font-size: 0.78rem;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #f3f4f6;
+}
+
+
 .patient-actions { display: flex; gap: 8px; }
 .action-btn {
     background: transparent; border: 1px solid var(--border-color); border-radius: 6px;
@@ -1304,6 +1493,7 @@ header.top-header {
 
     .two-column { grid-template-columns: 1fr; }
     .appt-stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .queue-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 768px) {
     .summary-cards,
