@@ -10,6 +10,14 @@ try {
     // Silently fail
 }
 
+// Auto-decline expired pending approval requests
+try {
+    require_once __DIR__ . '/../../includes/appointment_approval_helper.php';
+    autoDeclineExpiredPendingAppointments($pdo);
+} catch (Exception $e) {
+    // Silently fail
+}
+
 require_once '../../includes/dentist_layout_start.php';
 
 // Load settings for business hours and unavailable dates
@@ -49,30 +57,69 @@ try {
         p.phone, p.email,
         s.name as service_name, s.price as service_price,
         a.status as status_label,
-        tp.id as treatment_plan_id, tp.plan_name as treatment_plan_name
+        tp.id as treatment_plan_id, tp.plan_name as treatment_plan_name,
+        q.status as queue_status, q.queue_number, q.queue_label
     FROM appointments a 
     LEFT JOIN patients p ON a.patient_id = p.id
     LEFT JOIN services s ON a.service_id = s.id
     LEFT JOIN treatment_plans tp ON a.id = tp.appointment_id
+    LEFT JOIN (
+        SELECT q1.appointment_id, q1.status, q1.queue_number, q1.queue_label
+        FROM queue q1
+        INNER JOIN (
+            SELECT appointment_id, MAX(id) AS max_id
+            FROM queue
+            WHERE appointment_id IS NOT NULL AND is_archived = 0
+            GROUP BY appointment_id
+        ) latest ON latest.max_id = q1.id
+    ) q ON q.appointment_id = a.id
     WHERE (a.is_archived = 0 OR a.is_archived IS NULL)
-    ORDER BY a.appointment_date DESC, a.appointment_time DESC");
+    ORDER BY a.appointment_date ASC, a.appointment_time ASC");
     $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
     $appointments = [];
 }
 
-// Group appointments by status section
-$sectionLabels = ['pendingapproval' => 'Pending Approval', 'scheduled' => 'Scheduled', 'inqueue' => 'In Queue', 'completed' => 'Completed', 'cancelled' => 'Cancelled'];
-$sections = ['pendingapproval' => [], 'scheduled' => [], 'inqueue' => [], 'completed' => [], 'cancelled' => []];
-foreach ($appointments as $appt) {
+// Group appointments into 3 panels: scheduled (left), in queue (right top), pending approval (right bottom)
+$sectionLabels = ['scheduled' => 'Scheduled', 'inqueue' => 'In Queue', 'pendingapproval' => 'Pending Approval'];
+$sections = ['scheduled' => [], 'inqueue' => [], 'pendingapproval' => []];
+
+function dentistApptDisplayStatus(array $appt): string {
     $status = strtolower($appt['status_label'] ?? $appt['status'] ?? 'scheduled');
-    $section = 'cancelled';
-    if (strpos($status, 'pending approval') !== false) $section = 'pendingapproval';
-    elseif (strpos($status, 'scheduled') !== false || strpos($status, 'arrived') !== false || strpos($status, 'confirmed') !== false || strpos($status, 'rescheduled') !== false) $section = 'scheduled';
-    elseif (strpos($status, 'queue') !== false || strpos($status, 'pending') !== false) $section = 'inqueue';
-    elseif (strpos($status, 'complete') !== false) $section = 'completed';
-    $sections[$section][] = $appt;
+    $queueStatus = strtolower($appt['queue_status'] ?? '');
+    if (strpos($status, 'pending approval') !== false) return 'Pending Approval';
+    if (strpos($status, 'cancel') !== false || $queueStatus === 'cancelled') return 'Cancelled';
+    if (strpos($status, 'complete') !== false || $queueStatus === 'completed') return 'Completed';
+    if ($queueStatus === 'in_procedure') return 'In Procedure';
+    if (strpos($status, 'pending payment') !== false || $queueStatus === 'pending_payment') return 'Pending Payment';
+    if (strpos($status, 'in queue') !== false || strpos($status, 'arrived') !== false || in_array($queueStatus, ['waiting', 'on_hold'], true)) return 'In Queue';
+    return 'Scheduled';
 }
+
+function dentistApptPanel(string $displayStatus): string {
+    if (strpos($displayStatus, 'Pending Approval') !== false) return 'pendingapproval';
+    if ($displayStatus === 'Scheduled') return 'scheduled';
+    return 'inqueue';
+}
+
+$queuePanelOrder = ['In Procedure' => 0, 'In Queue' => 1, 'Pending Payment' => 2, 'Completed' => 3, 'Cancelled' => 4];
+
+foreach ($appointments as $appt) {
+    $displayStatus = dentistApptDisplayStatus($appt);
+    $appt['display_status'] = $displayStatus;
+    if ($displayStatus === 'Completed' || $displayStatus === 'Cancelled') {
+        continue;
+    }
+    $sections[dentistApptPanel($displayStatus)][] = $appt;
+}
+
+// Order the In Queue panel to read like a live board: procedure -> queue -> payment -> done -> cancelled
+usort($sections['inqueue'], function ($a, $b) use ($queuePanelOrder) {
+    $pa = $queuePanelOrder[$a['display_status']] ?? 9;
+    $pb = $queuePanelOrder[$b['display_status']] ?? 9;
+    if ($pa !== $pb) return $pa <=> $pb;
+    return strcmp((string)($b['appointment_date'] ?? ''), (string)($a['appointment_date'] ?? ''));
+});
 ?>
 
 <!-- Add extra CSS for status badges -->
@@ -139,6 +186,11 @@ foreach ($appointments as $appt) {
 .status-badge.status-rescheduled {
     background: #e0e7ff;
     color: #4338ca;
+}
+
+.status-badge.status-in-procedure {
+    background: #cffafe;
+    color: #0e7490;
 }
 </style>
 
@@ -232,12 +284,12 @@ foreach ($appointments as $appt) {
 </div>
 
 <?php
-$sectionIcons = ['pendingapproval' => '🕓', 'scheduled' => '📅', 'inqueue' => '⏳', 'completed' => '✅', 'cancelled' => '❌'];
-$sectionClasses = ['pendingapproval' => 'pendingapproval', 'scheduled' => 'scheduled', 'inqueue' => 'inqueue', 'completed' => 'completed', 'cancelled' => 'cancelled'];
-$sectionIds = ['pendingapproval' => 'countPendingapproval', 'scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'completed' => 'countCompleted', 'cancelled' => 'countCancelled'];
+$sectionIcons = ['scheduled' => '📅', 'inqueue' => '⏳', 'pendingapproval' => '🕓'];
+$sectionClasses = ['scheduled' => 'scheduled', 'inqueue' => 'inqueue', 'pendingapproval' => 'pendingapproval'];
+$sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'pendingapproval' => 'countPendingapproval'];
 ?>
-<div class="status-grid">
-    <?php foreach (['pendingapproval', 'scheduled', 'inqueue', 'completed', 'cancelled'] as $sec): ?>
+<div class="status-grid status-grid-3panel">
+    <?php foreach (['scheduled', 'inqueue', 'pendingapproval'] as $sec): ?>
     <div class="status-section" data-section="<?php echo $sec; ?>">
         <div class="status-section-header <?php echo $sectionClasses[$sec]; ?>">
             <span class="status-section-title"><?php echo $sectionIcons[$sec]; ?> <?php echo $sectionLabels[$sec]; ?></span>
@@ -255,12 +307,14 @@ $sectionIds = ['pendingapproval' => 'countPendingapproval', 'scheduled' => 'coun
                     $time = !empty($apt['appointment_time']) ? date('h:i A', strtotime($apt['appointment_time'])) : '';
                     $date = date('Y-m-d', strtotime($apt['appointment_date']));
                     $treatment = htmlspecialchars($apt['service_name'] ?? 'Consultation');
-                    $status = $apt['status_label'] ?? $apt['status'] ?? 'Scheduled';
+                    $status = $apt['display_status'] ?? ($apt['status_label'] ?? $apt['status'] ?? 'Scheduled');
+                    $isLiveQueue = ($status === 'In Procedure');
                     $badgeClass = 'status-scheduled';
                     if (stripos($status, 'pending approval') !== false) $badgeClass = 'status-pending-approval';
+                    elseif (stripos($status, 'in procedure') !== false) $badgeClass = 'status-in-procedure';
                     elseif (stripos($status, 'arrived') !== false) $badgeClass = 'status-arrived';
                     elseif (stripos($status, 'queue') !== false) $badgeClass = 'status-in-queue';
-                    elseif (stripos($status, 'pending') !== false) $badgeClass = 'status-pending';
+                    elseif (stripos($status, 'pending') !== false) $badgeClass = 'status-pending-payment';
                     elseif (stripos($status, 'complete') !== false) $badgeClass = 'status-completed';
                     elseif (stripos($status, 'cancel') !== false) $badgeClass = 'status-cancelled';
                 ?>
@@ -268,7 +322,8 @@ $sectionIds = ['pendingapproval' => 'countPendingapproval', 'scheduled' => 'coun
                      data-id="<?php echo $apt['id']; ?>"
                      data-name="<?php echo strtolower($name); ?>"
                      data-date="<?php echo $date; ?>"
-                     data-status="<?php echo strtolower($status); ?>">
+                     data-status="<?php echo strtolower($status); ?>"
+                     <?php if ($isLiveQueue): ?>data-live-status="1"<?php endif; ?>>
                     <div class="mini-card-top">
                         <span class="mini-card-name" title="<?php echo $name; ?>"><?php echo $name; ?></span>
                         <span class="mini-card-time"><?php echo $time; ?></span>
@@ -286,6 +341,12 @@ $sectionIds = ['pendingapproval' => 'countPendingapproval', 'scheduled' => 'coun
                         <span class="mini-card-treatment"><?php echo $treatment; ?></span>
                         <span class="status-badge badge-small <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($status); ?></span>
                     </div>
+                    <?php if ($sec === 'pendingapproval'): ?>
+                    <div class="appt-approval-actions">
+                        <button type="button" class="btn-approve" onclick="approveAppointment(<?php echo (int)$apt['id']; ?>)">✓ Approve</button>
+                        <button type="button" class="btn-decline" onclick="declineAppointment(<?php echo (int)$apt['id']; ?>)">✕ Decline</button>
+                    </div>
+                    <?php endif; ?>
                 </div>
                 <?php endforeach; ?>
             <?php endif; ?>
@@ -693,7 +754,7 @@ function filterAppointments() {
         const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
         const monthEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-        const counts = { scheduled: 0, inqueue: 0, completed: 0, cancelled: 0 };
+        const counts = { scheduled: 0, inqueue: 0, pendingapproval: 0 };
 
         document.querySelectorAll('.appointment-mini-card').forEach(card => {
             const nameMatch = !search || card.dataset.name.includes(search);
@@ -720,8 +781,7 @@ function filterAppointments() {
 
         document.getElementById('countScheduled').textContent = counts.scheduled;
         document.getElementById('countInqueue').textContent = counts.inqueue;
-        document.getElementById('countCompleted').textContent = counts.completed;
-        document.getElementById('countCancelled').textContent = counts.cancelled;
+        document.getElementById('countPendingapproval').textContent = counts.pendingapproval;
     }
 
     function getStatusBadgeClass(status) {
@@ -731,6 +791,51 @@ function filterAppointments() {
         if (s.includes('queue')) return 'status-in-queue';
         if (s.includes('pending')) return 'status-pending';
         return 'status-scheduled';
+    }
+
+    function approveAppointment(id) {
+        if (!confirm('Approve this appointment request?\n\nThe patient will be notified and the slot will be added to the calendar.')) return;
+        fetch('../shared/approve_appointment.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'approve', appointment_id: id })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message || 'Appointment approved');
+                location.reload();
+            } else {
+                alert(data.message || 'Error approving appointment');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Something went wrong. Please try again.');
+        });
+    }
+
+    function declineAppointment(id) {
+        const reason = prompt('Enter a reason for declining this request (optional):', '');
+        if (reason === null) return;
+        fetch('../shared/approve_appointment.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'decline', appointment_id: id, decline_reason: reason })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message || 'Appointment request declined');
+                location.reload();
+            } else {
+                alert(data.message || 'Error declining appointment');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Something went wrong. Please try again.');
+        });
     }
 
     function openNewAppointmentModal() {
@@ -1128,6 +1233,8 @@ function refreshAppointmentStatuses(appts) {
     var cards = document.querySelectorAll('.appointment-mini-card');
     for (var i = 0; i < cards.length; i++) {
         var card = cards[i];
+        // Queue-derived status (e.g. In Procedure) is more current than the appointment's own status
+        if (card.dataset.liveStatus === '1') continue;
         var kebab = card.querySelector('.appt-kebab-btn');
         if (!kebab) continue;
         var apptId = parseInt(kebab.dataset.apptId);
@@ -1147,11 +1254,13 @@ function refreshAppointmentStatuses(appts) {
 
 function getDentistApptBadgeClass(status) {
     var s = status.toLowerCase();
-    if (s === 'completed') return 'status-completed';
-    if (s === 'cancelled') return 'status-cancelled';
-    if (s === 'in queue') return 'status-in-queue';
-    if (s.indexOf('pending') !== -1) return 'status-pending';
+    if (s.indexOf('pending approval') !== -1) return 'status-pending-approval';
+    if (s.indexOf('in procedure') !== -1) return 'status-in-procedure';
     if (s.indexOf('arrived') !== -1) return 'status-arrived';
+    if (s.indexOf('queue') !== -1) return 'status-in-queue';
+    if (s.indexOf('pending') !== -1) return 'status-pending-payment';
+    if (s.indexOf('complete') !== -1) return 'status-completed';
+    if (s.indexOf('cancel') !== -1) return 'status-cancelled';
     return 'status-scheduled';
 }
 
@@ -1284,27 +1393,151 @@ function closeApptKebabDropdown() {
 
     function markArrived(id) {
         closeApptKebabDropdown();
-        if (confirm('Mark this patient as arrived?\n\nThey will be automatically added to today\'s queue.')) {
-            fetch('../shared/mark_arrived.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ appt_id: id })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(data.message || 'Patient marked as arrived');
-                    location.reload();
-                } else {
-                    alert(data.message || 'Error marking as arrived');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error marking as arrived');
+        openMarkArrivedModal(id);
+    }
+
+    let markArrivedId = null;
+
+    function openMarkArrivedModal(id) {
+        markArrivedId = id;
+
+        if (!document.getElementById('markArrivedModal')) {
+            const modal = document.createElement('div');
+            modal.id = 'markArrivedModal';
+            modal.className = 'modal-overlay';
+            modal.style.display = 'none';
+            modal.innerHTML = `
+                <div class="modal" style="width: 420px;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                        <div style="width: 44px; height: 44px; border-radius: 50%; background: #ecfdf5; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                <polyline points="22 4 12 14.01 9 11.01"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 style="margin: 0; font-size: 1.25rem; font-weight: 600;">Mark as Arrived</h2>
+                            <p style="margin: 2px 0 0; color: #6b7280; font-size: 0.85rem;">Check-in appointment &amp; add to queue</p>
+                        </div>
+                    </div>
+                    <div id="markArrivedBody">
+                        <div id="markArrivedInfo" style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                                <span id="markArrivedPatient" style="font-weight: 600; font-size: 1rem;"></span>
+                                <span id="markArrivedTime" style="color: #6b7280; font-size: 0.85rem; white-space: nowrap;"></span>
+                            </div>
+                            <div style="color: #6b7280; font-size: 0.85rem; margin-top: 4px;">Scheduled appointment</div>
+                        </div>
+                        <p style="color: #374151; margin: 0 0 16px; font-size: 0.9rem;">Mark this patient as arrived? They will be automatically added to today&rsquo;s queue.</p>
+                    </div>
+                    <div id="markArrivedResult" style="display: none;"></div>
+                    <div id="markArrivedActions" style="display: flex; gap: 12px; margin-top: 20px; justify-content: flex-end;">
+                        <button onclick="closeMarkArrivedModal()" class="btn-cancel" style="padding: 10px 20px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
+                        <button id="markArrivedConfirmBtn" onclick="confirmMarkArrived()" class="btn-primary" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Confirm Mark as Arrived</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) closeMarkArrivedModal();
             });
         }
+
+        let name = 'This patient';
+        let time = '';
+        let card = document.querySelector('.appointment-mini-card[data-id="' + id + '"]');
+        if (!card) {
+            const kebab = document.querySelector('.appt-kebab-btn[data-appt-id="' + id + '"]');
+            if (kebab) card = kebab.closest('.appointment-mini-card');
+        }
+        if (card) {
+            const nameEl = card.querySelector('.mini-card-name');
+            if (nameEl && nameEl.textContent.trim()) name = nameEl.textContent.trim();
+            const timeEl = card.querySelector('.mini-card-time');
+            if (timeEl && timeEl.textContent.trim()) time = timeEl.textContent.trim();
+        }
+        document.getElementById('markArrivedPatient').textContent = name;
+        document.getElementById('markArrivedTime').textContent = time;
+        document.getElementById('markArrivedBody').style.display = 'block';
+        document.getElementById('markArrivedResult').style.display = 'none';
+        document.getElementById('markArrivedResult').innerHTML = '';
+        const actions = document.getElementById('markArrivedActions');
+        actions.style.justifyContent = 'flex-end';
+        actions.innerHTML = `
+            <button onclick="closeMarkArrivedModal()" class="btn-cancel" style="padding: 10px 20px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
+            <button id="markArrivedConfirmBtn" onclick="confirmMarkArrived()" class="btn-primary" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Confirm Mark as Arrived</button>
+        `;
+        actions.style.display = 'flex';
+        document.getElementById('markArrivedModal').style.display = 'flex';
     }
+
+    function closeMarkArrivedModal() {
+        const modal = document.getElementById('markArrivedModal');
+        if (modal) modal.style.display = 'none';
+        markArrivedId = null;
+    }
+
+    function confirmMarkArrived() {
+        if (!markArrivedId) return;
+        const btn = document.getElementById('markArrivedConfirmBtn');
+        btn.disabled = true;
+        btn.textContent = 'Processing...';
+        fetch('../shared/mark_arrived.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ appt_id: markArrivedId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const queueLabel = data.queue_label || '';
+                const msg = data.message || 'Patient marked as arrived';
+                document.getElementById('markArrivedBody').style.display = 'none';
+                const result = document.getElementById('markArrivedResult');
+                result.style.display = 'block';
+                result.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 12px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px; padding: 16px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        <div>
+                            <div style="font-weight: 600; color: #065f46;">${queueLabel ? 'Patient added to queue as ' + queueLabel : msg}</div>
+                            <div style="color: #047857; font-size: 0.85rem; margin-top: 2px;">${msg}</div>
+                        </div>
+                    </div>
+                `;
+                const actions = document.getElementById('markArrivedActions');
+                actions.style.justifyContent = 'center';
+                actions.innerHTML = `<button onclick="location.reload()" class="btn-primary" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Done</button>`;
+            } else {
+                btn.disabled = false;
+                btn.textContent = 'Confirm Mark as Arrived';
+                const result = document.getElementById('markArrivedResult');
+                result.style.display = 'block';
+                result.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 8px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 14px; color: #b91c1c; font-size: 0.9rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        <span>${data.message || 'Error marking as arrived'}</span>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            btn.disabled = false;
+            btn.textContent = 'Confirm Mark as Arrived';
+            const result = document.getElementById('markArrivedResult');
+            result.style.display = 'block';
+            result.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 8px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 14px; color: #b91c1c; font-size: 0.9rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <span>Error marking as arrived. Please try again.</span>
+                </div>
+            `;
+        });
+    }
+
+    window.openMarkArrivedModal = openMarkArrivedModal;
+    window.closeMarkArrivedModal = closeMarkArrivedModal;
+    window.confirmMarkArrived = confirmMarkArrived;
 
     function forwardToQueue(id) {
         closeApptKebabDropdown();
@@ -1601,6 +1834,47 @@ function closeApptKebabDropdown() {
     display: block;
 }
 
+.appt-approval-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #f3f4f6;
+}
+
+.btn-approve {
+    flex: 1;
+    padding: 8px 12px;
+    background: #16a34a;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.btn-approve:hover {
+    background: #15803d;
+}
+
+.btn-decline {
+    flex: 1;
+    padding: 8px 12px;
+    background: #dc2626;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.btn-decline:hover {
+    background: #b91c1c;
+}
 
 .summary-cards {
     margin-bottom: 0px;

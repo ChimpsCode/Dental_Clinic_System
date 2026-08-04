@@ -140,6 +140,9 @@ $queuePanelOrder = ['In Procedure' => 0, 'In Queue' => 1, 'Pending Payment' => 2
 foreach ($allAppointments as $appt) {
     $displayStatus = staffApptDisplayStatus($appt);
     $appt['display_status'] = $displayStatus;
+    if ($displayStatus === 'Completed' || $displayStatus === 'Cancelled') {
+        continue;
+    }
     $sections[staffApptPanel($displayStatus)][] = $appt;
 }
 
@@ -1669,27 +1672,151 @@ require_once '../../includes/staff_layout_start.php';
     }
 
     function markArrived(id) {
-        if (confirm('Mark this patient as arrived?\n\nThey will be automatically added to today\'s queue.')) {
-            fetch('../shared/mark_arrived.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ appt_id: id })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(data.message || 'Patient marked as arrived');
-                    location.reload();
-                } else {
-                    alert(data.message || 'Error marking as arrived');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error marking as arrived');
+        openMarkArrivedModal(id);
+    }
+
+    let markArrivedId = null;
+
+    function openMarkArrivedModal(id) {
+        markArrivedId = id;
+
+        if (!document.getElementById('markArrivedModal')) {
+            const modal = document.createElement('div');
+            modal.id = 'markArrivedModal';
+            modal.className = 'modal-overlay';
+            modal.style.display = 'none';
+            modal.innerHTML = `
+                <div class="modal" style="width: 420px;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                        <div style="width: 44px; height: 44px; border-radius: 50%; background: #ecfdf5; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                <polyline points="22 4 12 14.01 9 11.01"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 style="margin: 0; font-size: 1.25rem; font-weight: 600;">Mark as Arrived</h2>
+                            <p style="margin: 2px 0 0; color: #6b7280; font-size: 0.85rem;">Check-in appointment &amp; add to queue</p>
+                        </div>
+                    </div>
+                    <div id="markArrivedBody">
+                        <div id="markArrivedInfo" style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                                <span id="markArrivedPatient" style="font-weight: 600; font-size: 1rem;"></span>
+                                <span id="markArrivedTime" style="color: #6b7280; font-size: 0.85rem; white-space: nowrap;"></span>
+                            </div>
+                            <div style="color: #6b7280; font-size: 0.85rem; margin-top: 4px;">Scheduled appointment</div>
+                        </div>
+                        <p style="color: #374151; margin: 0 0 16px; font-size: 0.9rem;">Mark this patient as arrived? They will be automatically added to today&rsquo;s queue.</p>
+                    </div>
+                    <div id="markArrivedResult" style="display: none;"></div>
+                    <div id="markArrivedActions" style="display: flex; gap: 12px; margin-top: 20px; justify-content: flex-end;">
+                        <button onclick="closeMarkArrivedModal()" class="btn-cancel" style="padding: 10px 20px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
+                        <button id="markArrivedConfirmBtn" onclick="confirmMarkArrived()" class="btn-primary" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Confirm Mark as Arrived</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) closeMarkArrivedModal();
             });
         }
+
+        let name = 'This patient';
+        let time = '';
+        let card = document.querySelector('.appointment-mini-card[data-id="' + id + '"]');
+        if (!card) {
+            const kebab = document.querySelector('.appt-kebab-btn[data-appt-id="' + id + '"]');
+            if (kebab) card = kebab.closest('.appointment-mini-card');
+        }
+        if (card) {
+            const nameEl = card.querySelector('.mini-card-name');
+            if (nameEl && nameEl.textContent.trim()) name = nameEl.textContent.trim();
+            const timeEl = card.querySelector('.mini-card-time');
+            if (timeEl && timeEl.textContent.trim()) time = timeEl.textContent.trim();
+        }
+        document.getElementById('markArrivedPatient').textContent = name;
+        document.getElementById('markArrivedTime').textContent = time;
+        document.getElementById('markArrivedBody').style.display = 'block';
+        document.getElementById('markArrivedResult').style.display = 'none';
+        document.getElementById('markArrivedResult').innerHTML = '';
+        const actions = document.getElementById('markArrivedActions');
+        actions.style.justifyContent = 'flex-end';
+        actions.innerHTML = `
+            <button onclick="closeMarkArrivedModal()" class="btn-cancel" style="padding: 10px 20px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
+            <button id="markArrivedConfirmBtn" onclick="confirmMarkArrived()" class="btn-primary" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Confirm Mark as Arrived</button>
+        `;
+        actions.style.display = 'flex';
+        document.getElementById('markArrivedModal').style.display = 'flex';
     }
+
+    function closeMarkArrivedModal() {
+        const modal = document.getElementById('markArrivedModal');
+        if (modal) modal.style.display = 'none';
+        markArrivedId = null;
+    }
+
+    function confirmMarkArrived() {
+        if (!markArrivedId) return;
+        const btn = document.getElementById('markArrivedConfirmBtn');
+        btn.disabled = true;
+        btn.textContent = 'Processing...';
+        fetch('../shared/mark_arrived.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ appt_id: markArrivedId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const queueLabel = data.queue_label || '';
+                const msg = data.message || 'Patient marked as arrived';
+                document.getElementById('markArrivedBody').style.display = 'none';
+                const result = document.getElementById('markArrivedResult');
+                result.style.display = 'block';
+                result.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 12px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px; padding: 16px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        <div>
+                            <div style="font-weight: 600; color: #065f46;">${queueLabel ? 'Patient added to queue as ' + queueLabel : msg}</div>
+                            <div style="color: #047857; font-size: 0.85rem; margin-top: 2px;">${msg}</div>
+                        </div>
+                    </div>
+                `;
+                const actions = document.getElementById('markArrivedActions');
+                actions.style.justifyContent = 'center';
+                actions.innerHTML = `<button onclick="location.reload()" class="btn-primary" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Done</button>`;
+            } else {
+                btn.disabled = false;
+                btn.textContent = 'Confirm Mark as Arrived';
+                const result = document.getElementById('markArrivedResult');
+                result.style.display = 'block';
+                result.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 8px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 14px; color: #b91c1c; font-size: 0.9rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        <span>${data.message || 'Error marking as arrived'}</span>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            btn.disabled = false;
+            btn.textContent = 'Confirm Mark as Arrived';
+            const result = document.getElementById('markArrivedResult');
+            result.style.display = 'block';
+            result.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 8px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 14px; color: #b91c1c; font-size: 0.9rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <span>Error marking as arrived. Please try again.</span>
+                </div>
+            `;
+        });
+    }
+
+    window.openMarkArrivedModal = openMarkArrivedModal;
+    window.closeMarkArrivedModal = closeMarkArrivedModal;
+    window.confirmMarkArrived = confirmMarkArrived;
 
     function deleteAppointment(id) {
         if (confirm('Are you sure you want to archive this appointment?\n\nThis will move it to the Archive page where admin can restore or permanently delete it.')) {

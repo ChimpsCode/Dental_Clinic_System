@@ -410,3 +410,34 @@
     color: #9ca3af;
     font-size: 13px;
 }
+
+/* 3-panel appointments dashboard layout:
+   Left = Scheduled (full height), right = In Queue (top) + Pending Approval (bottom) */
+.status-grid.status-grid-3panel {
+    grid-template-columns: 3fr 2fr;
+    grid-template-rows: 1fr 1fr;
+}
+
+.status-grid.status-grid-3panel .status-section[data-section="scheduled"] {
+    grid-row: 1 / span 2;
+}
+
+.status-badge.status-in-procedure {
+    background: #cffafe;
+    color: #0e7490;
+}
+
+@media (max-width: 1000px) {
+    .status-grid.status-grid-3panel {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+        height: auto;
+    }
+    .status-grid.status-grid-3panel .status-section[data-section="scheduled"] {
+        grid-row: auto;
+    }
+    .status-grid.status-grid-3panel .status-section {
+        min-height: 280px;
+        max-height: 480px;
+    }
+}
