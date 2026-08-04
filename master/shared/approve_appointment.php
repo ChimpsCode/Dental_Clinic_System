@@ -52,7 +52,7 @@ try {
     ensureAppointmentApprovalSchema($pdo);
 
     $stmt = $pdo->prepare("
-        SELECT a.*, p.first_name, p.middle_name, p.last_name, p.phone,
+        SELECT a.*, p.first_name, p.middle_name, p.last_name, p.phone, p.created_at,
                s.name AS service_name,
                COALESCE(a.duration_minutes, s.duration_minutes, 30) AS duration_minutes
         FROM appointments a
@@ -75,6 +75,10 @@ try {
 
     $patientName = trim(($appointment['first_name'] ?? '') . ' ' . ($appointment['middle_name'] ?? '') . ' ' . ($appointment['last_name'] ?? '')) ?: 'Patient';
     $patientPhone = $appointment['phone'] ?? null;
+
+    $priorAppointmentsStmt = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE patient_id = ? AND id <> ?");
+    $priorAppointmentsStmt->execute([(int)$appointment['patient_id'], $appointment_id]);
+    $isNewPatient = ((int)$priorAppointmentsStmt->fetchColumn()) === 0;
 
     if ($action === 'approve') {
         // Re-check that the slot hasn't been taken by another confirmed appointment
@@ -110,7 +114,8 @@ try {
                     $patientName,
                     $appointment['appointment_date'],
                     $appointment['appointment_time'],
-                    $appointment['service_name'] ?? ($appointment['treatment'] ?? 'General Checkup')
+                    $appointment['service_name'] ?? ($appointment['treatment'] ?? 'General Checkup'),
+                    $isNewPatient
                 );
                 if (!$smsResult['success']) {
                     $smsError = $smsResult['error'] ?? 'Unknown SMS error';

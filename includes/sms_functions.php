@@ -123,12 +123,16 @@ function formatPhoneNumber($phone) {
     return $phone;
 }
 
-function sendAppointmentConfirmationSMS($phone, $patientName, $appointmentDate, $appointmentTime, $treatment) {
+function sendAppointmentConfirmationSMS($phone, $patientName, $appointmentDate, $appointmentTime, $treatment, $isNewPatient = false) {
     $formattedDate = date('F j, Y', strtotime($appointmentDate));
     $formattedTime = date('g:i A', strtotime($appointmentTime));
-    
-    $message = "Thanks for booking with us! Your schedule is {$formattedDate} at {$formattedTime} (Treatment: {$treatment}). See you soon! - RF Dental Clinic";
-    
+
+    if ($isNewPatient) {
+        $message = "Hello {$patientName}! Your appointment has been confirmed for {$formattedDate} at {$formattedTime} (Treatment: {$treatment}). See you soon! - RF Dental Clinic";
+    } else {
+        $message = "Thanks for booking with us! Your appointment is confirmed for {$formattedDate} at {$formattedTime} (Treatment: {$treatment}). See you soon! - RF Dental Clinic";
+    }
+
     return sendSMS($phone, $message);
 }
 

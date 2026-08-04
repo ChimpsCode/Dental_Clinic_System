@@ -8,7 +8,6 @@ session_start();
 try {
     require_once '../../config/database.php';
     require_once '../../includes/appointment_approval_helper.php';
-    require_once '../../includes/sms_functions.php';
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('Invalid request method');
     }
