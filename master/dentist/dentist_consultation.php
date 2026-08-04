@@ -2268,14 +2268,9 @@ function saveNotes() {
 
 // ===================== MEDICAL HISTORY =====================
 function populateHistory() {
-    var mh = currentConsultation.medical_history;
+    var mh = currentConsultation.medical_history || {};
     var container = document.getElementById('existingMedicalHistory');
     document.getElementById('dentalHistoryNotes').value = currentConsultation.dental_medical_history_notes || '';
-
-    if (!mh) {
-        container.innerHTML = '<p style="color:#94a3b8;font-size:0.88rem;">No medical history records found for this patient.</p>';
-        return;
-    }
 
     var checkboxFields = [
         { key: 'heart_condition', label: 'Heart Conditions' },
