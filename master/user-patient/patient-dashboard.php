@@ -244,7 +244,11 @@ try {
         $stmt->execute([$patient_id]);
         $queueItem = $stmt->fetch(PDO::FETCH_ASSOC);
         if ($queueItem) {
-            $queueNumberText = '#' . str_pad((string)$queueItem['id'], 3, '0', STR_PAD_LEFT);
+            $queueNumber = $queueItem['queue_number'] ?? null;
+            if (!$queueNumber) {
+                $queueNumber = $queueItem['id'];
+            }
+            $queueNumberText = '#' . str_pad((string)$queueNumber, 2, '0', STR_PAD_LEFT);
             $queueStatusText = !empty($queueItem['treatment_type'])
                 ? 'In queue for ' . $queueItem['treatment_type']
                 : 'Checked in today';
