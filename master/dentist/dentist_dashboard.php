@@ -2191,7 +2191,7 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('dcCalPrev'))
 @media (min-width: 1025px) {
     .right-column {
         position: sticky;
-        top: 30px;
+        top: 0.1px;
         align-self: flex-start;
         max-height: calc(100vh - 130px);
         overflow-y: auto;

@@ -893,7 +893,7 @@ header.top-header {
 .view-section {
     display: none;
     flex: 1;
-    overflow-y: auto;
+    overflow: visible;
     padding: 0;
     animation: fadeIn 0.3s ease;
 }
@@ -966,6 +966,11 @@ header.top-header {
 
 .right-column {
     width: 100%;
+    position: sticky;
+    top: 0.1px;
+    align-self: start;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
 }
 
 .section-card, .notification-box {
@@ -1527,6 +1532,7 @@ header.top-header {
     }
 
     .two-column { grid-template-columns: 1fr; }
+    .right-column { position: static; max-height: none; overflow: visible; }
     .appt-stats-grid { grid-template-columns: repeat(2, 1fr); }
     .queue-grid { grid-template-columns: 1fr; }
 }

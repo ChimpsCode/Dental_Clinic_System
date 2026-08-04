@@ -1523,7 +1523,7 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
     .view-section {
     display: none;
     flex: 1;
-    overflow-y: auto;
+    overflow: visible;
     padding: 0;
     animation: fadeIn 0.3s ease;
 }

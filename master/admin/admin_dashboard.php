@@ -352,7 +352,6 @@ try {
                                             <th style="text-align: left; padding: 10px 12px; color: #6b7280; font-weight: 600; font-size: 12px;">Patient Name</th>
                                             <th style="text-align: left; padding: 10px 12px; color: #6b7280; font-weight: 600; font-size: 12px;">Treatment</th>
                                             <th style="text-align: left; padding: 10px 12px; color: #6b7280; font-weight: 600; font-size: 12px;">Status</th>
-                                            <th style="text-align: left; padding: 10px 12px; color: #6b7280; font-weight: 600; font-size: 12px;">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -393,11 +392,6 @@ try {
                                                 <td style="padding: 12px; color: #374151;"><?php echo htmlspecialchars(trim($queueItem['patient_name'])); ?></td>
                                                 <td style="padding: 12px; color: #374151;"><?php echo htmlspecialchars($queueItem['treatment_type'] ?: 'General'); ?></td>
                                                 <td style="padding: 12px;"><span style="display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; <?php echo $badgeStyle; ?>"><?php echo $statusLabel; ?></span></td>
-                                                <td style="padding: 12px;">
-                                                    <?php if (($queueItem['status_name'] ?? '') === 'in_procedure'): ?>
-                                                        <button onclick="openCompleteProcedureModal(<?php echo $queueItem['id']; ?>)" style="padding: 4px 10px; background: #2563eb; color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">Complete</button>
-                                                    <?php endif; ?>
-                                                </td>
                                             </tr>
                                         <?php endforeach; ?>
                                     </tbody>

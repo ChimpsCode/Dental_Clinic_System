@@ -80,7 +80,7 @@ try {
             ) latest ON latest.max_id = q1.id
         ) q ON q.appointment_id = a.id
         WHERE (a.is_archived = 0 OR a.is_archived IS NULL)
-        ORDER BY a.appointment_date DESC, a.id DESC";
+        ORDER BY a.appointment_date ASC, a.id ASC"; //FROM DESC
     $allAppointments = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     
     // Paginate

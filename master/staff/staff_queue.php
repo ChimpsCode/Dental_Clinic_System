@@ -1064,8 +1064,8 @@ div.main-content {
                                 }
                             }
                             $statusText = $item['status_text'] ?? 'waiting';
-                            $statusClass = strtolower(str_replace(' ', '-', $statusText));
-                            $statusLabel = ucwords($statusText);
+                            $statusClass = strtolower(str_replace([' ', '_'], '-', $statusText));
+                            $statusLabel = ucwords(str_replace('_', ' ', $statusText));
                             $rowNumber = $item['queue_number'] ?? ($item['id'] ?? ($index + 1));
                             $fullNameSearch = strtolower(trim(($item['first_name'] ?? '') . ' ' . ($item['middle_name'] ?? '') . ' ' . ($item['last_name'] ?? '')));
                         ?>
@@ -2057,7 +2057,7 @@ function refreshQueueTable(data) {
         var item = pageItems[i];
         var time12hr = formatQueueTime(item.queue_time);
         var statusText = item.status || 'waiting';
-        var statusClass = statusText.toLowerCase().replace(/ /g, '-');
+        var statusClass = statusText.toLowerCase().replace(/[_ ]/g, '-');
         var statusLabel = statusText.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
         var rowNumber = item.queue_number || (showingStart + i);
         var fullNameSearch = ((item.first_name || '') + ' ' + (item.middle_name || '') + ' ' + (item.last_name || '')).toLowerCase();
