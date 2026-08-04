@@ -909,6 +909,29 @@ try {
     font-weight: 700;
     font-size: 1rem;
 }
+.sig-preview {
+    min-height: 80px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 8px;
+    margin-bottom: 8px;
+}
+.sig-preview img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+}
+.sig-preview.empty {
+    color: #94a3b8;
+    font-size: 0.82rem;
+    text-align: center;
+}
 .sig-label {
     font-size: 0.72rem;
     font-weight: 600;
@@ -928,37 +951,97 @@ try {
 .sig-name-input:focus {
     border-color: #0ea5e9;
 }
+    .signature-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 23, 42, 0.7);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+    }
+    .signature-modal-overlay.active {
+        display: flex;
+    }
+    .signature-modal {
+        background: white;
+        border-radius: 16px;
+        width: min(720px, calc(100% - 40px));
+        max-width: 720px;
+        padding: 24px;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+    .signature-modal h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        color: #0f172a;
+    }
+    .signature-canvas-wrapper {
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #f8fafc;
+    }
+    .signature-canvas {
+        width: 100%;
+        height: 280px;
+        touch-action: none;
+        background: white;
+    }
+    .signature-modal-footer {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+    }
+    .signature-modal-footer button {
+        border: none;
+        padding: 10px 18px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 700;
+    }
+    .signature-clear-btn {
+        background: #f8fafc;
+        color: #0f172a;
+        border: 1px solid #cbd5e1;
+    }
+    .signature-save-btn {
+        background: #0ea5e9;
+        color: white;
+    }
+    .signature-cancel-btn {
+        background: #e2e8f0;
+        color: #1e293b;
+    }
 
-/* Past Consultations */
-.past-consult-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 18px;
-    background: #f0fdf4;
-    border: 1px solid #bbf7d0;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: background 0.15s;
-    margin-bottom: 12px;
-}
-.past-consult-toggle:hover {
-    background: #dcfce7;
-}
-.past-consult-toggle h4 {
-    margin: 0;
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: #166534;
-}
-.past-consult-toggle .toggle-count {
-    background: #166534;
-    color: white;
-    padding: 2px 10px;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    margin-left: 8px;
+    @media print {
+        body * { visibility: hidden; }
+        .consent-form-container, .consent-form-container *, #panel-prescription, #panel-prescription * { visibility: visible; }
+        .consent-form-container { border: none !important; box-shadow: none !important; padding: 0 !important; }
+        .consult-tab-panel { display: none !important; }
+        #panel-consent, #panel-prescription { display: block !important; }
+        .consult-complete-btn, .signature-save-btn, .signature-clear-btn, .signature-cancel-btn, .signature-modal-overlay, .signature-modal, .sig-line, .dental-check-item, #guardianNameWrapper, .add-presc-btn, .remove-presc-btn { display: none !important; }
+        .consent-text-block { border: none !important; background: transparent !important; }
+        .sig-preview { background: transparent !important; border: none !important; padding: 0 !important; min-height: auto !important; }
+        .sig-preview img { max-height: 140px; object-fit: contain; }
+        .sig-name-input, .form-control { border: none !important; background: transparent !important; box-shadow: none !important; outline: none !important; }
+        .sig-name-input::-moz-focus-inner { border: 0; }
+        .consent-field-row { grid-template-columns: 1fr !important; }
+        .consent-field-label { display: block; margin-bottom: 4px; }
+        .consent-clinic-name { margin-bottom: 24px; }
+        .prescription-item-card { border: none !important; background: transparent !important; padding: 0 !important; }
+        .prescription-item-card .presc-grid { grid-template-columns: 1fr !important; gap: 8px !important; }
+        .prescription-item-card label { display: block !important; font-weight: 700 !important; color: #111827 !important; margin-bottom: 2px !important; }
+        .prescription-item-card input { padding: 0 !important; font-size: 0.95rem !important; color: #111827 !important; }
+        .prescription-item-card .remove-presc-btn { display: none !important; }
+    }
 }
 .past-consult-toggle .toggle-arrow {
     transition: transform 0.2s;
@@ -1673,8 +1756,9 @@ try {
                     <h3 style="font-size:1rem;font-weight:700;color:#1e293b;margin:0 0 16px;">Prescription</h3>
                     <div id="prescriptionItems"></div>
                     <button class="add-presc-btn" onclick="addPrescriptionItem()">+ Add Medication</button>
-                    <div style="margin-top:12px;">
+                    <div style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap;justify-content:flex-end;">
                         <button class="consult-complete-btn" style="background:#0ea5e9;color:white;" onclick="savePrescription()">Save Prescription</button>
+                        <button class="consult-complete-btn" style="background:#0f172a;color:white;" onclick="printPrescription()">Print Prescription</button>
                     </div>
                 </div>
             </div>
@@ -1735,24 +1819,28 @@ try {
 
                     <div class="consent-signature-grid">
                         <div class="sig-block">
-                            <div class="sig-line" id="patientSigLine" onclick="signConsent('patient')" title="Tap to sign">Tap to sign</div>
+                            <div class="sig-line" id="patientSigLine" onclick="openConsentSignatureModal('patient')" title="Tap to sign">Tap to sign</div>
+                            <div class="sig-preview" id="patientSigPreview"></div>
                             <div class="sig-label">Patient / Guardian</div>
                             <input type="text" class="sig-name-input" id="consentPatientSignName" placeholder="Printed Name">
                         </div>
                         <div class="sig-block">
-                            <div class="sig-line signed" id="doctorSigLine" onclick="signConsent('doctor')" title="Doctor signature"><?php echo htmlspecialchars($_SESSION['username'] ?? 'Doctor'); ?></div>
+                            <div class="sig-line signed" id="doctorSigLine" onclick="openConsentSignatureModal('doctor')" title="Doctor signature"><?php echo htmlspecialchars($_SESSION['username'] ?? 'Doctor'); ?></div>
+                            <div class="sig-preview" id="doctorSigPreview"></div>
                             <div class="sig-label">Doctor</div>
                             <input type="text" class="sig-name-input" id="consentDoctorSignName" value="<?php echo htmlspecialchars($_SESSION['username'] ?? ''); ?>" readonly style="background:#f1f5f9;">
                         </div>
                         <div class="sig-block">
-                            <div class="sig-line" id="witnessSigLine" onclick="signConsent('witness')" title="Tap to sign">Tap to sign</div>
+                            <div class="sig-line" id="witnessSigLine" onclick="openConsentSignatureModal('witness')" title="Tap to sign">Tap to sign</div>
+                            <div class="sig-preview" id="witnessSigPreview"></div>
                             <div class="sig-label">Witness</div>
                             <input type="text" class="sig-name-input" id="consentWitnessSignName" placeholder="Printed Name">
                         </div>
                     </div>
 
-                    <div style="margin-top:20px;text-align:right;">
+                    <div style="margin-top:20px;text-align:right;display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;">
                         <button class="consult-complete-btn" style="background:#0ea5e9;color:white;" onclick="saveConsent()">Save Consent</button>
+                        <button class="consult-complete-btn" style="background:#0f172a;color:white;" onclick="printConsentForm()">Print Consent</button>
                     </div>
                 </div>
             </div>
@@ -1863,6 +1951,77 @@ try {
     </div>
 </div>
 
+<!-- Consultation Completed Modal -->
+<div class="cc-overlay" id="consultationCompletedModal" onclick="if(event.target===this)closeConsultationCompletedModal()">
+    <div class="cc-modal" onclick="event.stopPropagation()">
+        <div class="cc-bg-orb cc-bg-orb-a"></div>
+        <div class="cc-bg-orb cc-bg-orb-b"></div>
+        <div class="cc-banner">
+            <div class="cc-icon-wrap">
+                <span class="cc-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M9.2 16.2 5.5 12.5l-1.4 1.4 5.1 5.1L20 8.2l-1.4-1.4z"></path>
+                    </svg>
+                </span>
+            </div>
+            <div>
+                <div class="cc-kicker">Consultation Completed</div>
+                <h2 style="font-size:1.55rem;font-weight:700;margin:6px 0 0;">Consultation completed!</h2>
+            </div>
+            <button onclick="closeConsultationCompletedModal()" class="cc-close">&times;</button>
+        </div>
+        <div class="cc-body">
+            <p class="cc-text">Patient has been moved to billing.</p>
+        </div>
+        <div class="cc-actions">
+            <button type="button" onclick="closeConsultationCompletedModal()" class="cc-btn-confirm">OK</button>
+        </div>
+    </div>
+</div>
+
+<!-- Consultation Completed Modal -->
+<div class="cc-overlay" id="consultationCompletedModal" onclick="if(event.target===this)closeConsultationCompletedModal()">
+    <div class="cc-modal" onclick="event.stopPropagation()">
+        <div class="cc-bg-orb cc-bg-orb-a"></div>
+        <div class="cc-bg-orb cc-bg-orb-b"></div>
+        <div class="cc-banner">
+            <div class="cc-icon-wrap">
+                <span class="cc-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M9.2 16.2 5.5 12.5l-1.4 1.4 5.1 5.1L20 8.2l-1.4-1.4z"></path>
+                    </svg>
+                </span>
+            </div>
+            <div>
+                <div class="cc-kicker">Consultation Completed</div>
+                <h2 style="font-size:1.55rem;font-weight:700;margin:6px 0 0;">Consultation completed!</h2>
+            </div>
+            <button onclick="closeConsultationCompletedModal()" class="cc-close">&times;</button>
+        </div>
+        <div class="cc-body">
+            <p class="cc-text">Patient has been moved to billing.</p>
+        </div>
+        <div class="cc-actions">
+            <button type="button" onclick="closeConsultationCompletedModal()" class="cc-btn-confirm">OK</button>
+        </div>
+    </div>
+</div>
+
+<div class="signature-modal-overlay" id="consentSignatureModal" onclick="if(event.target === this) closeConsentSignatureModal()">
+    <div class="signature-modal" onclick="event.stopPropagation()">
+        <h3 id="consentSignatureModalTitle">Draw Signature</h3>
+        <div class="signature-canvas-wrapper">
+            <canvas id="consentSignatureCanvas" class="signature-canvas"></canvas>
+        </div>
+        <div class="signature-modal-footer">
+            <button type="button" class="signature-clear-btn" onclick="clearConsentSignatureCanvas()">Clear</button>
+            <button type="button" class="signature-cancel-btn" onclick="closeConsentSignatureModal()">Cancel</button>
+            <button type="button" class="signature-save-btn" onclick="saveConsentSignature()">Save Signature</button>
+        </div>
+    </div>
+</div>
+
+<script src="../../assets/js/signature_pad.min.js"></script>
 <script>
 // ===================== STATE =====================
 var currentConsultation = null;
@@ -1871,6 +2030,13 @@ var isPastView = <?php echo $isPastView ? 'true' : 'false'; ?>;
 var pastConsultId = <?php echo $pastConsultId; ?>;
 var teethFindings = [];
 var currentToothNumber = null;
+var signaturePadInstance = null;
+var currentConsentSignatureType = null;
+var currentConsentSignatureData = {
+    patient: null,
+    doctor: null,
+    witness: null
+};
 var currentToothSurface = null;
 var notesSaveTimeout = null;
 var historySaveTimeout = null;
@@ -1889,6 +2055,9 @@ function loadConsultation(queueId) {
     .then(function(data) {
         if (data.success && data.consultation) {
             currentConsultation = data.consultation;
+            if (!Array.isArray(currentConsultation.prescription_data)) {
+                currentConsultation.prescription_data = [];
+            }
             teethFindings = data.consultation.teeth_data || [];
             document.getElementById('consultEmptyState').style.display = 'none';
             document.getElementById('consultPanels').style.display = 'block';
@@ -2448,18 +2617,33 @@ function updatePrescItem(idx, field, value) {
 }
 
 function savePrescription() {
-    if (isPastView || !currentConsultation) return;
-    fetch('consultation_actions.php', {
+    if (isPastView || !currentConsultation) return Promise.resolve({ success: false, message: 'Cannot save prescription' });
+    if (!Array.isArray(currentConsultation.prescription_data)) {
+        currentConsultation.prescription_data = [];
+    }
+    return fetch('consultation_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'save_prescription', consultation_id: currentConsultation.id, prescription_data: currentConsultation.prescription_data })
     }).then(function(r) { return r.json(); })
-    .then(function(d) { alert(d.message || 'Prescription saved'); });
+    .then(function(d) {
+        if (d.success) {
+            populatePrescription();
+        } else {
+            alert(d.message || 'Failed to save prescription');
+        }
+        return d;
+    });
 }
 
 // ===================== CONSENT =====================
 function populateConsent() {
     var c = currentConsultation;
+    currentConsentSignatureData = {
+        patient: null,
+        doctor: null,
+        witness: null
+    };
     document.getElementById('consentPatientNameInput').value = c.patient_name || '';
     document.getElementById('consentProviderInput').value = c.consent_provider || '';
     document.getElementById('consentAddressInput').value = c.consent_patient_address || '';
@@ -2472,29 +2656,128 @@ function populateConsent() {
     document.getElementById('consentPatientSignName').value = c.consent_patient_sign_name || '';
     document.getElementById('consentWitnessSignName').value = c.consent_witness_sign_name || '';
     if (c.consent_patient_signature) {
-        document.getElementById('patientSigLine').textContent = 'Signed';
+        document.getElementById('patientSigLine').textContent = 'Edit signature';
         document.getElementById('patientSigLine').classList.add('signed');
+        if (typeof c.consent_patient_signature === 'string' && c.consent_patient_signature.startsWith('data:')) {
+            currentConsentSignatureData.patient = c.consent_patient_signature;
+            updateConsentSignaturePreview('patient');
+        }
     }
     if (c.consent_witness_signature) {
-        document.getElementById('witnessSigLine').textContent = 'Signed';
+        document.getElementById('witnessSigLine').textContent = 'Edit signature';
         document.getElementById('witnessSigLine').classList.add('signed');
+        if (typeof c.consent_witness_signature === 'string' && c.consent_witness_signature.startsWith('data:')) {
+            currentConsentSignatureData.witness = c.consent_witness_signature;
+            updateConsentSignaturePreview('witness');
+        }
     }
+    if (c.consent_doctor_signature) {
+        document.getElementById('doctorSigLine').textContent = 'Edit signature';
+        document.getElementById('doctorSigLine').classList.add('signed');
+        if (typeof c.consent_doctor_signature === 'string' && c.consent_doctor_signature.startsWith('data:')) {
+            currentConsentSignatureData.doctor = c.consent_doctor_signature;
+        }
+    }
+
+    updateConsentSignaturePreview('patient');
+    updateConsentSignaturePreview('doctor');
+    updateConsentSignaturePreview('witness');
 }
 
 function toggleGuardianName() {
     document.getElementById('guardianNameWrapper').style.display = document.getElementById('consentGuardianCheck').checked ? 'block' : 'none';
 }
 
+function openConsentSignatureModal(type) {
+    if (isPastView) return;
+    currentConsentSignatureType = type;
+    var modal = document.getElementById('consentSignatureModal');
+    var title = document.getElementById('consentSignatureModalTitle');
+    title.textContent = 'Draw ' + (type === 'patient' ? 'Patient / Guardian' : type === 'doctor' ? 'Doctor' : 'Witness') + ' Signature';
+    var canvas = document.getElementById('consentSignatureCanvas');
+    if (!signaturePadInstance) {
+        signaturePadInstance = new SignaturePad(canvas, {
+            backgroundColor: 'rgb(255,255,255)',
+            penColor: 'rgb(15, 23, 42)'
+        });
+    }
+    signaturePadInstance.clear();
+    if (currentConsentSignatureData[type]) {
+        signaturePadInstance.fromDataURL(currentConsentSignatureData[type]);
+    }
+    modal.classList.add('active');
+}
+
+function closeConsentSignatureModal() {
+    var modal = document.getElementById('consentSignatureModal');
+    modal.classList.remove('active');
+}
+
+function clearConsentSignatureCanvas() {
+    if (signaturePadInstance) {
+        signaturePadInstance.clear();
+    }
+    if (currentConsentSignatureType) {
+        currentConsentSignatureData[currentConsentSignatureType] = null;
+    }
+}
+
+function resizeConsentSignatureCanvas() {
+    var canvas = document.getElementById('consentSignatureCanvas');
+    if (!canvas) return;
+    var ratio = Math.max(window.devicePixelRatio || 1, 1);
+    var rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * ratio;
+    canvas.height = rect.height * ratio;
+    var context = canvas.getContext('2d');
+    if (context) {
+        context.scale(ratio, ratio);
+    }
+    if (signaturePadInstance && !signaturePadInstance.isEmpty()) {
+        var data = signaturePadInstance.toData();
+        signaturePadInstance.clear();
+        signaturePadInstance.fromData(data);
+    }
+}
+
+function updateConsentSignaturePreview(type) {
+    var preview = document.getElementById(type + 'SigPreview');
+    if (!preview) return;
+    var data = currentConsentSignatureData[type];
+    if (data && typeof data === 'string' && data.indexOf('data:') === 0) {
+        preview.innerHTML = '<img src="' + data + '" alt="Signature">';
+    } else {
+        preview.innerHTML = '<div class="sig-preview empty">No signature drawn yet</div>';
+    }
+}
+
+function saveConsentSignature() {
+    if (!currentConsentSignatureType || !signaturePadInstance) return;
+    if (signaturePadInstance.isEmpty()) {
+        alert('Please draw your signature before saving.');
+        return;
+    }
+
+    var signatureData = signaturePadInstance.toDataURL();
+    currentConsentSignatureData[currentConsentSignatureType] = signatureData;
+    updateConsentSignaturePreview(currentConsentSignatureType);
+    var lineId = currentConsentSignatureType === 'patient' ? 'patientSigLine' : currentConsentSignatureType === 'doctor' ? 'doctorSigLine' : 'witnessSigLine';
+    var line = document.getElementById(lineId);
+    if (line) {
+        line.textContent = 'Edit signature';
+        line.classList.add('signed');
+    }
+    closeConsentSignatureModal();
+}
+
 function signConsent(type) {
     if (isPastView) return;
     if (type === 'patient') {
-        document.getElementById('patientSigLine').textContent = 'Signed';
-        document.getElementById('patientSigLine').classList.add('signed');
+        openConsentSignatureModal('patient');
     } else if (type === 'doctor') {
-        // Already signed
+        openConsentSignatureModal('doctor');
     } else if (type === 'witness') {
-        document.getElementById('witnessSigLine').textContent = 'Signed';
-        document.getElementById('witnessSigLine').classList.add('signed');
+        openConsentSignatureModal('witness');
     }
 }
 
@@ -2511,11 +2794,14 @@ function saveConsent() {
         consent_given: document.getElementById('patientSigLine').classList.contains('signed') ? 1 : 0,
         consent_date: document.getElementById('consentDateInput').value,
         consent_place: document.getElementById('consentPlaceInput').value,
-        consent_patient_signature: document.getElementById('patientSigLine').classList.contains('signed') ? 'signed' : null,
-        consent_doctor_signature: 'signed',
-        consent_witness_signature: document.getElementById('witnessSigLine').classList.contains('signed') ? 'signed' : null,
+        consent_patient_signature: currentConsentSignatureData.patient || (document.getElementById('patientSigLine').classList.contains('signed') ? 'signed' : null),
+        consent_doctor_signature: currentConsentSignatureData.doctor || (document.getElementById('doctorSigLine').classList.contains('signed') ? 'signed' : null),
+        consent_witness_signature: currentConsentSignatureData.witness || (document.getElementById('witnessSigLine').classList.contains('signed') ? 'signed' : null),
         consent_patient_sign_name: document.getElementById('consentPatientSignName').value,
-        consent_witness_sign_name: document.getElementById('consentWitnessSignName').value
+        consent_witness_sign_name: document.getElementById('consentWitnessSignName').value,
+        consent_patient_signature_data: currentConsentSignatureData.patient,
+        consent_doctor_signature_data: currentConsentSignatureData.doctor,
+        consent_witness_signature_data: currentConsentSignatureData.witness
     };
     fetch('consultation_actions.php', {
         method: 'POST',
@@ -2523,6 +2809,32 @@ function saveConsent() {
         body: JSON.stringify(payload)
     }).then(function(r) { return r.json(); })
     .then(function(d) { alert(d.message || 'Consent saved'); });
+}
+
+function printConsentForm() {
+    document.body.classList.add('print-panel-consent');
+    document.body.classList.remove('print-panel-prescription');
+    var consentTabButton = document.querySelector('.consult-tab-btn[data-tab="consent"]');
+    if (consentTabButton) {
+        consentTabButton.click();
+    }
+    setTimeout(function() {
+        window.print();
+        document.body.classList.remove('print-panel-consent');
+    }, 100);
+}
+
+function printPrescription() {
+    document.body.classList.add('print-panel-prescription');
+    document.body.classList.remove('print-panel-consent');
+    var prescriptionTabButton = document.querySelector('.consult-tab-btn[data-tab="prescription"]');
+    if (prescriptionTabButton) {
+        prescriptionTabButton.click();
+    }
+    setTimeout(function() {
+        window.print();
+        document.body.classList.remove('print-panel-prescription');
+    }, 100);
 }
 
 // ===================== COMPLETE CONSULTATION =====================
@@ -2543,19 +2855,38 @@ function closeCompleteConsultModal() {
 
 function confirmCompleteConsult() {
     closeCompleteConsultModal();
-    fetch('consultation_actions.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'complete_consultation', consultation_id: currentConsultation.id })
-    }).then(function(r) { return r.json(); })
-    .then(function(data) {
-        if (data.success) {
-            alert('Consultation completed! Patient has been moved to billing.');
-            window.location.href = 'dentist_dashboard.php';
+    savePrescription().then(function(result) {
+        if (result && result.success) {
+            fetch('consultation_actions.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'complete_consultation', consultation_id: currentConsultation.id })
+            }).then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    showConsultationCompletedModal();
+                } else {
+                    alert('Error: ' + (data.message || 'Failed to complete'));
+                }
+            });
         } else {
-            alert('Error: ' + (data.message || 'Failed to complete'));
+            alert('Please save the prescription before completing the consultation.');
         }
     });
+}
+
+function showConsultationCompletedModal() {
+    var modal = document.getElementById('consultationCompletedModal');
+    document.body.appendChild(modal);
+    modal.classList.add('active');
+}
+
+function closeConsultationCompletedModal() {
+    var modal = document.getElementById('consultationCompletedModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+    window.location.href = 'dentist_dashboard.php';
 }
 
 // ===================== PAST CONSULTATION VIEW =====================
@@ -2565,6 +2896,9 @@ function loadPastConsultationData(consultId) {
     .then(function(data) {
         if (data.success && data.consultation) {
             currentConsultation = data.consultation;
+            if (!Array.isArray(currentConsultation.prescription_data)) {
+                currentConsultation.prescription_data = [];
+            }
             teethFindings = data.consultation.teeth_data || [];
             document.getElementById('consultEmptyState').style.display = 'none';
             document.getElementById('consultPanels').style.display = 'block';

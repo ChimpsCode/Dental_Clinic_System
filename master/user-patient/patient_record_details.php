@@ -134,7 +134,8 @@ try {
                    c.appliances_orthodontic, c.appliances_skyplate, c.appliances_others, c.appliances_others_text,
                    c.tmd_clenching, c.tmd_clicking, c.tmd_trismus, c.tmd_muscle_spasm,
                    c.consent_provider, c.consent_procedure, c.consent_date, c.consent_place,
-                   c.consent_given,
+                   c.consent_given, c.consent_patient_signature, c.consent_doctor_signature, c.consent_witness_signature,
+                   c.consent_patient_sign_name, c.consent_witness_sign_name,
                    q.treatment_type AS queue_treatment_type, q.queue_number,
                    u.first_name AS dentist_first_name, u.last_name AS dentist_last_name
             FROM consultations c

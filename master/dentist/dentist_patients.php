@@ -328,6 +328,18 @@ function escapeHtml(str) {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function renderConsentSignature(signatureData, signerName) {
+    if (!signatureData) {
+        return '<div style="font-size:0.85rem;color:#6b7280;">No signature available</div>';
+    }
+    if (typeof signatureData === 'string' && signatureData.indexOf('data:') === 0) {
+        return '<div style="border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#ffffff;display:flex;align-items:center;justify-content:center;padding:8px;max-width:100%;min-height:100px;">' +
+               '<img src="' + signatureData + '" alt="Consent Signature" style="max-width:100%;max-height:120px;object-fit:contain;">' +
+               '</div>';
+    }
+    return '<div style="font-size:0.85rem;color:#334155;">Signature recorded</div>';
+}
+
 function toggleConsultHistoryCard(idx) {
     var body = document.getElementById('consultHistBody_' + idx);
     var arrow = document.getElementById('consultHistArrow_' + idx);
@@ -674,7 +686,7 @@ function viewPatientDetails(patientId) {
                                     bodyHtml += '</div>';
                                 }
 
-                                if (c.consent_procedure || c.consent_date) {
+                                if (c.consent_procedure || c.consent_date || c.consent_patient_signature || c.consent_doctor_signature || c.consent_witness_signature) {
                                     var cp = [];
                                     if (c.consent_procedure) cp.push('Procedure: '+c.consent_procedure);
                                     if (c.consent_provider) cp.push('Provider: '+c.consent_provider);
@@ -682,6 +694,21 @@ function viewPatientDetails(patientId) {
                                     if (c.consent_place) cp.push('Place: '+c.consent_place);
                                     bodyHtml += '<div style="margin-bottom:4px;"><div style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:6px;">Consent</div>';
                                     bodyHtml += '<div style="font-size:0.85rem;color:#334155;">'+escapeHtml(cp.join(' · '))+'</div></div>';
+
+                                    if (c.consent_patient_signature || c.consent_doctor_signature || c.consent_witness_signature) {
+                                        bodyHtml += '<div style="margin-top:10px;">';
+                                        bodyHtml += '<div style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:8px;">Consent Signatures</div>';
+                                        if (c.consent_patient_signature) {
+                                            bodyHtml += '<div style="margin-bottom:10px;"><div style="font-weight:600;color:#111827;margin-bottom:4px;">Patient / Guardian' + (c.consent_patient_sign_name ? ' — ' + escapeHtml(c.consent_patient_sign_name) : '') + '</div>' + renderConsentSignature(c.consent_patient_signature) + '</div>';
+                                        }
+                                        if (c.consent_doctor_signature) {
+                                            bodyHtml += '<div style="margin-bottom:10px;"><div style="font-weight:600;color:#111827;margin-bottom:4px;">Doctor</div>' + renderConsentSignature(c.consent_doctor_signature) + '</div>';
+                                        }
+                                        if (c.consent_witness_signature) {
+                                            bodyHtml += '<div style="margin-bottom:10px;"><div style="font-weight:600;color:#111827;margin-bottom:4px;">Witness' + (c.consent_witness_sign_name ? ' — ' + escapeHtml(c.consent_witness_sign_name) : '') + '</div>' + renderConsentSignature(c.consent_witness_signature) + '</div>';
+                                        }
+                                        bodyHtml += '</div>';
+                                    }
                                 }
 
                                 return bodyHtml + '</div></div>';

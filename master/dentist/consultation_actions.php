@@ -21,6 +21,146 @@ header('Content-Type: application/json');
 
 $user_id = (int)$_SESSION['user_id'];
 
+function ensurePrescriptionSyncSchema(PDO $pdo): void {
+    static $ready = false;
+    if ($ready) {
+        return;
+    }
+    $ready = true;
+
+    try {
+        $columns = [];
+        $stmt = $pdo->query("SHOW COLUMNS FROM prescriptions");
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $columns[] = $row['Field'];
+        }
+        $alterStatements = [];
+        if (!in_array('doctor_id', $columns, true)) {
+            $alterStatements[] = 'ALTER TABLE prescriptions ADD COLUMN doctor_id INT(11) NULL AFTER patient_id';
+        }
+        if (!in_array('medications', $columns, true)) {
+            $alterStatements[] = 'ALTER TABLE prescriptions ADD COLUMN medications TEXT NULL AFTER doctor_id';
+        }
+        if (!in_array('diagnosis', $columns, true)) {
+            $alterStatements[] = 'ALTER TABLE prescriptions ADD COLUMN diagnosis TEXT NULL AFTER medications';
+        }
+        if (!in_array('instructions', $columns, true)) {
+            $alterStatements[] = 'ALTER TABLE prescriptions ADD COLUMN instructions TEXT NULL AFTER diagnosis';
+        }
+        if (!in_array('issue_date', $columns, true)) {
+            $alterStatements[] = 'ALTER TABLE prescriptions ADD COLUMN issue_date DATE NOT NULL DEFAULT CURRENT_DATE() AFTER diagnosis';
+        }
+        if (!in_array('updated_at', $columns, true)) {
+            $alterStatements[] = 'ALTER TABLE prescriptions ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at';
+        }
+        if (!in_array('consultation_id', $columns, true)) {
+            $alterStatements[] = 'ALTER TABLE prescriptions ADD COLUMN consultation_id INT(11) NULL AFTER doctor_id';
+        }
+
+        foreach ($alterStatements as $sql) {
+            try {
+                $pdo->exec($sql);
+            } catch (Exception $e) {
+                // ignore schema update failures
+            }
+        }
+
+        try {
+            $pdo->exec('CREATE UNIQUE INDEX idx_prescriptions_consultation_id ON prescriptions (consultation_id)');
+        } catch (Exception $e) {
+            // ignore if index already exists
+        }
+    } catch (Exception $e) {
+        // ignore schema check failures
+    }
+}
+
+function buildPrescriptionText(array $prescriptionData): array {
+    $medications = [];
+    $instructions = [];
+    foreach ($prescriptionData as $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+        $name = trim($item['name'] ?? '');
+        if ($name === '') {
+            continue;
+        }
+        $parts = [];
+        if (!empty($item['dosage'])) {
+            $parts[] = trim($item['dosage']);
+        }
+        if (!empty($item['frequency'])) {
+            $parts[] = trim($item['frequency']);
+        }
+        if (!empty($item['duration'])) {
+            $parts[] = trim($item['duration']);
+        }
+        $line = $name;
+        if (!empty($parts)) {
+            $line .= ' (' . implode(', ', $parts) . ')';
+        }
+        $medications[] = $line;
+        if (!empty($item['instructions'])) {
+            $instructions[] = trim($item['instructions']);
+        }
+    }
+    return [
+        'medications' => implode("\n", $medications),
+        'instructions' => implode("\n", $instructions),
+    ];
+}
+
+function syncConsultationPrescriptionToPrescriptionTable(PDO $pdo, int $consultId, array $prescriptionData): void {
+    if (!$consultId || empty($prescriptionData)) {
+        return;
+    }
+
+    ensurePrescriptionSyncSchema($pdo);
+
+    $stmt = $pdo->prepare("SELECT patient_id, dentist_id FROM consultations WHERE id = ?");
+    $stmt->execute([$consultId]);
+    $consult = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$consult || empty($consult['patient_id'])) {
+        return;
+    }
+
+    $text = buildPrescriptionText($prescriptionData);
+    if (trim($text['medications']) === '') {
+        return;
+    }
+
+    $consultationId = $consultId;
+    $patientId = (int)$consult['patient_id'];
+    $doctorId = isset($consult['dentist_id']) ? (int)$consult['dentist_id'] : null;
+
+    $select = $pdo->prepare("SELECT id FROM prescriptions WHERE consultation_id = ?");
+    $select->execute([$consultationId]);
+    $existing = $select->fetch(PDO::FETCH_ASSOC);
+
+    if ($existing) {
+        $update = $pdo->prepare("UPDATE prescriptions SET patient_id = ?, doctor_id = ?, medications = ?, diagnosis = ?, instructions = ?, issue_date = CURDATE() WHERE consultation_id = ?");
+        $update->execute([
+            $patientId,
+            $doctorId,
+            $text['medications'],
+            'Prescription from consultation',
+            $text['instructions'],
+            $consultationId
+        ]);
+    } else {
+        $insert = $pdo->prepare("INSERT INTO prescriptions (patient_id, doctor_id, medications, diagnosis, instructions, issue_date, consultation_id) VALUES (?, ?, ?, ?, ?, CURDATE(), ?)");
+        $insert->execute([
+            $patientId,
+            $doctorId,
+            $text['medications'],
+            'Prescription from consultation',
+            $text['instructions'],
+            $consultationId
+        ]);
+    }
+}
+
 try {
     require_once '../../config/database.php';
 
@@ -168,6 +308,9 @@ try {
             }
             if (is_string($consultation['prescription_data'] ?? '')) {
                 $consultation['prescription_data'] = json_decode($consultation['prescription_data'], true);
+            }
+            if (!is_array($consultation['prescription_data'] ?? null)) {
+                $consultation['prescription_data'] = [];
             }
 
             ob_clean();
@@ -324,9 +467,19 @@ try {
                 echo json_encode(['success' => false, 'message' => 'Consultation ID required']);
                 break;
             }
-            $prescJson = !empty($input['prescription_data']) ? json_encode($input['prescription_data']) : null;
+            $prescriptionData = $input['prescription_data'] ?? [];
+            if (is_string($prescriptionData)) {
+                $prescriptionData = json_decode($prescriptionData, true) ?: [];
+            }
+            if (!is_array($prescriptionData)) {
+                $prescriptionData = [];
+            }
+            $prescJson = json_encode($prescriptionData);
             $stmt = $pdo->prepare("UPDATE consultations SET prescription_data = ? WHERE id = ?");
             $stmt->execute([$prescJson, $consultId]);
+
+            syncConsultationPrescriptionToPrescriptionTable($pdo, $consultId, $prescriptionData);
+
             ob_clean();
             echo json_encode(['success' => true, 'message' => 'Prescription saved']);
             break;
@@ -339,6 +492,10 @@ try {
                 echo json_encode(['success' => false, 'message' => 'Consultation ID required']);
                 break;
             }
+            $patientSignature = $input['consent_patient_signature_data'] ?? $input['consent_patient_signature'] ?? null;
+            $doctorSignature = $input['consent_doctor_signature_data'] ?? $input['consent_doctor_signature'] ?? null;
+            $witnessSignature = $input['consent_witness_signature_data'] ?? $input['consent_witness_signature'] ?? null;
+
             $stmt = $pdo->prepare("UPDATE consultations SET
                 consent_provider = ?,
                 consent_patient_address = ?,
@@ -364,9 +521,9 @@ try {
                 (int)($input['consent_given'] ?? 0),
                 $input['consent_date'] ?? null,
                 $input['consent_place'] ?? null,
-                $input['consent_patient_signature'] ?? null,
-                $input['consent_doctor_signature'] ?? null,
-                $input['consent_witness_signature'] ?? null,
+                $patientSignature,
+                $doctorSignature,
+                $witnessSignature,
                 $input['consent_patient_sign_name'] ?? null,
                 $input['consent_witness_sign_name'] ?? null,
                 $consultId
@@ -490,6 +647,9 @@ try {
                 if (is_string($row['prescription_data'] ?? '')) {
                     $row['prescription_data'] = json_decode($row['prescription_data'], true);
                 }
+                if (!is_array($row['prescription_data'] ?? null)) {
+                    $row['prescription_data'] = [];
+                }
                 $parts = array_filter([$row['dentist_first_name'] ?? '', $row['dentist_last_name'] ?? '']);
                 $row['dentist_name'] = implode(' ', $parts) ?: 'Unknown';
             }
@@ -540,6 +700,9 @@ try {
             }
             if (is_string($consultation['prescription_data'] ?? '')) {
                 $consultation['prescription_data'] = json_decode($consultation['prescription_data'], true);
+            }
+            if (!is_array($consultation['prescription_data'] ?? null)) {
+                $consultation['prescription_data'] = [];
             }
 
             ob_clean();
