@@ -106,14 +106,9 @@ try {
 </div>
 
 <!-- Search Toolbar -->
-<div class="search-toolbar" style="background: white; padding: 16px 24px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #e5e7eb; display: flex; gap: 16px; align-items: center;">
-    <div class="search-input-container" style="position: relative; flex: 1;">
-        <span style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #6b7280;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="m19.6 21l-6.3-6.3q-.75.6-1.725.95T9.5 16q-2.725 0-4.612-1.888T3 9.5t1.888-4.612T9.5 3t4.613 1.888T16 9.5q0 1.1-.35 2.075T14.7 13.3l6.3 6.3zM9.5 14q1.875 0 3.188-1.312T14 9.5t-1.312-3.187T9.5 5T6.313 6.313T5 9.5t1.313 3.188T9.5 14"/></svg>
-        </span>
-        <input type="text" id="searchInput" placeholder="Search patient name or phone..." class="search-input" style="width: 100%; padding: 12px 16px 12px 44px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; outline: none;">
-    </div>
-    <select id="statusFilter" style="padding: 12px 16px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; background: white; cursor: pointer;">
+<div class="search-toolbar" style="background: transparent; padding: 0 0 16px; border: none; border-radius: 0; margin-bottom: 0; display: flex;  gap: 16px; align-items: center; flex-wrap: wrap;">
+    <input type="text" id="searchInput" placeholder="Search patient name or phone..." class="search-input" style="width: 1010px; padding: 10px 16px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; outline: none;">
+    <select id="statusFilter" style="padding: 10px 16px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; background: white; cursor: pointer;">
         <option value="">All Status</option>
         <option value="waiting">Waiting</option>
         <option value="in_procedure">In Procedure</option>

@@ -302,6 +302,43 @@ require_once '../../includes/staff_layout_start.php';
     <button class="view-toggle-btn active" data-view="list">📋 List View</button>
     <button class="view-toggle-btn" data-view="calendar">📅 Calendar View</button>
 </div>
+<style>
+/* Match dentist appointments search-filters style */
+.search-filters {
+    background: transparent;
+    padding: 0 0 16px;
+    border: none;
+    border-radius: 0;
+    margin-bottom: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.filter-tabs {
+    display: flex;
+    gap: 8px;
+}
+.filter-tabs span {
+    margin-right: 15px;
+    padding: 8px 16px;
+    background: #f3f4f6;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+.filter-tabs span:last-child {
+    margin-right: 0;
+}
+.filter-tabs span:hover {
+    background: #e5e7eb;
+}
+.filter-tabs span.active {
+    background: #3f75ea;
+    color: white;
+}
+</style>
+
 <div class="list-view" id="listView">
     
     <div class="search-filters">
@@ -523,7 +560,7 @@ require_once '../../includes/staff_layout_start.php';
     font-size: 0.875rem;
 }
 .search-input {
-    width: 300px;
+    width: 600px;
 }
 
 .pagination-buttons {

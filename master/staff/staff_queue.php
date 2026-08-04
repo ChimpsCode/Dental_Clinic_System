@@ -463,26 +463,24 @@ try {
 
 /* Control Bar */
 .control-bar {
-    background: white;
-    border-radius: 12px;
-    padding: 20px 24px;
-    border: 1px solid #e5e7eb;
-    margin-bottom: 24px;
+    background: transparent;
+    border-radius: 0;
+    padding: 0 0 16px;
+    border: none;
+    margin-bottom: 0;
     display: flex;
+    justify-content: space-between;
     gap: 16px;
     align-items: center;
 }
 
 .control-bar .search-input {
-    flex: 1;
-    padding: 12px 16px 12px 44px;
+    width: 100%;
+    padding: 10px 16px;
     border: 1px solid #d1d5db;
     border-radius: 8px;
     font-size: 0.9rem;
     outline: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='%236b7280'%3E%3Cpath d='m19.6 21l-6.3-6.3q-.75.6-1.725.95T9.5 16q-2.725 0-4.612-1.888T3 9.5t1.888-4.612T9.5 3t4.613 1.888T16 9.5q0 1.1-.35 2.075T14.7 13.3l6.3 6.3zM9.5 14q1.875 0 3.188-1.312T14 9.5t-1.312-3.187T9.5 5T6.313 6.313T5 9.5t1.313 3.188T9.5 14'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: 14px center;
     transition: border-color 0.2s;
 }
 
@@ -491,7 +489,7 @@ try {
 }
 
 .control-bar .filter-select {
-    padding: 12px 16px;
+    padding: 10px 16px;
     border: 1px solid #d1d5db;
     border-radius: 8px;
     font-size: 0.9rem;
@@ -513,6 +511,8 @@ try {
     align-items: center;
     gap: 8px;
     transition: background 0.2s;
+    width: 268px;
+    height: 40px;
 }
 
 .control-bar .btn-add-patient:hover {
@@ -551,37 +551,42 @@ div.main-content {
 /* Tabbed Navigation */
 .tabs-navigation {
     display: flex;
-    border-bottom: 2px solid #f3f4f6;
-    background: #fafbfc;
-    padding: 0 24px;
+    flex-wrap: wrap;
+    gap: 8px;
+    border-bottom: none;
+    background: transparent;
+    padding: 20px 20px 16px;
 }
 
 .tab-item {
-    padding: 16px 24px;
+    padding: 8px 16px;
     cursor: pointer;
     font-weight: 500;
-    color: #6b7280;
-    border-bottom: 3px solid transparent;
-    margin-bottom: -2px;
+    color: #374151;
+    border-bottom: none;
+    margin-bottom: 0;
     transition: all 0.2s;
     position: relative;
+    background: #f3f4f6;
+    border-radius: 6px;
+    font-size: 0.875rem;
 }
 
 .tab-item:hover {
-    color: #374151;
-    background: rgba(0, 0, 0, 0.02);
+    color: #111827;
+    background: #e5e7eb;
 }
 
 .tab-item.active {
-    color: #2563eb;
-    border-bottom-color: #2563eb;
-    background: white;
+    color: white;
+    border-bottom-color: transparent;
+    background: #3f75ea;
 }
 
 .tab-count {
     display: inline-block;
-    background: #e5e7eb;
-    color: #6b7280;
+    background: rgba(0, 0, 0, 0.08);
+    color: inherit;
     padding: 2px 8px;
     border-radius: 12px;
     font-size: 0.75rem;
@@ -590,8 +595,8 @@ div.main-content {
 }
 
 .tab-item.active .tab-count {
-    background: #dbeafe;
-    color: #2563eb;
+    background: rgba(255, 255, 255, 0.25);
+    color: white;
 }
 
 /* Data Table */
@@ -935,6 +940,21 @@ div.main-content {
     .cp-banner, .cp-body, .cp-actions { padding-left: 18px; padding-right: 18px; }
     .cp-actions { flex-direction: column-reverse; }
     .cp-btn-cancel, .cp-btn-confirm { width: 100%; }
+}
+
+@media (max-width: 768px) {
+    .control-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .control-bar .search-input,
+    .control-bar .filter-select,
+    .control-bar .btn-add-patient {
+        width: 100%;
+    }
+    .tabs-navigation {
+        padding: 16px 16px 12px;
+    }
 }
 
 
