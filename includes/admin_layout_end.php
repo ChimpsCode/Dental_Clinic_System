@@ -1,10 +1,18 @@
 <?php
+// Pjax fragment mode: output only the closing content-area div and stop.
+// The layout shell (sidebar, header, scripts) is already in the parent document.
+$__pjax = isset($_GET['__pjax']) && $_GET['__pjax'] === '1';
+if ($__pjax) {
+    echo "        </div>\n";
+    return;
+}
 ?>
         </div>
     </main>
 
     <script src="../../assets/js/dashboard.js"></script>
     <script src="../../assets/js/admin.js"></script>
+    <script src="../../assets/js/admin_router.js"></script>
     <?php if (isset($pageScript)) { echo $pageScript; } ?>
     <script>
         (function() {

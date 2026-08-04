@@ -614,13 +614,18 @@ require_once __DIR__ . '/../../includes/admin_layout_end.php';
 <script>
 // Complete Procedure Modal
 function openCompleteProcedureModal(queueId) {
-    document.getElementById('completeProcedureQueueId').value = queueId;
-    document.getElementById('completeProcedureModal').style.display = 'flex';
+    var modal = document.getElementById('completeProcedureModal');
+    var input = document.getElementById('completeProcedureQueueId');
+    if (!modal || !input) return;
+    input.value = queueId;
+    modal.style.display = 'flex';
 }
 
 function closeCompleteProcedureModal() {
-    document.getElementById('completeProcedureModal').style.display = 'none';
-    document.getElementById('completeProcedureQueueId').value = '';
+    var modal = document.getElementById('completeProcedureModal');
+    var input = document.getElementById('completeProcedureQueueId');
+    if (modal) modal.style.display = 'none';
+    if (input) input.value = '';
 }
 
 function confirmCompleteProcedure() {
@@ -648,16 +653,16 @@ function confirmCompleteProcedure() {
 
 window.onclick = function(event) {
     const cpModal = document.getElementById('completeProcedureModal');
-    if (event.target === cpModal) closeCompleteProcedureModal();
+    if (cpModal && event.target === cpModal) closeCompleteProcedureModal();
 
     const adCalModal = document.getElementById('adCalModal');
-    if (event.target === adCalModal) adCalClose();
+    if (adCalModal && event.target === adCalModal) adCalClose();
 };
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
-        closeCompleteProcedureModal();
-        adCalClose();
+        if (typeof closeCompleteProcedureModal === 'function') closeCompleteProcedureModal();
+        if (typeof adCalClose === 'function') adCalClose();
     }
 });
 
@@ -716,7 +721,8 @@ function adCalOpenDay(dateStr) {
 }
 
 function adCalClose() {
-    document.getElementById('adCalModal').style.display = 'none';
+    var modal = document.getElementById('adCalModal');
+    if (modal) modal.style.display = 'none';
     document.body.classList.remove('modal-open');
 }
 

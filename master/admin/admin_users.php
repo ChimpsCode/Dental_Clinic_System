@@ -391,7 +391,7 @@ try {
 
                     // ESC key to close
                     document.addEventListener('keydown', function(e) {
-                        if (e.key === 'Escape') closeKebabDropdown();
+                        if (e.key === 'Escape' && typeof closeKebabDropdown === 'function') closeKebabDropdown();
                     });
 
                     // View User Details Modal

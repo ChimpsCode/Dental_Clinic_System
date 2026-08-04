@@ -187,12 +187,33 @@ try {
 // Get page title for the header
 $pageTitle = $pageTitle ?? 'Admin Dashboard';
 
+// Pjax fragment mode detection
+$__pjax = isset($_GET['__pjax']) && $_GET['__pjax'] === '1';
+
+// Server disk usage for the sidebar storage widget
+$__diskTotal = @disk_total_space(dirname(__DIR__));
+$__diskFree = @disk_free_space(dirname(__DIR__));
+if ($__diskTotal === false || $__diskFree === false || $__diskTotal <= 0) {
+    $__diskUsedGb = null;
+    $__diskTotalGb = null;
+    $__diskUsedPct = 0;
+} else {
+    $__diskUsed = $__diskTotal - $__diskFree;
+    $__diskUsedGb = round($__diskUsed / (1024 * 1024 * 1024), 1);
+    $__diskTotalGb = round($__diskTotal / (1024 * 1024 * 1024), 1);
+    $__diskUsedPct = round($__diskUsed / $__diskTotal * 100);
+    if ($__diskUsedPct < 1 && $__diskUsed > 0) {
+        $__diskUsedPct = 1;
+    }
+}
+
 // Helper function to check if current page matches
 function isActivePage($page) {
     $currentPage = basename($_SERVER['PHP_SELF']);
     return $currentPage === $page;
 }
 ?>
+<?php if (!$__pjax): ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -463,6 +484,19 @@ function isActivePage($page) {
                 </div>
             </div>
         </nav>
+
+        <div class="sidebar-storage">
+            <div class="sidebar-storage-head">
+                <span class="sidebar-storage-title">Storage</span>
+                <span class="sidebar-storage-pct"><?php echo $__diskUsedGb === null ? '—' : $__diskUsedPct . '% used'; ?></span>
+            </div>
+            <div class="sidebar-storage-bar">
+                <div class="sidebar-storage-bar-fill" style="width: <?php echo $__diskUsedPct; ?>%;"></div>
+            </div>
+            <div class="sidebar-storage-meta">
+                <?php echo $__diskUsedGb === null ? 'Unavailable' : $__diskUsedGb . ' GB used of ' . $__diskTotalGb . ' GB'; ?>
+            </div>
+        </div>
     </aside>
 
     <main class="main-content">
@@ -661,4 +695,5 @@ function isActivePage($page) {
             });
         });
         </script>
-        <div class="content-area">
+        <?php endif; ?>
+        <div class="content-area"<?php echo $__pjax ? ' data-page-title="' . htmlspecialchars($pageTitle) . '"' : ''; ?>>

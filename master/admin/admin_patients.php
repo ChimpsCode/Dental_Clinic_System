@@ -494,14 +494,14 @@ document.addEventListener('click', function(e) {
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
-        if (patientKebabDropdown && patientKebabDropdown.classList.contains('show')) {
+        if (typeof patientKebabDropdown !== 'undefined' && patientKebabDropdown && patientKebabDropdown.classList.contains('show')) {
             closePatientKebabDropdown();
         }
     }
 });
 
 window.addEventListener('resize', function() {
-    if (patientKebabDropdown && patientKebabDropdown.classList.contains('show') && patientActiveButton) {
+    if (typeof patientKebabDropdown !== 'undefined' && patientKebabDropdown && patientKebabDropdown.classList.contains('show') && patientActiveButton) {
         positionPatientKebabDropdown(patientActiveButton);
     }
 });

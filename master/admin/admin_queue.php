@@ -1891,7 +1891,7 @@ document.getElementById('deleteModal').addEventListener('click', function(e) {
 
 // Close modal on ESC key
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeDeleteModal();
+    if (e.key === 'Escape' && typeof closeDeleteModal === 'function') closeDeleteModal();
 });
 
 // Assign Doctor Modal
@@ -2039,7 +2039,8 @@ function openFullScreenPatientModal(queueId) {
 }
 
 function closeFullScreenModal() {
-    document.getElementById('fullScreenPatientModal').classList.remove('active');
+    var modal = document.getElementById('fullScreenPatientModal');
+    if (modal) modal.classList.remove('active');
 }
 
 // Close modal on outside click
@@ -2054,9 +2055,9 @@ document.getElementById('callingModal')?.addEventListener('click', function(e) {
 // ESC key to close modal
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
-        closeFullScreenModal();
-        closeCallingModal();
-        closeCompleteProcedureModal();
+        if (typeof closeFullScreenModal === 'function') closeFullScreenModal();
+        if (typeof closeCallingModal === 'function') closeCallingModal();
+        if (typeof closeCompleteProcedureModal === 'function') closeCompleteProcedureModal();
     }
 });
 

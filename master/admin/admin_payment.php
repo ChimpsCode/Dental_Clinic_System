@@ -983,7 +983,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 // Close on Escape
                 document.addEventListener('keydown', function(e) {
                     if (e.key === 'Escape') {
-                        closePaymentKebabDropdown();
+                        if (typeof closePaymentKebabDropdown === 'function') closePaymentKebabDropdown();
                         document.querySelectorAll('.modal-overlay').forEach(function(modal) { modal.style.display = 'none'; });
                     }
                 });
