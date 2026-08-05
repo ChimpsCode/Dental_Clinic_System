@@ -4,6 +4,17 @@ require_once '../../config/database.php';
 require_once '../../includes/staff_layout_start.php';
 require_once '../../includes/queue_management_helper.php';
 
+// Clinic info for the queue ticket print
+$queueClinicName = 'RF Dental Clinic';
+$queueClinicAddress = '';
+try {
+    $settingsRows = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('clinic_name', 'clinic_address')")->fetchAll(PDO::FETCH_KEY_PAIR);
+    $queueClinicName = $settingsRows['clinic_name'] ?? $queueClinicName;
+    $queueClinicAddress = $settingsRows['clinic_address'] ?? '';
+} catch (Exception $e) {
+    // best-effort
+}
+
 // Auto-archive stale entries from previous days
 $today = date('Y-m-d');
 archiveStaleQueueEntries($pdo, $today);
@@ -957,6 +968,21 @@ div.main-content {
     }
 }
 
+/* Queue ticket print */
+#queuePrintContainer { display: none; }
+@media print {
+    body * { visibility: hidden !important; }
+    #queuePrintContainer, #queuePrintContainer * { visibility: visible !important; }
+    #queuePrintContainer { display: block !important; position: absolute; left: 0; top: 0; width: 72mm; padding: 4mm; font-family: 'Courier New', monospace; }
+    .queue-ticket { border: 1px dashed #000; padding: 4mm; text-align: center; }
+    .queue-ticket .qt-clinic { font-size: 14px; font-weight: 700; text-transform: uppercase; margin-bottom: 2px; }
+    .queue-ticket .qt-address { font-size: 8px; margin-bottom: 6px; }
+    .queue-ticket .qt-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; margin-top: 6px; }
+    .queue-ticket .qt-number { font-size: 40px; font-weight: 700; line-height: 1.1; }
+    .queue-ticket .qt-meta { font-size: 10px; margin-top: 6px; }
+    .queue-ticket .qt-divider { border-top: 1px dashed #000; margin: 6px 0; }
+    @page { margin: 0; }
+}
 
 </style>
 
@@ -1118,7 +1144,7 @@ div.main-content {
                                 </td>
 <td>
                                     <div class="queue-kebab-menu">
-                                    <button class="queue-kebab-btn" data-queue-id="<?php echo htmlspecialchars((string)($item['id'] ?? '')); ?>" data-appointment-id="<?php echo htmlspecialchars((string)($item['appointment_id'] ?? '')); ?>" data-patient-id="<?php echo $item['patient_id']; ?>" data-status="<?php echo $statusText; ?>" data-source-type="<?php echo htmlspecialchars($item['source_type'] ?? 'queue'); ?>" data-doctor-id="<?php echo htmlspecialchars((string)($item['doctor_id'] ?? '')); ?>">
+                                    <button class="queue-kebab-btn" data-queue-id="<?php echo htmlspecialchars((string)($item['id'] ?? '')); ?>" data-appointment-id="<?php echo htmlspecialchars((string)($item['appointment_id'] ?? '')); ?>" data-patient-id="<?php echo $item['patient_id']; ?>" data-status="<?php echo $statusText; ?>" data-source-type="<?php echo htmlspecialchars($item['source_type'] ?? 'queue'); ?>" data-doctor-id="<?php echo htmlspecialchars((string)($item['doctor_id'] ?? '')); ?>" data-queue-number="<?php echo htmlspecialchars((string)($rowNumber ?? '')); ?>" data-patient-name="<?php echo htmlspecialchars(trim(($item['first_name'] ?? '') . ' ' . ($item['middle_name'] ?? '') . ' ' . ($item['last_name'] ?? ''))); ?>" data-treatment="<?php echo htmlspecialchars($item['treatment_type'] ?? 'General Checkup'); ?>" data-queue-time="<?php echo $time24hr; ?>">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                                                 <circle cx="12" cy="6" r="2"/>
                                                 <circle cx="12" cy="12" r="2"/>
@@ -1239,6 +1265,11 @@ div.main-content {
 </div>
 
 <script>
+const queueClinicPrintInfo = {
+    name: <?php echo json_encode($queueClinicName); ?>,
+    address: <?php echo json_encode($queueClinicAddress); ?>
+};
+
 // Queue Kebab Menu - Portal Based (same as patient-records)
 let queueKebabDropdown = null;
 let queueKebabBackdrop = null;
@@ -1271,9 +1302,21 @@ function getQueueMenuItems(queueId, patientId, status, appointmentId = '', sourc
         `;
     }
 
+    const printItem = queueId ? `
+        <a href="javascript:void(0)" data-action="print_queue" data-queue-id="${queueId}" data-patient-id="${patientId}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                <rect x="6" y="14" width="12" height="8"></rect>
+            </svg>
+            Print Queue No.
+        </a>
+    ` : '';
+
     // In Procedure: Show View, Complete, and Assign Doctor
     if (status === 'in_procedure') {
         return `
+        ${printItem}
         <a href="javascript:void(0)" data-action="view" data-queue-id="${queueId}" data-patient-id="${patientId}">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -1295,6 +1338,7 @@ function getQueueMenuItems(queueId, patientId, status, appointmentId = '', sourc
     // Completed: Show View and Delete
     if (status === 'completed') {
         return `
+        ${printItem}
         <a href="javascript:void(0)" data-action="view" data-queue-id="${queueId}" data-patient-id="${patientId}">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -1317,6 +1361,7 @@ function getQueueMenuItems(queueId, patientId, status, appointmentId = '', sourc
     // Cancelled: Show View, Re-queue, and Delete
     if (status === 'cancelled') {
         return `
+        ${printItem}
         <a href="javascript:void(0)" data-action="view" data-queue-id="${queueId}" data-patient-id="${patientId}">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -1346,6 +1391,7 @@ function getQueueMenuItems(queueId, patientId, status, appointmentId = '', sourc
     
     // Default: Show View, Hold, Assign Doctor, Re-queue (if on_hold), Cancel
     return `
+        ${printItem}
         <a href="javascript:void(0)" data-action="view" data-queue-id="${queueId}" data-patient-id="${patientId}">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -1497,6 +1543,10 @@ function handleQueueKebabClick(e) {
             break;
         case 'assign_doctor':
             openAssignDoctorModal(queueId, doctorId);
+            break;
+        case 'print_queue':
+            var qBtn = document.querySelector('.queue-kebab-btn[data-queue-id="' + queueId + '"]');
+            printQueueTicketFromButton(qBtn);
             break;
     }
 }
@@ -2081,6 +2131,8 @@ function refreshQueueTable(data) {
         var statusLabel = statusText.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
         var rowNumber = item.queue_number || (showingStart + i);
         var fullNameSearch = ((item.first_name || '') + ' ' + (item.middle_name || '') + ' ' + (item.last_name || '')).toLowerCase();
+        var fullName = ((item.first_name || '') + ' ' + (item.middle_name || '') + ' ' + (item.last_name || '')).replace(/\s+/g, ' ').trim();
+        var rawTime24 = item.queue_time || '';
 
         html += '<tr class="queue-row" data-status="' + statusText + '" data-name="' + escapeHtml(fullNameSearch) + '">';
         html += '<td>#' + rowNumber + '</td>';
@@ -2092,7 +2144,7 @@ function refreshQueueTable(data) {
         html += '<td>' + escapeHtml(item.treatment_type || 'General Checkup') + '</td>';
         html += '<td>' + escapeHtml(item.assigned_doctor || 'Dr. Rex') + '</td>';
         html += '<td><div class="time-display"><span class="time-12hr">' + time12hr + '</span></div></td>';
-        html += '<td><div class="queue-kebab-menu"><button class="queue-kebab-btn" data-queue-id="' + escapeHtml(String(item.id || '')) + '" data-appointment-id="' + escapeHtml(String(item.appointment_id || '')) + '" data-patient-id="' + item.patient_id + '" data-status="' + statusText + '" data-source-type="queue" data-doctor-id="' + escapeHtml(String(item.doctor_id || '')) + '">';
+        html += '<td><div class="queue-kebab-menu"><button class="queue-kebab-btn" data-queue-id="' + escapeHtml(String(item.id || '')) + '" data-appointment-id="' + escapeHtml(String(item.appointment_id || '')) + '" data-patient-id="' + item.patient_id + '" data-status="' + statusText + '" data-source-type="queue" data-doctor-id="' + escapeHtml(String(item.doctor_id || '')) + '" data-queue-number="' + escapeHtml(String(rowNumber || '')) + '" data-patient-name="' + escapeHtml(fullName) + '" data-treatment="' + escapeHtml(item.treatment_type || 'General Checkup') + '" data-queue-time="' + escapeHtml(rawTime24) + '">';
         html += '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="18" r="2"/></svg>';
         html += '</button></div></td>';
         html += '</tr>';
@@ -2122,6 +2174,36 @@ function escapeHtml(str) {
     var d = document.createElement('div');
     d.textContent = str;
     return d.innerHTML;
+}
+
+function printQueueTicketFromButton(button) {
+    if (!button) return;
+    var container = document.getElementById('queuePrintContainer');
+    if (!container) return;
+
+    var queueNumber = button.getAttribute('data-queue-number') || '';
+    var patientName = button.getAttribute('data-patient-name') || '';
+    var treatment = button.getAttribute('data-treatment') || '';
+    var queueTime = button.getAttribute('data-queue-time') || '';
+
+    var now = new Date();
+    var dateStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+    var timeStr = queueTime || (String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0'));
+    var number = String(queueNumber).replace('#', '');
+    var label = number ? '#' + number : '';
+
+    container.innerHTML =
+        '<div class="queue-ticket">' +
+            '<div class="qt-clinic">' + escapeHtml(queueClinicPrintInfo.name || 'RF Dental Clinic') + '</div>' +
+            (queueClinicPrintInfo.address ? '<div class="qt-address">' + escapeHtml(queueClinicPrintInfo.address) + '</div>' : '') +
+            '<div class="qt-label">Queue Number</div>' +
+            '<div class="qt-number">' + escapeHtml(label) + '</div>' +
+            '<div class="qt-divider"></div>' +
+            '<div class="qt-meta">Patient: ' + escapeHtml(patientName) + '</div>' +
+            '<div class="qt-meta">Treatment: ' + escapeHtml(treatment) + '</div>' +
+            '<div class="qt-meta">Date: ' + escapeHtml(dateStr) + '  Time: ' + escapeHtml(timeStr) + '</div>' +
+        '</div>';
+    window.print();
 }
 
 function updatePaginationInfo(totalItems, currentPage) {
@@ -2182,5 +2264,8 @@ document.addEventListener('DOMContentLoaded', startQueuePolling);
         </div>
     </div>
 </div>
+
+<!-- Queue ticket print container -->
+<div id="queuePrintContainer"></div>
 
 <?php require_once '../../includes/staff_layout_end.php'; ?>

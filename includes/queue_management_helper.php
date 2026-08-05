@@ -56,7 +56,13 @@ function ensureQueueManagementSchema(PDO $pdo): void
         'queue_label' => "ALTER TABLE queue ADD COLUMN queue_label VARCHAR(20) NULL AFTER queue_number",
         'queue_date' => "ALTER TABLE queue ADD COLUMN queue_date DATE NULL AFTER queue_label",
         'doctor_id' => "ALTER TABLE queue ADD COLUMN doctor_id INT NULL AFTER treatment_type",
-        'status_id' => "ALTER TABLE queue ADD COLUMN status_id INT NULL DEFAULT 1 AFTER status"
+        'status_id' => "ALTER TABLE queue ADD COLUMN status_id INT NULL DEFAULT 1 AFTER status",
+        'blood_pressure' => "ALTER TABLE queue ADD COLUMN blood_pressure VARCHAR(20) NULL AFTER procedure_notes",
+        'heart_rate' => "ALTER TABLE queue ADD COLUMN heart_rate VARCHAR(20) NULL AFTER blood_pressure",
+        'temperature' => "ALTER TABLE queue ADD COLUMN temperature VARCHAR(20) NULL AFTER heart_rate",
+        'oxygen_saturation' => "ALTER TABLE queue ADD COLUMN oxygen_saturation VARCHAR(20) NULL AFTER temperature",
+        'height' => "ALTER TABLE queue ADD COLUMN height VARCHAR(20) NULL AFTER oxygen_saturation",
+        'weight' => "ALTER TABLE queue ADD COLUMN weight VARCHAR(20) NULL AFTER height"
     ];
 
     foreach ($requiredColumns as $field => $sql) {

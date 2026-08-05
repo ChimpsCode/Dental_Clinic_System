@@ -63,14 +63,18 @@ try {
         a.status as status_label,
         tp.id as treatment_plan_id, tp.plan_name as treatment_plan_name,
         CONCAT(d.first_name, ' ', d.last_name) as dentist_name,
-        q.status as queue_status, q.queue_number, q.queue_label
+        q.status as queue_status, q.queue_number, q.queue_label,
+        q.queue_id, q.blood_pressure, q.heart_rate, q.temperature,
+        q.oxygen_saturation, q.height, q.weight, q.doctor_id
         FROM appointments a 
         LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
         LEFT JOIN services s ON a.service_id = s.id
         LEFT JOIN treatment_plans tp ON a.id = tp.appointment_id
         LEFT JOIN users d ON a.dentist_id = d.id
         LEFT JOIN (
-            SELECT q1.appointment_id, q1.status, q1.queue_number, q1.queue_label
+            SELECT q1.appointment_id, q1.status, q1.queue_number, q1.queue_label, q1.id AS queue_id,
+                   q1.blood_pressure, q1.heart_rate, q1.temperature, q1.oxygen_saturation,
+                   q1.height, q1.weight, q1.doctor_id
             FROM queue q1
             INNER JOIN (
                 SELECT appointment_id, MAX(id) AS max_id
@@ -176,6 +180,17 @@ $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' :
 $host = $_SERVER['HTTP_HOST'];
 $currentDir = dirname(str_replace('\\', '/', $_SERVER['SCRIPT_NAME']));
 $onlineBookingUrl = $scheme . '://' . $host . dirname($currentDir) . '/welcome-page/home.php';
+
+// Clinic info for the queue ticket print
+$clinicName = 'RF Dental Clinic';
+$clinicAddress = '';
+try {
+    $settingsRows = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('clinic_name', 'clinic_address')")->fetchAll(PDO::FETCH_KEY_PAIR);
+    $clinicName = $settingsRows['clinic_name'] ?? $clinicName;
+    $clinicAddress = $settingsRows['clinic_address'] ?? '';
+} catch (Exception $e) {
+    // Settings query is best-effort
+}
 ?>
 <div class="summary-cards" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 24px;">
     <div class="summary-card" style="width: 100%;">
@@ -581,6 +596,9 @@ $onlineBookingUrl = $scheme . '://' . $host . dirname($currentDir) . '/welcome-p
     </div>
 </div>
 
+<!-- Hidden queue ticket used for XP-80C thermal printing -->
+<div id="queuePrintContainer" aria-hidden="true"></div>
+
 <style>
 .pagination {
     display: flex;
@@ -839,7 +857,7 @@ $onlineBookingUrl = $scheme . '://' . $host . dirname($currentDir) . '/welcome-p
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.74);
     z-index: 99999;
     align-items: center;
     justify-content: center;
@@ -869,7 +887,11 @@ $onlineBookingUrl = $scheme . '://' . $host . dirname($currentDir) . '/welcome-p
 }
 .btn-online-booking:hover { background: #ecfdf5; }
 
-.qr-clickable { cursor: pointer; transition: transform 0.15s ease; }
+.qr-clickable {
+    cursor: pointer; 
+    transition: transform 0.15s ease;
+    padding-left: 100px;
+}
 .qr-clickable:hover { transform: scale(1.03); }
 
 .booking-link-row {
@@ -884,6 +906,31 @@ $onlineBookingUrl = $scheme . '://' . $host . dirname($currentDir) . '/welcome-p
     border-radius: 8px; font-weight: 600; cursor: pointer;
 }
 .booking-link-row button:hover { background: #1d4ed8; }
+
+/* Vital sign / body measurement form */
+.vitals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.vitals-section { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; }
+.vitals-section h4 { margin: 0 0 4px; font-size: 0.85rem; font-weight: 600; color: #334155; }
+.vitals-section .vitals-sub { margin: 0 0 12px; font-size: 0.75rem; color: #94a3b8; }
+.vitals-section label { display: block; font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 4px; }
+.vitals-section input { width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; outline: none; }
+.vitals-section input:focus { border-color: #2563eb; }
+
+/* Queue ticket print */
+#queuePrintContainer { display: none; }
+@media print {
+    body * { visibility: hidden !important; }
+    #queuePrintContainer, #queuePrintContainer * { visibility: visible !important; }
+    #queuePrintContainer { display: block !important; position: absolute; left: 0; top: 0; width: 72mm; padding: 4mm; font-family: 'Courier New', monospace; }
+    .queue-ticket { border: 1px dashed #000; padding: 4mm; text-align: center; }
+    .queue-ticket .qt-clinic { font-size: 14px; font-weight: 700; text-transform: uppercase; margin-bottom: 2px; }
+    .queue-ticket .qt-address { font-size: 8px; margin-bottom: 6px; }
+    .queue-ticket .qt-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; margin-top: 6px; }
+    .queue-ticket .qt-number { font-size: 40px; font-weight: 700; line-height: 1.1; }
+    .queue-ticket .qt-meta { font-size: 10px; margin-top: 6px; }
+    .queue-ticket .qt-divider { border-top: 1px dashed #000; margin: 6px 0; }
+    @page { margin: 0; }
+}
 </style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -892,6 +939,69 @@ $onlineBookingUrl = $scheme . '://' . $host . dirname($currentDir) . '/welcome-p
     const appointments = <?php echo json_encode($allAppointments); ?>;
     const unavailableDates = <?php echo json_encode($unavailableDates); ?>;
     const onlineBookingUrl = <?php echo json_encode($onlineBookingUrl); ?>;
+    const clinicPrintInfo = {
+        name: <?php echo json_encode($clinicName); ?>,
+        address: <?php echo json_encode($clinicAddress); ?>
+    };
+
+    function escapeHtmlQueue(str) {
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function printQueueTicket(opts) {
+        var o = opts || {};
+        var container = document.getElementById('queuePrintContainer');
+        var now = new Date();
+        var dateStr = o.date || (now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0'));
+        var timeStr = o.time || (String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0'));
+        var number = (o.queueNumber || o.queueLabel || '').replace('#', '');
+        var label = o.queueLabel || (number ? '#' + number : '');
+        container.innerHTML =
+            '<div class="queue-ticket">' +
+                '<div class="qt-clinic">' + escapeHtmlQueue(clinicPrintInfo.name || 'RF Dental Clinic') + '</div>' +
+                (clinicPrintInfo.address ? '<div class="qt-address">' + escapeHtmlQueue(clinicPrintInfo.address) + '</div>' : '') +
+                '<div class="qt-label">Queue Number</div>' +
+                '<div class="qt-number">' + escapeHtmlQueue(label) + '</div>' +
+                '<div class="qt-divider"></div>' +
+                '<div class="qt-meta">Patient: ' + escapeHtmlQueue(o.patientName || '') + '</div>' +
+                '<div class="qt-meta">Treatment: ' + escapeHtmlQueue(o.treatment || '') + '</div>' +
+                '<div class="qt-meta">Date: ' + escapeHtmlQueue(dateStr) + '  Time: ' + escapeHtmlQueue(timeStr) + '</div>' +
+            '</div>';
+        window.print();
+    }
+
+    function buildVitalsHtml(prefix, values) {
+        var v = values || {};
+        return '' +
+            '<div class="vitals-section">' +
+                '<h4>Vital Signs (optional)</h4>' +
+                '<p class="vitals-sub">Blood pressure, heart rate, temperature, oxygen saturation</p>' +
+                '<div class="vitals-grid">' +
+                    '<div><label>Blood Pressure (mmHg)</label><input type="text" name="' + prefix + 'blood_pressure" placeholder="120/80" value="' + escapeHtmlQueue(v.blood_pressure || '') + '"></div>' +
+                    '<div><label>Heart Rate (bpm)</label><input type="text" name="' + prefix + 'heart_rate" placeholder="72" value="' + escapeHtmlQueue(v.heart_rate || '') + '"></div>' +
+                    '<div><label>Temperature (&deg;C)</label><input type="text" name="' + prefix + 'temperature" placeholder="36.5" value="' + escapeHtmlQueue(v.temperature || '') + '"></div>' +
+                    '<div><label>Oxygen Saturation (%)</label><input type="text" name="' + prefix + 'oxygen_saturation" placeholder="98" value="' + escapeHtmlQueue(v.oxygen_saturation || '') + '"></div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="vitals-section">' +
+                '<h4>Body Measurement (optional)</h4>' +
+                '<p class="vitals-sub">Height, weight, and computed BMI</p>' +
+                '<div class="vitals-grid">' +
+                    '<div><label>Height (cm)</label><input type="text" name="' + prefix + 'height" placeholder="165" value="' + escapeHtmlQueue(v.height || '') + '"></div>' +
+                    '<div><label>Weight (kg)</label><input type="text" name="' + prefix + 'weight" placeholder="58" value="' + escapeHtmlQueue(v.weight || '') + '"></div>' +
+                '</div>' +
+            '</div>';
+    }
+
+    function collectVitals(prefix) {
+        var out = {};
+        ['blood_pressure', 'heart_rate', 'temperature', 'oxygen_saturation', 'height', 'weight'].forEach(function(f) {
+            var el = document.querySelector('[name="' + prefix + f + '"]');
+            if (el) out[f] = el.value.trim();
+        });
+        return out;
+    }
 
     (function() {
         const viewAppointmentModal = document.getElementById('viewAppointmentModal');
@@ -1606,7 +1716,16 @@ $onlineBookingUrl = $scheme . '://' . $host . dirname($currentDir) . '/welcome-p
         const checkedIn = button ? button.getAttribute('data-checked-in') : '';
         const isCancelled = (status && status.toLowerCase().includes('cancel'));
         const isArrived = checkedIn && checkedIn.trim() !== '';
-        
+        const apptData = appointments.find(a => String(a.id) === String(apptId));
+        const inQueue = !!(apptData && (apptData.queue_status || apptData.queue_number));
+
+        let editAction = 'edit';
+        let editLabel = 'Edit';
+        if (inQueue) {
+            editAction = 'edit_queue';
+            editLabel = 'Edit Queue';
+        }
+
         let menuItems = `
             <a href="javascript:void(0)" data-action="view" data-id="${apptId}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1615,14 +1734,27 @@ $onlineBookingUrl = $scheme . '://' . $host . dirname($currentDir) . '/welcome-p
                 </svg>
                 View
             </a>
-            <a href="javascript:void(0)" data-action="edit" data-id="${apptId}">
+            <a href="javascript:void(0)" data-action="${editAction}" data-id="${apptId}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                 </svg>
-                Edit
+                ${editLabel}
             </a>
         `;
+
+        if (inQueue) {
+            menuItems += `
+                <a href="javascript:void(0)" data-action="print_queue" data-id="${apptId}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                        <rect x="6" y="14" width="12" height="8"></rect>
+                    </svg>
+                    Print Queue No.
+                </a>
+            `;
+        }
 
         if (!isArrived) {
             menuItems += `
@@ -1758,6 +1890,12 @@ $onlineBookingUrl = $scheme . '://' . $host . dirname($currentDir) . '/welcome-p
                 case 'edit':
                     editAppointment(id);
                     break;
+                case 'edit_queue':
+                    openQueueEditModal(id);
+                    break;
+                case 'print_queue':
+                    printAppointmentQueueTicket(id);
+                    break;
                 case 'mark_arrived':
                     markArrived(id);
                     break;
@@ -1850,9 +1988,13 @@ $onlineBookingUrl = $scheme . '://' . $host . dirname($currentDir) . '/welcome-p
     }
 
     let markArrivedId = null;
+    let markArrivedQueueId = null;
+    let markArrivedPatientName = '';
+    let markArrivedTreatment = '';
 
     function openMarkArrivedModal(id) {
         markArrivedId = id;
+        markArrivedQueueId = null;
 
         if (!document.getElementById('markArrivedModal')) {
             const modal = document.createElement('div');
@@ -1860,18 +2002,10 @@ $onlineBookingUrl = $scheme . '://' . $host . dirname($currentDir) . '/welcome-p
             modal.className = 'modal-overlay';
             modal.style.display = 'none';
             modal.innerHTML = `
-                <div class="modal" style="width: 420px;">
-                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-                        <div style="width: 44px; height: 44px; border-radius: 50%; background: #ecfdf5; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2">
-                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                                <polyline points="22 4 12 14.01 9 11.01"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h2 style="margin: 0; font-size: 1.25rem; font-weight: 600;">Mark as Arrived</h2>
-                            <p style="margin: 2px 0 0; color: #6b7280; font-size: 0.85rem;">Check-in appointment &amp; add to queue</p>
-                        </div>
+                <div class="modal" style="width: 560px;">
+                    <div style="margin-bottom: 16px;">
+                        <h2 style="margin: 0; font-size: 1.25rem; font-weight: 600;">Mark as Arrived</h2>
+                        <p style="margin: 2px 0 0; color: #6b7280; font-size: 0.85rem;">Check-in appointment &amp; add to queue</p>
                     </div>
                     <div id="markArrivedBody">
                         <div id="markArrivedInfo" style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;">
@@ -1898,6 +2032,7 @@ $onlineBookingUrl = $scheme . '://' . $host . dirname($currentDir) . '/welcome-p
 
         let name = 'This patient';
         let time = '';
+        let treatment = '';
         let card = document.querySelector('.appointment-mini-card[data-id="' + id + '"]');
         if (!card) {
             const kebab = document.querySelector('.appt-kebab-btn[data-appt-id="' + id + '"]');
@@ -1908,7 +2043,11 @@ $onlineBookingUrl = $scheme . '://' . $host . dirname($currentDir) . '/welcome-p
             if (nameEl && nameEl.textContent.trim()) name = nameEl.textContent.trim();
             const timeEl = card.querySelector('.mini-card-time');
             if (timeEl && timeEl.textContent.trim()) time = timeEl.textContent.trim();
+            const treatEl = card.querySelector('.mini-card-treatment');
+            if (treatEl && treatEl.textContent.trim()) treatment = treatEl.textContent.trim();
         }
+        markArrivedPatientName = name;
+        markArrivedTreatment = treatment;
         document.getElementById('markArrivedPatient').textContent = name;
         document.getElementById('markArrivedTime').textContent = time;
         document.getElementById('markArrivedBody').style.display = 'block';
@@ -1928,6 +2067,9 @@ $onlineBookingUrl = $scheme . '://' . $host . dirname($currentDir) . '/welcome-p
         const modal = document.getElementById('markArrivedModal');
         if (modal) modal.style.display = 'none';
         markArrivedId = null;
+        markArrivedQueueId = null;
+        markArrivedPatientName = '';
+        markArrivedTreatment = '';
     }
 
     function confirmMarkArrived() {
@@ -1943,23 +2085,27 @@ $onlineBookingUrl = $scheme . '://' . $host . dirname($currentDir) . '/welcome-p
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                markArrivedQueueId = data.queue_id || null;
                 const queueLabel = data.queue_label || '';
                 const msg = data.message || 'Patient marked as arrived';
                 document.getElementById('markArrivedBody').style.display = 'none';
                 const result = document.getElementById('markArrivedResult');
                 result.style.display = 'block';
                 result.innerHTML = `
-                    <div style="display: flex; align-items: center; gap: 12px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px; padding: 16px;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                        <div>
-                            <div style="font-weight: 600; color: #065f46;">${queueLabel ? 'Patient added to queue as ' + queueLabel : msg}</div>
-                            <div style="color: #047857; font-size: 0.85rem; margin-top: 2px;">${msg}</div>
-                        </div>
+                    <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;">
+                        <div style="font-weight: 600; color: #065f46; font-size: 1rem;">${queueLabel ? 'Patient added to queue as ' + queueLabel : msg}</div>
+                        <div style="color: #047857; font-size: 0.85rem; margin-top: 2px;">${msg}</div>
+                    </div>
+                    <div id="markArrivedVitals">
+                        ${buildVitalsHtml('markArrived_', {})}
                     </div>
                 `;
                 const actions = document.getElementById('markArrivedActions');
-                actions.style.justifyContent = 'center';
-                actions.innerHTML = `<button onclick="location.reload()" class="btn-primary" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Done</button>`;
+                actions.style.justifyContent = 'flex-end';
+                actions.innerHTML = `
+                    <button onclick="printMarkArrivedTicket()" class="btn-cancel" style="padding: 10px 20px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; border-radius: 6px; cursor: pointer; font-weight: 600;">🖨 Print Queue No.</button>
+                    <button id="markArrivedDoneBtn" onclick="saveMarkArrivedVitals()" class="btn-primary" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Done</button>
+                `;
             } else {
                 btn.disabled = false;
                 btn.textContent = 'Confirm Mark as Arrived';
@@ -1988,9 +2134,219 @@ $onlineBookingUrl = $scheme . '://' . $host . dirname($currentDir) . '/welcome-p
         });
     }
 
+    function saveMarkArrivedVitals() {
+        const btn = document.getElementById('markArrivedDoneBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+        }
+        if (markArrivedQueueId) {
+            const vitals = collectVitals('markArrived_');
+            const payload = Object.assign({ queue_id: markArrivedQueueId }, vitals);
+            fetch('../shared/save_queue_vitals.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).catch(function() {});
+        }
+        location.reload();
+    }
+
+    function printMarkArrivedTicket() {
+        const now = new Date();
+        const dateStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+        const timeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+        const label = document.querySelector('#markArrivedResult') ? (document.querySelector('#markArrivedResult').textContent.match(/queue as\s+([#0-9]+)/i) || [])[1] || '' : '';
+        printQueueTicket({
+            patientName: markArrivedPatientName,
+            treatment: markArrivedTreatment,
+            queueLabel: label ? '#' + label.replace('#', '') : '',
+            date: dateStr,
+            time: timeStr
+        });
+    }
+
     window.openMarkArrivedModal = openMarkArrivedModal;
     window.closeMarkArrivedModal = closeMarkArrivedModal;
     window.confirmMarkArrived = confirmMarkArrived;
+    window.saveMarkArrivedVitals = saveMarkArrivedVitals;
+    window.printMarkArrivedTicket = printMarkArrivedTicket;
+
+    function printAppointmentQueueTicket(apptId) {
+        const appt = appointments.find(a => String(a.id) === String(apptId));
+        if (!appt) return;
+        const fn = appt.first_name || '';
+        const mn = appt.middle_name || '';
+        const ln = appt.last_name || '';
+        const name = (fn + ' ' + mn + ' ' + ln).replace(/\s+/g, ' ').trim() || 'Patient';
+        printQueueTicket({
+            patientName: name,
+            treatment: appt.service_name || appt.treatment || '',
+            queueLabel: appt.queue_label || (appt.queue_number ? '#' + appt.queue_number : ''),
+            date: appt.appointment_date ? String(appt.appointment_date).split(' ')[0] : '',
+            time: appt.appointment_time ? String(appt.appointment_time).slice(0, 5) : ''
+        });
+    }
+
+    let queueEditApptId = null;
+
+    function openQueueEditModal(apptId) {
+        const appt = appointments.find(a => String(a.id) === String(apptId));
+        if (!appt) return;
+        queueEditApptId = apptId;
+
+        const fn = appt.first_name || '';
+        const mn = appt.middle_name || '';
+        const ln = appt.last_name || '';
+        const name = (fn + ' ' + mn + ' ' + ln).replace(/\s+/g, ' ').trim() || 'Patient';
+
+        if (!document.getElementById('queueEditModal')) {
+            const modal = document.createElement('div');
+            modal.id = 'queueEditModal';
+            modal.className = 'modal-overlay';
+            modal.style.display = 'none';
+            document.body.appendChild(modal);
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) closeQueueEditModal();
+            });
+        }
+
+        const modalEl = document.getElementById('queueEditModal');
+        modalEl.innerHTML = `
+            <div class="modal" style="width: 620px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h2 style="margin: 0; font-size: 1.25rem; font-weight: 600;">Edit Queue - ${escapeHtmlQueue(name)}</h2>
+                    <button onclick="closeQueueEditModal()" style="background:none;border:none;font-size:24px;cursor:pointer;color:#6b7280;">&times;</button>
+                </div>
+                <div style="display:flex;gap:12px;margin-bottom:12px;">
+                    <div style="flex:1;"><label style="display:block;font-size:0.8rem;font-weight:600;color:#64748b;margin-bottom:4px;">First Name *</label><input id="queueEditFirstName" type="text" class="form-control" value="${escapeHtmlQueue(fn)}"></div>
+                    <div style="flex:1;"><label style="display:block;font-size:0.8rem;font-weight:600;color:#64748b;margin-bottom:4px;">Middle Name</label><input id="queueEditMiddleName" type="text" class="form-control" value="${escapeHtmlQueue(mn)}"></div>
+                    <div style="flex:1;"><label style="display:block;font-size:0.8rem;font-weight:600;color:#64748b;margin-bottom:4px;">Last Name *</label><input id="queueEditLastName" type="text" class="form-control" value="${escapeHtmlQueue(ln)}"></div>
+                </div>
+                <div style="display:flex;gap:12px;margin-bottom:16px;">
+                    <div style="flex:1;"><label style="display:block;font-size:0.8rem;font-weight:600;color:#64748b;margin-bottom:4px;">Phone Number</label><input id="queueEditPhone" type="text" class="form-control" value="${escapeHtmlQueue(appt.phone || '')}"></div>
+                    <div style="flex:1;"><label style="display:block;font-size:0.8rem;font-weight:600;color:#64748b;margin-bottom:4px;">Email</label><input id="queueEditEmail" type="text" class="form-control" value="${escapeHtmlQueue(appt.email || '')}"></div>
+                </div>
+                <div style="display:flex;gap:12px;margin-bottom:16px;">
+                    <div style="flex:1;"><label style="display:block;font-size:0.8rem;font-weight:600;color:#64748b;margin-bottom:4px;">Treatment *</label><input id="queueEditTreatment" type="text" class="form-control" value="${escapeHtmlQueue(appt.service_name || appt.treatment || '')}" readonly style="background:#f1f5f9;color:#475569;"></div>
+                    <div style="flex:1;"><label style="display:block;font-size:0.8rem;font-weight:600;color:#64748b;margin-bottom:4px;">Dentist (optional)</label><select id="queueEditDentist" class="form-control"><option value="">Unassigned</option></select></div>
+                </div>
+                <div id="queueEditVitals">
+                    ${buildVitalsHtml('queueEdit_', {
+                        blood_pressure: appt.blood_pressure || '',
+                        heart_rate: appt.heart_rate || '',
+                        temperature: appt.temperature || '',
+                        oxygen_saturation: appt.oxygen_saturation || '',
+                        height: appt.height || '',
+                        weight: appt.weight || ''
+                    })}
+                </div>
+                <div style="display:flex;gap:12px;margin-top:20px;justify-content:flex-end;">
+                    <button onclick="printQueueEditTicket()" class="btn-cancel" style="padding:10px 20px;background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:6px;cursor:pointer;font-weight:600;">🖨 Print Queue #</button>
+                    <button onclick="closeQueueEditModal()" class="btn-cancel" style="padding:10px 20px;background:#f3f4f6;border:none;border-radius:6px;cursor:pointer;">Cancel</button>
+                    <button id="queueEditSaveBtn" onclick="saveQueueEdit()" class="btn-primary" style="padding:10px 20px;background:#2563eb;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Save Changes</button>
+                </div>
+            </div>
+        `;
+
+        loadQueueEditDentists(appt.doctor_id || appt.dentist_id || '');
+        document.getElementById('queueEditModal').style.display = 'flex';
+    }
+
+    function loadQueueEditDentists(selectedId) {
+        const select = document.getElementById('queueEditDentist');
+        if (!select) return;
+        select.innerHTML = '<option value="">Unassigned</option>';
+        fetch('../shared/get_dentists.php')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success && data.dentists) {
+                    data.dentists.forEach(function(d) {
+                        const opt = document.createElement('option');
+                        opt.value = d.id;
+                        opt.textContent = 'Dr. ' + d.first_name + ' ' + d.last_name;
+                        select.appendChild(opt);
+                    });
+                }
+                if (selectedId) select.value = String(selectedId);
+            });
+    }
+
+    function closeQueueEditModal() {
+        const modal = document.getElementById('queueEditModal');
+        if (modal) modal.style.display = 'none';
+        queueEditApptId = null;
+    }
+
+    function printQueueEditTicket() {
+        const appt = appointments.find(a => String(a.id) === String(queueEditApptId));
+        if (!appt) return;
+        const fn = appt.first_name || '';
+        const mn = appt.middle_name || '';
+        const ln = appt.last_name || '';
+        const name = (fn + ' ' + mn + ' ' + ln).replace(/\s+/g, ' ').trim() || 'Patient';
+        printQueueTicket({
+            patientName: name,
+            treatment: appt.service_name || appt.treatment || '',
+            queueLabel: appt.queue_label || (appt.queue_number ? '#' + appt.queue_number : ''),
+            date: appt.appointment_date ? String(appt.appointment_date).split(' ')[0] : '',
+            time: appt.appointment_time ? String(appt.appointment_time).slice(0, 5) : ''
+        });
+    }
+
+    function saveQueueEdit() {
+        const appt = appointments.find(a => String(a.id) === String(queueEditApptId));
+        if (!appt || !appt.queue_id) {
+            alert('No queue entry linked to this appointment.');
+            return;
+        }
+        const firstName = document.getElementById('queueEditFirstName').value.trim();
+        const lastName = document.getElementById('queueEditLastName').value.trim();
+        if (!firstName || !lastName) {
+            alert('First Name and Last Name are required.');
+            return;
+        }
+        const btn = document.getElementById('queueEditSaveBtn');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        const payload = {
+            queue_id: appt.queue_id,
+            first_name: firstName,
+            middle_name: document.getElementById('queueEditMiddleName').value.trim(),
+            last_name: lastName,
+            phone: document.getElementById('queueEditPhone').value.trim(),
+            email: document.getElementById('queueEditEmail').value.trim(),
+            dentist_id: document.getElementById('queueEditDentist').value || ''
+        };
+        Object.assign(payload, collectVitals('queueEdit_'));
+        fetch('../shared/update_queue_entry.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                closeQueueEditModal();
+                location.reload();
+            } else {
+                btn.disabled = false;
+                btn.textContent = 'Save Changes';
+                alert(data.message || 'Failed to save queue entry.');
+            }
+        })
+        .catch(function() {
+            btn.disabled = false;
+            btn.textContent = 'Save Changes';
+            alert('Failed to save queue entry. Please try again.');
+        });
+    }
+
+    window.openQueueEditModal = openQueueEditModal;
+    window.closeQueueEditModal = closeQueueEditModal;
+    window.saveQueueEdit = saveQueueEdit;
+    window.printQueueEditTicket = printQueueEditTicket;
+    window.printAppointmentQueueTicket = printAppointmentQueueTicket;
 
     function deleteAppointment(id) {
         if (confirm('Are you sure you want to archive this appointment?\n\nThis will move it to the Archive page where admin can restore or permanently delete it.')) {

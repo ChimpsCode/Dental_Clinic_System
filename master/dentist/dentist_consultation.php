@@ -326,6 +326,51 @@ try {
     border-color: #0ea5e9;
 }
 
+/* Vitals & Body Measurement */
+.dental-vitals-section {
+    background: linear-gradient(135deg, #f0f9ff, #f8fafc);
+    border: 1px solid #bae6fd;
+    border-radius: 12px;
+    padding: 16px;
+}
+.dental-vitals-section h4 {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #0369a1;
+    margin: 0 0 12px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.dental-vitals-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+.dental-vitals-item {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+.dental-vitals-item .dv-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 4px;
+}
+.dental-vitals-item .dv-value {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+.dental-vitals-empty {
+    font-size: 0.82rem;
+    color: #94a3b8;
+    font-style: italic;
+}
+
 /* Tooth Chart */
 .tooth-chart-area {
     background: #f8fafc;
@@ -1578,6 +1623,20 @@ try {
                 <?php if ($isPastView): ?><div class="read-only-overlay-msg">This is a completed past consultation. All data is read-only.</div><?php endif; ?>
                 <div class="dental-exam-grid">
                     <div class="dental-exam-form">
+                        <!-- Vital Signs & Body Measurement (from staff queue) -->
+                        <div class="dental-exam-section dental-vitals-section">
+                            <h4>Vital Signs &amp; Body Measurement</h4>
+                            <div class="dental-vitals-grid" id="dentalVitalsGrid">
+                                <div class="dental-vitals-item"><div class="dv-label">Blood Pressure</div><div class="dv-value" id="dvBloodPressure">&mdash;</div></div>
+                                <div class="dental-vitals-item"><div class="dv-label">Heart Rate</div><div class="dv-value" id="dvHeartRate">&mdash;</div></div>
+                                <div class="dental-vitals-item"><div class="dv-label">Temperature</div><div class="dv-value" id="dvTemperature">&mdash;</div></div>
+                                <div class="dental-vitals-item"><div class="dv-label">Oxygen Saturation</div><div class="dv-value" id="dvOxygenSaturation">&mdash;</div></div>
+                                <div class="dental-vitals-item"><div class="dv-label">Height</div><div class="dv-value" id="dvHeight">&mdash;</div></div>
+                                <div class="dental-vitals-item"><div class="dv-label">Weight</div><div class="dv-value" id="dvWeight">&mdash;</div></div>
+                                <div class="dental-vitals-item"><div class="dv-label">BMI</div><div class="dv-value" id="dvBmi">&mdash;</div></div>
+                                <div class="dental-vitals-empty" id="dentalVitalsEmpty" style="grid-column: 1 / -1; display: none;">No vital signs recorded.</div>
+                            </div>
+                        </div>
                         <!-- Periodontal -->
                         <div class="dental-exam-section">
                             <h4>Periodontal Screening</h4>
@@ -2066,6 +2125,7 @@ function loadConsultation(queueId) {
             document.getElementById('consultTreatment').textContent = data.consultation.treatment_type || '-';
             document.getElementById('consultCompleteBtn').style.display = 'flex';
             populateDentalExam();
+            populateVitals();
             populateNotes();
             populateHistory();
             populatePrescription();
@@ -2112,6 +2172,51 @@ function toggleOthersInput() {
     } else {
         el.classList.remove('visible');
     }
+}
+
+// ===================== VITALS & BODY MEASUREMENT =====================
+function computeBmi(heightCm, weightKg) {
+    var h = parseFloat(heightCm);
+    var w = parseFloat(weightKg);
+    if (!h || !w || h <= 0) return null;
+    var m = h / 100;
+    return (w / (m * m)).toFixed(1);
+}
+
+function populateVitals() {
+    var v = (currentConsultation && currentConsultation.vitals) || {};
+    var ids = {
+        blood_pressure: 'dvBloodPressure',
+        heart_rate: 'dvHeartRate',
+        temperature: 'dvTemperature',
+        oxygen_saturation: 'dvOxygenSaturation',
+        height: 'dvHeight',
+        weight: 'dvWeight'
+    };
+    var hasAny = false;
+    Object.keys(ids).forEach(function(key) {
+        var el = document.getElementById(ids[key]);
+        if (!el) return;
+        var val = (v[key] || '').toString().trim();
+        if (val) {
+            var suffix = '';
+            if (key === 'blood_pressure') suffix = ' mmHg';
+            else if (key === 'heart_rate') suffix = ' bpm';
+            else if (key === 'temperature') suffix = ' °C';
+            else if (key === 'oxygen_saturation') suffix = ' %';
+            else if (key === 'height') suffix = ' cm';
+            else if (key === 'weight') suffix = ' kg';
+            el.textContent = val + suffix;
+            hasAny = true;
+        } else {
+            el.textContent = '\u2014';
+        }
+    });
+    var bmi = computeBmi(v.height, v.weight);
+    var bmiEl = document.getElementById('dvBmi');
+    if (bmiEl) bmiEl.textContent = bmi !== null ? bmi + ' kg/m\u00b2' : '\u2014';
+    var emptyEl = document.getElementById('dentalVitalsEmpty');
+    if (emptyEl) emptyEl.style.display = hasAny ? 'none' : 'block';
 }
 
 function saveDentalExam() {
@@ -2903,6 +3008,7 @@ function loadPastConsultationData(consultId) {
             document.getElementById('consultEmptyState').style.display = 'none';
             document.getElementById('consultPanels').style.display = 'block';
             populateDentalExam();
+            populateVitals();
             populateNotes();
             populateHistory();
             populatePrescription();

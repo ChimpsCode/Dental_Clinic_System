@@ -64,6 +64,7 @@ try {
         echo json_encode([
             'success' => true,
             'message' => 'Patient already in queue as ' . ($existingQueue['queue_label'] ?? buildQueueLabel((int)($existingQueue['queue_number'] ?? 0))) . '.',
+            'queue_id' => (int)($existingQueue['id'] ?? 0),
             'queue_number' => (int)($existingQueue['queue_number'] ?? 0),
             'queue_label' => $existingQueue['queue_label'] ?? buildQueueLabel((int)($existingQueue['queue_number'] ?? 0))
         ]);
@@ -99,6 +100,7 @@ try {
     echo json_encode([
         'success'      => true,
         'message'      => 'Patient marked as arrived and added to queue as ' . $queueLabel,
+        'queue_id'     => (int)($queueEntry['id'] ?? 0),
         'queue_number' => $queueNumber,
         'queue_label'  => $queueLabel,
     ]);

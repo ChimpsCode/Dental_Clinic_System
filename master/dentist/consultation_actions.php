@@ -284,8 +284,17 @@ try {
                 $consultation['queue_number'] = $queue['queue_number'] ?? '';
                 $consultation['treatment_type'] = $queue['treatment_type'] ?? '';
                 $consultation['is_new'] = true;
+                $consultation['vitals'] = [
+                    'blood_pressure' => $queue['blood_pressure'] ?? '',
+                    'heart_rate' => $queue['heart_rate'] ?? '',
+                    'temperature' => $queue['temperature'] ?? '',
+                    'oxygen_saturation' => $queue['oxygen_saturation'] ?? '',
+                    'height' => $queue['height'] ?? '',
+                    'weight' => $queue['weight'] ?? ''
+                ];
             } else {
-                $stmt = $pdo->prepare("SELECT p.first_name, p.middle_name, p.last_name, p.suffix, q.queue_number, q.treatment_type
+                $stmt = $pdo->prepare("SELECT p.first_name, p.middle_name, p.last_name, p.suffix, q.queue_number, q.treatment_type,
+                    q.blood_pressure, q.heart_rate, q.temperature, q.oxygen_saturation, q.height, q.weight
                     FROM queue q LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED) WHERE q.id = ?");
                 $stmt->execute([$queueId]);
                 $qInfo = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -293,6 +302,14 @@ try {
                 $consultation['patient_name'] = implode(' ', $parts);
                 $consultation['queue_number'] = $qInfo['queue_number'] ?? '';
                 $consultation['treatment_type'] = $qInfo['treatment_type'] ?? '';
+                $consultation['vitals'] = [
+                    'blood_pressure' => $qInfo['blood_pressure'] ?? '',
+                    'heart_rate' => $qInfo['heart_rate'] ?? '',
+                    'temperature' => $qInfo['temperature'] ?? '',
+                    'oxygen_saturation' => $qInfo['oxygen_saturation'] ?? '',
+                    'height' => $qInfo['height'] ?? '',
+                    'weight' => $qInfo['weight'] ?? ''
+                ];
             }
 
             // Get patient medical history
@@ -669,6 +686,7 @@ try {
 
             $stmt = $pdo->prepare("
                 SELECT c.*, q.treatment_type AS queue_treatment_type, q.queue_number,
+                       q.blood_pressure, q.heart_rate, q.temperature, q.oxygen_saturation, q.height, q.weight,
                        p.first_name, p.middle_name, p.last_name, p.suffix,
                        u.first_name AS dentist_first_name, u.last_name AS dentist_last_name
                 FROM consultations c
@@ -690,6 +708,14 @@ try {
             $consultation['patient_name'] = implode(' ', $parts);
             $consultation['treatment_type'] = $consultation['queue_treatment_type'] ?? '';
             $consultation['dentist_name'] = implode(' ', array_filter([$consultation['dentist_first_name'] ?? '', $consultation['dentist_last_name'] ?? ''])) ?: 'Unknown';
+            $consultation['vitals'] = [
+                'blood_pressure' => $consultation['blood_pressure'] ?? '',
+                'heart_rate' => $consultation['heart_rate'] ?? '',
+                'temperature' => $consultation['temperature'] ?? '',
+                'oxygen_saturation' => $consultation['oxygen_saturation'] ?? '',
+                'height' => $consultation['height'] ?? '',
+                'weight' => $consultation['weight'] ?? ''
+            ];
 
             $stmt = $pdo->prepare("SELECT * FROM medical_history WHERE patient_id = ? ORDER BY id DESC LIMIT 1");
             $stmt->execute([$consultation['patient_id']]);
