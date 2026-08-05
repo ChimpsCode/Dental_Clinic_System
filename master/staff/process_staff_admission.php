@@ -327,6 +327,19 @@ if ($appointmentId) {
     $dentalNotes = $_POST['dentalNotes'] ?? '';
     $dentalNotes = trim($dentalNotes);
     
+    // Vital Signs & Body Measurement (optional)
+    $vitalsFields = [
+        'blood_pressure' => $_POST['blood_pressure'] ?? '',
+        'heart_rate' => $_POST['heart_rate'] ?? '',
+        'temperature' => $_POST['temperature'] ?? '',
+        'oxygen_saturation' => $_POST['oxygen_saturation'] ?? '',
+        'height' => $_POST['height'] ?? '',
+        'weight' => $_POST['weight'] ?? '',
+    ];
+    foreach ($vitalsFields as $k => $val) {
+        $vitalsFields[$k] = trim($val);
+    }
+    
     // Add to Queue - moved AFTER billing commit
     $queueId = 0;
     $queueNumber = 0;
@@ -361,6 +374,24 @@ if ($appointmentId) {
         error_log("Queue insert ERROR: " . $qErr->getMessage());
         $queueId = 0;
         $queueNumber = 0;
+    }
+    
+    // Save Vital Signs & Body Measurement to the queue entry
+    if ($queueId > 0) {
+        try {
+            $vitalsStmt = $pdo->prepare("UPDATE queue SET blood_pressure = ?, heart_rate = ?, temperature = ?, oxygen_saturation = ?, height = ?, weight = ? WHERE id = ?");
+            $vitalsStmt->execute([
+                $vitalsFields['blood_pressure'] !== '' ? $vitalsFields['blood_pressure'] : null,
+                $vitalsFields['heart_rate'] !== '' ? $vitalsFields['heart_rate'] : null,
+                $vitalsFields['temperature'] !== '' ? $vitalsFields['temperature'] : null,
+                $vitalsFields['oxygen_saturation'] !== '' ? $vitalsFields['oxygen_saturation'] : null,
+                $vitalsFields['height'] !== '' ? $vitalsFields['height'] : null,
+                $vitalsFields['weight'] !== '' ? $vitalsFields['weight'] : null,
+                $queueId
+            ]);
+        } catch (Exception $vitalsErr) {
+            error_log("Queue vitals update ERROR: " . $vitalsErr->getMessage());
+        }
     }
     
     // Create Billing Record

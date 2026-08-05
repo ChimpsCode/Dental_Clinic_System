@@ -407,12 +407,20 @@ elseif ($appointmentId) {
                         <span id="text-step-3" class="text-sm font-medium text-slate-400 transition-colors duration-200">Medical History</span>
                     </div>
 
-                    <!-- Step 4: Services -->
+                    <!-- Step 4: Vital Signs -->
                     <div id="nav-step-4" class="flex items-center gap-4 relative pl-0 opacity-50">
                         <div id="icon-step-4" class="w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors duration-200 z-10 bg-white border-slate-300 text-slate-400">
                             <span class="text-xs font-medium">4</span>
                         </div>
-                        <span id="text-step-4" class="text-sm font-medium text-slate-400 transition-colors duration-200">Services</span>
+                        <span id="text-step-4" class="text-sm font-medium text-slate-400 transition-colors duration-200">Vital Signs</span>
+                    </div>
+
+                    <!-- Step 5: Services -->
+                    <div id="nav-step-5" class="flex items-center gap-4 relative pl-0 opacity-50">
+                        <div id="icon-step-5" class="w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors duration-200 z-10 bg-white border-slate-300 text-slate-400">
+                            <span class="text-xs font-medium">5</span>
+                        </div>
+                        <span id="text-step-5" class="text-sm font-medium text-slate-400 transition-colors duration-200">Services</span>
                     </div>
 
 
@@ -723,8 +731,51 @@ elseif ($appointmentId) {
                     </section>
                 </div>
 
-                <!-- STEP 4: Services -->
+                <!-- STEP 4: Vital Signs & Body Measurement -->
                 <div id="step-4" class="hidden space-y-8 flex-1">
+                    <section>
+                        <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Vital Signs &amp; Body Measurement (optional)</h3>
+
+                        <div class="p-4 bg-gray-50 border border-gray-200 rounded-lg mb-6">
+                            <h4 class="text-sm font-semibold text-slate-600 mb-3">Vital Signs</h4>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-600 mb-1">Blood Pressure (mmHg)</label>
+                                    <input type="text" name="blood_pressure" placeholder="120/80" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-600 mb-1">Heart Rate (bpm)</label>
+                                    <input type="text" name="heart_rate" placeholder="72" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-600 mb-1">Temperature (&deg;C)</label>
+                                    <input type="text" name="temperature" placeholder="36.5" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-600 mb-1">Oxygen Saturation (%)</label>
+                                    <input type="text" name="oxygen_saturation" placeholder="98" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                            <h4 class="text-sm font-semibold text-slate-600 mb-3">Body Measurement</h4>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-600 mb-1">Height (cm)</label>
+                                    <input type="text" name="height" placeholder="165" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-600 mb-1">Weight (kg)</label>
+                                    <input type="text" name="weight" placeholder="58" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- STEP 5: Services -->
+                <div id="step-5" class="hidden space-y-8 flex-1">
                     <section>
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">Select Services</h3>
@@ -803,7 +854,8 @@ elseif ($appointmentId) {
             1: { title: 'Patient Information', desc: 'Please fill in the patient\'s details below.' },
             2: { title: 'Dental History', desc: 'Provide details about the patient\'s dental history.' },
             3: { title: 'Medical History', desc: 'Important health information for safe treatment.' },
-            4: { title: 'Services', desc: 'Select the services the patient needs.' }
+            4: { title: 'Vital Signs & Body Measurement', desc: 'Optional health measurements for safe treatment.' },
+            5: { title: 'Services', desc: 'Select the services the patient needs.' }
         };
 
         function goToStep(step) {
@@ -830,7 +882,7 @@ elseif ($appointmentId) {
             currentStep = step;
             
             // Hide all steps
-            for (let i = 1; i <= 4; i++) {
+            for (let i = 1; i <= 5; i++) {
                 document.getElementById('step-' + i).classList.add('hidden');
             }
             
@@ -856,7 +908,7 @@ elseif ($appointmentId) {
             
             backBtn.style.display = step > 1 ? 'flex' : 'none';
             
-            if (step < 4) {
+            if (step < 5) {
                 nextBtn.style.display = 'flex';
                 nextBtn.innerHTML = 'Next <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>';
                 nextBtn.onclick = function() { goToStep(step + 1); };
@@ -868,7 +920,7 @@ elseif ($appointmentId) {
         }
 
         function updateNav(activeStep) {
-            for(let i = 1; i <= 4; i++) {
+            for(let i = 1; i <= 5; i++) {
                 const navItem = document.getElementById('nav-step-' + i);
                 const icon = document.getElementById('icon-step-' + i);
                 const text = document.getElementById('text-step-' + i);
