@@ -183,7 +183,7 @@ try {
 
     // Build INSERT dynamically
     $columns = ['patient_id', 'appointment_date', 'appointment_time', 'service_id', 'notes', 'status', 'created_by', 'reference_code', 'created_at'];
-    $placeholders = ['?', '?', '?', '?', '?', "'Pending Approval'", '?', '?', 'NOW()'];
+    $placeholders = ['?', '?', '?', '?', '?', "'Scheduled'", '?', '?', 'NOW()'];
     $values = [$patient_id, $appointment_date, $appointment_time, $service_id, $notes, $_SESSION['user_id'] ?? null, $refCode];
 
     if ($hasDentistCol) {
@@ -207,7 +207,7 @@ try {
 
     echo json_encode([
         'success' => true, 
-        'message' => 'Appointment request submitted. It will be confirmed once approved by staff.',
+        'message' => 'Appointment scheduled successfully.',
         'appointment_id' => $appointment_id
     ]);
     

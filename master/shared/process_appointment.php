@@ -250,7 +250,7 @@ try {
     } else {
         // Build INSERT query dynamically based on existing columns
         $columns = ['patient_id', 'appointment_date', 'appointment_time', 'service_id', 'notes', 'status', 'created_by', 'created_at', 'is_archived'];
-        $placeholders = ['?', '?', '?', '?', '?', "'Pending Approval'", '?', 'NOW()', '0'];
+        $placeholders = ['?', '?', '?', '?', '?', "'Scheduled'", '?', 'NOW()', '0'];
         $params = [$patient_id, $appointment_date, $appointment_time, $service_id, $notes, $_SESSION['user_id'] ?? 1];
         
         if (in_array('dentist_id', $appointmentColumns)) {
@@ -313,7 +313,7 @@ try {
 
     echo json_encode([
         'success' => true,
-        'message' => $existingAppointment ? 'Appointment updated successfully!' : 'Appointment request submitted! It will appear on the calendar once approved.'
+        'message' => $existingAppointment ? 'Appointment updated successfully!' : 'Appointment scheduled successfully!'
     ]);
 
 } catch (Exception $e) {

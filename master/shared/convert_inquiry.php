@@ -111,7 +111,7 @@ try {
 
     // Build INSERT dynamically
     $columns = ['patient_id', 'appointment_date', 'appointment_time', 'service_id', 'notes', 'status', 'created_by', 'created_at'];
-    $placeholders = ['?', '?', '?', '?', '?', "'Pending Approval'", '?', 'NOW()'];
+    $placeholders = ['?', '?', '?', '?', '?', "'Scheduled'", '?', 'NOW()'];
     $values = [$patient_id, $today, $defaultTime, $service_id, $notes, $_SESSION['user_id'] ?? 1];
 
     if ($hasDentistCol) {

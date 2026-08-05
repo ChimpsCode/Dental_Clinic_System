@@ -212,7 +212,7 @@ try {
             $ins = $pdo->prepare("
                 INSERT INTO appointments 
                 (reference_code, patient_id, service_id, status, appointment_date, appointment_time, duration_minutes, booked_by_id, created_by, created_at, is_archived) 
-                VALUES (?, ?, ?, 'Pending Approval', ?, ?, ?, ?, ?, NOW(), 0)
+                VALUES (?, ?, ?, 'Scheduled', ?, ?, ?, ?, ?, NOW(), 0)
             ");
             $ins->execute([$refCode, $patient_id, $serviceId, $a['date'], $a['time'], $duration, $doctor_id, $doctor_id]);
 

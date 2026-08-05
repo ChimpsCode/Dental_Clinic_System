@@ -846,7 +846,7 @@ if ($action === 'convert_to_appointment') {
         'appointment_time' => $appointmentTime,
         'treatment' => $inquiry['service_name'] ?: 'Consultation',
         'notes' => trim("Converted from inquiry #{$id}. " . ($inquiry['resolved_concern'] ?? '') . ' ' . $notes),
-        'status' => 'Pending Approval',
+        'status' => 'Scheduled',
         'created_by' => (int)$_SESSION['user_id'],
         'is_registered_patient' => !empty($inquiry['patient_id']) ? 1 : 0,
         'booked_by_id' => $assignedStaffId ?: (int)$_SESSION['user_id'],
