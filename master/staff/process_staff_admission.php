@@ -69,10 +69,13 @@ try {
     $appointmentId = !empty($_POST['appointment_id']) ? intval($_POST['appointment_id']) : null;
     $inquiryId = !empty($_POST['inquiry_id']) ? intval($_POST['inquiry_id']) : null;
     
-    // Check if patient already exists
-    $stmt = $pdo->prepare("SELECT id FROM patients WHERE first_name = ? AND last_name = ? AND phone = ? LIMIT 1");
-    $stmt->execute([$firstName, $lastName, $phone]);
-    $existingPatient = $stmt->fetch();
+    // Check if patient already exists (match on first name + last name + birthdate)
+    $existingPatient = false;
+    if (!empty($birthdate)) {
+        $stmt = $pdo->prepare("SELECT id FROM patients WHERE first_name = ? AND last_name = ? AND date_of_birth = ? LIMIT 1");
+        $stmt->execute([$firstName, $lastName, $birthdate]);
+        $existingPatient = $stmt->fetch();
+    }
     
     if ($existingPatient) {
         $patientId = $existingPatient['id'];
@@ -210,7 +213,7 @@ if ($appointmentId) {
             if (in_array('last_visit_date', $dhAvailable)) { $dhColList[] = 'last_visit_date'; $dhValues[] = $_POST['lastVisitDate'] ?? ''; }
             if (in_array('reason_last_visit', $dhAvailable)) { $dhColList[] = 'reason_last_visit'; $dhValues[] = $_POST['reasonLastVisit'] ?? ''; }
             if (in_array('previous_treatments', $dhAvailable)) { $dhColList[] = 'previous_treatments'; $dhValues[] = $_POST['prevTreatments'] ?? ''; }
-            if (in_array('chief_complaint', $dhAvailable)) { $dhColList[] = 'chief_complaint'; $dhValues[] = $_POST['complaints'] ?? ''; }
+            if (in_array('current_complaints', $dhAvailable)) { $dhColList[] = 'current_complaints'; $dhValues[] = $_POST['complaints'] ?? ''; }
             
             $dhColsStr = implode(', ', $dhColList);
             $dhPlaceholders = implode(', ', array_fill(0, count($dhValues), '?'));

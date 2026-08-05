@@ -559,6 +559,10 @@ elseif ($appointmentId) {
                     <div id="patientInfoValidation" class="hidden mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
                         Please complete required patient information: First Name, Last Name, Birthdate, Gender, and Mobile Number.
                     </div>
+                    <!-- Existing Patient Notice -->
+                    <div id="existingPatientNotice" class="hidden mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm">
+                        Existing patient found: <strong id="existingPatientName"></strong> &mdash; this visit will be attached to their existing record.
+                    </div>
                 </div>
 
 <!-- STEP 2: Dental History -->
@@ -1113,6 +1117,99 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
             }
         }
 
+// ===== EXISTING PATIENT PRE-CHECK =====
+        var existingDentalHistory = null;
+        var existingPatientCheckTimer = null;
+
+        function formatExistingPatientName(p) {
+            if (!p) return '';
+            return [p.first_name, p.middle_name, p.last_name, p.suffix].filter(function(v) { return v; }).join(' ');
+        }
+
+        function applyDentalHistoryPrefill() {
+            if (!existingDentalHistory) return;
+
+            // If "New patient / No previous dental history" is checked, uncheck and re-enable
+            const newPatientCheckbox = document.getElementById('newPatientNoDentalHistory');
+            if (newPatientCheckbox && newPatientCheckbox.checked) {
+                newPatientCheckbox.checked = false;
+                toggleDentalHistory();
+            }
+
+            const dh = existingDentalHistory;
+
+            const lastVisitDate = document.querySelector('input[name="lastVisitDate"]');
+            if (lastVisitDate && !lastVisitDate.value && dh.last_visit_date) {
+                lastVisitDate.value = dh.last_visit_date;
+            }
+            const reasonLastVisit = document.querySelector('textarea[name="reasonLastVisit"]');
+            if (reasonLastVisit && !reasonLastVisit.value && dh.reason_last_visit) {
+                reasonLastVisit.value = dh.reason_last_visit;
+            }
+            const prevTreatments = document.querySelector('textarea[name="prevTreatments"]');
+            if (prevTreatments && !prevTreatments.value && dh.previous_treatments) {
+                prevTreatments.value = dh.previous_treatments;
+            }
+            const complaints = document.querySelector('textarea[name="complaints"]');
+            if (complaints && !complaints.value && dh.current_complaints) {
+                complaints.value = dh.current_complaints;
+            }
+
+            if (dh.previous_dentist) {
+                const prevDentistSelect = document.getElementById('prevDentistSelect');
+                if (prevDentistSelect && !prevDentistSelect.value) {
+                    const hasOption = Array.prototype.some.call(prevDentistSelect.options, function(o) { return o.value === dh.previous_dentist; });
+                    if (hasOption) {
+                        prevDentistSelect.value = dh.previous_dentist;
+                    } else {
+                        const opt = document.createElement('option');
+                        opt.value = dh.previous_dentist;
+                        opt.textContent = dh.previous_dentist;
+                        prevDentistSelect.appendChild(opt);
+                        prevDentistSelect.value = dh.previous_dentist;
+                    }
+                }
+            }
+        }
+
+        function checkExistingPatient() {
+            const firstNameInput = document.querySelector('input[name="firstName"]');
+            const lastNameInput = document.querySelector('input[name="lastName"]');
+            const birthdateInput = document.querySelector('input[name="birthdate"]');
+            const notice = document.getElementById('existingPatientNotice');
+            const noticeName = document.getElementById('existingPatientName');
+
+            const firstName = firstNameInput ? firstNameInput.value.trim() : '';
+            const lastName = lastNameInput ? lastNameInput.value.trim() : '';
+            const birthdate = birthdateInput ? birthdateInput.value.trim() : '';
+
+            if (!firstName || !lastName || !birthdate) {
+                existingDentalHistory = null;
+                if (notice) notice.classList.add('hidden');
+                return;
+            }
+
+            fetch('check_existing_patient.php?first_name=' + encodeURIComponent(firstName) +
+                  '&last_name=' + encodeURIComponent(lastName) +
+                  '&birthdate=' + encodeURIComponent(birthdate))
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (!notice || !noticeName) return;
+                    if (data && data.success && data.exists) {
+                        existingDentalHistory = data.dental_history || null;
+                        noticeName.textContent = formatExistingPatientName(data.patient) || (firstName + ' ' + lastName);
+                        notice.classList.remove('hidden');
+                        applyDentalHistoryPrefill();
+                    } else {
+                        existingDentalHistory = null;
+                        notice.classList.add('hidden');
+                    }
+                })
+                .catch(function() {
+                    if (notice) notice.classList.add('hidden');
+                });
+        }
+
 // Add event listeners to hide validation messages
         document.addEventListener('DOMContentLoaded', function() {
             // Load previous dentist dropdown
@@ -1123,14 +1220,43 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
                     .then(function(data) {
                         if (data.success && data.dentists) {
                             data.dentists.forEach(function(d) {
-                                const opt = document.createElement('option');
-                                opt.value = 'Dr. ' + d.first_name + ' ' + d.last_name;
-                                opt.textContent = 'Dr. ' + d.first_name + ' ' + d.last_name;
-                                prevDentistSelect.appendChild(opt);
+                                const val = 'Dr. ' + d.first_name + ' ' + d.last_name;
+                                const existing = Array.prototype.find.call(prevDentistSelect.options, function(o) { return o.value === val; });
+                                if (!existing) {
+                                    const opt = document.createElement('option');
+                                    opt.value = val;
+                                    opt.textContent = val;
+                                    prevDentistSelect.appendChild(opt);
+                                }
                             });
+                        }
+                        // Re-apply the existing patient's dentist prefill now that options exist
+                        if (existingDentalHistory && existingDentalHistory.previous_dentist) {
+                            applyDentalHistoryPrefill();
                         }
                     });
             }
+
+            // Existing patient pre-check listeners
+            const existingPatientFields = [
+                'input[name="firstName"]',
+                'input[name="lastName"]',
+                'input[name="birthdate"]'
+            ];
+            existingPatientFields.forEach(function(selector) {
+                const field = document.querySelector(selector);
+                if (field) {
+                    field.addEventListener('input', function() {
+                        clearTimeout(existingPatientCheckTimer);
+                        existingPatientCheckTimer = setTimeout(checkExistingPatient, 400);
+                    });
+                    field.addEventListener('change', function() {
+                        clearTimeout(existingPatientCheckTimer);
+                        existingPatientCheckTimer = setTimeout(checkExistingPatient, 400);
+                    });
+                }
+            });
+            checkExistingPatient();
 
             // Medical history validation
             const conditionCheckboxes = document.querySelectorAll('input[name="medicalConditions[]"]');
