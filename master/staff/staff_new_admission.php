@@ -570,7 +570,9 @@ elseif ($appointmentId) {
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Previous Dentist</label>
-                                <input type="text" name="prevDentist" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Dr. Name">
+                                <select name="prevDentist" id="prevDentistSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                    <option value="">Select Previous Dentist</option>
+                                </select>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Date of Last Visit</label>
@@ -979,7 +981,7 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
          */
         function validateDentalHistory() {
             const newPatientCheckbox = document.getElementById('newPatientNoDentalHistory');
-            const prevDentist = document.querySelector('input[name="prevDentist"]').value.trim();
+            const prevDentist = document.querySelector('select[name="prevDentist"]').value.trim();
             const lastVisitDate = document.querySelector('input[name="lastVisitDate"]').value.trim();
             const reasonLastVisit = document.querySelector('textarea[name="reasonLastVisit"]').value.trim();
             const prevTreatments = document.querySelector('textarea[name="prevTreatments"]').value.trim();
@@ -1041,7 +1043,7 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
                 dentalHistorySection.style.pointerEvents = 'none';
                 
                 // Clear all dental history fields
-                const prevDentist = document.querySelector('input[name="prevDentist"]');
+                const prevDentist = document.querySelector('select[name="prevDentist"]');
                 const lastVisitDate = document.querySelector('input[name="lastVisitDate"]');
                 const reasonLastVisit = document.querySelector('textarea[name="reasonLastVisit"]');
                 const prevTreatments = document.querySelector('textarea[name="prevTreatments"]');
@@ -1061,6 +1063,23 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
 
 // Add event listeners to hide validation messages
         document.addEventListener('DOMContentLoaded', function() {
+            // Load previous dentist dropdown
+            const prevDentistSelect = document.getElementById('prevDentistSelect');
+            if (prevDentistSelect) {
+                fetch('../shared/get_dentists.php')
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.success && data.dentists) {
+                            data.dentists.forEach(function(d) {
+                                const opt = document.createElement('option');
+                                opt.value = 'Dr. ' + d.first_name + ' ' + d.last_name;
+                                opt.textContent = 'Dr. ' + d.first_name + ' ' + d.last_name;
+                                prevDentistSelect.appendChild(opt);
+                            });
+                        }
+                    });
+            }
+
             // Medical history validation
             const conditionCheckboxes = document.querySelectorAll('input[name="medicalConditions[]"]');
             const medicalValidationMessage = document.getElementById('medicalHistoryValidation');
@@ -1075,7 +1094,7 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
             
             // Dental history validation
             const dentalFields = [
-                'input[name="prevDentist"]',
+                'select[name="prevDentist"]',
                 'input[name="lastVisitDate"]',
                 'textarea[name="reasonLastVisit"]',
                 'textarea[name="prevTreatments"]',
@@ -1087,6 +1106,11 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
                 const field = document.querySelector(selector);
                 if (field) {
                     field.addEventListener('input', function() {
+                        if (dentalValidationMessage) {
+                            dentalValidationMessage.classList.add('hidden');
+                        }
+                    });
+                    field.addEventListener('change', function() {
                         if (dentalValidationMessage) {
                             dentalValidationMessage.classList.add('hidden');
                         }
