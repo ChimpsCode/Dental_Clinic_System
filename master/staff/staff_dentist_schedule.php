@@ -529,6 +529,7 @@ function openOverridePopup(doctorId, dateStr) {
 
     toggleOverrideTimeInputs();
 
+    document.body.appendChild(overlay);
     overlay.classList.add('active');
 }
 

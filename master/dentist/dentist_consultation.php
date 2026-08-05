@@ -75,6 +75,21 @@ try {
 } catch (Exception $e) {
     $services = [];
 }
+
+// Clinic settings for Rx print (mirrors dentist_prescriptions.php)
+$clinicName = 'RF Dental Clinic';
+$clinicAddress = '';
+$clinicPhone = '';
+try {
+    $clinicSettings = $pdo->query("SELECT setting_key, setting_value FROM settings");
+    while ($clinicRow = $clinicSettings->fetch(PDO::FETCH_ASSOC)) {
+        if ($clinicRow['setting_key'] === 'clinic_name') $clinicName = $clinicRow['setting_value'];
+        if ($clinicRow['setting_key'] === 'clinic_address') $clinicAddress = $clinicRow['setting_value'];
+        if ($clinicRow['setting_key'] === 'clinic_phone') $clinicPhone = $clinicRow['setting_value'];
+    }
+} catch (Exception $e) {}
+$rxClinicDetails = trim($clinicAddress . ' · ' . $clinicPhone, ' ·');
+$rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doctor'));
 ?>
 
 <style>
@@ -83,6 +98,9 @@ try {
     flex-direction: column;
     height: calc(100vh - 70px);
     overflow: hidden;
+}
+.content-area {
+    padding: 0;
 }
 .consult-header {
     background: linear-gradient(135deg, #2444d5 10%, #412fa3be 48%, #0891b2 90%);
@@ -1068,10 +1086,12 @@ try {
 
     @media print {
         body * { visibility: hidden; }
-        .consent-form-container, .consent-form-container *, #panel-prescription, #panel-prescription * { visibility: visible; }
-        .consent-form-container { border: none !important; box-shadow: none !important; padding: 0 !important; }
         .consult-tab-panel { display: none !important; }
-        #panel-consent, #panel-prescription { display: block !important; }
+        body.print-panel-consent #panel-consent { display: block !important; }
+        body.print-panel-prescription #panel-prescription { display: block !important; }
+        body.print-panel-consent .consent-form-container, body.print-panel-consent .consent-form-container * { visibility: visible; }
+        body.print-panel-prescription #panel-prescription, body.print-panel-prescription #panel-prescription * { visibility: visible; }
+        .consent-form-container { border: none !important; box-shadow: none !important; padding: 0 !important; }
         .consult-complete-btn, .signature-save-btn, .signature-clear-btn, .signature-cancel-btn, .signature-modal-overlay, .signature-modal, .sig-line, .dental-check-item, #guardianNameWrapper, .add-presc-btn, .remove-presc-btn { display: none !important; }
         .consent-text-block { border: none !important; background: transparent !important; }
         .sig-preview { background: transparent !important; border: none !important; padding: 0 !important; min-height: auto !important; }
@@ -2066,6 +2086,38 @@ try {
     </div>
 </div>
 
+<!-- Consent Saved Modal -->
+<div class="cc-overlay" id="consentSavedModal" onclick="if(event.target===this)closeConsentSavedModal()">
+    <div class="cc-modal" onclick="event.stopPropagation()">
+        <div class="cc-bg-orb cc-bg-orb-a"></div>
+        <div class="cc-bg-orb cc-bg-orb-b"></div>
+        <div class="cc-banner">
+            <div class="cc-icon-wrap">
+                <span class="cc-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M9.2 16.2 5.5 12.5l-1.4 1.4 5.1 5.1L20 8.2l-1.4-1.4z"></path>
+                    </svg>
+                </span>
+            </div>
+            <div>
+                <div class="cc-kicker">Informed Consent</div>
+                <h2 style="font-size:1.55rem;font-weight:700;margin:6px 0 0;">Consent Saved</h2>
+            </div>
+            <button onclick="closeConsentSavedModal()" class="cc-close">&times;</button>
+        </div>
+        <div class="cc-body">
+            <p class="cc-text">The informed consent form has been saved for this consultation.</p>
+            <div class="cc-note">
+                <span class="cc-note-dot"></span>
+                You can print the consent form anytime from the Informed Consent tab.
+            </div>
+        </div>
+        <div class="cc-actions">
+            <button type="button" onclick="closeConsentSavedModal()" class="cc-btn-confirm">OK</button>
+        </div>
+    </div>
+</div>
+
 <div class="signature-modal-overlay" id="consentSignatureModal" onclick="if(event.target === this) closeConsentSignatureModal()">
     <div class="signature-modal" onclick="event.stopPropagation()">
         <h3 id="consentSignatureModalTitle">Draw Signature</h3>
@@ -2913,7 +2965,25 @@ function saveConsent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
     }).then(function(r) { return r.json(); })
-    .then(function(d) { alert(d.message || 'Consent saved'); });
+    .then(function(d) {
+        if (d && d.success) {
+            showConsentSavedModal();
+        } else {
+            alert((d && d.message) || 'Consent saved');
+        }
+    });
+}
+
+function showConsentSavedModal() {
+    var modal = document.getElementById('consentSavedModal');
+    if (!modal) return;
+    document.body.appendChild(modal);
+    modal.classList.add('active');
+}
+
+function closeConsentSavedModal() {
+    var modal = document.getElementById('consentSavedModal');
+    if (modal) modal.classList.remove('active');
 }
 
 function printConsentForm() {
@@ -2929,17 +2999,98 @@ function printConsentForm() {
     }, 100);
 }
 
-function printPrescription() {
-    document.body.classList.add('print-panel-prescription');
-    document.body.classList.remove('print-panel-consent');
-    var prescriptionTabButton = document.querySelector('.consult-tab-btn[data-tab="prescription"]');
-    if (prescriptionTabButton) {
-        prescriptionTabButton.click();
+var rxClinicName = <?php echo json_encode($clinicName); ?>;
+var rxClinicDetails = <?php echo json_encode($rxClinicDetails); ?>;
+var rxDoctorName = <?php echo json_encode($rxDoctorName); ?>;
+
+function collectPrescriptionFromForm() {
+    var items = [];
+    document.querySelectorAll('#prescriptionItems .prescription-item-card').forEach(function(card) {
+        var inputs = card.querySelectorAll('input.form-control');
+        items.push({
+            name: inputs[0] ? inputs[0].value.trim() : '',
+            dosage: inputs[1] ? inputs[1].value : '',
+            frequency: inputs[2] ? inputs[2].value : '',
+            duration: inputs[3] ? inputs[3].value : '',
+            instructions: inputs[4] ? inputs[4].value : ''
+        });
+    });
+    if (items.length > 0) {
+        currentConsultation.prescription_data = items;
     }
-    setTimeout(function() {
-        window.print();
-        document.body.classList.remove('print-panel-prescription');
-    }, 100);
+}
+
+function printPrescription() {
+    if (!currentConsultation) return;
+    collectPrescriptionFromForm();
+    var items = currentConsultation.prescription_data || [];
+
+    var medItems = '';
+    var instructions = [];
+    var anyMed = false;
+    items.forEach(function(item) {
+        if (!item || !(item.name || '').trim()) return;
+        anyMed = true;
+        var line = escapeHtml(item.name.trim());
+        var parts = [];
+        if ((item.dosage || '').trim()) parts.push(escapeHtml(item.dosage.trim()));
+        if ((item.frequency || '').trim()) parts.push(escapeHtml(item.frequency.trim()));
+        if ((item.duration || '').trim()) parts.push(escapeHtml(item.duration.trim()));
+        if (parts.length) line += ' (' + parts.join(', ') + ')';
+        medItems += '<div style="font-family:\'Courier New\',monospace;font-size:14px;padding:4px 0 4px 24px;position:relative;line-height:1.5;">&#8478; ' + line + '</div>';
+        if ((item.instructions || '').trim()) instructions.push(escapeHtml(item.instructions.trim()));
+    });
+    if (!anyMed) {
+        medItems = '<div style="padding-left:0;">No medications prescribed</div>';
+    }
+    var instructionsText = instructions.length ? instructions.join('. ') : 'None';
+    var patientName = currentConsultation.patient_name || '';
+    var dateText = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    var diagnosis = currentConsultation.treatment_type || '';
+
+    var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Prescription</title>' +
+        '<style>' +
+        '@page { margin: 0.5in; }' +
+        'body { font-family: Georgia, "Times New Roman", serif; margin: 0; padding: 0; color: #111827; }' +
+        '.rx-paper { max-width: 680px; margin: 0 auto; border: 2px solid #1e293b; padding: 36px 32px 28px; position: relative; }' +
+        '.rx-header { text-align: center; border-bottom: 2px solid #1e293b; padding-bottom: 14px; margin-bottom: 22px; }' +
+        '.rx-symbol { font-size: 52px; font-weight: 700; color: #1e293b; text-align: center; letter-spacing: -4px; margin-bottom: 6px; line-height: 1; }' +
+        '.rx-clinic-name { font-size: 18px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.06em; }' +
+        '.rx-clinic-details { font-size: 11px; color: #64748b; margin-top: 4px; }' +
+        '.rx-divider { border: none; border-top: 1px dashed #94a3b8; margin: 16px 0; }' +
+        '.rx-info-row { display: flex; margin-bottom: 10px; font-size: 14px; }' +
+        '.rx-info-label { width: 100px; font-weight: 600; color: #475569; flex-shrink: 0; }' +
+        '.rx-info-value { flex: 1; color: #0f172a; }' +
+        '.rx-instructions-box { margin: 12px 0; padding: 12px 16px; background: #f8fafc; border-left: 3px solid #94a3b8; font-size: 13px; color: #475569; }' +
+        '.rx-footer { margin-top: 28px; border-top: 2px solid #e2e8f0; padding-top: 18px; }' +
+        '.rx-signature-row { margin-top: 20px; display: flex; align-items: center; }' +
+        '.rx-signature-line { display: inline-block; width: 260px; border-bottom: 1px solid #0f172a; margin-left: 12px; }' +
+        '.rx-bottom-bar { text-align: center; font-size: 10px; color: #94a3b8; margin-top: 22px; padding-top: 10px; border-top: 1px solid #e2e8f0; }' +
+        '@media print { .rx-paper { border: none; padding: 0; } .rx-paper .rx-header { border-bottom-color: #000; } .rx-paper .rx-divider { border-top-color: #000; } .rx-paper .rx-footer { border-top-color: #000; } .rx-paper .rx-bottom-bar { border-top-color: #000; } }' +
+        '</style></head><body>' +
+        '<div class="rx-paper">' +
+        '<div class="rx-header"><div class="rx-symbol">&#8478;</div><div class="rx-clinic-name">' + escapeHtml(rxClinicName) + '</div><div class="rx-clinic-details">' + escapeHtml(rxClinicDetails) + '</div></div>' +
+        '<div class="rx-info-row"><span class="rx-info-label">Patient:</span><span class="rx-info-value">' + escapeHtml(patientName) + '</span></div>' +
+        '<div class="rx-info-row"><span class="rx-info-label">Date:</span><span class="rx-info-value">' + escapeHtml(dateText) + '</span></div>' +
+        '<div class="rx-info-row"><span class="rx-info-label">Diagnosis:</span><span class="rx-info-value">' + escapeHtml(diagnosis) + '</span></div>' +
+        '<hr class="rx-divider">' +
+        '<div>' + medItems + '</div>' +
+        '<div class="rx-instructions-box"><strong>Instructions:</strong> ' + escapeHtml(instructionsText) + '</div>' +
+        '<div class="rx-footer">' +
+        '<div class="rx-info-row"><span class="rx-info-label">Prescriber:</span><span class="rx-info-value">' + escapeHtml(rxDoctorName) + '</span></div>' +
+        '<div class="rx-signature-row"><span class="rx-info-label">Signature:</span><span class="rx-signature-line"></span></div>' +
+        '</div>' +
+        '<div class="rx-bottom-bar">' + escapeHtml(rxClinicName) + ' &middot; ' + escapeHtml(rxClinicDetails) + '</div>' +
+        '</div>' +
+        '</body></html>';
+
+    var printWindow = window.open('', '_blank');
+    if (!printWindow) { alert('Please allow popups to print the prescription.'); return; }
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
 }
 
 // ===================== COMPLETE CONSULTATION =====================
