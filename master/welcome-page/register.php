@@ -437,6 +437,17 @@ $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
                         </div>
                     </div>
 
+                    <div style="margin-top:10px; background:rgba(15,23,42,0.04); border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px; color:#0f172a; font-size:13px; line-height:1.55;">
+                        <div style="font-weight:700; margin-bottom:6px;">Password Requirements:</div>
+                        <ul style="margin:0; padding-left:18px;">
+                            <li>At least 8 characters</li>
+                            <li>At least one uppercase letter</li>
+                            <li>At least one lowercase letter</li>
+                            <li>At least one number</li>
+                            <li>At least one symbol</li>
+                        </ul>
+                    </div>
+
                 
 
                     <button type="submit">Create Account</button>

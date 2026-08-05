@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function refreshCaptchaCode() {
         const fallback = document.getElementById('captchaFallback');
-        fetch('../../lib/security/captcha_refresh.php?force=1', { credentials: 'same-origin' })
+        fetch('../../lib/security/captcha_refresh.php?force=1', { credentials: 'same-origin', cache: 'no-store' })
             .then(response => response.text())
             .then(code => {
                 // Refresh image using the SAME session code generated above.
@@ -162,6 +162,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const registerBtnText = document.getElementById('registerBtnText');
     const registerError = document.getElementById('registerError');
     const registerSuccess = document.getElementById('registerSuccess');
+    const registerPasswordInput = document.getElementById('reg_password');
+    const registerConfirmPasswordInput = document.getElementById('reg_confirm_password');
+    const toggleRegisterPassword = document.getElementById('toggleRegPassword');
+    const toggleRegisterConfirmPassword = document.getElementById('toggleRegConfirmPassword');
     const forgotError = document.getElementById('forgotError');
     const forgotSuccess = document.getElementById('forgotSuccess');
     const fpStep1 = document.getElementById('fpStep1');
@@ -341,6 +345,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    function isStrongPassword(password) {
+        return password.length >= 8
+            && /[A-Z]/.test(password)
+            && /[a-z]/.test(password)
+            && /[0-9]/.test(password)
+            && /[^A-Za-z0-9]/.test(password);
+    }
+
     if (registerForm) {
         registerForm.addEventListener('submit', function(e) {
             e.preventDefault();
@@ -351,8 +363,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 showToast('Error', 'Passwords do not match', 'error');
                 return;
             }
-            if (pwd.length < 6) {
-                showToast('Error', 'Password must be at least 6 characters', 'error');
+            if (!isStrongPassword(pwd)) {
+                showToast('Error', 'Password must be at least 8 characters and include uppercase, lowercase, number, and symbol', 'error');
                 return;
             }
 
@@ -738,45 +750,39 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Toggle password visibility button - show/hide based on input
-    if (togglePassword && passwordInput) {
-        // Show/hide toggle button based on password input value
+    function setupPasswordToggle(input, toggle) {
+        if (!input || !toggle) return;
+
         function updateToggleVisibility() {
-            if (passwordInput.value.length > 0) {
-                togglePassword.style.display = 'flex';
-            } else {
-                togglePassword.style.display = 'none';
-            }
+            toggle.style.display = input.value.length > 0 ? 'flex' : 'none';
         }
-        
-        // Listen to input events
-        passwordInput.addEventListener('input', updateToggleVisibility);
-        passwordInput.addEventListener('paste', updateToggleVisibility);
-        passwordInput.addEventListener('keyup', updateToggleVisibility);
-        
-        // Check initial state
+
+        input.addEventListener('input', updateToggleVisibility);
+        input.addEventListener('paste', updateToggleVisibility);
+        input.addEventListener('keyup', updateToggleVisibility);
         updateToggleVisibility();
-        
-        // Toggle password visibility
-        togglePassword.addEventListener('click', function() {
-            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-            passwordInput.setAttribute('type', type);
-            
-            // Toggle between eye-open and eye-closed icons
-            const eyeOpen = togglePassword.querySelector('.eye-open');
-            const eyeClosed = togglePassword.querySelector('.eye-closed');
-            
+
+        toggle.addEventListener('click', function() {
+            const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+            input.setAttribute('type', type);
+
+            const eyeOpen = toggle.querySelector('.eye-open');
+            const eyeClosed = toggle.querySelector('.eye-closed');
+
             if (type === 'password') {
-                // Show password is hidden, show open eye
                 if (eyeOpen) eyeOpen.style.display = 'block';
                 if (eyeClosed) eyeClosed.style.display = 'none';
             } else {
-                // Show password is visible, show closed eye
                 if (eyeOpen) eyeOpen.style.display = 'none';
                 if (eyeClosed) eyeClosed.style.display = 'block';
             }
         });
     }
+
+    // Toggle password visibility buttons - show/hide based on input
+    setupPasswordToggle(passwordInput, togglePassword);
+    setupPasswordToggle(registerPasswordInput, toggleRegisterPassword);
+    setupPasswordToggle(registerConfirmPasswordInput, toggleRegisterConfirmPassword);
 
     // Form submission handler
     if (loginForm && loginBtn) {

@@ -1100,11 +1100,45 @@ $assets = [
               </div>
               <div class="form-group">
                 <label for="reg-password">Create Password</label>
-                <input type="password" id="reg-password" name="password" required minlength="8" placeholder="At least 8 characters" />
+                <div class="password-input-group" style="margin-bottom:0;">
+                  <input type="password" id="reg-password" name="password" required minlength="8" placeholder="Password " style="padding-right:40px;" />
+                  <button type="button" class="toggle-password" id="regTogglePassword" aria-label="Toggle password visibility" style="display: none; right: 10px;">
+                    <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    <svg class="eye-icon eye-closed" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                      <line x1="1" y1="1" x2="23" y2="23"></line>
+                    </svg>
+                  </button>
+                </div>
               </div>
               <div class="form-group">
                 <label for="reg-confirm-password">Confirm Password</label>
-                <input type="password" id="reg-confirm-password" name="confirm_password" required placeholder="Re-enter password" />
+                <div class="password-input-group" style="margin-bottom:0;">
+                  <input type="password" id="reg-confirm-password" name="confirm_password" required placeholder="Re-enter password" style="padding-right:40px;" />
+                  <button type="button" class="toggle-password" id="regToggleConfirmPassword" aria-label="Toggle confirm password visibility" style="display: none; right: 10px;">
+                    <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    <svg class="eye-icon eye-closed" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                      <line x1="1" y1="1" x2="23" y2="23"></line>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div id="passwordRequirementsBox" style="margin-top:10px; background:rgba(15,23,42,0.04); border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px; color:#0f172a; font-size:13px; line-height:1.55;">
+                <div style="font-weight:700; margin-bottom:6px;">Password Requirements:</div>
+                <ul style="margin:0; padding-left:18px;">
+                  <li>At least 8 characters</li>
+                  <li>At least one uppercase letter</li>
+                  <li>At least one lowercase letter</li>
+                  <li>At least one number</li>
+                  <li>At least one symbol</li>
+                </ul>
               </div>
             </div>
             
@@ -1218,6 +1252,11 @@ $assets = [
         const registrationForm = document.getElementById('registrationForm');
         const modalClose = document.querySelector('.modal-close');
         const body = document.body;
+        const regPasswordInput = document.getElementById('reg-password');
+        const regConfirmPasswordInput = document.getElementById('reg-confirm-password');
+        const regTogglePassword = document.getElementById('regTogglePassword');
+        const regToggleConfirmPassword = document.getElementById('regToggleConfirmPassword');
+        const passwordRequirementsBox = document.getElementById('passwordRequirementsBox');
 
         // Step 1 is handled by the IIFE above (choice modal → booking modal with registration)
 
@@ -1365,6 +1404,14 @@ $assets = [
 
         // Step 2: Handle registration form submission
         if (registrationForm) {
+          function isStrongPassword(password) {
+            return password.length >= 8
+              && /[A-Z]/.test(password)
+              && /[a-z]/.test(password)
+              && /[0-9]/.test(password)
+              && /[^A-Za-z0-9]/.test(password);
+          }
+
           registrationForm.addEventListener('submit', async function(e) {
             e.preventDefault();
 
@@ -1395,8 +1442,8 @@ $assets = [
               return;
             }
 
-            if (password.length < 8) {
-              alert('Password must be at least 8 characters');
+            if (!isStrongPassword(password)) {
+              alert('Password must be at least 8 characters and include uppercase, lowercase, number, and symbol');
               return;
             }
 
@@ -1434,6 +1481,38 @@ $assets = [
           });
         }
 
+        function setupPasswordToggle(input, toggle) {
+          if (!input || !toggle) return;
+
+          function updateToggleVisibility() {
+            toggle.style.display = input.value.length > 0 ? 'flex' : 'none';
+          }
+
+          input.addEventListener('input', updateToggleVisibility);
+          input.addEventListener('paste', updateToggleVisibility);
+          input.addEventListener('keyup', updateToggleVisibility);
+          updateToggleVisibility();
+
+          toggle.addEventListener('click', function() {
+            const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+            input.setAttribute('type', type);
+
+            const eyeOpen = toggle.querySelector('.eye-open');
+            const eyeClosed = toggle.querySelector('.eye-closed');
+
+            if (type === 'password') {
+              if (eyeOpen) eyeOpen.style.display = 'block';
+              if (eyeClosed) eyeClosed.style.display = 'none';
+            } else {
+              if (eyeOpen) eyeOpen.style.display = 'none';
+              if (eyeClosed) eyeClosed.style.display = 'block';
+            }
+          });
+        }
+
+        setupPasswordToggle(regPasswordInput, regTogglePassword);
+        setupPasswordToggle(regConfirmPasswordInput, regToggleConfirmPassword);
+
         // OTP verify handler
         if (regOtpVerifyBtn) {
           regOtpVerifyBtn.addEventListener('click', async function() {
@@ -1448,7 +1527,7 @@ $assets = [
             regOtpError.style.display = 'none';
 
             try {
-              const formData = new FormData();
+              const formData = new FormData(registrationForm);
               formData.append('action', 'verify_otp');
               formData.append('otp', code);
 
@@ -1846,6 +1925,12 @@ $assets = [
         outline: none;
         border-color: #007bff;
         box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+      }
+
+      #passwordRequirementsBox.password-requirements-error {
+        border-color: #dc3545 !important;
+        background: rgba(220,53,69,0.05) !important;
+        box-shadow: 0 0 0 3px rgba(220,53,69,0.08);
       }
       
       .btn-block {

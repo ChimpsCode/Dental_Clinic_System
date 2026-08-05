@@ -539,7 +539,7 @@ $assets = [
               </div>
               <div class="form-group">
                 <label for="reg-password">Create Password</label>
-                <input type="password" id="reg-password" name="password" required minlength="8" placeholder="At least 8 characters" />
+                <input type="password" id="reg-password" name="password" required minlength="8" placeholder="Password" />
               </div>
               <div class="form-group">
                 <label for="reg-confirm-password">Confirm Password</label>

@@ -1,4 +1,6 @@
 <?php
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
 session_start();
 header('Content-Type: application/json');
 require_once '../../config/database.php';
@@ -28,6 +30,14 @@ function findRoleId(PDO $pdo, string $roleName): ?int {
     return $cache[$key];
 }
 
+function isStrongPassword(string $password): bool {
+    return strlen($password) >= 8
+        && preg_match('/[A-Z]/', $password)
+        && preg_match('/[a-z]/', $password)
+        && preg_match('/[0-9]/', $password)
+        && preg_match('/[^A-Za-z0-9]/', $password);
+}
+
 $action = trim($_POST['action'] ?? 'register');
 
 if ($action === 'verify_otp') {
@@ -36,8 +46,37 @@ if ($action === 'verify_otp') {
     $expires = $_SESSION['reg_otp_expires'] ?? 0;
     $regData = $_SESSION['reg_data'] ?? null;
 
-    if (!$regData || !$storedOtp) {
-        echo json_encode(['success' => false, 'message' => 'Registration session expired. Please try again.']);
+    if (!$storedOtp) {
+        echo json_encode(['success' => false, 'message' => 'Verification code has expired. Please register again.']);
+        exit();
+    }
+
+    if (!$regData) {
+        $firstName = trim($_POST['first_name'] ?? '');
+        $middleName = trim($_POST['middle_name'] ?? '');
+        $lastName = trim($_POST['last_name'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $phone = trim($_POST['phone'] ?? '');
+        $gender = trim($_POST['gender'] ?? '');
+        $dateOfBirth = trim($_POST['date_of_birth'] ?? '');
+        $password = (string)($_POST['password'] ?? '');
+
+        if ($firstName !== '' && $lastName !== '' && $email !== '' && $phone !== '' && $password !== '') {
+            $regData = [
+                'first_name' => $firstName,
+                'middle_name' => $middleName,
+                'last_name' => $lastName,
+                'email' => $email,
+                'phone' => $phone,
+                'gender' => $gender,
+                'date_of_birth' => $dateOfBirth,
+                'password' => $password,
+            ];
+        }
+    }
+
+    if (!$regData) {
+        echo json_encode(['success' => false, 'message' => 'Registration details were lost. Please start again.']);
         exit();
     }
 
@@ -188,12 +227,12 @@ try {
         throw new Exception('Password is required');
     }
 
-    if (strlen($password) < 8) {
-        throw new Exception('Password must be at least 8 characters');
-    }
-
     if ($password !== $confirm_password) {
         throw new Exception('Passwords do not match');
+    }
+
+    if (!isStrongPassword($password)) {
+        throw new Exception('Password must be at least 8 characters and include uppercase, lowercase, number, and symbol');
     }
 
     $stmt = $pdo->prepare("SELECT id, is_archived FROM users WHERE email = ? OR username = ?");

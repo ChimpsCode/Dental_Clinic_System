@@ -1,6 +1,11 @@
 <?php
 
-require_once __DIR__ . '/../config/sms_credentials.php';
+$smsCredentialsFile = __DIR__ . '/../config/sms_credentials.php';
+if (file_exists($smsCredentialsFile)) {
+    require_once $smsCredentialsFile;
+} else {
+    error_log("SMS credentials skipped: " . $smsCredentialsFile . " not found");
+}
 
 function sendSMS($phone, $message) {
     $phone = formatPhoneNumber($phone);

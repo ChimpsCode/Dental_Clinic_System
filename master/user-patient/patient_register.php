@@ -1,4 +1,6 @@
 <?php
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
 session_start();
 header('Content-Type: application/json; charset=utf-8');
 
@@ -40,6 +42,14 @@ function findRoleId(PDO $pdo, string $roleName): ?int {
     return $cache[$key];
 }
 
+function isStrongPassword(string $password): bool {
+    return strlen($password) >= 8
+        && preg_match('/[A-Z]/', $password)
+        && preg_match('/[a-z]/', $password)
+        && preg_match('/[0-9]/', $password)
+        && preg_match('/[^A-Za-z0-9]/', $password);
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     respond(false, 'Invalid request method.', [], 405);
 }
@@ -52,8 +62,32 @@ if ($action === 'verify_otp') {
     $expires = $_SESSION['reg_otp_expires'] ?? 0;
     $regData = $_SESSION['reg_data'] ?? null;
 
-    if (!$regData || !$storedOtp) {
-        respond(false, 'Registration session expired. Please try again.');
+    if (!$storedOtp) {
+        respond(false, 'Verification code has expired. Please register again.');
+    }
+
+    if (!$regData) {
+        $firstName = trim($_POST['first_name'] ?? '');
+        $middleName = trim($_POST['middle_name'] ?? '');
+        $lastName = trim($_POST['last_name'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $phone = trim($_POST['phone'] ?? '');
+        $password = (string)($_POST['password'] ?? '');
+
+        if ($firstName !== '' && $lastName !== '' && $email !== '' && $phone !== '' && $password !== '') {
+            $regData = [
+                'first_name' => $firstName,
+                'middle_name' => $middleName,
+                'last_name' => $lastName,
+                'email' => $email,
+                'phone' => $phone,
+                'password' => $password,
+            ];
+        }
+    }
+
+    if (!$regData) {
+        respond(false, 'Registration details were lost. Please start again.');
     }
 
     if (time() > $expires) {
@@ -77,6 +111,10 @@ if ($action === 'verify_otp') {
     $password = $regData['password'];
 
     try {
+        if (!isStrongPassword($password)) {
+            respond(false, 'Password must be at least 8 characters and include uppercase, lowercase, number, and symbol.');
+        }
+
         require_once '../../config/database.php';
         if (!isset($pdo)) {
             respond(false, 'Database connection not available.', [], 500);
@@ -206,8 +244,8 @@ if ($password !== $confirmPassword) {
     respond(false, 'Passwords do not match.');
 }
 
-if (strlen($password) < 6) {
-    respond(false, 'Password must be at least 6 characters.');
+if (!isStrongPassword($password)) {
+    respond(false, 'Password must be at least 8 characters and include uppercase, lowercase, number, and symbol.');
 }
 
 try {
