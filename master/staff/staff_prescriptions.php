@@ -163,7 +163,7 @@ try {
 .search-input-container {
     position: relative;
     flex: 1;
-    max-width: 100%;
+    max-width: 480px;
     background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
@@ -584,22 +584,7 @@ try {
 </style>
 
 <div class="page-header">
-    <h1 class="page-title">
-        <?php if ($filterPatientName): ?>
-            Prescriptions &mdash; <?php echo htmlspecialchars($filterPatientName); ?>
-        <?php else: ?>
-            Prescriptions
-        <?php endif; ?>
-    </h1>
-    <div class="breadcrumbs">
-        <span>Patient Records</span>
-        <span>&rsaquo;</span>
-        <span>Prescriptions</span>
-        <?php if ($filterPatientName): ?>
-            <span>&rsaquo;</span>
-            <span><?php echo htmlspecialchars($filterPatientName); ?></span>
-        <?php endif; ?>
-    </div>
+    
     <?php if ($filterPatientId): ?>
         <div style="margin-top: 12px;">
             <a href="staff_prescriptions.php" style="color: #2563eb; text-decoration: none; font-size: 0.9rem;">&larr; Show all prescriptions</a>
@@ -643,7 +628,7 @@ try {
         <span class="search-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
         </span>
-        <input type="text" id="searchInput" style="width:100%; padding: 10px 16px 10px 44px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; outline: none;" placeholder="Search prescriptions by patient name, medications...">
+        <input type="text" id="searchInput"  placeholder="Search prescriptions by patient name, medications...">
     </div>
 </div>
 

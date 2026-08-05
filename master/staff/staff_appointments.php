@@ -170,6 +170,12 @@ if (isset($_GET['inquiry_id']) && is_numeric($_GET['inquiry_id'])) {
 }
 
 require_once '../../includes/staff_layout_start.php';
+
+// Build absolute URL to the public online booking page
+$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$host = $_SERVER['HTTP_HOST'];
+$currentDir = dirname(str_replace('\\', '/', $_SERVER['SCRIPT_NAME']));
+$onlineBookingUrl = $scheme . '://' . $host . dirname($currentDir) . '/welcome-page/home.php';
 ?>
 <div class="summary-cards" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 24px;">
     <div class="summary-card" style="width: 100%;">
@@ -301,6 +307,7 @@ require_once '../../includes/staff_layout_start.php';
 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
     <button class="view-toggle-btn active" data-view="list">📋 List View</button>
     <button class="view-toggle-btn" data-view="calendar">📅 Calendar View</button>
+    <button class="btn-online-booking" onclick="closeApptKebabDropdown(); openOnlineBookingModal()">🌐 Online Booking</button>
 </div>
 <style>
 /* Match dentist appointments search-filters style */
@@ -351,6 +358,7 @@ require_once '../../includes/staff_layout_start.php';
         </div>
         <input type="text" class="search-input" id="searchAppointment" placeholder="Search appointments...">
         <div class="section-title">
+            
             <button class="btn-primary" onclick="closeApptKebabDropdown(); prepareNewAppointmentModal()">+ New Appointment</button>
         </div>
     </div>
@@ -543,6 +551,33 @@ require_once '../../includes/staff_layout_start.php';
                 <button type="submit" class="btn-primary" id="staffScheduleBtn" disabled>Schedule Appointment</button>
             </div>
         </form>
+    </div>
+</div>
+
+<div id="onlineBookingModal" class="modal-overlay">
+    <div class="modal" style="width: 480px; text-align: center;">
+        <h2 style="margin: 0 0 8px; font-size: 1.25rem; font-weight: 600;">Online Booking</h2>
+        <p style="margin: 0 0 20px; color: #6b7280; font-size: 0.9rem;">Scan the QR code or share the link so patients can book appointments online.</p>
+        <div id="onlineBookingQr" class="qr-clickable" title="Click to enlarge" onclick="openQrMaximized()"></div>
+        <div class="booking-link-row">
+            <input type="text" id="onlineBookingLinkInput" readonly>
+            <button type="button" onclick="copyBookingLink()">Copy</button>
+        </div>
+        <a href="#" id="onlineBookingLinkAnchor" target="_blank" rel="noopener" style="display: inline-block; margin-top: 8px; color: #2563eb; font-size: 0.875rem; text-decoration: none;">Open booking page</a>
+        <div class="modal-actions">
+            <button type="button" onclick="closeOnlineBookingModal()" class="btn-cancel">Close</button>
+        </div>
+    </div>
+</div>
+
+<div id="qrMaximizedModal" class="modal-overlay">
+    <div class="modal" style="width: auto; max-width: 620px; text-align: center;">
+        <h2 style="margin: 0 0 16px; font-size: 1.1rem; font-weight: 600;">Online Booking QR Code</h2>
+        <div id="qrMaximizedContent"></div>
+        <p style="margin: 14px 0 0; color: #6b7280; font-size: 0.85rem;" id="qrMaximizedUrl"></p>
+        <div class="modal-actions">
+            <button type="button" onclick="closeQrMaximized()" class="btn-cancel">Close</button>
+        </div>
     </div>
 </div>
 
@@ -824,21 +859,57 @@ require_once '../../includes/staff_layout_start.php';
     position: relative;
     z-index: 100000;
 }
+
+.section-title { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+
+.btn-online-booking {
+    background: transparent; border: 1px solid #10b981; color: #059669;
+    padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; gap: 8px; transition: background 0.2s;
+}
+.btn-online-booking:hover { background: #ecfdf5; }
+
+.qr-clickable { cursor: pointer; transition: transform 0.15s ease; }
+.qr-clickable:hover { transform: scale(1.03); }
+
+.booking-link-row {
+    display: flex; gap: 10px; margin: 18px 0 8px;
+}
+.booking-link-row input {
+    flex: 1; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px;
+    font-size: 0.9rem; color: #475569; background: #f8fafc; outline: none;
+}
+.booking-link-row button {
+    background: #2563eb; color: white; border: none; padding: 10px 18px;
+    border-radius: 8px; font-weight: 600; cursor: pointer;
+}
+.booking-link-row button:hover { background: #1d4ed8; }
 </style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <script>
     const appointments = <?php echo json_encode($allAppointments); ?>;
     const unavailableDates = <?php echo json_encode($unavailableDates); ?>;
+    const onlineBookingUrl = <?php echo json_encode($onlineBookingUrl); ?>;
 
     (function() {
         const viewAppointmentModal = document.getElementById('viewAppointmentModal');
         const appointmentModal = document.getElementById('appointmentModal');
+        const onlineBookingModal = document.getElementById('onlineBookingModal');
+        const qrMaximizedModal = document.getElementById('qrMaximizedModal');
         
         if (viewAppointmentModal) {
             document.body.appendChild(viewAppointmentModal);
         }
         if (appointmentModal) {
             document.body.appendChild(appointmentModal);
+        }
+        if (onlineBookingModal) {
+            document.body.appendChild(onlineBookingModal);
+        }
+        if (qrMaximizedModal) {
+            document.body.appendChild(qrMaximizedModal);
         }
     })();
 
@@ -1249,12 +1320,78 @@ require_once '../../includes/staff_layout_start.php';
         document.getElementById('viewAppointmentModal').style.display = 'none';
     }
 
+    function openOnlineBookingModal() {
+        document.getElementById('onlineBookingLinkInput').value = onlineBookingUrl;
+        document.getElementById('onlineBookingLinkAnchor').href = onlineBookingUrl;
+        var qrContainer = document.getElementById('onlineBookingQr');
+        qrContainer.innerHTML = '';
+        if (typeof QRCode !== 'undefined') {
+            new QRCode(qrContainer, { text: onlineBookingUrl, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
+        } else {
+            qrContainer.innerHTML = '<p style="color:#6b7280;font-size:0.9rem;padding:40px;">QR library failed to load</p>';
+        }
+        document.getElementById('onlineBookingModal').style.display = 'flex';
+    }
+
+    function closeOnlineBookingModal() {
+        document.getElementById('onlineBookingModal').style.display = 'none';
+    }
+
+    function openQrMaximized() {
+        var content = document.getElementById('qrMaximizedContent');
+        content.innerHTML = '';
+        if (typeof QRCode !== 'undefined') {
+            new QRCode(content, { text: onlineBookingUrl, width: 480, height: 480, correctLevel: QRCode.CorrectLevel.M });
+        } else {
+            content.innerHTML = '<p style="color:#6b7280;font-size:0.9rem;padding:40px;">QR library failed to load</p>';
+        }
+        document.getElementById('qrMaximizedUrl').textContent = onlineBookingUrl;
+        document.getElementById('qrMaximizedModal').style.display = 'flex';
+    }
+
+    function closeQrMaximized() {
+        document.getElementById('qrMaximizedModal').style.display = 'none';
+    }
+
+    function copyBookingLink() {
+        var linkInput = document.getElementById('onlineBookingLinkInput');
+        var btn = linkInput.nextElementSibling;
+        var originalText = btn.textContent;
+        function done() {
+            btn.textContent = 'Copied!';
+            setTimeout(function() { btn.textContent = originalText; }, 1600);
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(onlineBookingUrl).then(done).catch(function() { fallbackCopy(); });
+        } else {
+            fallbackCopy();
+        }
+        function fallbackCopy() {
+            linkInput.select();
+            linkInput.setSelectionRange(0, 99999);
+            try {
+                document.execCommand('copy');
+                done();
+            } catch (e) {
+                btn.textContent = 'Copy failed';
+            }
+        }
+    }
+
     document.getElementById('appointmentModal').addEventListener('click', function(e) {
         if (e.target === this) closeAppointmentModal();
     });
 
     document.getElementById('viewAppointmentModal').addEventListener('click', function(e) {
         if (e.target === this) closeViewAppointmentModal();
+    });
+
+    document.getElementById('onlineBookingModal').addEventListener('click', function(e) {
+        if (e.target === this) closeOnlineBookingModal();
+    });
+
+    document.getElementById('qrMaximizedModal').addEventListener('click', function(e) {
+        if (e.target === this) closeQrMaximized();
     });
 
     document.getElementById('appointmentForm').addEventListener('submit', function(e) {
