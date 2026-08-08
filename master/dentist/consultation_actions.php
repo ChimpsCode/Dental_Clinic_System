@@ -163,6 +163,7 @@ function syncConsultationPrescriptionToPrescriptionTable(PDO $pdo, int $consultI
 
 try {
     require_once '../../config/database.php';
+    require_once '../../includes/billing_helper.php';
 
     // Ensure medical_history table has all required columns
     static $mhSchemaReady = false;
@@ -568,13 +569,19 @@ try {
             $cons = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if ($cons) {
-                // Mark queue as completed
-                $stmt = $pdo->prepare("UPDATE queue SET status = 'completed', completed_at = NOW() WHERE id = ?");
+                // Mark queue as pending payment (billing continues next)
+                $stmt = $pdo->prepare("UPDATE queue SET status = 'pending_payment', completed_at = NOW() WHERE id = ?");
                 $stmt->execute([$cons['queue_id']]);
 
                 // Update appointment
                 $stmt = $pdo->prepare("UPDATE appointments SET status = 'Completed' WHERE patient_id = ? AND status IN ('Scheduled', 'In Queue')");
                 $stmt->execute([$cons['patient_id']]);
+
+                // Find the patient's completed appointment id for billing linkage
+                $appointmentId = null;
+                $stmt = $pdo->prepare("SELECT id FROM appointments WHERE patient_id = ? AND status = 'Completed' ORDER BY appointment_date DESC, id DESC LIMIT 1");
+                $stmt->execute([$cons['patient_id']]);
+                $appointmentId = $stmt->fetchColumn() ?: null;
 
                 // Get billing info
                 $stmt = $pdo->prepare("SELECT treatment_type FROM queue WHERE id = ?");
@@ -598,28 +605,26 @@ try {
                     }
                 }
 
-                // Get billing
-                $stmt = $pdo->prepare("SELECT * FROM billing WHERE patient_id = ? ORDER BY created_at DESC LIMIT 1");
-                $stmt->execute([$cons['patient_id']]);
-                $billing = $stmt->fetch(PDO::FETCH_ASSOC);
+                // Find-or-create billing record for this visit
+                $visitDate = date('Y-m-d');
+                $stmt = $pdo->prepare("SELECT DATE(created_at) FROM queue WHERE id = ?");
+                $stmt->execute([$cons['queue_id']]);
+                $visitDate = $stmt->fetchColumn() ?: $visitDate;
 
-                $totalAmount = $estimatedAmount;
-                $paidAmount = 0;
-                $balance = $estimatedAmount;
-                $paymentStatus = 'unpaid';
+                $billingInfo = findOrCreateBillingForVisit($pdo, (int)$cons['patient_id'], $visitDate, $estimatedAmount, $treatmentType, $appointmentId);
 
-                if ($billing) {
-                    $totalAmount = floatval($billing['total_amount']);
-                    $paidAmount = floatval($billing['paid_amount']);
-                    $balance = floatval($billing['balance']);
-                    $paymentStatus = $billing['payment_status'];
-                }
+                $totalAmount = $billingInfo['total_amount'];
+                $paidAmount = $billingInfo['paid_amount'];
+                $balance = $billingInfo['balance'];
+                $paymentStatus = $billingInfo['payment_status'];
+                $billingId = $billingInfo['billing_id'];
 
                 ob_clean();
                 echo json_encode([
                     'success' => true,
-                    'message' => 'Consultation completed',
+                    'message' => 'Consultation completed. Patient moved to billing.',
                     'patient_id' => $cons['patient_id'],
+                    'billing_id' => $billingId,
                     'total_amount' => $totalAmount,
                     'paid_amount' => $paidAmount,
                     'balance' => $balance,

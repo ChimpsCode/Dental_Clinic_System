@@ -37,6 +37,7 @@ if ($action !== 'get_doctors' && !$queueId && !$patientId) {
 try {
     require_once '../../config/database.php';
     require_once '../../includes/audit_helper.php';
+    require_once '../../includes/billing_helper.php';
     
     // Helper function to build full name
     function buildFullName($item) {
@@ -145,8 +146,8 @@ try {
             
             $pdo->beginTransaction();
             
-            // Update to Completed
-            $stmt = $pdo->prepare("UPDATE queue SET status = 'completed', completed_at = NOW() WHERE id = ?");
+            // Update to Pending Payment (billing continues next)
+            $stmt = $pdo->prepare("UPDATE queue SET status = 'pending_payment', completed_at = NOW() WHERE id = ?");
             $result = $stmt->execute([$queueId]);
             
             if (!$result || $stmt->rowCount() === 0) {
@@ -158,7 +159,17 @@ try {
             // Update appointment status to completed
             $stmt = $pdo->prepare("UPDATE appointments SET status = 'Completed' WHERE patient_id = ? AND status IN ('Scheduled', 'In Queue')");
             $stmt->execute([$patientId]);
-            
+
+            // Find the patient's completed appointment id for billing linkage
+            $appointmentId = null;
+            $stmt = $pdo->prepare("SELECT id FROM appointments WHERE patient_id = ? AND status = 'Completed' ORDER BY appointment_date DESC, id DESC LIMIT 1");
+            $stmt->execute([$patientId]);
+            $appointmentId = $stmt->fetchColumn() ?: null;
+
+            // Find-or-create billing record for this visit
+            $visitDate = date('Y-m-d', strtotime($queueItem['created_at']));
+            $billingInfo = findOrCreateBillingForVisit($pdo, (int)$patientId, $visitDate, $estimatedAmount, $treatmentType, $appointmentId);
+
             $pdo->commit();
             
             // Fetch ALL billing records for this patient to get actual totals
@@ -195,13 +206,14 @@ try {
                 $paymentStatus = 'unpaid';
             }
             
-            logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Completed procedure for: ' . $patientName, $queueId, 'queue', 'in_procedure', 'completed');
-            
+            logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Completed procedure for: ' . $patientName, $queueId, 'queue', 'in_procedure', 'pending_payment');
+
             echo json_encode([
                 'success' => true,
                 'message' => 'Procedure completed. Record moved to billing.',
                 'patient_id' => $patientId,
                 'patient_name' => $patientName,
+                'billing_id' => isset($billingInfo['billing_id']) ? $billingInfo['billing_id'] : ($billingData['billing_id'] ?? null),
                 'total_amount' => $totalAmount,
                 'paid_amount' => $paidAmount,
                 'balance' => $balance,

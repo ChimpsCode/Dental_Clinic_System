@@ -75,6 +75,17 @@ function ensureQueueManagementSchema(PDO $pdo): void
             }
         }
     }
+
+    // Ensure 'pending_payment' is part of the status enum (keeps existing tables in sync with the schema)
+    try {
+        $enumStmt = $pdo->query("SHOW COLUMNS FROM queue LIKE 'status'");
+        $statusCol = $enumStmt->fetch(PDO::FETCH_ASSOC);
+        if ($statusCol && strpos($statusCol['Type'] ?? '', 'pending_payment') === false) {
+            $pdo->exec("ALTER TABLE queue MODIFY COLUMN status ENUM('waiting', 'in_procedure', 'pending_payment', 'completed', 'cancelled', 'on_hold') DEFAULT 'waiting'");
+        }
+    } catch (Exception $e) {
+        // non-fatal; continue without blocking
+    }
     
     // Add foreign key for status_id if it doesn't exist
     try {

@@ -954,24 +954,24 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('adCalPrev'))
     border-color: #80b2cc;
 }
 .summary-cards .card-appointments {
-    background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%);
-    border-color: #6dbeae;
+    background: linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%);
+    border-color: #80b2cc;
 }
 .summary-cards .card-revenue {
-    background: linear-gradient(135deg, #f0fdf4 0%, #6ded3e 100%);
-    border-color: #44ce1e;
+    background: linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%);
+    border-color: #80b2cc;
 }
 .summary-cards .card-pending {
-    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-    border-color: #a89751;
+    background: linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%);
+    border-color: #80b2cc;
 }
 .summary-cards .card-completed {
-    background: linear-gradient(135deg, #ecfeff 0%, #cffafe 100%);
-    border-color: #4ab0bc;
+    background: linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%);
+    border-color: #80b2cc;
 }
 .summary-cards .card-collected {
-    background: linear-gradient(135deg, #b2fac1 0%, #47cf5ed5 100%);
-    border-color: #29a116;
+    background: linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%);
+    border-color: #80b2cc;
 }
 .summary-cards .card-total-patients .summary-icon {
     background: #bae6fd;

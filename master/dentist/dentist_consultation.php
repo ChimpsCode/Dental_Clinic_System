@@ -2051,34 +2051,24 @@ $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doc
         </div>
         <div class="cc-body">
             <p class="cc-text">Patient has been moved to billing.</p>
-        </div>
-        <div class="cc-actions">
-            <button type="button" onclick="closeConsultationCompletedModal()" class="cc-btn-confirm">OK</button>
-        </div>
-    </div>
-</div>
-
-<!-- Consultation Completed Modal -->
-<div class="cc-overlay" id="consultationCompletedModal" onclick="if(event.target===this)closeConsultationCompletedModal()">
-    <div class="cc-modal" onclick="event.stopPropagation()">
-        <div class="cc-bg-orb cc-bg-orb-a"></div>
-        <div class="cc-bg-orb cc-bg-orb-b"></div>
-        <div class="cc-banner">
-            <div class="cc-icon-wrap">
-                <span class="cc-icon">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M9.2 16.2 5.5 12.5l-1.4 1.4 5.1 5.1L20 8.2l-1.4-1.4z"></path>
-                    </svg>
-                </span>
+            <div style="margin-top:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <span style="font-size:0.78rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;">Total Amount</span>
+                    <span style="font-size:1.05rem;font-weight:700;color:#1e293b;" id="ccTotalAmount">&#8369;0.00</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <span style="font-size:0.78rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;">Remaining Balance</span>
+                    <span style="font-size:1.05rem;font-weight:700;color:#c2410c;" id="ccBalance">&#8369;0.00</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-size:0.78rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;">Payment Status</span>
+                    <span id="ccPaymentStatus" style="background:#fef3c7;color:#92400e;padding:2px 12px;border-radius:12px;font-size:0.75rem;font-weight:700;">Unpaid</span>
+                </div>
             </div>
-            <div>
-                <div class="cc-kicker">Consultation Completed</div>
-                <h2 style="font-size:1.55rem;font-weight:700;margin:6px 0 0;">Consultation completed!</h2>
+            <div class="cc-note">
+                <span class="cc-note-dot"></span>
+                You can manage payment from the Payment page.
             </div>
-            <button onclick="closeConsultationCompletedModal()" class="cc-close">&times;</button>
-        </div>
-        <div class="cc-body">
-            <p class="cc-text">Patient has been moved to billing.</p>
         </div>
         <div class="cc-actions">
             <button type="button" onclick="closeConsultationCompletedModal()" class="cc-btn-confirm">OK</button>
@@ -3120,7 +3110,7 @@ function confirmCompleteConsult() {
             }).then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data.success) {
-                    showConsultationCompletedModal();
+                    showConsultationCompletedModal(data);
                 } else {
                     alert('Error: ' + (data.message || 'Failed to complete'));
                 }
@@ -3131,9 +3121,22 @@ function confirmCompleteConsult() {
     });
 }
 
-function showConsultationCompletedModal() {
+function showConsultationCompletedModal(data) {
     var modal = document.getElementById('consultationCompletedModal');
     document.body.appendChild(modal);
+    var total = document.getElementById('ccTotalAmount');
+    if (total) total.textContent = '\u20B1' + (parseFloat(data.total_amount || 0)).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+    var balance = document.getElementById('ccBalance');
+    if (balance) balance.textContent = '\u20B1' + (parseFloat(data.balance || 0)).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+    var statusEl = document.getElementById('ccPaymentStatus');
+    if (statusEl) {
+        var s = (data.payment_status || 'Unpaid').toString();
+        statusEl.textContent = s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+        var lower = s.toLowerCase();
+        if (lower === 'paid') { statusEl.style.background = '#d1fae5'; statusEl.style.color = '#065f46'; }
+        else if (lower === 'partial') { statusEl.style.background = '#fef9c3'; statusEl.style.color = '#854d0e'; }
+        else { statusEl.style.background = '#fef3c7'; statusEl.style.color = '#92400e'; }
+    }
     modal.classList.add('active');
 }
 
