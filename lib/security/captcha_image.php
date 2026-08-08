@@ -58,11 +58,37 @@ if (function_exists('imagecreatetruecolor') && function_exists('imagepng')) {
     imagepng($image);
     imagedestroy($image);
 } else {
-    header('Content-Type: image/png');
-    $image = imagecreate($width, $height);
-    $bg = imagecolorallocate($image, 235, 235, 235);
-    $fg = imagecolorallocate($image, 40, 40, 40);
-    imagestring($image, 4, 20, 15, $code, $fg);
-    imagepng($image);
-    imagedestroy($image);
+    header('Content-Type: image/svg+xml');
+    header('Cache-Control: no-cache, must-revalidate');
+    header('Pragma: no-cache');
+
+    $noiseLines = '';
+    for ($i = 0; $i < 10; $i++) {
+        $c = sprintf('rgb(%d,%d,%d)', rand(200, 230), rand(200, 230), rand(200, 230));
+        $noiseLines .= sprintf(
+            '<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s"/>',
+            rand(0, $width), rand(0, $height), rand(0, $width), rand(0, $height), $c
+        );
+    }
+
+    $texts = '';
+    $x = 12;
+    $len = strlen($code);
+    for ($i = 0; $i < $len; $i++) {
+        $rot = rand(-12, 12);
+        $y = rand(30, 38);
+        $char = htmlspecialchars($code[$i], ENT_XML1 | ENT_QUOTES, 'UTF-8');
+        $texts .= sprintf(
+            '<text x="%d" y="%d" transform="rotate(%d %d %d)" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#282828">%s</text>',
+            $x, $y, $rot, $x, $y, $char
+        );
+        $x += 22;
+    }
+
+    echo '<?xml version="1.0" encoding="UTF-8"?>'
+        . '<svg xmlns="http://www.w3.org/2000/svg" width="' . $width . '" height="' . $height . '" viewBox="0 0 ' . $width . ' ' . $height . '">'
+        . '<rect width="100%" height="100%" fill="#ebebeb"/>'
+        . $noiseLines
+        . $texts
+        . '</svg>';
 }
