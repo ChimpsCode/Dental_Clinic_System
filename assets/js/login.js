@@ -175,6 +175,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const fpCode = document.getElementById('fp_code');
     const fpNewPassword = document.getElementById('fp_new_password');
     const fpConfirmPassword = document.getElementById('fp_confirm_password');
+    const toggleFpNewPassword = document.getElementById('toggleFpNewPassword');
+    const toggleFpConfirmPassword = document.getElementById('toggleFpConfirmPassword');
     const fpSendBtn = document.getElementById('fpSendBtn');
     const fpSendBtnText = document.getElementById('fpSendBtnText');
     const fpVerifyBtn = document.getElementById('fpVerifyBtn');
@@ -783,6 +785,8 @@ document.addEventListener('DOMContentLoaded', function() {
     setupPasswordToggle(passwordInput, togglePassword);
     setupPasswordToggle(registerPasswordInput, toggleRegisterPassword);
     setupPasswordToggle(registerConfirmPasswordInput, toggleRegisterConfirmPassword);
+    setupPasswordToggle(fpNewPassword, toggleFpNewPassword);
+    setupPasswordToggle(fpConfirmPassword, toggleFpConfirmPassword);
 
     // Form submission handler
     if (loginForm && loginBtn) {
