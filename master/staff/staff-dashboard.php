@@ -169,10 +169,8 @@ try {
             <div class="summary-cards">
                 <div class="summary-card card-waiting">
                     <div class="summary-icon yellow">
-                <svg width="24" height="24" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M362.667 490.667H149.333C132.365 490.648 116.097 483.899 104.099 471.901C92.1007 459.903 85.3518 443.635 85.333 426.667V394.073C85.3057 384.377 87.4941 374.803 91.7312 366.081C95.9682 357.36 102.142 349.722 109.781 343.75L178.823 289.51C183.275 286.051 188.916 284.495 194.513 285.182C200.109 285.869 205.206 288.745 208.688 293.179C212.171 297.613 213.757 303.245 213.099 308.845C212.441 314.445 209.593 319.557 205.177 323.063L136.146 377.3C133.6 379.29 131.542 381.836 130.131 384.743C128.719 387.65 127.99 390.841 128 394.073V426.667C128.007 432.323 130.256 437.745 134.256 441.744C138.255 445.744 143.677 447.993 149.333 448H362.667C368.323 447.993 373.745 445.744 377.744 441.744C381.744 437.745 383.993 432.323 384 426.667V394.073C384.011 390.839 383.281 387.646 381.867 384.737C380.454 381.828 378.393 379.282 375.844 377.292L109.792 168.255C102.15 162.284 95.9735 154.646 91.7344 145.923C87.4954 137.201 85.3058 127.625 85.333 117.927V85.333C85.3518 68.3649 92.1007 52.0972 104.099 40.0989C116.097 28.1007 132.365 21.3518 149.333 21.333H362.667C379.635 21.3518 395.903 28.1007 407.901 40.0989C419.899 52.0972 426.648 68.3649 426.667 85.333V117.927C426.694 127.623 424.506 137.197 420.269 145.919C416.032 154.64 409.858 162.278 402.219 168.25L333.177 222.49C328.728 225.985 323.072 227.569 317.455 226.894C311.838 226.219 306.719 223.34 303.224 218.891C299.729 214.442 298.145 208.786 298.82 203.169C299.495 197.552 302.374 192.433 306.823 188.938L375.854 134.7C378.4 132.71 380.458 130.164 381.87 127.257C383.281 124.35 384.01 121.159 384 117.927V85.333C383.993 79.6772 381.744 74.2549 377.744 70.2556C373.745 66.2563 368.323 64.0066 362.667 64H149.333C143.677 64.0066 138.255 66.2563 134.256 70.2556C130.256 74.2549 128.007 79.6772 128 85.333V117.927C127.99 121.161 128.719 124.354 130.133 127.263C131.546 130.172 133.607 132.718 136.156 134.708L402.208 343.745C409.85 349.716 416.027 357.354 420.266 366.077C424.505 374.799 426.694 384.375 426.667 394.073V426.667C426.648 443.635 419.899 459.903 407.901 471.901C395.903 483.899 379.635 490.648 362.667 490.667V490.667Z" fill="black"></path>
-                </svg>
-            </div>
+                        <img src="../../assets/icons/waiting.png" alt="Waiting">
+                    </div>
                     <div class="summary-info">
                         <h3 id="count-waiting"><?php echo $waitingCount; ?></h3>
                         <p>Waiting</p>
@@ -180,22 +178,26 @@ try {
                 </div>
                 <div class="summary-card card-completed">
                     <div class="summary-icon green">
-                    <img src="../../assets/icons/complete.png" alt="Completed" style="width: 30px; height: 30px;">
-                </div>
+                        <img src="../../assets/icons/check.png" alt="Completed">
+                    </div>
                     <div class="summary-info">
                         <h3 id="count-completed"><?php echo $completedCount; ?></h3>
                         <p>Completed</p>
                     </div>
                 </div>
                 <div class="summary-card card-cancelled">
-                    <img src="../../assets/icons/cancel.png" alt="cancel" style="width: 30px; height: 30px;">
+                    <div class="summary-icon red">
+                        <img src="../../assets/icons/delete.png" alt="Cancelled">
+                    </div>
                     <div class="summary-info">
                         <h3 id="count-cancelled"><?php echo $cancelledCount; ?></h3>
                         <p style="cursor: pointer;" onclick="openCancelledModal()">Cancelled</p>
                     </div>
                 </div>
                 <div class="summary-card card-on-hold">
-                    <img src="../../assets/icons/paused.png" alt="cancel" style="width: 30px; height: 30px;">
+                    <div class="summary-icon gray">
+                        <img src="../../assets/icons/pause.png" alt="On Hold">
+                    </div>
                     <div class="summary-info">
                         <h3 id="count-skipped"><?php echo $onHoldCount; ?></h3>
                         <p>On Hold</p>
@@ -2246,9 +2248,9 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
 .mc-legend-item { display: flex; align-items: center; gap: 5px; }
 .mc-legend-item .mc-dot { margin-top: 0; }
 
-/* Relaxing summary card colors */
+/* Summary card colors (blue design) */
 .summary-cards .summary-card {
-    border: 1px solid transparent;
+    border: 1px solid #ccd6f5;
     border-radius: 12px;
     transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
@@ -2256,38 +2258,18 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
     transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(15, 23, 42, 0.07);
 }
-.summary-cards .card-waiting {
-    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-    border-color: #fde68a;
-}
-.summary-cards .card-completed {
-    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-    border-color: #bbf7d0;
-}
-.summary-cards .card-cancelled {
-    background: linear-gradient(135deg, #fff1f2 0%, #fecdd3 100%);
-    border-color: #fda4af;
-}
+.summary-cards .card-waiting,
+.summary-cards .card-completed,
+.summary-cards .card-cancelled,
 .summary-cards .card-on-hold {
-    background: linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%);
-    border-color: #ddd6fe;
+    background: #dbe3f7;
 }
-.summary-cards .card-waiting .summary-icon {
-    background: #fde68a;
-    color: #92400e;
-}
-.summary-cards .card-completed .summary-icon {
-    background: #bbf7d0;
-    color: #15803d;
-}
-.summary-cards .card-cancelled .summary-icon {
-    background: #fda4af;
-    color: #be123c;
-}
-.summary-cards .card-on-hold .summary-icon {
-    background: #ddd6fe;
-    color: #6d28d9;
-}
+.summary-cards .card-waiting .summary-icon { background: #a5c0f8; color: #4c80ef; }
+.summary-cards .card-completed .summary-icon { background: #a1bcf6; color: #3b72ed; }
+.summary-cards .card-cancelled .summary-icon { background: #acc4fa; color: #5787f1; }
+.summary-cards .card-on-hold .summary-icon { background: #a8c1f6; color: #0d92f7; }
+.summary-cards .summary-info h3 { color: #27427e; }
+.summary-cards .summary-info p { color: #5b6ea3; }
 
 </style>
 <?php require_once '../../includes/staff_layout_end.php'; ?>

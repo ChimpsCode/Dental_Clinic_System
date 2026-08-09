@@ -511,7 +511,7 @@ try {
 
 .control-bar .btn-add-patient {
     padding: 12px 24px;
-    background: #2563eb;
+    background: #0d92f7;
     color: white;
     border: none;
     border-radius: 8px;
@@ -527,7 +527,7 @@ try {
 }
 
 .control-bar .btn-add-patient:hover {
-    background: #1d4ed8;
+    background: #0b6cf3;
 }
 
 /* Two Column Layout */
@@ -591,7 +591,7 @@ div.main-content {
 .tab-item.active {
     color: white;
     border-bottom-color: transparent;
-    background: #3f75ea;
+    background: #0d92f7;
 }
 
 .tab-count {

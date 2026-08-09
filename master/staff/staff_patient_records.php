@@ -503,9 +503,9 @@ try {
 }
 
 .pagination-btn.active {
-    background-color: #2563eb;
+    background-color: #0d92f7;
     color: #ffffff;
-    border-color: #2563eb;
+    border-color: #0078d3;
 }
 
 .pagination-btn:disabled {

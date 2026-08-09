@@ -100,7 +100,7 @@ require_once '../../includes/staff_layout_start.php';
             ?>
             <div class="dentist-schedule-card" data-doctor-id="<?php echo $dentist['id']; ?>" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 20px; overflow: hidden;">
                 <div style="padding: 16px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 40px; height: 40px; border-radius: 50%; background: #3b82f6; color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 16px;">
+                    <div style="width: 40px; height: 40px; border-radius: 50%; background: #0d92f7; color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 16px;">
                         <?php echo strtoupper(substr($dentist['first_name'], 0, 1) . substr($dentist['last_name'], 0, 1)); ?>
                     </div>
                     <div>
@@ -132,7 +132,7 @@ require_once '../../includes/staff_layout_start.php';
                                 $startTime = $sched ? substr($sched['start_time'], 0, 5) : '08:00';
                                 $endTime = $sched ? substr($sched['end_time'], 0, 5) : '17:00';
                             ?>
-                            <div class="day-card" data-doctor="<?php echo $dentist['id']; ?>" data-day="<?php echo $day; ?>" style="border: 1px solid <?php echo $isAvailable ? '#3b82f6' : '#e2e8f0'; ?>; border-radius: 8px; padding: 10px; background: <?php echo $isAvailable ? '#eff6ff' : '#f8fafc'; ?>;">
+                            <div class="day-card" data-doctor="<?php echo $dentist['id']; ?>" data-day="<?php echo $day; ?>" style="border: 1px solid <?php echo $isAvailable ? '#0d92f7' : '#e2e8f0'; ?>; border-radius: 8px; padding: 10px; background: <?php echo $isAvailable ? '#eff6ff' : '#f8fafc'; ?>;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                                     <span style="font-size: 12px; font-weight: 600; color: #475569; text-transform: uppercase;"><?php echo substr($day, 0, 3); ?></span>
                                     <label style="display: flex; align-items: center;">
@@ -213,7 +213,7 @@ require_once '../../includes/staff_layout_start.php';
 .override-cal-grid .cal-day.custom { background: #fff7ed; color: #c2410c; font-weight: 600; border: 1px solid #fed7aa; }
 .override-cal-grid .cal-day.custom:hover { background: #ffedd5; }
 
-.date-overrides-section[open] .override-badge { background: #3b82f6; color: white; }
+.date-overrides-section[open] .override-badge { background: #0d92f7; color: white; }
 
 .override-popup-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 999999; justify-content: center; align-items: center; }
 .override-popup-overlay.active { display: flex; }
@@ -229,7 +229,7 @@ require_once '../../includes/staff_layout_start.php';
 .override-popup .popup-actions button { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; }
 .override-popup .btn-remove { background: #fef2f2; color: #dc2626; }
 .override-popup .btn-remove:hover { background: #fee2e2; }
-.override-popup .btn-save { background: #3b82f6; color: white; }
+.override-popup .btn-save { background: #0d92f7; color: white; }
 .override-popup .btn-save:hover { background: #2563eb; }
 .override-popup .btn-cancel { background: #f3f4f6; color: #374151; }
 .override-popup .btn-cancel:hover { background: #e5e7eb; }
@@ -255,7 +255,7 @@ document.querySelectorAll('.day-toggle').forEach(function(cb) {
         if (this.checked) {
             timeInputs.style.display = 'flex';
             offLabel.style.display = 'none';
-            card.style.borderColor = '#3b82f6';
+            card.style.borderColor = '#0d92f7';
             card.style.background = '#eff6ff';
         } else {
             timeInputs.style.display = 'none';

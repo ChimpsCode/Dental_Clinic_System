@@ -283,7 +283,7 @@ try {
 .view-toggle { display: flex; gap: 8px; margin-left: auto; }
 .view-toggle-btn { padding: 8px 16px; border: 1px solid #d1d5db; background: white; cursor: pointer; font-size: 14px; font-weight: 500; color: #6b7280; border-radius: 6px; transition: all 0.2s; }
 .view-toggle-btn:hover { background: #f3f4f6; }
-.view-toggle-btn.active { background: #005daa; color: white; border-color: #005daa; }
+.view-toggle-btn.active { background: #0d92f7; color: white; border-color: #0d4bf7; }
 
 .calendar-view { display: none; }
 .calendar-view.active { display: block; }
@@ -356,7 +356,7 @@ try {
     background: #e5e7eb;
 }
 .filter-tabs span.active {
-    background: #3f75ea;
+    background: #0d92f7;
     color: white;
 }
 </style>

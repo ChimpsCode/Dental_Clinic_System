@@ -670,7 +670,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
 
                 .summary-icon.green { background: #dcfce7; color: #16a34a; }
                 .summary-icon.yellow { background: #fef3c7; color: #d97706; }
-                .summary-icon.blue { background: #dbeafe; color: #2563eb; }
+                .summary-icon.blue { background: #dbeafe; color: #0d92f7; }
                 .summary-icon.red { background: #fee2e2; color: #dc2626; }
 
                 .summary-info h3 {
@@ -827,7 +827,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
 
                 .status-badge.queue-completed {
                     background: #dbeafe;
-                    color: #2563eb;
+                    color: #0d92f7;
                 }
 
                 .status-badge.queue-pending-payment {
@@ -1008,9 +1008,9 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                 }
 
                 .pagination-btn.active {
-                    background-color: #2563eb;
+                    background-color: #0d92f7;
                     color: #ffffff;
-                    border-color: #2563eb;
+                    border-color: #0d92f7;
                 }
 
                 .pagination-btn:disabled {
