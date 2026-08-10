@@ -1763,7 +1763,7 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
     height: 58px;
     border-radius: 50%;
     border: none;
-    background: #059669 !important;
+    background: #0d92f7 !important;
     color: #ffffff !important;
     display: inline-flex;
     align-items: center;
@@ -1777,7 +1777,7 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
 .dashboard-inquiry-fab:hover {
     transform: translateY(-2px);
     box-shadow: 0 18px 32px rgba(5, 150, 105, 0.34);
-    background: #047857 !important;
+    background: #0b6cf3 !important;
 }
 .dashboard-inquiry-fab-badge {
     position: absolute;
