@@ -193,36 +193,46 @@ try {
 }
 ?>
 <div class="summary-cards" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 24px;">
-    <div class="summary-card" style="width: 100%;">
-        <div class="summary-icon blue" style="background: #e0f2fe; color: #0284c7;">📋</div>
+    <div class="summary-card card-total">
+        <div class="summary-icon">
+            <img src="../../assets/icons/calendar.png" alt="Total Appointments">
+        </div>
         <div class="summary-info">
             <h3><?php echo $totalAppointments; ?></h3>
             <p>Total Appointments</p>
         </div>
     </div>
-    <div class="summary-card" style="width: 100%;">
-        <div class="summary-icon yellow">⏰</div>
+    <div class="summary-card card-today">
+        <div class="summary-icon">
+            <img src="../../assets/icons/today.png" alt="Today">
+        </div>
         <div class="summary-info">
             <h3><?php echo $todayCount; ?></h3>
             <p>Today</p>
         </div>
     </div>
-    <div class="summary-card" style="width: 100%;">
-        <div class="summary-icon yellow" style="background: #fef3c7; color: #d97706;">⏳</div>
+    <div class="summary-card card-pending">
+        <div class="summary-icon">
+            <img src="../../assets/icons/pending.png" alt="Pending">
+        </div>
         <div class="summary-info">
             <h3><?php echo $pendingCount; ?></h3>
             <p>Pending</p>
         </div>
     </div>
-    <div class="summary-card" style="width: 100%;">
-        <div class="summary-icon green">✓</div>
+    <div class="summary-card card-completed">
+        <div class="summary-icon">
+            <img src="../../assets/icons/check.png" alt="Completed">
+        </div>
         <div class="summary-info">
             <h3><?php echo $completedCount; ?></h3>
             <p>Completed</p>
         </div>
     </div>
-    <div class="summary-card" style="width: 100%;">
-        <div class="summary-icon red" style="background: #fee2e2; color: #dc2626;">⚠️</div>
+    <div class="summary-card card-cancelled">
+        <div class="summary-icon">
+            <img src="../../assets/icons/delete.png" alt="Cancelled">
+        </div>
         <div class="summary-info">
             <h3><?php echo $cancelledCount; ?></h3>
             <p>Cancelled</p>

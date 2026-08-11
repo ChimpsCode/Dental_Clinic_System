@@ -409,16 +409,14 @@ try {
 }
 
 .summary-widget {
-    background: #dbe3f7;
+    background: #ffffff;
     border-radius: 12px;
     padding: 22px;
-    border: 1px solid #ccd6f5;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     display: flex;
     align-items: center;
     gap: 16px;
     transition: transform 0.15s ease, box-shadow 0.15s ease;
-    position: relative;
-    overflow: hidden;
 }
 
 .summary-widget:hover {
@@ -443,28 +441,24 @@ try {
 }
 
 .summary-widget-icon.yellow {
-    background: #a5c0f8;
-    color: #4c80ef;
+    background: #d3e0fe;
+    
 }
 
 .summary-widget-icon.blue {
-    background: #9db8f5;
-    color: #2f6fea;
+    background: #d3e0fe;
 }
 
 .summary-widget-icon.green {
-    background: #a1bcf6;
-    color: #3b72ed;
+    background: #d3e0fe;
 }
 
 .summary-widget-icon.gray {
-    background: #a8c1f6;
-    color: #0d92f7;
+    background: #d3e0fe;
 }
 
 .summary-widget-icon.red {
-    background: #acc4fa;
-    color: #5787f1;
+    background: #d3e0fe;
 }
 
 .summary-widget-info h3 {
@@ -479,50 +473,6 @@ try {
     font-size: 0.9rem;
     color: #5b6ea3;
     margin: 4px 0 0 0;
-}
-
-/* Ensure content stays above the background icon */
-.summary-widget-icon,
-.summary-widget-info {
-    position: relative;
-    z-index: 2;
-}
-
-/* --- The Large Background Icons (Right side) --- */
-.summary-widget::after {
-    content: '';
-    position: absolute;
-    right: -25px;
-    bottom: -15px;
-    width: 100px;
-    height: 100px;
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-    opacity: 0.12;
-    z-index: 1;
-    pointer-events: none;
-}
-
-/* Mapping the specific images to each card's background pseudo-element */
-.summary-widget.card-waiting::after {
-    background-image: url('../../assets/icons/waiting.png');
-}
-
-.summary-widget.card-in-procedure::after {
-    background-image: url('../../assets/icons/in-procedure.png');
-}
-
-.summary-widget.card-completed::after {
-    background-image: url('../../assets/icons/check.png');
-}
-
-.summary-widget.card-on-hold::after {
-    background-image: url('../../assets/icons/pause.png');
-}
-
-.summary-widget.card-cancelled::after {
-    background-image: url('../../assets/icons/delete.png');
 }
 
 /* Control Bar */
@@ -1041,7 +991,7 @@ div.main-content {
 
 <!-- Top Summary Widgets -->
 <div class="summary-widgets">
-    <div class="summary-widget card-waiting">
+    <div class="summary-widget">
         <div class="summary-widget-icon yellow">
             <img src="../../assets/icons/waiting.png" alt="Waiting">
         </div>
@@ -1050,7 +1000,7 @@ div.main-content {
             <p>Waiting</p>
         </div>
     </div>
-    <div class="summary-widget card-in-procedure">
+    <div class="summary-widget">
         <div class="summary-widget-icon blue">
             <img src="../../assets/icons/in-procedure.png" alt="In Procedure">
         </div>
@@ -1059,7 +1009,7 @@ div.main-content {
             <p>In Procedure</p>
         </div>
     </div>
-    <div class="summary-widget card-completed">
+    <div class="summary-widget">
         <div class="summary-widget-icon green">
             <img src="../../assets/icons/check.png" alt="Completed">
         </div>
@@ -1068,7 +1018,7 @@ div.main-content {
             <p>Completed</p>
         </div>
     </div>
-    <div class="summary-widget card-on-hold">
+    <div class="summary-widget">
         <div class="summary-widget-icon gray">
             <img src="../../assets/icons/pause.png" alt="On Hold">
         </div>
@@ -1077,7 +1027,7 @@ div.main-content {
             <p>On Hold</p>
         </div>
     </div>
-    <div class="summary-widget card-cancelled">
+    <div class="summary-widget">
         <div class="summary-widget-icon red">
             <img src="../../assets/icons/delete.png" alt="Cancelled">
         </div>

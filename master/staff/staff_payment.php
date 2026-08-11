@@ -222,44 +222,36 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
 
                 <!-- Stats Cards -->
                 <div class="summary-cards">
-                    <div class="summary-card">
-                        <div class="summary-icon green">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                                <path fill="currentColor" d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
-                            </svg>
+                    <div class="summary-card card-collected">
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/peso.png" alt="Collected Today">
                         </div>
                         <div class="summary-info">
                             <h3>P<?php echo number_format($stats['total_collected_today'] ?? 0, 2); ?></h3>
                             <p>Collected Today</p>
                         </div>
                     </div>
-                    <div class="summary-card">
-                        <div class="summary-icon yellow">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                                <path fill="currentColor" d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10s10-4.5 10-10S17.5 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8s8 3.59 8 8s-3.59 8-8 8m.5-13H11v6l5.2 3.2l.8-1.3l-4.5-2.7z"/>
-                            </svg>
+                    <div class="summary-card card-pending">
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/pending.png" alt="Pending Today">
                         </div>
                         <div class="summary-info">
                             <h3>P<?php echo number_format($stats['pending_today'] ?? 0, 2); ?></h3>
                             <p>Pending Today</p>
                         </div>
                     </div>
-                    <div class="summary-card">
-                        <div class="summary-icon blue">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                                <path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19L21 7l-1.41-1.41z"/>
-                            </svg>
+                    <div class="summary-card card-completed">
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/check.png" alt="Completed Today">
                         </div>
                         <div class="summary-info">
                             <h3><?php echo number_format($stats['completed_today'] ?? 0); ?></h3>
                             <p>Completed Today</p>
                         </div>
                     </div>
-                    <div class="summary-card">
-                        <div class="summary-icon red">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                                <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10s10-4.48 10-10S17.52 2 12 2m1 15h-2v-2h2zm0-4h-2V7h2z"/>
-                            </svg>
+                    <div class="summary-card card-unpaid">
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/unpaid.png" alt="Unpaid Today">
                         </div>
                         <div class="summary-info">
                             <h3><?php echo number_format($stats['unpaid_today'] ?? 0); ?></h3>

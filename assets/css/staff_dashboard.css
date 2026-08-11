@@ -928,7 +928,7 @@ header.top-header {
 
 /* Base Summary Card - Matching the light blue from the image */
 .summary-card {
-    background: #e2eafc; /* Light blue base */
+    background: #ffffff; /* Light blue base */
     padding: 22px;
     border-radius: 12px;
     display: flex;
@@ -963,7 +963,7 @@ header.top-header {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    background: #c3d4fb; /* Slightly darker blue box */
+    background: #d3e0fe;/* Slightly darker blue box */
 }
 
 .summary-icon img {
@@ -1019,6 +1019,47 @@ header.top-header {
 
 .summary-card.card-on-hold::after {
     background-image: url('../../assets/icons/pause.png');
+}
+
+.summary-card.card-total::after {
+    background-image: url('../../assets/icons/dental-appointment.png');
+}
+
+.summary-card.card-today::after {
+    background-image: url('../../assets/icons/today.png');
+}
+
+.summary-card.card-pending::after {
+    background-image: url('../../assets/icons/pending.png');
+}
+
+.summary-card.card-total-patients::after {
+    background-image: url('../../assets/icons/total-patients.png');
+}
+
+.summary-card.card-new-this-month::after {
+    background-image: url('../../assets/icons/new-this-month.png');
+}
+
+.summary-card.card-registered::after {
+    background-image: url('../../assets/icons/registered.png');
+}
+
+.summary-card.card-collected::after {
+    background-image: url('../../assets/icons/peso.png');
+}
+
+.summary-card.card-unpaid::after {
+    background-image: url('../../assets/icons/unpaid.png');
+}
+
+.summary-card.card-prescriptions::after {
+    background-image: url('../../assets/icons/prescription.png');
+    opacity: 0.2;
+}
+.summary-card.card-total::after {
+    background-image: url('../../assets/icons/calendar.png');
+    
 }
 
 .summary-info h3 { font-size: 1.8rem; font-weight: 700; line-height: 1; }

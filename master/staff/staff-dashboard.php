@@ -2250,7 +2250,7 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
 
 /* Summary card colors (blue design) */
 .summary-cards .summary-card {
-    border: 1px solid #ccd6f5;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     border-radius: 12px;
     transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
@@ -2262,12 +2262,10 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
 .summary-cards .card-completed,
 .summary-cards .card-cancelled,
 .summary-cards .card-on-hold {
-    background: #dbe3f7;
+   
 }
-.summary-cards .card-waiting .summary-icon { background: #a5c0f8; color: #4c80ef; }
-.summary-cards .card-completed .summary-icon { background: #a1bcf6; color: #3b72ed; }
-.summary-cards .card-cancelled .summary-icon { background: #acc4fa; color: #5787f1; }
-.summary-cards .card-on-hold .summary-icon { background: #a8c1f6; color: #0d92f7; }
+
+
 .summary-cards .summary-info h3 { color: #27427e; }
 .summary-cards .summary-info p { color: #5b6ea3; }
 
