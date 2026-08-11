@@ -122,8 +122,8 @@ try {
         <!-- Summary Cards -->
         <div class="summary-cards">
             <div class="summary-card card-waiting">
-                <div class="summary-icon yellow">
-                    <img src="../../assets/icons/waiting.png" alt="Waiting" style="width: 24px; height: 24px;">
+                <div class="summary-icon">
+                    <img src="../../assets/icons/waiting.png" alt="Waiting">
                 </div>
                 <div class="summary-info">
                     <h3 id="dd-waiting"><?php echo $waitingCount; ?></h3>
@@ -131,8 +131,8 @@ try {
                 </div>
             </div>
             <div class="summary-card card-in-procedure">
-                <div class="summary-icon yellow">
-                    <img src="../../assets/icons/in-procedure.png" alt="In Procedure" style="width: 30px; height: 30px;">
+                <div class="summary-icon">
+                    <img src="../../assets/icons/in-procedure.png" alt="In Procedure">
                 </div>
                 <div class="summary-info">
                     <h3 id="dd-in-procedure"><?php echo $inProcedureCount; ?></h3>
@@ -140,8 +140,8 @@ try {
                 </div>
             </div>
             <div class="summary-card card-completed">
-                <div class="summary-icon green">
-                    <img src="../../assets/icons/complete.png" alt="Completed" style="width: 30px; height: 30px;">
+                <div class="summary-icon">
+                    <img src="../../assets/icons/check.png" alt="Completed">
                 </div>
                 <div class="summary-info">
                     <h3 id="dd-completed"><?php echo $completedToday; ?></h3>
@@ -149,8 +149,8 @@ try {
                 </div>
             </div>
             <div class="summary-card card-on-hold">
-                <div class="summary-icon purple">
-                    <img src="../../assets/icons/paused.png" alt="On Hold" style="width: 30px; height: 30px;">
+                <div class="summary-icon">
+                    <img src="../../assets/icons/pause.png" alt="On Hold">
                 </div>
                 <div class="summary-info">
                     <h3 id="dd-on-hold"><?php echo $onHoldCount; ?></h3>
@@ -1584,7 +1584,7 @@ function buildEmptyQueueHTML() {
         '<h2 style="color:#374151;font-size:1.5rem;margin-bottom:12px;">No Patients in Queue</h2>' +
         '<p style="color:#6b7280;font-size:1rem;margin-bottom:24px;">There are no patients waiting for treatment at the moment.<br>Patients will appear here when they are added to the queue by staff.</p>' +
         '<div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap;">' +
-        '<a href="dentist_queue.php" style="background:#2563eb;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">View Full Queue</a>' +
+        '<a href="dentist_queue.php" style="background:#0d92f7;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">View Full Queue</a>' +
         '<a href="dentist_appointments.php" style="background:#6b7280;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">View Appointments</a>' +
         '</div></div>';
 }
@@ -2202,47 +2202,83 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('dcCalPrev'))
     margin-bottom: 16px;
 }
 
-/* Relaxing summary card colors */
+/* Summary cards - light blue dashboard design (matches staff dashboard) */
 .summary-cards .summary-card {
-    border: 1px solid transparent;
+    background: #ffffff;
+    padding: 22px;
     border-radius: 12px;
-    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    min-height: 100px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease;
+    cursor: default;
 }
 .summary-cards .summary-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.07);
 }
-.summary-cards .card-waiting {
-    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-    border-color: #a89751; 
+.summary-cards .summary-icon,
+.summary-cards .summary-info {
+    position: relative;
+    z-index: 2;
 }
-.summary-cards .card-in-procedure {
-    background: linear-gradient(135deg, #eff6ff 0%, #c9daf0 100%);
-    border-color: #7393bb;
+.summary-cards .summary-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: #d3e0fe;
 }
-.summary-cards .card-completed {
-    background: linear-gradient(135deg, #f0fdf4 0%, #a8ddbb 100%);
-    border-color: #8cc7a1;
+.summary-cards .summary-icon img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
 }
-.summary-cards .card-on-hold {
-    background: linear-gradient(135deg, #faf5ff 0%, #c5c0de 100%);
-    border-color: #a49ad0;
+.summary-cards .summary-info h3 {
+    font-size: 1.8rem;
+    font-weight: 500;
+    color: #4b5563;
+    line-height: 1;
+    margin-bottom: 4px;
 }
-.summary-cards .card-waiting .summary-icon {
-    background: #fde68a;
-    color: #92400e;
+.summary-cards .summary-info p {
+    font-size: 0.9rem;
+    color: #6b7280;
+    margin: 0;
+    font-weight: 500;
 }
-.summary-cards .card-in-procedure .summary-icon {
-    background: #bfdbfe;
-    color: #1d4ed8;
+.summary-cards .summary-card::after {
+    content: '';
+    position: absolute;
+    right: -25px;
+    bottom: -15px;
+    width: 100px;
+    height: 100px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0.12;
+    z-index: 1;
+    pointer-events: none;
 }
-.summary-cards .card-completed .summary-icon {
-    background: #bbf7d0;
-    color: #15803d;
+.summary-cards .summary-card.card-waiting::after {
+    background-image: url('../../assets/icons/waiting.png');
 }
-.summary-cards .card-on-hold .summary-icon {
-    background: #ddd6fe;
-    color: #6d28d9;
+.summary-cards .summary-card.card-in-procedure::after {
+    background-image: url('../../assets/icons/in-procedure.png');
+}
+.summary-cards .summary-card.card-completed::after {
+    background-image: url('../../assets/icons/check.png');
+}
+.summary-cards .summary-card.card-on-hold::after {
+    background-image: url('../../assets/icons/pause.png');
 }
 
 </style>

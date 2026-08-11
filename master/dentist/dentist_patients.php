@@ -67,29 +67,37 @@ try {
 
 <!-- Summary Stats -->
 <div class="summary-cards">
-    <div class="summary-card">
-        <div class="summary-icon blue" style="background: #e0f2fe; color: #0284c7;">👥</div>
+    <div class="summary-card card-total-patients">
+        <div class="summary-icon">
+            <img src="../../assets/icons/total-patients.png" alt="Total Patients">
+        </div>
         <div class="summary-info">
             <h3><?php echo $totalPatients; ?></h3>
             <p>Total Patients</p>
         </div>
     </div>
-    <div class="summary-card">
-        <div class="summary-icon yellow">⏰</div>
+    <div class="summary-card card-pending">
+        <div class="summary-icon">
+            <img src="../../assets/icons/pending.png" alt="Pending">
+        </div>
         <div class="summary-info">
             <h3><?php echo $inQueue; ?></h3>
             <p>Pending Appointments</p>
         </div>
     </div>
-    <div class="summary-card">
-        <div class="summary-icon green">✓</div>
+    <div class="summary-card card-new-this-month">
+        <div class="summary-icon">
+            <img src="../../assets/icons/new-this-month.png" alt="New This Month">
+        </div>
         <div class="summary-info">
             <h3><?php echo $newThisMonth; ?></h3>
             <p>New This Month</p>
         </div>
     </div>
-    <div class="summary-card">
-        <div class="summary-icon red" style="background: #fee2e2; color: #dc2626;">📋</div>
+    <div class="summary-card card-completed">
+        <div class="summary-icon">
+            <img src="../../assets/icons/check.png" alt="Completed">
+        </div>
         <div class="summary-info">
             <h3><?php echo $completedCount; ?></h3>
             <p>Completed</p>
@@ -3669,6 +3677,84 @@ setInterval(() => {
 }
 .summary-cards{
     margin-bottom: 0px;
+}
+/* Summary cards - light blue dashboard design (matches staff dashboard) */
+.summary-cards .summary-card {
+    background: #ffffff;
+    padding: 22px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    min-height: 100px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease;
+    cursor: default;
+}
+.summary-cards .summary-card:hover {
+    transform: translateY(-2px);
+}
+.summary-cards .summary-icon,
+.summary-cards .summary-info {
+    position: relative;
+    z-index: 2;
+}
+.summary-cards .summary-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: #d3e0fe;
+}
+.summary-cards .summary-icon img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+.summary-cards .summary-info h3 {
+    font-size: 1.8rem;
+    font-weight: 500;
+    color: #4b5563;
+    line-height: 1;
+    margin-bottom: 4px;
+}
+.summary-cards .summary-info p {
+    font-size: 0.9rem;
+    color: #6b7280;
+    margin: 0;
+    font-weight: 500;
+}
+.summary-cards .summary-card::after {
+    content: '';
+    position: absolute;
+    right: -25px;
+    bottom: -15px;
+    width: 100px;
+    height: 100px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0.12;
+    z-index: 1;
+    pointer-events: none;
+}
+.summary-cards .summary-card.card-total-patients::after {
+    background-image: url('../../assets/icons/total-patients.png');
+}
+.summary-cards .summary-card.card-pending::after {
+    background-image: url('../../assets/icons/pending.png');
+}
+.summary-cards .summary-card.card-new-this-month::after {
+    background-image: url('../../assets/icons/new-this-month.png');
+}
+.summary-cards .summary-card.card-completed::after {
+    background-image: url('../../assets/icons/check.png');
 }
 /* Container (Keeping this the same so they stay in a row) */
 .search-filter-row {

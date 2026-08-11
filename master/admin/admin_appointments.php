@@ -178,30 +178,47 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 
 
                 <!-- Stats Cards -->
-                <div class="summary-cards">
-                    <div class="summary-card">
-                        <div class="summary-icon blue">&#128197;</div>
+                <div class="summary-cards" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 24px;">
+                    <div class="summary-card card-total">
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/calendar.png" alt="Total Appointments">
+                        </div>
+                        <div class="summary-info">
+                            <h3><?php echo $totalAppointments; ?></h3>
+                            <p>Total Appointments</p>
+                        </div>
+                    </div>
+                    <div class="summary-card card-today">
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/today.png" alt="Today's Appointments">
+                        </div>
                         <div class="summary-info">
                             <h3><?php echo $todayCount; ?></h3>
                             <p>Today's Appointments</p>
                         </div>
                     </div>
-                    <div class="summary-card">
-                        <div class="summary-icon green">&#10003;</div>
+                    <div class="summary-card card-completed">
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/check.png" alt="Completed">
+                        </div>
                         <div class="summary-info">
                             <h3><?php echo $completedCount; ?></h3>
                             <p>Completed</p>
                         </div>
                     </div>
-                    <div class="summary-card">
-                        <div class="summary-icon yellow">&#9203;</div>
+                    <div class="summary-card card-pending">
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/pending.png" alt="Pending">
+                        </div>
                         <div class="summary-info">
                             <h3><?php echo $pendingCount; ?></h3>
                             <p>Pending</p>
                         </div>
                     </div>
-                    <div class="summary-card">
-                        <div class="summary-icon red">&#10060;</div>
+                    <div class="summary-card card-cancelled">
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/delete.png" alt="Cancelled">
+                        </div>
                         <div class="summary-info">
                             <h3><?php echo $cancelledCount; ?></h3>
                             <p>Cancelled</p>
@@ -215,6 +232,87 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 </div>
 
                 <style>
+                /* Summary cards - light blue dashboard design (matches staff dashboard) */
+                .summary-cards .summary-card {
+                    background: #ffffff;
+                    padding: 22px;
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
+                    border: none;
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                    min-height: 100px;
+                    position: relative;
+                    overflow: hidden;
+                    transition: transform 0.2s ease;
+                    cursor: default;
+                }
+                .summary-cards .summary-card:hover {
+                    transform: translateY(-2px);
+                }
+                .summary-cards .summary-icon,
+                .summary-cards .summary-info {
+                    position: relative;
+                    z-index: 2;
+                }
+                .summary-cards .summary-icon {
+                    width: 48px;
+                    height: 48px;
+                    border-radius: 10px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-shrink: 0;
+                    background: #d3e0fe;
+                }
+                .summary-cards .summary-icon img {
+                    width: 24px;
+                    height: 24px;
+                    object-fit: contain;
+                }
+                .summary-cards .summary-info h3 {
+                    font-size: 1.8rem;
+                    font-weight: 500;
+                    color: #4b5563;
+                    line-height: 1;
+                    margin-bottom: 4px;
+                }
+                .summary-cards .summary-info p {
+                    font-size: 0.9rem;
+                    color: #6b7280;
+                    margin: 0;
+                    font-weight: 500;
+                }
+                .summary-cards .summary-card::after {
+                    content: '';
+                    position: absolute;
+                    right: -25px;
+                    bottom: -15px;
+                    width: 100px;
+                    height: 100px;
+                    background-size: contain;
+                    background-repeat: no-repeat;
+                    background-position: center;
+                    opacity: 0.12;
+                    z-index: 1;
+                    pointer-events: none;
+                }
+                .summary-cards .summary-card.card-total::after {
+                    background-image: url('../../assets/icons/calendar.png');
+                }
+                .summary-cards .summary-card.card-today::after {
+                    background-image: url('../../assets/icons/today.png');
+                }
+                .summary-cards .summary-card.card-completed::after {
+                    background-image: url('../../assets/icons/check.png');
+                }
+                .summary-cards .summary-card.card-pending::after {
+                    background-image: url('../../assets/icons/pending.png');
+                }
+                .summary-cards .summary-card.card-cancelled::after {
+                    background-image: url('../../assets/icons/delete.png');
+                }
                 .view-toggle-btn { padding: 8px 16px; border: 1px solid #d1d5db; background: white; cursor: pointer; font-size: 14px; font-weight: 500; color: #6b7280; border-radius: 6px; transition: all 0.2s; }
                 .view-toggle-btn:hover { background: #f3f4f6; }
                 .view-toggle-btn.active { background: #2563eb; color: white; border-color: #2563eb; }

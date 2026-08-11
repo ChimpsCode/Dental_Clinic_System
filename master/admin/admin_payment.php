@@ -152,29 +152,37 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
                 <!-- Stats Cards -->
                 <div class="summary-cards">
-                    <div class="summary-card">
-                        <div class="summary-icon green">&#128176;</div>
+                    <div class="summary-card card-collected">
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/peso.png" alt="Total Collected">
+                        </div>
                         <div class="summary-info">
                             <h3>&#8369;<?php echo number_format($totalCollected, 2); ?></h3>
                             <p>Total Collected</p>
                         </div>
                     </div>
-                    <div class="summary-card">
-                        <div class="summary-icon yellow">&#9203;</div>
+                    <div class="summary-card card-unpaid">
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/unpaid.png" alt="Pending Payments">
+                        </div>
                         <div class="summary-info">
                             <h3>&#8369;<?php echo number_format($pendingPayments, 2); ?></h3>
                             <p>Pending Payments</p>
                         </div>
                     </div>
-                    <div class="summary-card">
-                        <div class="summary-icon blue">&#128203;</div>
+                    <div class="summary-card card-transactions">
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/transaction.png" alt="Total Transactions">
+                        </div>
                         <div class="summary-info">
                             <h3><?php echo number_format($totalTransactions); ?></h3>
                             <p>Total Transactions</p>
                         </div>
                     </div>
-                    <div class="summary-card">
-                        <div class="summary-icon red">&#10060;</div>
+                    <div class="summary-card card-overdue">
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/overdue.png" alt="Overdue">
+                        </div>
                         <div class="summary-info">
                             <h3><?php echo number_format($overdueCount); ?></h3>
                             <p>Overdue</p>
@@ -990,6 +998,84 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
             </script>
 
 <style>
+/* Summary cards - light blue dashboard design (matches staff dashboard) */
+.summary-cards .summary-card {
+    background: #ffffff;
+    padding: 22px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    min-height: 100px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease;
+    cursor: default;
+}
+.summary-cards .summary-card:hover {
+    transform: translateY(-2px);
+}
+.summary-cards .summary-icon,
+.summary-cards .summary-info {
+    position: relative;
+    z-index: 2;
+}
+.summary-cards .summary-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: #d3e0fe;
+}
+.summary-cards .summary-icon img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+.summary-cards .summary-info h3 {
+    font-size: 1.8rem;
+    font-weight: 500;
+    color: #4b5563;
+    line-height: 1;
+    margin-bottom: 4px;
+}
+.summary-cards .summary-info p {
+    font-size: 0.9rem;
+    color: #6b7280;
+    margin: 0;
+    font-weight: 500;
+}
+.summary-cards .summary-card::after {
+    content: '';
+    position: absolute;
+    right: -25px;
+    bottom: -15px;
+    width: 100px;
+    height: 100px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0.12;
+    z-index: 1;
+    pointer-events: none;
+}
+.summary-cards .summary-card.card-collected::after {
+    background-image: url('../../assets/icons/peso.png');
+}
+.summary-cards .summary-card.card-unpaid::after {
+    background-image: url('../../assets/icons/unpaid.png');
+}
+.summary-cards .summary-card.card-transactions::after {
+    background-image: url('../../assets/icons/transaction.png');
+}
+.summary-cards .summary-card.card-overdue::after {
+    background-image: url('../../assets/icons/overdue.png');
+}
 @media (max-width: 768px) {
     .summary-cards { grid-template-columns: 1fr 1fr !important; }
     .summary-card { padding: 16px !important; }

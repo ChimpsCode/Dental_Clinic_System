@@ -86,39 +86,49 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 
                 <!-- Summary Stats Cards -->
                 <div class="summary-cards" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; margin-bottom: 0px;">
-                    <div class="summary-card" style="background: white; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; display: flex; align-items: center; gap: 16px;">
-                        <div class="summary-icon" style="width: 48px; height: 48px; background: #dbeafe; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">👥</div>
+                    <div class="summary-card card-total-patients">
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/total-patients.png" alt="Total Patients">
+                        </div>
                         <div class="summary-info">
-                            <h3 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0;"><?php echo $totalPatients; ?></h3>
-                            <p style="font-size: 0.875rem; color: #6b7280; margin: 0;">Total Patients</p>
+                            <h3><?php echo $totalPatients; ?></h3>
+                            <p>Total Patients</p>
                         </div>
                     </div>
-                    <div class="summary-card" style="background: white; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; display: flex; align-items: center; gap: 16px;">
-                        <div class="summary-icon" style="width: 48px; height: 48px; background: #fef3c7; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">⏰</div>
+                    <div class="summary-card card-pending">
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/pending.png" alt="In Queue">
+                        </div>
                         <div class="summary-info">
-                            <h3 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0;"><?php echo $inQueue; ?></h3>
-                            <p style="font-size: 0.875rem; color: #6b7280; margin: 0;">In Queue</p>
+                            <h3><?php echo $inQueue; ?></h3>
+                            <p>In Queue</p>
                         </div>
                     </div>
-                    <div class="summary-card" style="background: white; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; display: flex; align-items: center; gap: 16px;">
-                        <div class="summary-icon" style="width: 48px; height: 48px; background: #e0e7ff; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">📅</div>
+                    <div class="summary-card card-appointments">
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/calendar.png" alt="Scheduled">
+                        </div>
                         <div class="summary-info">
-                            <h3 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0;"><?php echo $scheduledCount; ?></h3>
-                            <p style="font-size: 0.875rem; color: #6b7280; margin: 0;">Scheduled</p>
+                            <h3><?php echo $scheduledCount; ?></h3>
+                            <p>Scheduled</p>
                         </div>
                     </div>
-                    <div class="summary-card" style="background: white; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; display: flex; align-items: center; gap: 16px;">
-                        <div class="summary-icon" style="width: 48px; height: 48px; background: #d1fae5; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">✓</div>
+                    <div class="summary-card card-new-this-month">
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/new-this-month.png" alt="New This Month">
+                        </div>
                         <div class="summary-info">
-                            <h3 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0;"><?php echo $newThisMonth; ?></h3>
-                            <p style="font-size: 0.875rem; color: #6b7280; margin: 0;">New This Month</p>
+                            <h3><?php echo $newThisMonth; ?></h3>
+                            <p>New This Month</p>
                         </div>
                     </div>
-                    <div class="summary-card" style="background: white; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; display: flex; align-items: center; gap: 16px;">
-                        <div class="summary-icon" style="width: 48px; height: 48px; background: #fee2e2; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">📋</div>
+                    <div class="summary-card card-registered">
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/registered.png" alt="Registered Patients">
+                        </div>
                         <div class="summary-info">
-                            <h3 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0;"><?php echo $totalPatients; ?></h3>
-                            <p style="font-size: 0.875rem; color: #6b7280; margin: 0;">Registered Patients</p>
+                            <h3><?php echo $totalPatients; ?></h3>
+                            <p>Registered Patients</p>
                         </div>
                     </div>
                 </div>
@@ -1487,6 +1497,87 @@ function closeOdontogramModalDirect() {
 </script>
 
 <style>
+/* Summary cards - light blue dashboard design (matches staff dashboard) */
+.summary-cards .summary-card {
+    background: #ffffff;
+    padding: 22px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    min-height: 100px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease;
+    cursor: default;
+}
+.summary-cards .summary-card:hover {
+    transform: translateY(-2px);
+}
+.summary-cards .summary-icon,
+.summary-cards .summary-info {
+    position: relative;
+    z-index: 2;
+}
+.summary-cards .summary-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: #d3e0fe;
+}
+.summary-cards .summary-icon img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+.summary-cards .summary-info h3 {
+    font-size: 1.8rem;
+    font-weight: 500;
+    color: #4b5563;
+    line-height: 1;
+    margin-bottom: 4px;
+}
+.summary-cards .summary-info p {
+    font-size: 0.9rem;
+    color: #6b7280;
+    margin: 0;
+    font-weight: 500;
+}
+.summary-cards .summary-card::after {
+    content: '';
+    position: absolute;
+    right: -25px;
+    bottom: -15px;
+    width: 100px;
+    height: 100px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0.12;
+    z-index: 1;
+    pointer-events: none;
+}
+.summary-cards .summary-card.card-total-patients::after {
+    background-image: url('../../assets/icons/total-patients.png');
+}
+.summary-cards .summary-card.card-pending::after {
+    background-image: url('../../assets/icons/pending.png');
+}
+.summary-cards .summary-card.card-appointments::after {
+    background-image: url('../../assets/icons/calendar.png');
+}
+.summary-cards .summary-card.card-new-this-month::after {
+    background-image: url('../../assets/icons/new-this-month.png');
+}
+.summary-cards .summary-card.card-registered::after {
+    background-image: url('../../assets/icons/registered.png');
+}
 /* Table Column Alignment */
 .data-table th,
 .data-table td {

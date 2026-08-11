@@ -89,12 +89,13 @@ foreach ($patients as &$patient) {
 unset($patient);
 
 // Calculate stats
-$activePlans = 0; $completedPlans = 0;
+$activePlans = 0; $completedPlans = 0; $cancelledPlans = 0;
 if (!empty($treatmentPlans)) {
     foreach($treatmentPlans as $tp) {
-        $st = $tp['overall_status'] ?? '';
-        if ($st === 'Active') $activePlans++;
-        if ($st === 'Completed') $completedPlans++;
+        $st = strtolower(trim($tp['overall_status'] ?? ''));
+        if ($st === 'active') $activePlans++;
+        if ($st === 'completed') $completedPlans++;
+        if ($st === 'cancelled' || $st === 'canceled') $cancelledPlans++;
     }
 }
 
@@ -103,32 +104,40 @@ require_once '../../includes/dentist_layout_start.php';
 
 <!-- Summary Stats -->
 <div class="summary-cards">
-    <div class="summary-card">
-        <div class="summary-icon blue" style="background: #e0f2fe; color: #0284c7;">📋</div>
+    <div class="summary-card card-total">
+        <div class="summary-icon">
+            <img src="../../assets/icons/calendar.png" alt="Total Plans">
+        </div>
         <div class="summary-info">
             <h3><?php echo count($treatmentPlans); ?></h3>
             <p>Total Plans</p>
         </div>
     </div>
-    <div class="summary-card">
-        <div class="summary-icon yellow">⚡</div>
+    <div class="summary-card card-in-progress">
+        <div class="summary-icon">
+            <img src="../../assets/icons/progress.png" alt="In Progress">
+        </div>
         <div class="summary-info">
             <h3><?php echo $activePlans; ?></h3>
             <p>In Progress</p>
         </div>
     </div>
-    <div class="summary-card">
-        <div class="summary-icon green">✓</div>
+    <div class="summary-card card-completed">
+        <div class="summary-icon">
+            <img src="../../assets/icons/check.png" alt="Completed">
+        </div>
         <div class="summary-info">
             <h3><?php echo $completedPlans; ?></h3>
             <p>Completed</p>
         </div>
     </div>
-    <div class="summary-card">
-        <div class="summary-icon" style="background: #fef3c7; color: #d97706;">📅</div>
+    <div class="summary-card card-cancelled">
+        <div class="summary-icon">
+            <img src="../../assets/icons/delete.png" alt="Cancelled">
+        </div>
         <div class="summary-info">
-            <h3><?php echo count($treatmentPlans); ?></h3>
-            <p>Total Plans</p>
+            <h3><?php echo $cancelledPlans; ?></h3>
+            <p>Cancelled</p>
         </div>
     </div>
 </div>
@@ -1510,6 +1519,84 @@ require_once '../../includes/dentist_layout_start.php';
 .summary-cards{
     margin-bottom: 0px;
 
+}
+/* Summary cards - light blue dashboard design (matches staff dashboard) */
+.summary-cards .summary-card {
+    background: #ffffff;
+    padding: 22px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    min-height: 100px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease;
+    cursor: default;
+}
+.summary-cards .summary-card:hover {
+    transform: translateY(-2px);
+}
+.summary-cards .summary-icon,
+.summary-cards .summary-info {
+    position: relative;
+    z-index: 2;
+}
+.summary-cards .summary-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: #d3e0fe;
+}
+.summary-cards .summary-icon img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+.summary-cards .summary-info h3 {
+    font-size: 1.8rem;
+    font-weight: 500;
+    color: #4b5563;
+    line-height: 1;
+    margin-bottom: 4px;
+}
+.summary-cards .summary-info p {
+    font-size: 0.9rem;
+    color: #6b7280;
+    margin: 0;
+    font-weight: 500;
+}
+.summary-cards .summary-card::after {
+    content: '';
+    position: absolute;
+    right: -25px;
+    bottom: -15px;
+    width: 100px;
+    height: 100px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0.12;
+    z-index: 1;
+    pointer-events: none;
+}
+.summary-cards .summary-card.card-total::after {
+    background-image: url('../../assets/icons/calendar.png');
+}
+.summary-cards .summary-card.card-in-progress::after {
+    background-image: url('../../assets/icons/progress.png');
+}
+.summary-cards .summary-card.card-completed::after {
+    background-image: url('../../assets/icons/check.png');
+}
+.summary-cards .summary-card.card-cancelled::after {
+    background-image: url('../../assets/icons/delete.png');
 }
 /* Container to keep everything in a neat row */
 .filter-bar-container {

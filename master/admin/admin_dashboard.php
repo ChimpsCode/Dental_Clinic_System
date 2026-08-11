@@ -221,7 +221,9 @@ try {
                 <!-- Summary Cards -->
                 <div class="summary-cards">
                     <div class="summary-card card-total-patients">
-                        <div class="summary-icon blue">🏥</div>
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/total-patients.png" alt="Total Patients">
+                        </div>
                         <div class="summary-info">
                             <h3><?php echo $totalPatients; ?></h3>
                             <p>Total Patients</p>
@@ -229,7 +231,9 @@ try {
                     </div>
                     
                     <div class="summary-card card-appointments">
-                        <div class="summary-icon green">📅</div>
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/calendar.png" alt="Appointments">
+                        </div>
                         <div class="summary-info">
                             <h3><?php echo $totalAppointments; ?></h3>
                             <p>Appointments</p>
@@ -237,7 +241,9 @@ try {
                     </div>
 
                     <div class="summary-card card-revenue">
-                        <div class="summary-icon green">💰</div>
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/revenue.png" alt="Total Revenue">
+                        </div>
                         <div class="summary-info">
                             <h3>₱<?php echo number_format($totalRevenue); ?></h3>
                             <p>Total Revenue</p>
@@ -245,7 +251,9 @@ try {
                     </div>
                     
                     <div class="summary-card card-pending">
-                        <div class="summary-icon yellow">⏳</div>
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/unpaid.png" alt="Pending Payments">
+                        </div>
                         <div class="summary-info">
                             <h3><?php echo $pendingPayments; ?></h3>
                             <p>Pending Payments</p>
@@ -253,7 +261,9 @@ try {
                     </div>
                     
                     <div class="summary-card card-completed">
-                        <div class="summary-icon green">✓</div>
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/check.png" alt="Completed Today">
+                        </div>
                         <div class="summary-info">
                             <h3 id="ad-completed-today"><?php echo $completedToday; ?></h3>
                             <p>Completed Today</p>
@@ -261,7 +271,9 @@ try {
                     </div>
                     
                     <div class="summary-card card-collected">
-                        <div class="summary-icon blue">💵</div>
+                        <div class="summary-icon">
+                            <img src="../../assets/icons/peso.png" alt="Collected Today">
+                        </div>
                         <div class="summary-info">
                             <h3>₱<?php echo number_format($totalCollected); ?></h3>
                             <p>Collected Today</p>
@@ -485,7 +497,7 @@ try {
                         <h2 class="section-title">📅 Upcoming Appointments</h2>
                         <div style="max-height: 250px; overflow-y: auto;">
                             <?php if (empty($todayAppointments)): ?>
-                                <p style="text-align: center; color: #6b7280; padding: 20px;">No upcoming appointments</p>
+                                <p style="text-align: center; color: #0d92f7; padding: 20px;">No upcoming appointments</p>
                             <?php else: ?>
                                 <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                                     <thead>
@@ -520,7 +532,7 @@ try {
                                 </table>
                             <?php endif; ?>
                         </div>
-                        <a href="admin_appointments.php" style="display: block; text-align: center; margin-top: 12px; padding: 8px; background: #f3f4f6; border-radius: 6px; color: #374151; text-decoration: none; font-size: 12px;">
+                        <a href="admin_appointments.php" style="display: block; text-align: center; margin-top: 12px; padding: 8px; background: #0d92f7; border-radius: 6px; color: #ffffff; text-decoration: none; font-size: 12px;">
                             View All (<?php echo $totalUpcomingAppts; ?>)
                         </a>
                     </div>
@@ -939,62 +951,88 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('adCalPrev'))
 .mc-legend-item { display: flex; align-items: center; gap: 5px; }
 .mc-legend-item .mc-dot { margin-top: 0; }
 
-/* Relaxing summary card colors */
+/* Summary cards - light blue dashboard design (matches staff dashboard) */
 .summary-cards .summary-card {
-    border: 1px solid transparent;
+    background: #ffffff;
+    padding: 22px;
     border-radius: 12px;
-    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    min-height: 100px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease;
+    cursor: default;
 }
 .summary-cards .summary-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.07);
 }
-.summary-cards .card-total-patients {
-    background: linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%);
-    border-color: #80b2cc;
+.summary-cards .summary-icon,
+.summary-cards .summary-info {
+    position: relative;
+    z-index: 2;
 }
-.summary-cards .card-appointments {
-    background: linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%);
-    border-color: #80b2cc;
+.summary-cards .summary-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: #d3e0fe;
 }
-.summary-cards .card-revenue {
-    background: linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%);
-    border-color: #80b2cc;
+.summary-cards .summary-icon img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
 }
-.summary-cards .card-pending {
-    background: linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%);
-    border-color: #80b2cc;
+.summary-cards .summary-info h3 {
+    font-size: 1.8rem;
+    font-weight: 500;
+    color: #4b5563;
+    line-height: 1;
+    margin-bottom: 4px;
 }
-.summary-cards .card-completed {
-    background: linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%);
-    border-color: #80b2cc;
+.summary-cards .summary-info p {
+    font-size: 0.9rem;
+    color: #6b7280;
+    margin: 0;
+    font-weight: 500;
 }
-.summary-cards .card-collected {
-    background: linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%);
-    border-color: #80b2cc;
+.summary-cards .summary-card::after {
+    content: '';
+    position: absolute;
+    right: -25px;
+    bottom: -15px;
+    width: 100px;
+    height: 100px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0.12;
+    z-index: 1;
+    pointer-events: none;
 }
-.summary-cards .card-total-patients .summary-icon {
-    background: #bae6fd;
-    color: #1d4ed8;
+.summary-cards .summary-card.card-total-patients::after {
+    background-image: url('../../assets/icons/total-patients.png');
 }
-.summary-cards .card-appointments .summary-icon {
-    background: #99f6e4;
-    color: #0f766e;
+.summary-cards .summary-card.card-appointments::after {
+    background-image: url('../../assets/icons/calendar.png');
 }
-.summary-cards .card-revenue .summary-icon {
-    background: #bbf7d0;
-    color: #15803d;
+.summary-cards .summary-card.card-revenue::after {
+    background-image: url('../../assets/icons/revenue.png');
 }
-.summary-cards .card-pending .summary-icon {
-    background: #fde68a;
-    color: #92400e;
+.summary-cards .summary-card.card-pending::after {
+    background-image: url('../../assets/icons/unpaid.png');
 }
-.summary-cards .card-completed .summary-icon {
-    background: #a5f3fc;
-    color: #0e7490;
+.summary-cards .summary-card.card-completed::after {
+    background-image: url('../../assets/icons/check.png');
 }
-.summary-cards .card-collected .summary-icon {
-    background: #ddd6fe;
-    color: #6d28d9;
+.summary-cards .summary-card.card-collected::after {
+    background-image: url('../../assets/icons/peso.png');
 }
 </style>

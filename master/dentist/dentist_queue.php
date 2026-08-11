@@ -282,67 +282,110 @@ try {
 }
 
 .summary-widget {
-    background: white;
+    background: #ffffff;
     border-radius: 12px;
-    padding: 24px;
-    border: 1px solid #e5e7eb;
+    padding: 22px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     display: flex;
     align-items: center;
     gap: 16px;
-    transition: all 0.2s;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    position: relative;
+    overflow: hidden;
+    cursor: default;
 }
 
 .summary-widget:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.07);
+}
+
+.summary-widget-icon,
+.summary-widget-info {
+    position: relative;
+    z-index: 2;
 }
 
 .summary-widget-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 12px;
+    width: 54px;
+    height: 54px;
+    border-radius: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.75rem;
+    flex-shrink: 0;
+}
+
+.summary-widget-icon img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
 }
 
 .summary-widget-icon.yellow {
-    background: #fef3c7;
-    color: #d97706;
-}
-
-.summary-widget-icon.green {
-    background: #dcfce7;
-    color: #16a34a;
+    background: #d3e0fe;
+    
 }
 
 .summary-widget-icon.blue {
-    background: #dbeafe;
-    color: #2563eb;
+    background: #d3e0fe;
+}
+
+.summary-widget-icon.green {
+    background: #d3e0fe;
 }
 
 .summary-widget-icon.red {
-    background: #fee2e2;
-    color: #dc2626;
+    background: #d3e0fe;
 }
 
 .summary-widget-icon.gray {
-    background: #f3f4f6;
-    color: #6b7280;
+    background: #d3e0fe;
 }
 
 .summary-widget-info h3 {
-    font-size: 2rem;
+    font-size: 1.8rem;
     font-weight: 700;
-    color: #111827;
+    color: #27427e;
     margin: 0;
     line-height: 1;
 }
 
 .summary-widget-info p {
-    font-size: 0.875rem;
-    color: #6b7280;
+    font-size: 0.9rem;
+    color: #5b6ea3;
     margin: 4px 0 0 0;
+}
+
+/* Large background watermark icon (right side) */
+.summary-widget::after {
+    content: '';
+    position: absolute;
+    right: -25px;
+    bottom: -15px;
+    width: 100px;
+    height: 100px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0.12;
+    z-index: 1;
+    pointer-events: none;
+}
+.summary-widget.card-waiting::after {
+    background-image: url('../../assets/icons/waiting.png');
+}
+.summary-widget.card-in-procedure::after {
+    background-image: url('../../assets/icons/in-procedure.png');
+}
+.summary-widget.card-completed::after {
+    background-image: url('../../assets/icons/check.png');
+}
+.summary-widget.card-on-hold::after {
+    background-image: url('../../assets/icons/pause.png');
+}
+.summary-widget.card-cancelled::after {
+    background-image: url('../../assets/icons/delete.png');
 }
 /* Align items neatly in a row */
 /* Force the container to keep items in a row */
@@ -1163,36 +1206,46 @@ div.main-content {
 
 <!-- Summary Widgets -->
 <div class="summary-widgets">
-    <div class="summary-widget">
-        <div class="summary-widget-icon yellow">⏰</div>
+    <div class="summary-widget card-waiting">
+        <div class="summary-widget-icon yellow">
+            <img src="../../assets/icons/waiting.png" alt="Waiting">
+        </div>
         <div class="summary-widget-info">
             <h3><?php echo $waitingCount; ?></h3>
             <p>Waiting</p>
         </div>
     </div>
-    <div class="summary-widget">
-        <div class="summary-widget-icon blue">⚕️</div>
+    <div class="summary-widget card-in-procedure">
+        <div class="summary-widget-icon blue">
+            <img src="../../assets/icons/in-procedure.png" alt="In Procedure">
+        </div>
         <div class="summary-widget-info">
             <h3><?php echo $procedureCount; ?></h3>
             <p>In Procedure</p>
         </div>
     </div>
-    <div class="summary-widget">
-        <div class="summary-widget-icon green">✓</div>
+    <div class="summary-widget card-completed">
+        <div class="summary-widget-icon green">
+            <img src="../../assets/icons/check.png" alt="Completed">
+        </div>
         <div class="summary-widget-info">
             <h3><?php echo $completedToday; ?></h3>
             <p>Completed</p>
         </div>
     </div>
-    <div class="summary-widget">
-        <div class="summary-widget-icon gray">⏸</div>
+    <div class="summary-widget card-on-hold">
+        <div class="summary-widget-icon gray">
+            <img src="../../assets/icons/pause.png" alt="On Hold">
+        </div>
         <div class="summary-widget-info">
             <h3><?php echo $onHoldCount; ?></h3>
             <p>On Hold</p>
         </div>
     </div>
-    <div class="summary-widget">
-        <div class="summary-widget-icon red">✕</div>
+    <div class="summary-widget card-cancelled">
+        <div class="summary-widget-icon red">
+            <img src="../../assets/icons/delete.png" alt="Cancelled">
+        </div>
         <div class="summary-widget-info">
             <h3><?php echo $cancelledCount; ?></h3>
             <p>Cancelled</p>

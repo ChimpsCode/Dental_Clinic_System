@@ -113,6 +113,79 @@ try {
     margin-bottom: 0px;
     padding-bottom: 25px;
 }
+/* Summary cards - light blue dashboard design (matches staff dashboard) */
+.summary-cards .summary-card {
+    background: #ffffff;
+    padding: 22px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    min-height: 100px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease;
+    cursor: default;
+}
+.summary-cards .summary-card:hover {
+    transform: translateY(-2px);
+}
+.summary-cards .summary-icon,
+.summary-cards .summary-info {
+    position: relative;
+    z-index: 2;
+}
+.summary-cards .summary-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: #d3e0fe;
+}
+.summary-cards .summary-icon img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+.summary-cards .summary-info h3 {
+    font-size: 1.8rem;
+    font-weight: 500;
+    color: #4b5563;
+    line-height: 1;
+    margin-bottom: 4px;
+}
+.summary-cards .summary-info p {
+    font-size: 0.9rem;
+    color: #6b7280;
+    margin: 0;
+    font-weight: 500;
+}
+.summary-cards .summary-card::after {
+    content: '';
+    position: absolute;
+    right: -25px;
+    bottom: -15px;
+    width: 100px;
+    height: 100px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0.12;
+    z-index: 1;
+    pointer-events: none;
+}
+.summary-cards .summary-card.card-prescriptions::after {
+    background-image: url('../../assets/icons/prescription.png');
+    opacity: 0.2;
+}
+.summary-cards .summary-card.card-today::after {
+    background-image: url('../../assets/icons/today.png');
+}
 
 .stat-card {
     background: #ffffff;
@@ -520,34 +593,24 @@ try {
 
     
 
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-icon">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="12" y1="18" x2="12" y2="12"></line>
-                    <line x1="9" y1="15" x2="15" y2="15"></line>
-                </svg>
+    <div class="summary-cards" style="grid-template-columns: repeat(2, 1fr);">
+        <div class="summary-card card-prescriptions">
+            <div class="summary-icon">
+                <img src="../../assets/icons/prescription.png" alt="Total Prescriptions">
             </div>
-            <div class="stat-info">
-                <div class="stat-number"><?php echo count($prescriptions); ?></div>
-                <div class="stat-label">Total Prescriptions</div>
+            <div class="summary-info">
+                <h3><?php echo count($prescriptions); ?></h3>
+                <p>Total Prescriptions</p>
             </div>
         </div>
         
-        <div class="stat-card">
-            <div class="stat-icon">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                    <line x1="16" y1="2" x2="16" y2="6"></line>
-                    <line x1="8" y1="2" x2="8" y2="6"></line>
-                    <line x1="3" y1="10" x2="21" y2="10"></line>
-                </svg>
+        <div class="summary-card card-today">
+            <div class="summary-icon">
+                <img src="../../assets/icons/today.png" alt="Today">
             </div>
-            <div class="stat-info">
-                <div class="stat-number"><?php echo $todayCount; ?></div>
-                <div class="stat-label">Today</div>
+            <div class="summary-info">
+                <h3><?php echo $todayCount; ?></h3>
+                <p>Today</p>
             </div>
         </div>
     </div>

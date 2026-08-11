@@ -103,7 +103,7 @@ $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doc
     padding: 0;
 }
 .consult-header {
-    background: linear-gradient(135deg, #2444d5 10%, #412fa3be 48%, #0891b2 90%);
+    background: #0e8ded;
     color: white;
     padding: 16px 28px;
     display: flex;

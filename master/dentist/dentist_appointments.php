@@ -38,7 +38,8 @@ try {
         COUNT(*) as total,
         SUM(CASE WHEN DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as today,
         SUM(CASE WHEN status = 'Completed' AND DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as completed,
-        SUM(CASE WHEN status = 'Cancelled' AND DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as cancelled
+        SUM(CASE WHEN status = 'Cancelled' AND DATE(appointment_date) = CURDATE() THEN 1 ELSE 0 END) as cancelled,
+        SUM(CASE WHEN status = 'Pending Approval' THEN 1 ELSE 0 END) as pending
     FROM appointments");
     $stats = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -46,8 +47,9 @@ try {
     $todayAppointments = $stats['today'] ?? 0;
     $completedAppointments = $stats['completed'] ?? 0;
     $cancelledAppointments = $stats['cancelled'] ?? 0;
+    $pendingAppointments = $stats['pending'] ?? 0;
 } catch (Exception $e) {
-    $totalAppointments = $todayAppointments = $completedAppointments = $cancelledAppointments = 0;
+    $totalAppointments = $todayAppointments = $completedAppointments = $cancelledAppointments = $pendingAppointments = 0;
 }
 
 // Fetch all appointments with treatment plan info
@@ -124,6 +126,9 @@ usort($sections['inqueue'], function ($a, $b) use ($queuePanelOrder) {
 
 <!-- Add extra CSS for status badges -->
 <style>
+.summary-cards {
+    grid-template-columns: repeat(5, 1fr);
+}
 .status-badge {
     display: inline-block;
     padding: 4px 12px;
@@ -192,33 +197,131 @@ usort($sections['inqueue'], function ($a, $b) use ($queuePanelOrder) {
     background: #cffafe;
     color: #0e7490;
 }
+/* Summary cards - light blue dashboard design (matches staff dashboard) */
+.summary-cards .summary-card {
+    background: #ffffff;
+    padding: 22px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    min-height: 100px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease;
+    cursor: default;
+}
+.summary-cards .summary-card:hover {
+    transform: translateY(-2px);
+}
+.summary-cards .summary-icon,
+.summary-cards .summary-info {
+    position: relative;
+    z-index: 2;
+}
+.summary-cards .summary-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: #d3e0fe;
+}
+.summary-cards .summary-icon img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+.summary-cards .summary-info h3 {
+    font-size: 1.8rem;
+    font-weight: 500;
+    color: #4b5563;
+    line-height: 1;
+    margin-bottom: 4px;
+}
+.summary-cards .summary-info p {
+    font-size: 0.9rem;
+    color: #6b7280;
+    margin: 0;
+    font-weight: 500;
+}
+.summary-cards .summary-card::after {
+    content: '';
+    position: absolute;
+    right: -25px;
+    bottom: -15px;
+    width: 100px;
+    height: 100px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0.12;
+    z-index: 1;
+    pointer-events: none;
+}
+.summary-cards .summary-card.card-total::after {
+    background-image: url('../../assets/icons/calendar.png');
+}
+.summary-cards .summary-card.card-today::after {
+    background-image: url('../../assets/icons/today.png');
+}
+.summary-cards .summary-card.card-pending::after {
+    background-image: url('../../assets/icons/pending.png');
+}
+.summary-cards .summary-card.card-completed::after {
+    background-image: url('../../assets/icons/check.png');
+}
+.summary-cards .summary-card.card-cancelled::after {
+    background-image: url('../../assets/icons/delete.png');
+}
 </style>
 
 <!-- Appointment Stats -->
-<div class="summary-cards">
-    <div class="summary-card">
-        <div class="summary-icon blue" style="background: #e0f2fe; color: #0284c7;">📋</div>
+<div class="summary-cards" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 24px;">
+    <div class="summary-card card-total">
+        <div class="summary-icon">
+            <img src="../../assets/icons/calendar.png" alt="Total Appointments">
+        </div>
         <div class="summary-info">
             <h3><?php echo $totalAppointments; ?></h3>
             <p>Total Appointments</p>
         </div>
     </div>
-    <div class="summary-card">
-        <div class="summary-icon yellow">⏰</div>
+    <div class="summary-card card-pending">
+        <div class="summary-icon">
+            <img src="../../assets/icons/pending.png" alt="Pending">
+        </div>
+        <div class="summary-info">
+            <h3><?php echo $pendingAppointments; ?></h3>
+            <p>Pending</p>
+        </div>
+    </div>
+    <div class="summary-card card-today">
+        <div class="summary-icon">
+            <img src="../../assets/icons/today.png" alt="Today">
+        </div>
         <div class="summary-info">
             <h3><?php echo $todayAppointments; ?></h3>
             <p>Today</p>
         </div>
     </div>
-    <div class="summary-card">
-        <div class="summary-icon green">✓</div>
+    <div class="summary-card card-completed">
+        <div class="summary-icon">
+            <img src="../../assets/icons/check.png" alt="Completed">
+        </div>
         <div class="summary-info">
             <h3><?php echo $completedAppointments; ?></h3>
             <p>Completed</p>
         </div>
     </div>
-    <div class="summary-card">
-        <div class="summary-icon red" style="background: #fee2e2; color: #dc2626;">⚠️</div>
+    <div class="summary-card card-cancelled">
+        <div class="summary-icon">
+            <img src="../../assets/icons/delete.png" alt="Cancelled">
+        </div>
         <div class="summary-info">
             <h3><?php echo $cancelledAppointments; ?></h3>
             <p>Cancelled</p>
@@ -266,22 +369,22 @@ usort($sections['inqueue'], function ($a, $b) use ($queuePanelOrder) {
 .dentist-day-modal-item:last-child { border-bottom: none; }
 </style>
 
-<div class="list-view" id="listView">
-<div class="search-filters">
-    <div class="filter-tabs">
-        <span class="active" data-filter="all">All</span>
-        <span data-filter="today">Today</span>
-        <span data-filter="week">This Week</span>
-        <span data-filter="month">This Month</span>
-    </div>
-    <input type="text" class="search-input" placeholder="Search appointments..." id="appointmentSearch">
+    <div class="list-view" id="listView">
+        <div class="search-filters">
+            <div class="filter-tabs">
+                <span class="active" data-filter="all">All</span>
+                <span data-filter="today">Today</span>
+                <span data-filter="week">This Week</span>
+                <span data-filter="month">This Month</span>
+            </div>
+            <input type="text" class="search-input" placeholder="Search appointments..." id="appointmentSearch">
 
-   
-    
-    <div style="display: flex; gap: 10px;">
-        <button class="btn-primary" onclick="openNewAppointmentModal()">+ New Appointment</button>
+        
+            
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-primary" onclick="openNewAppointmentModal()">+ New Appointment</button>
+            </div>
     </div>
-</div>
 
 <?php
 $sectionIcons = ['scheduled' => '📅', 'inqueue' => '⏳', 'pendingapproval' => '🕓'];
@@ -1878,6 +1981,7 @@ function closeApptKebabDropdown() {
 
 .summary-cards {
     margin-bottom: 0px;
+    flex: 1;
 }
 
 </style>

@@ -192,7 +192,14 @@ try {
     // Settings query is best-effort
 }
 ?>
-<div class="summary-cards" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 24px;">
+<div class="summary-cards" 
+    style="
+    display: grid; 
+    grid-template-columns: 
+    repeat(5, 1fr); 
+    gap: 15px; 
+    margin-bottom: 24px;">
+
     <div class="summary-card card-total">
         <div class="summary-icon">
             <img src="../../assets/icons/calendar.png" alt="Total Appointments">
