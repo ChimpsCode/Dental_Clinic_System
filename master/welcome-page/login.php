@@ -995,7 +995,7 @@ $showDeletedMsg = isset($_GET['deleted']) && $_GET['deleted'] === '1';
                         <label for="rememberMe">Remember me</label>
                     </div>
                     
-                    <button type="submit" class="login-btn" id="loginBtn">Login</button>
+                    <button type="button" class="login-btn" id="loginBtn">Login</button>
                 </form>
 
                 <p class="applicant-note">For clinic applicants, please contact the administrator.</p>

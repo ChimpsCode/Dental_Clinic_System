@@ -789,10 +789,11 @@ document.addEventListener('DOMContentLoaded', function() {
     setupPasswordToggle(fpConfirmPassword, toggleFpConfirmPassword);
 
     // Form submission handler
-    if (loginForm && loginBtn) {
-        loginBtn.addEventListener('click', function(e) {
+    function handleLoginAttempt(e) {
+        if (e) {
             e.preventDefault();
             e.stopPropagation();
+        }
             
             console.log('=== LOGIN CLICKED ===');
             
@@ -962,7 +963,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     showToast('Error', 'An error occurred. Please try again.', 'error');
                 }
             });
-        });
+    }
+
+    if (loginForm && loginBtn) {
+        loginBtn.addEventListener('click', handleLoginAttempt);
+        loginForm.addEventListener('submit', handleLoginAttempt);
     }
 
     // 2FA verification handler
@@ -1067,7 +1072,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     registerBtn.click();
                 }
             } else if (loginBtn && !loginBtn.disabled) {
-                loginBtn.click();
+                    if (loginForm.requestSubmit) {
+                        loginForm.requestSubmit();
+                    } else {
+                        loginBtn.click();
+                    }
             }
         }
     });
