@@ -68,39 +68,49 @@ try {
 
 <!-- Summary Stats Cards -->
 <div class="summary-cards" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; margin-bottom: 24px;">
-    <div class="summary-card" style="background: white; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; display: flex; align-items: center; gap: 16px;">
-        <div class="summary-icon" style="width: 48px; height: 48px; background: #dbeafe; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">👥</div>
+    <div class="summary-card card-total-patients">
+        <div class="summary-icon">
+            <img src="../../assets/icons/total-patients.png" alt="Total Patients">
+        </div>
         <div class="summary-info">
-            <h3 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0;"><?php echo $totalPatients; ?></h3>
-            <p style="font-size: 0.875rem; color: #6b7280; margin: 0;">Total Patients</p>
+            <h3><?php echo $totalPatients; ?></h3>
+            <p>Total Patients</p>
         </div>
     </div>
-    <div class="summary-card" style="background: white; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; display: flex; align-items: center; gap: 16px;">
-        <div class="summary-icon" style="width: 48px; height: 48px; background: #fef3c7; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">⏰</div>
+    <div class="summary-card card-pending">
+        <div class="summary-icon">
+            <img src="../../assets/icons/pending.png" alt="Pending">
+        </div>
         <div class="summary-info">
-            <h3 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0;"><?php echo $inQueue; ?></h3>
-            <p style="font-size: 0.875rem; color: #6b7280; margin: 0;">Pending</p>
+            <h3><?php echo $inQueue; ?></h3>
+            <p>Pending</p>
         </div>
     </div>
-    <div class="summary-card" style="background: white; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; display: flex; align-items: center; gap: 16px;">
-        <div class="summary-icon" style="width: 48px; height: 48px; background: #e0e7ff; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">📅</div>
+    <div class="summary-card card-completed">
+        <div class="summary-icon">
+            <img src="../../assets/icons/check.png" alt="Completed">
+        </div>
         <div class="summary-info">
-            <h3 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0;"><?php echo $completedCount; ?></h3>
-            <p style="font-size: 0.875rem; color: #6b7280; margin: 0;">Completed</p>
+            <h3><?php echo $completedCount; ?></h3>
+            <p>Completed</p>
         </div>
     </div>
-    <div class="summary-card" style="background: white; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; display: flex; align-items: center; gap: 16px;">
-        <div class="summary-icon" style="width: 48px; height: 48px; background: #d1fae5; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">✓</div>
+    <div class="summary-card card-new-this-month">
+        <div class="summary-icon">
+            <img src="../../assets/icons/new-this-month.png" alt="New This Month">
+        </div>
         <div class="summary-info">
-            <h3 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0;"><?php echo $newThisMonth; ?></h3>
-            <p style="font-size: 0.875rem; color: #6b7280; margin: 0;">New This Month</p>
+            <h3><?php echo $newThisMonth; ?></h3>
+            <p>New This Month</p>
         </div>
     </div>
-    <div class="summary-card" style="background: white; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; display: flex; align-items: center; gap: 16px;">
-        <div class="summary-icon" style="width: 48px; height: 48px; background: #fee2e2; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">📋</div>
+    <div class="summary-card card-registered">
+        <div class="summary-icon">
+            <img src="../../assets/icons/registered.png" alt="Registered Patients">
+        </div>
         <div class="summary-info">
-            <h3 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0;"><?php echo $totalPatients; ?></h3>
-            <p style="font-size: 0.875rem; color: #6b7280; margin: 0;">Registered Patients</p>
+            <h3><?php echo $totalPatients; ?></h3>
+            <p>Registered Patients</p>
         </div>
     </div>
 </div>
@@ -503,9 +513,9 @@ try {
 }
 
 .pagination-btn.active {
-    background-color: #2563eb;
+    background-color: #0d92f7;
     color: #ffffff;
-    border-color: #2563eb;
+    border-color: #0078d3;
 }
 
 .pagination-btn:disabled {

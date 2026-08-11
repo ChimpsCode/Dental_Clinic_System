@@ -967,7 +967,7 @@ function renderTable() {
                             style="width:40px;
                             height:40px;
                             border-radius:50%;
-                            background:linear-gradient(135deg,#2563eb,#1d4ed8);
+                            background:linear-gradient(135deg,#2563eb,#0d92f7);
                             color:#fff;
                             display:flex;
                             align-items:center;
