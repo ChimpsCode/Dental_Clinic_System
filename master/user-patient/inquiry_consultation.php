@@ -404,6 +404,20 @@ $pageTitle = 'Inquiry / Consultation';
         .alert.show { display: block; }
         .alert.success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
         .alert.error { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+        .typing-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #94a3b8;
+            display: inline-block;
+            animation: typingBlink 1.2s infinite ease-in-out;
+        }
+        .typing-dot:nth-child(2) { animation-delay: 0.15s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes typingBlink {
+            0%, 80%, 100% { transform: translateY(0); opacity: 0.35; }
+            40% { transform: translateY(-2px); opacity: 1; }
+        }
 
         @media (max-width: 1180px) {
             .top-layout { grid-template-columns: 1fr; height: auto; min-height: auto; }
@@ -568,8 +582,8 @@ $pageTitle = 'Inquiry / Consultation';
                     </div>
 
                     <div class="profile-buttons">
-                        <button class="btn-block btn-primary">Book an Appointment</button>
-                        <button class="btn-block btn-outline">View Records</button>
+                        <button type="button" class="btn-block btn-primary" onclick="window.location.href='appointments.php';">Book an Appointment</button>
+                        <button type="button" class="btn-block btn-outline" onclick="window.location.href='medical_records.php';">View Records</button>
                     </div>
 
                     <div class="profile-section">
@@ -644,6 +658,13 @@ $pageTitle = 'Inquiry / Consultation';
     </div>
 
     <script>
+        const clinicAvatarUrl = <?php echo json_encode($clinicAvatar); ?>;
+        const clinicDisplayName = <?php echo json_encode($clinicName); ?>;
+        let currentInquiryId = <?php echo (int)($activeInquiry['id'] ?? 0); ?>;
+        let currentConversationSignature = '';
+        let conversationPollTimer = null;
+        let conversationTypingTimer = null;
+
         const form = document.getElementById('inquiryForm');
         const formAlert = document.getElementById('formAlert');
         const messagesList = document.getElementById('messagesList');
@@ -652,6 +673,22 @@ $pageTitle = 'Inquiry / Consultation';
 
         concernInput.addEventListener('input', () => {
             sendBtn.classList.toggle('has-text', concernInput.value.trim().length > 0);
+            if (currentInquiryId) {
+                if (conversationTypingTimer) clearTimeout(conversationTypingTimer);
+                sendPatientTypingState(true);
+                conversationTypingTimer = setTimeout(() => {
+                    sendPatientTypingState(false);
+                    conversationTypingTimer = null;
+                }, 1500);
+            }
+        });
+
+        concernInput.addEventListener('blur', () => {
+            sendPatientTypingState(false);
+            if (conversationTypingTimer) {
+                clearTimeout(conversationTypingTimer);
+                conversationTypingTimer = null;
+            }
         });
 
         function showFormAlert(type, message) {
@@ -659,10 +696,200 @@ $pageTitle = 'Inquiry / Consultation';
             formAlert.textContent = message;
         }
 
+        function startConversationPolling() {
+            if (!currentInquiryId || conversationPollTimer) return;
+            conversationPollTimer = setInterval(refreshConversation, 1000);
+        }
+
+        async function sendPatientTypingState(isTyping) {
+            if (!currentInquiryId) return;
+            try {
+                const formData = new FormData();
+                formData.append('action', 'set_typing');
+                formData.append('inquiry_id', currentInquiryId);
+                formData.append('sender_type', 'patient');
+                formData.append('is_typing', isTyping ? '1' : '0');
+                await fetch('../shared/inquiry_actions.php', {
+                    method: 'POST',
+                    body: formData
+                });
+            } catch (_error) {}
+        }
+
+        function stopConversationTyping() {
+            if (conversationTypingTimer) {
+                clearTimeout(conversationTypingTimer);
+                conversationTypingTimer = null;
+            }
+            const existingTyping = document.getElementById('clinicTypingIndicator');
+            if (existingTyping) existingTyping.remove();
+        }
+
+        function showConversationTyping() {
+            if (!messagesList || document.getElementById('clinicTypingIndicator')) return;
+            messagesList.insertAdjacentHTML('beforeend', `
+                <div class="message-row left" id="clinicTypingIndicator">
+                    <img src="${clinicAvatarUrl}" alt="${escapeHtml(clinicDisplayName)}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
+                    <div>
+                        <div class="bubble bubble-left" style="min-width:72px; display:flex; align-items:center; gap:4px;">
+                            <span class="typing-dot"></span>
+                            <span class="typing-dot"></span>
+                            <span class="typing-dot"></span>
+                        </div>
+                    </div>
+                </div>
+            `);
+            messagesList.scrollTop = messagesList.scrollHeight;
+        }
+
+        function formatMessageTime(createdAt) {
+            const date = createdAt ? new Date(createdAt) : new Date();
+            if (Number.isNaN(date.getTime())) return '';
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function escapeHtml(text) {
+            return String(text ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function renderConversation(replies, staffTyping = false) {
+            if (!messagesList) return;
+
+            const items = Array.isArray(replies) ? replies : [];
+            const signature = JSON.stringify(items.map((msg) => [
+                msg.id || '',
+                msg.sender_type || '',
+                msg.message || '',
+                msg.created_at || '',
+                staffTyping ? 'typing' : 'idle'
+            ]));
+
+            if (signature === currentConversationSignature) {
+                return;
+            }
+            currentConversationSignature = signature;
+
+            if (items.length === 0) {
+                messagesList.innerHTML = `
+                    <div class="message-row left">
+                        <img src="${clinicAvatarUrl}" alt="${escapeHtml(clinicDisplayName)}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
+                        <div>
+                            <div class="bubble bubble-left">Hello, How are you today?<br>would you like to book now?</div>
+                            <div class="ts">11:00 AM</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                messagesList.innerHTML = items.map((msg) => {
+                    const isClinic = (msg.sender_type || '') === 'staff';
+                    const time = formatMessageTime(msg.created_at);
+                    const message = escapeHtml(msg.message || 'No message provided').replace(/\n/g, '<br>');
+                    if (isClinic) {
+                        return `
+                            <div class="message-row left">
+                                <img src="${clinicAvatarUrl}" alt="${escapeHtml(clinicDisplayName)}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
+                                <div>
+                                    <div class="bubble bubble-left">${message}</div>
+                                    <div class="ts">${time}</div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    return `
+                        <div class="message-row right">
+                            <div>
+                                <div class="bubble bubble-right">${message}</div>
+                                <div class="ts" style="text-align: right;">${time}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            stopConversationTyping();
+            if (staffTyping) {
+                showConversationTyping();
+            }
+
+            messagesList.scrollTop = messagesList.scrollHeight;
+        }
+
+        function appendLiveMessage(senderType, messageText, createdAt = null) {
+            if (!messagesList) return;
+
+            const isClinic = senderType === 'staff';
+            const time = formatMessageTime(createdAt || new Date());
+            const safeMessage = escapeHtml(messageText || 'No message provided').replace(/\n/g, '<br>');
+            const rowHtml = isClinic ? `
+                <div class="message-row left">
+                    <img src="${clinicAvatarUrl}" alt="${escapeHtml(clinicDisplayName)}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
+                    <div>
+                        <div class="bubble bubble-left">${safeMessage}</div>
+                        <div class="ts">${time}</div>
+                    </div>
+                </div>
+            ` : `
+                <div class="message-row right" data-patient-message="1">
+                    <div>
+                        <div class="bubble bubble-right">${safeMessage}</div>
+                        <div class="ts" style="text-align: right;">${time}</div>
+                    </div>
+                </div>
+            `;
+
+            if (messagesList.children.length === 1 && messagesList.querySelector('.bubble-left') && messagesList.textContent.includes('would you like to book now?')) {
+                messagesList.innerHTML = '';
+            }
+
+            if (!messagesList.children.length && messagesList.textContent.trim() === '') {
+                messagesList.innerHTML = rowHtml;
+            } else {
+                messagesList.insertAdjacentHTML('beforeend', rowHtml);
+            }
+
+            messagesList.scrollTop = messagesList.scrollHeight;
+        }
+
+        function removePendingPatientMessage() {
+            const pendingMessage = messagesList?.querySelector('[data-patient-message="1"]:last-child');
+            if (pendingMessage) {
+                pendingMessage.remove();
+            }
+        }
+
+        async function refreshConversation() {
+            if (!currentInquiryId || !messagesList) return;
+            try {
+                const response = await fetch(`../shared/inquiry_actions.php?action=get_conversation&id=${encodeURIComponent(currentInquiryId)}&t=${Date.now()}`, {
+                    credentials: 'same-origin',
+                    cache: 'no-store',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Cache-Control': 'no-cache' }
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) return;
+                renderConversation(data.replies || [], !!data.staff_typing);
+            } catch (_error) {}
+        }
+
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
+            const submittedConcern = (concernInput?.value || '').trim();
             const formData = new FormData(form);
             formData.append('action', 'create');
+            sendPatientTypingState(false);
+            if (conversationTypingTimer) {
+                clearTimeout(conversationTypingTimer);
+                conversationTypingTimer = null;
+            }
+
+            if (submittedConcern) {
+                appendLiveMessage('patient', submittedConcern);
+            }
 
             try {
                 const response = await fetch('../shared/inquiry_actions.php', {
@@ -676,9 +903,27 @@ $pageTitle = 'Inquiry / Consultation';
                 }
 
                 form.reset();
-                window.location.reload();
+                if (data.inquiry_id) {
+                    currentInquiryId = Number(data.inquiry_id) || currentInquiryId;
+                }
+                formAlert.className = 'alert';
+                formAlert.textContent = '';
+                startConversationPolling();
             } catch (error) {
+                removePendingPatientMessage();
                 showFormAlert('error', 'Something went wrong while submitting your inquiry.');
+            }
+        });
+
+        if (currentInquiryId) {
+            refreshConversation();
+            startConversationPolling();
+        }
+
+        window.addEventListener('focus', refreshConversation);
+        document.addEventListener('visibilitychange', function () {
+            if (!document.hidden) {
+                refreshConversation();
             }
         });
     </script>

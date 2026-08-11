@@ -819,6 +819,9 @@ let inquiries = <?php echo json_encode($inquiries); ?>;
 let inquiryMap = Object.fromEntries(inquiries.map((item) => [String(item.id), item]));
 let filteredInquiries = [...inquiries];
 let activeInquiryId = null;
+let activeInquiryPatientId = null;
+let inquiryTypingTimer = null;
+let inquiryConversationPollTimer = null;
 let currentPage = 1;
 const itemsPerPage = 8;
 
@@ -1099,6 +1102,12 @@ function openModal(id) {
 function closeModal(id) {
     const el = document.getElementById(id);
     if (el) el.classList.remove('active');
+    if (id === 'replyModal') {
+        sendInquiryTypingState(false);
+        stopInquiryConversationPolling();
+        activeInquiryPatientId = null;
+        activeInquiryId = null;
+    }
 }
 
 function closeActionMenu() {
@@ -1230,6 +1239,107 @@ function handleInquiryMenuClick(event, action, id) {
     }
 }
 
+async function sendInquiryTypingState(isTyping) {
+    if (!activeInquiryId) return;
+    try {
+        const formData = new FormData();
+        formData.append('action', 'set_typing');
+        formData.append('inquiry_id', activeInquiryId);
+        formData.append('sender_type', 'staff');
+        formData.append('is_typing', isTyping ? '1' : '0');
+        await fetch('../shared/inquiry_actions.php', {
+            method: 'POST',
+            body: formData
+        });
+    } catch (_error) {}
+}
+
+function scheduleInquiryTypingState() {
+    if (inquiryTypingTimer) {
+        clearTimeout(inquiryTypingTimer);
+    }
+    sendInquiryTypingState(true);
+    inquiryTypingTimer = setTimeout(() => {
+        sendInquiryTypingState(false);
+        inquiryTypingTimer = null;
+    }, 1500);
+}
+
+function stopInquiryConversationPolling() {
+    if (inquiryConversationPollTimer) {
+        clearInterval(inquiryConversationPollTimer);
+        inquiryConversationPollTimer = null;
+    }
+    const typingIndicator = document.getElementById('replyTypingIndicator');
+    if (typingIndicator) typingIndicator.remove();
+}
+
+function showInquiryConversationTyping() {
+    const container = document.getElementById('chatMessages');
+    if (!container || document.getElementById('replyTypingIndicator')) return;
+    container.insertAdjacentHTML('beforeend', `
+        <div class="chat-bubble received" id="replyTypingIndicator">
+            <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:3px;">Staff</div>
+            <div style="min-width:72px; display:flex; align-items:center; gap:4px;">
+                <span class="typing-dot"></span>
+                <span class="typing-dot"></span>
+                <span class="typing-dot"></span>
+            </div>
+        </div>
+    `);
+    container.scrollTop = container.scrollHeight;
+}
+
+function renderInquiryConversation(inquiry, replies, patientTyping) {
+    const container = document.getElementById('chatMessages');
+    if (!container || !inquiry) return;
+    const fullName = [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown Patient';
+    const concernText = inquiry.concern || inquiry.inquiry_message || 'No concern provided.';
+
+    container.innerHTML = '';
+    const originalBubble = document.createElement('div');
+    originalBubble.className = 'chat-bubble received';
+    originalBubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:3px;">' + escapeHtml(fullName) + '</div><div>' + escapeHtml(concernText).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(formatCreatedAt(inquiry.created_at)) + '</div>';
+    container.appendChild(originalBubble);
+
+    (Array.isArray(replies) ? replies : []).forEach((reply) => {
+        const bubble = document.createElement('div');
+        if (reply.sender_type !== 'staff') {
+            bubble.className = 'chat-bubble received';
+            bubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:3px;">' + escapeHtml(fullName) + '</div><div>' + escapeHtml(reply.message).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(formatCreatedAt(reply.created_at)) + '</div>';
+        } else {
+            bubble.className = 'chat-bubble sent';
+            bubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.7);margin-bottom:3px;">Staff</div><div>' + escapeHtml(reply.message).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(formatCreatedAt(reply.created_at)) + '</div>';
+        }
+        container.appendChild(bubble);
+    });
+
+    const typingIndicator = document.getElementById('replyTypingIndicator');
+    if (typingIndicator) typingIndicator.remove();
+    if (patientTyping) {
+        showInquiryConversationTyping();
+    }
+
+    container.scrollTop = container.scrollHeight;
+}
+
+async function refreshInquiryConversation() {
+    if (!activeInquiryId) return;
+    const inquiry = inquiryMap[String(activeInquiryId)];
+    if (!inquiry) return;
+    try {
+        const data = await postAction({ action: 'get_conversation', id: activeInquiryId });
+        if (!data.success) return;
+        renderInquiryConversation(inquiry, data.replies || [], !!data.patient_typing);
+    } catch (_error) {}
+}
+
+function startInquiryConversationPolling() {
+    if (inquiryConversationPollTimer) return;
+    inquiryConversationPollTimer = setInterval(refreshInquiryConversation, 1000);
+    refreshInquiryConversation();
+}
+
 async function archiveInquiry(id) {
     if (!confirm('Move this inquiry to archive?')) return;
     const data = await postAction({ action: 'archive', id });
@@ -1322,7 +1432,14 @@ async function openReplyModal(id) {
         return;
     }
 
+    stopInquiryConversationPolling();
+    sendInquiryTypingState(false);
+    if (inquiryTypingTimer) {
+        clearTimeout(inquiryTypingTimer);
+        inquiryTypingTimer = null;
+    }
     activeInquiryId = id;
+    activeInquiryPatientId = inquiry.patient_id || null;
     document.getElementById('reply_inquiry_id').value = inquiry.id;
     const msgInput = document.getElementById('reply_message');
     msgInput.value = '';
@@ -1398,6 +1515,7 @@ async function openReplyModal(id) {
     }
 
     setTimeout(() => msgInput.focus(), 200);
+    startInquiryConversationPolling();
 }
 
 document.getElementById('replyForm').addEventListener('submit', async (event) => {
@@ -1411,7 +1529,24 @@ document.getElementById('replyForm').addEventListener('submit', async (event) =>
 
     const btn = event.currentTarget.querySelector('button[type="submit"]');
     const textarea = document.getElementById('reply_message');
+    const container = document.getElementById('chatMessages');
+    const now = new Date();
+    const ts = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
+    const pendingBubble = document.createElement('div');
+    pendingBubble.setAttribute('data-pending-staff-message', '1');
+    pendingBubble.className = 'chat-bubble sent';
+    pendingBubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.7);margin-bottom:3px;">Staff</div><div>' + escapeHtml(message).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + ts + '</div>';
+    container.appendChild(pendingBubble);
+    container.scrollTop = container.scrollHeight;
+
+    textarea.value = '';
+    textarea.style.height = 'auto';
     btn.disabled = true;
+    sendInquiryTypingState(false);
+    if (inquiryTypingTimer) {
+        clearTimeout(inquiryTypingTimer);
+        inquiryTypingTimer = null;
+    }
 
     try {
         const inquiry = inquiryMap[String(id)];
@@ -1427,23 +1562,28 @@ document.getElementById('replyForm').addEventListener('submit', async (event) =>
             data = await postAction({ action: 'staff_reply', id, message });
         }
         if (!data.success) {
+            pendingBubble.remove();
+            textarea.value = message;
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
             showToast(data.message || 'Unable to send reply.', true);
             btn.disabled = false;
             return;
         }
-        const now = new Date();
-        const ts = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
+        pendingBubble.remove();
         addChatBubble(message, 'sent', ts, 'Staff');
         const entry = inquiryMap[String(id)];
         if (entry) {
             entry.notes = (entry.notes || '') + '\n[Staff replied on ' + ts + ']\n' + message;
         }
-        textarea.value = '';
-        textarea.style.height = 'auto';
         btn.disabled = false;
         textarea.focus();
         showToast('Reply sent.');
     } catch (error) {
+        pendingBubble.remove();
+        textarea.value = message;
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
         console.error('Reply error:', error);
         showToast('Something went wrong while sending the reply. ' + (error.message || ''), true);
         btn.disabled = false;
@@ -1454,6 +1594,20 @@ const replyTextarea = document.getElementById('reply_message');
 replyTextarea.addEventListener('input', function () {
     this.style.height = 'auto';
     this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    scheduleInquiryTypingState();
+});
+replyTextarea.addEventListener('keydown', function (event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        document.getElementById('replyForm').requestSubmit();
+    }
+});
+replyTextarea.addEventListener('blur', function () {
+    sendInquiryTypingState(false);
+    if (inquiryTypingTimer) {
+        clearTimeout(inquiryTypingTimer);
+        inquiryTypingTimer = null;
+    }
 });
 
 [searchInput, statusFilter, sourceFilter, dateFrom, dateTo].forEach((element) => {

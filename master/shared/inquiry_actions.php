@@ -8,6 +8,19 @@ require_once '../../config/database.php';
 require_once '../../includes/inquiry_module_helper.php';
 
 ensureInquiryModuleSchema($pdo);
+if (!tableExists($pdo, 'chat_typing_status')) {
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS `chat_typing_status` (
+            `id` INT(11) NOT NULL AUTO_INCREMENT,
+            `patient_id` INT(11) NOT NULL,
+            `sender_type` ENUM('patient','staff') NOT NULL,
+            `is_typing` TINYINT(1) NOT NULL DEFAULT 0,
+            `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `uq_chat_typing` (`patient_id`, `sender_type`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+    ");
+}
 
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
@@ -16,6 +29,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $role = $_SESSION['role'] ?? '';
+session_write_close();
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $action = $_REQUEST['action'] ?? '';
 
@@ -488,6 +502,48 @@ if ($action === 'get_inquiries') {
     inquiryJson(['success' => true, 'inquiries' => $inquiries, 'unread_count' => $unreadCount]);
 }
 
+if ($action === 'get_conversation') {
+    $id = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
+    if ($id <= 0) {
+        inquiryJson(['success' => false, 'message' => 'Invalid inquiry.']);
+    }
+
+    $inquiry = fetchInquiryById($pdo, $id);
+    if (!$inquiry) {
+        inquiryJson(['success' => false, 'message' => 'Inquiry not found.']);
+    }
+
+    if (inquiryCanPatient($role)) {
+        $patient = fetchCurrentPatient($pdo, (int)$_SESSION['user_id']);
+        if (!$patient || (int)$patient['id'] !== (int)($inquiry['patient_id'] ?? 0)) {
+            inquiryJson(['success' => false, 'message' => 'Unauthorized.']);
+        }
+    } elseif (!inquiryCanManage($role)) {
+        inquiryJson(['success' => false, 'message' => 'Unauthorized.']);
+    }
+
+    $replies = fetchInquiryReplies($pdo, $id);
+    $staffTyping = false;
+    $patientTyping = false;
+    $typingStmt = $pdo->prepare("
+        SELECT sender_type, is_typing, updated_at
+        FROM chat_typing_status
+        WHERE patient_id = ?
+          AND sender_type IN ('staff', 'patient')
+    ");
+    $typingStmt->execute([(int)($inquiry['patient_id'] ?? 0)]);
+    foreach ($typingStmt->fetchAll(PDO::FETCH_ASSOC) as $typingRow) {
+        $recent = (time() - strtotime($typingRow['updated_at'])) <= 8;
+        $isTyping = ((int)($typingRow['is_typing'] ?? 0) === 1) && $recent;
+        if (($typingRow['sender_type'] ?? '') === 'staff') {
+            $staffTyping = $isTyping;
+        } elseif (($typingRow['sender_type'] ?? '') === 'patient') {
+            $patientTyping = $isTyping;
+        }
+    }
+    inquiryJson(['success' => true, 'inquiry' => $inquiry, 'replies' => $replies, 'staff_typing' => $staffTyping, 'patient_typing' => $patientTyping]);
+}
+
 if ($method !== 'POST') {
     inquiryJson(['success' => false, 'message' => 'Invalid request method.']);
 }
@@ -543,7 +599,12 @@ if ($action === 'create') {
 
         updateInquiryRecord($pdo, (int)$existingInquiry['id'], ['status' => 'Unread']);
 
-        inquiryJson(['success' => true, 'message' => 'Message sent successfully.']);
+        inquiryJson([
+            'success' => true,
+            'message' => 'Message sent successfully.',
+            'inquiry_id' => (int)$existingInquiry['id'],
+            'auto_reply' => false,
+        ]);
     }
 
     [$firstName, $middleName, $lastName] = splitInquiryFullName($fullName);
@@ -598,7 +659,24 @@ if ($action === 'create') {
     ");
     $stmt->execute($values);
 
-    inquiryJson(['success' => true, 'message' => 'Inquiry submitted successfully.']);
+    $newInquiryId = (int)$pdo->lastInsertId();
+
+    // Provide an immediate clinic-style auto reply for first-time messages only.
+    ensureInquiryReplySchema($pdo);
+    $autoReplyMessage = "Thank you for your message. Please wait while our staff review it. We will get back to you as soon as possible.";
+    $autoReplyStmt = $pdo->prepare("
+        INSERT INTO inquiry_replies (inquiry_id, message, sender_type, created_at)
+        VALUES (?, ?, 'staff', NOW())
+    ");
+    $autoReplyStmt->execute([$newInquiryId, $autoReplyMessage]);
+
+    inquiryJson([
+        'success' => true,
+        'message' => 'Inquiry submitted successfully.',
+        'inquiry_id' => $newInquiryId,
+        'auto_reply' => true,
+        'auto_reply_message' => $autoReplyMessage,
+    ]);
 }
 
 if (!inquiryCanManage($role)) {
@@ -779,17 +857,51 @@ if ($action === 'archive') {
     inquiryJson(['success' => true, 'message' => 'Inquiry archived successfully.']);
 }
 
-if ($action === 'get_conversation') {
-    $inquiry = fetchInquiryById($pdo, $id);
+if ($action === 'mark_read') {
+    updateInquiryRecord($pdo, $id, ['status' => 'Read']);
+    inquiryJson(['success' => true]);
+}
+
+if ($action === 'set_typing') {
+    $senderType = strtolower(trim((string)($_POST['sender_type'] ?? '')));
+    $inquiryId = (int)($_POST['inquiry_id'] ?? $_POST['id'] ?? 0);
+    if (!in_array($senderType, ['patient', 'staff'], true)) {
+        inquiryJson(['success' => false, 'message' => 'Invalid sender type.']);
+    }
+    if ($inquiryId <= 0) {
+        inquiryJson(['success' => false, 'message' => 'Invalid inquiry.']);
+    }
+
+    $inquiry = fetchInquiryById($pdo, $inquiryId);
     if (!$inquiry) {
         inquiryJson(['success' => false, 'message' => 'Inquiry not found.']);
     }
-    $replies = fetchInquiryReplies($pdo, $id);
-    inquiryJson(['success' => true, 'inquiry' => $inquiry, 'replies' => $replies]);
-}
 
-if ($action === 'mark_read') {
-    updateInquiryRecord($pdo, $id, ['status' => 'Read']);
+    if ($senderType === 'staff') {
+        if (!inquiryCanManage($role)) {
+            inquiryJson(['success' => false, 'message' => 'Unauthorized.']);
+        }
+    } elseif (inquiryCanPatient($role)) {
+        $patient = fetchCurrentPatient($pdo, (int)$_SESSION['user_id']);
+        if (!$patient || (int)$patient['id'] !== (int)($inquiry['patient_id'] ?? 0)) {
+            inquiryJson(['success' => false, 'message' => 'Unauthorized.']);
+        }
+    } else {
+        inquiryJson(['success' => false, 'message' => 'Unauthorized.']);
+    }
+
+    $patientId = resolveInquiryPatientId($pdo, $inquiry);
+    if ($patientId <= 0) {
+        inquiryJson(['success' => false, 'message' => 'Invalid patient.']);
+    }
+
+    $isTyping = (int)($_POST['is_typing'] ?? 0) === 1 ? 1 : 0;
+    $typingUpsert = $pdo->prepare("
+        INSERT INTO chat_typing_status (patient_id, sender_type, is_typing, updated_at)
+        VALUES (?, ?, ?, NOW())
+        ON DUPLICATE KEY UPDATE is_typing = VALUES(is_typing), updated_at = NOW()
+    ");
+    $typingUpsert->execute([$patientId, $senderType, $isTyping]);
     inquiryJson(['success' => true]);
 }
 

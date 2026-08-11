@@ -1178,6 +1178,10 @@ function getStaffTeethDisplayText(teethString) {
 // ===== Dashboard Inquiry Panel =====
 let dashboardInquiries = [];
 let dashboardInquiryMap = {};
+let dashboardInquiryTypingPatientId = null;
+let dashboardInquiryTypingTimer = null;
+let dashboardCurrentInquiryChatId = null;
+let dashboardInquiryChatPollTimer = null;
 
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (character) => ({
@@ -1198,6 +1202,11 @@ function toggleInquiryPanel() {
     const backdrop = document.getElementById('dashboardInquiryBackdrop');
     const isOpen = panel.classList.toggle('open');
     backdrop.classList.toggle('open', isOpen);
+    if (!isOpen) {
+        sendDashboardInquiryTypingState(false);
+        stopDashboardInquiryChatPolling();
+        dashboardCurrentInquiryChatId = null;
+    }
     if (isOpen && !dashboardInquiries.length) {
         fetchDashboardInquiries();
     }
@@ -1206,6 +1215,112 @@ function toggleInquiryPanel() {
 function showInquiryList() {
     document.getElementById('inquiryPanelListView').style.display = 'flex';
     document.getElementById('inquiryPanelChatView').style.display = 'none';
+    sendDashboardInquiryTypingState(false);
+    dashboardInquiryTypingPatientId = null;
+    stopDashboardInquiryChatPolling();
+}
+
+async function sendDashboardInquiryTypingState(isTyping) {
+    if (!dashboardCurrentInquiryChatId) return;
+    try {
+        const formData = new FormData();
+        formData.append('action', 'set_typing');
+        formData.append('inquiry_id', dashboardCurrentInquiryChatId);
+        formData.append('sender_type', 'staff');
+        formData.append('is_typing', isTyping ? '1' : '0');
+        await fetch('../shared/inquiry_actions.php', {
+            method: 'POST',
+            body: formData
+        });
+    } catch (_error) {}
+}
+
+function scheduleDashboardInquiryTypingState() {
+    if (dashboardInquiryTypingTimer) {
+        clearTimeout(dashboardInquiryTypingTimer);
+    }
+    sendDashboardInquiryTypingState(true);
+    dashboardInquiryTypingTimer = setTimeout(() => {
+        sendDashboardInquiryTypingState(false);
+        dashboardInquiryTypingTimer = null;
+    }, 1500);
+}
+
+function stopDashboardInquiryChatPolling() {
+    if (dashboardInquiryChatPollTimer) {
+        clearInterval(dashboardInquiryChatPollTimer);
+        dashboardInquiryChatPollTimer = null;
+    }
+    const typingIndicator = document.getElementById('dashboardInquiryTypingIndicator');
+    if (typingIndicator) typingIndicator.remove();
+}
+
+function showDashboardInquiryTyping() {
+    const container = document.getElementById('inquiryChatMessages');
+    if (!container || document.getElementById('dashboardInquiryTypingIndicator')) return;
+    container.insertAdjacentHTML('beforeend', `
+        <div class="chat-bubble received" id="dashboardInquiryTypingIndicator">
+            <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:3px;">Patient</div>
+            <div style="min-width:72px; display:flex; align-items:center; gap:4px;">
+                <span class="typing-dot"></span>
+                <span class="typing-dot"></span>
+                <span class="typing-dot"></span>
+            </div>
+        </div>
+    `);
+    container.scrollTop = container.scrollHeight;
+}
+
+function renderDashboardInquiryConversation(inquiry, replies, patientTyping) {
+    const container = document.getElementById('inquiryChatMessages');
+    if (!container || !inquiry) return;
+    const fullName = [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown Patient';
+    const concernText = inquiry.concern || inquiry.inquiry_message || 'No concern provided.';
+
+    container.innerHTML = '';
+    const originalBubble = document.createElement('div');
+    originalBubble.className = 'chat-bubble received';
+    const createdDate = inquiry.created_at ? new Date(String(inquiry.created_at).replace(' ', 'T')).toLocaleString() : '';
+    originalBubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:3px;">' + escapeHtml(fullName) + '</div><div>' + escapeHtml(concernText).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(createdDate) + '</div>';
+    container.appendChild(originalBubble);
+
+    (Array.isArray(replies) ? replies : []).forEach((reply) => {
+        const bubble = document.createElement('div');
+        const isNotStaff = reply.sender_type !== 'staff';
+        bubble.className = 'chat-bubble ' + (isNotStaff ? 'received' : 'sent');
+        const label = isNotStaff ? fullName : 'Staff';
+        bubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:' + (isNotStaff ? '#64748b' : 'rgba(255,255,255,0.7)') + ';margin-bottom:3px;">' + escapeHtml(label) + '</div><div>' + escapeHtml(reply.message).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(reply.created_at ? new Date(String(reply.created_at).replace(' ', 'T')).toLocaleString() : '') + '</div>';
+        container.appendChild(bubble);
+    });
+
+    const typingIndicator = document.getElementById('dashboardInquiryTypingIndicator');
+    if (typingIndicator) typingIndicator.remove();
+    if (patientTyping) {
+        showDashboardInquiryTyping();
+    }
+
+    container.scrollTop = container.scrollHeight;
+}
+
+async function refreshDashboardInquiryConversation() {
+    if (!dashboardCurrentInquiryChatId) return;
+    const inquiry = dashboardInquiryMap[String(dashboardCurrentInquiryChatId)];
+    if (!inquiry) return;
+    try {
+        const formData = new FormData();
+        formData.append('action', 'get_conversation');
+        formData.append('id', dashboardCurrentInquiryChatId);
+        const response = await fetch('../shared/inquiry_actions.php', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (!data.success) return;
+        renderDashboardInquiryConversation(inquiry, data.replies || [], !!data.patient_typing);
+    } catch (_err) {}
+}
+
+function startDashboardInquiryChatPolling() {
+    if (dashboardInquiryChatPollTimer) return;
+    dashboardInquiryChatPollTimer = setInterval(refreshDashboardInquiryConversation, 1000);
+    refreshDashboardInquiryConversation();
 }
 
 async function fetchDashboardInquiries() {
@@ -1266,6 +1381,14 @@ function updateDashboardInquiryBadge(count) {
 async function openDashboardInquiryChat(id) {
     const inquiry = dashboardInquiryMap[String(id)];
     if (!inquiry) return;
+    stopDashboardInquiryChatPolling();
+    sendDashboardInquiryTypingState(false);
+    if (dashboardInquiryTypingTimer) {
+        clearTimeout(dashboardInquiryTypingTimer);
+        dashboardInquiryTypingTimer = null;
+    }
+    dashboardCurrentInquiryChatId = inquiry.id;
+    dashboardInquiryTypingPatientId = inquiry.patient_id || null;
 
     const fullName = [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown Patient';
     const contactParts = [inquiry.email, inquiry.phone || inquiry.contact_info].filter(Boolean);
@@ -1342,6 +1465,7 @@ async function openDashboardInquiryChat(id) {
     document.getElementById('inquiryChatReplyMsg').value = '';
     document.getElementById('inquiryChatReplyMsg').style.height = 'auto';
     setTimeout(() => document.getElementById('inquiryChatReplyMsg').focus(), 200);
+    startDashboardInquiryChatPolling();
 }
 
 function parseDashboardStaffReplies(notes) {
@@ -1369,7 +1493,25 @@ document.getElementById('inquiryChatReplyForm').addEventListener('submit', async
     if (!id || !message) return;
 
     const btn = event.currentTarget.querySelector('button[type="submit"]');
+    const textarea = document.getElementById('inquiryChatReplyMsg');
+    const container = document.getElementById('inquiryChatMessages');
+    const now = new Date();
+    const ts = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
+    const pendingBubble = document.createElement('div');
+    pendingBubble.setAttribute('data-pending-staff-message', '1');
+    pendingBubble.className = 'chat-bubble sent';
+    pendingBubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.7);margin-bottom:3px;">Staff</div><div>' + escapeHtml(message).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + ts + '</div>';
+    container.appendChild(pendingBubble);
+    container.scrollTop = container.scrollHeight;
+
+    textarea.value = '';
+    textarea.style.height = 'auto';
     btn.disabled = true;
+    sendDashboardInquiryTypingState(false);
+    if (dashboardInquiryTypingTimer) {
+        clearTimeout(dashboardInquiryTypingTimer);
+        dashboardInquiryTypingTimer = null;
+    }
 
     try {
         const formData = new FormData();
@@ -1379,30 +1521,28 @@ document.getElementById('inquiryChatReplyForm').addEventListener('submit', async
         const response = await fetch('../shared/inquiry_actions.php', { method: 'POST', body: formData });
         const data = await response.json();
         if (!data.success) {
+            pendingBubble.remove();
+            textarea.value = message;
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
             btn.disabled = false;
             return;
         }
-        const now = new Date();
-        const ts = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
-
-        const container = document.getElementById('inquiryChatMessages');
-        const bubble = document.createElement('div');
-        bubble.className = 'chat-bubble sent';
-        bubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.7);margin-bottom:3px;">Staff</div><div>' + escapeHtml(message).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + ts + '</div>';
-        container.appendChild(bubble);
-        container.scrollTop = container.scrollHeight;
+        pendingBubble.remove();
+        addChatBubble(message, 'sent', ts, 'Staff');
 
         const entry = dashboardInquiryMap[String(id)];
         if (entry) {
             entry.status = 'Replied';
             entry.notes = (entry.notes || '') + '\n[Staff replied on ' + ts + ']\n' + message;
         }
-
-        document.getElementById('inquiryChatReplyMsg').value = '';
-        document.getElementById('inquiryChatReplyMsg').style.height = 'auto';
         btn.disabled = false;
         renderDashboardInquiries();
     } catch (_err) {
+        pendingBubble.remove();
+        textarea.value = message;
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
         btn.disabled = false;
     }
 });
@@ -1412,6 +1552,20 @@ if (inquiryChatTextarea) {
     inquiryChatTextarea.addEventListener('input', function () {
         this.style.height = 'auto';
         this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+        scheduleDashboardInquiryTypingState();
+    });
+    inquiryChatTextarea.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            document.getElementById('inquiryChatReplyForm').requestSubmit();
+        }
+    });
+    inquiryChatTextarea.addEventListener('blur', function () {
+        sendDashboardInquiryTypingState(false);
+        if (dashboardInquiryTypingTimer) {
+            clearTimeout(dashboardInquiryTypingTimer);
+            dashboardInquiryTypingTimer = null;
+        }
     });
 }
 
