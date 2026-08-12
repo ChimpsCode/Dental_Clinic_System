@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RF Dental Clinic - Service Invoice</title>
+<link rel="stylesheet" href="receipt.css">
+</head>
+<body>
+
+<div class="receipt-book">
+  <div class="invoice-paper">
+    <div class="paper-accent" aria-hidden="true"></div>
+
+    <div class="invoice-content">
+      <!-- Header Section -->
+      <div class="header">
+        <div class="brand">
+          <img class="brand-mark" src="profile.png" alt="RF Dental Clinic logo">
+          <p class="brand-kicker">Dental Care Receipt</p>
+          <h1>RF DENTAL CLINIC</h1>
+          <p>Proprietor: REX JANUARIUS R. GAABUCAYAN</p>
+          <p>Cagayan de Oro City, Philippines</p>
+          <p>Tel No: 0967 187 8603 | Email: RFDC2023@gmail.com</p>
+        </div>
+        <div class="invoice-meta">
+          <h2>SERVICE INVOICE</h2>
+          <div class="meta-row">
+            No.
+            <input class="box-text editable-box" type="text" value="0436" aria-label="Invoice number">
+          </div>
+          <div class="meta-row">
+            Date
+            <input class="line-input" type="text" aria-label="Invoice date">
+          </div>
+        </div>
+      </div>
+
+      <!-- Bill To Section -->
+      <div class="bill-to">
+        <div class="bill-row">
+          RECEIVED FROM:
+          <input class="line-input" type="text" aria-label="Received from">
+        </div>
+        <div class="bill-row">
+          ADDRESS:
+          <input class="line-input" type="text" aria-label="Address">
+        </div>
+      </div>
+
+      <!-- Services Table -->
+      <table class="services-table">
+        <thead>
+          <tr>
+            <th>Particular</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><input class="table-input" type="text" aria-label="Particular 1"></td>
+            <td><input class="table-input amount-input" type="text" aria-label="Amount 1"></td>
+          </tr>
+          <tr>
+            <td><input class="table-input" type="text" aria-label="Particular 2"></td>
+            <td><input class="table-input amount-input" type="text" aria-label="Amount 2"></td>
+          </tr>
+          <tr>
+            <td><input class="table-input" type="text" aria-label="Particular 3"></td>
+            <td><input class="table-input amount-input" type="text" aria-label="Amount 3"></td>
+          </tr>
+          <tr>
+            <td><input class="table-input" type="text" aria-label="Particular 4"></td>
+            <td><input class="table-input amount-input" type="text" aria-label="Amount 4"></td>
+          </tr>
+          <tr>
+            <td><input class="table-input" type="text" aria-label="Particular 5"></td>
+            <td><input class="table-input amount-input" type="text" aria-label="Amount 5"></td>
+          </tr>
+          <tr>
+            <td><input class="table-input" type="text" aria-label="Particular 6"></td>
+            <td><input class="table-input amount-input" type="text" aria-label="Amount 6"></td>
+          </tr>
+          <tr>
+            <td><input class="table-input" type="text" aria-label="Particular 7"></td>
+            <td><input class="table-input amount-input" type="text" aria-label="Amount 7"></td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td class="total-label">TOTAL AMOUNT DUE</td>
+            <td class="total-amount">
+              &#8369; <input class="total-input" type="text" aria-label="Total amount due" readonly>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <!-- Payment Method & Signature -->
+      <div class="footer-section">
+        <div class="payment-info">
+          <p class="section-label">Payment Method</p>
+          <div class="checkbox-group">
+            <span class="checkbox-item"><span class="box"></span> Cash</span>
+            <span class="checkbox-item"><span class="box"></span> GCash</span>
+            <span class="checkbox-item"><span class="box"></span> Installment</span>
+            <span class="checkbox-item"><span class="box"></span> Downpayment</span>
+          </div>
+        </div>
+
+        <div class="signature-area">
+          <div class="sig-line"></div>
+          <p>Received by / Authorized Signature</p>
+        </div>
+      </div>
+
+      <!-- Bottom Print Info -->
+      <div class="print-footer">
+        <p>
+          Printer:
+          <input class="line-input print-line" type="text" aria-label="Printer name">
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button class="print-btn" onclick="window.print()">Print Invoice</button>
+
+<script>
+  const amountInputs = document.querySelectorAll('.amount-input');
+  const totalInput = document.querySelector('.total-input');
+
+  function parseAmount(value) {
+    const cleaned = String(value).replace(/[^0-9.-]/g, '');
+    const parsed = parseFloat(cleaned);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function formatTotal(value) {
+    return value.toLocaleString('en-PH', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
+  function updateTotal() {
+    const total = Array.from(amountInputs).reduce((sum, input) => {
+      return sum + parseAmount(input.value);
+    }, 0);
+
+    totalInput.value = formatTotal(total);
+  }
+
+  amountInputs.forEach((input) => {
+    input.addEventListener('input', updateTotal);
+    input.addEventListener('blur', updateTotal);
+  });
+
+  updateTotal();
+</script>
+
+</body>
+</html>

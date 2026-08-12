@@ -215,6 +215,22 @@ function calculateAmount($treatmentType, $servicesMap) {
     return $total > 0 ? $total : 500; // Default amount if service not found
 }
 
+$scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+$projectBaseUrl = '/';
+if (!empty($scriptName)) {
+    $projectBaseUrl = rtrim(dirname(dirname(dirname($scriptName))), '/') . '/';
+}
+
+$receiptHtmlTemplate = @file_get_contents(__DIR__ . '/../../receipt.html');
+$receiptCssTemplate = @file_get_contents(__DIR__ . '/../../receipt.css');
+
+if ($receiptHtmlTemplate === false) {
+    $receiptHtmlTemplate = '';
+}
+if ($receiptCssTemplate === false) {
+    $receiptCssTemplate = '';
+}
+
 require_once __DIR__ . '/../../includes/staff_layout_start.php';
 ?>
             <div class="content-main">
@@ -612,13 +628,15 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
 
             <!-- Print Invoice Modal -->
             <div id="printPaymentModal" class="modal-overlay" style="display: none;">
-                <div class="modal" style="max-width: 450px;">
+                <div class="modal print-invoice-modal">
                     <div class="modal-header">
                         <h2>Print Invoice</h2>
                         <button class="modal-close" onclick="closePrintPaymentModal()">&times;</button>
                     </div>
-                    <div class="modal-body" id="printPaymentContent">
-                        <!-- Invoice preview loaded dynamically -->
+                    <div class="modal-body print-payment-body" id="printPaymentContent">
+                        <div class="receipt-preview-shell">
+                            <iframe id="receiptPreviewFrame" class="receipt-preview-frame" title="Receipt preview" loading="eager" scrolling="no"></iframe>
+                        </div>
                     </div>
                     <div class="modal-actions">
                         <button type="button" class="btn-cancel" onclick="closePrintPaymentModal()">Close</button>
@@ -1071,6 +1089,33 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     padding: 1.5rem;
                 }
 
+                .print-invoice-modal {
+                    max-width: min(96vw, 920px);
+                    width: min(96vw, 920px);
+                }
+
+                .print-payment-body {
+                    padding: 0;
+                    background: transparent;
+                }
+
+                .receipt-preview-shell {
+                    width: 174mm;
+                    height: auto;
+                    margin: 0 auto;
+                    overflow: visible;
+                    background: transparent;
+                }
+
+                .receipt-preview-frame {
+                    width: 174mm;
+                    height: auto;
+                    border: 0;
+                    display: block;
+                    background: #ffffff;
+                    overflow: hidden;
+                }
+
                 .payment-details {
                     background: #f9fafb;
                     border-radius: 8px;
@@ -1151,6 +1196,67 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
 
             <script>
                 var staffPaymentData = {};
+                const receiptTemplateHtml = <?php echo json_encode($receiptHtmlTemplate); ?>;
+                const receiptTemplateCss = <?php echo json_encode($receiptCssTemplate); ?>;
+                const receiptBaseUrl = <?php echo json_encode($projectBaseUrl); ?>;
+                const receiptImageUrl = receiptBaseUrl + 'assets/images/profile.png';
+                const receiptPreviewOverrides = `
+                    .receipt-book {
+                        width: min(174mm, 100%) !important;
+                        max-width: 174mm !important;
+                        min-height: 248mm !important;
+                        padding: 10px !important;
+                        transform: none !important;
+                        transform-origin: top center;
+                        margin: 0 auto;
+                    }
+
+                    .invoice-paper {
+                        min-height: 248mm;
+                    }
+
+                    .invoice-content {
+                        padding: 24px 26px 20px !important;
+                    }
+
+                    .invoice-content::after {
+                        inset: 12px !important;
+                    }
+
+                    @media print {
+                        @page {
+                            size: A5 portrait;
+                            margin: 6mm;
+                        }
+
+                        html, body {
+                            width: 174mm;
+                            height: 248mm;
+                        }
+
+                        .receipt-book {
+                            width: 174mm !important;
+                            max-width: 174mm !important;
+                            min-height: 248mm !important;
+                            padding: 0 !important;
+                            transform: none !important;
+                        }
+
+                        .invoice-paper {
+                            min-height: 248mm;
+                        }
+
+                        .print-btn {
+                            display: none !important;
+                        }
+                    }
+
+                    @media (max-width: 760px) {
+                        .receipt-book {
+                            width: min(100%, 174mm) !important;
+                        }
+                    }
+                `;
 
                 <?php foreach ($paymentRecords as $record): ?>
                 <?php if (!empty($record['billing_id'])): ?>
@@ -1907,31 +2013,134 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                 }
 
                 function renderPrintInvoice(p) {
-                    var statusBadge = (p.status || '').toLowerCase() === 'paid'
-                        ? '<span style="background: #d1fae5; color: #065f46; padding: 4px 12px; border-radius: 9999px; font-size: 0.85rem;">PAID</span>'
-                        : '<span style="background: #fee2e2; color: #991b1b; padding: 4px 12px; border-radius: 9999px; font-size: 0.85rem;">UNPAID</span>';
+                    var frame = document.getElementById('receiptPreviewFrame');
+                    if (!frame) {
+                        alert('Receipt preview is unavailable.');
+                        return;
+                    }
 
-                    document.getElementById('printPaymentContent').innerHTML =
-                        '<div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px;">' +
-                        '<div style="text-align: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #e5e7eb;">' +
-                        '<h3 style="margin: 0 0 8px; font-size: 1.5rem;">Dental Clinic</h3>' +
-                        '<p style="margin: 0; color: #6b7280; font-size: 0.875rem;">Smiles Dental Care Center</p>' +
-                        '<p style="margin: 4px 0 0; color: #6b7280; font-size: 0.75rem;">123 Dental Street, City</p></div>' +
-                        '<div style="display: flex; justify-content: space-between; margin-bottom: 16px;">' +
-                        '<div><span style="color: #6b7280; font-size: 0.875rem;">Invoice #:</span> <strong>' + (p.invoice_id || 'N/A') + '</strong></div>' +
-                        '<div><span style="color: #6b7280; font-size: 0.875rem;">Date:</span> ' + (p.date || 'N/A') + '</div></div>' +
-                        '<div style="margin-bottom: 16px;"><span style="color: #6b7280; font-size: 0.875rem;">Patient:</span> <strong>' + (p.patient || 'N/A') + '</strong></div>' +
-                        '<div style="margin-bottom: 16px;"><span style="color: #6b7280; font-size: 0.875rem;">Services:</span> ' + (p.services || 'N/A') + '</div>' +
-                        '<div style="margin-bottom: 16px;"><span style="color: #6b7280; font-size: 0.875rem;">Due Date:</span> ' + (p.dueDate || 'N/A') + '</div>' +
-                        '<div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin: 24px 0; text-align: center;">' +
-                        '<span style="color: #6b7280; font-size: 0.875rem;">Total Amount</span><br>' +
-                        '<span style="font-size: 2rem; font-weight: 700; color: #059669;">P' + parseFloat(p.amount).toFixed(2) + '</span></div>' +
-                        '<div style="text-align: center;">' + statusBadge + '</div>' +
-                        '<div style="text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #e5e7eb; color: #9ca3af; font-size: 0.75rem;">' +
-                        '<p style="margin: 0;">Thank you for choosing our dental clinic!</p>' +
-                        '<p style="margin: 4px 0 0;">Please keep this receipt for your records.</p></div></div>';
-
+                    var srcdoc = buildReceiptSrcdoc();
+                    frame.onload = function() {
+                        fillReceiptPreview(frame, p);
+                    };
+                    frame.srcdoc = srcdoc;
                     document.getElementById('printPaymentModal').style.display = 'flex';
+                }
+
+                function buildReceiptSrcdoc() {
+                    var html = receiptTemplateHtml || '';
+                    if (!html) {
+                        return '<!DOCTYPE html><html><body><div style="padding:24px;font-family:Arial,sans-serif;">Receipt template not found.</div></body></html>';
+                    }
+
+                    html = html.replace('<link rel="stylesheet" href="receipt.css">', '<style>' + receiptTemplateCss + '\n' + receiptPreviewOverrides + '</style>');
+                    html = html.replace('src="profile.png"', 'src="' + receiptImageUrl + '"');
+                    html = html.replace('<head>', '<head><base href="' + receiptBaseUrl + '">');
+                    html = html.replace(/<button class="print-btn" onclick="window\.print\(\)">Print Invoice<\/button>\s*/i, '');
+                    return html;
+                }
+
+                function formatReceiptMoney(value) {
+                    var numeric = parseFloat(value);
+                    if (!Number.isFinite(numeric)) {
+                        numeric = 0;
+                    }
+                    return numeric.toLocaleString('en-PH', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                }
+
+                function formatReceiptDate(value) {
+                    if (!value) {
+                        return '';
+                    }
+
+                    var dateValue = new Date(value);
+                    if (Number.isNaN(dateValue.getTime())) {
+                        return String(value);
+                    }
+
+                    return dateValue.toLocaleDateString('en-PH', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: '2-digit'
+                    });
+                }
+
+                function fillReceiptPreview(frame, p) {
+                    var doc = frame.contentDocument || (frame.contentWindow && frame.contentWindow.document);
+                    if (!doc) return;
+
+                    if (doc.documentElement) {
+                        doc.documentElement.style.overflow = 'hidden';
+                        doc.documentElement.style.margin = '0';
+                        doc.documentElement.style.padding = '0';
+                    }
+                    if (doc.body) {
+                        doc.body.style.overflow = 'hidden';
+                        doc.body.style.margin = '0';
+                        doc.body.style.padding = '0';
+                    }
+
+                    var invoiceInput = doc.querySelector('.editable-box');
+                    if (invoiceInput) {
+                        invoiceInput.value = p.invoice_id || 'N/A';
+                    }
+
+                    var metaInputs = doc.querySelectorAll('.invoice-meta .line-input');
+                    if (metaInputs[0]) {
+                        metaInputs[0].value = formatReceiptDate(p.date || '');
+                    }
+
+                    var billInputs = doc.querySelectorAll('.bill-to .line-input');
+                    if (billInputs[0]) {
+                        billInputs[0].value = p.patient || 'N/A';
+                    }
+                    if (billInputs[1]) {
+                        billInputs[1].value = p.phone || '';
+                    }
+
+                    var serviceNames = String(p.services || 'General Service')
+                        .split(',')
+                        .map(function(service) { return service.trim(); })
+                        .filter(Boolean);
+                    var rows = doc.querySelectorAll('.services-table tbody tr');
+                    rows.forEach(function(row, index) {
+                        var particularInput = row.querySelector('.table-input');
+                        var amountInput = row.querySelector('.amount-input');
+
+                        if (!particularInput || !amountInput) return;
+
+                        if (index === 0) {
+                            particularInput.value = serviceNames.length ? serviceNames.join(', ') : 'General Service';
+                            amountInput.value = formatReceiptMoney(p.amount || 0);
+                        } else {
+                            particularInput.value = '';
+                            amountInput.value = '';
+                        }
+                    });
+
+                    var totalInput = doc.querySelector('.total-input');
+                    if (totalInput) {
+                        totalInput.value = formatReceiptMoney(p.amount || 0);
+                    }
+
+                    if (doc.defaultView && typeof doc.defaultView.updateTotal === 'function') {
+                        doc.defaultView.updateTotal();
+                    }
+
+                    requestAnimationFrame(function() {
+                        requestAnimationFrame(function() {
+                            var height = Math.max(
+                                doc.body ? doc.body.scrollHeight : 0,
+                                doc.documentElement ? doc.documentElement.scrollHeight : 0
+                            );
+                            if (height > 0) {
+                                frame.style.height = height + 'px';
+                            }
+                        });
+                    });
                 }
 
                 function closePrintPaymentModal() {
@@ -1947,6 +2156,14 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                             body: JSON.stringify({ action: 'mark_printed', billing_id: currentPrintBillingId })
                         }).catch(() => {});
                     }
+
+                    var frame = document.getElementById('receiptPreviewFrame');
+                    if (frame && frame.contentWindow) {
+                        frame.contentWindow.focus();
+                        frame.contentWindow.print();
+                        return;
+                    }
+
                     window.print();
                 }
 
