@@ -22,7 +22,9 @@ function validateCaptcha($input) {
     }
 
     $valid = $_SESSION['captcha_code'] === $input;
-    unset($_SESSION['captcha_code'], $_SESSION['captcha_time']);
+    if (!$valid) {
+        unset($_SESSION['captcha_code'], $_SESSION['captcha_time']);
+    }
     return $valid;
 }
 
