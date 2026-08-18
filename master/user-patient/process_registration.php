@@ -59,6 +59,10 @@ if ($action === 'verify_otp') {
         $phone = trim($_POST['phone'] ?? '');
         $gender = trim($_POST['gender'] ?? '');
         $dateOfBirth = trim($_POST['date_of_birth'] ?? '');
+        $address = trim($_POST['address'] ?? '');
+        $emergencyContactName = trim($_POST['emergency_contact_name'] ?? '');
+        $emergencyContactPhone = trim($_POST['emergency_contact_phone'] ?? '');
+        $emergencyContactRelationship = trim($_POST['emergency_contact_relationship'] ?? '');
         $password = (string)($_POST['password'] ?? '');
 
         if ($firstName !== '' && $lastName !== '' && $email !== '' && $phone !== '' && $password !== '') {
@@ -70,6 +74,10 @@ if ($action === 'verify_otp') {
                 'phone' => $phone,
                 'gender' => $gender,
                 'date_of_birth' => $dateOfBirth,
+                'address' => $address,
+                'emergency_contact_name' => $emergencyContactName,
+                'emergency_contact_phone' => $emergencyContactPhone,
+                'emergency_contact_relationship' => $emergencyContactRelationship,
                 'password' => $password,
             ];
         }
@@ -103,6 +111,10 @@ if ($action === 'verify_otp') {
     $phone = $regData['phone'];
     $gender = $regData['gender'];
     $date_of_birth = $regData['date_of_birth'] ?? '';
+    $address = $regData['address'] ?? '';
+    $emergencyContactName = $regData['emergency_contact_name'] ?? '';
+    $emergencyContactPhone = $regData['emergency_contact_phone'] ?? '';
+    $emergencyContactRelationship = $regData['emergency_contact_relationship'] ?? '';
     $password = $regData['password'];
 
     try {
@@ -127,13 +139,16 @@ if ($action === 'verify_otp') {
         $stmt->execute($userValues);
         $user_id = $pdo->lastInsertId();
 
-        $stmt = $pdo->prepare("
-            INSERT INTO patients (
-                first_name, middle_name, last_name,
-                phone, email, gender, date_of_birth
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        ");
-        $stmt->execute([
+        $patientInsertColumns = [
+            'first_name',
+            'middle_name',
+            'last_name',
+            'phone',
+            'email',
+            'gender',
+            'date_of_birth'
+        ];
+        $patientInsertValues = [
             $first_name,
             $middle_name ?: null,
             $last_name,
@@ -141,7 +156,33 @@ if ($action === 'verify_otp') {
             $email,
             $gender,
             $date_of_birth ?: null
-        ]);
+        ];
+
+        if (tableHasColumn($pdo, 'patients', 'street_address')) {
+            $patientInsertColumns[] = 'street_address';
+            $patientInsertValues[] = $address !== '' ? $address : null;
+        }
+        if (tableHasColumn($pdo, 'patients', 'emergency_contact_name')) {
+            $patientInsertColumns[] = 'emergency_contact_name';
+            $patientInsertValues[] = $emergencyContactName !== '' ? $emergencyContactName : null;
+        }
+        if (tableHasColumn($pdo, 'patients', 'emergency_contact_phone')) {
+            $patientInsertColumns[] = 'emergency_contact_phone';
+            $patientInsertValues[] = $emergencyContactPhone !== '' ? $emergencyContactPhone : null;
+        }
+        if (tableHasColumn($pdo, 'patients', 'emergency_contact_relationship')) {
+            $patientInsertColumns[] = 'emergency_contact_relationship';
+            $patientInsertValues[] = $emergencyContactRelationship !== '' ? $emergencyContactRelationship : null;
+        }
+
+        $insertPatientSql = "
+            INSERT INTO patients (
+                " . implode(', ', $patientInsertColumns) . "
+            ) VALUES (" . implode(', ', array_fill(0, count($patientInsertColumns), '?')) . ")
+        ";
+        $insertPatientParams = $patientInsertValues;
+        $stmt = $pdo->prepare($insertPatientSql);
+        $stmt->execute($insertPatientParams);
         $patient_id = $pdo->lastInsertId();
 
         $pdo->commit();
@@ -245,6 +286,10 @@ try {
         throw new Exception('Email already registered. Please login instead.');
     }
 
+    $emergency_contact_name = trim($_POST['emergency_contact_name'] ?? '');
+    $emergency_contact_phone = trim($_POST['emergency_contact_phone'] ?? '');
+    $emergency_contact_relationship = trim($_POST['emergency_contact_relationship'] ?? '');
+
     $otpCode = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
     $_SESSION['reg_otp'] = $otpCode;
     $_SESSION['reg_otp_expires'] = time() + 180;
@@ -256,6 +301,10 @@ try {
         'phone' => $phone,
         'gender' => $gender,
         'date_of_birth' => $date_of_birth,
+        'address' => $address,
+        'emergency_contact_name' => $emergency_contact_name,
+        'emergency_contact_phone' => $emergency_contact_phone,
+        'emergency_contact_relationship' => $emergency_contact_relationship,
         'password' => $password,
     ];
 

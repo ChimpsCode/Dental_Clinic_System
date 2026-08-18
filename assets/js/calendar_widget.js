@@ -16,6 +16,22 @@
         var container = document.getElementById(cfg.containerId);
         var labelEl = document.getElementById(cfg.labelId);
 
+        function requestMonth(targetMonth) {
+            if (busy) return;
+            busy = true;
+            fetch(cfg.endpoint + '?cal=' + targetMonth)
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    busy = false;
+                    if (!data.success) return;
+                    currentMonth = data.month;
+                    if (labelEl) labelEl.textContent = data.month_label;
+                    window[cfg.appointmentVar] = data.appointments || {};
+                    renderGrid(data.appointments || {});
+                })
+                .catch(function() { busy = false; });
+        }
+
         function renderGrid(appointments) {
             if (!container) return;
             var parts = currentMonth.split('-');
@@ -62,29 +78,24 @@
         }
 
         function load(dir) {
-            if (busy) return;
-            busy = true;
             var m = new Date(parseInt(currentMonth.split('-')[0], 10), parseInt(currentMonth.split('-')[1], 10) - 1, 1);
             m.setMonth(m.getMonth() + (dir === 'next' ? 1 : -1));
             var target = m.getFullYear() + '-' + pad2(m.getMonth() + 1);
-
-            fetch(cfg.endpoint + '?cal=' + target)
-                .then(function(r) { return r.json(); })
-                .then(function(data) {
-                    busy = false;
-                    if (!data.success) return;
-                    currentMonth = data.month;
-                    if (labelEl) labelEl.textContent = data.month_label;
-                    window[cfg.appointmentVar] = data.appointments || {};
-                    renderGrid(data.appointments || {});
-                })
-                .catch(function() { busy = false; });
+            requestMonth(target);
         }
+
+        var instance = {
+            refresh: function() {
+                requestMonth(currentMonth);
+            }
+        };
 
         var prevBtn = document.getElementById(cfg.prevBtnId);
         var nextBtn = document.getElementById(cfg.nextBtnId);
         if (prevBtn) prevBtn.addEventListener('click', function(e) { e.preventDefault(); load('prev'); });
         if (nextBtn) nextBtn.addEventListener('click', function(e) { e.preventDefault(); load('next'); });
+
+        return instance;
     }
 
     window.MiniCalendar = MiniCalendar;

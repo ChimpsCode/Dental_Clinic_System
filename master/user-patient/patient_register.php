@@ -72,15 +72,27 @@ if ($action === 'verify_otp') {
         $lastName = trim($_POST['last_name'] ?? '');
         $email = trim($_POST['email'] ?? '');
         $phone = trim($_POST['phone'] ?? '');
+        $gender = trim($_POST['gender'] ?? '');
+        $dateOfBirth = trim($_POST['date_of_birth'] ?? '');
+        $address = trim($_POST['address'] ?? '');
+        $emergencyContactName = trim($_POST['emergency_contact_name'] ?? '');
+        $emergencyContactPhone = trim($_POST['emergency_contact_phone'] ?? '');
+        $emergencyContactRelationship = trim($_POST['emergency_contact_relationship'] ?? '');
         $password = (string)($_POST['password'] ?? '');
 
-        if ($firstName !== '' && $lastName !== '' && $email !== '' && $phone !== '' && $password !== '') {
+        if ($firstName !== '' && $lastName !== '' && $email !== '' && $phone !== '' && $gender !== '' && $dateOfBirth !== '' && $password !== '') {
             $regData = [
                 'first_name' => $firstName,
                 'middle_name' => $middleName,
                 'last_name' => $lastName,
                 'email' => $email,
                 'phone' => $phone,
+                'gender' => $gender,
+                'date_of_birth' => $dateOfBirth,
+                'address' => $address,
+                'emergency_contact_name' => $emergencyContactName,
+                'emergency_contact_phone' => $emergencyContactPhone,
+                'emergency_contact_relationship' => $emergencyContactRelationship,
                 'password' => $password,
             ];
         }
@@ -108,6 +120,12 @@ if ($action === 'verify_otp') {
     $lastName = $regData['last_name'];
     $email = $regData['email'];
     $phone = $regData['phone'];
+    $gender = $regData['gender'] ?? '';
+    $dateOfBirth = $regData['date_of_birth'] ?? '';
+    $address = $regData['address'] ?? '';
+    $emergencyContactName = $regData['emergency_contact_name'] ?? '';
+    $emergencyContactPhone = $regData['emergency_contact_phone'] ?? '';
+    $emergencyContactRelationship = $regData['emergency_contact_relationship'] ?? '';
     $password = $regData['password'];
 
     try {
@@ -139,6 +157,14 @@ if ($action === 'verify_otp') {
         if (tableHasColumn($pdo, 'users', 'phone')) {
             $userColumns[] = 'phone';
             $userValues[] = $phone;
+        }
+        if (tableHasColumn($pdo, 'users', 'gender')) {
+            $userColumns[] = 'gender';
+            $userValues[] = $gender !== '' ? $gender : null;
+        }
+        if (tableHasColumn($pdo, 'users', 'date_of_birth')) {
+            $userColumns[] = 'date_of_birth';
+            $userValues[] = $dateOfBirth !== '' ? $dateOfBirth : null;
         }
         if (tableHasColumn($pdo, 'users', 'first_name')) {
             $userColumns[] = 'first_name';
@@ -187,6 +213,14 @@ if ($action === 'verify_otp') {
             $patientColumns[] = 'email';
             $patientValues[] = $email;
         }
+        if (tableHasColumn($pdo, 'patients', 'gender')) {
+            $patientColumns[] = 'gender';
+            $patientValues[] = $gender !== '' ? $gender : null;
+        }
+        if (tableHasColumn($pdo, 'patients', 'date_of_birth')) {
+            $patientColumns[] = 'date_of_birth';
+            $patientValues[] = $dateOfBirth !== '' ? $dateOfBirth : null;
+        }
         if (tableHasColumn($pdo, 'patients', 'registration_source_id')) {
             $patientColumns[] = 'registration_source_id';
             $patientValues[] = null;
@@ -197,6 +231,22 @@ if ($action === 'verify_otp') {
         if (tableHasColumn($pdo, 'patients', 'user_id')) {
             $patientColumns[] = 'user_id';
             $patientValues[] = $userId;
+        }
+        if (tableHasColumn($pdo, 'patients', 'street_address')) {
+            $patientColumns[] = 'street_address';
+            $patientValues[] = $address !== '' ? $address : null;
+        }
+        if (tableHasColumn($pdo, 'patients', 'emergency_contact_name')) {
+            $patientColumns[] = 'emergency_contact_name';
+            $patientValues[] = $emergencyContactName !== '' ? $emergencyContactName : null;
+        }
+        if (tableHasColumn($pdo, 'patients', 'emergency_contact_phone')) {
+            $patientColumns[] = 'emergency_contact_phone';
+            $patientValues[] = $emergencyContactPhone !== '' ? $emergencyContactPhone : null;
+        }
+        if (tableHasColumn($pdo, 'patients', 'emergency_contact_relationship')) {
+            $patientColumns[] = 'emergency_contact_relationship';
+            $patientValues[] = $emergencyContactRelationship !== '' ? $emergencyContactRelationship : null;
         }
 
         if (empty($patientColumns)) {
@@ -229,10 +279,13 @@ $middleName = trim($_POST['middle_name'] ?? '');
 $lastName = trim($_POST['last_name'] ?? '');
 $email = trim($_POST['email'] ?? '');
 $phone = trim($_POST['phone'] ?? '');
+$gender = trim($_POST['gender'] ?? '');
+$dateOfBirth = trim($_POST['date_of_birth'] ?? '');
+$address = trim($_POST['address'] ?? '');
 $password = (string)($_POST['password'] ?? '');
 $confirmPassword = (string)($_POST['confirm_password'] ?? '');
 
-if ($firstName === '' || $lastName === '' || $email === '' || $phone === '' || $password === '' || $confirmPassword === '') {
+if ($firstName === '' || $lastName === '' || $email === '' || $phone === '' || $gender === '' || $dateOfBirth === '' || $password === '' || $confirmPassword === '') {
     respond(false, 'Please fill in all required fields.');
 }
 
@@ -270,6 +323,10 @@ try {
         respond(true, 'Verification code sent to your email.', ['step' => 'otp']);
     }
 
+    $emergencyContactName = trim($_POST['emergency_contact_name'] ?? '');
+    $emergencyContactPhone = trim($_POST['emergency_contact_phone'] ?? '');
+    $emergencyContactRelationship = trim($_POST['emergency_contact_relationship'] ?? '');
+
     $otpCode = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
     $_SESSION['reg_otp'] = $otpCode;
     $_SESSION['reg_otp_expires'] = time() + 180;
@@ -279,6 +336,12 @@ try {
         'last_name' => $lastName,
         'email' => $email,
         'phone' => $phone,
+        'gender' => $gender,
+        'date_of_birth' => $dateOfBirth,
+        'address' => $address,
+        'emergency_contact_name' => $emergencyContactName,
+        'emergency_contact_phone' => $emergencyContactPhone,
+        'emergency_contact_relationship' => $emergencyContactRelationship,
         'password' => $password,
     ];
 

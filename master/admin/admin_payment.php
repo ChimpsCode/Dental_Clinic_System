@@ -336,7 +336,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
             <!-- View Payment Details Modal -->
             <div id="viewPaymentModal" class="modal-overlay" style="display: none;">
                 <div class="modal-backdrop"></div>
-                <div class="modal" style="max-width: 500px;">
+                <div class="modal" style="max-width: 800px; width:90%;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <h2 style="margin: 0; font-size: 1.25rem; font-weight: 600;">&#128176; Payment Details</h2>
                         <button onclick="closePaymentModal('viewPaymentModal')" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">&times;</button>

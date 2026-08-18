@@ -522,7 +522,9 @@ body {
     display: none;
 }
 
-.input-group input {
+.input-group input,
+.input-group select,
+.styled-select {
     width: 100%;
     padding: 14px 16px;
     font-size: 15px;
@@ -533,6 +535,10 @@ body {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     outline: none;
     font-weight: 500;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    box-sizing: border-box;
 }
 
 .input-group input::placeholder {
@@ -540,14 +546,51 @@ body {
     font-weight: 500;
 }
 
-.input-group input:focus {
+.input-group input:focus,
+.input-group select:focus,
+.styled-select:focus {
     border-color: #0061e0;
     background-color: #ffffff;
     box-shadow: 0 0 0 4px rgba(0, 97, 224, 0.08);
 }
 
-.input-group input:hover:not(:focus) {
+.input-group input:hover:not(:focus),
+.input-group select:hover:not(:focus),
+.styled-select:hover:not(:focus) {
     border-color: #c5cad6;
+}
+
+.registration-form-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-bottom: 8px;
+}
+
+.registration-form-section-last {
+    margin-top: 2px;
+}
+
+.registration-password-box {
+    margin-top: 6px;
+    margin-bottom: 16px;
+    background: rgba(15, 23, 42, 0.04);
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: #0f172a;
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.registration-password-title {
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.registration-password-box ul {
+    margin: 0;
+    padding-left: 18px;
 }
 
 .toggle-password {

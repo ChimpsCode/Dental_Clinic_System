@@ -34,84 +34,145 @@ $messageType = '';
 require_once '../../config/database.php';
 
 try {
-    // First, try to get patient by user_id
+    // Safely fetch user and patient records, pulling from whichever table has the data
     $stmt = $pdo->prepare("
         SELECT p.*, 
-               COALESCE(u.first_name, p.first_name) as first_name, 
-               COALESCE(u.middle_name, p.middle_name) as middle_name, 
-               COALESCE(u.last_name, p.last_name) as last_name,
-               u.email, u.phone, u.created_at, u.profile_picture
-        FROM patients p 
-        LEFT JOIN users u ON u.id = p.user_id 
-        WHERE p.user_id = ?
+               u.first_name as user_first_name, 
+               u.middle_name as user_middle_name, 
+               u.last_name as user_last_name,
+               COALESCE(u.email, p.email) as email,
+               COALESCE(u.phone, p.phone) as phone,
+               p.street_address,
+               u.created_at, u.profile_picture,
+               COALESCE(u.gender, p.gender) as gender
+        FROM users u 
+        LEFT JOIN patients p ON p.id = u.patient_id 
+        WHERE u.id = ?
     ");
     $stmt->execute([$user_id]);
     $patient = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    // If not found by user_id, try by patient_id from session
-    if (!$patient && $patient_id) {
+    // Fallback if not found by user id, try session patient_id
+    if ((!$patient || empty($patient['id'])) && $patient_id) {
         $stmt = $pdo->prepare("
             SELECT p.*, 
-                   COALESCE(p.first_name, u.first_name) as first_name, 
-                   COALESCE(p.middle_name, u.middle_name) as middle_name, 
-                   COALESCE(p.last_name, u.last_name) as last_name,
-                   u.email, u.phone, u.created_at, u.profile_picture
+                   u.first_name as user_first_name, 
+                   u.middle_name as user_middle_name, 
+                   u.last_name as user_last_name,
+                   COALESCE(p.email, u.email) as email,
+                   COALESCE(p.phone, u.phone) as phone,
+                   p.street_address,
+                   u.created_at, u.profile_picture,
+                   COALESCE(p.gender, u.gender) as gender
             FROM patients p 
-            LEFT JOIN users u ON u.id = p.user_id 
+            LEFT JOIN users u ON u.patient_id = p.id 
             WHERE p.id = ?
         ");
         $stmt->execute([$patient_id]);
         $patient = $stmt->fetch(PDO::FETCH_ASSOC);
     }
     
-    if (!$patient) {
-        throw new Exception('Patient not found');
+    // Final fallback if no link exists yet
+    if (!$patient || empty($patient['id'])) {
+        $stmt = $pdo->prepare("SELECT *, first_name as user_first_name, middle_name as user_middle_name, last_name as user_last_name FROM users WHERE id = ?");
+        $stmt->execute([$user_id]);
+        $patient = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
     }
     
-    // Save patient_id to session if it's not set
-    if (!$patient_id && $patient) {
+    if (!empty($patient['id']) && !$patient_id) {
         $patient_id = $patient['id'];
         $_SESSION['patient_id'] = $patient_id;
     }
-    
+
+    if (!empty($patient) && !isset($patient['street_address']) && !empty($patient['address'])) {
+        $patient['street_address'] = $patient['address'];
+    }
+    if (!empty($patient) && !isset($patient['street_address'])) {
+        $patient['street_address'] = '';
+    }
+
+    $patientGender = strtolower(trim((string)($patient['gender'] ?? '')));
+    if ($patientGender === 'm') {
+        $patientGender = 'male';
+    } elseif ($patientGender === 'f') {
+        $patientGender = 'female';
+    }
+
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = $_POST['action'] ?? '';
-        
-        if ($action === 'update_profile') {
-            $first_name = trim($_POST['first_name'] ?? '');
-            $middle_name = trim($_POST['middle_name'] ?? '');
-            $last_name = trim($_POST['last_name'] ?? '');
-            $email = trim($_POST['email'] ?? '');
-            $phone = trim($_POST['phone'] ?? '');
-            $address = trim($_POST['address'] ?? '');
-            $date_of_birth = $_POST['date_of_birth'] ?? null;
-            $gender = $_POST['gender'] ?? '';
-            
+
+        if ($action === 'verify_and_update') {
+            $change_type = $_POST['change_type'] ?? '';
+            $otp_code = trim($_POST['otp_code'] ?? '');
+
+            if ($change_type !== 'address' && empty($otp_code)) {
+                throw new Exception('OTP verification is required to update your phone number.');
+            }
+
+            // TODO: Validate against your generated OTP code here if needed.
+            // if ($change_type !== 'address' && $otp_code !== $_SESSION['active_otp']) {
+            //     throw new Exception('Invalid OTP code.');
+            // }
+
             $pdo->beginTransaction();
-            
-            $stmt = $pdo->prepare("UPDATE users SET first_name = ?, middle_name = ?, last_name = ?, email = ?, phone = ? WHERE id = ?");
-            $stmt->execute([$first_name, $middle_name, $last_name, $email, $phone, $user_id]);
-            
-            $stmt = $pdo->prepare("UPDATE patients SET street_address = ?, date_of_birth = ?, gender = ? WHERE id = ?");
-            $stmt->execute([$address, $date_of_birth, $gender, $patient_id]);
-            
-            $pdo->commit();
-            
-            $message = 'Profile updated successfully!';
-            $messageType = 'success';
-            
-            $stmt = $pdo->prepare("
-                SELECT p.*, 
-                       COALESCE(u.first_name, p.first_name) as first_name, 
-                       COALESCE(u.middle_name, p.middle_name) as middle_name, 
-                       COALESCE(u.last_name, p.last_name) as last_name,
-                       u.email, u.phone, u.created_at, u.profile_picture
-                FROM patients p 
-                LEFT JOIN users u ON u.id = p.user_id 
-                WHERE p.id = ?
-            ");
-            $stmt->execute([$patient_id]);
-            $patient = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            try {
+                if ($change_type === 'phone') {
+                    $phone = trim($_POST['phone'] ?? '');
+                    $stmt = $pdo->prepare("UPDATE users SET phone = ? WHERE id = ?");
+                    $stmt->execute([$phone, $user_id]);
+                    $message = 'Phone number successfully updated.';
+                } elseif ($change_type === 'address') {
+                    $address = trim($_POST['address'] ?? '');
+                    $stmt = $pdo->prepare("UPDATE patients SET street_address = ? WHERE id = ?");
+                    $stmt->execute([$address, $patient_id]);
+                    $message = 'Address successfully updated.';
+                } else {
+                    throw new Exception('Invalid update type.');
+                }
+
+                $pdo->commit();
+                $messageType = 'success';
+
+                $refreshStmt = $pdo->prepare("
+                    SELECT p.*, 
+                           u.first_name as user_first_name,
+                           u.middle_name as user_middle_name,
+                           u.last_name as user_last_name,
+                           COALESCE(u.email, p.email) as email,
+                           COALESCE(u.phone, p.phone) as phone,
+                           p.street_address,
+                           u.created_at, u.profile_picture,
+                           COALESCE(u.gender, p.gender) as gender
+                    FROM users u
+                    LEFT JOIN patients p ON p.id = u.patient_id
+                    WHERE u.id = ?
+                ");
+                $refreshStmt->execute([$user_id]);
+                $patient = $refreshStmt->fetch(PDO::FETCH_ASSOC);
+
+                if ((!$patient || empty($patient['id'])) && $patient_id) {
+                    $refreshStmt = $pdo->prepare("
+                        SELECT p.*, 
+                               u.first_name as user_first_name,
+                               u.middle_name as user_middle_name,
+                               u.last_name as user_last_name,
+                               COALESCE(p.email, u.email) as email,
+                               COALESCE(p.phone, u.phone) as phone,
+                               p.street_address,
+                               u.created_at, u.profile_picture,
+                               COALESCE(p.gender, u.gender) as gender
+                        FROM patients p
+                        LEFT JOIN users u ON u.patient_id = p.id
+                        WHERE p.id = ?
+                    ");
+                    $refreshStmt->execute([$patient_id]);
+                    $patient = $refreshStmt->fetch(PDO::FETCH_ASSOC);
+                }
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                throw $e;
+            }
         }
     }
     
@@ -119,7 +180,8 @@ try {
     if (isset($pdo) && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    $patient = [];
+    $message = $e->getMessage();
+    $messageType = 'error';
 }
 
 $pageTitle = 'My Profile';
@@ -160,9 +222,6 @@ $pageTitle = 'My Profile';
         .dropdown-item:hover { background: #f3f4f6; }
         .dropdown-item.logout { color: #dc3545; border-top: 1px solid #e5e7eb; }
         .dashboard-main { flex: 1; padding: 24px 32px; max-width: 900px; width: 100%; margin: 0 auto; }
-        .page-header { margin-bottom: 24px; }
-        .page-title { font-size: 28px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
-        .page-subtitle { color: #6b7280; font-size: 14px; }
         .section { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 24px; }
         .section-title { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 20px; }
         .profile-header { display: flex; align-items: center; gap: 20px; margin-bottom: 24px; }
@@ -173,9 +232,18 @@ $pageTitle = 'My Profile';
         .form-group { margin-bottom: 16px; }
         .form-group.full-width { grid-column: span 2; }
         .form-label { display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px; }
-        .form-input { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; transition: border-color 0.2s; }
+        .form-input { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; transition: border-color 0.2s; background: #fff; }
+        .form-input[readonly] { background: #f3f4f6; color: #4b5563; cursor: not-allowed; border-color: #e5e7eb; }
         .form-input:focus { outline: none; border-color: #005daa; box-shadow: 0 0 0 3px rgba(0,93,170,0.1); }
+        .contact-stack { display: flex; flex-direction: column; gap: 18px; }
+        .contact-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; border: 1px solid #e5e7eb; border-radius: 10px; background: #f9fafb; }
+        .contact-row-label { font-size: 14px; font-weight: 600; color: #374151; min-width: 120px; }
+        .contact-row-value { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+        .contact-row-text { font-size: 15px; color: #1f2937; word-break: break-word; }
+        .edit-contact-btn { width: 36px; height: 36px; border: 1px solid #d1d5db; background: white; border-radius: 50%; color: #005daa; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; position: relative; z-index: 5; }
+        .edit-contact-btn:hover { background: #eef6ff; border-color: #cfe2ff; }
         .form-select { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; background: white; }
+        .form-select[readonly], .form-select:disabled { background: #f3f4f6; color: #4b5563; cursor: not-allowed; }
         .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
         .btn-primary { background: #005daa; color: white; }
         .btn-primary:hover { background: #004080; }
@@ -185,23 +253,9 @@ $pageTitle = 'My Profile';
         .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
         .alert-success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
         .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
-        .info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f3f4f6; }
-        .info-row:last-child { border-bottom: none; }
-        .info-label { color: #6b7280; font-size: 14px; }
-        .info-value { color: #1a1a2e; font-size: 14px; font-weight: 500; }
-        @media (max-width: 768px) {
-            .sidebar { width: 60px; padding: 24px 0; }
-            .sidebar-brand span, .menu-item span { display: none; }
-            .sidebar-brand { justify-content: center; padding: 0; }
-            .menu-item { justify-content: center; padding: 14px; }
-            .main-wrapper { margin-left: 60px; }
-            .dashboard-header { padding: 12px 16px; }
-            .user-details { display: none; }
-            .dashboard-main { padding: 16px; }
-            .form-grid { grid-template-columns: 1fr; }
-            .form-group.full-width { grid-column: span 1; }
-            .profile-header { flex-direction: column; text-align: center; }
-        }
+        /* Modal styling for OTP */
+        .otp-modal { display: none; position: fixed; z-index: 1100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+        .otp-modal-content { background: white; padding: 24px; border-radius: 12px; width: 100%; max-width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
     </style>
     <link rel="stylesheet" href="../../assets/css/patient_portal.css">
 </head>
@@ -332,68 +386,95 @@ $pageTitle = 'My Profile';
                     </form>
                 </div>
 
-                <form method="POST" action="">
-                    <input type="hidden" name="action" value="update_profile">
+                <form method="POST" action="" id="profileUpdateForm">
+                    <input type="hidden" name="action" value="update_contact_request">
+                    <input type="hidden" name="change_type" id="changeTypeField" value="">
+                    <input type="hidden" name="otp_code" id="hiddenOtpCode" value="">
                     
+                    <!-- Personal Information (Read-only / Not Editable) -->
                     <div class="section-title">Personal Information</div>
                     <div class="form-grid">
                         <div class="form-group">
                             <label class="form-label">First Name</label>
-                            <input type="text" name="first_name" class="form-input" value="<?php echo htmlspecialchars($patient['first_name'] ?? ''); ?>" required>
+                            <input type="text" class="form-input" value="<?php echo htmlspecialchars($patient['first_name'] ?? ''); ?>" readonly>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Middle Name</label>
-                            <input type="text" name="middle_name" class="form-input" value="<?php echo htmlspecialchars($patient['middle_name'] ?? ''); ?>">
+                            <input type="text" class="form-input" value="<?php echo htmlspecialchars($patient['middle_name'] ?? ''); ?>" readonly>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Last Name</label>
-                            <input type="text" name="last_name" class="form-input" value="<?php echo htmlspecialchars($patient['last_name'] ?? ''); ?>" required>
+                            <input type="text" class="form-input" value="<?php echo htmlspecialchars($patient['last_name'] ?? ''); ?>" readonly>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Date of Birth</label>
-                            <input type="date" name="date_of_birth" class="form-input" value="<?php echo htmlspecialchars($patient['date_of_birth'] ?? ''); ?>">
+                            <input type="date" class="form-input" value="<?php echo htmlspecialchars($patient['date_of_birth'] ?? ''); ?>" readonly>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Gender</label>
-                            <select name="gender" class="form-select">
+                            <select class="form-select" disabled>
                                 <option value="">Select Gender</option>
-                                <option value="male" <?php echo ($patient['gender'] ?? '') === 'male' ? 'selected' : ''; ?>>Male</option>
-                                <option value="female" <?php echo ($patient['gender'] ?? '') === 'female' ? 'selected' : ''; ?>>Female</option>
-                                <option value="other" <?php echo ($patient['gender'] ?? '') === 'other' ? 'selected' : ''; ?>>Other</option>
+                                <option value="male" <?php echo $patientGender === 'male' ? 'selected' : ''; ?>>Male</option>
+                                <option value="female" <?php echo $patientGender === 'female' ? 'selected' : ''; ?>>Female</option>
+                                <option value="other" <?php echo $patientGender === 'other' ? 'selected' : ''; ?>>Other</option>
                             </select>
                         </div>
                     </div>
 
-                    <div class="section-title" style="margin-top: 24px;">Contact Information</div>
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label class="form-label">Email</label>
-                            <input type="email" name="email" class="form-input" value="<?php echo htmlspecialchars($patient['email'] ?? ''); ?>" required>
+                    <!-- Contact Information & Address -->
+                    <div class="section-title" style="margin-top: 24px;">Contact Information & Address</div>
+                    <div class="contact-stack">
+                        <div class="contact-row">
+                            <div class="contact-row-label">Email</div>
+                            <div class="contact-row-value">
+                                <span class="contact-row-text" id="contact-email-text"><?php echo htmlspecialchars($patient['email'] ?? 'Not provided'); ?></span>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">Phone</label>
-                            <input type="tel" name="phone" class="form-input" value="<?php echo htmlspecialchars($patient['phone'] ?? ''); ?>">
+                        <div class="contact-row">
+                            <div class="contact-row-label">Phone Number</div>
+                            <div class="contact-row-value">
+                                <span class="contact-row-text" id="contact-phone-text"><?php echo htmlspecialchars($patient['phone'] ?? 'Not provided'); ?></span>
+                                <button type="button" class="edit-contact-btn" data-type="phone" data-current-value="<?php echo htmlspecialchars($patient['phone'] ?? '', ENT_QUOTES); ?>" title="Edit phone number" onclick="window.openContactEditor && window.openContactEditor('phone'); return false;"><i class="fas fa-pen"></i></button>
+                            </div>
                         </div>
-                        <div class="form-group full-width">
-                            <label class="form-label">Address</label>
-                            <input type="text" name="address" class="form-input" value="<?php echo htmlspecialchars($patient['street_address'] ?? ''); ?>">
+                        <div class="contact-row">
+                            <div class="contact-row-label">Address / Location</div>
+                            <div class="contact-row-value">
+                                <span class="contact-row-text" id="contact-address-text"><?php echo htmlspecialchars($patient['street_address'] ?? 'Not provided'); ?></span>
+                                <button type="button" class="edit-contact-btn" data-type="address" data-current-value="<?php echo htmlspecialchars($patient['street_address'] ?? '', ENT_QUOTES); ?>" title="Edit address" onclick="window.openContactEditor && window.openContactEditor('address'); return false;"><i class="fas fa-pen"></i></button>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="btn-container">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> Save Changes
-                        </button>
-                    </div>
+                    <input type="hidden" name="phone" id="phoneInput" value="<?php echo htmlspecialchars($patient['phone'] ?? ''); ?>">
+                    <input type="hidden" name="address" id="addressInput" value="<?php echo htmlspecialchars($patient['street_address'] ?? ''); ?>">
                 </form>
             </div>
         </main>
     </div>
+
+    <div id="contactEditorModal" class="otp-modal" style="display:none;">
+        <div class="otp-modal-content">
+            <h3 id="contactEditorTitle" style="margin-bottom: 12px; font-size: 18px; color: #1a1a2e;">Edit Details</h3>
+            <p id="contactEditorDescription" style="font-size: 13px; color: #6b7280; margin-bottom: 16px;">Update this information.</p>
+            <div class="form-group">
+                <input type="text" id="contactEditorInput" class="form-input" placeholder="Enter value">
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" id="cancelContactEditBtn">Cancel</button>
+                <button type="button" class="btn btn-primary" id="sendOtpBtn">Send OTP</button>
+                <button type="button" class="btn btn-primary" id="saveAddressBtn" style="display:none;">Save Address</button>
+            </div>
+        </div>
+    </div>
+
     <a href="messages.php" class="floating-message-btn" data-chat-launcher aria-label="Open messages" title="Messages">
         <i class="fas fa-message"></i>
         <span class="unread-badge" id="unreadBadge" style="display: none;">0</span>
     </a>
+    
     <script>
+        // Existing chat and profile scripts
         (function () {
             const launcher = document.querySelector('[data-chat-launcher]');
             if (!launcher) return;
@@ -496,6 +577,142 @@ $pageTitle = 'My Profile';
             }, 2000);
         }
     })();
+    </script>
+    <!-- OTP Modal Popup -->
+    <div id="otpModal" class="otp-modal">
+        <div class="otp-modal-content">
+            <h3 id="modalTitle" style="margin-bottom: 12px; font-size: 18px; color: #1a1a2e;">Enter Verification OTP</h3>
+            <p id="modalDesc" style="font-size: 13px; color: #6b7280; margin-bottom: 16px;">Please enter the verification code sent to update your details.</p>
+            <div class="form-group">
+                <input type="text" id="otpInputBox" class="form-input" placeholder="Enter 6-digit OTP" maxlength="6">
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" id="cancelOtpBtn">Cancel</button>
+                <button type="button" class="btn btn-primary" id="verifyOtpBtn">Confirm & Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const profileUpdateForm = document.getElementById('profileUpdateForm');
+        const contactEditorModal = document.getElementById('contactEditorModal');
+        const contactEditorTitle = document.getElementById('contactEditorTitle');
+        const contactEditorDescription = document.getElementById('contactEditorDescription');
+        const contactEditorInput = document.getElementById('contactEditorInput');
+        const cancelContactEditBtn = document.getElementById('cancelContactEditBtn');
+        const sendOtpBtn = document.getElementById('sendOtpBtn');
+        const saveAddressBtn = document.getElementById('saveAddressBtn');
+        const otpModal = document.getElementById('otpModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalDesc = document.getElementById('modalDesc');
+        const cancelOtpBtn = document.getElementById('cancelOtpBtn');
+        const verifyOtpBtn = document.getElementById('verifyOtpBtn');
+        const otpInputBox = document.getElementById('otpInputBox');
+        const hiddenOtpCode = document.getElementById('hiddenOtpCode');
+        const changeTypeField = document.getElementById('changeTypeField');
+        const phoneInput = document.getElementById('phoneInput');
+        const addressInput = document.getElementById('addressInput');
+
+        let currentEditType = null;
+
+        window.closeContactEditor = function() {
+            contactEditorModal.style.display = 'none';
+            contactEditorInput.value = '';
+            currentEditType = null;
+        };
+
+        window.openContactEditor = function(type) {
+            currentEditType = type;
+            const currentValue = document.querySelector('.edit-contact-btn[data-type="' + type + '"]')?.dataset.currentValue || '';
+
+            if (type === 'phone') {
+                contactEditorTitle.textContent = 'Edit Phone Number';
+                contactEditorDescription.textContent = 'Enter your new phone number. An OTP will be sent to verify this change.';
+                contactEditorInput.type = 'tel';
+            } else {
+                contactEditorTitle.textContent = 'Edit Address / Location';
+                contactEditorDescription.textContent = 'Update your current address or location. This change does not require OTP.';
+                contactEditorInput.type = 'text';
+            }
+
+            contactEditorInput.value = currentValue || '';
+            sendOtpBtn.style.display = (type === 'address') ? 'none' : 'inline-flex';
+            saveAddressBtn.style.display = (type === 'address') ? 'inline-flex' : 'none';
+            contactEditorModal.style.display = 'flex';
+        }
+
+        document.querySelectorAll('.edit-contact-btn').forEach(function(button) {
+            button.addEventListener('click', function() {
+                window.openContactEditor(button.dataset.type);
+            });
+        });
+
+        cancelContactEditBtn.addEventListener('click', window.closeContactEditor);
+
+        sendOtpBtn.addEventListener('click', function() {
+            if (!currentEditType || currentEditType !== 'phone') return;
+            const newValue = contactEditorInput.value.trim();
+
+            if (!newValue) {
+                alert('Please enter a value before continuing.');
+                return;
+            }
+
+            if (!/^\+?[0-9\s\-()]{7,15}$/.test(newValue)) {
+                alert('Please enter a valid phone number.');
+                return;
+            }
+
+            phoneInput.value = newValue;
+            changeTypeField.value = 'phone';
+            modalTitle.textContent = 'Verify Phone Change';
+            modalDesc.textContent = 'Please enter the OTP sent to your mobile number.';
+
+            window.closeContactEditor();
+            otpModal.style.display = 'flex';
+            otpInputBox.value = '';
+            hiddenOtpCode.value = '';
+        });
+
+        saveAddressBtn.addEventListener('click', function() {
+            if (!currentEditType || currentEditType !== 'address') return;
+            const newAddress = contactEditorInput.value.trim();
+            if (!newAddress) {
+                alert('Please enter your address or location.');
+                return;
+            }
+
+            const actionInput = document.createElement('input');
+            actionInput.type = 'hidden';
+            actionInput.name = 'action';
+            actionInput.value = 'verify_and_update';
+            profileUpdateForm.appendChild(actionInput);
+
+            addressInput.value = newAddress;
+            changeTypeField.value = 'address';
+            hiddenOtpCode.value = 'address-update';
+            window.closeContactEditor();
+            profileUpdateForm.submit();
+        });
+
+        cancelOtpBtn.addEventListener('click', function() {
+            otpModal.style.display = 'none';
+            otpInputBox.value = '';
+            hiddenOtpCode.value = '';
+            changeTypeField.value = '';
+        });
+
+        verifyOtpBtn.addEventListener('click', function() {
+            const enteredOtp = otpInputBox.value.trim();
+            if (!enteredOtp || enteredOtp.length < 4) {
+                alert('Please enter a valid OTP code.');
+                return;
+            }
+
+            hiddenOtpCode.value = enteredOtp;
+            otpModal.style.display = 'none';
+            profileUpdateForm.submit();
+        });
     </script>
 </body>
 </html>

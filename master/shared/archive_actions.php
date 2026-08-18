@@ -563,6 +563,38 @@ function handleRestore($pdo, $module, $ids) {
 }
 
 /**
+ * Remove consultation records attached to queue entries before deleting the queue.
+ * This avoids FK violations when archived patients/queue rows are permanently removed.
+ */
+function deleteQueueConsultations($pdo, array $queueIds = [], array $patientIds = []) {
+    $queueIds = array_values(array_unique(array_filter(array_map('intval', $queueIds))));
+    $patientIds = array_values(array_unique(array_filter(array_map('intval', $patientIds))));
+
+    $clauses = [];
+    $params = [];
+
+    if (!empty($queueIds)) {
+        $queuePlaceholders = implode(',', array_fill(0, count($queueIds), '?'));
+        $clauses[] = "queue_id IN ($queuePlaceholders)";
+        $params = array_merge($params, $queueIds);
+    }
+
+    if (!empty($patientIds)) {
+        $patientPlaceholders = implode(',', array_fill(0, count($patientIds), '?'));
+        $clauses[] = "patient_id IN ($patientPlaceholders)";
+        $params = array_merge($params, $patientIds);
+    }
+
+    if (empty($clauses)) {
+        return;
+    }
+
+    $sql = "DELETE FROM consultations WHERE " . implode(' OR ', $clauses);
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+}
+
+/**
  * Permanently delete records
  */
 function handleDeleteForever($pdo, $module, $ids) {
@@ -603,6 +635,11 @@ function handleDeleteForever($pdo, $module, $ids) {
                     // Delete related records first
                     $pdo->prepare("DELETE FROM medical_history WHERE patient_id IN ($placeholders)")->execute($patientIds);
                     $pdo->prepare("DELETE FROM dental_history WHERE patient_id IN ($placeholders)")->execute($patientIds);
+
+                    $queueStmt = $pdo->prepare("SELECT id FROM queue WHERE patient_id IN ($placeholders)");
+                    $queueStmt->execute($patientIds);
+                    $queueIds = $queueStmt->fetchAll(PDO::FETCH_COLUMN);
+                    deleteQueueConsultations($pdo, $queueIds);
                     $pdo->prepare("DELETE FROM queue WHERE patient_id IN ($placeholders)")->execute($patientIds);
                     $pdo->prepare("DELETE FROM appointments WHERE patient_id IN ($placeholders)")->execute($patientIds);
                     
@@ -647,6 +684,11 @@ function handleDeleteForever($pdo, $module, $ids) {
                             $patPlaceholders = implode(',', array_fill(0, count($matchingPatientIds), '?'));
                             $pdo->prepare("DELETE FROM medical_history WHERE patient_id IN ($patPlaceholders)")->execute($matchingPatientIds);
                             $pdo->prepare("DELETE FROM dental_history WHERE patient_id IN ($patPlaceholders)")->execute($matchingPatientIds);
+
+                            $queueStmt = $pdo->prepare("SELECT id FROM queue WHERE patient_id IN ($patPlaceholders)");
+                            $queueStmt->execute($matchingPatientIds);
+                            $queueIds = $queueStmt->fetchAll(PDO::FETCH_COLUMN);
+                            deleteQueueConsultations($pdo, $queueIds);
                             $pdo->prepare("DELETE FROM queue WHERE patient_id IN ($patPlaceholders)")->execute($matchingPatientIds);
                             $pdo->prepare("DELETE FROM appointments WHERE patient_id IN ($patPlaceholders)")->execute($matchingPatientIds);
                             $pdo->prepare("DELETE FROM patients WHERE id IN ($patPlaceholders) AND is_archived = 1")->execute($matchingPatientIds);
@@ -707,6 +749,11 @@ function handleDeleteForever($pdo, $module, $ids) {
                         
                         $pdo->prepare("DELETE FROM medical_history WHERE patient_id IN ($patPlaceholders)")->execute($patientIds);
                         $pdo->prepare("DELETE FROM dental_history WHERE patient_id IN ($patPlaceholders)")->execute($patientIds);
+
+                        $queueStmt = $pdo->prepare("SELECT id FROM queue WHERE patient_id IN ($patPlaceholders)");
+                        $queueStmt->execute($patientIds);
+                        $queueIds = $queueStmt->fetchAll(PDO::FETCH_COLUMN);
+                        deleteQueueConsultations($pdo, $queueIds);
                         $pdo->prepare("DELETE FROM queue WHERE patient_id IN ($patPlaceholders)")->execute($patientIds);
                         $pdo->prepare("DELETE FROM appointments WHERE patient_id IN ($patPlaceholders)")->execute($patientIds);
                         $pdo->prepare("DELETE FROM patients WHERE id IN ($patPlaceholders) AND is_archived = 1")->execute($patientIds);
@@ -724,6 +771,10 @@ function handleDeleteForever($pdo, $module, $ids) {
             }
             
         } else {
+            if ($module === 'queue') {
+                deleteQueueConsultations($pdo, $ids);
+            }
+
             // For other modules, just delete
             $stmt = $pdo->prepare("DELETE FROM $module WHERE id IN ($placeholders) AND is_archived = 1");
             $result = $stmt->execute($ids);

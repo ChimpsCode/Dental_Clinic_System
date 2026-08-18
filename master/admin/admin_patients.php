@@ -621,6 +621,18 @@ function viewPatientDetails(patientId) {
                     <div class="patient-info-label">Address</div>
                     <div class="patient-info-value">${p.street_address || 'N/A'} ${p.city ? ', ' + p.city : ''} ${p.province ? ', ' + p.province : ''}</div>
                 </div>
+                <div class="patient-info-item">
+                    <div class="patient-info-label">Emergency Contact Name</div>
+                    <div class="patient-info-value">${p.emergency_contact_name || 'N/A'}</div>
+                </div>
+                <div class="patient-info-item">
+                    <div class="patient-info-label">Emergency Contact Number</div>
+                    <div class="patient-info-value">${p.emergency_contact_phone || 'N/A'}</div>
+                </div>
+                <div class="patient-info-item">
+                    <div class="patient-info-label">Emergency Contact Relationship</div>
+                    <div class="patient-info-value">${p.emergency_contact_relationship || 'N/A'}</div>
+                </div>
             </div>
 
             ${hasMedicalAlert ? `

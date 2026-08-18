@@ -29,13 +29,22 @@ if (!$id) {
 }
 
 try {
-    require_once 'config/database.php';
-    
+    require_once '../../config/database.php';
+    require_once '../../includes/inquiry_module_helper.php';
+
+    // Ensure schema helpers are available (no-op if already present)
+    ensureInquiryModuleSchema($pdo);
+
+    // Normalize status value to a valid enum / compatible value
+    if (function_exists('normalizeInquiryStatus')) {
+        $status = normalizeInquiryStatus($pdo, $status);
+    }
+
     $stmt = $pdo->prepare("UPDATE inquiries SET status = ?, updated_at = NOW() WHERE id = ?");
     $stmt->execute([$status, $id]);
-    
+
     echo json_encode(['success' => true, 'message' => 'Inquiry status updated']);
-    
+
 } catch (Exception $e) {
     echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
 }

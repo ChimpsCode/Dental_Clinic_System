@@ -123,7 +123,7 @@ try {
         <div class="summary-cards">
             <div class="summary-card card-waiting">
                 <div class="summary-icon">
-                    <img src="../../assets/icons/waiting.png" alt="Waiting">
+                    <img src="../../assets/icons/waiting.png" alt="Waiting" width="24" height="24">
                 </div>
                 <div class="summary-info">
                     <h3 id="dd-waiting"><?php echo $waitingCount; ?></h3>
@@ -132,7 +132,7 @@ try {
             </div>
             <div class="summary-card card-in-procedure">
                 <div class="summary-icon">
-                    <img src="../../assets/icons/in-procedure.png" alt="In Procedure">
+                    <img src="../../assets/icons/in-procedure.png" alt="In Procedure" width="24" height="24">
                 </div>
                 <div class="summary-info">
                     <h3 id="dd-in-procedure"><?php echo $inProcedureCount; ?></h3>
@@ -141,7 +141,7 @@ try {
             </div>
             <div class="summary-card card-completed">
                 <div class="summary-icon">
-                    <img src="../../assets/icons/check.png" alt="Completed">
+                    <img src="../../assets/icons/check.png" alt="Completed" width="24" height="24">
                 </div>
                 <div class="summary-info">
                     <h3 id="dd-completed"><?php echo $completedToday; ?></h3>
@@ -150,7 +150,7 @@ try {
             </div>
             <div class="summary-card card-on-hold">
                 <div class="summary-icon">
-                    <img src="../../assets/icons/pause.png" alt="On Hold">
+                    <img src="../../assets/icons/pause.png" alt="On Hold" width="24" height="24">
                 </div>
                 <div class="summary-info">
                     <h3 id="dd-on-hold"><?php echo $onHoldCount; ?></h3>

@@ -105,7 +105,12 @@ try {
         $params[] = $appointment_id;
         $pdo->prepare("UPDATE appointments SET " . implode(', ', $updates) . " WHERE id = ?")->execute($params);
 
-        // Send confirmation SMS
+        // Close session before external calls so other requests aren't blocked
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+
+        // Send confirmation SMS (non-blocking)
         $smsError = null;
         if ($patientPhone) {
             try {
@@ -115,7 +120,8 @@ try {
                     $appointment['appointment_date'],
                     $appointment['appointment_time'],
                     $appointment['service_name'] ?? ($appointment['treatment'] ?? 'General Checkup'),
-                    $isNewPatient
+                    $isNewPatient,
+                    true
                 );
                 if (!$smsResult['success']) {
                     $smsError = $smsResult['error'] ?? 'Unknown SMS error';
@@ -154,10 +160,15 @@ try {
         $params[] = $appointment_id;
         $pdo->prepare("UPDATE appointments SET " . implode(', ', $updates) . " WHERE id = ?")->execute($params);
 
-        // Send cancellation SMS
+        // Close session before external calls so other requests aren't blocked
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+
+        // Send cancellation SMS (non-blocking)
         if ($patientPhone) {
             try {
-                $smsResult = sendAppointmentCancellationSMS($patientPhone, $patientName, $appointment['appointment_date'], $reason);
+                $smsResult = sendAppointmentCancellationSMS($patientPhone, $patientName, $appointment['appointment_date'], $reason, true);
                 if (!$smsResult['success']) {
                     error_log("Decline SMS failed for appointment $appointment_id: " . ($smsResult['error'] ?? 'Unknown'));
                 }

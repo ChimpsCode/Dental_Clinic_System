@@ -158,6 +158,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const backToLoginLink = document.getElementById('backToLoginLink');
     const backToLoginFromForgotLink = document.getElementById('backToLoginFromForgotLink');
     const registerForm = document.getElementById('registerForm');
+    const regStep1 = document.getElementById('regStep1');
+    const regStep2 = document.getElementById('regStep2');
+    const registerNextBtn = document.getElementById('registerNextBtn');
+    const registerBackBtn = document.getElementById('registerBackBtn');
     const registerBtn = document.getElementById('registerBtn');
     const registerBtnText = document.getElementById('registerBtnText');
     const registerError = document.getElementById('registerError');
@@ -189,10 +193,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const fpLine1 = document.getElementById('fpLine1');
     const fpLine2 = document.getElementById('fpLine2');
 
+    function showRegistrationStep(step) {
+        if (regStep1) regStep1.style.display = step === 1 ? 'block' : 'none';
+        if (regStep2) regStep2.style.display = step === 2 ? 'block' : 'none';
+        if (registerNextBtn) registerNextBtn.style.display = step === 1 ? 'flex' : 'none';
+        if (registerBtn) registerBtn.style.display = step === 2 ? 'flex' : 'none';
+    }
+
     function showRegistration() {
         if (loginContainer) loginContainer.style.display = 'none';
         if (forgotContainer) forgotContainer.style.display = 'none';
         if (registrationContainer) registrationContainer.style.display = 'block';
+        showRegistrationStep(1);
         document.title = 'Sign Up - RF Dental Clinic';
         if (window.location.hash !== '#register') {
             history.replaceState(null, '', '#register');
@@ -279,7 +291,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function hideRegOtpStep() {
         if (regOtpStep) regOtpStep.style.display = 'none';
         if (registerForm) registerForm.style.display = 'block';
-        if (registerBtn) registerBtn.style.display = 'flex';
+        showRegistrationStep(2);
         stopRegOtpTimer();
     }
 
@@ -355,12 +367,49 @@ document.addEventListener('DOMContentLoaded', function() {
             && /[^A-Za-z0-9]/.test(password);
     }
 
+    if (registerNextBtn) {
+        registerNextBtn.addEventListener('click', function() {
+            const firstName = document.getElementById('reg_first_name')?.value.trim() || '';
+            const lastName = document.getElementById('reg_last_name')?.value.trim() || '';
+            const phone = document.getElementById('reg_phone')?.value.trim() || '';
+            const gender = document.getElementById('reg_gender')?.value || '';
+            const dob = document.getElementById('reg_dob')?.value || '';
+            const emergencyName = document.getElementById('reg_emergency_name')?.value.trim() || '';
+            const emergencyPhone = document.getElementById('reg_emergency_phone')?.value.trim() || '';
+            const emergencyRelationship = document.getElementById('reg_emergency_relationship')?.value.trim() || '';
+
+            if (!firstName || !lastName || !phone || !gender || !dob || !emergencyName || !emergencyPhone || !emergencyRelationship) {
+                showToast('Error', 'Please complete all personal and emergency contact details before continuing.', 'error');
+                return;
+            }
+
+            showRegistrationStep(2);
+            const emailField = document.getElementById('reg_email');
+            if (emailField) emailField.focus();
+        });
+    }
+
+    if (registerBackBtn) {
+        registerBackBtn.addEventListener('click', function() {
+            showRegistrationStep(1);
+            const firstNameField = document.getElementById('reg_first_name');
+            if (firstNameField) firstNameField.focus();
+        });
+    }
+
     if (registerForm) {
         registerForm.addEventListener('submit', function(e) {
             e.preventDefault();
 
             const pwd = document.getElementById('reg_password').value;
             const confirmPwd = document.getElementById('reg_confirm_password').value;
+            const email = document.getElementById('reg_email')?.value.trim() || '';
+
+            if (!email) {
+                showToast('Error', 'Please enter your email address.', 'error');
+                return;
+            }
+
             if (pwd !== confirmPwd) {
                 showToast('Error', 'Passwords do not match', 'error');
                 return;
@@ -490,6 +539,9 @@ document.addEventListener('DOMContentLoaded', function() {
             body.append('last_name', document.getElementById('reg_last_name')?.value || '');
             body.append('email', email);
             body.append('phone', document.getElementById('reg_phone')?.value || '');
+            body.append('gender', document.getElementById('reg_gender')?.value || '');
+            body.append('date_of_birth', document.getElementById('reg_dob')?.value || '');
+            body.append('address', document.getElementById('reg_address')?.value || '');
             body.append('password', document.getElementById('reg_password')?.value || '');
             body.append('confirm_password', document.getElementById('reg_confirm_password')?.value || '');
 
@@ -652,6 +704,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (loginContainer) loginContainer.style.display = 'none';
             if (registrationContainer) registrationContainer.style.display = 'block';
             if (forgotContainer) forgotContainer.style.display = 'none';
+            showRegistrationStep(1);
             document.title = 'Sign Up - RF Dental Clinic';
         } else if (window.location.hash === '#forgot') {
             if (loginContainer) loginContainer.style.display = 'none';

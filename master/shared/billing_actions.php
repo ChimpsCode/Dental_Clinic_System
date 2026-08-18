@@ -539,7 +539,8 @@ try {
                     if (!empty($qupdates)) {
                         $whereClauses = ["id = ?"];
                         if (in_array('status', $qcols)) {
-                            $whereClauses[] = "status = 'pending_payment'";
+                            // Accept common variants used in DB or code: 'Pending Payment' or 'pending_payment'
+                            $whereClauses[] = "(LOWER(status) = 'pending payment' OR status = 'pending_payment')";
                         } elseif (in_array('status_id', $qcols)) {
                             $whereClauses[] = "status_id IN (1, 2)"; // only waiting or in_procedure
                         }

@@ -3,6 +3,135 @@ $pageTitle = 'Dashboard';
 require_once '../../config/database.php';
 require_once '../../includes/queue_management_helper.php';
 require_once __DIR__ . '/../../includes/appointment_approval_helper.php';
+
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'dashboard') {
+    try {
+        ensureQueueManagementSchema($pdo);
+        $stmt = $pdo->query("
+            SELECT q.*, COALESCE(p.first_name, 'Unknown') as first_name, COALESCE(p.middle_name, '') as middle_name, COALESCE(p.last_name, '') as last_name, COALESCE(p.suffix, '') as suffix, COALESCE(p.phone, '') as phone, COALESCE(q.status, 'waiting') as status_text
+            FROM queue q 
+            LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id 
+            WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'cancelled', 'on_hold') AND q.is_archived = 0
+            ORDER BY 
+                CASE COALESCE(q.status, 'waiting')
+                    WHEN 'in_procedure' THEN 1 
+                    WHEN 'waiting' THEN 2 
+                    WHEN 'completed' THEN 3 
+                    ELSE 2
+                END,
+                q.queue_time ASC
+        ");
+        $queueItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $waitingItems = array_values(array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'waiting'));
+        $inProcedureItem = array_values(array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'in_procedure'));
+        $inProcedureItem = !empty($inProcedureItem) ? $inProcedureItem[0] : null;
+
+        ensureAppointmentApprovalSchema($pdo);
+        autoDeclineExpiredPendingAppointments($pdo);
+
+        $pendingApprovalItems = $pdo->query("
+            SELECT a.id, a.appointment_date, a.appointment_time, a.status,
+                   COALESCE(p.first_name, 'Unknown') as first_name,
+                   COALESCE(p.middle_name, '') as middle_name,
+                   COALESCE(p.last_name, '') as last_name,
+                   COALESCE(p.phone, '') as phone,
+                   COALESCE(s.name, 'General') as service_name
+            FROM appointments a
+            LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
+            LEFT JOIN services s ON a.service_id = s.id
+            WHERE LOWER(a.status) = 'pending approval'
+              AND (a.is_archived = 0 OR a.is_archived IS NULL)
+            ORDER BY a.appointment_date ASC, a.appointment_time ASC
+        ")->fetchAll(PDO::FETCH_ASSOC);
+
+        $upcomingApptItems = $pdo->query("
+            SELECT a.id, a.appointment_date, a.appointment_time, a.status,
+                   COALESCE(p.first_name, 'Unknown') as first_name,
+                   COALESCE(p.middle_name, '') as middle_name,
+                   COALESCE(p.last_name, '') as last_name,
+                   COALESCE(s.name, 'General') as service_name
+            FROM appointments a
+            LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
+            LEFT JOIN services s ON a.service_id = s.id
+            WHERE LOWER(a.status) = 'scheduled'
+              AND TIMESTAMP(a.appointment_date, a.appointment_time) >= NOW()
+              AND TIMESTAMP(a.appointment_date, a.appointment_time) <= NOW() + INTERVAL 24 HOUR
+              AND (a.is_archived = 0 OR a.is_archived IS NULL)
+            ORDER BY a.appointment_date ASC, a.appointment_time ASC
+        ")->fetchAll(PDO::FETCH_ASSOC);
+
+        $liveQueue = null;
+        if ($inProcedureItem) {
+            $liveQueue = [
+                'id' => (int)($inProcedureItem['id'] ?? 0),
+                'patient_name' => trim(($inProcedureItem['first_name'] ?? '') . ' ' . ($inProcedureItem['middle_name'] ?? '') . ' ' . ($inProcedureItem['last_name'] ?? '') . ' ' . ($inProcedureItem['suffix'] ?? '')),
+                'queue_time' => $inProcedureItem['queue_time'] ?? '--:--',
+                'treatment_type' => $inProcedureItem['treatment_type'] ?? 'Queue Empty',
+            ];
+        }
+
+        $waitingPayload = [];
+        foreach ($waitingItems as $item) {
+            $waitingPayload[] = [
+                'id' => (int)($item['id'] ?? 0),
+                'patient_id' => (int)($item['patient_id'] ?? 0),
+                'patient_name' => trim(($item['first_name'] ?? '') . ' ' . ($item['middle_name'] ?? '') . ' ' . ($item['last_name'] ?? '') . ' ' . ($item['suffix'] ?? '')),
+                'queue_number' => $item['queue_number'] ?? ($item['id'] ?? ''),
+                'queue_time' => $item['queue_time'] ?? '',
+                'treatment_type' => $item['treatment_type'] ?? '',
+            ];
+        }
+
+        $pendingPayload = [];
+        foreach ($pendingApprovalItems as $appt) {
+            $pendingPayload[] = [
+                'id' => (int)($appt['id'] ?? 0),
+                'patient_name' => trim(($appt['first_name'] ?? '') . ' ' . ($appt['middle_name'] ?? '') . ' ' . ($appt['last_name'] ?? '')),
+                'phone' => $appt['phone'] ?? '',
+                'service_name' => $appt['service_name'] ?? 'General',
+                'appointment_date' => $appt['appointment_date'] ?? '',
+                'appointment_time' => $appt['appointment_time'] ?? '',
+            ];
+        }
+
+        $upcomingPayload = [];
+        foreach ($upcomingApptItems as $appt) {
+            $upcomingPayload[] = [
+                'id' => (int)($appt['id'] ?? 0),
+                'patient_name' => trim(($appt['first_name'] ?? '') . ' ' . ($appt['middle_name'] ?? '') . ' ' . ($appt['last_name'] ?? '')),
+                'service_name' => $appt['service_name'] ?? 'General',
+                'appointment_date' => $appt['appointment_date'] ?? '',
+                'appointment_time' => $appt['appointment_time'] ?? '',
+            ];
+        }
+
+        // Today's Schedule disabled — removed from dashboard payload per request
+        $todayScheduleItems = [];
+        $todaySchedulePayload = [];
+
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode([
+            'live_queue' => $liveQueue,
+            'waiting' => $waitingPayload,
+            'pending_approval' => $pendingPayload,
+            'upcoming_appointments' => $upcomingPayload,
+            //'today_schedule' => $todaySchedulePayload,
+            'counts' => [
+                'waiting' => count($waitingItems),
+                'pending' => count($pendingApprovalItems),
+                'upcoming' => count($upcomingApptItems),
+                //'today' => count($todayScheduleItems),
+            ],
+        ], JSON_UNESCAPED_SLASHES);
+        exit;
+    } catch (Throwable $e) {
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['error' => true, 'message' => $e->getMessage(), 'waiting' => [], 'pending_approval' => [], 'upcoming_appointments' => [], 'live_queue' => null], JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+}
+
 require_once '../../includes/staff_layout_start.php';
 
 try {
@@ -76,6 +205,10 @@ try {
     $upcomingApptCount = count($upcomingApptAll);
     $upcomingApptItems = array_slice($upcomingApptAll, 0, 3);
 
+        // Today's Schedule removed from UI — keep placeholders in case of future re-enable
+        $todayScheduleItems = [];
+        $todayScheduleCount = 0;
+
     // Helper function to build full name
     function buildPatientName($item) {
         return trim(($item['first_name'] ?? '') . ' ' . ($item['middle_name'] ?? '') . ' ' . ($item['last_name'] ?? '') . ' ' . ($item['suffix'] ?? ''));
@@ -96,7 +229,9 @@ try {
     $upcomingApptAll = [];
     $upcomingApptCount = 0;
     $upcomingApptItems = [];
+    $todayScheduleItems = [];
 }
+
 ?>
 
 <!-- VIEW 1: DASHBOARD -->
@@ -453,6 +588,7 @@ try {
 
                 
             </div>
+            
               
             <!-- Upcoming Appointments (next 24h) -->
             <div class="section-card compact-queue">
@@ -483,9 +619,10 @@ try {
                 </div>
                 <a href="staff_appointments.php?focus=scheduled" class="see-all-btn">View Upcoming Appointments</a>
             </div>
+
+                <!-- Today's Schedule removed per request -->
         </div>
     </div>
-</div>
 
 <!-- Patient Record Modal -->
 <div id="patientRecordModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
@@ -648,6 +785,222 @@ try {
 const queueItems = <?php echo json_encode($queueItems); ?>;
 let dashboardConfirmHandler = null;
 let dashboardDeclineHandler = null;
+let dashboardAjaxTimer = null;
+
+function escapeDashboardHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, function(ch) {
+        const map = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'};
+        return map[ch] || ch;
+    });
+}
+
+function renderDashboardQueue(items) {
+    const container = document.getElementById('up-next-list');
+    if (!container) return;
+    if (!items.length) {
+        container.innerHTML = '<div style="text-align: center; padding: 0; color: #6b7280;"><p>No patients waiting</p><a href="staff_new_admission.php" class="btn-primary" style="display: inline-block; margin-top: 12px; text-decoration: none;">Add New Patient</a></div>';
+        document.getElementById('count-up-next').textContent = '0';
+        return;
+    }
+
+    const html = items.slice(0, 5).map(item => `
+        <div class="patient-item" id="next-${item.id}">
+            <div class="patient-info">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="queue-avatar">#${escapeDashboardHtml(item.queue_number || item.id || '')}</div>
+                    <div style="min-width:0;">
+                        <div class="patient-name">${escapeDashboardHtml(item.patient_name || 'Unknown')}</div>
+                        <div class="patient-details" style="margin-top:3px;">
+                            <span class="status-badge waiting">Waiting</span>
+                            <span class="patient-time">${escapeDashboardHtml(item.queue_time || '')}</span>
+                        </div>
+                        <div class="patient-treatment">${escapeDashboardHtml(item.treatment_type || '')}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="patient-actions">
+                <button class="action-btn text-btn" onclick="viewPatientDashboard(${Number(item.patient_id || 0)})">View</button>
+                <button class="action-btn text-btn" onclick="moveToOnHoldDashboard(${Number(item.id || 0)})">Hold</button>
+                <button class="action-btn text-btn queue-cancel-btn" onclick="cancelPatientDashboard(${Number(item.id || 0)})">Cancel</button>
+            </div>
+        </div>
+    `).join('');
+
+    container.innerHTML = html;
+    document.getElementById('count-up-next').textContent = String(items.length);
+}
+
+function normalizeDashboardTime(value) {
+    if (!value) return '';
+
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) return '';
+
+        const timeMatch = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+        if (timeMatch) {
+            const hours = Number(timeMatch[1]);
+            const minutes = Number(timeMatch[2]);
+            const seconds = Number(timeMatch[3] || '0');
+            const parsed = new Date(2000, 0, 1, hours, minutes, seconds);
+            if (!Number.isNaN(parsed.getTime())) {
+                return parsed.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+            }
+        }
+
+        const strictTime = new Date('2000-01-01T' + trimmed);
+        if (!Number.isNaN(strictTime.getTime())) {
+            return strictTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        }
+
+        return trimmed;
+    }
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '';
+    return parsed.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+function renderDashboardPending(items) {
+    const container = document.getElementById('pending-approval-list');
+    if (!container) return;
+    if (!items.length) {
+        container.innerHTML = '<div style="text-align: center; padding: 0; color: #6b7280;"><p>No pending approvals</p></div>';
+        document.getElementById('count-pending-approval').textContent = '0';
+        return;
+    }
+
+    const html = items.map(appt => {
+        const date = appt.appointment_date ? new Date(appt.appointment_date + 'T00:00:00') : null;
+        const dateLabel = date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+        const timeLabel = normalizeDashboardTime(appt.appointment_time);
+        const combined = [dateLabel, timeLabel].filter(Boolean).join(' · ');
+        return `
+            <div class="patient-item" id="pending-appt-${appt.id}">
+                <div class="patient-info">
+                    <div class="patient-name">${escapeDashboardHtml(appt.patient_name || 'Unknown')}</div>
+                    <div class="patient-details" style="margin-top:3px;">
+                        <span class="status-badge pending">Pending</span>
+                        <span class="patient-time">${escapeDashboardHtml(combined)}</span>
+                    </div>
+                    <div class="patient-treatment">${escapeDashboardHtml(appt.service_name || 'General')}</div>
+                </div>
+                <div class="patient-actions">
+                    <button class="action-btn pa-approve" onclick="approveAppointment(${Number(appt.id || 0)})">✓</button>
+                    <button class="action-btn pa-decline" onclick="declineAppointment(${Number(appt.id || 0)})">✕</button>
+                    <button class="action-btn pa-call" title="View phone number" onclick="openCallModal('${escapeDashboardHtml(appt.patient_name || 'Unknown').replace(/'/g, '&#39;')}', '${escapeDashboardHtml(appt.phone || '').replace(/'/g, '&#39;')}')">
+                        <img src="../../assets/icons/call_button.png" alt="Call">
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    container.innerHTML = html;
+    document.getElementById('count-pending-approval').textContent = String(items.length);
+}
+
+function renderDashboardUpcoming(items) {
+    const container = document.getElementById('upcoming-appt-list');
+    if (!container) return;
+    if (!items.length) {
+        container.innerHTML = '<div style="text-align: center; padding: 0; color: #6b7280;"><p>No upcoming appointments</p></div>';
+        document.getElementById('count-upcoming-appt').textContent = '0';
+        return;
+    }
+
+    const html = items.map(appt => {
+        const date = appt.appointment_date ? new Date(appt.appointment_date + 'T00:00:00') : null;
+        const dateLabel = date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+        const timeLabel = normalizeDashboardTime(appt.appointment_time);
+        const combined = [dateLabel, timeLabel].filter(Boolean).join(' · ');
+        return `
+            <div class="patient-item">
+                <div class="patient-info">
+                    <div class="patient-name">${escapeDashboardHtml(appt.patient_name || 'Unknown')}</div>
+                    <div class="patient-details" style="margin-top:3px;">
+                        <span class="status-badge scheduled">Scheduled</span>
+                        <span class="patient-time">${escapeDashboardHtml(combined)}</span>
+                    </div>
+                    <div class="patient-treatment">${escapeDashboardHtml(appt.service_name || 'General')}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    container.innerHTML = html;
+    document.getElementById('count-upcoming-appt').textContent = String(items.length);
+}
+
+// Today's Schedule renderer removed - feature disabled per request
+
+function renderDashboardLive(data) {
+    const patientName = document.getElementById('live-patient-name');
+    const patientTime = document.getElementById('live-patient-time');
+    const patientTreatment = document.getElementById('live-patient-treatment');
+    const completeBtn = document.getElementById('completeTreatmentBtn');
+    const live = data && data.live_queue ? data.live_queue : null;
+
+    if (!live) {
+        if (patientName) patientName.textContent = 'No Patient';
+        if (patientTime) patientTime.textContent = '--:--';
+        if (patientTreatment) patientTreatment.textContent = 'Queue Empty';
+        if (completeBtn) {
+            completeBtn.disabled = true;
+            completeBtn.style.background = '#9ca3af';
+            completeBtn.innerHTML = '<span>✓</span> <span>No Patient in Chair</span>';
+        }
+        return;
+    }
+
+    if (patientName) patientName.textContent = live.patient_name || 'No Patient';
+    if (patientTime) patientTime.textContent = live.queue_time || '--:--';
+    if (patientTreatment) patientTreatment.textContent = live.treatment_type || 'Queue Empty';
+    if (completeBtn) {
+        completeBtn.disabled = false;
+        completeBtn.style.background = '';
+        completeBtn.setAttribute('onclick', `completeCurrentPatient(${Number(live.id || 0)})`);
+        completeBtn.innerHTML = '<span>✓</span> <span>Complete Treatment</span>';
+    }
+}
+
+async function loadDashboardData() {
+    try {
+        const requestUrl = window.location.pathname + '?ajax=dashboard';
+        const response = await fetch(requestUrl, {
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        });
+
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+            if (response.redirected || response.url.includes('/login.php')) {
+                window.location.reload();
+                return;
+            }
+            console.warn('Dashboard AJAX endpoint did not return JSON. Fetching page again.');
+            return;
+        }
+
+        if (!response.ok) throw new Error('Dashboard refresh failed');
+        const data = await response.json();
+        renderDashboardLive(data);
+        renderDashboardQueue(data.waiting || []);
+        renderDashboardPending(data.pending_approval || []);
+        renderDashboardUpcoming(data.upcoming_appointments || []);
+
+        if (window.staffDashboardMiniCalendar && typeof window.staffDashboardMiniCalendar.refresh === 'function') {
+            window.staffDashboardMiniCalendar.refresh();
+        }
+    } catch (error) {
+        console.error('Dashboard AJAX error:', error);
+    }
+}
+
+function startDashboardPolling() {
+    if (dashboardAjaxTimer) return;
+    loadDashboardData();
+    dashboardAjaxTimer = setInterval(loadDashboardData, 15000);
+}
 
 // Portal Pattern: Move modals to body level to escape stacking context
 // This ensures modals appear above sidebar and all other elements
@@ -686,6 +1039,10 @@ let dashboardDeclineHandler = null;
         document.body.appendChild(scCalModal);
     }
 })();
+
+document.addEventListener('DOMContentLoaded', function() {
+    startDashboardPolling();
+});
 
 function openCallModal(name, phone) {
     const safePhone = phone || 'No phone number on file';
@@ -775,7 +1132,7 @@ function confirmCompleteTreatment() {
     .then(data => {
         if (data.success) {
             closeCompleteTreatmentModal();
-            location.reload();
+            loadDashboardData();
         } else {
             showDashboardMessage(data.message || 'Unable to complete treatment', 'Treatment Status');
         }
@@ -795,7 +1152,7 @@ function moveToOnHoldDashboard(queueId) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                location.reload();
+                loadDashboardData();
             } else {
                 showDashboardMessage(data.message || 'Unable to update queue status', 'Queue Status');
             }
@@ -816,7 +1173,7 @@ function cancelPatientDashboard(queueId) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                location.reload();
+                loadDashboardData();
             } else {
                 showDashboardMessage(data.message || 'Unable to cancel patient', 'Queue Status');
             }
@@ -836,7 +1193,7 @@ function requeuePatientDashboard(queueId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            location.reload();
+            loadDashboardData();
         } else {
             showDashboardMessage(data.message || 'Unable to re-queue patient', 'Queue Status');
         }
@@ -847,6 +1204,28 @@ function requeuePatientDashboard(queueId) {
 }
 
 // Pending Approval Actions
+function markDashboardArrived(id) {
+    if (!id) return;
+
+    fetch('../shared/mark_arrived.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appt_id: id })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showDashboardMessage(data.message || 'Patient marked as arrived', 'Arrival Status');
+            loadDashboardData();
+        } else {
+            showDashboardMessage(data.message || 'Unable to mark as arrived', 'Arrival Status');
+        }
+    })
+    .catch(() => {
+        showDashboardMessage('Unable to mark patient as arrived right now.', 'Arrival Status');
+    });
+}
+
 function approveAppointment(id) {
     openDashboardConfirmModal('Approve this appointment request?\n\nThe patient will be notified and the slot will be added to the calendar.', function() {
         fetch('../shared/approve_appointment.php', {
@@ -858,7 +1237,7 @@ function approveAppointment(id) {
         .then(data => {
             if (data.success) {
                 showDashboardMessage(data.message || 'Appointment approved', 'Approved');
-                location.reload();
+                loadDashboardData();
             } else {
                 showDashboardMessage(data.message || 'Error approving appointment', 'Approval Status');
             }
@@ -880,7 +1259,7 @@ function declineAppointment(id) {
         .then(data => {
             if (data.success) {
                 showDashboardMessage(data.message || 'Appointment request declined', 'Declined');
-                location.reload();
+                loadDashboardData();
             } else {
                 showDashboardMessage(data.message || 'Error declining appointment', 'Approval Status');
             }
@@ -1506,7 +1885,7 @@ pollDashboardQueueCounts();
 <script src="../../assets/js/calendar_widget.js"></script>
 <script>
 if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev')) {
-    MiniCalendar({
+    window.staffDashboardMiniCalendar = MiniCalendar({
         containerId: 'scCalGrid',
         labelId: 'scCalMonthLabel',
         prevBtnId: 'scCalPrev',

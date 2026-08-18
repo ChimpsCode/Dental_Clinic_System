@@ -536,6 +536,7 @@ $assets = [
               <div class="form-group">
                 <label for="reg-email">Email (Username)</label>
                 <input type="email" id="reg-email" name="email" required placeholder="your@email.com" />
+                <div id="reg-email-status" style="display:none; margin-top:6px; font-size:13px; color:#dc3545;"></div>
               </div>
               <div class="form-group">
                 <label for="reg-password">Create Password</label>

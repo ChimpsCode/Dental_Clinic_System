@@ -1089,6 +1089,20 @@ $assets = [
                 <label for="reg-address">Address (Optional)</label>
                 <input type="text" id="reg-address" name="address" placeholder="Your complete address" />
               </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="reg-emergency-name">Emergency Contact Name</label>
+                  <input type="text" id="reg-emergency-name" name="emergency_contact_name" placeholder="Full name" required />
+                </div>
+                <div class="form-group">
+                  <label for="reg-emergency-phone">Emergency Contact Number</label>
+                  <input type="tel" id="reg-emergency-phone" name="emergency_contact_phone" placeholder="09123456789" maxlength="11" required />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="reg-emergency-relationship">Relationship</label>
+                <input type="text" id="reg-emergency-relationship" name="emergency_contact_relationship" placeholder="Example: Parent, Spouse, Sibling" required />
+              </div>
             </div>
             
             <!-- Account Information Section -->
@@ -1097,6 +1111,7 @@ $assets = [
               <div class="form-group">
                 <label for="reg-email">Email (Username)</label>
                 <input type="email" id="reg-email" name="email" required placeholder="your@email.com" />
+                <div id="reg-email-status" style="display:none; margin-top:6px; font-size:13px; color:#dc3545;"></div>
               </div>
               <div class="form-group">
                 <label for="reg-password">Create Password</label>
@@ -1344,16 +1359,35 @@ $assets = [
         var regEmailCheckTimer = null;
         var regEmailError = null;
         var regSubmitBtn = registrationForm ? registrationForm.querySelector('button[type="submit"]') : null;
+        var regEmailStatus = document.getElementById('reg-email-status');
+        var regEmailRequestId = 0;
+
+        function setRegEmailStatus(message, isError) {
+          if (!regEmailStatus) return;
+
+          if (!message) {
+            regEmailStatus.textContent = '';
+            regEmailStatus.style.display = 'none';
+            return;
+          }
+
+          regEmailStatus.textContent = message;
+          regEmailStatus.style.display = 'block';
+          regEmailStatus.style.color = isError ? '#dc3545' : '#b45309';
+        }
 
         if (regEmailInput) {
           regEmailInput.addEventListener('input', function() {
             clearTimeout(regEmailCheckTimer);
-            var email = this.value.trim();
-            if (!email || !email.includes('@')) {
-              if (regEmailError) { regEmailError.remove(); regEmailError = null; }
+            const email = this.value.trim();
+            const currentRequestId = ++regEmailRequestId;
+
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+              setRegEmailStatus('', false);
               if (regSubmitBtn) regSubmitBtn.disabled = false;
               return;
             }
+
             regEmailCheckTimer = setTimeout(function() {
               fetch('../user-patient/check_user_exists.php', {
                 method: 'POST',
@@ -1362,43 +1396,27 @@ $assets = [
               })
               .then(function(r) { return r.json(); })
               .then(function(data) {
-                if (data.exists) {
+                if (currentRequestId !== regEmailRequestId) return;
+
+                if (data && data.exists) {
                   if (data.is_archived) {
-                    if (!regEmailError) {
-                      regEmailError = document.createElement('span');
-                      regEmailError.style.cssText = 'color:#dc3545;font-size:13px;display:block;margin-top:4px;';
-                      regEmailError.textContent = 'This email was previously used and is no longer active. Please contact support.';
-                      regEmailInput.parentNode.appendChild(regEmailError);
-                    }
-                    if (regSubmitBtn) regSubmitBtn.disabled = true;
-                    return;
+                    setRegEmailStatus('This email was previously used and is no longer active. Please contact support.', true);
+                  } else {
+                    setRegEmailStatus('This email is already registered. Please log in instead.', true);
                   }
-                  // if (!regEmailError) {
-                  //   regEmailError = document.createElement('span');
-                  //   regEmailError.style.cssText = 'color:#dc3545;font-size:13px;display:block;margin-top:4px;';
-                  //   regEmailError.innerHTML = 'This email is already registered. <a href="#" id="loginInsteadLink" style="color:#2563eb;text-decoration:underline;">Log in here</a>';
-                  //   regEmailInput.parentNode.appendChild(regEmailError);
-                  //   document.getElementById('loginInsteadLink').addEventListener('click', function(e) {
-                  //     e.preventDefault();
-                  //     registrationModal.style.display = 'none';
-                  //     document.body.style.overflow = '';
-                  //     document.getElementById('welcome-back-email').value = email;
-                  //     document.getElementById('welcomeBackUserEmail').textContent = email;
-                  //     document.getElementById('welcomeBackModal').style.display = 'flex';
-                  //     document.body.style.overflow = 'hidden';
-                  //   });
-                  // }
                   if (regSubmitBtn) regSubmitBtn.disabled = true;
-                } else {
-                  if (regEmailError) { regEmailError.remove(); regEmailError = null; }
-                  if (regSubmitBtn) regSubmitBtn.disabled = false;
+                  return;
                 }
+
+                setRegEmailStatus('', false);
+                if (regSubmitBtn) regSubmitBtn.disabled = false;
               })
               .catch(function() {
-                if (regEmailError) { regEmailError.remove(); regEmailError = null; }
+                if (currentRequestId !== regEmailRequestId) return;
+                setRegEmailStatus('', false);
                 if (regSubmitBtn) regSubmitBtn.disabled = false;
               });
-            }, 400);
+            }, 350);
           });
         }
 
@@ -1420,6 +1438,11 @@ $assets = [
             const phone = document.getElementById('reg-phone').value;
             const gender = document.getElementById('reg-gender').value;
             const email = document.getElementById('reg-email').value;
+
+            if (regSubmitBtn && regSubmitBtn.disabled && regEmailStatus && regEmailStatus.textContent) {
+              alert(regEmailStatus.textContent);
+              return;
+            }
 
             // Validate required fields
             if (!phone) {

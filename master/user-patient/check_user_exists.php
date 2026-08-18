@@ -9,23 +9,33 @@ try {
     }
 
     $email = trim($_POST['email'] ?? '');
-    
-    if (empty($email)) {
-        throw new Exception('Email is required');
+
+    if ($email === '') {
+        echo json_encode(['exists' => false]);
+        exit;
     }
 
-    $stmt = $pdo->prepare("SELECT id, email, is_archived FROM users WHERE email = ? OR username = ?");
-    $stmt->execute([$email, $email]);
+    $emailLower = strtolower($email);
+
+    $stmt = $pdo->prepare(
+        "SELECT id, email, username, is_archived FROM users
+         WHERE is_archived = 0 AND (LOWER(email) = :email OR LOWER(username) = :email)"
+    );
+    $stmt->execute([':email' => $emailLower]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    
+
     if ($user) {
-        echo json_encode(['exists' => true, 'email' => $user['email'], 'is_archived' => (bool)$user['is_archived']]);
+        echo json_encode([
+            'exists' => true,
+            'email' => $user['email'],
+            'is_archived' => (bool)($user['is_archived'] ?? 0)
+        ]);
     } else {
         echo json_encode(['exists' => false]);
     }
 
 } catch (Exception $e) {
-    error_log("User check error: " . $e->getMessage());
+    error_log('User check error: ' . $e->getMessage());
     echo json_encode(['exists' => false, 'error' => $e->getMessage()]);
 }
 ?>

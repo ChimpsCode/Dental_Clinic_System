@@ -26,11 +26,106 @@ if (!$patientId) {
     exit();
 }
 
+function tableHasColumn(PDO $pdo, string $table, string $column): bool {
+    try {
+        $result = $pdo->query("SHOW COLUMNS FROM `" . str_replace('`', '``', $table) . "` LIKE '" . str_replace("'", "\\'", $column) . "'");
+        return $result !== false && $result->fetchColumn() !== false;
+    } catch (Exception $e) {
+        return false;
+    }
+}
+
 try {
     require_once '../../config/database.php';
-    
-    // Get patient basic info - only use columns that definitely exist
-    $stmt = $pdo->prepare("SELECT id, first_name, middle_name, last_name, phone, email, gender, date_of_birth, TIMESTAMPDIFF(YEAR, date_of_birth, CURDATE()) as age FROM patients WHERE id = ?");
+
+    $selectList = [
+        'p.id',
+        'p.first_name',
+        'p.middle_name',
+        'p.last_name',
+        'COALESCE(p.phone, u.phone) as phone',
+        'COALESCE(p.email, u.email) as email',
+        'COALESCE(p.gender, u.gender) as gender',
+        'p.date_of_birth',
+        'TIMESTAMPDIFF(YEAR, p.date_of_birth, CURDATE()) as age',
+    ];
+
+    if (tableHasColumn($pdo, 'patients', 'street_address')) {
+        $selectList[] = 'p.street_address';
+    } elseif (tableHasColumn($pdo, 'patients', 'address')) {
+        $selectList[] = 'p.address as street_address';
+    } elseif (tableHasColumn($pdo, 'users', 'street_address')) {
+        $selectList[] = 'u.street_address as street_address';
+    } elseif (tableHasColumn($pdo, 'users', 'address')) {
+        $selectList[] = 'u.address as street_address';
+    } else {
+        $selectList[] = 'NULL as street_address';
+    }
+
+    if (tableHasColumn($pdo, 'patients', 'emergency_contact_name')) {
+        $selectList[] = 'p.emergency_contact_name';
+    } elseif (tableHasColumn($pdo, 'users', 'emergency_contact_name')) {
+        $selectList[] = 'u.emergency_contact_name as emergency_contact_name';
+    } else {
+        $selectList[] = 'NULL as emergency_contact_name';
+    }
+
+    if (tableHasColumn($pdo, 'patients', 'emergency_contact_phone')) {
+        $selectList[] = 'p.emergency_contact_phone';
+    } elseif (tableHasColumn($pdo, 'users', 'emergency_contact_phone')) {
+        $selectList[] = 'u.emergency_contact_phone as emergency_contact_phone';
+    } else {
+        $selectList[] = 'NULL as emergency_contact_phone';
+    }
+
+    if (tableHasColumn($pdo, 'patients', 'emergency_contact_relationship')) {
+        $selectList[] = 'p.emergency_contact_relationship';
+    } elseif (tableHasColumn($pdo, 'users', 'emergency_contact_relationship')) {
+        $selectList[] = 'u.emergency_contact_relationship as emergency_contact_relationship';
+    } else {
+        $selectList[] = 'NULL as emergency_contact_relationship';
+    }
+
+    if (tableHasColumn($pdo, 'patients', 'city')) {
+        $selectList[] = 'p.city';
+    } elseif (tableHasColumn($pdo, 'users', 'city')) {
+        $selectList[] = 'u.city as city';
+    } else {
+        $selectList[] = 'NULL as city';
+    }
+
+    if (tableHasColumn($pdo, 'patients', 'province')) {
+        $selectList[] = 'p.province';
+    } elseif (tableHasColumn($pdo, 'users', 'province')) {
+        $selectList[] = 'u.province as province';
+    } else {
+        $selectList[] = 'NULL as province';
+    }
+
+    if (tableHasColumn($pdo, 'patients', 'zip_code')) {
+        $selectList[] = 'p.zip_code';
+    } elseif (tableHasColumn($pdo, 'users', 'zip_code')) {
+        $selectList[] = 'u.zip_code as zip_code';
+    } else {
+        $selectList[] = 'NULL as zip_code';
+    }
+
+    $joinClause = '';
+    if (tableHasColumn($pdo, 'users', 'patient_id')) {
+        $joinClause = ' LEFT JOIN users u ON u.patient_id = p.id ';
+    } elseif (tableHasColumn($pdo, 'patients', 'user_id')) {
+        $joinClause = ' LEFT JOIN users u ON u.id = p.user_id ';
+    }
+
+    $query = "
+        SELECT " . implode(', ', $selectList) . "
+        FROM patients p
+        " . $joinClause . "
+        WHERE p.id = ?
+        LIMIT 1
+    ";
+
+    $stmt = $pdo->prepare($query);
     $stmt->execute([$patientId]);
     $patient = $stmt->fetch(PDO::FETCH_ASSOC);
     

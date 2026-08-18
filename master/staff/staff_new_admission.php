@@ -539,6 +539,21 @@ elseif ($appointmentId) {
                                 <div class="text-xs text-red-500 mt-1 hidden" id="emailError">Email must contain @ symbol</div>
                             </div>
                         </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Emergency Contact Name</label>
+                                <input type="text" name="emergency_contact_name" value="<?php echo htmlspecialchars($patientFromAppointment['emergency_contact_name'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Full name">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Emergency Contact Number</label>
+                                <input type="tel" name="emergency_contact_phone" value="<?php echo htmlspecialchars($patientFromAppointment['emergency_contact_phone'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" inputmode="numeric" maxlength="11" placeholder="09123456789">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Emergency Contact Relationship</label>
+                                <input type="text" name="emergency_contact_relationship" value="<?php echo htmlspecialchars($patientFromAppointment['emergency_contact_relationship'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Parent, Spouse, Sibling">
+                            </div>
+                        </div>
                     </section>
 
                     <!-- Section 3: Insurance Information -->

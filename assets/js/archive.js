@@ -1310,19 +1310,6 @@ function closeVerifyPasswordModal(verified) {
     }
 }
 
-function bulkAction(module, action) {
-    const ids = selectedRecords[module];
-    
-    if (ids.length === 0) return;
-    
-    // Show password modal directly with warning message
-    showVerifyPasswordModal(ids.length, (verified) => {
-        if (verified) {
-            performAction(module, action, ids);
-        }
-    });
-}
-
 /**
  * Perform single action
  */

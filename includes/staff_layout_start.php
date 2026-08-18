@@ -205,22 +205,6 @@ try {
     <link rel="stylesheet" href="../../assets/css/staff_dashboard.css">
     <link rel="stylesheet" href="../../assets/css/appointments.css">
     <style>
-        /* Smooth Page Transitions */
-        .content-main {
-            animation: fadeInUp 0.3s ease-out;
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
         /* Prevent layout shifts during page loads */
         .content-area {
             contain: content;

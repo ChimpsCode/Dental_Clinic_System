@@ -965,6 +965,11 @@ header.top-header {
     justify-content: center;
     font-size: 1.5rem;
 }
+.summary-icon img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
 .summary-icon.yellow { background: #fef3c7; color: var(--card-waiting); }
 .summary-icon.green { background: #dcfce7; color: var(--card-completed); }
 .summary-icon.red { background: #fee2e2; color: var(--card-cancelled); }
@@ -1692,20 +1697,6 @@ header.top-header {
 }
 
 /* Smooth Content Transitions */
-.content-main {
-    animation: fadeInUp 0.3s ease-out;
-}
-
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
 
 .content-area {
     contain: content;

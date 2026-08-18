@@ -742,6 +742,12 @@ body {
     font-size: 24px;
 }
 
+.summary-icon img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+
 .summary-icon.yellow {
     background: #fef3c7;
     color: #d97706;

@@ -1131,73 +1131,116 @@ $showDeletedMsg = isset($_GET['deleted']) && $_GET['deleted'] === '1';
                 <div class="alert alert-success" id="registerSuccess" style="display: none;"></div>
                 
                 <form id="registerForm" method="POST">
-                    <div style="display: flex; gap: 12px; width: 100%;">
-                        <div class="input-group" style="flex:1;">
-                            <input type="text" id="reg_first_name" name="first_name" placeholder="First Name" required autocomplete="given-name">
+                    <div id="regStep1" class="registration-form-section">
+                        <div style="display: flex; gap: 12px; width: 100%;">
+                            <div class="input-group" style="flex:1;">
+                                <input type="text" id="reg_first_name" name="first_name" placeholder="First Name" required autocomplete="given-name">
+                            </div>
+                            <div class="input-group" style="flex:1;">
+                                <input type="text" id="reg_middle_name" name="middle_name" placeholder="Middle Name (optional)" autocomplete="additional-name">
+                            </div>
                         </div>
-                        <div class="input-group" style="flex:1;">
-                            <input type="text" id="reg_middle_name" name="middle_name" placeholder="Middle Name (optional)" autocomplete="additional-name">
+
+                        <div class="input-group">
+                            <input type="text" id="reg_last_name" name="last_name" placeholder="Last Name" required autocomplete="family-name">
                         </div>
-                    </div>
-                    
-                    <div class="input-group">
-                        <input type="text" id="reg_last_name" name="last_name" placeholder="Last Name" required autocomplete="family-name">
-                    </div>
-                    
-                    <div class="input-group">
-                        <input type="email" id="reg_email" name="email" placeholder="Email Address" required autocomplete="email">
-                    </div>
-                    
-                    <div class="input-group">
-                        <input type="tel" id="reg_phone" name="phone" placeholder="Phone Number" required autocomplete="tel">
-                    </div>
-                    
-                    <div class="input-group">
-                        <input type="password" id="reg_password" name="password" placeholder="Password" required autocomplete="new-password">
-                        <button type="button" class="toggle-password" id="toggleRegPassword" aria-label="Toggle password visibility" style="display: none;">
-                            <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                <circle cx="12" cy="12" r="3"></circle>
-                            </svg>
-                            <svg class="eye-icon eye-closed" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
-                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                                <line x1="1" y1="1" x2="23" y2="23"></line>
-                            </svg>
-                        </button>
-                    </div>
-                    
-                    <div class="input-group">
-                        <input type="password" id="reg_confirm_password" name="confirm_password" placeholder="Confirm Password" required autocomplete="new-password">
-                        <button type="button" class="toggle-password" id="toggleRegConfirmPassword" aria-label="Toggle confirm password visibility" style="display: none;">
-                            <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                <circle cx="12" cy="12" r="3"></circle>
-                            </svg>
-                            <svg class="eye-icon eye-closed" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
-                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                                <line x1="1" y1="1" x2="23" y2="23"></line>
-                            </svg>
+
+                        <div class="input-group">
+                            <input type="tel" id="reg_phone" name="phone" placeholder="Phone Number" required autocomplete="tel">
+                        </div>
+
+                        <div style="display: flex; gap: 12px; width: 100%;">
+                            <div class="input-group" style="flex:1;">
+                                <select id="reg_gender" name="gender" required class="styled-select">
+                                    <option value="">Select Gender</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                </select>
+                            </div>
+                            <div class="input-group" style="flex:1;">
+                                <input type="date" id="reg_dob" name="date_of_birth" required>
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <input type="text" id="reg_address" name="address" placeholder="Address (optional)">
+                        </div>
+
+                        <div class="input-group">
+                            <input type="text" id="reg_emergency_name" name="emergency_contact_name" placeholder="Emergency Contact Name" required>
+                        </div>
+
+                        <div style="display: flex; gap: 12px; width: 100%;">
+                            <div class="input-group" style="flex:1;">
+                                <input type="tel" id="reg_emergency_phone" name="emergency_contact_phone" placeholder="Emergency Contact Number" required maxlength="11">
+                            </div>
+                            <div class="input-group" style="flex:1;">
+                                <input type="text" id="reg_emergency_relationship" name="emergency_contact_relationship" placeholder="Relationship" required>
+                            </div>
+                        </div>
+
+                        <button type="button" class="login-btn" id="registerNextBtn" style="display: flex; justify-content: center; align-items: center; margin-top: 6px;">
+                            <span>Next</span>
                         </button>
                     </div>
 
-                    <div style="margin-top:10px; background:rgba(15,23,42,0.04); border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px; color:#0f172a; font-size:13px; line-height:1.55;">
-                        <div style="font-weight:700; margin-bottom:6px;">Password Requirements:</div>
-                        <ul style="margin:0; padding-left:18px;">
-                            <li>At least 8 characters</li>
-                            <li>At least one uppercase letter</li>
-                            <li>At least one lowercase letter</li>
-                            <li>At least one number</li>
-                            <li>At least one symbol</li>
-                        </ul>
-                    </div>
+                    <div id="regStep2" class="registration-form-section registration-form-section-last" style="display: none;">
+                        <div class="input-group">
+                            <input type="email" id="reg_email" name="email" placeholder="Email Address" required autocomplete="email">
+                        </div>
 
-                    <div class="form-links" style="margin-bottom: 20px;">
-                        <span class="separator">By registering, you agree to our Terms of Service and Privacy Policy.</span>
+                        <div class="input-group">
+                            <input type="password" id="reg_password" name="password" placeholder="Password" required autocomplete="new-password">
+                            <button type="button" class="toggle-password" id="toggleRegPassword" aria-label="Toggle password visibility" style="display: none;">
+                                <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                <svg class="eye-icon eye-closed" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div class="input-group">
+                            <input type="password" id="reg_confirm_password" name="confirm_password" placeholder="Confirm Password" required autocomplete="new-password">
+                            <button type="button" class="toggle-password" id="toggleRegConfirmPassword" aria-label="Toggle confirm password visibility" style="display: none;">
+                                <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                <svg class="eye-icon eye-closed" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div class="registration-password-box">
+                            <div class="registration-password-title">Password Requirements:</div>
+                            <ul>
+                                <li>At least 8 characters</li>
+                                <li>At least one uppercase letter</li>
+                                <li>At least one lowercase letter</li>
+                                <li>At least one number</li>
+                                <li>At least one symbol</li>
+                            </ul>
+                        </div>
+
+                        <div class="form-links" style="margin-bottom: 20px;">
+                            <span class="separator">By registering, you agree to our Terms of Service and Privacy Policy.</span>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; width: 100%;">
+                            <button type="button" class="login-btn" id="registerBackBtn" style="display: flex; justify-content: center; align-items: center; flex: 1; background: #e2e8f0; color: #1e293b; border-color: #cbd5e1;">
+                                <span>Back</span>
+                            </button>
+                            <button type="submit" class="login-btn" id="registerBtn" style="display: flex; justify-content: center; align-items: center; flex: 2;">
+                                <span id="registerBtnText">Create Account</span>
+                            </button>
+                        </div>
                     </div>
-                    
-                    <button type="submit" class="login-btn" id="registerBtn" style="display: flex; justify-content: center; align-items: center;">
-                        <span id="registerBtnText">Create Account</span>
-                    </button>
                 </form>
 
                 <div id="regOtpStep" class="step-pane" style="display: none;">

@@ -56,6 +56,10 @@ try {
     $zipCode = trim($_POST['zipCode'] ?? '');
     $phone = trim($_POST['mobileNumber'] ?? '');
     $email = trim($_POST['email'] ?? '');
+    // Emergency Contact
+    $emergencyContactName = trim($_POST['emergency_contact_name'] ?? '');
+    $emergencyContactPhone = trim($_POST['emergency_contact_phone'] ?? '');
+    $emergencyContactRelationship = trim($_POST['emergency_contact_relationship'] ?? '');
     
     // Insurance
     $dentalInsurance = trim($_POST['dentalInsurance'] ?? '');
@@ -96,6 +100,9 @@ try {
             'gender' => $gender,
             'phone' => $phone,
             'email' => $email,
+            'emergency_contact_name' => $emergencyContactName,
+            'emergency_contact_phone' => $emergencyContactPhone,
+            'emergency_contact_relationship' => $emergencyContactRelationship,
         ];
         
         foreach ($updateMap as $col => $val) {
@@ -132,6 +139,9 @@ try {
             'gender' => $gender,
             'phone' => $phone,
             'email' => $email,
+            'emergency_contact_name' => $emergencyContactName,
+            'emergency_contact_phone' => $emergencyContactPhone,
+            'emergency_contact_relationship' => $emergencyContactRelationship,
         ];
         
         foreach ($fieldMap as $col => $val) {

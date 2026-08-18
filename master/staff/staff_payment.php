@@ -352,15 +352,19 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                 </td>
                                 <td><strong>P<?php echo number_format($calculatedAmount, 2); ?></strong></td>
                                 <td>
-                                    <?php if ($record['queue_status'] === 'completed'): ?>
-                                        <span class="status-badge queue-completed">Completed</span>
-                                    <?php elseif ($record['queue_status'] === 'pending_payment'): ?>
-                                        <span class="status-badge queue-pending-payment">Pending Payment</span>
-                                    <?php elseif ($record['queue_status'] === 'in_procedure'): ?>
-                                        <span class="status-badge queue-in-procedure">In Procedure</span>
-                                    <?php else: ?>
-                                        <span class="status-badge queue-waiting">Waiting</span>
-                                    <?php endif; ?>
+                                    <?php
+                                        $qs = strtolower($record['queue_status'] ?? '');
+                                        if ($isPaid || $qs === 'completed') {
+                                            // If billing already paid, show completed regardless of queue status
+                                            echo '<span class="status-badge queue-completed">Completed</span>';
+                                        } elseif (strpos($qs, 'pending') !== false || $qs === 'pending_payment') {
+                                            echo '<span class="status-badge queue-pending-payment">Pending Payment</span>';
+                                        } elseif ($qs === 'in_procedure' || $qs === 'in procedure') {
+                                            echo '<span class="status-badge queue-in-procedure">In Procedure</span>';
+                                        } else {
+                                            echo '<span class="status-badge queue-waiting">Waiting</span>';
+                                        }
+                                    ?>
                                 </td>
                                 <td>
                                     <?php if ($isPaid): ?>
@@ -478,7 +482,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
 
             <!-- View Payment Details Modal -->
             <div id="paymentModal" class="modal-overlay" style="display: none;">
-                <div class="modal" style="max-width:600px;">
+                <div class="modal" style="max-width:800px; width:90%;">
                     <div class="modal-header">
                         <h2>Payment Details</h2>
                         <button class="modal-close" onclick="closePaymentModal()">&times;</button>
