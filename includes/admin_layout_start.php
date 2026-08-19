@@ -25,7 +25,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_set_cookie_params([
         'lifetime' => $__sessionLifetime,
         'path' => '/',
-        'secure' => false,
+                'secure' => false,
         'httponly' => true,
         'samesite' => 'Lax'
     ]);
@@ -191,19 +191,20 @@ $pageTitle = $pageTitle ?? 'Admin Dashboard';
 $__pjax = isset($_GET['__pjax']) && $_GET['__pjax'] === '1';
 
 // Server disk usage for the sidebar storage widget
-$__diskTotal = @disk_total_space(dirname(__DIR__));
-$__diskFree = @disk_free_space(dirname(__DIR__));
-if ($__diskTotal === false || $__diskFree === false || $__diskTotal <= 0) {
-    $__diskUsedGb = null;
-    $__diskTotalGb = null;
-    $__diskUsedPct = 0;
-} else {
-    $__diskUsed = $__diskTotal - $__diskFree;
-    $__diskUsedGb = round($__diskUsed / (1024 * 1024 * 1024), 1);
-    $__diskTotalGb = round($__diskTotal / (1024 * 1024 * 1024), 1);
-    $__diskUsedPct = round($__diskUsed / $__diskTotal * 100);
-    if ($__diskUsedPct < 1 && $__diskUsed > 0) {
-        $__diskUsedPct = 1;
+$__diskUsedGb = null;
+$__diskTotalGb = null;
+$__diskUsedPct = 0;
+if (function_exists('disk_total_space') && function_exists('disk_free_space')) {
+    $__diskTotal = @disk_total_space(dirname(__DIR__));
+    $__diskFree = @disk_free_space(dirname(__DIR__));
+    if ($__diskTotal !== false && $__diskFree !== false && $__diskTotal > 0) {
+        $__diskUsed = $__diskTotal - $__diskFree;
+        $__diskUsedGb = round($__diskUsed / (1024 * 1024 * 1024), 1);
+        $__diskTotalGb = round($__diskTotal / (1024 * 1024 * 1024), 1);
+        $__diskUsedPct = round($__diskUsed / $__diskTotal * 100);
+        if ($__diskUsedPct < 1 && $__diskUsed > 0) {
+            $__diskUsedPct = 1;
+        }
     }
 }
 
@@ -224,6 +225,7 @@ function isActivePage($page) {
     <link rel="stylesheet" href="../../assets/css/dashboard.css">
     <link rel="stylesheet" href="../../assets/css/admin.css">
     <link rel="stylesheet" href="../../assets/css/appointments.css">
+    <link rel="stylesheet" href="../../assets/css/mini_calendar.css">
 </head>
 <body data-user-id="<?php echo (int)($_SESSION['user_id'] ?? 0); ?>">
     <div id="userModal" class="modal-overlay">

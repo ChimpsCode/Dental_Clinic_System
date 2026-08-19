@@ -1698,10 +1698,6 @@ header.top-header {
 
 /* Smooth Content Transitions */
 
-.content-area {
-    contain: content;
-}
-
 .top-header {
     position: sticky;
     top: 0;

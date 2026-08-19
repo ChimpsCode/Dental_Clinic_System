@@ -238,7 +238,8 @@ if ($appointmentId) {
     // Medical History - use INSERT IGNORE
     $medicalConditions = $_POST['medicalConditions'] ?? [];
     $medications = $_POST['medications'] ?? '';
-    if (!empty($medications) || !empty($medicalConditions)) {
+    $allergies = $_POST['allergies'] ?? '';
+    if (!empty($medications) || !empty($allergies) || !empty($medicalConditions)) {
         try {
             $mhCols = $pdo->query("DESCRIBE medical_history");
             $mhAvailable = array_column($mhCols->fetchAll(), 'Field');
@@ -248,6 +249,7 @@ if ($appointmentId) {
             
             if (in_array('medical_conditions', $mhAvailable)) { $mhColList[] = 'medical_conditions'; $mhValues[] = is_array($medicalConditions) ? implode(', ', $medicalConditions) : $medicalConditions; }
             if (in_array('current_medications', $mhAvailable)) { $mhColList[] = 'current_medications'; $mhValues[] = $medications; }
+            if (in_array('allergies', $mhAvailable)) { $mhColList[] = 'allergies'; $mhValues[] = $allergies; }
             
             // Set individual boolean columns for each selected condition
             $conditionDbMap = [

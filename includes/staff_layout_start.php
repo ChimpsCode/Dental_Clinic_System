@@ -204,12 +204,8 @@ try {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../assets/css/staff_dashboard.css">
     <link rel="stylesheet" href="../../assets/css/appointments.css">
+    <link rel="stylesheet" href="../../assets/css/mini_calendar.css">
     <style>
-        /* Prevent layout shifts during page loads */
-        .content-area {
-            contain: content;
-        }
-
         /* Smooth sidebar navigation */
         .nav-item {
             transition: all 0.2s ease;

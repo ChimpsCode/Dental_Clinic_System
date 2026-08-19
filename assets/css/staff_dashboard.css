@@ -1725,10 +1725,6 @@ header.top-header {
 
 /* Smooth Content Transitions */
 
-.content-area {
-    contain: content;
-}
-
 .page-subtitle {
     font-size: 0.875rem;
     color: #6b7280;

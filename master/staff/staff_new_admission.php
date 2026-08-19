@@ -736,6 +736,13 @@ elseif ($appointmentId) {
                             </div>
                         </div>
 
+                        <div id="allergiesSection" class="grid grid-cols-1 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Allergies</label>
+                                <textarea name="allergies" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="List any known allergies (e.g. penicillin, latex, etc.)"></textarea>
+                            </div>
+                        </div>
+
                         <div id="medicationsSection" class="grid grid-cols-1 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Current Medications</label>

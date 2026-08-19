@@ -1901,13 +1901,6 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
 
 
 <style>
-    .view-section {
-    display: none;
-    flex: 1;
-    overflow: visible;
-    padding: 0;
-    animation: fadeIn 0.3s ease;
-}
 
 .complete-treatment-modal {
     background:
@@ -2518,114 +2511,6 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
         width: 100vw;
     }
 }
-
-/* Mini Calendar */
-.mc-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 12px;
-}
-.mc-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: #1f2937;
-    white-space: nowrap;
-}
-.mc-nav {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
-    border: 1px solid #e5e7eb;
-    background: #f9fafb;
-    color: #374151;
-    text-decoration: none;
-    font-size: 16px;
-    line-height: 1;
-    transition: all 0.15s;
-    flex-shrink: 0;
-    cursor: pointer;
-    font-family: inherit;
-    padding: 0;
-}
-.mc-nav:hover {
-    background: #eff6ff;
-    border-color: #bfdbfe;
-    color: #1d4ed8;
-}
-.mc-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 3px;
-}
-.mc-day-head {
-    text-align: center;
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: #6b7280;
-    padding: 4px 0;
-}
-.mc-day {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    height: 34px;
-    border-radius: 8px;
-    font-size: 12px;
-    font-weight: 500;
-    color: #374151;
-    cursor: default;
-    transition: background 0.15s;
-    border: 1px solid transparent;
-}
-.mc-day-num {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    line-height: 1;
-}
-.mc-day.has-appt {
-    cursor: pointer;
-    background: #eff6ff;
-    border-color: #dbeafe;
-}
-.mc-day.has-appt:hover {
-    background: #dbeafe;
-    border-color: #93c5fd;
-}
-.mc-day.today .mc-day-num {
-    background: #005daa;
-    color: #fff;
-    font-weight: 700;
-}
-.mc-dot {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: #2563eb;
-    margin-top: 2px;
-    flex-shrink: 0;
-}
-.mc-empty { visibility: hidden; }
-.mc-legend {
-    display: flex;
-    align-items: center;
-    margin-top: 12px;
-    font-size: 11px;
-    color: #6b7280;
-}
-.mc-legend-item { display: flex; align-items: center; gap: 5px; }
-.mc-legend-item .mc-dot { margin-top: 0; }
 
 /* Summary card colors (blue design) */
 .summary-cards .summary-card {
