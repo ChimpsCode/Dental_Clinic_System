@@ -449,6 +449,19 @@ function closePatientKebabDropdown() {
     }
 }
 
+function resetPatientKebabState() {
+    closePatientKebabDropdown();
+    if (patientKebabDropdown && patientKebabDropdown.parentNode) {
+        patientKebabDropdown.parentNode.removeChild(patientKebabDropdown);
+    }
+    if (patientKebabBackdrop && patientKebabBackdrop.parentNode) {
+        patientKebabBackdrop.parentNode.removeChild(patientKebabBackdrop);
+    }
+    patientKebabDropdown = null;
+    patientKebabBackdrop = null;
+    patientActiveButton = null;
+}
+
 function handlePatientKebabClick(e) {
     const link = e.target.closest('a[data-action]');
     if (!link) return;
@@ -480,11 +493,15 @@ switch(action) {
     }
 }
 
-document.addEventListener('click', function(e) {
+if (window.__adminPatientsKebabClickHandler) {
+    document.removeEventListener('click', window.__adminPatientsKebabClickHandler, true);
+}
+
+function handleAdminPatientsKebabDocumentClick(e) {
     const button = e.target.closest('.patient-kebab-btn');
     if (button) {
         e.preventDefault();
-        e.stopPropagation();
+        e.stopImmediatePropagation();
 
         if (patientActiveButton === button && patientKebabDropdown && patientKebabDropdown.classList.contains('show')) {
             closePatientKebabDropdown();
@@ -500,7 +517,10 @@ document.addEventListener('click', function(e) {
     if (!e.target.closest('.patient-kebab-dropdown-portal')) {
         closePatientKebabDropdown();
     }
-});
+}
+
+window.__adminPatientsKebabClickHandler = handleAdminPatientsKebabDocumentClick;
+document.addEventListener('click', window.__adminPatientsKebabClickHandler, true);
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
@@ -514,6 +534,18 @@ window.addEventListener('resize', function() {
     if (typeof patientKebabDropdown !== 'undefined' && patientKebabDropdown && patientKebabDropdown.classList.contains('show') && patientActiveButton) {
         positionPatientKebabDropdown(patientActiveButton);
     }
+});
+
+// A cached tab can restore the portal backdrop above the table. Always clear it
+// when leaving or restoring this page so kebab buttons remain clickable.
+document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState !== 'visible') {
+        resetPatientKebabState();
+    }
+});
+
+window.addEventListener('pageshow', function() {
+    resetPatientKebabState();
 });
 
 // View Patient Details - Modal
