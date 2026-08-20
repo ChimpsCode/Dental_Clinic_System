@@ -98,6 +98,19 @@ try {
         $patientGender = 'female';
     }
 
+    $patientAge = null;
+    if (!empty($patient['date_of_birth'])) {
+        try {
+            $birthDate = new DateTime($patient['date_of_birth']);
+            $today = new DateTime('today');
+            if ($birthDate <= $today) {
+                $patientAge = $birthDate->diff($today)->y;
+            }
+        } catch (Exception $e) {
+            $patientAge = null;
+        }
+    }
+
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = $_POST['action'] ?? '';
 
@@ -127,6 +140,17 @@ try {
                     $stmt = $pdo->prepare("UPDATE patients SET street_address = ? WHERE id = ?");
                     $stmt->execute([$address, $patient_id]);
                     $message = 'Address successfully updated.';
+                } elseif (in_array($change_type, ['emergency_name', 'emergency_phone', 'emergency_relationship'], true)) {
+                    $emergencyFieldMap = [
+                        'emergency_name' => 'emergency_contact_name',
+                        'emergency_phone' => 'emergency_contact_phone',
+                        'emergency_relationship' => 'emergency_contact_relationship'
+                    ];
+                    $field = $emergencyFieldMap[$change_type];
+                    $value = trim($_POST[$field] ?? '');
+                    $stmt = $pdo->prepare("UPDATE patients SET `{$field}` = ? WHERE id = ?");
+                    $stmt->execute([$value, $patient_id]);
+                    $message = 'Emergency contact successfully updated.';
                 } else {
                     throw new Exception('Invalid update type.');
                 }
@@ -419,6 +443,10 @@ $pageTitle = 'My Profile';
                                 <option value="other" <?php echo $patientGender === 'other' ? 'selected' : ''; ?>>Other</option>
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label class="form-label">Age</label>
+                            <input type="text" class="form-input" value="<?php echo $patientAge !== null ? htmlspecialchars((string)$patientAge) : 'Not provided'; ?>" readonly>
+                        </div>
                     </div>
 
                     <!-- Contact Information & Address -->
@@ -446,8 +474,37 @@ $pageTitle = 'My Profile';
                         </div>
                     </div>
 
+                    <!-- Emergency Contact -->
+                    <div class="section-title" style="margin-top: 24px;">Emergency Contact</div>
+                    <div class="contact-stack">
+                        <div class="contact-row">
+                            <div class="contact-row-label">Contact Name</div>
+                            <div class="contact-row-value">
+                                <span class="contact-row-text"><?php echo htmlspecialchars($patient['emergency_contact_name'] ?? 'Not provided'); ?></span>
+                                <button type="button" class="edit-contact-btn" data-type="emergency_name" data-current-value="<?php echo htmlspecialchars($patient['emergency_contact_name'] ?? '', ENT_QUOTES); ?>" title="Edit emergency contact name" onclick="window.openContactEditor && window.openContactEditor('emergency_name'); return false;"><i class="fas fa-pen"></i></button>
+                            </div>
+                        </div>
+                        <div class="contact-row">
+                            <div class="contact-row-label">Contact Phone</div>
+                            <div class="contact-row-value">
+                                <span class="contact-row-text"><?php echo htmlspecialchars($patient['emergency_contact_phone'] ?? 'Not provided'); ?></span>
+                                <button type="button" class="edit-contact-btn" data-type="emergency_phone" data-current-value="<?php echo htmlspecialchars($patient['emergency_contact_phone'] ?? '', ENT_QUOTES); ?>" title="Edit emergency contact phone" onclick="window.openContactEditor && window.openContactEditor('emergency_phone'); return false;"><i class="fas fa-pen"></i></button>
+                            </div>
+                        </div>
+                        <div class="contact-row">
+                            <div class="contact-row-label">Relationship</div>
+                            <div class="contact-row-value">
+                                <span class="contact-row-text"><?php echo htmlspecialchars($patient['emergency_contact_relationship'] ?? 'Not provided'); ?></span>
+                                <button type="button" class="edit-contact-btn" data-type="emergency_relationship" data-current-value="<?php echo htmlspecialchars($patient['emergency_contact_relationship'] ?? '', ENT_QUOTES); ?>" title="Edit emergency contact relationship" onclick="window.openContactEditor && window.openContactEditor('emergency_relationship'); return false;"><i class="fas fa-pen"></i></button>
+                            </div>
+                        </div>
+                    </div>
+
                     <input type="hidden" name="phone" id="phoneInput" value="<?php echo htmlspecialchars($patient['phone'] ?? ''); ?>">
                     <input type="hidden" name="address" id="addressInput" value="<?php echo htmlspecialchars($patient['street_address'] ?? ''); ?>">
+                    <input type="hidden" name="emergency_contact_name" id="emergencyNameInput" value="<?php echo htmlspecialchars($patient['emergency_contact_name'] ?? ''); ?>">
+                    <input type="hidden" name="emergency_contact_phone" id="emergencyPhoneInput" value="<?php echo htmlspecialchars($patient['emergency_contact_phone'] ?? ''); ?>">
+                    <input type="hidden" name="emergency_contact_relationship" id="emergencyRelationshipInput" value="<?php echo htmlspecialchars($patient['emergency_contact_relationship'] ?? ''); ?>">
                 </form>
             </div>
         </main>
@@ -463,7 +520,7 @@ $pageTitle = 'My Profile';
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
                 <button type="button" class="btn btn-secondary" id="cancelContactEditBtn">Cancel</button>
                 <button type="button" class="btn btn-primary" id="sendOtpBtn">Send OTP</button>
-                <button type="button" class="btn btn-primary" id="saveAddressBtn" style="display:none;">Save Address</button>
+                <button type="button" class="btn btn-primary" id="saveContactBtn" style="display:none;">Save</button>
             </div>
         </div>
     </div>
@@ -601,7 +658,7 @@ $pageTitle = 'My Profile';
         const contactEditorInput = document.getElementById('contactEditorInput');
         const cancelContactEditBtn = document.getElementById('cancelContactEditBtn');
         const sendOtpBtn = document.getElementById('sendOtpBtn');
-        const saveAddressBtn = document.getElementById('saveAddressBtn');
+        const saveContactBtn = document.getElementById('saveContactBtn');
         const otpModal = document.getElementById('otpModal');
         const modalTitle = document.getElementById('modalTitle');
         const modalDesc = document.getElementById('modalDesc');
@@ -612,6 +669,9 @@ $pageTitle = 'My Profile';
         const changeTypeField = document.getElementById('changeTypeField');
         const phoneInput = document.getElementById('phoneInput');
         const addressInput = document.getElementById('addressInput');
+        const emergencyNameInput = document.getElementById('emergencyNameInput');
+        const emergencyPhoneInput = document.getElementById('emergencyPhoneInput');
+        const emergencyRelationshipInput = document.getElementById('emergencyRelationshipInput');
 
         let currentEditType = null;
 
@@ -629,6 +689,18 @@ $pageTitle = 'My Profile';
                 contactEditorTitle.textContent = 'Edit Phone Number';
                 contactEditorDescription.textContent = 'Enter your new phone number. An OTP will be sent to verify this change.';
                 contactEditorInput.type = 'tel';
+            } else if (type === 'emergency_name') {
+                contactEditorTitle.textContent = 'Edit Emergency Contact Name';
+                contactEditorDescription.textContent = 'Enter the name of your emergency contact.';
+                contactEditorInput.type = 'text';
+            } else if (type === 'emergency_phone') {
+                contactEditorTitle.textContent = 'Edit Emergency Contact Phone';
+                contactEditorDescription.textContent = 'Enter the phone number of your emergency contact.';
+                contactEditorInput.type = 'tel';
+            } else if (type === 'emergency_relationship') {
+                contactEditorTitle.textContent = 'Edit Emergency Contact Relationship';
+                contactEditorDescription.textContent = 'Enter your relationship with this emergency contact.';
+                contactEditorInput.type = 'text';
             } else {
                 contactEditorTitle.textContent = 'Edit Address / Location';
                 contactEditorDescription.textContent = 'Update your current address or location. This change does not require OTP.';
@@ -636,8 +708,10 @@ $pageTitle = 'My Profile';
             }
 
             contactEditorInput.value = currentValue || '';
-            sendOtpBtn.style.display = (type === 'address') ? 'none' : 'inline-flex';
-            saveAddressBtn.style.display = (type === 'address') ? 'inline-flex' : 'none';
+            const requiresOtp = type === 'phone';
+            sendOtpBtn.style.display = requiresOtp ? 'inline-flex' : 'none';
+            saveContactBtn.textContent = type === 'address' ? 'Save Address' : 'Save';
+            saveContactBtn.style.display = requiresOtp ? 'none' : 'inline-flex';
             contactEditorModal.style.display = 'flex';
         }
 
@@ -674,12 +748,26 @@ $pageTitle = 'My Profile';
             hiddenOtpCode.value = '';
         });
 
-        saveAddressBtn.addEventListener('click', function() {
-            if (!currentEditType || currentEditType !== 'address') return;
-            const newAddress = contactEditorInput.value.trim();
-            if (!newAddress) {
-                alert('Please enter your address or location.');
+        saveContactBtn.addEventListener('click', function() {
+            if (!currentEditType || currentEditType === 'phone') return;
+            const newValue = contactEditorInput.value.trim();
+            if (!newValue) {
+                alert('Please enter a value.');
                 return;
+            }
+
+            if (currentEditType === 'address') {
+                addressInput.value = newValue;
+            } else if (currentEditType === 'emergency_name') {
+                emergencyNameInput.value = newValue;
+            } else if (currentEditType === 'emergency_phone') {
+                if (!/^\+?[0-9\s\-()]{7,15}$/.test(newValue)) {
+                    alert('Please enter a valid phone number.');
+                    return;
+                }
+                emergencyPhoneInput.value = newValue;
+            } else if (currentEditType === 'emergency_relationship') {
+                emergencyRelationshipInput.value = newValue;
             }
 
             const actionInput = document.createElement('input');
@@ -688,9 +776,8 @@ $pageTitle = 'My Profile';
             actionInput.value = 'verify_and_update';
             profileUpdateForm.appendChild(actionInput);
 
-            addressInput.value = newAddress;
-            changeTypeField.value = 'address';
-            hiddenOtpCode.value = 'address-update';
+            changeTypeField.value = currentEditType;
+            hiddenOtpCode.value = 'contact-update';
             window.closeContactEditor();
             profileUpdateForm.submit();
         });
