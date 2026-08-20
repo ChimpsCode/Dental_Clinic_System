@@ -124,7 +124,20 @@ function ensurePatientRecordForUser(PDO $pdo, array $user): ?int {
         $patientStmt->execute([$email]);
         $patient = $patientStmt->fetch(PDO::FETCH_ASSOC);
         if ($patient) {
-            return (int)$patient['id'];
+            $patientId = (int)$patient['id'];
+            if (tableHasColumn($pdo, 'users', 'patient_id')) {
+                try {
+                    $linkStmt = $pdo->prepare("UPDATE users SET patient_id = ? WHERE id = ? AND (patient_id IS NULL OR patient_id != ?)");
+                    $linkStmt->execute([$patientId, (int)$user['id'], $patientId]);
+                } catch (Exception $e) { /* non-fatal */ }
+            }
+            if (tableHasColumn($pdo, 'patients', 'user_id')) {
+                try {
+                    $linkStmt = $pdo->prepare("UPDATE patients SET user_id = ? WHERE id = ? AND (user_id IS NULL OR user_id != ?)");
+                    $linkStmt->execute([(int)$user['id'], $patientId, (int)$user['id']]);
+                } catch (Exception $e) { /* non-fatal */ }
+            }
+            return $patientId;
         }
     }
 

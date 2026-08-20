@@ -175,13 +175,13 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
             </div>
 
 <script>
-const allPatients = <?php echo json_encode($patients); ?>;
-let currentPage = 1;
-let perPage = 7;
-let filteredPatients = [...allPatients];
+var allPatients = <?php echo json_encode($patients); ?>;
+var currentPage = 1;
+var perPage = 7;
+var filteredPatients = allPatients.slice(0);
 
-const statusLabels = {'waiting':'Waiting','in_procedure':'In Procedure','on_hold':'On Hold','completed':'Completed','cancelled':'Cancelled','Scheduled':'Scheduled','In Queue':'In Queue','Pending Payment':'Pending Payment'};
-const statusColors = {'waiting':'#fef3c7:#92400e','in_procedure':'#dbeafe:#1e40af','on_hold':'#fed7aa:#9a3412','completed':'#d1fae5:#065f46','cancelled':'#fee2e2:#dc2626','Scheduled':'#dbeafe:#1d4ed8','In Queue':'#fef3c7:#92400e','Pending Payment':'#fed7aa:#c2410c'};
+var statusLabels = {'waiting':'Waiting','in_procedure':'In Procedure','on_hold':'On Hold','completed':'Completed','cancelled':'Cancelled','Scheduled':'Scheduled','In Queue':'In Queue','Pending Payment':'Pending Payment'};
+var statusColors = {'waiting':'#fef3c7:#92400e','in_procedure':'#dbeafe:#1e40af','on_hold':'#fed7aa:#9a3412','completed':'#d1fae5:#065f46','cancelled':'#fee2e2:#dc2626','Scheduled':'#dbeafe:#1d4ed8','In Queue':'#fef3c7:#92400e','Pending Payment':'#fed7aa:#c2410c'};
 
 // Portal Pattern: Move modals to body level
 (function() {
@@ -320,9 +320,9 @@ function escapeHtml(str) {
 }
 
 // Patient Kebab Menu Functions
-let patientKebabDropdown = null;
-let patientKebabBackdrop = null;
-let patientActiveButton = null;
+var patientKebabDropdown = null;
+var patientKebabBackdrop = null;
+var patientActiveButton = null;
 
 function createPatientKebabDropdown() {
     patientKebabDropdown = document.createElement('div');
@@ -1266,7 +1266,7 @@ function confirmArchivePatient(patientId) {
 }
 
 // Add Appointment Modal Functions
-let selectedPatientId = null;
+var selectedPatientId = null;
 
 function openAddAppointmentModal(patientId) {
     const patient = allPatients.find(p => p.id == patientId);

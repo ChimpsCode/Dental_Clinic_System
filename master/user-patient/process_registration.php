@@ -185,6 +185,11 @@ if ($action === 'verify_otp') {
         $stmt->execute($insertPatientParams);
         $patient_id = $pdo->lastInsertId();
 
+        if (tableHasColumn($pdo, 'users', 'patient_id')) {
+            $linkStmt = $pdo->prepare("UPDATE users SET patient_id = ? WHERE id = ?");
+            $linkStmt->execute([$patient_id, $user_id]);
+        }
+
         $pdo->commit();
 
         try {

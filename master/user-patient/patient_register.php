@@ -257,6 +257,12 @@ if ($action === 'verify_otp') {
         $patientSql = "INSERT INTO patients (" . implode(', ', $patientColumns) . ") VALUES (" . $patientPlaceholders . ")";
         $insertPatient = $pdo->prepare($patientSql);
         $insertPatient->execute($patientValues);
+        $patientId = (int)$pdo->lastInsertId();
+
+        if (tableHasColumn($pdo, 'users', 'patient_id') && $patientId) {
+            $linkStmt = $pdo->prepare("UPDATE users SET patient_id = ? WHERE id = ?");
+            $linkStmt->execute([$patientId, $userId]);
+        }
 
         $pdo->commit();
 

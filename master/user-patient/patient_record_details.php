@@ -68,10 +68,21 @@ try {
         'TIMESTAMPDIFF(YEAR, p.date_of_birth, CURDATE()) as age',
     ];
 
-    // Prefer patient's own profile picture column if available, otherwise include user profile picture
-    if (tableHasColumn($pdo, 'patients', 'profile_picture')) {
+    $joinClause = '';
+    if (tableHasColumn($pdo, 'users', 'patient_id')) {
+        $joinClause = ' LEFT JOIN users u ON u.patient_id = p.id ';
+    } elseif (tableHasColumn($pdo, 'patients', 'user_id')) {
+        $joinClause = ' LEFT JOIN users u ON u.id = p.user_id ';
+    }
+
+    // Patient account photos are stored on users; retain the patient-column fallback for legacy records.
+    $hasPatientProfilePicture = tableHasColumn($pdo, 'patients', 'profile_picture');
+    $hasUserProfilePicture = tableHasColumn($pdo, 'users', 'profile_picture');
+    if ($hasPatientProfilePicture && $hasUserProfilePicture && $joinClause !== '') {
+        $selectList[] = "COALESCE(NULLIF(p.profile_picture, ''), u.profile_picture) as profile_picture";
+    } elseif ($hasPatientProfilePicture) {
         $selectList[] = 'p.profile_picture as profile_picture';
-    } elseif (tableHasColumn($pdo, 'users', 'profile_picture')) {
+    } elseif ($hasUserProfilePicture && $joinClause !== '') {
         $selectList[] = 'u.profile_picture as profile_picture';
     } else {
         $selectList[] = "NULL as profile_picture";
@@ -143,13 +154,6 @@ try {
         $selectList[] = 'NULL as zip_code';
     }
 
-    $joinClause = '';
-    if (tableHasColumn($pdo, 'users', 'patient_id')) {
-        $joinClause = ' LEFT JOIN users u ON u.patient_id = p.id ';
-    } elseif (tableHasColumn($pdo, 'patients', 'user_id')) {
-        $joinClause = ' LEFT JOIN users u ON u.id = p.user_id ';
-    }
-
     $query = "
         SELECT " . implode(', ', $selectList) . "
         FROM patients p
@@ -167,43 +171,90 @@ try {
         exit();
     }
 
-    // If the joined users row did not populate user_id, try to find a matching user
-    // by patient_id, email, or phone to robustly detect registered users.
+    // Always resolve the linked account after loading the patient. This ensures the
+    // account photo is returned even when the patient row has no photo value.
+    // When multiple users share the same patient_id (data issue), we prefer the
+    // user who actually has a profile_picture.
     try {
-        $needLookup = empty($patient['user_id']);
-        if ($needLookup && tableHasColumn($pdo, 'users', 'id')) {
-            $foundUser = null;
-            // Prefer exact patient_id relation when available
+        if (tableHasColumn($pdo, 'users', 'id')) {
+            $bestUser = null;
+            $userSelect = 'id, username';
+            if ($hasUserProfilePicture) {
+                $userSelect .= ', profile_picture';
+            }
+
+            // Helper: check if a user is a better match than the current best
+            // (prefers users that have a profile_picture set)
+            $considerUser = function(&$best, $candidate) {
+                if (!$candidate) return;
+                if ($best === null) { $best = $candidate; return; }
+                // Prefer the candidate if it has a profile_picture and best does not
+                $bestHasPic = !empty($best['profile_picture']);
+                $candidateHasPic = !empty($candidate['profile_picture']);
+                if (!$bestHasPic && $candidateHasPic) {
+                    $best = $candidate;
+                }
+            };
+
+            // 1. Try the patients.user_id relation
+            if (!empty($patient['user_id'])) {
+                $s = $pdo->prepare('SELECT ' . $userSelect . ' FROM users WHERE id = ? LIMIT 1');
+                $s->execute([$patient['user_id']]);
+                $considerUser($bestUser, $s->fetch(PDO::FETCH_ASSOC) ?: null);
+            }
+
+            // 2. Try the users.patient_id relation
             if (tableHasColumn($pdo, 'users', 'patient_id')) {
-                $s = $pdo->prepare('SELECT id, username, profile_picture FROM users WHERE patient_id = ? LIMIT 1');
+                $s = $pdo->prepare('SELECT ' . $userSelect . ' FROM users WHERE patient_id = ?');
                 $s->execute([$patientId]);
-                $foundUser = $s->fetch(PDO::FETCH_ASSOC);
-            }
-
-            // Fallback: match by email or phone
-            if (!$foundUser) {
-                $conds = [];
-                $params = [];
-                if (!empty($patient['email']) && tableHasColumn($pdo, 'users', 'email')) {
-                    $conds[] = 'email = ?';
-                    $params[] = $patient['email'];
-                }
-                if (!empty($patient['phone']) && tableHasColumn($pdo, 'users', 'phone')) {
-                    $conds[] = 'phone = ?';
-                    $params[] = $patient['phone'];
-                }
-                if (!empty($conds)) {
-                    $sql = 'SELECT id, username, profile_picture FROM users WHERE (' . implode(' OR ', $conds) . ') LIMIT 1';
-                    $s = $pdo->prepare($sql);
-                    $s->execute($params);
-                    $foundUser = $s->fetch(PDO::FETCH_ASSOC);
+                foreach ($s->fetchAll(PDO::FETCH_ASSOC) as $u) {
+                    $considerUser($bestUser, $u);
                 }
             }
 
-            if ($foundUser) {
-                $patient['user_id'] = $foundUser['id'];
-                if (isset($foundUser['username'])) $patient['username'] = $foundUser['username'];
-                if (isset($foundUser['profile_picture'])) $patient['profile_picture'] = $foundUser['profile_picture'];
+            // 3. Match by email or phone (most reliable for duplicate patient_id cases)
+            $conds = [];
+            $params = [];
+            if (!empty($patient['email']) && tableHasColumn($pdo, 'users', 'email')) {
+                $conds[] = 'email = ?';
+                $params[] = $patient['email'];
+            }
+            if (!empty($patient['phone']) && tableHasColumn($pdo, 'users', 'phone')) {
+                $conds[] = 'phone = ?';
+                $params[] = $patient['phone'];
+            }
+            if (!empty($conds)) {
+                $sql = 'SELECT ' . $userSelect . ' FROM users WHERE (' . implode(' OR ', $conds) . ') LIMIT 10';
+                $s = $pdo->prepare($sql);
+                $s->execute($params);
+                foreach ($s->fetchAll(PDO::FETCH_ASSOC) as $u) {
+                    $considerUser($bestUser, $u);
+                }
+            }
+
+            // 4. Last resort: match by first_name + last_name + phone
+            if (!empty($patient['first_name']) && !empty($patient['last_name']) && !empty($patient['phone'])) {
+                $namePhoneSql = 'SELECT ' . $userSelect . ' FROM users WHERE first_name = ? AND last_name = ? AND phone = ? LIMIT 10';
+                $s = $pdo->prepare($namePhoneSql);
+                $s->execute([$patient['first_name'], $patient['last_name'], $patient['phone']]);
+                foreach ($s->fetchAll(PDO::FETCH_ASSOC) as $u) {
+                    $considerUser($bestUser, $u);
+                }
+            }
+
+            if ($bestUser) {
+                $patient['user_id'] = $bestUser['id'];
+                if (isset($bestUser['username'])) $patient['username'] = $bestUser['username'];
+                if (!empty($bestUser['profile_picture'])) {
+                    $patient['profile_picture'] = $bestUser['profile_picture'];
+                }
+                // Write back patient_id so future JOINs work instantly
+                if (tableHasColumn($pdo, 'users', 'patient_id')) {
+                    try {
+                        $linkStmt = $pdo->prepare("UPDATE users SET patient_id = ? WHERE id = ? AND (patient_id IS NULL OR patient_id != ?)");
+                        $linkStmt->execute([$patientId, $bestUser['id'], $patientId]);
+                    } catch (Exception $e) { /* non-fatal */ }
+                }
             }
         }
     } catch (Exception $e) {
