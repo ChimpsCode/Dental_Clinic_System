@@ -32,6 +32,31 @@ $message = '';
 $messageType = '';
 
 require_once '../../config/database.php';
+require_once '../../includes/audit_helper.php';
+
+$profileUserPatientJoin = 'LEFT JOIN patients p ON p.user_id = u.id';
+$profilePatientUserJoin = 'LEFT JOIN users u ON u.id = p.user_id';
+$profileAddressSelect = 'p.street_address as street_address';
+$profilePictureSelect = 'u.profile_picture';
+try {
+    $usersColumns = $pdo->query('SHOW COLUMNS FROM users')->fetchAll(PDO::FETCH_COLUMN);
+    $patientsColumns = $pdo->query('SHOW COLUMNS FROM patients')->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('profile_picture', $usersColumns, true)) {
+        $profilePictureSelect = 'NULL as profile_picture';
+    }
+    if (!in_array('street_address', $patientsColumns, true) && in_array('address', $patientsColumns, true)) {
+        $profileAddressSelect = 'p.address as street_address';
+    }
+    if (in_array('patient_id', $usersColumns, true)) {
+        $profileUserPatientJoin = 'LEFT JOIN patients p ON p.id = u.patient_id';
+        $profilePatientUserJoin = 'LEFT JOIN users u ON u.patient_id = p.id';
+    } elseif (!in_array('user_id', $patientsColumns, true)) {
+        $profileUserPatientJoin = 'LEFT JOIN patients p ON 1 = 0';
+        $profilePatientUserJoin = 'LEFT JOIN users u ON 1 = 0';
+    }
+} catch (Exception $e) {
+    // Keep the current schema's patients.user_id relationship as the default.
+}
 
 try {
     // Safely fetch user and patient records, pulling from whichever table has the data
@@ -42,11 +67,11 @@ try {
                u.last_name as user_last_name,
                COALESCE(u.email, p.email) as email,
                COALESCE(u.phone, p.phone) as phone,
-               p.street_address,
-               u.created_at, u.profile_picture,
+               {$profileAddressSelect},
+               u.created_at, {$profilePictureSelect},
                COALESCE(u.gender, p.gender) as gender
         FROM users u 
-        LEFT JOIN patients p ON p.id = u.patient_id 
+        {$profileUserPatientJoin}
         WHERE u.id = ?
     ");
     $stmt->execute([$user_id]);
@@ -61,11 +86,11 @@ try {
                    u.last_name as user_last_name,
                    COALESCE(p.email, u.email) as email,
                    COALESCE(p.phone, u.phone) as phone,
-                   p.street_address,
-                   u.created_at, u.profile_picture,
+                   {$profileAddressSelect},
+                   u.created_at, {$profilePictureSelect},
                    COALESCE(p.gender, u.gender) as gender
             FROM patients p 
-            LEFT JOIN users u ON u.patient_id = p.id 
+            {$profilePatientUserJoin}
             WHERE p.id = ?
         ");
         $stmt->execute([$patient_id]);
@@ -111,10 +136,101 @@ try {
         }
     }
 
+    $personalInfoCooldownUntil = null;
+    if (!empty($patient_id)) {
+        $cooldownStmt = $pdo->prepare("SELECT MAX(created_at) FROM audit_logs WHERE affected_table = 'patients' AND affected_id = ? AND module = 'patients' AND action_type = 'update' AND description LIKE 'patient_self_service_personal_info:%'");
+        $cooldownStmt->execute([$patient_id]);
+        $lastPersonalInfoChange = $cooldownStmt->fetchColumn();
+        if ($lastPersonalInfoChange) {
+            $personalInfoCooldownUntil = (new DateTime($lastPersonalInfoChange))->modify('+30 days');
+        }
+    }
+
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = $_POST['action'] ?? '';
 
-        if ($action === 'verify_and_update') {
+        if ($action === 'personal_info_update') {
+            if (!$patient_id) {
+                throw new Exception('Patient record not found.');
+            }
+            if ($personalInfoCooldownUntil && new DateTime() < $personalInfoCooldownUntil) {
+                throw new Exception('Personal information can be edited again on ' . $personalInfoCooldownUntil->format('F j, Y') . '.');
+            }
+
+            $personalFields = [
+                'first_name' => trim($_POST['first_name'] ?? ''),
+                'middle_name' => trim($_POST['middle_name'] ?? ''),
+                'last_name' => trim($_POST['last_name'] ?? ''),
+                'date_of_birth' => trim($_POST['date_of_birth'] ?? ''),
+                'gender' => strtolower(trim($_POST['gender'] ?? ''))
+            ];
+            if ($personalFields['first_name'] === '' || $personalFields['last_name'] === '') {
+                throw new Exception('First name and last name are required.');
+            }
+            if ($personalFields['gender'] !== '' && !in_array($personalFields['gender'], ['male', 'female', 'other'], true)) {
+                throw new Exception('Please select a valid gender.');
+            }
+            if ($personalFields['date_of_birth'] !== '') {
+                $dob = DateTime::createFromFormat('Y-m-d', $personalFields['date_of_birth']);
+                if (!$dob || $dob->format('Y-m-d') !== $personalFields['date_of_birth'] || $dob > new DateTime('today')) {
+                    throw new Exception('Please enter a valid date of birth.');
+                }
+            } else {
+                $personalFields['date_of_birth'] = null;
+            }
+
+            $oldFields = array_intersect_key($patient, $personalFields);
+            $changes = [];
+            foreach ($personalFields as $field => $newValue) {
+                $oldValue = $oldFields[$field] ?? null;
+                if ($field === 'gender') {
+                    $normalizedOldGender = strtolower(trim((string)($oldValue ?? '')));
+                    $normalizedNewGender = strtolower(trim((string)($newValue ?? '')));
+                    $normalizedOldGender = ['m' => 'male', 'f' => 'female'][$normalizedOldGender] ?? $normalizedOldGender;
+                    $normalizedNewGender = ['m' => 'male', 'f' => 'female'][$normalizedNewGender] ?? $normalizedNewGender;
+                    if ($normalizedOldGender === $normalizedNewGender) continue;
+                }
+                if ((string)($oldValue ?? '') !== (string)($newValue ?? '')) {
+                    $changes[$field] = [$oldValue, $newValue];
+                }
+            }
+            if (!$changes) {
+                throw new Exception('No personal information changes were submitted.');
+            }
+
+            $pdo->beginTransaction();
+            try {
+                $stmt = $pdo->prepare('UPDATE patients SET first_name = ?, middle_name = ?, last_name = ?, date_of_birth = ?, gender = ?, updated_at = NOW() WHERE id = ?');
+                $stmt->execute([
+                    $personalFields['first_name'],
+                    $personalFields['middle_name'],
+                    $personalFields['last_name'],
+                    $personalFields['date_of_birth'],
+                    $personalFields['gender'],
+                    $patient_id
+                ]);
+
+                $auditUser = getUserInfo($pdo, $user_id, $_SESSION['username'] ?? null);
+                foreach ($changes as $field => [$oldValue, $newValue]) {
+                    logAudit($pdo, $user_id, $auditUser['username'] ?? ($_SESSION['username'] ?? null), $_SESSION['role'] ?? 'user', 'update', 'patients', 'patient_self_service_personal_info:' . $field, $patient_id, 'patients', (string)($oldValue ?? ''), (string)($newValue ?? ''));
+                }
+                $pdo->commit();
+                $message = 'Personal information updated successfully.';
+                $messageType = 'success';
+                $personalInfoCooldownUntil = (new DateTime())->modify('+30 days');
+                foreach ($personalFields as $field => $newValue) {
+                    $patient[$field] = $newValue;
+                }
+                $patientGender = $personalFields['gender'];
+                $patientAge = null;
+                if (!empty($patient['date_of_birth'])) {
+                    $patientAge = (new DateTime($patient['date_of_birth']))->diff(new DateTime('today'))->y;
+                }
+            } catch (Exception $e) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
+                throw $e;
+            }
+        } elseif ($action === 'verify_and_update') {
             $change_type = $_POST['change_type'] ?? '';
             $otp_code = trim($_POST['otp_code'] ?? '');
 
@@ -165,11 +281,11 @@ try {
                            u.last_name as user_last_name,
                            COALESCE(u.email, p.email) as email,
                            COALESCE(u.phone, p.phone) as phone,
-                           p.street_address,
-                           u.created_at, u.profile_picture,
+                           {$profileAddressSelect},
+                           u.created_at, {$profilePictureSelect},
                            COALESCE(u.gender, p.gender) as gender
                     FROM users u
-                    LEFT JOIN patients p ON p.id = u.patient_id
+                    {$profileUserPatientJoin}
                     WHERE u.id = ?
                 ");
                 $refreshStmt->execute([$user_id]);
@@ -183,11 +299,11 @@ try {
                                u.last_name as user_last_name,
                                COALESCE(p.email, u.email) as email,
                                COALESCE(p.phone, u.phone) as phone,
-                               p.street_address,
-                               u.created_at, u.profile_picture,
+                               {$profileAddressSelect},
+                               u.created_at, {$profilePictureSelect},
                                COALESCE(p.gender, u.gender) as gender
                         FROM patients p
-                        LEFT JOIN users u ON u.patient_id = p.id
+                        {$profilePatientUserJoin}
                         WHERE p.id = ?
                     ");
                     $refreshStmt->execute([$patient_id]);
@@ -416,27 +532,38 @@ $pageTitle = 'My Profile';
                     <input type="hidden" name="otp_code" id="hiddenOtpCode" value="">
                     
                     <!-- Personal Information (Read-only / Not Editable) -->
-                    <div class="section-title">Personal Information</div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                        <div class="section-title">Personal Information</div>
+                        <?php if ($personalInfoCooldownUntil && new DateTime() < $personalInfoCooldownUntil): ?>
+                            <span style="font-size:12px;color:#6b7280;">Next edit available <?php echo htmlspecialchars($personalInfoCooldownUntil->format('F j, Y')); ?></span>
+                        <?php else: ?>
+                            <button type="button" class="btn btn-secondary" id="editPersonalInfoBtn"><i class="fas fa-pen"></i> Edit Personal Information</button>
+                        <?php endif; ?>
+                    </div>
+                    <div id="personalInfoEditActions" style="display:none;gap:10px;justify-content:flex-end;margin:12px 0;">
+                        <button type="button" class="btn btn-secondary" id="cancelPersonalInfoBtn">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="savePersonalInfoBtn">Save Changes</button>
+                    </div>
                     <div class="form-grid">
                         <div class="form-group">
                             <label class="form-label">First Name</label>
-                            <input type="text" class="form-input" value="<?php echo htmlspecialchars($patient['first_name'] ?? ''); ?>" readonly>
+                            <input type="text" class="form-input personal-info-field" id="personalFirstName" name="first_name" value="<?php echo htmlspecialchars($patient['first_name'] ?? ''); ?>" readonly>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Middle Name</label>
-                            <input type="text" class="form-input" value="<?php echo htmlspecialchars($patient['middle_name'] ?? ''); ?>" readonly>
+                            <input type="text" class="form-input personal-info-field" id="personalMiddleName" name="middle_name" value="<?php echo htmlspecialchars($patient['middle_name'] ?? ''); ?>" readonly>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Last Name</label>
-                            <input type="text" class="form-input" value="<?php echo htmlspecialchars($patient['last_name'] ?? ''); ?>" readonly>
+                            <input type="text" class="form-input personal-info-field" id="personalLastName" name="last_name" value="<?php echo htmlspecialchars($patient['last_name'] ?? ''); ?>" readonly>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Date of Birth</label>
-                            <input type="date" class="form-input" value="<?php echo htmlspecialchars($patient['date_of_birth'] ?? ''); ?>" readonly>
+                            <input type="date" class="form-input personal-info-field" id="personalDateOfBirth" name="date_of_birth" value="<?php echo htmlspecialchars($patient['date_of_birth'] ?? ''); ?>" readonly>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Gender</label>
-                            <select class="form-select" disabled>
+                            <select class="form-select personal-info-field" id="personalGender" name="gender" disabled>
                                 <option value="">Select Gender</option>
                                 <option value="male" <?php echo $patientGender === 'male' ? 'selected' : ''; ?>>Male</option>
                                 <option value="female" <?php echo $patientGender === 'female' ? 'selected' : ''; ?>>Female</option>
@@ -672,8 +799,43 @@ $pageTitle = 'My Profile';
         const emergencyNameInput = document.getElementById('emergencyNameInput');
         const emergencyPhoneInput = document.getElementById('emergencyPhoneInput');
         const emergencyRelationshipInput = document.getElementById('emergencyRelationshipInput');
+        const editPersonalInfoBtn = document.getElementById('editPersonalInfoBtn');
+        const personalInfoEditActions = document.getElementById('personalInfoEditActions');
+        const cancelPersonalInfoBtn = document.getElementById('cancelPersonalInfoBtn');
+        const savePersonalInfoBtn = document.getElementById('savePersonalInfoBtn');
+        const personalInfoFields = Array.from(document.querySelectorAll('.personal-info-field'));
+        const personalInfoAction = profileUpdateForm ? profileUpdateForm.querySelector('input[name="action"]') : null;
+        const personalInfoOriginalValues = personalInfoFields.map(function(field) { return field.value; });
 
         let currentEditType = null;
+
+        function setPersonalInfoEditing(isEditing) {
+            personalInfoFields.forEach(function(field) {
+                if (field.tagName === 'SELECT') field.disabled = !isEditing;
+                else field.readOnly = !isEditing;
+            });
+            if (personalInfoEditActions) personalInfoEditActions.style.display = isEditing ? 'flex' : 'none';
+            if (editPersonalInfoBtn) editPersonalInfoBtn.style.display = isEditing ? 'none' : 'inline-flex';
+        }
+
+        if (editPersonalInfoBtn) {
+            editPersonalInfoBtn.addEventListener('click', function() {
+                setPersonalInfoEditing(true);
+            });
+        }
+        if (cancelPersonalInfoBtn) {
+            cancelPersonalInfoBtn.addEventListener('click', function() {
+                personalInfoFields.forEach(function(field, index) { field.value = personalInfoOriginalValues[index]; });
+                setPersonalInfoEditing(false);
+            });
+        }
+        if (savePersonalInfoBtn) {
+            savePersonalInfoBtn.addEventListener('click', function() {
+                if (!personalInfoAction || !profileUpdateForm) return;
+                personalInfoAction.value = 'personal_info_update';
+                profileUpdateForm.submit();
+            });
+        }
 
         window.closeContactEditor = function() {
             contactEditorModal.style.display = 'none';

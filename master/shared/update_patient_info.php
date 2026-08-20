@@ -8,6 +8,12 @@
 session_start();
 header('Content-Type: application/json');
 
+if (($_SESSION['role'] ?? '') !== 'admin') {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Administrator access required']);
+    exit;
+}
+
 require_once '../../config/database.php';
 
 $patient_id = $_POST['patient_id'] ?? null;

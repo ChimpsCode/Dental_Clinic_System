@@ -65,6 +65,7 @@ try {
         'COALESCE(p.email, u.email) as email',
         'COALESCE(p.gender, u.gender) as gender',
         'p.date_of_birth',
+        'p.updated_at',
         'TIMESTAMPDIFF(YEAR, p.date_of_birth, CURDATE()) as age',
     ];
 
@@ -169,6 +170,42 @@ try {
     if (!$patient) {
         echo json_encode(['success' => false, 'message' => 'Patient not found']);
         exit();
+    }
+
+    $patientPersonalInfoUpdate = null;
+    try {
+        $auditStmt = $pdo->prepare("SELECT created_at, description, old_value, new_value FROM audit_logs WHERE affected_table = 'patients' AND affected_id = ? AND module = 'patients' AND action_type = 'update' AND description LIKE 'patient_self_service_personal_info:%' ORDER BY created_at DESC, id DESC LIMIT 20");
+        $auditStmt->execute([$patientId]);
+        $auditRows = $auditStmt->fetchAll(PDO::FETCH_ASSOC);
+        if ($auditRows) {
+            $latestTimestamp = $auditRows[0]['created_at'];
+            $changedFields = [];
+            foreach ($auditRows as $auditRow) {
+                if ($auditRow['created_at'] !== $latestTimestamp) break;
+                $field = substr($auditRow['description'], strlen('patient_self_service_personal_info:'));
+                $fieldLabels = [
+                    'first_name' => 'First Name',
+                    'middle_name' => 'Middle Name',
+                    'last_name' => 'Last Name',
+                    'date_of_birth' => 'Date of Birth',
+                    'gender' => 'Gender'
+                ];
+                if ($field === 'gender') {
+                    $oldGender = strtolower(trim((string)($auditRow['old_value'] ?? '')));
+                    $newGender = strtolower(trim((string)($auditRow['new_value'] ?? '')));
+                    $oldGender = ['m' => 'male', 'f' => 'female'][$oldGender] ?? $oldGender;
+                    $newGender = ['m' => 'male', 'f' => 'female'][$newGender] ?? $newGender;
+                    if ($oldGender === $newGender) continue;
+                }
+                if (isset($fieldLabels[$field])) $changedFields[] = $fieldLabels[$field];
+            }
+            $patientPersonalInfoUpdate = [
+                'updated_at' => $latestTimestamp,
+                'changed_fields' => array_values(array_unique($changedFields))
+            ];
+        }
+    } catch (Exception $e) {
+        $patientPersonalInfoUpdate = null;
     }
 
     // Always resolve the linked account after loading the patient. This ensures the
@@ -406,6 +443,7 @@ try {
     echo json_encode([
         'success' => true,
         'patient' => $patient,
+        'patient_personal_info_update' => $patientPersonalInfoUpdate,
         'medical_history' => $medicalHistory,
         'dental_history' => $dentalHistory,
         'queue_item' => $queueItem,

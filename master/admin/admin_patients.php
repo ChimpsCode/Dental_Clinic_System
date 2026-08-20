@@ -576,6 +576,7 @@ function viewPatientDetails(patientId) {
         const b = data.billing || {};
         const allBillings = data.all_billings || [];
         const payments = data.payments || [];
+        const personalInfoUpdate = data.patient_personal_info_update || null;
 
         const allergies = m.allergies || 'None';
         const medications = m.current_medications || 'None';
@@ -1098,6 +1099,7 @@ function editPatientInfo(patientId) {
                 <!-- Name Section -->
                 <div style="margin-bottom: 20px;">
                     <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 14px; font-weight: 600;">Personal Information</h4>
+                    ${personalInfoUpdate ? `<div style="font-size:12px;color:#6b7280;margin:-4px 0 12px;">Patient updated: ${new Date(personalInfoUpdate.updated_at).toLocaleString()}${personalInfoUpdate.changed_fields && personalInfoUpdate.changed_fields.length ? ' · Changed: ' + personalInfoUpdate.changed_fields.join(', ') : ''}</div>` : ''}
                     
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                         <div>
