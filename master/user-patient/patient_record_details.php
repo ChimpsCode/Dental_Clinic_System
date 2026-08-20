@@ -26,13 +26,31 @@ if (!$patientId) {
     exit();
 }
 
+$_columnCache = [];
+
 function tableHasColumn(PDO $pdo, string $table, string $column): bool {
-    try {
-        $result = $pdo->query("SHOW COLUMNS FROM `" . str_replace('`', '``', $table) . "` LIKE '" . str_replace("'", "\\'", $column) . "'");
-        return $result !== false && $result->fetchColumn() !== false;
-    } catch (Exception $e) {
-        return false;
+    global $_columnCache;
+    $key = $table . '.' . $column;
+    if (array_key_exists($key, $_columnCache)) {
+        return $_columnCache[$key];
     }
+    if (!isset($_columnCache[$table . '._all'])) {
+        try {
+            $result = $pdo->query("SHOW COLUMNS FROM `" . str_replace('`', '``', $table) . "`");
+            $cols = [];
+            if ($result) {
+                while ($row = $result->fetch(PDO::FETCH_NUM)) {
+                    $cols[strtolower($row[0])] = true;
+                }
+            }
+            $_columnCache[$table . '._all'] = $cols;
+        } catch (Exception $e) {
+            $_columnCache[$table . '._all'] = [];
+        }
+    }
+    $found = isset($_columnCache[$table . '._all'][strtolower($column)]);
+    $_columnCache[$key] = $found;
+    return $found;
 }
 
 try {
@@ -212,36 +230,31 @@ try {
         $medicalHistory = null;
     }
     
-    // Get dental history - simplified query
+    // Get dental history AND current queue item in one query
     $dentalHistory = [];
-    try {
-        $stmt = $pdo->prepare("
-            SELECT id, treatment_type, teeth_numbers, completed_at
-            FROM queue
-            WHERE patient_id = ? AND status = 'completed' AND is_archived = 0
-            ORDER BY completed_at DESC
-            LIMIT 20
-        ");
-        $stmt->execute([$patientId]);
-        $dentalHistory = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (Exception $e) {
-        // Queue table query failed
-        $dentalHistory = [];
-    }
-    
-    // Get current queue item - simplified
     $queueItem = null;
     try {
         $stmt = $pdo->prepare("
-            SELECT q.*, q.status as status_text, s.name as service_name, s.price as service_price
-            FROM queue q 
+            SELECT q.id, q.treatment_type, q.teeth_numbers, q.completed_at,
+                   q.status, q.patient_id, q.service_id, q.created_at, q.is_archived,
+                   s.name as service_name, s.price as service_price
+            FROM queue q
             LEFT JOIN services s ON q.service_id = s.id
-            WHERE q.patient_id = ? AND q.status IN ('waiting', 'in_procedure') AND q.is_archived = 0 
-            ORDER BY q.created_at DESC LIMIT 1
+            WHERE q.patient_id = ? AND q.is_archived = 0
+            ORDER BY q.created_at DESC
+            LIMIT 21
         ");
         $stmt->execute([$patientId]);
-        $queueItem = $stmt->fetch(PDO::FETCH_ASSOC);
+        $allQueue = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($allQueue as $row) {
+            if ($row['status'] === 'completed' && count($dentalHistory) < 20) {
+                $dentalHistory[] = $row;
+            } elseif (in_array($row['status'], ['waiting', 'in_procedure']) && $queueItem === null) {
+                $queueItem = $row;
+            }
+        }
     } catch (Exception $e) {
+        $dentalHistory = [];
         $queueItem = null;
     }
     
@@ -257,7 +270,7 @@ try {
             FROM billing b
             LEFT JOIN appointments a ON b.appointment_id = a.id
             LEFT JOIN services svc ON a.service_id = svc.id
-            LEFT JOIN queue q ON DATE(b.billing_date) = DATE(q.created_at) AND q.patient_id = b.patient_id
+            LEFT JOIN queue q ON q.patient_id = b.patient_id AND q.service_id = a.service_id
             WHERE b.patient_id = ?
             ORDER BY b.created_at ASC
         ");

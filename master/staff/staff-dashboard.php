@@ -1304,6 +1304,9 @@ function filterCancelled(filter) {
 
 // Patient Record Modal
 function viewPatientDashboard(patientId) {
+    document.getElementById('patientRecordModal').style.display = 'flex';
+    document.getElementById('patientRecordContent').innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280;">Loading patient records...</div>';
+
     fetch('../user-patient/patient_record_details.php?id=' + encodeURIComponent(patientId))
     .then(response => response.json())
     .then(data => {
@@ -1418,7 +1421,6 @@ function viewPatientDashboard(patientId) {
                 </div>
             `;
             
-            document.getElementById('patientRecordModal').style.display = 'flex';
         } else {
             showDashboardMessage(data.message || 'Unable to load patient record', 'Patient Record');
         }

@@ -878,6 +878,10 @@ function escapeHtml(str) {
 }
 
 function viewPatientRecord(patientId) {
+    document.getElementById('staffModalPatientName').innerText = 'Loading...';
+    document.getElementById('patientRecordContent').innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280;">Loading patient records...</div>';
+    document.getElementById('patientRecordModal').classList.add('active');
+
     fetch('../user-patient/patient_record_details.php?id=' + encodeURIComponent(patientId))
     .then(response => response.json())
     .then(data => {
@@ -1151,7 +1155,6 @@ function viewPatientRecord(patientId) {
                 
                 <!-- bottom close removed; using top-right close button -->
             `;
-            document.getElementById('patientRecordModal').classList.add('active');
         }
     });
 }
