@@ -172,6 +172,15 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
         </div>
     </div>
 
+    <?php if (!empty($_GET['debug']) && $_GET['debug'] == '1'): ?>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:10px;border-radius:8px;margin-top:12px;font-size:13px;color:#111827;">
+            <strong>Debug:</strong>
+            <div>profile_picture DB value: <?php echo htmlspecialchars($profPic ?? 'NULL'); ?></div>
+            <div>Computed full path: <?php echo htmlspecialchars(dirname(__DIR__, 2) . '/' . ($profPic ?? '')); ?></div>
+            <div>File exists: <?php echo $profPic ? ($profPicExists ? 'yes' : 'no') : 'no (no value)'; ?></div>
+        </div>
+    <?php endif; ?>
+
     <div class="section">
         <form method="POST" action="">
             <input type="hidden" name="action" value="update_profile">

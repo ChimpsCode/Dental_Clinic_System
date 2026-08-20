@@ -156,10 +156,29 @@ try {
 <div id="patientModal" class="modal-overlay">
     <div class="modal" style="max-width: 900px;">
         <div class="modal-header">
-            <div>
-                <h2 style="font-size: 1.5rem; font-weight: 600; margin: 0;">Patient Record Details</h2>
-                <p id="dentistModalPatientName" style="color: #6b7280; margin: 4px 0 0 0; font-size: 0.9rem;"></p>
-            </div>
+                <!-- <div>
+                    <h2 style="font-size: 1.5rem; font-weight: 600; margin: 0;">Patient Record Details</h2>
+                    <p id="dentistModalPatientName" style="color: #6b7280; margin: 4px 0 0 0; font-size: 0.9rem;"></p>
+                </div> -->
+
+            <div class="fullscreen-modal-header">
+            
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <div id="dentistModalPatientAvatar" style="width:56px;height:56px;border-radius:50%;overflow:hidden;background:#6366f1;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:700;">
+                    </div>
+                        <div>
+                            <h2 style="font-size:1.25rem;font-weight:600;margin:0;">Patient Record Details</h2>
+                            <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+                                <p id="dentistModalPatientName" style="color:#6b7280;margin:0;font-size:0.95rem;"></p>
+                                <div id="dentistModalPatientBadge"></div>
+                            </div>
+                        </div>
+                </div>
+
+            
+        </div>
+
+
             <button onclick="closePatientModal()" class="modal-close">&times;</button>
         </div>
         <div class="modal-body" id="patientModalContent">
@@ -398,6 +417,44 @@ function viewPatientDetails(patientId) {
             
             const billingId = b.id || '0';
             window._currentAllBillings = allBillings;
+            // Prepare admin-style header HTML to prepend to full modal
+            const headerHtml = `
+                <div style="width:100%;max-width:820px;margin:0 auto;">
+                    
+
+                    <div style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:12px;">
+                        <h4 style="margin:0 0 12px 0;color:#374151;font-size:14px;font-weight:600;">👤 Account Information</h4>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">Username</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.username || '-'}</p></div>
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">Email</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.email || '-'}</p></div>
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">Phone</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.phone || '-'}</p></div>
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">Address</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.street_address || '-'}</p></div>
+                        </div>
+                    </div>
+
+                    <div style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:12px;">
+                        <h4 style="margin:0 0 12px 0;color:#374151;font-size:14px;font-weight:600;">📝 Personal Information</h4>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">First Name</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.first_name || '-'}</p></div>
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">Middle Name</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.middle_name || '-'}</p></div>
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">Last Name</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.last_name || '-'}</p></div>
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">Gender</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.gender || '-'}</p></div>
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">Date of Birth</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.date_of_birth || '-'}</p></div>
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">Age</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.age || '-'}</p></div>
+                        </div>
+                    </div>
+
+                    <div style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:12px;">
+                        <h4 style="margin:0 0 12px 0;color:#374151;font-size:14px;font-weight:600;">📞 Emergency Contact</h4>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">Contact Name</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.emergency_contact_name || '-'}</p></div>
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">Contact Phone</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.emergency_contact_phone || '-'}</p></div>
+                            <div style="grid-column:1 / -1;"><p style="margin:0;color:#6b7280;font-size:12px;">Relationship</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.emergency_contact_relationship || '-'}</p></div>
+                        </div>
+                    </div>
+
+                    
+                `;
             // Use combined totals from all billings
             let totalAmount = 0, paidAmount = 0, balance = 0;
             if (allBillings.length > 0) {
@@ -424,6 +481,24 @@ function viewPatientDetails(patientId) {
             const dueDate = b.due_date || null;
             
             document.getElementById('dentistModalPatientName').innerText = (p.first_name || '') + ' ' + (p.last_name || '');
+
+            // Populate header avatar and registration badge (mirror staff behavior)
+            try {
+                const avatarEl = document.getElementById('dentistModalPatientAvatar');
+                const badgeEl = document.getElementById('dentistModalPatientBadge');
+                const profilePic = p.profile_picture || '';
+                const isRegistered = !!p.user_id;
+                if (avatarEl) {
+                    if (profilePic) {
+                        avatarEl.innerHTML = '<img src="../../' + profilePic + '" style="width:56px;height:56px;object-fit:cover;display:block;">';
+                    } else {
+                        avatarEl.textContent = (p.first_name || 'U').charAt(0).toUpperCase();
+                    }
+                }
+                if (badgeEl) {
+                    badgeEl.innerHTML = isRegistered ? '<span style="background:#d1fae5;color:#065f46;padding:6px 10px;border-radius:12px;font-weight:600;display:inline-block;font-size:0.85rem;">✓ Registered user</span>' : '<span style="background:#fee2e2;color:#991b1b;padding:6px 10px;border-radius:12px;font-weight:600;display:inline-block;font-size:0.85rem;">Not registered</span>';
+                }
+            } catch (e) { /* ignore */ }
             
             // Check for medical alerts
             const hasMedicalAlert = allergies === 'Yes' || 
@@ -434,56 +509,7 @@ function viewPatientDetails(patientId) {
             
             document.getElementById('patientModalContent').innerHTML = `
                 <!-- Patient Basic Info -->
-                <div class="patient-info-grid">
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">First Name</div>
-                        <div class="patient-info-value">${p.first_name || 'N/A'}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Middle Name</div>
-                        <div class="patient-info-value">${p.middle_name || ''}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Last Name</div>
-                        <div class="patient-info-value">${p.last_name || 'N/A'}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Age</div>
-                        <div class="patient-info-value">${p.age || 'N/A'} years</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Gender</div>
-                        <div class="patient-info-value">${p.gender || 'N/A'}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Date of Birth</div>
-                        <div class="patient-info-value">${p.date_of_birth || 'N/A'}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Phone</div>
-                        <div class="patient-info-value">${p.phone || 'N/A'}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Email</div>
-                        <div class="patient-info-value">${p.email || 'N/A'}</div>
-                    </div>
-                    <div class="patient-info-item" style="grid-column: 1 / -1;">
-                        <div class="patient-info-label">Address</div>
-                        <div class="patient-info-value">${p.street_address || 'N/A'} ${p.city ? ', ' + p.city : ''} ${p.province ? ', ' + p.province : ''}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Emergency Contact Name</div>
-                        <div class="patient-info-value">${p.emergency_contact_name || 'N/A'}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Emergency Contact Number</div>
-                        <div class="patient-info-value">${p.emergency_contact_phone || 'N/A'}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Emergency Contact Relationship</div>
-                        <div class="patient-info-value">${p.emergency_contact_relationship || 'N/A'}</div>
-                    </div>
-                </div>
+                
 
                 <!-- Medical Alert -->
                 ${hasMedicalAlert ? `
@@ -782,6 +808,8 @@ function viewPatientDetails(patientId) {
                 </div>
 `;
 
+            // Prepend headerHtml to the final modal content so header shows above other sections
+            modalContent.innerHTML = headerHtml + modalContent.innerHTML;
             document.getElementById('patientModal').style.display = 'flex';
             }
     })
@@ -3852,7 +3880,7 @@ setInterval(() => {
     min-width: 200px;
     max-width: 220px;
     width: auto;
-    z-index: 99999;
+    z-index: 110001;
     overflow: hidden;
 }
 
@@ -3903,7 +3931,7 @@ setInterval(() => {
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 99998;
+    z-index: 110000;
 }
 
 .patient-kebab-backdrop.show {

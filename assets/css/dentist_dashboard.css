@@ -1408,10 +1408,14 @@ header.top-header {
 
 .modal-header {
     display: flex;
+    position:sticky;
+            top:0;
+            z-index:1;
+            background:white;
+            bottom: 16px;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
-    padding-bottom: 16px;
     border-bottom: 1px solid var(--border-color);
 }
 
@@ -1423,7 +1427,6 @@ header.top-header {
     align-items: center;
     gap: 8px;
 }
-
 .modal-close {
     background: none;
     border: none;
@@ -1503,7 +1506,7 @@ header.top-header {
 }
 
 .modal-body {
-    padding: 20px 0;
+    padding: 0px 10px;
 }
 
 .modal-body form {
@@ -1775,7 +1778,7 @@ header.top-header {
     justify-content: center;
     align-items: center;
     z-index: 99999;
-    padding: 40px;
+    padding: 12px;
     box-sizing: border-box;
 }
 
@@ -1799,9 +1802,7 @@ header.top-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding: 24px 28px;
-    border-bottom: 1px solid #e5e7eb;
-    background: #f9fafb;
+    padding: 8px 12px;
 }
 
 .fullscreen-modal-header h2 {

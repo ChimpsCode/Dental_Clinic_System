@@ -525,7 +525,7 @@ function viewPatientDetails(patientId) {
     document.getElementById('adminPatientModal').style.display = 'flex';
     modalContent.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280;">Loading patient records...</div>';
 
-    fetch('../user-patient/patient_record_details.php?id=' + patientId)
+    fetch('../user-patient/patient_record_details.php?id=' + encodeURIComponent(patientId))
     .then(response => {
         if (!response.ok) throw new Error('Network error');
         return response.json();
@@ -576,6 +576,24 @@ function viewPatientDetails(patientId) {
         const dueDate = b.due_date || null;
 
         document.getElementById('adminModalPatientName').innerText = (p.first_name || '') + ' ' + (p.last_name || '');
+
+        // Set header avatar and registration badge
+        try {
+            const isRegistered = !!p.user_id;
+            const profilePic = p.profile_picture || '';
+            const avatarEl = document.getElementById('adminModalPatientAvatar');
+            if (avatarEl) {
+                if (profilePic) {
+                    avatarEl.innerHTML = '<img src="../../' + profilePic + '" style="width:56px;height:56px;object-fit:cover;display:block;">';
+                } else {
+                    avatarEl.textContent = (p.first_name || 'U').charAt(0).toUpperCase();
+                }
+            }
+            const badgeEl = document.getElementById('adminModalPatientBadge');
+            if (badgeEl) {
+                badgeEl.innerHTML = isRegistered ? '<span style="background:#d1fae5;color:#065f46;padding:6px 10px;border-radius:12px;font-weight:600;display:inline-block;font-size:0.85rem;">✓ Registered user</span>' : '<span style="background:#fee2e2;color:#991b1b;padding:6px 10px;border-radius:12px;font-weight:600;display:inline-block;font-size:0.85rem;">Not registered</span>';
+            }
+        } catch (e) { /* ignore header avatar errors */ }
 
         const hasMedicalAlert = allergies === 'Yes' ||
                                conditions.toLowerCase().includes('diabetes') ||
@@ -803,7 +821,8 @@ function viewPatientDetails(patientId) {
         `;
     })
     .catch(function(error) {
-        modalContent.innerHTML = '<div style="text-align:center;padding:40px;color:#dc2626;"><p>Error loading patient details</p><button onclick="closeAdminPatientModal()" style="margin-top:16px;padding:10px 20px;background:#6b7280;color:white;border:none;border-radius:8px;cursor:pointer;">Close</button></div>';
+        console.error('Patient details fetch error:', error);
+        modalContent.innerHTML = '<div style="text-align:center;padding:40px;color:#dc2626;"><p>Error loading patient details: ' + (error && error.message ? error.message : 'Network or parse error') + '</p><button onclick="closeAdminPatientModal()" style="margin-top:16px;padding:10px 20px;background:#6b7280;color:white;border:none;border-radius:8px;cursor:pointer;">Close</button></div>';
     });
 }
 
@@ -1814,7 +1833,7 @@ function closeOdontogramModalDirect() {
     min-width: 200px;
     max-width: 220px;
     width: auto;
-    z-index: 99999;
+    z-index: 110001;
     overflow: hidden;
 }
 
@@ -1865,7 +1884,7 @@ function closeOdontogramModalDirect() {
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 99998;
+    z-index: 110000;
 }
 
 .patient-kebab-backdrop.show {
@@ -2336,9 +2355,16 @@ function closeOdontogramModalDirect() {
 <div id="adminPatientModal" class="fullscreen-modal-overlay">
     <div class="fullscreen-modal-content">
         <div class="fullscreen-modal-header">
-            <div>
-                <h2 style="font-size:1.5rem;font-weight:600;margin:0;">Patient Record Details</h2>
-                <p id="adminModalPatientName" style="color:#6b7280;margin:4px 0 0 0;font-size:0.9rem;"></p>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div id="adminModalPatientAvatar" style="width:56px;height:56px;border-radius:50%;overflow:hidden;background:#6366f1;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:700;">
+                </div>
+                <div>
+                    <h2 style="font-size:1.25rem;font-weight:600;margin:0;">Patient Record Details</h2>
+                    <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+                        <p id="adminModalPatientName" style="color:#6b7280;margin:0;font-size:0.95rem;"></p>
+                        <div id="adminModalPatientBadge"></div>
+                    </div>
+                </div>
             </div>
             <button onclick="closeAdminPatientModal()" class="fullscreen-modal-close">&times;</button>
         </div>

@@ -915,14 +915,23 @@ $assets = [
               })
               .then(function(r) { return r.json(); })
               .then(function(data) {
+                console.log('check_user_exists response for', bookingData.email, data);
                 if (data.exists) {
                   if (data.is_archived) {
                     alert('This email was previously used and is no longer active. Please contact the clinic to restore your account.');
                     return;
                   }
-                  document.getElementById('welcome-back-email').value = bookingData.email;
-                  document.getElementById('welcomeBackUserEmail').textContent = bookingData.email;
-                  document.getElementById('welcomeBackModal').style.display = 'flex';
+                    document.getElementById('welcome-back-email').value = bookingData.email;
+                    document.getElementById('welcomeBackUserEmail').textContent = bookingData.email;
+                    // Prepare welcome back modal: reset captcha and focus password
+                    try {
+                      if (typeof generateCaptcha === 'function') generateCaptcha();
+                    } catch (e) { /* ignore */ }
+                    if (document.getElementById('captchaError')) {
+                      document.getElementById('captchaError').style.display = 'none';
+                    }
+                    document.getElementById('welcomeBackModal').style.display = 'flex';
+                    var pw = document.getElementById('welcome-back-password'); if (pw) pw.focus();
                 } else {
                   document.getElementById('registrationModal').style.display = 'flex';
                 }
@@ -1658,11 +1667,26 @@ $assets = [
             submitBtn.disabled = true;
             submitBtn.textContent = 'Verifying...';
             
-            // Try to login (skip captcha since patient identity already verified via appointment details)
+            // Validate CAPTCHA before attempting login
+            const captchaVal = (captchaInput && captchaInput.value) ? captchaInput.value.trim() : '';
+            if (!captchaVal) {
+              if (captchaError) { captchaError.textContent = 'Please enter the CAPTCHA code.'; captchaError.style.display = 'block'; }
+              submitBtn.disabled = false;
+              submitBtn.textContent = originalText;
+              return;
+            }
+
+            if (typeof currentCaptchaCode !== 'undefined' && captchaVal.toUpperCase() !== currentCaptchaCode.toUpperCase()) {
+              if (captchaError) { captchaError.textContent = 'Incorrect CAPTCHA code. Please try again.'; captchaError.style.display = 'block'; }
+              try { refreshCaptcha(); } catch (e) { /* ignore */ }
+              submitBtn.disabled = false;
+              submitBtn.textContent = originalText;
+              return;
+            }
+
             const loginFormData = new FormData();
             loginFormData.append('username', email);
             loginFormData.append('password', password);
-            loginFormData.append('skip_captcha', '1');
             
             try {
               const response = await fetch('./login.php', {

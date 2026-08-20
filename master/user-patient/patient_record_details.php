@@ -50,6 +50,21 @@ try {
         'TIMESTAMPDIFF(YEAR, p.date_of_birth, CURDATE()) as age',
     ];
 
+    // Prefer patient's own profile picture column if available, otherwise include user profile picture
+    if (tableHasColumn($pdo, 'patients', 'profile_picture')) {
+        $selectList[] = 'p.profile_picture as profile_picture';
+    } elseif (tableHasColumn($pdo, 'users', 'profile_picture')) {
+        $selectList[] = 'u.profile_picture as profile_picture';
+    } else {
+        $selectList[] = "NULL as profile_picture";
+    }
+
+    // Include user-related fields if users table is joined
+    if (tableHasColumn($pdo, 'users', 'id')) {
+        if (tableHasColumn($pdo, 'users', 'id')) $selectList[] = 'u.id as user_id';
+        if (tableHasColumn($pdo, 'users', 'username')) $selectList[] = 'u.username as username';
+    }
+
     if (tableHasColumn($pdo, 'patients', 'street_address')) {
         $selectList[] = 'p.street_address';
     } elseif (tableHasColumn($pdo, 'patients', 'address')) {
@@ -132,6 +147,58 @@ try {
     if (!$patient) {
         echo json_encode(['success' => false, 'message' => 'Patient not found']);
         exit();
+    }
+
+    // If the joined users row did not populate user_id, try to find a matching user
+    // by patient_id, email, or phone to robustly detect registered users.
+    try {
+        $needLookup = empty($patient['user_id']);
+        if ($needLookup && tableHasColumn($pdo, 'users', 'id')) {
+            $foundUser = null;
+            // Prefer exact patient_id relation when available
+            if (tableHasColumn($pdo, 'users', 'patient_id')) {
+                $s = $pdo->prepare('SELECT id, username, profile_picture FROM users WHERE patient_id = ? LIMIT 1');
+                $s->execute([$patientId]);
+                $foundUser = $s->fetch(PDO::FETCH_ASSOC);
+            }
+
+            // Fallback: match by email or phone
+            if (!$foundUser) {
+                $conds = [];
+                $params = [];
+                if (!empty($patient['email']) && tableHasColumn($pdo, 'users', 'email')) {
+                    $conds[] = 'email = ?';
+                    $params[] = $patient['email'];
+                }
+                if (!empty($patient['phone']) && tableHasColumn($pdo, 'users', 'phone')) {
+                    $conds[] = 'phone = ?';
+                    $params[] = $patient['phone'];
+                }
+                if (!empty($conds)) {
+                    $sql = 'SELECT id, username, profile_picture FROM users WHERE (' . implode(' OR ', $conds) . ') LIMIT 1';
+                    $s = $pdo->prepare($sql);
+                    $s->execute($params);
+                    $foundUser = $s->fetch(PDO::FETCH_ASSOC);
+                }
+            }
+
+            if ($foundUser) {
+                $patient['user_id'] = $foundUser['id'];
+                if (isset($foundUser['username'])) $patient['username'] = $foundUser['username'];
+                if (isset($foundUser['profile_picture'])) $patient['profile_picture'] = $foundUser['profile_picture'];
+            }
+        }
+    } catch (Exception $e) {
+        // Non-fatal: leave patient as-is if lookup fails
+    }
+
+    // Verify profile picture file exists; if not, null it to avoid broken image links
+    if (!empty($patient['profile_picture'])) {
+        $candidate = $patient['profile_picture'];
+        $fullPath = dirname(__DIR__, 2) . '/' . ltrim($candidate, '/\\');
+        if (!file_exists($fullPath)) {
+            $patient['profile_picture'] = null;
+        }
     }
     
     // Get medical history - skip if table doesn't exist or has issues

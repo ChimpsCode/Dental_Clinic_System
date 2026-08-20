@@ -18,10 +18,10 @@ try {
     $emailLower = strtolower($email);
 
     $stmt = $pdo->prepare(
-        "SELECT id, email, username, is_archived FROM users
-         WHERE is_archived = 0 AND (LOWER(email) = :email OR LOWER(username) = :email)"
-    );
-    $stmt->execute([':email' => $emailLower]);
+           "SELECT id, email, username, is_archived FROM users
+            WHERE (is_archived = 0 OR is_archived IS NULL) AND (LOWER(email) = :email OR LOWER(username) = :username)"
+        );
+        $stmt->execute(['email' => $emailLower, 'username' => $emailLower]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($user) {

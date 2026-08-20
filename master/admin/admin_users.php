@@ -15,14 +15,62 @@ try {
     // Get users with role names from roles table
     // If role is not set, treat as Patient
     // Exclude archived users
-    $stmt = $pdo->query("
-        SELECT u.id, u.username, u.first_name, u.middle_name, u.last_name, u.email, u.status, u.is_archived,
-               u.role, u.gender, u.date_of_birth, u.last_active, u.last_logout, u.is_logged_in,
-               u.role as role_name
-        FROM users u
-        WHERE u.is_archived = 0 OR u.is_archived IS NULL
-        ORDER BY u.id ASC
-    ");
+    // Build select list dynamically based on actual columns in `users` to avoid unknown column errors
+    $colsStmt = $pdo->query("SHOW COLUMNS FROM users");
+    $cols = array_column($colsStmt->fetchAll(PDO::FETCH_ASSOC), 'Field');
+
+    // Check patients table and its columns (used as fallback for some patient fields)
+    $patientsTableExists = false;
+    $patientsCols = [];
+    try {
+        $tbl = $pdo->query("SHOW TABLES LIKE 'patients'")->fetchColumn();
+        if ($tbl) {
+            $patientsTableExists = true;
+            $pColsStmt = $pdo->query("SHOW COLUMNS FROM patients");
+            $patientsCols = array_column($pColsStmt->fetchAll(PDO::FETCH_ASSOC), 'Field');
+        }
+    } catch (Exception $e) {
+        // ignore
+    }
+
+    $desired = [
+        'id','username','first_name','middle_name','last_name','email',
+        'phone','address','emergency_contact_name','emergency_contact_phone','emergency_contact_relationship',
+        'profile_picture','status','is_archived','role','gender','date_of_birth','last_active','last_logout','is_logged_in'
+    ];
+
+    $selectParts = [];
+    foreach ($desired as $c) {
+        if (in_array($c, $cols)) {
+            if ($c === 'role') {
+                $selectParts[] = "u.role as role_name";
+            } else {
+                $selectParts[] = "u.$c";
+            }
+            continue;
+        }
+
+        // Fallback: if users table doesn't have emergency fields but patients table does,
+        // select from patients using users.patient_id link.
+        if ($patientsTableExists && preg_match('/^emergency_contact_/', $c) && in_array($c, $patientsCols)) {
+            $selectParts[] = "p.$c as $c";
+            // ensure we'll left join patients later
+            $needPatientsJoin = true;
+        }
+    }
+
+    // If we will select from patients, ensure LEFT JOIN clause
+    $joinClause = '';
+    if (!empty($needPatientsJoin)) {
+        $joinClause = ' LEFT JOIN patients p ON p.id = u.patient_id ';
+    }
+
+    // Ensure we always have the core identifying columns
+    $requiredAlways = ['u.id'];
+    $select = implode(', ', array_unique(array_merge($requiredAlways, $selectParts)));
+
+    $sql = "SELECT {$select} FROM users u {$joinClause} WHERE (u.is_archived = 0 OR u.is_archived IS NULL) ORDER BY u.id ASC";
+    $stmt = $pdo->query($sql);
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     foreach ($users as &$user) {
@@ -35,6 +83,8 @@ try {
 } catch (Exception $e) {
     $users = [];
     $totalUsers = 0;
+    $usersQueryError = $e->getMessage();
+    error_log('[admin_users] users query error: ' . $usersQueryError);
 }
 ?>
             <div class="content-main">
@@ -61,6 +111,11 @@ try {
 
                 <!-- Users Table -->
                 <div class="table-container">
+                    <?php if (!empty($usersQueryError)): ?>
+                        <div style="background:#fee2e2;border:1px solid #fca5a5;padding:12px;border-radius:8px;margin-bottom:12px;color:#991b1b;">
+                            <strong>Error loading users:</strong> <?php echo htmlspecialchars($usersQueryError); ?>
+                        </div>
+                    <?php endif; ?>
                     <table class="data-table">
                         <thead>
                             <tr>
@@ -83,6 +138,10 @@ try {
                                 $middleName = $user['middle_name'] ?? '';
                                 $lastName = $user['last_name'] ?? '';
                                 $email = $user['email'] ?? '';
+                                // Normalize emergency contact fields across possible schema variations
+                                $emergencyName = $user['emergency_contact_name'] ?? $user['emergency_name'] ?? $user['ec_name'] ?? '';
+                                $emergencyPhone = $user['emergency_contact_phone'] ?? $user['emergency_phone'] ?? $user['ec_phone'] ?? '';
+                                $emergencyRelationship = $user['emergency_contact_relationship'] ?? $user['emergency_relationship'] ?? $user['ec_relationship'] ?? '';
                             ?>
                             <tr>
                                 <td><?php echo $rowNum++; ?></td>
@@ -125,6 +184,12 @@ try {
                                         data-user-role="<?php echo htmlspecialchars($user['role_name'] ?? ''); ?>"
                                         data-user-gender="<?php echo htmlspecialchars($user['gender'] ?? ''); ?>"
                                         data-user-dob="<?php echo htmlspecialchars($user['date_of_birth'] ?? ''); ?>"
+                                        data-user-phone="<?php echo htmlspecialchars($user['phone'] ?? ''); ?>"
+                                        data-user-address="<?php echo htmlspecialchars($user['address'] ?? ''); ?>"
+                                        data-user-emergency-name="<?php echo htmlspecialchars($emergencyName); ?>"
+                                        data-user-emergency-phone="<?php echo htmlspecialchars($emergencyPhone); ?>"
+                                        data-user-emergency-relationship="<?php echo htmlspecialchars($emergencyRelationship); ?>"
+                                        data-user-profile-picture="<?php echo htmlspecialchars($user['profile_picture'] ?? ''); ?>"
                                         aria-label="User actions"
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -426,11 +491,11 @@ try {
                             overlay.style.justifyContent = 'center';
                         
                         overlay.innerHTML = `
-    <div style="width: 100%; max-width: 500px; margin: 0 20px; max-height: 90vh; overflow-y: auto; background: white; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+    <div style="width: 100%; max-width: 640px; margin: 0 20px; max-height: 90vh; overflow-y: auto; background: white; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #e5e7eb; padding: 20px 20px 16px;">
                                     <div style="display: flex; align-items: center; gap: 12px;">
-                                        <div style="width: 50px; height: 50px; background: #6366f1; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; font-weight: 700;">
-                                            ${(btn.dataset.userFirst || 'U').charAt(0).toUpperCase()}
+                                        <div style="width: 50px; height: 50px; background: #6366f1; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; font-weight: 700; overflow:hidden;">
+                                            ${btn.dataset.userProfilePicture ? ('<img src="../../' + btn.dataset.userProfilePicture + '" alt="" style="width:50px;height:50px;object-fit:cover;display:block;">') : ( (btn.dataset.userFirst || 'U').charAt(0).toUpperCase() )}
                                         </div>
                                         <div>
                                             <h3 style="margin: 0; color: #111827; font-size: 18px;">${fullName || 'Unknown User'}</h3>
@@ -456,9 +521,17 @@ try {
                                             <p style="margin: 0; color: #6b7280; font-size: 12px;">Email</p>
                                             <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${btn.dataset.userEmail || '-'}</p>
                                         </div>
+                                        <div>
+                                            <p style="margin: 0; color: #6b7280; font-size: 12px;">Phone</p>
+                                            <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${btn.dataset.userPhone || '-'}</p>
+                                        </div>
+                                        <div>
+                                            <p style="margin: 0; color: #6b7280; font-size: 12px;">Address</p>
+                                            <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${btn.dataset.userAddress || '-'}</p>
+                                        </div>
                                     </div>
                                 </div>
-                                
+
                                 <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin: 0 20px 16px;">
                                     <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 14px; font-weight: 600;">📝 Personal Information</h4>
                                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
@@ -475,16 +548,34 @@ try {
                                             <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${btn.dataset.userLast || '-'}</p>
                                         </div>
                                         <div>
-                                            <p style="margin: 0; color: #6b7280; font-size: 12px;">Role</p>
-                                            <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${roleDisplay}</p>
-                                        </div>
-                                        <div>
                                             <p style="margin: 0; color: #6b7280; font-size: 12px;">Gender</p>
                                             <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${btn.dataset.userGender || '-'}</p>
                                         </div>
                                         <div>
                                             <p style="margin: 0; color: #6b7280; font-size: 12px;">Date of Birth</p>
                                             <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${btn.dataset.userDob || '-'}</p>
+                                        </div>
+                                        <div>
+                                            <p style="margin: 0; color: #6b7280; font-size: 12px;">Role</p>
+                                            <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${roleDisplay}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin: 0 20px 16px;">
+                                    <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 14px; font-weight: 600;">📞 Emergency Contact</h4>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                        <div>
+                                            <p style="margin: 0; color: #6b7280; font-size: 12px;">Contact Name</p>
+                                            <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${btn.dataset.userEmergencyName || '-'}</p>
+                                        </div>
+                                        <div>
+                                            <p style="margin: 0; color: #6b7280; font-size: 12px;">Contact Phone</p>
+                                            <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${btn.dataset.userEmergencyPhone || '-'}</p>
+                                        </div>
+                                        <div style="grid-column: 1 / -1;">
+                                            <p style="margin: 0; color: #6b7280; font-size: 12px;">Relationship</p>
+                                            <p style="margin: 4px 0 0 0; color: #111827; font-size: 14px; font-weight: 500;">${btn.dataset.userEmergencyRelationship || '-'}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -514,6 +605,146 @@ try {
                         if (typeof openUserModal === 'function') {
                             openUserModal(userId);
                         }
+                    };
+
+                    // Open Add/Edit User Modal
+                    window.openUserModal = function(userId) {
+                        // If userId provided, populate from data attributes
+                        const isEdit = !!userId;
+                        let modal = document.getElementById('addUserModal');
+                        if (!modal) {
+                            // create modal HTML
+                            modal = document.createElement('div');
+                            modal.id = 'addUserModal';
+                            modal.className = 'modal-overlay';
+                            modal.style.display = 'none';
+                            modal.innerHTML = `
+                                <div class="modal">
+                                    <div class="modal-header">
+                                        <h3 id="addUserModalTitle">Add New User</h3>
+                                        <button type="button" class="modal-close" aria-label="Close">&times;</button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <form id="addUserForm">
+                                            <div class="form-row">
+                                                <div class="form-group" style="flex:1;">
+                                                    <label>First Name</label>
+                                                    <input class="form-control" type="text" name="first_name" id="au-first" required>
+                                                </div>
+                                                <div class="form-group" style="flex:1;">
+                                                    <label>Middle Name</label>
+                                                    <input class="form-control" type="text" name="middle_name" id="au-middle">
+                                                </div>
+                                                <div class="form-group" style="flex:1;">
+                                                    <label>Last Name</label>
+                                                    <input class="form-control" type="text" name="last_name" id="au-last" required>
+                                                </div>
+                                            </div>
+                                            <div class="form-row">
+                                                <div class="form-group" style="flex:1;">
+                                                    <label>Phone</label>
+                                                    <input class="form-control" type="tel" name="phone" id="au-phone">
+                                                </div>
+                                                <div class="form-group" style="flex:1;">
+                                                    <label>Gender</label>
+                                                    <select class="form-control" name="gender" id="au-gender"><option value="">Select</option><option value="male">Male</option><option value="female">Female</option></select>
+                                                </div>
+                                                <div class="form-group" style="flex:1;">
+                                                    <label>Date of Birth</label>
+                                                    <input class="form-control" type="date" name="date_of_birth" id="au-dob">
+                                                </div>
+                                                <div class="form-group" style="flex:0 0 100px;">
+                                                    <label>Age</label>
+                                                    <input class="form-control" type="number" id="au-age" readonly>
+                                                </div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Address</label>
+                                                <input class="form-control" type="text" name="address" id="au-address">
+                                            </div>
+                                            <div class="form-row">
+                                                <div class="form-group" style="flex:1;">
+                                                    <label>Email</label>
+                                                    <input class="form-control" type="email" name="email" id="au-email">
+                                                </div>
+                                                <div class="form-group" style="flex:1;">
+                                                    <label>Emergency Contact Number</label>
+                                                    <input class="form-control" type="tel" name="emergency_contact_phone" id="au-em-phone">
+                                                </div>
+                                            </div>
+                                            <div class="form-row">
+                                                <div class="form-group" style="flex:1;">
+                                                    <label>Emergency Contact Name</label>
+                                                    <input class="form-control" type="text" name="emergency_contact_name" id="au-em-name">
+                                                </div>
+                                                <div class="form-group" style="flex:1;">
+                                                    <label>Relationship</label>
+                                                    <input class="form-control" type="text" name="emergency_contact_relationship" id="au-em-relationship">
+                                                </div>
+                                            </div>
+                                            <div class="form-row">
+                                                <div class="form-group" style="flex:1;">
+                                                    <label>Username</label>
+                                                    <input class="form-control" type="text" name="username" id="au-username" required>
+                                                </div>
+                                                <div class="form-group" style="flex:1;">
+                                                    <label>Password</label>
+                                                    <input class="form-control" type="password" name="password" id="au-password">
+                                                </div>
+                                                <div class="form-group" style="flex:1;">
+                                                    <label>Confirm Password</label>
+                                                    <input class="form-control" type="password" name="confirm_password" id="au-confirm-password">
+                                                </div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Role</label>
+                                                <select class="form-control" name="role" id="au-role"><option value="admin">Admin</option><option value="staff">Staff</option><option value="dentist">Dentist</option><option value="patient">Patient</option></select>
+                                            </div>
+                                            <input type="hidden" name="id" id="au-id" />
+                                            <div style="margin-top:12px;text-align:right;"><button type="submit" class="btn btn-primary" id="au-submit">Save</button></div>
+                                        </form>
+                                    </div>
+                                </div>
+                            `;
+                            document.body.appendChild(modal);
+                            // close handler
+                            modal.querySelector('.modal-close').addEventListener('click', function(){ modal.style.display='none'; });
+                            modal.addEventListener('click', function(e){ if (e.target === modal) modal.style.display='none'; });
+                            // age calc
+                            const dob = modal.querySelector('#au-dob'); const age = modal.querySelector('#au-age');
+                            if (dob) dob.addEventListener('change', function(){ if (dob.value){ const d=new Date(dob.value); let a=new Date().getFullYear()-d.getFullYear(); if (new Date().getMonth()<d.getMonth()||(new Date().getMonth()==d.getMonth()&&new Date().getDate()<d.getDate())) a--; age.value = a>0&&a<120?a:''; } });
+                            // submit handler placeholder
+                            modal.querySelector('#addUserForm').addEventListener('submit', function(e){ e.preventDefault(); alert('Saving users requires server endpoint; implement backend or submit to admin_users_actions.php'); });
+                        }
+
+                        // populate when editing
+                        if (isEdit) {
+                            const btn = document.querySelector(`.user-kebab-btn[data-user-id="${userId}"]`);
+                            if (!btn) return;
+                            modal.querySelector('#addUserModalTitle').textContent = 'Edit User';
+                            modal.querySelector('#au-id').value = userId;
+                            modal.querySelector('#au-first').value = btn.dataset.userFirst || '';
+                            modal.querySelector('#au-middle').value = btn.dataset.userMiddle || '';
+                            modal.querySelector('#au-last').value = btn.dataset.userLast || '';
+                            modal.querySelector('#au-phone').value = btn.dataset.userPhone || '';
+                            modal.querySelector('#au-gender').value = btn.dataset.userGender || '';
+                            modal.querySelector('#au-dob').value = btn.dataset.userDob || '';
+                            modal.querySelector('#au-address').value = btn.dataset.userAddress || '';
+                            modal.querySelector('#au-email').value = btn.dataset.userEmail || '';
+                            modal.querySelector('#au-em-phone').value = btn.dataset.userEmergencyPhone || '';
+                            modal.querySelector('#au-em-name').value = btn.dataset.userEmergencyName || '';
+                            modal.querySelector('#au-em-relationship').value = btn.dataset.userEmergencyRelationship || '';
+                            modal.querySelector('#au-username').value = btn.dataset.userUsername || '';
+                            modal.querySelector('#au-role').value = (btn.dataset.userRole || 'patient').toLowerCase();
+                        } else {
+                            modal.querySelector('#addUserModalTitle').textContent = 'Add New User';
+                            modal.querySelector('#addUserForm').reset();
+                            modal.querySelector('#au-id').value = '';
+                            modal.querySelector('#au-age').value = '';
+                        }
+
+                        modal.style.display = 'flex';
+                        const firstInput = modal.querySelector('#au-first'); if (firstInput) firstInput.focus();
                     };
 
 // Toggle User Status

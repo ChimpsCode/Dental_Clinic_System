@@ -31,7 +31,9 @@ function initializeAdmin() {
     initUserKebabMenu();
 
     // Initialize phone number input restriction
-    initPhoneNumberInput();
+    if (typeof initPhoneNumberInput === 'function') {
+        initPhoneNumberInput();
+    }
 
     // Initialize age computation from date of birth
     initAgeComputation();

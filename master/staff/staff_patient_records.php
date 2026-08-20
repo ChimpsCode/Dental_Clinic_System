@@ -160,13 +160,22 @@ try {
 <div id="patientRecordModal" class="fullscreen-modal-overlay">
     <div class="fullscreen-modal-content">
         <div class="fullscreen-modal-header">
-            <div>
-                <h2 style="font-size: 1.5rem; font-weight: 600; margin: 0;">Patient Record Details</h2>
-                <p id="staffModalPatientName" style="color: #6b7280; margin: 4px 0 0 0; font-size: 0.9rem;"></p>
+            <div style="display:flex;align-items:center;gap:12px;flex:1;">
+                <div id="staffModalPatientAvatar" style="width:56px;height:56px;border-radius:50%;overflow:hidden;background:#6366f1;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:700;">
+                </div>
+                <div style="flex:1;">
+                    <h2 style="font-size:1.25rem;font-weight:600;margin:0;">Patient Record Details</h2>
+                    <div style="display:flex;align-items:center;gap:10px;margin-top:6px;white-space:nowrap;">
+                        <p id="staffModalPatientName" style="color:#6b7280;margin:0;font-size:0.95rem;overflow:hidden;text-overflow:ellipsis;max-width:520px;white-space:nowrap;"></p>
+                        <div id="staffModalPatientBadge" style="margin-left:6px;flex:0 0 auto;"></div>
+                    </div>
+                </div>
             </div>
+            <button onclick="closePatientRecordModal()" class="fullscreen-modal-close" style="background:none;border:none;font-size:1.6rem;color:#6b7280;cursor:pointer;">&times;</button>
         </div>
         <div class="fullscreen-modal-body" id="patientRecordContent">
         </div>
+        
     </div>
 </div>
 
@@ -199,7 +208,7 @@ try {
     z-index: 100000;
 }
 .fullscreen-modal-header {
-    display: flex;
+    
     justify-content: space-between;
     align-items: center;
     padding: 24px;
@@ -220,6 +229,10 @@ try {
     justify-content: center;
     border-radius: 8px;
     transition: all 0.2s;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 20;
 }
 .fullscreen-modal-close:hover {
     background: #f3f4f6;
@@ -294,7 +307,7 @@ try {
     min-width: 200px;
     max-width: 220px;
     width: auto;
-    z-index: 99999;
+    z-index: 110001;
     overflow: hidden;
 }
 
@@ -345,7 +358,7 @@ try {
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 99998;
+    z-index: 110000;
 }
 
 .patient-kebab-backdrop.show {
@@ -909,6 +922,24 @@ function viewPatientRecord(patientId) {
             const dueDate = b.due_date || null;
             
             document.getElementById('staffModalPatientName').innerText = (p.first_name || '') + ' ' + (p.last_name || '');
+
+            // Populate header avatar and registration badge
+            try {
+                const avatarEl = document.getElementById('staffModalPatientAvatar');
+                const badgeEl = document.getElementById('staffModalPatientBadge');
+                const profilePic = p.profile_picture || '';
+                const isRegistered = !!p.user_id;
+                if (avatarEl) {
+                    if (profilePic) {
+                        avatarEl.innerHTML = '<img src="../../' + profilePic + '" style="width:56px;height:56px;object-fit:cover;display:block;">';
+                    } else {
+                        avatarEl.textContent = (p.first_name || 'U').charAt(0).toUpperCase();
+                    }
+                }
+                if (badgeEl) {
+                    badgeEl.innerHTML = isRegistered ? '<span style="background:#d1fae5;color:#065f46;padding:6px 10px;border-radius:12px;font-weight:600;display:inline-block;font-size:0.85rem;">✓ Registered user</span>' : '<span style="background:#fee2e2;color:#991b1b;padding:6px 10px;border-radius:12px;font-weight:600;display:inline-block;font-size:0.85rem;">Not registered</span>';
+                }
+            } catch (e) { /* ignore */ }
             
             const hasMedicalAlert = allergies === 'Yes' ||
                                    conditions.toLowerCase().includes('diabetes') ||
@@ -916,55 +947,41 @@ function viewPatientRecord(patientId) {
                                    conditions.toLowerCase().includes('blood pressure') ||
                                    conditions.toLowerCase().includes('asthma');
             
+
+                                   
             document.getElementById('patientRecordContent').innerHTML = `
-                <div class="patient-info-grid">
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">First Name</div>
-                        <div class="patient-info-value">${p.first_name || 'N/A'}</div>
+                <div style="width:100%;max-width:820px;margin:0 auto;">
+                    
+
+                    <div style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:12px;">
+                        <h4 style="margin:0 0 12px 0;color:#374151;font-size:14px;font-weight:600;">👤 Account Information</h4>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">Username</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.username || '-'}</p></div>
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">Email</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.email || '-'}</p></div>
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">Phone</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.phone || '-'}</p></div>
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">Address</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.street_address || '-'}</p></div>
+                        </div>
                     </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Middle Name</div>
-                        <div class="patient-info-value">${p.middle_name || ''}</div>
+
+                    <div style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:12px;">
+                        <h4 style="margin:0 0 12px 0;color:#374151;font-size:14px;font-weight:600;">📝 Personal Information</h4>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">First Name</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.first_name || '-'}</p></div>
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">Middle Name</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.middle_name || '-'}</p></div>
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">Last Name</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.last_name || '-'}</p></div>
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">Gender</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.gender || '-'}</p></div>
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">Date of Birth</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.date_of_birth || '-'}</p></div>
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">Age</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.age || '-'}</p></div>
+                        </div>
                     </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Last Name</div>
-                        <div class="patient-info-value">${p.last_name || 'N/A'}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Suffix</div>
-                        <div class="patient-info-value">${p.suffix || ''}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Age</div>
-                        <div class="patient-info-value">${p.age || 'N/A'} years</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Gender</div>
-                        <div class="patient-info-value">${p.gender || 'N/A'}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Phone</div>
-                        <div class="patient-info-value">${p.phone || 'N/A'}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Email</div>
-                        <div class="patient-info-value">${p.email || 'N/A'}</div>
-                    </div>
-                    <div class="patient-info-item" style="grid-column: 1 / -1;">
-                        <div class="patient-info-label">Address</div>
-                        <div class="patient-info-value">${p.street_address || 'N/A'} ${p.city ? ', ' + p.city : ''} ${p.province ? ', ' + p.province : ''}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Emergency Contact Name</div>
-                        <div class="patient-info-value">${p.emergency_contact_name || 'N/A'}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Emergency Contact Number</div>
-                        <div class="patient-info-value">${p.emergency_contact_phone || 'N/A'}</div>
-                    </div>
-                    <div class="patient-info-item">
-                        <div class="patient-info-label">Emergency Contact Relationship</div>
-                        <div class="patient-info-value">${p.emergency_contact_relationship || 'N/A'}</div>
+
+                    <div style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:12px;">
+                        <h4 style="margin:0 0 12px 0;color:#374151;font-size:14px;font-weight:600;">📞 Emergency Contact</h4>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">Contact Name</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.emergency_contact_name || '-'}</p></div>
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">Contact Phone</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.emergency_contact_phone || '-'}</p></div>
+                            <div style="grid-column:1 / -1;"><p style="margin:0;color:#6b7280;font-size:12px;">Relationship</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.emergency_contact_relationship || '-'}</p></div>
+                        </div>
                     </div>
                 </div>
 
@@ -1132,9 +1149,7 @@ function viewPatientRecord(patientId) {
                     </div>
                 </div>
                 
-                <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end;">
-                    <button onclick="closePatientRecordModal()" class="btn-cancel" style="padding: 10px 24px; background: #f3f4f6; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">Close</button>
-                </div>
+                <!-- bottom close removed; using top-right close button -->
             `;
             document.getElementById('patientRecordModal').classList.add('active');
         }
