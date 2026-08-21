@@ -1,4 +1,39 @@
 (function () {
+    window.showAppointmentUpdateSuccess = function (changes) {
+        var modal = document.getElementById('appointmentUpdateSuccessModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'appointmentUpdateSuccessModal';
+            modal.className = 'modal-overlay';
+            modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100000;align-items:center;justify-content:center;';
+            modal.innerHTML = '<div style="background:#fff;border-radius:12px;padding:24px;width:90%;max-width:520px;box-shadow:0 20px 50px rgba(0,0,0,.2);">' +
+                '<h2 style="margin:0 0 8px;color:#166534;font-size:1.25rem;">Appointment Successfully Updated</h2>' +
+                '<p style="margin:0 0 16px;color:#374151;">The appointment information was changed successfully.</p>' +
+                '<div id="appointmentUpdateSuccessBody"></div>' +
+                '<div style="display:flex;justify-content:flex-end;margin-top:20px;"><button type="button" id="appointmentUpdateSuccessClose" style="padding:10px 20px;background:#16a34a;color:#fff;border:0;border-radius:8px;cursor:pointer;font-weight:600;">Close</button></div></div>';
+            document.body.appendChild(modal);
+            modal.querySelector('#appointmentUpdateSuccessClose').addEventListener('click', function () { modal.style.display = 'none'; });
+        }
+
+        var body = modal.querySelector('#appointmentUpdateSuccessBody');
+        if (!changes.length) {
+            body.innerHTML = '<div style="padding:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;color:#166534;">The appointment was saved successfully.</div>';
+        } else {
+            body.innerHTML = changes.map(function (change) {
+                return '<div style="display:grid;grid-template-columns:110px 1fr;gap:8px;padding:10px 0;border-bottom:1px solid #f3f4f6;">' +
+                    '<strong style="color:#374151;">' + escapeAppointmentText(change.label) + '</strong>' +
+                    '<span style="color:#374151;">' + escapeAppointmentText(change.from) + ' &rarr; ' + escapeAppointmentText(change.to) + '</span></div>';
+            }).join('');
+        }
+        modal.style.display = 'flex';
+    };
+
+    function escapeAppointmentText(value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, function (character) {
+            return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character];
+        });
+    }
+
     window.openAppointmentCallModal = function (name, phone) {
         var modal = document.getElementById('appointmentCallModal');
         if (!modal) {
@@ -127,6 +162,20 @@
                 var parsed = new DOMParser().parseFromString(html, 'text/html');
                 var nextContent = parsed.querySelector('.content-main');
                 if (!nextContent) throw new Error('Appointment content was not found');
+
+                var appointmentDataScript = Array.prototype.find.call(parsed.scripts, function (script) {
+                    return /(?:const|var)\s+appointments\s*=/.test(script.textContent);
+                });
+                if (appointmentDataScript) {
+                    var dataMatch = appointmentDataScript.textContent.match(/(?:const|var)\s+appointments\s*=\s*(\[[\s\S]*?\]);/);
+                    if (dataMatch) {
+                        try {
+                            window.appointments = JSON.parse(dataMatch[1]);
+                        } catch (error) {
+                            console.warn('Unable to update appointment data after refresh:', error);
+                        }
+                    }
+                }
 
                 content.replaceWith(nextContent);
                 restoreAppointmentView(state);

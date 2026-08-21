@@ -423,6 +423,7 @@
 .status-grid.status-grid-3panel {
     grid-template-columns: 3fr 2fr;
     grid-template-rows: 1fr 1fr;
+    margin-bottom: 24px;
 }
 
 .status-grid.status-grid-3panel .status-section[data-section="scheduled"] {

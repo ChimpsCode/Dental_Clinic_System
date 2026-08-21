@@ -789,6 +789,11 @@ body {
     width: 100%;
 }
 
+.top-services-bottom-space {
+    height: 20px;
+    flex: 0 0 0.1px;
+}
+
 .dashboard-row {
     display: flex;
     flex-direction: row;

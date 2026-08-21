@@ -8,6 +8,7 @@ try {
     $date = $_GET['date'] ?? '';
     $service_id = isset($_GET['service_id']) ? (int)$_GET['service_id'] : null;
     $exclude_inquiry_id = isset($_GET['exclude_inquiry_id']) ? (int)$_GET['exclude_inquiry_id'] : 0;
+    $exclude_appointment_id = isset($_GET['exclude_appointment_id']) ? (int)$_GET['exclude_appointment_id'] : 0;
     $dentist_id = isset($_GET['dentist_id']) ? (int)$_GET['dentist_id'] : 0;
     
     if (empty($date)) {
@@ -247,6 +248,10 @@ try {
           AND LOWER(COALESCE(a.status, 'scheduled')) NOT IN ('cancelled', 'completed', 'no_show', 'pending approval')
     ";
     $apptParams = [$date];
+    if ($exclude_appointment_id) {
+        $apptSql .= " AND a.id <> ?";
+        $apptParams[] = $exclude_appointment_id;
+    }
     if ($dentist_id) {
         $apptSql .= " AND (a.dentist_id IS NULL OR a.dentist_id = ?)";
         $apptParams[] = $dentist_id;

@@ -956,7 +956,7 @@ try {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <script>
-    const appointments = <?php echo json_encode($allAppointments); ?>;
+    var appointments = <?php echo json_encode($allAppointments); ?>;
     const unavailableDates = <?php echo json_encode($unavailableDates); ?>;
     const onlineBookingUrl = <?php echo json_encode($onlineBookingUrl); ?>;
     const clinicPrintInfo = {
@@ -1280,6 +1280,7 @@ try {
     }
 
     var selectedStaffSlot = null;
+    var staffRescheduleOriginal = null;
 
     function openAppointmentModal() {
         document.getElementById('appointmentModal').style.display = 'flex';
@@ -1341,6 +1342,8 @@ try {
         grid.innerHTML = '<div style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading available slots...</div>';
 
         var url = '../user-patient/get_slots.php?date=' + date + '&service_id=' + serviceId;
+        var appointmentId = document.getElementById('appointmentId').value;
+        if (appointmentId) url += '&exclude_appointment_id=' + encodeURIComponent(appointmentId);
         if (dentistId) url += '&dentist_id=' + dentistId;
 
         fetch(url)
@@ -1534,9 +1537,15 @@ try {
         
         // dentist_id already in formData from the select
         
-        // Set the appointment_time from selected slot
+        // Set the appointment_time from the selected slot, retaining the
+        // original time when an existing appointment is being edited.
         if (selectedStaffSlot) {
             formData.set('appointment_time', selectedStaffSlot);
+        }
+
+        if (formData.get('appointment_id') && !formData.get('appointment_time')) {
+            alert('Please select an appointment time slot.');
+            return;
         }
         
         fetch('../shared/process_appointment.php', {
@@ -1546,8 +1555,43 @@ try {
         .then(function(response) { return response.json(); })
         .then(function(data) {
             if (data.success) {
+                var updatedAppointment = {
+                    first_name: formData.get('first_name') || '',
+                    middle_name: formData.get('middle_name') || '',
+                    last_name: formData.get('last_name') || '',
+                    email: formData.get('email') || '',
+                    phone: formData.get('phone') || '',
+                    appointment_date: formData.get('appointment_date') || '',
+                    appointment_time: formData.get('appointment_time') || '',
+                    service_name: document.getElementById('staffServiceSelect').selectedOptions[0] ? document.getElementById('staffServiceSelect').selectedOptions[0].textContent.replace(/\s*\([^)]*\)$/, '') : '',
+                    dentist_name: document.getElementById('staffDentistSelect').selectedOptions[0] ? document.getElementById('staffDentistSelect').selectedOptions[0].textContent : 'Any Available Dentist'
+                };
                 closeAppointmentModal();
-                refreshAppointmentsAjax();
+                refreshAppointmentsAjax().then(function() {
+                    if (staffRescheduleOriginal) {
+                        var changes = [];
+                        var labels = {
+                            first_name: 'First name',
+                            middle_name: 'Middle name',
+                            last_name: 'Last name',
+                            email: 'Email',
+                            phone: 'Phone number',
+                            appointment_date: 'Date',
+                            appointment_time: 'Time',
+                            service_name: 'Service',
+                            dentist_name: 'Dentist'
+                        };
+                        Object.keys(labels).forEach(function(key) {
+                            var fromValue = staffRescheduleOriginal[key] || 'Not set';
+                            var toValue = updatedAppointment[key] || 'Not set';
+                            if (String(fromValue) !== String(toValue)) {
+                                changes.push({ label: labels[key], from: fromValue, to: toValue });
+                            }
+                        });
+                        showAppointmentUpdateSuccess(changes);
+                        staffRescheduleOriginal = null;
+                    }
+                });
             } else {
                 alert(data.message || 'Error scheduling appointment');
             }
@@ -1731,21 +1775,11 @@ try {
     }
 
     function getApptMenuItems(apptId) {
-        // Get status from the button's data attributes
         const button = document.querySelector(`.appt-kebab-btn[data-appt-id="${apptId}"]`);
-        const status = button ? button.getAttribute('data-status') : '';
+        const status = (button ? button.getAttribute('data-status') : '').toLowerCase();
         const checkedIn = button ? button.getAttribute('data-checked-in') : '';
-        const isCancelled = (status && status.toLowerCase().includes('cancel'));
+        const isPendingApproval = status.includes('pending approval');
         const isArrived = checkedIn && checkedIn.trim() !== '';
-        const apptData = appointments.find(a => String(a.id) === String(apptId));
-        const inQueue = !!(apptData && (apptData.queue_status || apptData.queue_number));
-
-        let editAction = 'edit';
-        let editLabel = 'Reschedule';
-        if (inQueue) {
-            editAction = 'edit_queue';
-            editLabel = 'Edit Queue';
-        }
 
         let menuItems = `
             <a href="javascript:void(0)" data-action="view" data-id="${apptId}">
@@ -1755,64 +1789,21 @@ try {
                 </svg>
                 View
             </a>
-            <a href="javascript:void(0)" data-action="${editAction}" data-id="${apptId}">
+            <a href="javascript:void(0)" data-action="edit" data-id="${apptId}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                 </svg>
-                ${editLabel}
+                Reschedule
             </a>
         `;
 
-        if (inQueue) {
-            menuItems += `
-                <a href="javascript:void(0)" data-action="print_queue" data-id="${apptId}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="6 9 6 2 18 2 18 9"></polyline>
-                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-                        <rect x="6" y="14" width="12" height="8"></rect>
-                    </svg>
-                    Print Queue No.
-                </a>
-            `;
+        if (!isPendingApproval && !isArrived) {
+            menuItems += `<a href="javascript:void(0)" data-action="mark_arrived" data-id="${apptId}" style="color:#374151;"><span aria-hidden="true">✓</span> Mark as Arrived</a>`;
         }
-
-        if (!isArrived) {
-            menuItems += `
-                <a href="javascript:void(0)" data-action="mark_arrived" data-id="${apptId}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                        <polyline points="22 4 12 14.01 9 11.01"/>
-                    </svg>
-                    Mark as Arrived
-                </a>
-            `;
+        if (!isPendingApproval) {
+            menuItems += `<a href="javascript:void(0)" data-action="cancel" data-id="${apptId}" style="color:#374151;"><span aria-hidden="true">✕</span> Cancel Appointment</a>`;
         }
-        
-        // Show Delete button if cancelled, Cancel button if not
-        if (isCancelled) {
-            menuItems += `
-                <a href="javascript:void(0)" onclick="deleteAppointment(${apptId})" class="danger">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="3 6 5 6 21 6"/>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    </svg>
-                    Delete Appointment
-                </a>
-            `;
-        } else {
-            menuItems += `
-                <a href="javascript:void(0)" onclick="openCancelReasonModal(${apptId})" class="danger">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <line x1="15" y1="9" x2="9" y2="15"/>
-                        <line x1="9" y1="9" x2="15" y2="15"/>
-                    </svg>
-                    Cancel Appointment
-                </a>
-            `;
-        }
-        
         return menuItems;
     }
 
@@ -1920,6 +1911,9 @@ try {
                 case 'mark_arrived':
                     markArrived(id);
                     break;
+                case 'cancel':
+                    openCancelReasonModal(id);
+                    break;
                 case 'delete':
                     deleteAppointment(id);
                     break;
@@ -1944,6 +1938,19 @@ try {
             form.elements.email.value = appt.email || '';
         }
         form.elements.notes.value = appt.notes || '';
+        document.getElementById('selectedTimeInput').value = appt.appointment_time ? String(appt.appointment_time).slice(0, 5) : '';
+        selectedStaffSlot = null;
+        staffRescheduleOriginal = {
+            first_name: appt.first_name || '',
+            middle_name: appt.middle_name || '',
+            last_name: appt.last_name || '',
+            email: appt.email || '',
+            phone: appt.phone || '',
+            appointment_date: appt.appointment_date ? String(appt.appointment_date).split(' ')[0] : '',
+            appointment_time: appt.appointment_time ? String(appt.appointment_time).slice(0, 5) : '',
+            service_name: appt.service_name || appt.treatment || '',
+            dentist_name: appt.dentist_name || 'Any Available Dentist'
+        };
 
         document.querySelector('#appointmentModal h2').textContent = 'Reschedule Appointment';
         document.querySelector('#appointmentForm button[type="submit"]').textContent = 'Save Changes';
@@ -1985,6 +1992,9 @@ try {
                                 break;
                             }
                         }
+                    }
+                    if (document.getElementById('appointmentId').value && document.getElementById('selectedTimeInput').value) {
+                        document.getElementById('staffScheduleBtn').disabled = false;
                     }
                 });
             });

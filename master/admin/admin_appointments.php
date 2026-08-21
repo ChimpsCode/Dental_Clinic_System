@@ -884,7 +884,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 </style>
 
 <script>
-    const appointments = <?php echo json_encode($allAppointments); ?>;
+    var appointments = <?php echo json_encode($allAppointments); ?>;
     const unavailableDates = <?php echo json_encode($unavailableDates); ?>;
     
     let adminCalYear, adminCalMonth;
@@ -1472,11 +1472,10 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
     }
 
     function getApptMenuItems(apptId) {
-        // Get status from the button's data attributes
         const button = document.querySelector(`.appt-kebab-btn[data-appt-id="${apptId}"]`);
-        const status = button ? button.getAttribute('data-status') : '';
+        const status = (button ? button.getAttribute('data-status') : '').toLowerCase();
         const checkedIn = button ? button.getAttribute('data-checked-in') : '';
-        const isCancelled = (status && status.toLowerCase().includes('cancel'));
+        const isPendingApproval = status.includes('pending approval');
         const isArrived = checkedIn && checkedIn.trim() !== '';
 
         let menuItems = `
@@ -1492,59 +1491,16 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                 </svg>
-                Edit
+                Reschedule
             </a>
         `;
 
-        if (!isArrived) {
-            menuItems += `
-                <a href="javascript:void(0)" data-action="mark_arrived" data-id="${apptId}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                        <polyline points="22 4 12 14.01 9 11.01"/>
-                    </svg>
-                    Mark as Arrived
-                </a>
-            `;
+        if (!isPendingApproval && !isArrived) {
+            menuItems += `<a href="javascript:void(0)" data-action="mark_arrived" data-id="${apptId}" style="color:#374151;"><span aria-hidden="true">✓</span> Mark as Arrived</a>`;
         }
-
-        if (isArrived) {
-            menuItems += `
-                <a href="javascript:void(0)" data-action="forward" data-id="${apptId}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22 12h-16"/>
-                        <path d="M12 5l7 7-7 7"/>
-                        <path d="M3 5v14"/>
-                    </svg>
-                    Forward to Admission
-                </a>
-            `;
+        if (!isPendingApproval) {
+            menuItems += `<a href="javascript:void(0)" data-action="cancel" data-id="${apptId}" style="color:#374151;"><span aria-hidden="true">✕</span> Cancel Appointment</a>`;
         }
-
-        // Show Cancel button if not cancelled, Delete button if cancelled
-        if (isCancelled) {
-            menuItems += `
-                <a href="javascript:void(0)" onclick="deleteAppointment(${apptId})" class="danger">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="3 6 5 6 21 6"/>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    </svg>
-                    Delete Appointment
-                </a>
-            `;
-        } else {
-            menuItems += `
-                <a href="javascript:void(0)" onclick="openCancelReasonModal(${apptId})" class="danger">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <line x1="15" y1="9" x2="9" y2="15"/>
-                        <line x1="9" y1="9" x2="15" y2="15"/>
-                    </svg>
-                    Cancel Appointment
-                </a>
-            `;
-        }
-
         return menuItems;
     }
 
@@ -1632,6 +1588,9 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
             case 'mark_arrived':
                 markArrived(id);
                 break;
+            case 'cancel':
+                openCancelReasonModal(id);
+                break;
             case 'forward':
                 forwardToAdmission(id);
                 break;
@@ -1677,7 +1636,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         }
         form.elements.notes.value = appt.notes || '';
 
-        document.querySelector('#appointmentModal h2').textContent = 'Edit Appointment';
+        document.querySelector('#appointmentModal h2').textContent = 'Reschedule Appointment';
         document.querySelector('#appointmentForm button[type="submit"]').textContent = 'Save Changes';
 
         // Load services and dentists, then set values and load slots

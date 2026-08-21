@@ -424,7 +424,7 @@ try {
                 </div>
 
                 <!-- Top Services -->
-                <div class="section-card" style="margin-bottom: 40px;">
+                <div class="section-card top-services-card" style="margin-bottom: 0px; padding-bottom: 0px !important;">
                     <h2 class="section-title">Top Services</h2>
                     <div class="stat-content">
                         <?php if (!empty($topServices)): ?>
@@ -444,6 +444,7 @@ try {
                         <?php endif; ?>
                     </div>
                 </div>
+                <div class="top-services-bottom-space" aria-hidden="true"></div>
 
             </div>
 

@@ -86,10 +86,14 @@ try {
         if (!$patient_id) {
             $patient_id = (int)$existingAppointment['patient_id'];
         }
+
+        // Editing an appointment must never switch it to another patient because
+        // the staff member changed the phone number or name.
+        $patient_id = (int)$existingAppointment['patient_id'];
     }
 
     // Search for existing patient by phone (more reliable than name)
-    if ($phone) {
+    if (!$appointment_id && $phone) {
         $stmt = $pdo->prepare("SELECT id FROM patients WHERE phone = ? LIMIT 1");
         $stmt->execute([$phone]);
         $existing_patient = $stmt->fetch();
@@ -100,7 +104,7 @@ try {
     }
     
     // If not found by phone, search by name
-    if (!$patient_id) {
+    if (!$appointment_id && !$patient_id) {
         $stmt = $pdo->prepare("SELECT id FROM patients WHERE first_name = ? AND last_name = ? LIMIT 1");
         $stmt->execute([$first_name, $last_name]);
         $existing_patient = $stmt->fetch();
@@ -111,7 +115,7 @@ try {
     }
     
     // If still not found, check by name partial match
-    if (!$patient_id) {
+    if (!$appointment_id && !$patient_id) {
         $stmt = $pdo->prepare("SELECT id FROM patients WHERE first_name LIKE ? AND last_name LIKE ? LIMIT 1");
         $stmt->execute([$first_name . '%', $last_name . '%']);
         $existing_patient = $stmt->fetch();
