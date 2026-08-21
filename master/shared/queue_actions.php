@@ -16,6 +16,9 @@ if (!in_array($role, ['staff', 'dentist', 'admin'])) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit();
 }
+$user_id = (int)($_SESSION['user_id'] ?? 0);
+$username = $_SESSION['username'] ?? '';
+$user_role = $role;
 
 header('Content-Type: application/json');
 
@@ -52,7 +55,7 @@ try {
             $queueItem = $stmt->fetch();
             $patientName = buildFullName($queueItem);
 
-            $stmt = $pdo->prepare("UPDATE queue SET status = 'in_procedure' WHERE id = ?");
+            $stmt = $pdo->prepare("UPDATE queue SET status = 'in_procedure', updated_at = NOW() WHERE id = ?");
             $stmt->execute([$queueId]);
 
             logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Called patient: ' . $patientName, $queueId, 'queue', 'waiting', 'in_procedure');
@@ -89,8 +92,8 @@ try {
             $stmt->execute([$queueId]);
             $oldStatus = $stmt->fetchColumn() ?: 'waiting';
             
-            // Update to In Procedure
-            $stmt = $pdo->prepare("UPDATE queue SET status = 'in_procedure' WHERE id = ?");
+            // Update to In Procedure and record the exact start timestamp.
+            $stmt = $pdo->prepare("UPDATE queue SET status = 'in_procedure', updated_at = NOW() WHERE id = ?");
             $result = $stmt->execute([$queueId]);
             
             if (!$result || $stmt->rowCount() === 0) {
@@ -297,9 +300,28 @@ try {
             break;
             
         case 'delete':
-            $stmt = $pdo->prepare("DELETE FROM queue WHERE id = ?");
+            $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name FROM queue q LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED) WHERE q.id = ?");
             $stmt->execute([$queueId]);
-            echo json_encode(['success' => true, 'message' => 'Record deleted']);
+            $queueItem = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$queueItem) {
+                echo json_encode(['success' => false, 'message' => 'Queue record not found']);
+                break;
+            }
+
+            $patientName = buildFullName($queueItem);
+            $archiveSql = 'UPDATE queue SET is_archived = 1';
+            $archiveParams = [];
+            $queueColumns = array_flip($pdo->query('SHOW COLUMNS FROM queue')->fetchAll(PDO::FETCH_COLUMN));
+            if (isset($queueColumns['deleted_at'])) {
+                $archiveSql .= ', deleted_at = NOW()';
+            }
+            $archiveSql .= ' WHERE id = ?';
+            $archiveParams[] = $queueId;
+            $archiveStmt = $pdo->prepare($archiveSql);
+            $archiveStmt->execute($archiveParams);
+
+            logAudit($pdo, $user_id, $username, $user_role, 'delete', 'queue', 'Archived queue record: ' . $patientName, $queueId, 'queue', 'active', 'archived');
+            echo json_encode(['success' => true, 'message' => 'Record removed from active queues']);
             break;
             
         case 'get_patient_record':

@@ -1737,7 +1737,7 @@ try {
         const inQueue = !!(apptData && (apptData.queue_status || apptData.queue_number));
 
         let editAction = 'edit';
-        let editLabel = 'Edit';
+        let editLabel = 'Reschedule';
         if (inQueue) {
             editAction = 'edit_queue';
             editLabel = 'Edit Queue';
@@ -1941,7 +1941,7 @@ try {
         }
         form.elements.notes.value = appt.notes || '';
 
-        document.querySelector('#appointmentModal h2').textContent = 'Edit Appointment';
+        document.querySelector('#appointmentModal h2').textContent = 'Reschedule Appointment';
         document.querySelector('#appointmentForm button[type="submit"]').textContent = 'Save Changes';
 
         // Load services and dentists, then set values and load slots

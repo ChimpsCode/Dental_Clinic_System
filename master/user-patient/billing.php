@@ -30,6 +30,8 @@ $user_id = $_SESSION['user_id'] ?? null;
 $patient_id = $_SESSION['patient_id'] ?? null;
 
 require_once '../../config/database.php';
+require_once '../../includes/patient_session_helper.php';
+$patientSessionSettings = getPatientSessionSettings($pdo, (int)($_SESSION['user_id'] ?? 0));
 
 try {
     $stmt = $pdo->prepare("
@@ -370,7 +372,9 @@ $pageTitle = 'Billing';
     </script>
     <script>
         (function() {
-            const LOGOUT_AFTER_MS = 10 * 60 * 1000;
+            const SESSION_TIMEOUT_ENABLED = <?php echo $patientSessionSettings['enabled'] ? 'true' : 'false'; ?>;
+            const LOGOUT_AFTER_MS = <?php echo (int)$patientSessionSettings['timeout_minutes'] * 60 * 1000; ?>;
+            if (!SESSION_TIMEOUT_ENABLED) return;
             let timer;
             const reset = () => {
                 clearTimeout(timer);

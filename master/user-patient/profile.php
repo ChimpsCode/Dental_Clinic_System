@@ -33,6 +33,8 @@ $messageType = '';
 
 require_once '../../config/database.php';
 require_once '../../includes/audit_helper.php';
+require_once '../../includes/patient_session_helper.php';
+$patientSessionSettings = getPatientSessionSettings($pdo, (int)$user_id);
 
 $profileUserPatientJoin = 'LEFT JOIN patients p ON p.user_id = u.id';
 $profilePatientUserJoin = 'LEFT JOIN users u ON u.id = p.user_id';
@@ -719,7 +721,9 @@ $pageTitle = 'My Profile';
     </script>
     <script>
         (function() {
-            const LOGOUT_AFTER_MS = 10 * 60 * 1000;
+            const SESSION_TIMEOUT_ENABLED = <?php echo $patientSessionSettings['enabled'] ? 'true' : 'false'; ?>;
+            const LOGOUT_AFTER_MS = <?php echo (int)$patientSessionSettings['timeout_minutes'] * 60 * 1000; ?>;
+            if (!SESSION_TIMEOUT_ENABLED) return;
             let timer;
             const reset = () => {
                 clearTimeout(timer);

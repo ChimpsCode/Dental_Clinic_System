@@ -27,7 +27,7 @@ try {
         FROM queue q 
         LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id
         LEFT JOIN users u_doc ON q.doctor_id = u_doc.id
-        WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'on_hold') AND q.is_archived = 0
+        WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'cancelled', 'on_hold') AND q.is_archived = 0
           AND COALESCE(q.queue_date, DATE(q.created_at)) = ?
         ORDER BY 
             CASE COALESCE(q.status, 'waiting')
@@ -1039,6 +1039,9 @@ div.main-content {
             <div class="tab-item" data-tab="completed">
                 Completed <span class="tab-count"><?php echo $completedToday; ?></span>
             </div>
+            <div class="tab-item" data-tab="cancelled">
+                Cancelled <span class="tab-count"><?php echo $cancelledCount; ?></span>
+            </div>
         </div>
 
         <!-- Data Table -->
@@ -1459,6 +1462,15 @@ function closeQueueKebabDropdown() {
     }
 }
 
+function resetAdminQueueKebabState() {
+    closeQueueKebabDropdown();
+    if (queueKebabDropdown && queueKebabDropdown.parentNode) queueKebabDropdown.parentNode.removeChild(queueKebabDropdown);
+    if (queueKebabBackdrop && queueKebabBackdrop.parentNode) queueKebabBackdrop.parentNode.removeChild(queueKebabBackdrop);
+    queueKebabDropdown = null;
+    queueKebabBackdrop = null;
+    queueActiveButton = null;
+}
+
 function handleQueueKebabClick(e) {
     const link = e.target.closest('a[data-action]');
     if (!link) return;
@@ -1501,12 +1513,17 @@ function handleQueueKebabClick(e) {
     }
 }
 
-// Click handler for kebab buttons
-document.addEventListener('click', function(e) {
+// Click handler for kebab buttons. Replace the previous handler when PJAX
+// revisits this page so one click cannot be processed multiple times.
+if (window.__adminQueueKebabClickHandler) {
+    document.removeEventListener('click', window.__adminQueueKebabClickHandler, true);
+}
+
+function handleAdminQueueKebabDocumentClick(e) {
     const button = e.target.closest('.queue-kebab-btn');
     if (button) {
         e.preventDefault();
-        e.stopPropagation();
+        e.stopImmediatePropagation();
 
         if (queueActiveButton === button && queueKebabDropdown && queueKebabDropdown.classList.contains('show')) {
             closeQueueKebabDropdown();
@@ -1518,7 +1535,15 @@ document.addEventListener('click', function(e) {
         }
         return;
     }
+}
+
+window.__adminQueueKebabClickHandler = handleAdminQueueKebabDocumentClick;
+document.addEventListener('click', window.__adminQueueKebabClickHandler, true);
+
+document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState !== 'visible') resetAdminQueueKebabState();
 });
+window.addEventListener('pageshow', resetAdminQueueKebabState);
 
 // View Patient
 function viewPatientQueue(patientId) {

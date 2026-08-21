@@ -25,6 +25,17 @@ $currentPage = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['p
 if ($currentPage < 1) $currentPage = 1;
 
 try {
+    $queueColumns = array_flip($pdo->query('SHOW COLUMNS FROM queue')->fetchAll(PDO::FETCH_COLUMN));
+    $queueDateExpression = isset($queueColumns['queue_date'])
+        ? 'COALESCE(q.queue_date, DATE(q.created_at))'
+        : 'DATE(q.created_at)';
+    $staffDoctorJoin = isset($queueColumns['doctor_id']) ? 'LEFT JOIN users u_doc ON q.doctor_id = u_doc.id' : '';
+    $staffDoctorSelect = isset($queueColumns['doctor_id'])
+        ? "COALESCE(CONCAT(u_doc.first_name, ' ', u_doc.last_name), 'Unassigned') as assigned_doctor"
+        : "'Unassigned' as assigned_doctor";
+    $staffDoctorIdSelect = isset($queueColumns['doctor_id']) ? 'q.doctor_id' : 'NULL as doctor_id';
+    $staffQueueDateFilter = $queueDateExpression . ' = ?';
+
     // Get ALL queue data for counts (without pagination)
     $allStmt = $pdo->prepare("
         SELECT q.*, 
@@ -36,13 +47,14 @@ try {
                COALESCE(q.status, 'waiting') as status_text,
                 'queue' as source_type,
                 NULL as appointment_id,
-                COALESCE(CONCAT(u_doc.first_name, ' ', u_doc.last_name), 'Unassigned') as assigned_doctor,
+                                {$staffDoctorSelect},
+                                {$staffDoctorIdSelect},
                 q.queue_time as display_time
         FROM queue q 
         LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id
-        LEFT JOIN users u_doc ON q.doctor_id = u_doc.id
-        WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'on_hold') AND q.is_archived = 0
-          AND COALESCE(q.queue_date, DATE(q.created_at)) = ?
+                {$staffDoctorJoin}
+        WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'cancelled', 'on_hold') AND q.is_archived = 0
+                    AND {$staffQueueDateFilter}
     ");
     $allStmt->execute([$today]);
     $allQueueItems = $allStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -1115,6 +1127,9 @@ div.main-content {
             <div class="tab-item" data-tab="completed">
                 Completed <span class="tab-count"><?php echo $completedToday; ?></span>
             </div>
+            <div class="tab-item" data-tab="cancelled">
+                Cancelled <span class="tab-count"><?php echo $cancelledCount; ?></span>
+            </div>
         </div>
 
         <!-- Data Table -->
@@ -2139,7 +2154,7 @@ function refreshQueueTable(data) {
     var items = data.items;
     var counts = data.counts;
 
-    // Update tab counts (staff: All, Waiting, In Procedure, On Hold, Completed)
+    // Update tab counts, including cancelled records kept by the live poll.
     var tabs = document.querySelectorAll('.tab-item');
     for (var t = 0; t < tabs.length; t++) {
         var tab = tabs[t];
@@ -2151,6 +2166,7 @@ function refreshQueueTable(data) {
         else if (tabName === 'completed') countSpan.textContent = counts.completed;
         else if (tabName === 'on_hold') countSpan.textContent = counts.on_hold;
         else if (tabName === 'waiting') countSpan.textContent = counts.waiting;
+        else if (tabName === 'cancelled') countSpan.textContent = counts.cancelled;
     }
 
     // Empty state

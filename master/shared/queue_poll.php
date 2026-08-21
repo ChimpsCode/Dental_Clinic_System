@@ -23,10 +23,18 @@ try {
     require_once '../../config/database.php';
 
     $today = date('Y-m-d');
+    $queueColumns = array_flip($pdo->query('SHOW COLUMNS FROM queue')->fetchAll(PDO::FETCH_COLUMN));
+    $queueDateExpression = isset($queueColumns['queue_date'])
+        ? 'COALESCE(q.queue_date, DATE(q.created_at))'
+        : 'DATE(q.created_at)';
+    $queueNumberSelect = isset($queueColumns['queue_number']) ? 'q.queue_number' : 'q.id AS queue_number';
+    $doctorIdSelect = isset($queueColumns['doctor_id']) ? 'q.doctor_id' : 'NULL AS doctor_id';
+    $appointmentIdSelect = isset($queueColumns['appointment_id']) ? 'q.appointment_id' : 'NULL AS appointment_id';
+    $doctorJoin = isset($queueColumns['doctor_id']) ? 'LEFT JOIN users u_doc ON q.doctor_id = u_doc.id' : '';
 
     $stmt = $pdo->prepare("
-        SELECT q.id, q.patient_id, q.queue_number, q.status, q.treatment_type,
-               q.queue_time, q.doctor_id, q.appointment_id, q.teeth_numbers,
+         SELECT q.id, q.patient_id, {$queueNumberSelect}, q.status, q.treatment_type,
+             q.queue_time, q.updated_at AS procedure_started_at, {$doctorIdSelect}, {$appointmentIdSelect}, q.teeth_numbers,
                COALESCE(p.first_name, 'Unknown') as first_name,
                COALESCE(p.middle_name, '') as middle_name,
                COALESCE(p.last_name, '') as last_name,
@@ -37,10 +45,10 @@ try {
                COALESCE(CONCAT(u_doc.first_name, ' ', u_doc.last_name), 'Unassigned') as assigned_doctor
         FROM queue q
         LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id
-        LEFT JOIN users u_doc ON q.doctor_id = u_doc.id
-        WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'on_hold')
+        {$doctorJoin}
+        WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'cancelled', 'on_hold')
           AND q.is_archived = 0
-          AND COALESCE(q.queue_date, DATE(q.created_at)) = ?
+          AND {$queueDateExpression} = ?
         ORDER BY
             CASE COALESCE(q.status, 'waiting')
                 WHEN 'in_procedure' THEN 1
@@ -57,6 +65,7 @@ try {
     $procedureCount = count(array_filter($items, fn($q) => ($q['status'] ?? '') === 'in_procedure'));
     $completedToday = count(array_filter($items, fn($q) => ($q['status'] ?? '') === 'completed'));
     $onHoldCount = count(array_filter($items, fn($q) => ($q['status'] ?? '') === 'on_hold'));
+    $cancelledCount = count(array_filter($items, fn($q) => ($q['status'] ?? '') === 'cancelled'));
 
     $hash = md5(json_encode($items));
 
@@ -70,6 +79,7 @@ try {
             'in_procedure' => $procedureCount,
             'completed' => $completedToday,
             'on_hold' => $onHoldCount
+            ,'cancelled' => $cancelledCount
         ]
     ]);
 

@@ -30,6 +30,25 @@ try {
         throw new Exception('Treatment type is required');
     }
 
+    // Complete schema setup before opening the transaction; ALTER TABLE may
+    // implicitly commit on MySQL.
+    ensureQueueManagementSchema($pdo);
+
+    $duplicateStmt = $pdo->prepare("SELECT id, queue_number, queue_label, patient_id FROM queue WHERE patient_id = ? AND status IN ('waiting', 'in_procedure', 'on_hold') AND COALESCE(is_archived, 0) = 0 AND (queue_date = CURDATE() OR (queue_date IS NULL AND DATE(created_at) = CURDATE())) ORDER BY id DESC LIMIT 1");
+    $duplicateStmt->execute([(int)$patient_id]);
+    $existingQueue = $duplicateStmt->fetch(PDO::FETCH_ASSOC);
+    if ($existingQueue) {
+        echo json_encode([
+            'success' => true,
+            'already_in_queue' => true,
+            'message' => 'This patient is already in the active queue.',
+            'queue_id' => (int)$existingQueue['id'],
+            'queue_number' => (int)($existingQueue['queue_number'] ?? 0),
+            'queue_label' => $existingQueue['queue_label'] ?? ('#' . ($existingQueue['queue_number'] ?? $existingQueue['id']))
+        ]);
+        exit;
+    }
+
     // Combine complaint and notes
     $full_notes = $complaint;
     if (!empty($notes)) {

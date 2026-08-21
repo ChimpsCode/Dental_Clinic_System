@@ -35,6 +35,8 @@ $isAjaxRequest = $_SERVER['REQUEST_METHOD'] === 'POST'
     && (($_POST['ajax'] ?? '0') === '1' || (($_POST['action'] ?? '') === 'send_message'));
 
 require_once '../../config/database.php';
+require_once '../../includes/patient_session_helper.php';
+$patientSessionSettings = getPatientSessionSettings($pdo, (int)($_SESSION['user_id'] ?? 0));
 
 const AUTO_REPLY_TEXT = "Thank you for your message! Please wait for our staff to respond your message. We appreciate your patience.";
 
@@ -930,7 +932,9 @@ $pageTitle = 'Messages';
     </script>
         <script>
         (function() {
-            const LOGOUT_AFTER_MS = 10 * 60 * 1000;
+            const SESSION_TIMEOUT_ENABLED = <?php echo $patientSessionSettings['enabled'] ? 'true' : 'false'; ?>;
+            const LOGOUT_AFTER_MS = <?php echo (int)$patientSessionSettings['timeout_minutes'] * 60 * 1000; ?>;
+            if (!SESSION_TIMEOUT_ENABLED) return;
             let timer;
             const reset = () => {
                 clearTimeout(timer);
@@ -1485,7 +1489,9 @@ $pageTitle = 'Messages';
     </script>
     <script>
         (function() {
-            const LOGOUT_AFTER_MS = 10 * 60 * 1000;
+            const SESSION_TIMEOUT_ENABLED = <?php echo $patientSessionSettings['enabled'] ? 'true' : 'false'; ?>;
+            const LOGOUT_AFTER_MS = <?php echo (int)$patientSessionSettings['timeout_minutes'] * 60 * 1000; ?>;
+            if (!SESSION_TIMEOUT_ENABLED) return;
             let timer;
             const reset = () => {
                 clearTimeout(timer);

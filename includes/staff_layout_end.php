@@ -190,7 +190,7 @@
     </script>
     <script>
         (function() {
-            const LOGOUT_AFTER_MS = 10 * 60 * 1000;
+            const LOGOUT_AFTER_MS = <?php echo (int)($__sessionTimeoutSeconds ?? 600) * 1000; ?>;
             let timer;
             const reset = () => {
                 clearTimeout(timer);

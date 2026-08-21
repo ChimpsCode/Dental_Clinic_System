@@ -35,6 +35,8 @@ $bookedDateSlots = [];
 $patient_name = 'Patient';
 
 require_once '../../config/database.php';
+require_once '../../includes/patient_session_helper.php';
+$patientSessionSettings = getPatientSessionSettings($pdo, (int)($_SESSION['user_id'] ?? 0));
 
 // Resolve patient_id from user account if session has no valid link
 if ($user_id) {
@@ -923,7 +925,9 @@ function selectDate(selDate, el) {
     </script>
     <script>
         (function() {
-            const LOGOUT_AFTER_MS = 10 * 60 * 1000;
+            const SESSION_TIMEOUT_ENABLED = <?php echo $patientSessionSettings['enabled'] ? 'true' : 'false'; ?>;
+            const LOGOUT_AFTER_MS = <?php echo (int)$patientSessionSettings['timeout_minutes'] * 60 * 1000; ?>;
+            if (!SESSION_TIMEOUT_ENABLED) return;
             let timer;
             const reset = () => {
                 clearTimeout(timer);

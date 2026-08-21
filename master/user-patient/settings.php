@@ -30,15 +30,32 @@ $user_id = $_SESSION['user_id'] ?? null;
 $patient_id = $_SESSION['patient_id'] ?? null;
 $message = '';
 $messageType = '';
+$passwordOtpPending = !empty($_SESSION['patient_password_otp']) && (int)($_SESSION['patient_password_otp_expires'] ?? 0) > time();
 
 require_once '../../config/database.php';
+require_once '../../includes/patient_session_helper.php';
+require_once '../../includes/send_otp_email.php';
+
+$patientSessionSettings = getPatientSessionSettings($pdo, (int)$user_id);
+$settingsPatientUserJoin = 'LEFT JOIN users u ON u.id = p.user_id';
+try {
+    $usersColumns = $pdo->query('SHOW COLUMNS FROM users')->fetchAll(PDO::FETCH_COLUMN);
+    $patientsColumns = $pdo->query('SHOW COLUMNS FROM patients')->fetchAll(PDO::FETCH_COLUMN);
+    if (in_array('patient_id', $usersColumns, true)) {
+        $settingsPatientUserJoin = 'LEFT JOIN users u ON u.patient_id = p.id';
+    } elseif (!in_array('user_id', $patientsColumns, true)) {
+        $settingsPatientUserJoin = 'LEFT JOIN users u ON 1 = 0';
+    }
+} catch (Exception $e) {
+    error_log('Patient settings schema detection error: ' . $e->getMessage());
+}
 
 try {
     $stmt = $pdo->prepare("
         SELECT p.*, COALESCE(u.first_name, p.first_name) AS first_name, COALESCE(u.middle_name, p.middle_name) AS middle_name, COALESCE(u.last_name, p.last_name) AS last_name, u.email, u.phone, u.created_at
         FROM patients p 
-        LEFT JOIN users u ON u.id = p.user_id 
-        WHERE p.user_id = ?
+        {$settingsPatientUserJoin}
+        WHERE u.id = ?
     ");
     $stmt->execute([$user_id]);
     $patient = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -47,7 +64,7 @@ try {
         $stmt = $pdo->prepare("
             SELECT p.*, COALESCE(u.first_name, p.first_name) AS first_name, COALESCE(u.middle_name, p.middle_name) AS middle_name, COALESCE(u.last_name, p.last_name) AS last_name, u.email, u.phone, u.created_at
             FROM patients p 
-            LEFT JOIN users u ON u.id = p.user_id 
+            {$settingsPatientUserJoin}
             WHERE p.id = ?
         ");
         $stmt->execute([$patient_id]);
@@ -97,11 +114,19 @@ try {
             if (password_verify($current_password, $user['password'])) {
                 if (strlen($new_password) >= 8) {
                     if ($new_password === $confirm_password) {
-                        $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-                        $stmt = $pdo->prepare("UPDATE users SET password = ? WHERE id = ?");
-                        $stmt->execute([$hashed_password, $user_id]);
-                        $message = 'Password changed successfully!';
-                        $messageType = 'success';
+                        $passwordOtp = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+                        $_SESSION['patient_password_otp'] = password_hash($passwordOtp, PASSWORD_DEFAULT);
+                        $_SESSION['patient_password_pending'] = password_hash($new_password, PASSWORD_DEFAULT);
+                        $_SESSION['patient_password_otp_expires'] = time() + 180;
+                        if (sendOtpEmail($user['email'] ?? '', $user['first_name'] ?? 'Patient', $passwordOtp)) {
+                            $passwordOtpPending = true;
+                            $message = 'A verification code was sent to your email.';
+                            $messageType = 'success';
+                        } else {
+                            unset($_SESSION['patient_password_otp'], $_SESSION['patient_password_pending'], $_SESSION['patient_password_otp_expires']);
+                            $message = 'Unable to send the verification code. Please try again.';
+                            $messageType = 'error';
+                        }
                     } else {
                         $message = 'New passwords do not match.';
                         $messageType = 'error';
@@ -115,6 +140,38 @@ try {
                 $messageType = 'error';
             }
         }
+
+        if ($action === 'verify_password_otp') {
+            $enteredOtp = trim($_POST['password_otp'] ?? '');
+            $storedOtp = $_SESSION['patient_password_otp'] ?? '';
+            $expires = (int)($_SESSION['patient_password_otp_expires'] ?? 0);
+            $pendingPassword = $_SESSION['patient_password_pending'] ?? '';
+
+            if (!$storedOtp || !$pendingPassword || $expires < time()) {
+                unset($_SESSION['patient_password_otp'], $_SESSION['patient_password_pending'], $_SESSION['patient_password_otp_expires']);
+                $message = 'The verification code has expired. Please start again.';
+                $messageType = 'error';
+                $passwordOtpPending = false;
+            } elseif (!preg_match('/^\d{6}$/', $enteredOtp) || !password_verify($enteredOtp, $storedOtp)) {
+                $message = 'The verification code is invalid.';
+                $messageType = 'error';
+                $passwordOtpPending = true;
+            } else {
+                $stmt = $pdo->prepare('UPDATE users SET password = ? WHERE id = ?');
+                $stmt->execute([$pendingPassword, $user_id]);
+                unset($_SESSION['patient_password_otp'], $_SESSION['patient_password_pending'], $_SESSION['patient_password_otp_expires']);
+                $message = 'Password changed successfully!';
+                $messageType = 'success';
+                $passwordOtpPending = false;
+            }
+        }
+
+        if ($action === 'cancel_password_otp') {
+            unset($_SESSION['patient_password_otp'], $_SESSION['patient_password_pending'], $_SESSION['patient_password_otp_expires']);
+            $passwordOtpPending = false;
+            $message = 'Password change cancelled.';
+            $messageType = 'success';
+        }
         
         if ($action === 'update_notifications') {
             $email_notifications = isset($_POST['email_notifications']) ? 1 : 0;
@@ -125,6 +182,22 @@ try {
             $message = 'Notification preferences updated!';
             $messageType = 'success';
         }
+
+        if ($action === 'update_session_timeout') {
+            $enabled = isset($_POST['session_timeout_enabled']);
+            $timeoutMinutes = (int)($_POST['session_timeout_minutes'] ?? 60);
+            if (!in_array($timeoutMinutes, [15, 30, 60, 120], true)) {
+                $message = 'Please select a valid session timeout.';
+                $messageType = 'error';
+            } elseif (savePatientSessionSettings($pdo, (int)$user_id, $enabled, $timeoutMinutes)) {
+                $patientSessionSettings = ['enabled' => $enabled, 'timeout_minutes' => $timeoutMinutes];
+                $message = 'Session timeout preferences updated!';
+                $messageType = 'success';
+            } else {
+                $message = 'Unable to update session timeout preferences.';
+                $messageType = 'error';
+            }
+        }
     }
     
     $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
@@ -133,6 +206,11 @@ try {
     
 } catch (Exception $e) {
     $user = [];
+    if ($message === '') {
+        $message = 'Unable to save this setting. Please try again.';
+        $messageType = 'error';
+    }
+    error_log('Patient settings error: ' . $e->getMessage());
 }
 
 $pageTitle = 'Account Settings';
@@ -183,9 +261,15 @@ $pageTitle = 'Account Settings';
         .form-label { display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px; }
         .form-input { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; transition: border-color 0.2s; }
         .form-input:focus { outline: none; border-color: #005daa; box-shadow: 0 0 0 3px rgba(0,93,170,0.1); }
+        .password-field-wrapper { position: relative; }
+        .password-field-wrapper .form-input { padding-right: 44px; }
+        .password-toggle { position: absolute; top: 50%; right: 12px; transform: translateY(-50%); border: 0; background: none; color: #6b7280; cursor: pointer; padding: 4px; }
+        .password-toggle:hover { color: #005daa; }
         .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
         .btn-primary { background: #005daa; color: white; }
         .btn-primary:hover { background: #004080; }
+        .btn-secondary { background: #e5e7eb; color: #374151; }
+        .btn-secondary:hover { background: #d1d5db; }
         .btn-danger { background: #dc3545; color: white; }
         .btn-danger:hover { background: #c82333; }
         .checkbox-group { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
@@ -344,15 +428,24 @@ $pageTitle = 'Account Settings';
                     <input type="hidden" name="action" value="change_password">
                     <div class="form-group">
                         <label class="form-label">Current Password</label>
-                        <input type="password" name="current_password" class="form-input" required>
+                        <div class="password-field-wrapper">
+                            <input type="password" name="current_password" class="form-input password-input" required>
+                            <button type="button" class="password-toggle" aria-label="Show current password"><i class="fas fa-eye"></i></button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">New Password</label>
-                        <input type="password" name="new_password" class="form-input" minlength="8" required>
+                        <div class="password-field-wrapper">
+                            <input type="password" name="new_password" class="form-input password-input" minlength="8" required>
+                            <button type="button" class="password-toggle" aria-label="Show new password"><i class="fas fa-eye"></i></button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Confirm New Password</label>
-                        <input type="password" name="confirm_password" class="form-input" minlength="8" required>
+                        <div class="password-field-wrapper">
+                            <input type="password" name="confirm_password" class="form-input password-input" minlength="8" required>
+                            <button type="button" class="password-toggle" aria-label="Show confirmed password"><i class="fas fa-eye"></i></button>
+                        </div>
                     </div>
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-key"></i> Change Password
@@ -378,6 +471,27 @@ $pageTitle = 'Account Settings';
                 </form>
             </div>
 
+            <div class="section">
+                <h2 class="section-title"><i class="fas fa-clock"></i> Security Session Timeout</h2>
+                <p style="color:#6b7280;font-size:14px;margin-bottom:16px;">Choose whether your account should log out automatically after a period of inactivity.</p>
+                <form method="POST" action="">
+                    <input type="hidden" name="action" value="update_session_timeout">
+                    <div class="checkbox-group" style="margin-bottom:16px;">
+                        <input type="checkbox" id="session_timeout_enabled" name="session_timeout_enabled" class="checkbox-input" <?php echo $patientSessionSettings['enabled'] ? 'checked' : ''; ?>>
+                        <label for="session_timeout_enabled" class="checkbox-label">Enable automatic session timeout</label>
+                    </div>
+                    <div class="form-group" style="max-width:280px;">
+                        <label class="form-label" for="session_timeout_minutes">Log out after inactivity</label>
+                        <select id="session_timeout_minutes" name="session_timeout_minutes" class="form-select">
+                            <?php foreach ([15, 30, 60, 120] as $timeoutOption): ?>
+                                <option value="<?php echo $timeoutOption; ?>" <?php echo (int)$patientSessionSettings['timeout_minutes'] === $timeoutOption ? 'selected' : ''; ?>><?php echo $timeoutOption < 60 ? $timeoutOption . ' minutes' : ($timeoutOption / 60) . ' hour' . ($timeoutOption === 60 ? '' : 's'); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Session Preference</button>
+                </form>
+            </div>
+
             <div class="section danger-zone">
                 <h2 class="section-title"><i class="fas fa-exclamation-triangle"></i> Danger Zone</h2>
                 <p style="color: #6b7280; font-size: 14px; margin-bottom: 16px;">
@@ -387,6 +501,27 @@ $pageTitle = 'Account Settings';
                     <i class="fas fa-trash"></i> Delete Account
                 </button>
             </div>
+
+            <?php if ($passwordOtpPending): ?>
+                <div class="modal-overlay is-open" id="passwordOtpModal">
+                    <div class="modal-box">
+                        <div class="modal-icon" style="color:#005daa;"><i class="fas fa-envelope-circle-check"></i></div>
+                        <h2 class="modal-title">Email Verification Code</h2>
+                        <p class="modal-desc">Enter the 6-digit code sent to <?php echo htmlspecialchars($user['email'] ?? 'your email address'); ?> to finish changing your password.</p>
+                        <form method="POST" action="">
+                            <input type="hidden" name="action" value="verify_password_otp">
+                            <input type="text" name="password_otp" class="modal-input" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="Enter verification code" autocomplete="one-time-code" required autofocus>
+                            <div class="modal-actions">
+                                <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Verify &amp; Save</button>
+                            </div>
+                        </form>
+                        <form method="POST" action="" style="margin-top:10px;">
+                            <input type="hidden" name="action" value="cancel_password_otp">
+                            <button type="submit" class="btn btn-secondary">Cancel</button>
+                        </form>
+                    </div>
+                </div>
+            <?php endif; ?>
 
             <!-- Delete Account Confirmation Modal -->
             <div class="modal-overlay" id="deleteModal">
@@ -472,7 +607,9 @@ $pageTitle = 'Account Settings';
     </script>
     <script>
         (function() {
-            const LOGOUT_AFTER_MS = 10 * 60 * 1000;
+            const SESSION_TIMEOUT_ENABLED = <?php echo $patientSessionSettings['enabled'] ? 'true' : 'false'; ?>;
+            const LOGOUT_AFTER_MS = <?php echo (int)$patientSessionSettings['timeout_minutes'] * 60 * 1000; ?>;
+            if (!SESSION_TIMEOUT_ENABLED) return;
             let timer;
             const reset = () => {
                 clearTimeout(timer);
@@ -482,6 +619,30 @@ $pageTitle = 'Account Settings';
                 document.addEventListener(evt, reset, { passive: true })
             );
             reset();
+        })();
+    </script>
+    <script>
+        document.querySelectorAll('.password-toggle').forEach(function(toggle) {
+            toggle.addEventListener('click', function() {
+                const input = toggle.parentElement.querySelector('.password-input');
+                const icon = toggle.querySelector('i');
+                const showing = input.type === 'text';
+                input.type = showing ? 'password' : 'text';
+                icon.classList.toggle('fa-eye', showing);
+                icon.classList.toggle('fa-eye-slash', !showing);
+                toggle.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+            });
+        });
+    </script>
+    <script>
+        (function() {
+            const alertEl = document.querySelector('.alert-success');
+            if (!alertEl) return;
+            setTimeout(function() {
+                alertEl.style.transition = 'opacity 0.3s ease';
+                alertEl.style.opacity = '0';
+                setTimeout(function() { alertEl.remove(); }, 300);
+            }, 2500);
         })();
     </script>
     <script>

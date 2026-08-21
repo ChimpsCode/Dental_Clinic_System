@@ -2041,6 +2041,20 @@ INSERT INTO `settings` (`id`, `setting_key`, `setting_value`) VALUES
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `user_session_settings`
+--
+
+CREATE TABLE `user_session_settings` (
+  `user_id` int(11) NOT NULL,
+  `enabled` tinyint(1) NOT NULL DEFAULT 1,
+  `timeout_minutes` int(11) NOT NULL DEFAULT 60,
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `teeth`
 --
 

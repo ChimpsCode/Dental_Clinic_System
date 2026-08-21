@@ -706,7 +706,7 @@ try {
             <!-- Submit Button -->
             <div class="button-row">
                 <button type="button" onclick="window.location.href='<?php echo $patientListPage; ?>'" class="btn btn-cancel">Cancel</button>
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" id="addToQueueButton">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="12" y1="5" x2="12" y2="19"></line>
                         <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -839,6 +839,14 @@ try {
         // Form submission
         document.getElementById('quickSessionForm').addEventListener('submit', function(e) {
             e.preventDefault();
+
+            const submitButton = document.getElementById('addToQueueButton');
+            if (submitButton && submitButton.disabled) return;
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.dataset.originalText = submitButton.textContent.trim();
+                submitButton.textContent = 'Adding...';
+            }
             
             const formData = new FormData(this);
             const treatmentType = formData.get('treatment_type');
@@ -855,15 +863,25 @@ try {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('Patient added to queue successfully!\n\nQueue #: ' + data.queue_number + '\n\nView in Queue?');
+                    alert(data.already_in_queue
+                        ? 'This patient is already in the active queue.\n\nQueue #: ' + data.queue_number
+                        : 'Patient added to queue successfully!\n\nQueue #: ' + data.queue_number);
                     window.location.href = '<?php echo $queuePage; ?>?highlight=' + data.queue_id;
                 } else {
                     alert('Error: ' + data.message);
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                        submitButton.textContent = submitButton.dataset.originalText || 'Add to Queue';
+                    }
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
                 alert('An error occurred. Please try again.');
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.textContent = submitButton.dataset.originalText || 'Add to Queue';
+                }
             });
         });
         

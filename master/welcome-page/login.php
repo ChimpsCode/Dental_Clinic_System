@@ -22,12 +22,17 @@ foreach ($settingsRows as $key => $value) {
     $clinicSettings[$key] = $value;
 }
 
-// Update session lifetime from database setting (applies on next request)
+// Apply the configured lifetime before successful login regenerates the session.
 $__dbTimeout = max(60, (int)($clinicSettings['session_timeout'] ?? 60) * 60);
-if (session_status() !== PHP_SESSION_ACTIVE) {
-    ini_set('session.cookie_lifetime', $__dbTimeout);
-    ini_set('session.gc_maxlifetime', $__dbTimeout);
-}
+ini_set('session.cookie_lifetime', (string)$__dbTimeout);
+ini_set('session.gc_maxlifetime', (string)$__dbTimeout);
+session_set_cookie_params([
+    'lifetime' => $__dbTimeout,
+    'path' => '/',
+    'secure' => false,
+    'httponly' => true,
+    'samesite' => 'Lax'
+]);
 $clinicName = $clinicSettings['clinic_name'] ?? 'RF Dental Clinic';
 $welcomeLogo = $clinicSettings['welcome_logo'] ?? '';
 $loginLogo = $welcomeLogo ? '../../' . $welcomeLogo : '../../assets/images/Logo.png';

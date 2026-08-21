@@ -14,6 +14,11 @@ $currentPage = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['p
 if ($currentPage < 1) $currentPage = 1;
 
 try {
+    $queueColumns = array_flip($pdo->query('SHOW COLUMNS FROM queue')->fetchAll(PDO::FETCH_COLUMN));
+    $dentistQueueDateExpression = isset($queueColumns['queue_date'])
+        ? 'COALESCE(q.queue_date, DATE(q.created_at))'
+        : 'DATE(q.created_at)';
+
     // Get ALL queue data for counts (without pagination)
     $allStmt = $pdo->prepare("
         SELECT q.*, 
@@ -25,8 +30,8 @@ try {
                COALESCE(q.status, 'waiting') as status_text
         FROM queue q 
         LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id
-        WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'on_hold') AND q.is_archived = 0
-          AND COALESCE(q.queue_date, DATE(q.created_at)) = ?
+        WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'cancelled', 'on_hold') AND q.is_archived = 0
+          AND {$dentistQueueDateExpression} = ?
         ORDER BY 
             CASE COALESCE(q.status, 'waiting')
                 WHEN 'in_procedure' THEN 1 
@@ -2194,6 +2199,7 @@ function refreshQueueTable(data) {
         else if (tabName === 'completed') countSpan.textContent = counts.completed;
         else if (tabName === 'on_hold') countSpan.textContent = counts.on_hold;
         else if (tabName === 'waiting') countSpan.textContent = counts.waiting;
+        else if (tabName === 'cancelled') countSpan.textContent = counts.cancelled;
     }
 
     // Update inProcedurePatient for kebab menu

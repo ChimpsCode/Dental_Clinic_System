@@ -24,6 +24,12 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'dashboard') {
         $queueItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $waitingItems = array_values(array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'waiting'));
+        $cancelledItems = array_values(array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'cancelled'));
+        usort($cancelledItems, function ($first, $second) {
+            $firstTime = strtotime($first['updated_at'] ?? $first['created_at'] ?? '') ?: 0;
+            $secondTime = strtotime($second['updated_at'] ?? $second['created_at'] ?? '') ?: 0;
+            return $secondTime <=> $firstTime;
+        });
         $inProcedureItem = array_values(array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'in_procedure'));
         $inProcedureItem = !empty($inProcedureItem) ? $inProcedureItem[0] : null;
 
@@ -68,6 +74,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'dashboard') {
                 'patient_name' => trim(($inProcedureItem['first_name'] ?? '') . ' ' . ($inProcedureItem['middle_name'] ?? '') . ' ' . ($inProcedureItem['last_name'] ?? '') . ' ' . ($inProcedureItem['suffix'] ?? '')),
                 'queue_time' => $inProcedureItem['queue_time'] ?? '--:--',
                 'treatment_type' => $inProcedureItem['treatment_type'] ?? 'Queue Empty',
+                'procedure_started_at' => $inProcedureItem['updated_at'] ?? null,
             ];
         }
 
@@ -80,6 +87,17 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'dashboard') {
                 'queue_number' => $item['queue_number'] ?? ($item['id'] ?? ''),
                 'queue_time' => $item['queue_time'] ?? '',
                 'treatment_type' => $item['treatment_type'] ?? '',
+            ];
+        }
+
+        $cancelledPayload = [];
+        foreach ($cancelledItems as $item) {
+            $cancelledPayload[] = [
+                'id' => (int)($item['id'] ?? 0),
+                'patient_id' => (int)($item['patient_id'] ?? 0),
+                'patient_name' => trim(($item['first_name'] ?? '') . ' ' . ($item['middle_name'] ?? '') . ' ' . ($item['last_name'] ?? '') . ' ' . ($item['suffix'] ?? '')),
+                'treatment_type' => $item['treatment_type'] ?? '',
+                'cancelled_at' => $item['updated_at'] ?? $item['created_at'] ?? null
             ];
         }
 
@@ -114,11 +132,13 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'dashboard') {
         echo json_encode([
             'live_queue' => $liveQueue,
             'waiting' => $waitingPayload,
+            'cancelled' => $cancelledPayload,
             'pending_approval' => $pendingPayload,
             'upcoming_appointments' => $upcomingPayload,
             //'today_schedule' => $todaySchedulePayload,
             'counts' => [
                 'waiting' => count($waitingItems),
+                'cancelled' => count($cancelledItems),
                 'pending' => count($pendingApprovalItems),
                 'upcoming' => count($upcomingApptItems),
                 //'today' => count($todayScheduleItems),
@@ -238,9 +258,20 @@ try {
 <div id="view-dashboard" class="view-section active">
     <!-- Cancelled Modal -->
     <div id="cancelledModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
-        <div class="modal" style="background: white; border-radius: 12px; padding: 0; width: 90%; max-width: 700px; max-height: 80vh; overflow-y: auto; position: relative; z-index: 100000;">
+        <div class="modal" style="
+        background: white; 
+        border-radius: 12px; 
+        padding: 0; 
+        width: 90%; 
+        max-width: 700px; 
+        max-height: 80vh; 
+        overflow-y: auto; 
+        position: relative; 
+        z-index: 100000;
+        padding: 20px;
+        ">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="font-size: 1.25rem; font-weight: 600; margin: 0;">Cancelled / On Hold</h2>
+                <h2 style="font-size: 1.25rem; font-weight: 600; margin: 0;">Cancelled Queue</h2>
                 <button onclick="closeCancelledModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">×</button>
             </div>
             <div style="display: flex; gap: 12px; margin-bottom: 20px;">
@@ -251,6 +282,11 @@ try {
                 <div id="cancelled-today-list">
                     <?php 
                     $cancelledItems = array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'cancelled');
+                    usort($cancelledItems, function ($first, $second) {
+                        $firstTime = strtotime($first['updated_at'] ?? $first['created_at'] ?? '') ?: 0;
+                        $secondTime = strtotime($second['updated_at'] ?? $second['created_at'] ?? '') ?: 0;
+                        return $secondTime <=> $firstTime;
+                    });
                     if (empty($cancelledItems)): ?>
                         <p style="text-align: center; color: #6b7280; padding: 20px;">No cancelled patients today</p>
                     <?php else: ?>
@@ -262,13 +298,17 @@ try {
                                 <div class="patient-name" style="text-decoration: line-through; color: #9ca3af;"><?php echo htmlspecialchars($cancelledPatientName ?: 'Unknown'); ?></div>
                                 <div class="patient-details">
                                     <span class="status-badge cancelled">Cancelled</span>
+                                    <?php $cancelledAt = $item['updated_at'] ?? $item['created_at'] ?? null; ?>
+                                    <?php if ($cancelledAt): ?>
+                                        <span style="font-size: 0.78rem; color: #6b7280;">Cancelled: <?php echo htmlspecialchars(date('M j, Y g:i A', strtotime($cancelledAt))); ?></span>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="patient-treatment"><?php echo htmlspecialchars($item['treatment_type'] ?? ''); ?></div>
                             </div>
                             <div class="patient-actions">
                                 <button class="action-btn icon view-btn" onclick="viewPatientDashboard(<?php echo (int)$item['patient_id']; ?>)">👁️</button>
                                 <button class="action-btn" style="background: #84cc16; color: white; padding: 8px 12px; border-radius: 6px; border: none; font-size: 12px; cursor: pointer;" onclick="requeuePatientDashboard(<?php echo $item['id']; ?>)">Re-queue</button>
-                                <button class="action-btn icon delete-btn">
+                                <button class="action-btn icon delete-btn" type="button" onclick="deleteCancelledPatient(<?php echo (int)$item['id']; ?>)" title="Delete cancelled record">
                                     <svg viewBox="-2.4 -2.4 28.80 28.80" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#000000" width="16" height="16"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round" stroke="#CCCCCC" stroke-width="0.144"></g><g id="SVGRepo_iconCarrier"> <path d="M5.82907 6.65808H18.6325V19.2906C18.6325 20.3951 17.7371 21.2906 16.6325 21.2906H7.82907C6.7245 21.2906 5.82907 20.3951 5.82907 19.2906V6.65808Z" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M4 5.74365L20.4615 5.74365" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M14.9134 3H9.54816L8.57266 5.74359H15.8889L14.9134 3Z" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></path> <line x1="12.3163" y1="10.4017" x2="12.3163" y2="17.547" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></line> <line x1="9.57266" y1="10.4017" x2="9.57266" y2="17.547" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></line> <line x1="15.0598" y1="10.4017" x2="15.0598" y2="17.547" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></line> </g></svg>
                                 </button>
                             </div>
@@ -354,8 +394,10 @@ try {
                         <?php $inProcedureName = $inProcedureItem ? buildPatientName($inProcedureItem) : ''; ?>
                         <div class="patient-name" id="live-patient-name"><?php echo $inProcedureItem ? htmlspecialchars($inProcedureName) : 'No Patient'; ?></div>
                         <div class="patient-details" style="margin-top: 10px;">
-                            <span class="status-badge now-serving">In Chair</span>
+                            <span class="status-badge now-serving">Time Started</span>
                             <span class="patient-time" id="live-patient-time"><?php echo $inProcedureItem ? htmlspecialchars($inProcedureItem['queue_time']) : '--:--'; ?></span>
+                            <span class="status-badge" style="background:#fef3c7;color:#92400e;">Elapsed</span>
+                            <span class="patient-time" id="live-procedure-duration">00:00:00</span>
                         </div>
                         <div class="patient-treatment" id="live-patient-treatment" style="margin-top: 8px;"><?php echo $inProcedureItem ? htmlspecialchars($inProcedureItem['treatment_type']) : 'Queue Empty'; ?></div>
                     </div>
@@ -786,6 +828,33 @@ const queueItems = <?php echo json_encode($queueItems); ?>;
 let dashboardConfirmHandler = null;
 let dashboardDeclineHandler = null;
 let dashboardAjaxTimer = null;
+let procedureTimer = null;
+let procedureStartedAt = null;
+
+function parseProcedureStart(value) {
+    if (!value) return null;
+    const normalized = String(value).trim().replace(' ', 'T');
+    const parsed = new Date(normalized);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function updateProcedureDuration() {
+    const durationEl = document.getElementById('live-procedure-duration');
+    if (!durationEl || !procedureStartedAt) return;
+    const elapsedSeconds = Math.max(0, Math.floor((Date.now() - procedureStartedAt.getTime()) / 1000));
+    const hours = String(Math.floor(elapsedSeconds / 3600)).padStart(2, '0');
+    const minutes = String(Math.floor((elapsedSeconds % 3600) / 60)).padStart(2, '0');
+    const seconds = String(elapsedSeconds % 60).padStart(2, '0');
+    durationEl.textContent = hours + ':' + minutes + ':' + seconds;
+}
+
+function setProcedureTimer(startValue) {
+    procedureStartedAt = parseProcedureStart(startValue);
+    if (procedureTimer) clearInterval(procedureTimer);
+    procedureTimer = null;
+    updateProcedureDuration();
+    if (procedureStartedAt) procedureTimer = setInterval(updateProcedureDuration, 1000);
+}
 
 function escapeDashboardHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, function(ch) {
@@ -942,6 +1011,7 @@ function renderDashboardLive(data) {
     const live = data && data.live_queue ? data.live_queue : null;
 
     if (!live) {
+        setProcedureTimer(null);
         if (patientName) patientName.textContent = 'No Patient';
         if (patientTime) patientTime.textContent = '--:--';
         if (patientTreatment) patientTreatment.textContent = 'Queue Empty';
@@ -953,6 +1023,8 @@ function renderDashboardLive(data) {
         return;
     }
 
+    setProcedureTimer(live.procedure_started_at);
+
     if (patientName) patientName.textContent = live.patient_name || 'No Patient';
     if (patientTime) patientTime.textContent = live.queue_time || '--:--';
     if (patientTreatment) patientTreatment.textContent = live.treatment_type || 'Queue Empty';
@@ -962,6 +1034,38 @@ function renderDashboardLive(data) {
         completeBtn.setAttribute('onclick', `completeCurrentPatient(${Number(live.id || 0)})`);
         completeBtn.innerHTML = '<span>✓</span> <span>Complete Treatment</span>';
     }
+}
+
+function renderDashboardCancelled(items) {
+    const list = document.getElementById('cancelled-today-list');
+    const count = document.getElementById('count-cancelled');
+    if (!list) return;
+
+    if (count) count.textContent = String(items.length);
+    if (!items.length) {
+        list.innerHTML = '<p style="text-align:center;color:#6b7280;padding:20px;">No cancelled patients today</p>';
+        return;
+    }
+
+    list.innerHTML = items.map(function(item) {
+        const cancelledDate = item.cancelled_at ? new Date(item.cancelled_at).toLocaleString('en-PH', {
+            year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+        }) : '';
+        return '<div class="patient-item" id="cancelled-' + Number(item.id || 0) + '">' +
+            '<div class="patient-info">' +
+                '<div class="patient-name" style="text-decoration:line-through;color:#9ca3af;">' + escapeHtml(item.patient_name || 'Unknown') + '</div>' +
+                '<div class="patient-details"><span class="status-badge cancelled">Cancelled</span>' +
+                    (cancelledDate ? '<span style="font-size:0.78rem;color:#6b7280;">Cancelled: ' + escapeHtml(cancelledDate) + '</span>' : '') +
+                '</div>' +
+                '<div class="patient-treatment">' + escapeHtml(item.treatment_type || '') + '</div>' +
+            '</div>' +
+            '<div class="patient-actions">' +
+                '<button class="action-btn icon view-btn" onclick="viewPatientDashboard(' + Number(item.patient_id || 0) + ')">👁️</button>' +
+                '<button class="action-btn" style="background:#84cc16;color:white;padding:8px 12px;border-radius:6px;border:none;font-size:12px;cursor:pointer;" onclick="requeuePatientDashboard(' + Number(item.id || 0) + ')">Re-queue</button>' +
+                '<button class="action-btn icon delete-btn" type="button" onclick="deleteCancelledPatient(' + Number(item.id || 0) + ')" title="Delete cancelled record">🗑️</button>' +
+            '</div>' +
+        '</div>';
+    }).join('');
 }
 
 async function loadDashboardData() {
@@ -985,6 +1089,7 @@ async function loadDashboardData() {
         const data = await response.json();
         renderDashboardLive(data);
         renderDashboardQueue(data.waiting || []);
+        renderDashboardCancelled(data.cancelled || []);
         renderDashboardPending(data.pending_approval || []);
         renderDashboardUpcoming(data.upcoming_appointments || []);
 
@@ -999,7 +1104,7 @@ async function loadDashboardData() {
 function startDashboardPolling() {
     if (dashboardAjaxTimer) return;
     loadDashboardData();
-    dashboardAjaxTimer = setInterval(loadDashboardData, 15000);
+    dashboardAjaxTimer = setInterval(loadDashboardData, 5000);
 }
 
 // Portal Pattern: Move modals to body level to escape stacking context
@@ -1193,6 +1298,19 @@ function requeuePatientDashboard(queueId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            const cancelledItem = document.getElementById('cancelled-' + queueId);
+            if (cancelledItem) cancelledItem.remove();
+
+            const cancelledTodayList = document.getElementById('cancelled-today-list');
+            if (cancelledTodayList && !cancelledTodayList.querySelector('.patient-item')) {
+                cancelledTodayList.innerHTML = '<p style="text-align:center;color:#6b7280;padding:20px;">No cancelled patients today</p>';
+            }
+
+            const cancelledCount = document.getElementById('count-cancelled');
+            if (cancelledCount) {
+                const currentCount = parseInt(cancelledCount.textContent, 10) || 0;
+                cancelledCount.textContent = Math.max(0, currentCount - 1);
+            }
             loadDashboardData();
         } else {
             showDashboardMessage(data.message || 'Unable to re-queue patient', 'Queue Status');
@@ -1300,6 +1418,41 @@ function filterCancelled(filter) {
         weekList.style.display = 'block';
         todayList.style.display = 'none';
     }
+}
+
+function deleteCancelledPatient(queueId) {
+    if (!queueId) return;
+    openDashboardConfirmModal('Delete this cancelled record? This action cannot be undone.', function() {
+        fetch('../shared/queue_actions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'delete', queue_id: queueId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                showDashboardMessage(data.message || 'Unable to delete cancelled record', 'Delete Failed');
+                return;
+            }
+
+            const item = document.getElementById('cancelled-' + queueId);
+            if (item) item.remove();
+
+            const todayList = document.getElementById('cancelled-today-list');
+            if (todayList && !todayList.querySelector('.patient-item')) {
+                todayList.innerHTML = '<p style="text-align:center;color:#6b7280;padding:20px;">No cancelled patients today</p>';
+            }
+
+            const countEl = document.getElementById('count-cancelled');
+            if (countEl) {
+                const currentCount = parseInt(countEl.textContent, 10) || 0;
+                countEl.textContent = Math.max(0, currentCount - 1);
+            }
+        })
+        .catch(() => {
+            showDashboardMessage('Unable to delete cancelled record', 'Delete Failed');
+        });
+    }, 'Delete Cancelled Record');
 }
 
 // Patient Record Modal

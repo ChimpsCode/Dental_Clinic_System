@@ -236,6 +236,8 @@ if (($patient['status_text'] ?? '') === 'in_procedure') {
                         <div>
                             <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Started At</div>
                             <div style="font-weight: 600; color: #111827;"><?php echo date('g:i A', strtotime($inProcedurePatient['updated_at'] ?? $inProcedurePatient['queue_time'])); ?></div>
+                            <div style="font-size:0.75rem;color:#92400e;text-transform:uppercase;letter-spacing:0.05em;margin-top:0px;margin-bottom:4px;">Elapsed</div>
+                            <div id="dentist-procedure-duration" style="font-weight:600;color:#92400e;">00:00:00</div>
                         </div>
                     </div>
                 </div>
@@ -1363,6 +1365,32 @@ document.addEventListener('keydown', function(e) {
 
 // Queue auto-polling for dashboard (counts + queue list)
 var ddQueueHash = '';
+var dentistProcedureTimer = null;
+var dentistProcedureStartedAt = null;
+
+function parseDentistProcedureStart(value) {
+    if (!value) return null;
+    var parsed = new Date(String(value).trim().replace(' ', 'T'));
+    return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function updateDentistProcedureDuration() {
+    var durationEl = document.getElementById('dentist-procedure-duration');
+    if (!durationEl || !dentistProcedureStartedAt) return;
+    var elapsedSeconds = Math.max(0, Math.floor((Date.now() - dentistProcedureStartedAt.getTime()) / 1000));
+    var hours = String(Math.floor(elapsedSeconds / 3600)).padStart(2, '0');
+    var minutes = String(Math.floor((elapsedSeconds % 3600) / 60)).padStart(2, '0');
+    var seconds = String(elapsedSeconds % 60).padStart(2, '0');
+    durationEl.textContent = hours + ':' + minutes + ':' + seconds;
+}
+
+function setDentistProcedureTimer(startValue) {
+    dentistProcedureStartedAt = parseDentistProcedureStart(startValue);
+    if (dentistProcedureTimer) clearInterval(dentistProcedureTimer);
+    dentistProcedureTimer = null;
+    updateDentistProcedureDuration();
+    if (dentistProcedureStartedAt) dentistProcedureTimer = setInterval(updateDentistProcedureDuration, 1000);
+}
 
 function pollDashboardQueue() {
     fetch('../shared/queue_poll.php')
@@ -1408,6 +1436,8 @@ function refreshDashboardQueue(data) {
             waitingItems.push(items[i]);
         }
     }
+
+    setDentistProcedureTimer(inProcedure ? inProcedure.procedure_started_at : null);
 
     var nextPatient = waitingItems.length > 0 ? waitingItems[0] : null;
     var upcomingPatients = waitingItems.slice(1);
@@ -1494,8 +1524,8 @@ function buildInProcedureHTML(p) {
         '<div style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:20px;">' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">' +
         '<div><div style="font-size:0.75rem;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Treatment</div><div style="font-weight:600;color:#111827;">' + treatment + '</div></div>' +
-        '<div><div style="font-size:0.75rem;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Teeth</div><div style="font-weight:600;color:#111827;">' + teeth + '</div></div>' +
         '<div><div style="font-size:0.75rem;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Started At</div><div style="font-weight:600;color:#111827;">' + startedAt + '</div></div>' +
+        '<div><div style="font-size:0.75rem;color:#92400e;text-transform:uppercase;letter-spacing:0.05em;margin-top:8px;margin-bottom:4px;">Elapsed</div><div id="dentist-procedure-duration" style="font-weight:600;color:#92400e;">00:00:00</div></div>' +
         '</div></div>' +
         '<div style="display:flex;gap:12px;">' +
         '<button onclick="viewPatientDetails(' + pid + ')" class="action-btn" style="background:#6b7280;color:white;flex:1;padding:12px;font-size:1rem;border:none;border-radius:8px;cursor:pointer;"><span style="margin-right:6px;">👁</span> View Details</button>' +
