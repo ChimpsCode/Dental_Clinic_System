@@ -1,6 +1,6 @@
 <?php
 
-function sendOtpEmail(string $email, string $firstName, string $otpCode): bool {
+function sendOtpEmail(string $email, string $firstName, string $otpCode, string $purpose = 'registration'): bool {
     $configPath = __DIR__ . '/../config/mailer_config.php';
     if (!file_exists($configPath)) {
         error_log('sendOtpEmail: mailer_config.php not found');
@@ -38,15 +38,28 @@ function sendOtpEmail(string $email, string $firstName, string $otpCode): bool {
         $mailer->setFrom(MAIL_FROM, MAIL_FROM_NAME);
         $mailer->addAddress($email, $firstName);
 
+        if ($purpose === 'password_change') {
+            $subject = 'RF Dental Clinic - Password Change Verification Code';
+            $intro = 'You requested to change your account password. '
+                . 'Use the verification code below to continue:';
+            $ignore = 'If you did not request a password change, '
+                . 'please ignore this email or contact the clinic.';
+        } else {
+            $subject = 'RF Dental Clinic - Email Verification Code';
+            $intro = 'Thank you for registering. Use the verification code below to complete your registration:';
+            $ignore = 'If you did not create an account, please ignore this email.';
+        }
+
         $mailer->isHTML(true);
-        $mailer->Subject = 'RF Dental Clinic - Email Verification Code';
+        $mailer->Subject = $subject;
         $mailer->Body = '<p>Hi ' . htmlspecialchars($firstName) . ',</p>'
-            . '<p>Thank you for registering. Use the verification code below to complete your registration:</p>'
+            . '<p>' . $intro . '</p>'
             . '<p style="font-size:24px;font-weight:bold;letter-spacing:5px;text-align:center;padding:16px;background:#f3f4f6;border-radius:8px;">'
             . htmlspecialchars($otpCode) . '</p>'
             . '<p>This code expires in <strong>3 minutes</strong>.</p>'
-            . '<p>If you did not create an account, please ignore this email.</p>';
-        $mailer->AltBody = 'Hi ' . $firstName . ', your verification code is: ' . $otpCode . '. This code expires in 3 minutes.';
+            . '<p>' . $ignore . '</p>';
+        $mailer->AltBody = 'Hi ' . $firstName . ', ' . $intro . ' Your verification code is: ' . $otpCode
+            . ' This code expires in 3 minutes. ' . $ignore;
 
         $mailer->send();
         return true;

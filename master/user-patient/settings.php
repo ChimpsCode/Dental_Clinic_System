@@ -118,7 +118,7 @@ try {
                         $_SESSION['patient_password_otp'] = password_hash($passwordOtp, PASSWORD_DEFAULT);
                         $_SESSION['patient_password_pending'] = password_hash($new_password, PASSWORD_DEFAULT);
                         $_SESSION['patient_password_otp_expires'] = time() + 180;
-                        if (sendOtpEmail($user['email'] ?? '', $user['first_name'] ?? 'Patient', $passwordOtp)) {
+                        if (sendOtpEmail($user['email'] ?? '', $user['first_name'] ?? 'Patient', $passwordOtp, 'password_change')) {
                             $passwordOtpPending = true;
                             $message = 'A verification code was sent to your email.';
                             $messageType = 'success';

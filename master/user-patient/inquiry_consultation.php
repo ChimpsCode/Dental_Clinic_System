@@ -570,8 +570,8 @@ $pageTitle = 'Inquiry / Consultation';
                     </div>
 
                     <div class="profile-buttons">
-                        <button class="btn-block btn-primary">Book an Appointment</button>
-                        <button class="btn-block btn-outline">View Records</button>
+                        <button type="button" class="btn-block btn-primary" onclick="window.location.href='appointments.php';">Book an Appointment</button>
+                        <button type="button" class="btn-block btn-outline" onclick="window.location.href='medical_records.php';">View Records</button>
                     </div>
 
                     <div class="profile-section">

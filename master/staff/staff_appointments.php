@@ -605,7 +605,7 @@ try {
     </div>
 </div>
 
-<div id="qrMaximizedModal" class="modal-overlay">
+<div id="qrMaximizedModal" class="modal-overlay" data-preserve-open="1">
     <div class="modal" style="width: auto; max-width: 620px; text-align: center;">
         <h2 style="margin: 0 0 16px; font-size: 1.1rem; font-weight: 600;">Online Booking QR Code</h2>
         <div id="qrMaximizedContent"></div>
@@ -1694,6 +1694,8 @@ try {
             const modal = document.createElement('div');
             modal.id = 'cancelReasonModal';
             modal.className = 'modal-overlay';
+            // Keep open across background polling refreshes; Cancel/Confirm close it explicitly
+            modal.dataset.preserveOpen = '1';
             modal.style.display = 'none';
             modal.innerHTML = `
                 <div class="modal" style="width: 400px;">
@@ -1734,6 +1736,7 @@ try {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                closeCancelReasonModal();
                 refreshAppointmentsAjax();
             } else {
                 alert(data.message || 'Error');
@@ -2068,6 +2071,8 @@ try {
             const modal = document.createElement('div');
             modal.id = 'markArrivedModal';
             modal.className = 'modal-overlay';
+            // Keep open across background polling refreshes; Done/Cancel close it explicitly
+            modal.dataset.preserveOpen = '1';
             modal.style.display = 'none';
             modal.innerHTML = `
                 <div class="modal" style="width: 560px;">
@@ -2217,6 +2222,7 @@ try {
                 body: JSON.stringify(payload)
             }).catch(function() {});
         }
+        closeMarkArrivedModal();
         refreshAppointmentsAjax();
     }
 

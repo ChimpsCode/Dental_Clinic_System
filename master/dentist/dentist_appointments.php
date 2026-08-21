@@ -1720,6 +1720,8 @@ function closeApptKebabDropdown() {
             const modal = document.createElement('div');
             modal.id = 'markArrivedModal';
             modal.className = 'modal-overlay';
+            // Keep open across background polling refreshes; Done/Cancel close it explicitly
+            modal.dataset.preserveOpen = '1';
             modal.style.display = 'none';
             modal.innerHTML = `
                 <div class="modal" style="width: 420px;">
@@ -1821,7 +1823,7 @@ function closeApptKebabDropdown() {
                 `;
                 const actions = document.getElementById('markArrivedActions');
                 actions.style.justifyContent = 'center';
-                actions.innerHTML = `<button onclick="refreshAppointmentsAjax()" class="btn-primary" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Done</button>`;
+                actions.innerHTML = `<button onclick="closeMarkArrivedModal(); refreshAppointmentsAjax()" class="btn-primary" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Done</button>`;
             } else {
                 btn.disabled = false;
                 btn.textContent = 'Confirm Mark as Arrived';
@@ -1887,6 +1889,8 @@ function closeApptKebabDropdown() {
             const modal = document.createElement('div');
             modal.id = 'cancelReasonModal';
             modal.className = 'modal-overlay';
+            // Keep open across background polling refreshes; Cancel/Confirm close it explicitly
+            modal.dataset.preserveOpen = '1';
             modal.style.display = 'none';
             modal.innerHTML = `
                 <div class="modal" style="width: 400px;">
@@ -1927,6 +1931,7 @@ function closeApptKebabDropdown() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                closeCancelReasonModal();
                 refreshAppointmentsAjax();
             } else {
                 alert(data.message || 'Error');
