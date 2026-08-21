@@ -486,7 +486,7 @@ $sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'pe
 </div>
 
 <!-- New Appointment Modal -->
-<div id="newAppointmentModal" class="modal-overlay">
+<div id="newAppointmentModal" class="modal-overlay" data-preserve-open="1">
     <div class="modal" style="width: 550px; max-height: 90vh; overflow-y: auto;">
         <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Schedule New Appointment</h2>
         <form id="newAppointmentForm">
@@ -558,7 +558,7 @@ $sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'pe
 </div>
 
 <!-- View Appointment Modal -->
-<div id="viewAppointmentModal" class="modal-overlay">
+<div id="viewAppointmentModal" class="modal-overlay" data-preserve-open="1">
     <div class="modal" style="width: 500px;">
         <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Appointment Details</h2>
         <div id="viewAppointmentContent"></div>
@@ -569,7 +569,7 @@ $sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'pe
 </div>
 
 <!-- Edit Appointment Modal -->
-<div id="editAppointmentModal" class="modal-overlay">
+<div id="editAppointmentModal" class="modal-overlay" data-preserve-open="1">
     <div class="modal" style="width: 600px; max-height: 90vh; overflow-y: auto;">
         <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Reschedule Appointment</h2>
         <form id="editAppointmentForm">
@@ -1940,7 +1940,7 @@ function closeApptKebabDropdown() {
         closeCancelReasonModal();
     }
 </script>
-<script src="../../assets/js/appointment_ajax_refresh.js"></script>
+<script src="../../assets/js/appointment_ajax_refresh.js?v=2"></script>
 
 <style>
 /* Filter Tabs Styles */

@@ -180,6 +180,10 @@
                 content.replaceWith(nextContent);
                 restoreAppointmentView(state);
                 document.querySelectorAll('.modal-overlay').forEach(function (modal) {
+                    // Never force-close modals the user is actively using
+                    // (e.g. the Reschedule Appointment form); polling-triggered
+                    // refreshes would otherwise dismiss them mid-edit.
+                    if (modal.dataset.preserveOpen === '1') return;
                     modal.style.display = 'none';
                 });
                 return true;

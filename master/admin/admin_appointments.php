@@ -471,7 +471,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
             </div>
 
 <!-- View Appointment Modal -->
-<div id="viewAppointmentModal" class="modal-overlay">
+<div id="viewAppointmentModal" class="modal-overlay" data-preserve-open="1">
     <div class="modal" style="width: 500px;">
         <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Appointment Details</h2>
         <div id="viewAppointmentContent"></div>
@@ -483,7 +483,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 </div>
 
 <!-- New Appointment Modal -->
-<div id="appointmentModal" class="modal-overlay">
+<div id="appointmentModal" class="modal-overlay" data-preserve-open="1">
     <div class="modal" style="width: 600px;">
         <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Schedule New Appointment</h2>
         <form id="appointmentForm">
@@ -1939,8 +1939,11 @@ function getApptBadgeClass(status) {
 document.addEventListener('DOMContentLoaded', startAppointmentPolling);
 </script>
 
-<script src="../../assets/js/appointment_live_refresh.js"></script>
-<script src="../../assets/js/appointment_ajax_refresh.js"></script>
+<script src="../../assets/js/appointment_ajax_refresh.js?v=2"></script>
+<!-- live_refresh must load LAST: both files define window.refreshAppointmentsAjax,
+     and this gentle version (swaps only .list-view) must win so background
+     polling never replaces .content-main and force-closes open modals -->
+<script src="../../assets/js/appointment_live_refresh.js?v=2"></script>
 
 <?php
 require_once __DIR__ . '/../../includes/admin_layout_end.php';
