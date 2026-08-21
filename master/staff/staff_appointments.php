@@ -428,6 +428,7 @@ try {
                         $name = trim("$fn $mn $ln") ?: 'Unknown';
                         $time = !empty($appt['appointment_time']) ? date('h:i A', strtotime($appt['appointment_time'])) : '';
                         $date = date('Y-m-d', strtotime($appt['appointment_date']));
+                        $dateLabel = date('M j, Y', strtotime($appt['appointment_date']));
                         $treatment = htmlspecialchars($appt['service_name'] ?? 'General');
                         $dentist = htmlspecialchars($appt['dentist_name'] ?? 'Unassigned');
                         $status = $appt['display_status'] ?? ($appt['status_label'] ?? $appt['status'] ?? 'Scheduled');
@@ -463,6 +464,7 @@ try {
                             </div>
                         </div>
                         <div class="mini-card-bottom">
+                            <span class="mini-card-date">📅 <?php echo htmlspecialchars($dateLabel); ?></span>
                             <span class="mini-card-treatment"><?php echo $treatment; ?> &middot; <?php echo $dentist; ?></span>
                             <span class="status-badge badge-small <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($status); ?></span>
                         </div>
@@ -470,6 +472,7 @@ try {
                         <div class="appt-approval-actions">
                             <button type="button" class="btn-approve" onclick="approveAppointment(<?php echo (int)$appt['id']; ?>)">✓ Approve</button>
                             <button type="button" class="btn-decline" onclick="declineAppointment(<?php echo (int)$appt['id']; ?>)">✕ Decline</button>
+                            <button type="button" class="pa-call" style="width:40px;min-width:40px;padding:8px;border:1px solid #bfdbfe;border-radius:6px;background:#eff6ff;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;" data-patient-name="<?php echo htmlspecialchars($name, ENT_QUOTES, 'UTF-8'); ?>" data-phone="<?php echo htmlspecialchars($appt['phone'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" onclick="openAppointmentCallModalFromButton(this)" title="View patient phone number" aria-label="View patient phone number"><img src="../../assets/icons/call_button.png" alt="Phone" style="width:18px;height:18px;object-fit:contain;"></button>
                         </div>
                         <?php endif; ?>
                     </div>
@@ -1544,7 +1547,7 @@ try {
         .then(function(data) {
             if (data.success) {
                 closeAppointmentModal();
-                location.reload();
+                refreshAppointmentsAjax();
             } else {
                 alert(data.message || 'Error scheduling appointment');
             }
@@ -1650,7 +1653,7 @@ try {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                location.reload();
+                refreshAppointmentsAjax();
             } else {
                 alert(data.message || 'Error');
             }
@@ -1664,47 +1667,48 @@ try {
     }
 
     function approveAppointment(id) {
-        if (!confirm('Approve this appointment request?\n\nThe patient will be notified and the slot will be added to the calendar.')) return;
-        fetch('../shared/approve_appointment.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'approve', appointment_id: id })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(data.message || 'Appointment approved');
-                location.reload();
-            } else {
-                alert(data.message || 'Error approving appointment');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Something went wrong. Please try again.');
+        openAppointmentDecisionModal('approve', function() {
+            fetch('../shared/approve_appointment.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'approve', appointment_id: id })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message || 'Appointment approved');
+                    refreshAppointmentsAjax();
+                } else {
+                    alert(data.message || 'Error approving appointment');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Something went wrong. Please try again.');
+            });
         });
     }
 
     function declineAppointment(id) {
-        const reason = prompt('Enter a reason for declining this request (optional):', '');
-        if (reason === null) return;
-        fetch('../shared/approve_appointment.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'decline', appointment_id: id, decline_reason: reason })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(data.message || 'Appointment request declined');
-                location.reload();
-            } else {
-                alert(data.message || 'Error declining appointment');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Something went wrong. Please try again.');
+        openAppointmentDecisionModal('decline', function(reason) {
+            fetch('../shared/approve_appointment.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'decline', appointment_id: id, decline_reason: reason })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message || 'Appointment request declined');
+                    refreshAppointmentsAjax();
+                } else {
+                    alert(data.message || 'Error declining appointment');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Something went wrong. Please try again.');
+            });
         });
     }
 
@@ -2166,7 +2170,7 @@ try {
                 body: JSON.stringify(payload)
             }).catch(function() {});
         }
-        location.reload();
+        refreshAppointmentsAjax();
     }
 
     function printMarkArrivedTicket() {
@@ -2345,7 +2349,7 @@ try {
         .then(function(data) {
             if (data.success) {
                 closeQueueEditModal();
-                location.reload();
+                refreshAppointmentsAjax();
             } else {
                 btn.disabled = false;
                 btn.textContent = 'Save Changes';
@@ -2388,7 +2392,7 @@ try {
             .then(data => {
                 console.log('Delete response data:', data);
                 if (data.success) {
-                    location.reload();
+                    refreshAppointmentsAjax();
                 } else {
                     alert('Error: ' + (data.message || 'Unknown error'));
                 }
@@ -2412,6 +2416,7 @@ function startAppointmentPolling() {
                 if (data.hash !== apptPollHashStaff) {
                     apptPollHashStaff = data.hash;
                     refreshAppointmentStatuses(data.appointments);
+                    if (typeof refreshAppointmentsAjax === 'function') refreshAppointmentsAjax();
                 }
             })
             .catch(function(e) { console.error('Appointment poll error:', e); });
@@ -2492,5 +2497,6 @@ document.addEventListener('DOMContentLoaded', startAppointmentPolling);
     }
 })();
 </script>
+<script src="../../assets/js/appointment_ajax_refresh.js"></script>
 
 <?php require_once '../../includes/staff_layout_end.php'; ?>

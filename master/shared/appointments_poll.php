@@ -22,8 +22,6 @@ header('Content-Type: application/json');
 try {
     require_once '../../config/database.php';
 
-    $today = date('Y-m-d');
-
     $stmt = $pdo->prepare("
         SELECT a.id, a.patient_id, a.status, a.appointment_date, a.appointment_time,
                a.check_in_time, a.service_id,
@@ -31,11 +29,10 @@ try {
                COALESCE(p.last_name, 'Unknown') as last_name
         FROM appointments a
         LEFT JOIN patients p ON a.patient_id = p.id
-        WHERE a.is_archived = 0
-          AND a.appointment_date = ?
+        WHERE (a.is_archived = 0 OR a.is_archived IS NULL)
         ORDER BY a.appointment_time ASC
     ");
-    $stmt->execute([$today]);
+        $stmt->execute();
     $items = $stmt->fetchAll();
 
     $hash = md5(json_encode($items));

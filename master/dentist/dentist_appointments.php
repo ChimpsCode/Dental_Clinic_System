@@ -409,6 +409,7 @@ $sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'pe
                     $name = trim("$fn $mn $ln") ?: 'Unknown';
                     $time = !empty($apt['appointment_time']) ? date('h:i A', strtotime($apt['appointment_time'])) : '';
                     $date = date('Y-m-d', strtotime($apt['appointment_date']));
+                    $dateLabel = date('M j, Y', strtotime($apt['appointment_date']));
                     $treatment = htmlspecialchars($apt['service_name'] ?? 'Consultation');
                     $status = $apt['display_status'] ?? ($apt['status_label'] ?? $apt['status'] ?? 'Scheduled');
                     $isLiveQueue = ($status === 'In Procedure');
@@ -441,6 +442,7 @@ $sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'pe
                         </div>
                     </div>
                     <div class="mini-card-bottom">
+                        <span class="mini-card-date">📅 <?php echo htmlspecialchars($dateLabel); ?></span>
                         <span class="mini-card-treatment"><?php echo $treatment; ?></span>
                         <span class="status-badge badge-small <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($status); ?></span>
                     </div>
@@ -448,6 +450,7 @@ $sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'pe
                     <div class="appt-approval-actions">
                         <button type="button" class="btn-approve" onclick="approveAppointment(<?php echo (int)$apt['id']; ?>)">✓ Approve</button>
                         <button type="button" class="btn-decline" onclick="declineAppointment(<?php echo (int)$apt['id']; ?>)">✕ Decline</button>
+                        <button type="button" class="pa-call" style="width:40px;min-width:40px;padding:8px;border:1px solid #bfdbfe;border-radius:6px;background:#eff6ff;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;" data-patient-name="<?php echo htmlspecialchars($name, ENT_QUOTES, 'UTF-8'); ?>" data-phone="<?php echo htmlspecialchars($apt['phone'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" onclick="openAppointmentCallModalFromButton(this)" title="View patient phone number" aria-label="View patient phone number"><img src="../../assets/icons/call_button.png" alt="Phone" style="width:18px;height:18px;object-fit:contain;"></button>
                     </div>
                     <?php endif; ?>
                 </div>
@@ -897,47 +900,48 @@ function filterAppointments() {
     }
 
     function approveAppointment(id) {
-        if (!confirm('Approve this appointment request?\n\nThe patient will be notified and the slot will be added to the calendar.')) return;
-        fetch('../shared/approve_appointment.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'approve', appointment_id: id })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(data.message || 'Appointment approved');
-                location.reload();
-            } else {
-                alert(data.message || 'Error approving appointment');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Something went wrong. Please try again.');
+        openAppointmentDecisionModal('approve', function() {
+            fetch('../shared/approve_appointment.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'approve', appointment_id: id })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message || 'Appointment approved');
+                    refreshAppointmentsAjax();
+                } else {
+                    alert(data.message || 'Error approving appointment');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Something went wrong. Please try again.');
+            });
         });
     }
 
     function declineAppointment(id) {
-        const reason = prompt('Enter a reason for declining this request (optional):', '');
-        if (reason === null) return;
-        fetch('../shared/approve_appointment.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'decline', appointment_id: id, decline_reason: reason })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(data.message || 'Appointment request declined');
-                location.reload();
-            } else {
-                alert(data.message || 'Error declining appointment');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Something went wrong. Please try again.');
+        openAppointmentDecisionModal('decline', function(reason) {
+            fetch('../shared/approve_appointment.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'decline', appointment_id: id, decline_reason: reason })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message || 'Appointment request declined');
+                    refreshAppointmentsAjax();
+                } else {
+                    alert(data.message || 'Error declining appointment');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Something went wrong. Please try again.');
+            });
         });
     }
 
@@ -973,7 +977,7 @@ document.getElementById('newAppointmentForm').addEventListener('submit', functio
         if (data.success) {
             alert('Appointment scheduled successfully!');
             closeNewAppointmentModal();
-            location.reload();
+            refreshAppointmentsAjax();
         } else {
             alert(data.message || 'Error scheduling appointment');
         }
@@ -1059,7 +1063,7 @@ document.getElementById('editAppointmentForm').addEventListener('submit', functi
         if (data.success) {
             alert('Appointment updated successfully!');
             closeEditAppointmentModal();
-            location.reload();
+            refreshAppointmentsAjax();
         } else {
             alert(data.message || 'Error updating appointment');
         }
@@ -1276,7 +1280,7 @@ function viewAppointmentDetails(id) {
                 alert('Payment marked as paid!');
                 currentPaymentStatus = 'paid';
                 renderModal();
-                location.reload();
+                refreshAppointmentsAjax();
             } else {
                 alert('Error: ' + (data.message || 'Failed to mark as paid'));
             }
@@ -1322,6 +1326,7 @@ function startAppointmentPolling() {
                 if (data.hash !== apptPollHashDentist) {
                     apptPollHashDentist = data.hash;
                     refreshAppointmentStatuses(data.appointments);
+                    if (typeof refreshAppointmentsAjax === 'function') refreshAppointmentsAjax();
                 }
             })
             .catch(function(e) { console.error('Appointment poll error:', e); });
@@ -1609,7 +1614,7 @@ function closeApptKebabDropdown() {
                 `;
                 const actions = document.getElementById('markArrivedActions');
                 actions.style.justifyContent = 'center';
-                actions.innerHTML = `<button onclick="location.reload()" class="btn-primary" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Done</button>`;
+                actions.innerHTML = `<button onclick="refreshAppointmentsAjax()" class="btn-primary" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Done</button>`;
             } else {
                 btn.disabled = false;
                 btn.textContent = 'Confirm Mark as Arrived';
@@ -1715,7 +1720,7 @@ function closeApptKebabDropdown() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                location.reload();
+                refreshAppointmentsAjax();
             } else {
                 alert(data.message || 'Error');
             }
@@ -1728,6 +1733,7 @@ function closeApptKebabDropdown() {
         closeCancelReasonModal();
     }
 </script>
+<script src="../../assets/js/appointment_ajax_refresh.js"></script>
 
 <style>
 /* Filter Tabs Styles */

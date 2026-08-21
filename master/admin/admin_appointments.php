@@ -113,23 +113,6 @@ try {
     $unavailableDates = [];
 }
 
-$todayCount = 0;
-$completedCount = 0;
-$pendingCount = 0;
-$cancelledCount = 0;
-try {
-    $baseWhere = $countWhereClause ? $countWhereClause . " AND " : "WHERE ";
-    $todayCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
-    $completedCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere status = 'Completed' AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
-    $pendingCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere status IN ('Scheduled','In Queue','Pending Approval') AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
-    $cancelledCount = (int)($pdo->query("SELECT COUNT(*) FROM appointments $baseWhere status = 'Cancelled' AND DATE(appointment_date) = CURDATE()")->fetchColumn() ?? 0);
-} catch (Exception $e) {
-    $todayCount = 0;
-    $completedCount = 0;
-    $pendingCount = 0;
-    $cancelledCount = 0;
-}
-
 // Group appointments into 3 panels: scheduled (left), in queue (right top), pending approval (right bottom)
 $sectionLabels = ['scheduled' => 'Scheduled', 'inqueue' => 'In Queue', 'pendingapproval' => 'Pending Approval'];
 $sections = ['scheduled' => [], 'inqueue' => [], 'pendingapproval' => []];
@@ -150,6 +133,26 @@ function adminApptPanel(string $displayStatus): string {
     if (strpos($displayStatus, 'Pending Approval') !== false) return 'pendingapproval';
     if ($displayStatus === 'Scheduled') return 'scheduled';
     return 'inqueue';
+}
+
+$todayCount = 0;
+$completedCount = 0;
+$pendingCount = 0;
+$cancelledCount = 0;
+$today = date('Y-m-d');
+foreach ($allAppointments as $appt) {
+    $displayStatus = adminApptDisplayStatus($appt);
+    $appointmentDate = !empty($appt['appointment_date']) ? date('Y-m-d', strtotime($appt['appointment_date'])) : '';
+    if ($appointmentDate === $today) {
+        $todayCount++;
+    }
+    if ($displayStatus === 'Completed') {
+        $completedCount++;
+    } elseif ($displayStatus === 'Cancelled') {
+        $cancelledCount++;
+    } elseif (in_array($displayStatus, ['Scheduled', 'In Queue', 'In Procedure', 'Pending Approval', 'Pending Payment'], true)) {
+        $pendingCount++;
+    }
 }
 
 $queuePanelOrder = ['In Procedure' => 0, 'In Queue' => 1, 'Pending Payment' => 2, 'Completed' => 3, 'Cancelled' => 4];
@@ -388,6 +391,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                     $name = trim("$fn $mn $ln") ?: 'Unknown';
                                     $time = !empty($appt['appointment_time']) ? date('h:i A', strtotime($appt['appointment_time'])) : '';
                                     $date = date('Y-m-d', strtotime($appt['appointment_date']));
+                                    $dateLabel = date('M j, Y', strtotime($appt['appointment_date']));
                                     $treatment = htmlspecialchars($appt['service_name'] ?? 'General');
                                     $dentist = htmlspecialchars($appt['dentist_name'] ?? 'Unassigned');
                                     $status = $appt['display_status'] ?? ($appt['status_label'] ?? $appt['status'] ?? 'Scheduled');
@@ -423,6 +427,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                         </div>
                                     </div>
                                     <div class="mini-card-bottom">
+                                        <span class="mini-card-date">📅 <?php echo htmlspecialchars($dateLabel); ?></span>
                                         <span class="mini-card-treatment"><?php echo $treatment; ?> &middot; <?php echo $dentist; ?></span>
                                         <span class="status-badge badge-small <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($status); ?></span>
                                     </div>
@@ -430,6 +435,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                     <div class="appt-approval-actions">
                                         <button type="button" class="btn-approve" onclick="approveAppointment(<?php echo (int)$appt['id']; ?>)">✓ Approve</button>
                                         <button type="button" class="btn-decline" onclick="declineAppointment(<?php echo (int)$appt['id']; ?>)">✕ Decline</button>
+                                        <button type="button" class="pa-call" style="width:40px;min-width:40px;padding:8px;border:1px solid #bfdbfe;border-radius:6px;background:#eff6ff;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;" data-patient-name="<?php echo htmlspecialchars($name, ENT_QUOTES, 'UTF-8'); ?>" data-phone="<?php echo htmlspecialchars($appt['phone'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" onclick="openAppointmentCallModalFromButton(this)" title="View patient phone number" aria-label="View patient phone number"><img src="../../assets/icons/call_button.png" alt="Phone" style="width:18px;height:18px;object-fit:contain;"></button>
                                     </div>
                                     <?php endif; ?>
                                 </div>
@@ -1295,7 +1301,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         .then(function(data) {
             if (data.success) {
                 closeAppointmentModal();
-                location.reload();
+                refreshAppointmentsAjax();
             } else {
                 alert(data.message || 'Error scheduling appointment');
             }
@@ -1383,7 +1389,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                location.reload();
+                refreshAppointmentsAjax();
             } else {
                 alert(data.message || 'Error cancelling appointment');
             }
@@ -1401,47 +1407,48 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
     }
 
     function approveAppointment(id) {
-        if (!confirm('Approve this appointment request?\n\nThe patient will be notified and the slot will be added to the calendar.')) return;
-        fetch('../shared/approve_appointment.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'approve', appointment_id: id })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(data.message || 'Appointment approved');
-                location.reload();
-            } else {
-                alert(data.message || 'Error approving appointment');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Something went wrong. Please try again.');
+        openAppointmentDecisionModal('approve', function() {
+            fetch('../shared/approve_appointment.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'approve', appointment_id: id })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message || 'Appointment approved');
+                    refreshAppointmentsAjax();
+                } else {
+                    alert(data.message || 'Error approving appointment');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Something went wrong. Please try again.');
+            });
         });
     }
 
     function declineAppointment(id) {
-        const reason = prompt('Enter a reason for declining this request (optional):', '');
-        if (reason === null) return;
-        fetch('../shared/approve_appointment.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'decline', appointment_id: id, decline_reason: reason })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(data.message || 'Appointment request declined');
-                location.reload();
-            } else {
-                alert(data.message || 'Error declining appointment');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Something went wrong. Please try again.');
+        openAppointmentDecisionModal('decline', function(reason) {
+            fetch('../shared/approve_appointment.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'decline', appointment_id: id, decline_reason: reason })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message || 'Appointment request declined');
+                    refreshAppointmentsAjax();
+                } else {
+                    alert(data.message || 'Error declining appointment');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Something went wrong. Please try again.');
+            });
         });
     }
 
@@ -1828,7 +1835,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 `;
                 const actions = document.getElementById('markArrivedActions');
                 actions.style.justifyContent = 'center';
-                actions.innerHTML = `<button onclick="location.reload()" class="btn-primary" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Done</button>`;
+                actions.innerHTML = `<button onclick="refreshAppointmentsAjax()" class="btn-primary" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Done</button>`;
             } else {
                 btn.disabled = false;
                 btn.textContent = 'Confirm Mark as Arrived';
@@ -1881,7 +1888,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    location.reload();
+                    refreshAppointmentsAjax();
                 } else {
                     alert(data.message || 'Error deleting appointment');
                 }
@@ -1905,6 +1912,7 @@ function startAppointmentPolling() {
                 if (data.hash !== apptPollHashAdmin) {
                     apptPollHashAdmin = data.hash;
                     refreshAppointmentStatuses(data.appointments);
+                    if (typeof refreshAppointmentsAjax === 'function') refreshAppointmentsAjax();
                 }
             })
             .catch(function(e) { console.error('Appointment poll error:', e); });
@@ -1952,6 +1960,9 @@ function getApptBadgeClass(status) {
 
 document.addEventListener('DOMContentLoaded', startAppointmentPolling);
 </script>
+
+<script src="../../assets/js/appointment_live_refresh.js"></script>
+<script src="../../assets/js/appointment_ajax_refresh.js"></script>
 
 <?php
 require_once __DIR__ . '/../../includes/admin_layout_end.php';
