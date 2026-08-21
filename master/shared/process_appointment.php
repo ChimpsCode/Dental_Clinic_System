@@ -226,6 +226,76 @@ try {
     $apptColsStmt = $pdo->query("SHOW COLUMNS FROM appointments");
     $appointmentColumns = array_column($apptColsStmt->fetchAll(PDO::FETCH_ASSOC), 'Field');
 
+    // Server-side double-booking guard: reject slots that would overlap another
+    // active booking on the same date given the selected treatment's duration.
+    $newDuration = 30;
+    if ($service_id) {
+        try {
+            $dStmt = $pdo->prepare("SELECT duration_minutes FROM services WHERE id = ?");
+            $dStmt->execute([$service_id]);
+            $dRow = $dStmt->fetch(PDO::FETCH_ASSOC);
+            if ($dRow && (int)$dRow['duration_minutes'] > 0) {
+                $newDuration = (int)$dRow['duration_minutes'];
+            }
+        } catch (Exception $e) {}
+    }
+
+    $timeParts = explode(':', $appointment_time);
+    if (count($timeParts) < 2) {
+        throw new Exception('Invalid appointment time format');
+    }
+    $newStartMinutes = (int)$timeParts[0] * 60 + (int)$timeParts[1];
+    $newEndMinutes = $newStartMinutes + $newDuration;
+
+    $conflictStmt = $pdo->prepare("
+        SELECT a.id, TIME_FORMAT(a.appointment_time, '%H:%i') AS start_hm,
+               COALESCE(a.duration_minutes, s.duration_minutes, 30) AS duration_minutes
+        FROM appointments a
+        LEFT JOIN services s ON a.service_id = s.id
+        WHERE a.appointment_date = ?
+          AND a.id <> ?
+          AND COALESCE(a.is_archived, 0) = 0
+          AND LOWER(COALESCE(a.status, 'scheduled')) NOT IN ('cancelled', 'completed', 'no_show', 'pending approval')
+    ");
+    $conflictStmt->execute([$appointment_date, $appointment_id ?: 0]);
+    foreach ($conflictStmt->fetchAll(PDO::FETCH_ASSOC) as $conflict) {
+        $cp = explode(':', $conflict['start_hm']);
+        $bookedStart = (int)$cp[0] * 60 + (int)$cp[1];
+        $bookedEnd = $bookedStart + (int)$conflict['duration_minutes'];
+        if ($newStartMinutes < $bookedEnd && $newEndMinutes > $bookedStart) {
+            throw new Exception('Selected time conflicts with another appointment at ' . date('g:i A', strtotime($conflict['start_hm'])) . ' on ' . $appointment_date . '. Please choose a different slot.');
+        }
+    }
+
+    // Confirmed inquiries also hold slots
+    try {
+        $inqConflictStmt = $pdo->prepare("
+            SELECT TIME_FORMAT(i.confirmed_time, '%H:%i') AS start_hm,
+                   COALESCE(s.duration_minutes, 30) AS duration_minutes
+            FROM inquiries i
+            LEFT JOIN services s ON s.id = i.service_id
+            WHERE i.confirmed_date = ?
+              AND COALESCE(i.is_archived, 0) = 0
+              AND i.confirmed_time IS NOT NULL
+              AND i.confirmed_time <> ''
+              AND LOWER(COALESCE(i.status, 'pending')) IN ('scheduled', 'awaiting confirmation', 'contacted')
+        ");
+        $inqConflictStmt->execute([$appointment_date]);
+        foreach ($inqConflictStmt->fetchAll(PDO::FETCH_ASSOC) as $conflict) {
+            $cp = explode(':', $conflict['start_hm']);
+            $bookedStart = (int)$cp[0] * 60 + (int)$cp[1];
+            $bookedEnd = $bookedStart + (int)$conflict['duration_minutes'];
+            if ($newStartMinutes < $bookedEnd && $newEndMinutes > $bookedStart) {
+                throw new Exception('Selected time conflicts with another booking at ' . date('g:i A', strtotime($conflict['start_hm'])) . ' on ' . $appointment_date . '. Please choose a different slot.');
+            }
+        }
+    } catch (Exception $e) {
+        if (strpos($e->getMessage(), 'conflicts with') !== false) {
+            throw $e;
+        }
+        // Inquiry table issues should not block booking
+    }
+
     if ($appointment_id) {
         $updates = [
             'appointment_date = ?',

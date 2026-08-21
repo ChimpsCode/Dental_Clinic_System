@@ -1236,11 +1236,46 @@ try {
         if (e.target === this) closeStaffCalDayModal();
     });
 
-    // Portal modal to body to escape stacking context (sidebar, header)
+    // Portal modals to body so they escape the stacking context (sidebar, header)
+    // AND survive refreshAppointmentsAjax(), which replaces .content-main and
+    // would otherwise destroy every listener attached inside these modals
+    // (treatment change -> reload slots, form submit, etc.).
     (function() {
-        const modal = document.getElementById('staffCalDayModal');
-        if (modal) document.body.appendChild(modal);
+        var modalIds = ['staffCalDayModal', 'appointmentModal', 'viewAppointmentModal', 'onlineBookingModal', 'qrMaximizedModal'];
+        window.__portaledStaffApptModals = {};
+        modalIds.forEach(function(id) {
+            const modal = document.getElementById(id);
+            if (modal) {
+                document.body.appendChild(modal);
+                window.__portaledStaffApptModals[id] = modal;
+            }
+        });
     })();
+
+    // After an AJAX refresh the re-rendered .content-main contains fresh copies
+    // of these modals; remove the duplicates so getElementById keeps resolving
+    // to the persistent (listener-bound) portaled nodes.
+    function removeDuplicateStaffPortaledModals() {
+        var map = window.__portaledStaffApptModals || {};
+        Object.keys(map).forEach(function(id) {
+            var keep = map[id];
+            if (!keep || !keep.isConnected) return;
+            document.querySelectorAll('[id="' + id + '"]').forEach(function(node) {
+                if (node !== keep && node.parentNode) node.parentNode.removeChild(node);
+            });
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof window.refreshAppointmentsAjax === 'function') {
+            var origStaffRefresh = window.refreshAppointmentsAjax;
+            window.refreshAppointmentsAjax = function() {
+                var result = origStaffRefresh.apply(this, arguments);
+                Promise.resolve(result).then(removeDuplicateStaffPortaledModals);
+                return result;
+            };
+        }
+    });
 
     function filterAppointments() {
         const search = document.getElementById('searchAppointment').value.toLowerCase();
@@ -1432,6 +1467,7 @@ try {
         document.getElementById('selectedTimeInput').value = '';
         document.getElementById('staffScheduleBtn').disabled = true;
         selectedStaffSlot = null;
+        staffRescheduleOriginal = null;
         document.querySelector('#appointmentModal h2').textContent = 'Schedule New Appointment';
         document.querySelector('#appointmentForm button[type="submit"]').textContent = 'Schedule Appointment';
         document.getElementById('staffSlotGrid').innerHTML = '<div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 13px; background: #f8fafc; border-radius: 8px; border: 1px dashed #d1d5db;">Select a treatment, date, and optionally a dentist to see available time slots</div>';
@@ -1446,6 +1482,7 @@ try {
         document.querySelector('#appointmentModal h2').textContent = 'Schedule New Appointment';
         document.querySelector('#appointmentForm button[type="submit"]').textContent = 'Schedule Appointment';
         document.getElementById('appointmentModal').style.display = 'none';
+        staffRescheduleOriginal = null;
     }
 
     function closeViewAppointmentModal() {

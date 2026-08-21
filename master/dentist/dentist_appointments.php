@@ -570,10 +570,11 @@ $sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'pe
 
 <!-- Edit Appointment Modal -->
 <div id="editAppointmentModal" class="modal-overlay">
-    <div class="modal" style="width: 550px; max-height: 90vh; overflow-y: auto;">
-        <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Edit Appointment</h2>
+    <div class="modal" style="width: 600px; max-height: 90vh; overflow-y: auto;">
+        <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Reschedule Appointment</h2>
         <form id="editAppointmentForm">
             <input type="hidden" name="appointment_id" id="edit_appointment_id">
+            <input type="hidden" name="appointment_time" id="edit_appointment_time">
             <div class="form-row">
                 <div class="form-group" style="flex: 1;">
                     <label>First Name *</label>
@@ -583,13 +584,12 @@ $sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'pe
                     <label>Middle Name</label>
                     <input type="text" name="middle_name" id="edit_middle_name" class="form-control" placeholder="Enter middle name">
                 </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Last Name *</label>
+                    <input type="text" name="last_name" id="edit_last_name" required class="form-control" placeholder="Enter last name">
+                </div>
             </div>
-            
-            <div class="form-group">
-                <label>Last Name *</label>
-                <input type="text" name="last_name" id="edit_last_name" required class="form-control" placeholder="Enter last name">
-            </div>
-            
+
             <div class="form-row">
                 <div class="form-group" style="flex: 1;">
                     <label>Phone *</label>
@@ -600,52 +600,47 @@ $sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'pe
                     <input type="email" name="email" id="edit_email" class="form-control" placeholder="patient@email.com">
                 </div>
             </div>
-            
+
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <div style="font-size: 13px; font-weight: 600; color: #166534; margin-bottom: 12px;">Select Appointment Slot</div>
+                <div class="form-row" style="margin-bottom: 12px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Treatment * <span style="font-size: 11px; color: #6b7280; font-weight: 400;">(select first to set duration)</span></label>
+                        <select name="treatment" id="edit_treatment" class="form-control" required>
+                            <option value="">-- Select Treatment --</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Date *</label>
+                        <input type="date" name="appointment_date" id="edit_appointment_date" required class="form-control">
+                    </div>
+                </div>
+                <div id="dentistEditSlotGrid" style="margin-top: 8px;">
+                    <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 13px; background: #f8fafc; border-radius: 8px; border: 1px dashed #d1d5db;">
+                        Select a treatment and date to see available time slots
+                    </div>
+                </div>
+            </div>
+
             <div class="form-row">
                 <div class="form-group" style="flex: 1;">
-                    <label>Appointment Date *</label>
-                    <input type="date" name="appointment_date" id="edit_appointment_date" required class="form-control">
+                    <label>Status</label>
+                    <select name="status" id="edit_status" class="form-control">
+                        <option value="Scheduled">Scheduled</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
                 </div>
-                <div class="form-group" style="flex: 1;">
-                    <label>Appointment Time *</label>
-                    <input type="time" name="appointment_time" id="edit_appointment_time" required class="form-control">
-                </div>
             </div>
-            
-            <div class="form-group">
-                <label>Treatment</label>
-                <select name="treatment" id="edit_treatment" class="form-control">
-                    <option value="Consultation">Consultation</option>
-                    <option value="Teeth Cleaning">Teeth Cleaning</option>
-                    <option value="Root Canal">Root Canal</option>
-                    <option value="Extraction">Extraction</option>
-                    <option value="Filling">Filling</option>
-                    <option value="Braces">Braces/Orthodontics</option>
-                    <option value="Denture">Denture</option>
-                    <option value="Crown & Bridge">Crown & Bridge</option>
-                    <option value="Whitening">Whitening</option>
-                    <option value="Other">Other</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label>Status</label>
-                <select name="status" id="edit_status" class="form-control">
-                    <option value="scheduled">Scheduled</option>
-                    <option value="pending">Pending</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
-                </select>
-            </div>
-            
+
             <div class="form-group">
                 <label>Notes</label>
                 <textarea name="notes" id="edit_notes" rows="3" class="form-control" placeholder="Additional notes about the appointment..."></textarea>
             </div>
-            
+
             <div class="modal-actions">
                 <button type="button" onclick="closeEditAppointmentModal()" class="btn-cancel">Cancel</button>
-                <button type="submit" class="btn-primary">Save Changes</button>
+                <button type="submit" class="btn-primary" id="editSaveBtn">Save Changes</button>
             </div>
         </form>
     </div>
@@ -798,18 +793,46 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// Portal Pattern: Move modal to body level
+// Portal Pattern: Move modal to body level so they survive
+// refreshAppointmentsAjax(), which replaces .content-main (and would otherwise
+// destroy the submit/change listeners attached inside these modals).
+window.__portaledDentistApptModals = {};
+document.addEventListener('DOMContentLoaded', function() {
+    ['newAppointmentModal', 'editAppointmentModal'].forEach(function(id) {
+        var modal = document.getElementById(id);
+        if (modal) {
+            document.body.appendChild(modal);
+            window.__portaledDentistApptModals[id] = modal;
+        }
+    });
+
+    // After an AJAX refresh the re-rendered .content-main contains fresh copies
+    // of these modals; remove the duplicates so getElementById keeps resolving
+    // to the persistent (listener-bound) portaled nodes.
+    function removeDuplicateDentistPortaledModals() {
+        var map = window.__portaledDentistApptModals || {};
+        Object.keys(map).forEach(function(id) {
+            var keep = map[id];
+            if (!keep || !keep.isConnected) return;
+            document.querySelectorAll('[id="' + id + '"]').forEach(function(node) {
+                if (node !== keep && node.parentNode) node.parentNode.removeChild(node);
+            });
+        });
+    }
+
+    if (typeof window.refreshAppointmentsAjax === 'function') {
+        var origDentistRefresh = window.refreshAppointmentsAjax;
+        window.refreshAppointmentsAjax = function() {
+            var result = origDentistRefresh.apply(this, arguments);
+            Promise.resolve(result).then(removeDuplicateDentistPortaledModals);
+            return result;
+        };
+    }
+});
+
 document.addEventListener('DOMContentLoaded', function() {
     const newModal = document.getElementById('newAppointmentModal');
-    if (newModal) {
-        document.body.appendChild(newModal);
-    }
-    
-    const editModal = document.getElementById('editAppointmentModal');
-    if (editModal) {
-        document.body.appendChild(editModal);
-    }
-    
+
     // Close new modal when clicking outside
     if (newModal) {
         newModal.addEventListener('click', function(e) {
@@ -1023,23 +1046,205 @@ function viewAppointment(id) {
     document.getElementById('viewAppointmentModal').style.display = 'flex';
 }
 
+var selectedDentistEditSlot = null;
+
+function loadDentistEditServices(callback) {
+    fetch('../shared/get_services.php')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var select = document.getElementById('edit_treatment');
+            select.innerHTML = '<option value="">-- Select Treatment --</option>';
+            if (data.success && data.services) {
+                data.services.forEach(function(svc) {
+                    var opt = document.createElement('option');
+                    opt.value = svc.id;
+                    opt.textContent = svc.name + ' (' + (svc.duration_minutes || 30) + ' min)';
+                    opt.setAttribute('data-duration', svc.duration_minutes || 30);
+                    select.appendChild(opt);
+                });
+            }
+            if (typeof callback === 'function') callback();
+        })
+        .catch(function() {
+            if (typeof callback === 'function') callback();
+        });
+}
+
+function formatDentistSlotTime(t) {
+    var parts = t.split(':');
+    var h = parseInt(parts[0]);
+    var m = parts[1];
+    var ampm = h >= 12 ? 'PM' : 'AM';
+    if (h > 12) h -= 12;
+    if (h === 0) h = 12;
+    return h + ':' + m + ' ' + ampm;
+}
+
+function loadDentistEditSlots(callback) {
+    var serviceId = document.getElementById('edit_treatment').value;
+    var date = document.getElementById('edit_appointment_date').value;
+    var grid = document.getElementById('dentistEditSlotGrid');
+    var btn = document.getElementById('editSaveBtn');
+
+    if (!serviceId || !date) {
+        grid.innerHTML = '<div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 13px; background: #f8fafc; border-radius: 8px; border: 1px dashed #d1d5db;">Select a treatment and date to see available time slots</div>';
+        btn.disabled = true;
+        if (typeof callback === 'function') callback();
+        return;
+    }
+
+    selectedDentistEditSlot = null;
+    btn.disabled = true;
+    grid.innerHTML = '<div style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading available slots...</div>';
+
+    // Exclude this appointment itself so its current time stays selectable
+    var url = '../user-patient/get_slots.php?date=' + date + '&service_id=' + serviceId;
+    var appointmentId = document.getElementById('edit_appointment_id').value;
+    if (appointmentId) url += '&exclude_appointment_id=' + encodeURIComponent(appointmentId);
+
+    fetch(url)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            grid.innerHTML = '';
+            if (!data.is_open) {
+                grid.innerHTML = '<div style="text-align: center; padding: 20px; color: #d97706; font-size: 13px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;">' + (data.message || 'No slots available') + '</div>';
+                if (typeof callback === 'function') callback();
+                return;
+            }
+
+            var legend = document.createElement('div');
+            legend.style.cssText = 'display: flex; gap: 16px; margin-bottom: 10px; font-size: 12px; color: #475569;';
+            legend.innerHTML = '<span style="color:#15803d;"><span style="background:#dcfce7;border:2px solid #15803d;display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:4px;vertical-align:middle;"></span> Available</span><span style="color:#991b1b;"><span style="background:#fee2e2;border:2px solid #991b1b;display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:4px;vertical-align:middle;"></span> Booked / Conflicts with treatment duration</span>';
+            grid.appendChild(legend);
+
+            var allSlots = (data.available_slots || []).concat(data.booked_slots || []).sort();
+            if (allSlots.length === 0) {
+                grid.innerHTML += '<div style="text-align: center; padding: 20px; color: #d97706; font-size: 13px;">No time slots available for this selection</div>';
+                if (typeof callback === 'function') callback();
+                return;
+            }
+
+            var slotGrid = document.createElement('div');
+            slotGrid.style.cssText = 'display: flex; flex-wrap: wrap; gap: 6px;';
+            var bookedArr = data.booked_slots || [];
+
+            allSlots.forEach(function(slot) {
+                var s = document.createElement('div');
+                var isBooked = bookedArr.indexOf(slot) !== -1;
+                s.style.cssText = 'padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: ' + (isBooked ? 'not-allowed' : 'pointer') + '; border: 2px solid ' + (isBooked ? '#fecaca' : '#bbf7d0') + '; background: ' + (isBooked ? '#fef2f2' : '#f0fdf4') + '; color: ' + (isBooked ? '#991b1b' : '#166534') + '; transition: all 0.15s;';
+                s.textContent = formatDentistSlotTime(slot);
+
+                if (!isBooked) {
+                    s.dataset.time = slot;
+                    s.onclick = function() {
+                        document.querySelectorAll('#dentistEditSlotGrid .slot-item').forEach(function(el) {
+                            el.style.borderColor = '#bbf7d0';
+                            el.style.background = '#f0fdf4';
+                        });
+                        this.style.borderColor = '#15803d';
+                        this.style.background = '#bbf7d0';
+                        selectedDentistEditSlot = slot;
+                        document.getElementById('edit_appointment_time').value = slot;
+                        document.getElementById('editSaveBtn').disabled = false;
+                    };
+                    s.classList.add('slot-item');
+                }
+                slotGrid.appendChild(s);
+            });
+
+            grid.appendChild(slotGrid);
+
+            if (data.business_hours) {
+                var info = document.createElement('div');
+                info.style.cssText = 'margin-top: 10px; font-size: 11px; color: #94a3b8;';
+                info.textContent = 'Business hours: ' + data.business_hours.open + ' - ' + data.business_hours.close + ' | Slot duration: ' + data.service_duration + ' min';
+                grid.appendChild(info);
+            }
+
+            if (typeof callback === 'function') callback();
+        })
+        .catch(function(err) {
+            grid.innerHTML = '<div style="text-align: center; padding: 20px; color: #dc2626; font-size: 13px;">Error loading slots: ' + err.message + '</div>';
+            if (typeof callback === 'function') callback();
+        });
+}
+
+// Slots must react whenever the treatment (duration) or date changes
+document.getElementById('edit_treatment').addEventListener('change', loadDentistEditSlots);
+document.getElementById('edit_appointment_date').addEventListener('change', loadDentistEditSlots);
+
 function editAppointment(id) {
     const appointment = appointments.find(a => a.id == id);
     if (!appointment) return;
-    
-    // Fill form with appointment data
+
+    // Fill patient details
     document.getElementById('edit_appointment_id').value = appointment.id;
     document.getElementById('edit_first_name').value = appointment.first_name || '';
     document.getElementById('edit_middle_name').value = appointment.middle_name || '';
     document.getElementById('edit_last_name').value = appointment.last_name || '';
     document.getElementById('edit_phone').value = appointment.phone || '';
     document.getElementById('edit_email').value = appointment.email || '';
-    document.getElementById('edit_treatment').value = appointment.service_name || appointment.treatment || 'Consultation';
-    document.getElementById('edit_appointment_date').value = appointment.appointment_date ? String(appointment.appointment_date).split(' ')[0] : '';
-    document.getElementById('edit_appointment_time').value = appointment.appointment_time || '';
-    document.getElementById('edit_status').value = appointment.status || 'scheduled';
     document.getElementById('edit_notes').value = appointment.notes || '';
-    document.getElementById('editAppointmentModal').style.display = 'flex';
+
+    // Keep original time as fallback so Save stays possible even if the
+    // current slot can no longer be auto-selected from the grid.
+    document.getElementById('edit_appointment_time').value = appointment.appointment_time ? String(appointment.appointment_time).slice(0, 5) : '';
+    selectedDentistEditSlot = null;
+
+    // Status: normalize to the DB enum values used by the dropdown
+    var statusSelect = document.getElementById('edit_status');
+    var rawStatus = String(appointment.status || appointment.status_label || 'Scheduled');
+    var normalized = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1).toLowerCase();
+    var match = Array.prototype.find.call(statusSelect.options, function(o) { return o.value.toLowerCase() === normalized.toLowerCase(); });
+    if (match) {
+        statusSelect.value = match.value;
+    } else {
+        // Preserve an unexpected existing status instead of silently changing it
+        var opt = document.createElement('option');
+        opt.value = rawStatus;
+        opt.textContent = rawStatus;
+        statusSelect.appendChild(opt);
+        statusSelect.value = rawStatus;
+    }
+
+    // Load services, set treatment/date, then render slots
+    loadDentistEditServices(function() {
+        var svcSelect = document.getElementById('edit_treatment');
+        if (appointment.service_id) {
+            svcSelect.value = appointment.service_id;
+        } else {
+            var nameKey = (appointment.service_name || appointment.treatment || '').toLowerCase();
+            for (var i = 0; i < svcSelect.options.length; i++) {
+                if (nameKey && svcSelect.options[i].text.toLowerCase().indexOf(nameKey) !== -1) {
+                    svcSelect.value = svcSelect.options[i].value;
+                    break;
+                }
+            }
+        }
+
+        document.getElementById('edit_appointment_date').value = appointment.appointment_date ? String(appointment.appointment_date).split(' ')[0] : '';
+
+        closeApptKebabDropdown();
+        document.getElementById('editAppointmentModal').style.display = 'flex';
+
+        loadDentistEditSlots(function() {
+            var currentTime = appointment.appointment_time ? String(appointment.appointment_time).slice(0, 5) : '';
+            if (currentTime) {
+                var slotItems = document.querySelectorAll('#dentistEditSlotGrid .slot-item');
+                for (var i = 0; i < slotItems.length; i++) {
+                    if (slotItems[i].dataset.time === currentTime) {
+                        slotItems[i].click();
+                        break;
+                    }
+                }
+            }
+            // Fallback: allow saving with the original time when the slot could
+            // not be auto-selected (e.g. it now overlaps another booking).
+            if (document.getElementById('edit_appointment_id').value && document.getElementById('edit_appointment_time').value) {
+                document.getElementById('editSaveBtn').disabled = false;
+            }
+        });
+    });
 }
 
 function closeEditAppointmentModal() {
@@ -1049,11 +1254,24 @@ function closeEditAppointmentModal() {
 // Handle edit form submission
 document.getElementById('editAppointmentForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    
+
     const formData = new FormData(this);
     formData.append('action', 'edit');
     formData.append('id', document.getElementById('edit_appointment_id').value);
-    
+
+    // Send the selected service so the backend stores the correct service_id
+    var serviceId = document.getElementById('edit_treatment').value;
+    if (serviceId) formData.set('service_id', serviceId);
+
+    // Use the picked slot; fall back to the preserved original time
+    if (selectedDentistEditSlot) {
+        formData.set('appointment_time', selectedDentistEditSlot);
+    }
+    if (!formData.get('appointment_time')) {
+        alert('Please select an appointment time slot.');
+        return;
+    }
+
     fetch('process_dentist_appointment.php', {
         method: 'POST',
         body: formData
@@ -1061,7 +1279,7 @@ document.getElementById('editAppointmentForm').addEventListener('submit', functi
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Appointment updated successfully!');
+            alert(data.message || 'Appointment updated successfully!');
             closeEditAppointmentModal();
             refreshAppointmentsAjax();
         } else {

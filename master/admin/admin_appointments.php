@@ -1150,8 +1150,12 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         selectedAdminSlot = null;
         btn.disabled = true;
         grid.innerHTML = '<div style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading available slots...</div>';
-
         var url = '../user-patient/get_slots.php?date=' + date + '&service_id=' + serviceId;
+
+        // When rescheduling, exclude this appointment itself from the booked-slot
+        // list so its current time stays selectable (same behavior as staff page).
+        var appointmentId = document.getElementById('appointmentId').value;
+        if (appointmentId) url += '&exclude_appointment_id=' + encodeURIComponent(appointmentId);
         if (dentistId) url += '&dentist_id=' + dentistId;
 
         fetch(url)
@@ -1291,6 +1295,11 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         // Set the appointment_time from selected slot
         if (selectedAdminSlot) {
             formData.set('appointment_time', selectedAdminSlot);
+        }
+
+        if (formData.get('appointment_id') && !formData.get('appointment_time')) {
+            alert('Please select an appointment time slot.');
+            return;
         }
 
         fetch('../shared/process_appointment.php', {
@@ -1636,6 +1645,11 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         }
         form.elements.notes.value = appt.notes || '';
 
+        // Keep the original time as fallback so Save stays possible even if the
+        // current slot can no longer be auto-selected from the grid.
+        document.getElementById('selectedTimeInput').value = appt.appointment_time ? String(appt.appointment_time).slice(0, 5) : '';
+        selectedAdminSlot = null;
+
         document.querySelector('#appointmentModal h2').textContent = 'Reschedule Appointment';
         document.querySelector('#appointmentForm button[type="submit"]').textContent = 'Save Changes';
 
@@ -1674,6 +1688,11 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                 break;
                             }
                         }
+                    }
+                    // Fallback: allow saving with the original time when the slot
+                    // could not be auto-selected (e.g. it now overlaps another booking).
+                    if (document.getElementById('appointmentId').value && document.getElementById('selectedTimeInput').value) {
+                        document.getElementById('adminScheduleBtn').disabled = false;
                     }
                 });
             });
