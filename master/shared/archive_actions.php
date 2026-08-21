@@ -22,6 +22,7 @@ header('Content-Type: application/json');
 // }
 
 require_once '../../config/database.php';
+require_once __DIR__ . '/../../includes/patient_user_sync_helper.php';
 
 $action = $_POST['action'] ?? '';
 $module = $_POST['module'] ?? '';
@@ -289,9 +290,13 @@ function handleGetArchivedPatients($pdo, $page, $limit, $offset, $search, $dateF
     $countPatStmt = $pdo->prepare($countPatSql);
     $countPatStmt->execute(array_merge($searchParams, $dateParams));
     $totalPatients = (int)$countPatStmt->fetchColumn();
-    
-    // Count from users table (role='Patient')
-    $countUsrSql = "SELECT COUNT(*) FROM users WHERE is_archived = 1 AND role = 'Patient'$searchClause$dateFromClauseUsr$dateToClauseUsr";
+
+    // Count from users table (role='Patient').
+    // Only UNLINKED accounts are counted separately: a user linked to a patient
+    // record is the same person and is already represented by that patient row.
+    $hasUserPatientLink = pusync_tableColumn($pdo, 'users', 'patient_id');
+    $unlinkedUserClause = $hasUserPatientLink ? " AND (patient_id IS NULL OR patient_id = 0)" : "";
+    $countUsrSql = "SELECT COUNT(*) FROM users WHERE is_archived = 1 AND role = 'Patient'$unlinkedUserClause$searchClause$dateFromClauseUsr$dateToClauseUsr";
     $countUsrStmt = $pdo->prepare($countUsrSql);
     $countUsrStmt->execute(array_merge($searchParams, $dateParams));
     $totalUsers = (int)$countUsrStmt->fetchColumn();
@@ -320,14 +325,16 @@ function handleGetArchivedPatients($pdo, $page, $limit, $offset, $search, $dateF
     $patStmt->execute(array_merge($searchParams, $dateParams));
     $patientRecords = $patStmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Get users table records (archived patient accounts)
+    // Get users table records (archived patient accounts).
+    // Skip accounts linked to a patient record - that person is already
+    // listed once via their patients row above.
     $usrSql = "SELECT 
             CONCAT('usr_', id) as id,
             first_name, middle_name, last_name, '' as suffix,
             date_of_birth, gender, phone, email,
             created_at as deleted_at
             FROM users
-            WHERE is_archived = 1 AND role = 'Patient'$searchClause$dateFromClauseUsr$dateToClauseUsr
+            WHERE is_archived = 1 AND role = 'Patient'$unlinkedUserClause$searchClause$dateFromClauseUsr$dateToClauseUsr
             ORDER BY deleted_at DESC";
     
     $usrStmt = $pdo->prepare($usrSql);
@@ -415,10 +422,6 @@ function handleRestore($pdo, $module, $ids) {
     }
     
     try {
-        // Check if archived_at column exists in users table
-        $hasArchivedAt = (bool)$pdo->query("SHOW COLUMNS FROM users LIKE 'archived_at'")->fetch(PDO::FETCH_ASSOC);
-        $userRestoreSet = $hasArchivedAt ? "is_archived = 0, archived_at = NULL" : "is_archived = 0";
-        
         // Special handling for patients module (supports prefixed IDs: pat_X, usr_X)
         if ($module === 'patients') {
             $patientIds = [];
@@ -435,61 +438,27 @@ function handleRestore($pdo, $module, $ids) {
             }
             
             $totalRestored = 0;
-            
-            // Restore patient records
+
+            // Restore patient records (together with their linked user account)
             if (!empty($patientIds)) {
-                $placeholders = implode(',', array_fill(0, count($patientIds), '?'));
-                $patStmt = $pdo->prepare("UPDATE patients SET is_archived = 0, deleted_at = NULL WHERE id IN ($placeholders) AND is_archived = 1");
-                $patStmt->execute($patientIds);
-                $totalRestored += $patStmt->rowCount();
-                
-                // Also restore matching users
                 foreach ($patientIds as $pid) {
-                    $patInfo = $pdo->prepare("SELECT first_name, last_name, email FROM patients WHERE id = ?");
-                    $patInfo->execute([$pid]);
-                    $patient = $patInfo->fetch(PDO::FETCH_ASSOC);
-                    if ($patient) {
-                        $email = trim($patient['email'] ?? '');
-                        if ($email !== '') {
-                            $usrUpd = $pdo->prepare("UPDATE users SET $userRestoreSet WHERE email = ? AND is_archived = 1");
-                            $usrUpd->execute([$email]);
-                        }
-                        $firstName = trim($patient['first_name'] ?? '');
-                        $lastName = trim($patient['last_name'] ?? '');
-                        if ($firstName && $lastName) {
-                            $usrUpd = $pdo->prepare("UPDATE users SET $userRestoreSet WHERE first_name = ? AND last_name = ? AND is_archived = 1");
-                            $usrUpd->execute([$firstName, $lastName]);
-                        }
-                    }
+                    $exists = $pdo->prepare("SELECT 1 FROM patients WHERE id = ? AND is_archived = 1");
+                    $exists->execute([$pid]);
+                    if (!$exists->fetchColumn()) continue;
+                    archivePatientWithUser($pdo, (int)$pid, false);
+                    $totalRestored++;
                 }
             }
-            
-            // Restore user records (patient accounts)
+
+            // Restore unlinked user records (patient accounts without a clinical record)
             if (!empty($userIds)) {
-                $placeholders = implode(',', array_fill(0, count($userIds), '?'));
-                
-                // Get user details before restoring (to cascade to patients table)
-                $userStmt = $pdo->prepare("SELECT first_name, last_name, email FROM users WHERE id IN ($placeholders)");
-                $userStmt->execute($userIds);
-                $usersToRestore = $userStmt->fetchAll(PDO::FETCH_ASSOC);
-                
-                $usrStmt = $pdo->prepare("UPDATE users SET $userRestoreSet WHERE id IN ($placeholders) AND is_archived = 1");
-                $usrStmt->execute($userIds);
-                $totalRestored += $usrStmt->rowCount();
-                
-                // Cascase to patients table
-                foreach ($usersToRestore as $user) {
-                    $email = trim($user['email'] ?? '');
-                    if ($email !== '') {
-                        $patUpd = $pdo->prepare("UPDATE patients SET is_archived = 0, deleted_at = NULL WHERE email = ? AND is_archived = 1");
-                        $patUpd->execute([$email]);
-                    }
-                    $firstName = trim($user['first_name'] ?? '');
-                    $lastName = trim($user['last_name'] ?? '');
-                    if ($firstName && $lastName) {
-                        $patUpd = $pdo->prepare("UPDATE patients SET is_archived = 0, deleted_at = NULL WHERE first_name = ? AND last_name = ? AND is_archived = 1");
-                        $patUpd->execute([$firstName, $lastName]);
-                    }
+                foreach ($userIds as $uid) {
+                    $exists = $pdo->prepare("SELECT 1 FROM users WHERE id = ? AND is_archived = 1");
+                    $exists->execute([$uid]);
+                    if (!$exists->fetchColumn()) continue;
+                    // Restoring also revives the linked patient record if one exists.
+                    archiveUserWithPatient($pdo, (int)$uid, false);
+                    $totalRestored++;
                 }
             }
             
@@ -514,29 +483,20 @@ function handleRestore($pdo, $module, $ids) {
         
         // Special handling for users table
         if ($module === 'users') {
-            // Get user details before restoring
-            $userStmt = $pdo->prepare("SELECT first_name, last_name, email FROM users WHERE id IN ($placeholders)");
-            $userStmt->execute($ids);
-            $usersToRestore = $userStmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            // Restore users
-            $stmt = $pdo->prepare("UPDATE users SET $userRestoreSet WHERE id IN ($placeholders)");
-            $result = $stmt->execute($ids);
-            
-            // Also restore matching patients in patients table
-            foreach ($usersToRestore as $user) {
-                $email = trim($user['email'] ?? '');
-                if ($email !== '') {
-                    $patientCheck = $pdo->prepare("UPDATE patients SET is_archived = 0, deleted_at = NULL WHERE email = ? AND is_archived = 1");
-                    $patientCheck->execute([$email]);
-                }
-                $firstName = trim($user['first_name'] ?? '');
-                $lastName = trim($user['last_name'] ?? '');
-                if ($firstName && $lastName) {
-                    $patientCheck = $pdo->prepare("UPDATE patients SET is_archived = 0, deleted_at = NULL WHERE first_name = ? AND last_name = ? AND is_archived = 1");
-                    $patientCheck->execute([$firstName, $lastName]);
-                }
+            foreach ($ids as $uid) {
+                $exists = $pdo->prepare("SELECT 1 FROM users WHERE id = ? AND is_archived = 1");
+                $exists->execute([$uid]);
+                if (!$exists->fetchColumn()) continue;
+                // Restoring a user also restores its linked patient record.
+                archiveUserWithPatient($pdo, (int)$uid, false);
+                $count++;
             }
+            echo json_encode([
+                'success' => true,
+                'message' => $count . ' record(s) restored successfully',
+                'count' => $count
+            ]);
+            exit;
         } else {
             $stmt = $pdo->prepare("UPDATE $module SET is_archived = 0, deleted_at = NULL WHERE id IN ($placeholders)");
             $result = $stmt->execute($ids);

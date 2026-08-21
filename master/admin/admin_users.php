@@ -619,102 +619,183 @@ try {
                             modal.className = 'modal-overlay';
                             modal.style.display = 'none';
                             modal.innerHTML = `
-                                <div class="modal">
+                                <div class="modal user-modal au-modal">
                                     <div class="modal-header">
                                         <h3 id="addUserModalTitle">Add New User</h3>
                                         <button type="button" class="modal-close" aria-label="Close">&times;</button>
                                     </div>
-                                    <div class="modal-body">
-                                        <form id="addUserForm">
+                                    <form id="addUserForm">
+                                        <div class="modal-body">
+                                            <input type="hidden" name="id" id="au-id" />
+                                            <div class="au-section-title">Personal Information</div>
                                             <div class="form-row">
-                                                <div class="form-group" style="flex:1;">
+                                                <div class="form-group">
                                                     <label>First Name</label>
                                                     <input class="form-control" type="text" name="first_name" id="au-first" required>
                                                 </div>
-                                                <div class="form-group" style="flex:1;">
+                                                <div class="form-group">
                                                     <label>Middle Name</label>
                                                     <input class="form-control" type="text" name="middle_name" id="au-middle">
                                                 </div>
-                                                <div class="form-group" style="flex:1;">
+                                                <div class="form-group">
                                                     <label>Last Name</label>
                                                     <input class="form-control" type="text" name="last_name" id="au-last" required>
                                                 </div>
                                             </div>
                                             <div class="form-row">
-                                                <div class="form-group" style="flex:1;">
-                                                    <label>Phone</label>
-                                                    <input class="form-control" type="tel" name="phone" id="au-phone">
-                                                </div>
-                                                <div class="form-group" style="flex:1;">
+                                                <div class="form-group">
                                                     <label>Gender</label>
                                                     <select class="form-control" name="gender" id="au-gender"><option value="">Select</option><option value="male">Male</option><option value="female">Female</option></select>
                                                 </div>
-                                                <div class="form-group" style="flex:1;">
+                                                <div class="form-group">
                                                     <label>Date of Birth</label>
                                                     <input class="form-control" type="date" name="date_of_birth" id="au-dob">
                                                 </div>
-                                                <div class="form-group" style="flex:0 0 100px;">
+                                                <div class="form-group" style="flex:0 0 90px;">
                                                     <label>Age</label>
                                                     <input class="form-control" type="number" id="au-age" readonly>
+                                                </div>
+                                            </div>
+                                            <div class="form-row">
+                                                <div class="form-group">
+                                                    <label>Phone</label>
+                                                    <input class="form-control" type="tel" name="phone" id="au-phone">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label>Email</label>
+                                                    <input class="form-control" type="email" name="email" id="au-email">
                                                 </div>
                                             </div>
                                             <div class="form-group">
                                                 <label>Address</label>
                                                 <input class="form-control" type="text" name="address" id="au-address">
                                             </div>
+                                            <div class="au-section-title">Emergency Contact</div>
                                             <div class="form-row">
-                                                <div class="form-group" style="flex:1;">
-                                                    <label>Email</label>
-                                                    <input class="form-control" type="email" name="email" id="au-email">
-                                                </div>
-                                                <div class="form-group" style="flex:1;">
-                                                    <label>Emergency Contact Number</label>
-                                                    <input class="form-control" type="tel" name="emergency_contact_phone" id="au-em-phone">
-                                                </div>
-                                            </div>
-                                            <div class="form-row">
-                                                <div class="form-group" style="flex:1;">
-                                                    <label>Emergency Contact Name</label>
+                                                <div class="form-group">
+                                                    <label>Contact Name</label>
                                                     <input class="form-control" type="text" name="emergency_contact_name" id="au-em-name">
                                                 </div>
-                                                <div class="form-group" style="flex:1;">
+                                                <div class="form-group">
+                                                    <label>Contact Number</label>
+                                                    <input class="form-control" type="tel" name="emergency_contact_phone" id="au-em-phone">
+                                                </div>
+                                                <div class="form-group">
                                                     <label>Relationship</label>
                                                     <input class="form-control" type="text" name="emergency_contact_relationship" id="au-em-relationship">
                                                 </div>
                                             </div>
+                                            <div class="au-section-title">Account</div>
                                             <div class="form-row">
-                                                <div class="form-group" style="flex:1;">
+                                                <div class="form-group">
                                                     <label>Username</label>
                                                     <input class="form-control" type="text" name="username" id="au-username" required>
                                                 </div>
-                                                <div class="form-group" style="flex:1;">
+                                                <div class="form-group">
+                                                    <label>Role</label>
+                                                    <select class="form-control" name="role" id="au-role"><option value="admin">Admin</option><option value="staff">Staff</option><option value="dentist">Dentist</option><option value="patient">Patient</option></select>
+                                                </div>
+                                            </div>
+                                            <div class="form-row">
+                                                <div class="form-group">
                                                     <label>Password</label>
-                                                    <input class="form-control" type="password" name="password" id="au-password">
+                                                    <div class="input-group">
+                                                        <input class="form-control" type="password" name="password" id="au-password" autocomplete="new-password">
+                                                        <button type="button" class="toggle-password" data-target="au-password" aria-label="Toggle password visibility">
+                                                            <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                                            <svg class="eye-icon eye-closed" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                                <div class="form-group" style="flex:1;">
+                                                <div class="form-group">
                                                     <label>Confirm Password</label>
-                                                    <input class="form-control" type="password" name="confirm_password" id="au-confirm-password">
+                                                    <div class="input-group">
+                                                        <input class="form-control" type="password" name="confirm_password" id="au-confirm-password" autocomplete="new-password">
+                                                        <button type="button" class="toggle-password" data-target="au-confirm-password" aria-label="Toggle password visibility">
+                                                            <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                                            <svg class="eye-icon eye-closed" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <div class="form-group">
-                                                <label>Role</label>
-                                                <select class="form-control" name="role" id="au-role"><option value="admin">Admin</option><option value="staff">Staff</option><option value="dentist">Dentist</option><option value="patient">Patient</option></select>
-                                            </div>
-                                            <input type="hidden" name="id" id="au-id" />
-                                            <div style="margin-top:12px;text-align:right;"><button type="submit" class="btn btn-primary" id="au-submit">Save</button></div>
-                                        </form>
-                                    </div>
+                                        </div>
+                                        <div class="form-footer">
+                                            <button type="submit" class="btn btn-primary" id="au-submit">Save</button>
+                                        </div>
+                                    </form>
                                 </div>
                             `;
                             document.body.appendChild(modal);
                             // close handler
                             modal.querySelector('.modal-close').addEventListener('click', function(){ modal.style.display='none'; });
                             modal.addEventListener('click', function(e){ if (e.target === modal) modal.style.display='none'; });
+                            // password visibility toggles
+                            modal.querySelectorAll('.toggle-password').forEach(function(btn){
+                                btn.addEventListener('click', function(){
+                                    const input = document.getElementById(btn.dataset.target);
+                                    if (!input) return;
+                                    const show = input.type === 'password';
+                                    input.type = show ? 'text' : 'password';
+                                    btn.querySelector('.eye-open').style.display = show ? 'none' : '';
+                                    btn.querySelector('.eye-closed').style.display = show ? '' : 'none';
+                                });
+                            });
                             // age calc
                             const dob = modal.querySelector('#au-dob'); const age = modal.querySelector('#au-age');
                             if (dob) dob.addEventListener('change', function(){ if (dob.value){ const d=new Date(dob.value); let a=new Date().getFullYear()-d.getFullYear(); if (new Date().getMonth()<d.getMonth()||(new Date().getMonth()==d.getMonth()&&new Date().getDate()<d.getDate())) a--; age.value = a>0&&a<120?a:''; } });
-                            // submit handler placeholder
-                            modal.querySelector('#addUserForm').addEventListener('submit', function(e){ e.preventDefault(); alert('Saving users requires server endpoint; implement backend or submit to admin_users_actions.php'); });
+                            // submit handler - saves via admin_users_actions.php
+                            modal.querySelector('#addUserForm').addEventListener('submit', function(e){
+                                e.preventDefault();
+                                const form = e.target;
+                                const submitBtn = form.querySelector('#au-submit');
+                                const userId = (form.querySelector('#au-id').value || '').trim();
+                                const isEdit = userId !== '';
+
+                                const val = function(name){ const el = form.querySelector('[name="' + name + '"]'); return el ? (el.value || '').trim() : ''; };
+                                const genderRaw = val('gender').toLowerCase();
+
+                                const params = new URLSearchParams();
+                                params.set('action', isEdit ? 'update' : 'create');
+                                if (isEdit) params.set('id', userId);
+                                params.set('firstName', val('first_name'));
+                                params.set('middleName', val('middle_name'));
+                                params.set('lastName', val('last_name'));
+                                params.set('email', val('email'));
+                                params.set('phoneNumber', val('phone'));
+                                params.set('gender', genderRaw === 'male' ? 'Male' : genderRaw === 'female' ? 'Female' : '');
+                                params.set('dateOfBirth', val('date_of_birth'));
+                                params.set('role', val('role') || 'patient');
+                                params.set('status', 'active');
+                                params.set('username', val('username'));
+                                params.set('password', val('password'));
+                                params.set('confirmPassword', val('confirm_password'));
+
+                                if (!isEdit && params.get('password') !== '' && params.get('password') !== params.get('confirmPassword')) {
+                                    alert('Passwords do not match.');
+                                    return;
+                                }
+
+                                if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Saving...'; }
+
+                                fetch('admin_users_actions.php', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                    body: params.toString()
+                                })
+                                .then(res => res.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        location.reload();
+                                    } else {
+                                        alert(data.message || 'Failed to save user.');
+                                        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Save'; }
+                                    }
+                                })
+                                .catch(() => {
+                                    alert('Error saving user. Please try again.');
+                                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Save'; }
+                                });
+                            });
                         }
 
                         // populate when editing
@@ -739,6 +820,12 @@ try {
                         } else {
                             modal.querySelector('#addUserModalTitle').textContent = 'Add New User';
                             modal.querySelector('#addUserForm').reset();
+                            modal.querySelectorAll('.toggle-password').forEach(function(btn){
+                                const input = document.getElementById(btn.dataset.target);
+                                if (input) input.type = 'password';
+                                btn.querySelector('.eye-open').style.display = '';
+                                btn.querySelector('.eye-closed').style.display = 'none';
+                            });
                             modal.querySelector('#au-id').value = '';
                             modal.querySelector('#au-age').value = '';
                         }

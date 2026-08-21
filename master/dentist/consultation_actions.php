@@ -574,7 +574,7 @@ try {
                 $stmt->execute([$cons['queue_id']]);
 
                 // Update appointment
-                $stmt = $pdo->prepare("UPDATE appointments SET status = 'Completed' WHERE patient_id = ? AND status IN ('Scheduled', 'In Queue')");
+                $stmt = $pdo->prepare("UPDATE appointments SET status = 'Completed' WHERE patient_id = ? AND (status IN ('Scheduled', 'In Queue') OR status = '' OR status IS NULL)");
                 $stmt->execute([$cons['patient_id']]);
 
                 // Find the patient's completed appointment id for billing linkage

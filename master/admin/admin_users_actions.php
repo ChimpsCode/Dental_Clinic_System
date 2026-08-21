@@ -8,6 +8,7 @@ session_start();
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/patient_user_sync_helper.php';
 
 // Basic auth check – must be logged in admin
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? null) !== 'admin') {
@@ -31,6 +32,34 @@ function isStrongPassword($pwd) {
         && preg_match('/[a-z]/', $pwd)
         && preg_match('/[0-9]/', $pwd)
         && preg_match('/[^A-Za-z0-9]/', $pwd);
+}
+
+/**
+ * Persist address / emergency-contact details to the linked patients row.
+ * These fields live on the clinical record; the login account links to it.
+ */
+function savePatientContactDetails(PDO $pdo, int $userId, array $input): void {
+    $patientId = getLinkedPatientId($pdo, $userId);
+    if (!$patientId) {
+        return;
+    }
+    $map = [
+        'address' => 'street_address',
+        'emergency_contact_name' => 'emergency_contact_name',
+        'emergency_contact_phone' => 'emergency_contact_phone',
+        'emergency_contact_relationship' => 'emergency_contact_relationship'
+    ];
+    $set = [];
+    $vals = [];
+    foreach ($map as $postKey => $col) {
+        if (!pusync_tableColumn($pdo, 'patients', $col)) continue;
+        if (!array_key_exists($postKey, $input)) continue;
+        $set[] = "`$col` = ?";
+        $vals[] = trim((string)$input[$postKey]) !== '' ? trim((string)$input[$postKey]) : null;
+    }
+    if (!$set) return;
+    $vals[] = $patientId;
+    $pdo->prepare("UPDATE patients SET " . implode(', ', $set) . " WHERE id = ?")->execute($vals);
 }
 
 try {
@@ -113,6 +142,14 @@ try {
                 jsonError('Username is already taken.');
             }
 
+            // Ensure email is unique among active accounts (duplicate emails make
+            // login ambiguous - the password change may land on the wrong copy)
+            $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND is_archived = 0 LIMIT 1");
+            $stmt->execute([$email]);
+            if ($stmt->fetch()) {
+                jsonError('Email is already used by another active account.');
+            }
+
             // If password is empty, generate a random one
             if ($password === '') {
                 $password = substr(bin2hex(random_bytes(8)), 0, 10);
@@ -150,6 +187,41 @@ try {
             $newId = (int)$pdo->lastInsertId();
             $displayName = trim($firstName . ' ' . $lastName);
 
+            // Patient-role accounts always own a clinical record: create it and link it
+            // so User Management and Patient Records stay one and the same person.
+            if (strtolower($role) === 'patient') {
+                try {
+                    $patCols = ['first_name', 'middle_name', 'last_name', 'email', 'gender'];
+                    $patVals = [$firstName, $middleName !== '' ? $middleName : null, $lastName, $email, null];
+                    if ($hasPhoneColumn && $phoneNumber !== '') {
+                        $patCols[] = 'phone';
+                        $patVals[] = $phoneNumber;
+                    }
+                    if ($dateOfBirth !== '') {
+                        $patCols[] = 'date_of_birth';
+                        $patVals[] = $dateOfBirth;
+                    }
+                    if ($gender !== '' && in_array($gender, ['Male', 'Female'])) {
+                        foreach ($patCols as $i => $c) {
+                            if ($c === 'gender') { $patVals[$i] = $gender; }
+                        }
+                    } else {
+                        foreach ($patCols as $i => $c) {
+                            if ($c === 'gender') { $patVals[$i] = null; }
+                        }
+                    }
+                    $patSql = "INSERT INTO patients (" . implode(', ', $patCols) . ") VALUES (" . implode(', ', array_fill(0, count($patCols), '?')) . ")";
+                    $pdo->prepare($patSql)->execute($patVals);
+                    $newPatientId = (int)$pdo->lastInsertId();
+                    $pdo->prepare("UPDATE users SET patient_id = ? WHERE id = ?")->execute([$newPatientId, $newId]);
+                } catch (Exception $e) {
+                    error_log('admin_users_actions create patient record failed: ' . $e->getMessage());
+                }
+
+                // Address / emergency contacts belong on the clinical record.
+                savePatientContactDetails($pdo, $newId, $_POST);
+            }
+
             echo json_encode([
                 'success' => true,
                 'message' => 'User created successfully.',
@@ -182,6 +254,13 @@ try {
             $stmt->execute([$username, $id]);
             if ($stmt->fetch()) {
                 jsonError('Username is already taken by another user.');
+            }
+
+            // Check email uniqueness among active accounts (excluding current user)
+            $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND id <> ? AND is_archived = 0 LIMIT 1");
+            $stmt->execute([$email, $id]);
+            if ($stmt->fetch()) {
+                jsonError('Email is already used by another active account.');
             }
 
             // Build update query dynamically (password optional)
@@ -224,6 +303,15 @@ try {
             $stmt = $pdo->prepare($sql);
             $stmt->execute($fields);
 
+            // Patient accounts share one identity with their clinical record:
+            // mirror the change into the linked patients row.
+            if ($roleValue === 'Patient') {
+                syncUserToPatient($pdo, $id);
+            }
+
+            // Address / emergency contacts belong on the clinical record.
+            savePatientContactDetails($pdo, $id, $_POST);
+
             // Refresh session display_name if editing own profile
             if ((int)$id === (int)$_SESSION['user_id']) {
                 $firstNameOnly = explode(' ', $firstName)[0] ?? '';
@@ -261,49 +349,9 @@ try {
             jsonError('Archive feature not configured.');
         }
 
-        // Get user details first
-        $userStmt = $pdo->prepare("SELECT first_name, last_name, email FROM users WHERE id = ?");
-        $userStmt->execute([$id]);
-        $userData = $userStmt->fetch(PDO::FETCH_ASSOC);
-
-        // Soft delete - set is_archived = 1
-        $hasArchivedAt = $pdo->query("SHOW COLUMNS FROM users LIKE 'archived_at'")->fetch(PDO::FETCH_ASSOC);
-        if ($hasArchivedAt) {
-            $stmt = $pdo->prepare("UPDATE users SET is_archived = 1, archived_at = NOW() WHERE id = ?");
-        } else {
-            $stmt = $pdo->prepare("UPDATE users SET is_archived = 1 WHERE id = ?");
-        }
-        $stmt->execute([$id]);
-
-        // Also check if there's a matching patient in patients table to archive
-        if ($userData) {
-            $firstName = trim($userData['first_name'] ?? '');
-            $lastName = trim($userData['last_name'] ?? '');
-            $email = trim($userData['email'] ?? '');
-            
-            // Try to find patient by email first (most reliable), then by name
-            $patientMatch = null;
-            if ($email) {
-                $patientCheck = $pdo->prepare("SELECT id FROM patients WHERE email = ? AND is_archived = 0 LIMIT 1");
-                $patientCheck->execute([$email]);
-                $patientMatch = $patientCheck->fetch(PDO::FETCH_ASSOC);
-            }
-            if (!$patientMatch && $firstName && $lastName) {
-                $patientCheck = $pdo->prepare("SELECT id FROM patients WHERE first_name = ? AND last_name = ? AND is_archived = 0 LIMIT 1");
-                $patientCheck->execute([$firstName, $lastName]);
-                $patientMatch = $patientCheck->fetch(PDO::FETCH_ASSOC);
-            }
-            
-            if ($patientMatch) {
-                // Check if deleted_at column exists before using it
-                $colCheck = $pdo->query("SHOW COLUMNS FROM patients LIKE 'deleted_at'");
-                if ($colCheck->fetch(PDO::FETCH_ASSOC)) {
-                    $pdo->prepare("UPDATE patients SET is_archived = 1, deleted_at = NOW() WHERE id = ?")->execute([$patientMatch['id']]);
-                } else {
-                    $pdo->prepare("UPDATE patients SET is_archived = 1 WHERE id = ?")->execute([$patientMatch['id']]);
-                }
-            }
-        }
+        // Soft delete - archive the user together with its linked patient record
+        // (one person = one archive entry, linked via users.patient_id).
+        archiveUserWithPatient($pdo, $id, true);
 
         echo json_encode(['success' => true, 'message' => 'User archived successfully.']);
         exit;

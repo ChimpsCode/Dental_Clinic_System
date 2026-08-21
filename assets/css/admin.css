@@ -1202,6 +1202,135 @@ body.modal-open {
     max-width: 320px;
 }
 
+/* ---- Add/Edit User modal (admin_users.php) ---- */
+.modal.au-modal {
+    max-width: 680px;
+    width: 94%;
+    height: auto;
+    max-height: 88vh;
+    padding: 0;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal.au-modal::before {
+    display: none;
+}
+
+.modal.au-modal .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 24px;
+    margin: 0;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f8fafc;
+    border-radius: 14px 14px 0 0;
+}
+
+.modal.au-modal .modal-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1e3a8a;
+}
+
+.modal.au-modal .modal-close {
+    background: none;
+    border: none;
+    font-size: 1.6rem;
+    line-height: 1;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 8px;
+}
+
+.modal.au-modal .modal-close:hover {
+    color: #1f2937;
+    background: #e5e7eb;
+}
+
+.modal.au-modal .modal-body {
+    padding: 20px 24px;
+    overflow-y: auto;
+}
+
+.modal.au-modal .au-section-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #2563eb;
+    margin: 18px 0 10px 0;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.modal.au-modal .au-section-title:first-child {
+    margin-top: 0;
+}
+
+.modal.au-modal .form-group {
+    margin-bottom: 14px;
+}
+
+.modal.au-modal .form-row {
+    gap: 12px;
+    margin-bottom: 0;
+}
+
+.modal.au-modal .form-control {
+    margin-bottom: 0;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+    color: #111827;
+}
+
+.modal.au-modal select.form-control {
+    cursor: pointer;
+}
+
+.modal.au-modal .input-group .form-control {
+    padding-right: 44px;
+}
+
+.modal.au-modal .toggle-password {
+    top: calc(50% - 2px);
+}
+
+.modal.au-modal .form-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 24px;
+    border-top: 1px solid #e5e7eb;
+    background: #f8fafc;
+    border-radius: 0 0 14px 14px;
+}
+
+.modal.au-modal .form-footer .btn-primary,
+.modal.au-modal .btn-primary {
+    width: auto;
+    min-width: 120px;
+    height: auto;
+    max-width: none;
+    padding: 10px 22px;
+    font-size: 0.9rem;
+    border-radius: 8px;
+}
+
+@media (max-width: 640px) {
+    .modal.au-modal .form-row .form-group {
+        flex-basis: 100%;
+    }
+}
+
 @media (max-width: 640px) {
     .modal.user-modal {
         padding: 24px;

@@ -122,6 +122,16 @@ if ($action === 'verify_otp') {
 
         $pdo->beginTransaction();
 
+        // Re-check uniqueness at insert time: the email was validated when the
+        // OTP was sent, but another registration may have completed since then.
+        $dupStmt = $pdo->prepare("SELECT id FROM users WHERE (email = ? OR username = ?) AND COALESCE(is_archived, 0) = 0 LIMIT 1");
+        $dupStmt->execute([$email, $email]);
+        if ($dupStmt->fetch()) {
+            $pdo->rollBack();
+            echo json_encode(['success' => false, 'message' => 'This email is already registered. Please log in instead.']);
+            exit();
+        }
+
         $userColumns = ['first_name', 'middle_name', 'last_name', 'username', 'password', 'email', 'phone', 'gender', 'date_of_birth'];
         $userValues = [$first_name, $middle_name ?: null, $last_name, $email, $hashedPassword, $email, $phone, $gender, $date_of_birth ?: null];
 

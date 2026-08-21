@@ -510,8 +510,8 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             throw new Exception('Database connection not available');
         }
         
-        $stmt = $pdo->prepare("SELECT u.* FROM users u WHERE (u.username = ? OR u.email = ?) AND u.is_archived = 0 LIMIT 1");
-        $stmt->execute([$username, $username]);
+        $stmt = $pdo->prepare("SELECT u.* FROM users u WHERE (u.username = ? OR u.email = ?) AND u.is_archived = 0 ORDER BY (u.username = ?) DESC, u.id ASC LIMIT 1");
+        $stmt->execute([$username, $username, $username]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if ($user && verifyAndUpgradePassword($pdo, $user, $password)) {
@@ -703,8 +703,8 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 throw new Exception('Database connection not available');
             }
             
-            $stmt = $pdo->prepare("SELECT u.* FROM users u WHERE (u.username = ? OR u.email = ?) AND u.is_archived = 0 LIMIT 1");
-            $stmt->execute([$username, $username]);
+            $stmt = $pdo->prepare("SELECT u.* FROM users u WHERE (u.username = ? OR u.email = ?) AND u.is_archived = 0 ORDER BY (u.username = ?) DESC, u.id ASC LIMIT 1");
+            $stmt->execute([$username, $username, $username]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($user && verifyAndUpgradePassword($pdo, $user, $password)) {

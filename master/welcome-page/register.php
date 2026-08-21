@@ -44,9 +44,26 @@ $role = 'staff';
                 $stmt->execute([$username]);
                 if ($stmt->fetch()) {
                     $error = 'Username already exists';
+                } elseif (!empty($email)) {
+                    // Check if email is already used by an active account
+                    $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND COALESCE(is_archived, 0) = 0 LIMIT 1");
+                    $stmt->execute([$email]);
+                    if ($stmt->fetch()) {
+                        $error = 'Email is already used by another active account';
+                    } else {
+$hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+                        // Insert staff user
+                        $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, last_name, role) VALUES (?, ?, ?, ?, ?, 'Staff')");
+                        $result = $stmt->execute([$username, $hashedPassword, $email, $firstName, $lastName]);
+                        if ($result) {
+                            $success = 'Account created successfully! You can now login.';
+                        } else {
+                            $error = 'Failed to create account. Please try again.';
+                        }
+                    }
                 } else {
 $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-                    // Insert staff user
+                    // Insert staff user (no email provided)
                     $stmt = $pdo->prepare("INSERT INTO users (username, password, email, first_name, last_name, role) VALUES (?, ?, ?, ?, ?, 'Staff')");
                     $result = $stmt->execute([$username, $hashedPassword, $email, $firstName, $lastName]);
                     if ($result) {

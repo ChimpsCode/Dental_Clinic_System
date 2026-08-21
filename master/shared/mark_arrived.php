@@ -59,7 +59,7 @@ try {
 
     $existingQueue = fetchQueueEntryByAppointment($pdo, $apptId, $today);
     if ($existingQueue) {
-        $stmtUpd = $pdo->prepare("UPDATE appointments SET check_in_time = COALESCE(check_in_time, NOW()), status = 'arrived' WHERE id = ?");
+        $stmtUpd = $pdo->prepare("UPDATE appointments SET check_in_time = COALESCE(check_in_time, NOW()), status = 'In Queue' WHERE id = ?");
         $stmtUpd->execute([$apptId]);
         echo json_encode([
             'success' => true,
@@ -92,7 +92,7 @@ try {
     $queueNumber = (int)($queueEntry['queue_number'] ?? 0);
     $queueLabel  = $queueEntry['queue_label'] ?? buildQueueLabel($queueNumber);
 
-    $stmtUpd = $pdo->prepare("UPDATE appointments SET check_in_time = NOW(), status = 'arrived' WHERE id = ?");
+    $stmtUpd = $pdo->prepare("UPDATE appointments SET check_in_time = NOW(), status = 'In Queue' WHERE id = ?");
     $stmtUpd->execute([$apptId]);
 
     $pdo->commit();

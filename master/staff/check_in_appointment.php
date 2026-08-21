@@ -70,7 +70,7 @@ try {
     }
 
     $appointmentStatus = strtolower(trim((string)($appointment['status'] ?? 'scheduled')));
-    if ($appointmentStatus !== 'scheduled' && $appointmentStatus !== 'arrived') {
+    if ($appointmentStatus !== 'scheduled' && $appointmentStatus !== 'arrived' && $appointmentStatus !== 'in queue' && $appointmentStatus !== '') {
         throw new Exception('Only scheduled appointments can be checked in.');
     }
 
@@ -103,7 +103,7 @@ try {
         'status' => 'waiting'
     ]);
 
-    $updateStmt = $pdo->prepare("UPDATE appointments SET status = 'arrived' WHERE id = ?");
+    $updateStmt = $pdo->prepare("UPDATE appointments SET status = 'In Queue' WHERE id = ?");
     $updateStmt->execute([$appointmentId]);
 
     $pdo->commit();

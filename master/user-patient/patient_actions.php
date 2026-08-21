@@ -32,7 +32,8 @@ if ($action === 'self_delete') {
     }
 
     try {
-        require_once '../../config/database.php';
+require_once '../../config/database.php';
+require_once '../../includes/patient_user_sync_helper.php';
 
         // Verify password
         $stmt = $pdo->prepare("SELECT password FROM users WHERE id = ? AND is_archived = 0");
@@ -44,13 +45,8 @@ if ($action === 'self_delete') {
             exit();
         }
 
-        // Archive patients record
-        $stmt = $pdo->prepare("UPDATE patients SET is_archived = 1, deleted_at = NOW() WHERE id = ? AND is_archived = 0");
-        $stmt->execute([$patientId]);
-
-        // Archive users record
-        $stmt = $pdo->prepare("UPDATE users SET is_archived = 1, archived_at = NOW() WHERE id = ? AND is_archived = 0");
-        $stmt->execute([$userId]);
+        // Archive patients record and the linked user account as one unit
+        archivePatientWithUser($pdo, (int)$patientId, true);
 
         // Log audit
         require_once '../../includes/audit_helper.php';
@@ -91,7 +87,8 @@ if (!$patientId || !is_numeric($patientId)) {
 
 try {
     require_once '../../config/database.php';
-    
+    require_once '../../includes/patient_user_sync_helper.php';
+
     switch ($action) {
         case 'archive':
             // Check if archive column exists
@@ -104,11 +101,11 @@ try {
                 break;
             }
             
-            // Soft delete - archive the patient
-            $stmt = $pdo->prepare("UPDATE patients SET is_archived = 1, deleted_at = NOW() WHERE id = ?");
-            $result = $stmt->execute([$patientId]);
-            
-            if ($result) {
+            // Soft delete - archive the patient together with its linked user account
+            $stmt = $pdo->prepare("SELECT 1 FROM patients WHERE id = ? AND is_archived = 0");
+            $stmt->execute([$patientId]);
+            if ($stmt->fetchColumn()) {
+                archivePatientWithUser($pdo, (int)$patientId, true);
                 echo json_encode(['success' => true, 'message' => 'Patient archived successfully']);
             } else {
                 echo json_encode(['success' => false, 'message' => 'Failed to archive patient']);
@@ -131,7 +128,19 @@ try {
                 // Delete related queue records
                 $stmt = $pdo->prepare("DELETE FROM queue WHERE patient_id = ?");
                 $stmt->execute([$patientId]);
-                
+
+                // Delete the linked login account (if any). If other records
+                // still reference it, archive it instead so nothing breaks.
+                $linkedUserId = getLinkedUserId($pdo, (int)$patientId);
+                if ($linkedUserId) {
+                    try {
+                        $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
+                        $stmt->execute([$linkedUserId]);
+                    } catch (Exception $e) {
+                        $pdo->prepare("UPDATE users SET is_archived = 1 WHERE id = ?")->execute([$linkedUserId]);
+                    }
+                }
+
                 // Finally delete the patient
                 $stmt = $pdo->prepare("DELETE FROM patients WHERE id = ?");
                 $result = $stmt->execute([$patientId]);

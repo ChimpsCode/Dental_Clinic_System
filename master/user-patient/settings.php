@@ -35,6 +35,7 @@ $passwordOtpPending = !empty($_SESSION['patient_password_otp']) && (int)($_SESSI
 require_once '../../config/database.php';
 require_once '../../includes/patient_session_helper.php';
 require_once '../../includes/send_otp_email.php';
+require_once '../../includes/patient_user_sync_helper.php';
 
 $patientSessionSettings = getPatientSessionSettings($pdo, (int)$user_id);
 $settingsPatientUserJoin = 'LEFT JOIN users u ON u.id = p.user_id';
@@ -97,6 +98,8 @@ try {
             if (!empty($new_email) && filter_var($new_email, FILTER_VALIDATE_EMAIL)) {
                 $stmt = $pdo->prepare("UPDATE users SET email = ? WHERE id = ?");
                 $stmt->execute([$new_email, $user_id]);
+                // Keep the clinical record (Patient Records) identical.
+                syncUserToPatient($pdo, (int)$user_id);
                 $user['email'] = $new_email;
                 $message = 'Email updated successfully!';
                 $messageType = 'success';

@@ -18,7 +18,12 @@ $query = "
     FROM inquiries i
     LEFT JOIN services s ON s.id = i.service_id
     LEFT JOIN users ass ON ass.id = i.assigned_staff_id
-    LEFT JOIN users up ON up.email = i.email
+    LEFT JOIN users up ON up.id = (
+        SELECT u2.id FROM users u2
+        WHERE u2.email = i.email AND COALESCE(u2.is_archived, 0) = 0
+        ORDER BY (u2.username = u2.email) DESC, u2.id ASC
+        LIMIT 1
+    )
     LEFT JOIN (
         SELECT r1.inquiry_id, r1.message, r1.sender_type, r1.created_at
         FROM inquiry_replies r1

@@ -41,9 +41,14 @@ $archivedCounts = [
 ];
 
 if ($archiveReady) {
-    // Patients count from patients table + archived patient user accounts
+    // Patients count from patients table + UNLINKED archived patient user accounts.
+    // A user linked to a patient record is the same person and is already
+    // counted via that patient row, so linked accounts are excluded here.
+    require_once __DIR__ . '/../../includes/patient_user_sync_helper.php';
+    $hasUserPatientLink = pusync_tableColumn($pdo, 'users', 'patient_id');
+    $unlinkedClause = $hasUserPatientLink ? " AND (patient_id IS NULL OR patient_id = 0)" : "";
     try {
-        $stmt = $pdo->query("SELECT (SELECT COUNT(*) FROM patients WHERE is_archived = 1) + (SELECT COUNT(*) FROM users WHERE is_archived = 1 AND role = 'Patient')");
+        $stmt = $pdo->query("SELECT (SELECT COUNT(*) FROM patients WHERE is_archived = 1) + (SELECT COUNT(*) FROM users WHERE is_archived = 1 AND role = 'Patient'$unlinkedClause)");
         $archivedCounts['patients'] = (int)$stmt->fetchColumn();
     } catch (Exception $e) {
         $archivedCounts['patients'] = 0;

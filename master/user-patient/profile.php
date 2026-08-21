@@ -34,6 +34,7 @@ $messageType = '';
 require_once '../../config/database.php';
 require_once '../../includes/audit_helper.php';
 require_once '../../includes/patient_session_helper.php';
+require_once '../../includes/patient_user_sync_helper.php';
 $patientSessionSettings = getPatientSessionSettings($pdo, (int)$user_id);
 
 $profileUserPatientJoin = 'LEFT JOIN patients p ON p.user_id = u.id';
@@ -216,6 +217,10 @@ try {
                 foreach ($changes as $field => [$oldValue, $newValue]) {
                     logAudit($pdo, $user_id, $auditUser['username'] ?? ($_SESSION['username'] ?? null), $_SESSION['role'] ?? 'user', 'update', 'patients', 'patient_self_service_personal_info:' . $field, $patient_id, 'patients', (string)($oldValue ?? ''), (string)($newValue ?? ''));
                 }
+
+                // Keep the linked login account (User Management) identical to this clinical record.
+                syncPatientToUser($pdo, (int)$patient_id);
+
                 $pdo->commit();
                 $message = 'Personal information updated successfully.';
                 $messageType = 'success';
@@ -252,6 +257,10 @@ try {
                     $phone = trim($_POST['phone'] ?? '');
                     $stmt = $pdo->prepare("UPDATE users SET phone = ? WHERE id = ?");
                     $stmt->execute([$phone, $user_id]);
+                    if ($patient_id) {
+                        $stmt = $pdo->prepare("UPDATE patients SET phone = ? WHERE id = ?");
+                        $stmt->execute([$phone, $patient_id]);
+                    }
                     $message = 'Phone number successfully updated.';
                 } elseif ($change_type === 'address') {
                     $address = trim($_POST['address'] ?? '');
