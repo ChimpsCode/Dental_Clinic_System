@@ -20,7 +20,7 @@ header('Content-Type: application/json');
 
 try {
     require_once '../../config/database.php';
-    $stmt = $pdo->query("SELECT id, created_at FROM patients ORDER BY created_at DESC LIMIT 1");
+    $stmt = $pdo->query("SELECT id, created_at FROM patients WHERE COALESCE(is_archived, 0) = 0 ORDER BY id DESC LIMIT 1");
     $latest = $stmt->fetch(PDO::FETCH_ASSOC);
 
     echo json_encode([

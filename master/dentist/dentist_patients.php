@@ -31,7 +31,7 @@ try {
         ) q ON p.id = q.patient_id
         WHERE p.is_archived = 0
         GROUP BY p.id
-        ORDER BY p.created_at DESC
+        ORDER BY p.created_at DESC, p.id DESC
     ");
     $stmt->execute();
     $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -189,7 +189,12 @@ try {
 
 <script>
 const allPatients = <?php echo json_encode($patients); ?>;
-const latestPatientId = <?php echo (int)($patients[0]['id'] ?? 0); ?>;
+// Baseline for the "new patient" poll: highest active patient id, computed
+// identically to dentist_patients_poll.php so the two can never disagree.
+const latestPatientId = <?php
+    $maxStmt = $pdo->query("SELECT COALESCE(MAX(id), 0) FROM patients WHERE COALESCE(is_archived, 0) = 0");
+    echo (int)($maxStmt ? $maxStmt->fetchColumn() : 0);
+?>;
 let currentPage = 1;
 let perPage = 7;
 let filteredPatients = [...allPatients];
