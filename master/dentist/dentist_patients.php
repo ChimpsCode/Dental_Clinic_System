@@ -72,7 +72,7 @@ try {
             <img src="../../assets/icons/total-patients.png" alt="Total Patients">
         </div>
         <div class="summary-info">
-            <h3><?php echo $totalPatients; ?></h3>
+            <h3 id="statTotalPatients"><?php echo $totalPatients; ?></h3>
             <p>Total Patients</p>
         </div>
     </div>
@@ -189,12 +189,6 @@ try {
 
 <script>
 const allPatients = <?php echo json_encode($patients); ?>;
-// Baseline for the "new patient" poll: highest active patient id, computed
-// identically to dentist_patients_poll.php so the two can never disagree.
-const latestPatientId = <?php
-    $maxStmt = $pdo->query("SELECT COALESCE(MAX(id), 0) FROM patients WHERE COALESCE(is_archived, 0) = 0");
-    echo (int)($maxStmt ? $maxStmt->fetchColumn() : 0);
-?>;
 let currentPage = 1;
 let perPage = 7;
 let filteredPatients = [...allPatients];
@@ -229,8 +223,8 @@ document.getElementById('sortFilter').addEventListener('change', applyFilters);
 
 renderTable();
 
-function applyFilters() {
-    currentPage = 1;
+function applyFilters(keepPage) {
+    if (!keepPage) currentPage = 1;
     const query = document.getElementById('searchInput').value.trim().toLowerCase();
     const statusVal = document.getElementById('statusFilter').value;
     const sortVal = document.getElementById('sortFilter').value;
@@ -3091,35 +3085,60 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// Auto-refresh when a new patient is added
-setInterval(() => {
-    fetch('dentist_patients_poll.php')
-        .then(response => response.json())
-        .then(data => {
-            if (data && data.success) {
-                const newestId = parseInt(data.latest_id || 0, 10);
-                if (newestId > latestPatientId) {
-                    // Check if we already showed the alert
-                    if (!document.getElementById('new-patient-alert')) {
-                        const alertDiv = document.createElement('div');
-                        alertDiv.id = 'new-patient-alert';
-                        alertDiv.innerHTML = `
-                            <div style="background: #eff6ff; border: 1px solid #3b82f6; color: #1e40af; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-                                <span>A new patient has been added to the queue.</span>
-                                <button onclick="location.reload()" style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Refresh List</button>
-                            </div>
-                        `;
-                        // Insert it right above the search/filter row
-                        const searchRow = document.querySelector('.search-filter-row');
-                        if (searchRow) {
-                            searchRow.parentNode.insertBefore(alertDiv, searchRow);
-                        }
-                    }
-                }
-            }
+// --- Live patient list updates (AJAX polling) ---
+var knownPatientSig = allPatients.map(function(p) { return Number(p.id); }).join(',');
+var liveToastTimer = null;
+
+function patientListUiBusy() {
+    // Never re-render underneath an open kebab dropdown or modal
+    if (document.querySelector('.patient-kebab-dropdown-portal.show')) return true;
+    if (document.body.classList.contains('modal-open')) return true;
+    return false;
+}
+
+function showPatientListToast(message) {
+    var toast = document.getElementById('livePatientToast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'livePatientToast';
+        toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#065f46;color:#ffffff;padding:12px 18px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.18);font-size:0.9rem;z-index:99999;display:flex;align-items:center;gap:10px;opacity:0;transform:translateY(8px);transition:opacity .25s ease, transform .25s ease;pointer-events:none;';
+        document.body.appendChild(toast);
+    }
+    toast.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>' + message + '</span>';
+    requestAnimationFrame(function() { toast.style.opacity = '1'; toast.style.transform = 'translateY(0)'; });
+    clearTimeout(liveToastTimer);
+    liveToastTimer = setTimeout(function() {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(8px)';
+    }, 4000);
+}
+
+setInterval(function() {
+    if (patientListUiBusy()) return;
+    fetch('../shared/patients_list_poll.php')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data || !data.success || !Array.isArray(data.patients)) return;
+            var sig = data.patients.map(function(p) { return Number(p.id); }).join(',');
+            if (sig === knownPatientSig) return;
+
+            var prevIds = {};
+            knownPatientSig.split(',').forEach(function(idStr) { prevIds[idStr] = true; });
+            var hasNew = data.patients.some(function(p) { return !prevIds[String(Number(p.id))]; });
+
+            allPatients.length = 0;
+            Array.prototype.push.apply(allPatients, data.patients);
+            knownPatientSig = sig;
+
+            applyFilters(true); // keep current page/search context
+
+            var statTotal = document.getElementById('statTotalPatients');
+            if (statTotal) statTotal.textContent = data.patients.length;
+
+            if (hasNew) showPatientListToast('New patient added — list updated automatically.');
         })
-        .catch(() => {});
-}, 10000);
+        .catch(function() {});
+}, 8000);
 
 </script>
 
