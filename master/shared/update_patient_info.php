@@ -24,6 +24,8 @@ $phone = $_POST['phone'] ?? '';
 $email = $_POST['email'] ?? '';
 $date_of_birth = $_POST['date_of_birth'] ?? null;
 $gender = $_POST['gender'] ?? '';
+$senior_citizen_id = trim($_POST['senior_citizen_id'] ?? '') ?: null;
+$pwd_id = trim($_POST['pwd_id'] ?? '') ?: null;
 
 if (!$patient_id) {
     echo json_encode(['success' => false, 'message' => 'Patient ID required']);
@@ -34,6 +36,9 @@ if (empty($first_name) || empty($last_name)) {
     echo json_encode(['success' => false, 'message' => 'First name and last name are required']);
     exit;
 }
+
+require_once __DIR__ . '/../../includes/discount_helper.php';
+ensureDiscountSchema($pdo);
 
 try {
     // Get original patient data first
@@ -57,6 +62,8 @@ try {
             email = ?,
             date_of_birth = ?,
             gender = ?,
+            senior_citizen_id = ?,
+            pwd_id = ?,
             updated_at = NOW()
         WHERE id = ?
     ");
@@ -70,6 +77,8 @@ try {
         $email,
         $date_of_birth,
         $gender,
+        $senior_citizen_id,
+        $pwd_id,
         $patient_id
     ]);
     

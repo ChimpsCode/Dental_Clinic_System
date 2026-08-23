@@ -118,7 +118,10 @@ try {
                 END AS effective_payment_status,
                 b.billing_date,
                 b.paid_amount,
-                b.notes as billing_notes
+                b.notes as billing_notes,
+                b.subtotal_amount,
+                b.discount_type,
+                b.discount_amount
             FROM billing b
             LEFT JOIN patients p ON b.patient_id = p.id
             LEFT JOIN queue q ON CAST(q.patient_id AS UNSIGNED) = b.patient_id AND DATE(q.created_at) = DATE(b.billing_date)
@@ -350,7 +353,17 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                 <td>
                                     <span class="treatment-type"><?php echo htmlspecialchars($record['treatment_type'] ?: 'General Checkup'); ?></span>
                                 </td>
-                                <td><strong>P<?php echo number_format($calculatedAmount, 2); ?></strong></td>
+                                <td>
+                                    <strong>P<?php echo number_format($calculatedAmount, 2); ?></strong>
+                                    <?php if (($record['discount_amount'] ?? 0) > 0): ?>
+                                        <div style="margin-top:3px;">
+                                            <span style="text-decoration:line-through;color:#94a3b8;font-size:11px;">P<?php echo number_format((float)($record['subtotal_amount'] ?: ($calculatedAmount + $record['discount_amount'])), 2); ?></span>
+                                            <span style="display:inline-block;background:#ecfdf5;color:#047857;font-size:10px;font-weight:700;padding:1px 7px;border-radius:9999px;border:1px solid #a7f3d0;margin-left:4px;">
+                                                <?php echo strtoupper($record['discount_type']); ?> 20% &minus;P<?php echo number_format((float)$record['discount_amount'], 2); ?>
+                                            </span>
+                                        </div>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <?php
                                         $qs = strtolower($record['queue_status'] ?? '');
@@ -387,6 +400,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                             data-is-paid="<?php echo $isPaid ? '1' : ($isPartial ? '0' : '0'); ?>"
                                             data-paid-amount="<?php echo (float)($record['paid_amount'] ?? 0); ?>"
                                             data-balance="<?php echo max(0, $calculatedAmount - (float)($record['paid_amount'] ?? 0)); ?>"
+                                            data-discount-type="<?php echo htmlspecialchars($record['discount_type'] ?? 'none'); ?>"
                                             aria-label="Payment actions for queue <?php echo $record['queue_id']; ?>"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -1374,6 +1388,13 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                 <path fill="none" stroke="currentColor" stroke-width="2" d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V10h14z"/>
                             </svg>
                             Set Due Date
+                        </a>
+                        <a href="javascript:void(0)" data-action="toggle-discount" data-billing-id="${billingId}" data-apply="${button.dataset.discountType === 'none' ? '1' : '0'}">
+                            ${button.dataset.discountType === 'none'
+                                ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M21.41 11.58l-9-9A2 2 0 0 0 11 2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 .59 1.42l9 9A2 2 0 0 0 13 22a2 2 0 0 0 1.41-.59l7-7A2 2 0 0 0 22 13a2 2 0 0 0-.59-1.42M6.5 8A1.5 1.5 0 1 1 8 6.5A1.5 1.5 0 0 1 6.5 8"/></svg>
+                            Apply SC/PWD Discount`
+                                : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12z"/></svg>
+                            Remove SC/PWD Discount`}
                         </a>` : ''}
                         <a href="javascript:void(0)" data-action="print" data-invoice-id="${queueId}" data-billing-id="${billingId}">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
@@ -1484,10 +1505,28 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                         case 'set-due-date':
                             openSetDueDate(billingId);
                             break;
+                        case 'toggle-discount':
+                            toggleDiscount(billingId, link.dataset.apply === '1');
+                            break;
                         case 'print':
                             printPayment(billingId);
                             break;
                     }
+                }
+
+                function toggleDiscount(billingId, apply) {
+                    if (!billingId || billingId === '0') { alert('No billing record attached yet.'); return; }
+                    fetch('../shared/billing_actions.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'toggle_discount', billing_id: billingId, apply: apply })
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        alert(data.message || (data.success ? 'Done' : 'Failed'));
+                        if (data.success) location.reload();
+                    })
+                    .catch(() => alert('Request failed. Please try again.'));
                 }
 
                 // Click handler for kebab buttons

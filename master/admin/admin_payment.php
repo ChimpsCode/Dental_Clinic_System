@@ -107,6 +107,9 @@ try {
             b.payment_status AS payment_status,
             b.billing_date,
             b.due_date,
+            b.subtotal_amount,
+            b.discount_type,
+            b.discount_amount,
             p.first_name,
             p.middle_name,
             p.last_name,
@@ -270,7 +273,17 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                     <?php endif; ?>
                                 </td>
                                 <td><?php echo htmlspecialchars($services); ?></td>
-                                <td>&#8369;<?php echo number_format($record['total_amount'], 2); ?></td>
+                                <td>
+                                    &#8369;<?php echo number_format($record['total_amount'], 2); ?>
+                                    <?php if (($record['discount_amount'] ?? 0) > 0): ?>
+                                        <div style="margin-top:3px;">
+                                            <span style="text-decoration:line-through;color:#94a3b8;font-size:11px;">&#8369;<?php echo number_format((float)($record['subtotal_amount'] ?: ($record['total_amount'] + $record['discount_amount'])), 2); ?></span>
+                                            <span style="display:inline-block;background:#ecfdf5;color:#047857;font-size:10px;font-weight:700;padding:1px 7px;border-radius:9999px;border:1px solid #a7f3d0;margin-left:4px;">
+                                                <?php echo strtoupper($record['discount_type']); ?> 20% &minus;&#8369;<?php echo number_format((float)$record['discount_amount'], 2); ?>
+                                            </span>
+                                        </div>
+                                    <?php endif; ?>
+                                </td>
                                 <td>&#8369;<?php echo number_format($balanceAmt, 2); ?></td>
                                 <td><?php echo date('Y-m-d', strtotime($record['billing_date'])); ?></td>
                                 <td>
@@ -293,7 +306,8 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                         data-paid-amount="<?php echo $paidAmt; ?>"
                                         data-balance="<?php echo $balanceAmt; ?>"
                                         data-treatment="<?php echo htmlspecialchars($services); ?>"
-                                        data-is-paid="<?php echo $isPaid ? '1' : '0'; ?>">
+                                        data-is-paid="<?php echo $isPaid ? '1' : '0'; ?>"
+                                        data-discount-type="<?php echo htmlspecialchars($record['discount_type'] ?? 'none'); ?>">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                                             <circle cx="12" cy="5" r="2"/>
                                             <circle cx="12" cy="12" r="2"/>
@@ -634,7 +648,14 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                             'Set Due Date</a>' +
                             '<a href="javascript:void(0)" data-action="edit" data-invoice-id="' + invoiceId + '">' +
                             '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' +
-                            'Edit Amount</a>';
+                            'Edit Amount</a>' +
+                            (button.dataset.discountType === 'none'
+                                ? '<a href="javascript:void(0)" data-action="toggle-discount" data-billing-id="' + billingId + '" data-apply="1">' +
+                                '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21.41 11.58l-9-9A2 2 0 0 0 11 2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 .59 1.42l9 9A2 2 0 0 0 13 22a2 2 0 0 0 1.41-.59l7-7A2 2 0 0 0 22 13a2 2 0 0 0-.59-1.42M6.5 8A1.5 1.5 0 1 1 8 6.5A1.5 1.5 0 0 1 6.5 8"/></svg>' +
+                                'Apply SC/PWD Discount</a>'
+                                : '<a href="javascript:void(0)" data-action="toggle-discount" data-billing-id="' + billingId + '" data-apply="0">' +
+                                '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12z"/></svg>' +
+                                'Remove SC/PWD Discount</a>');
                     }
 
                     html += '<a href="javascript:void(0)" data-action="print" data-invoice-id="' + invoiceId + '">' +
@@ -691,7 +712,23 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                         case 'record-payment': openRecordPayment(link); break;
                         case 'payment-history': openPaymentHistory(link.dataset.billingId); break;
                         case 'set-due-date': openSetDueDate(link.dataset.billingId); break;
+                        case 'toggle-discount': toggleDiscount(link.dataset.billingId, link.dataset.apply === '1'); break;
                     }
+                }
+
+                function toggleDiscount(billingId, apply) {
+                    if (!billingId || billingId === '0') { alert('No billing record attached.'); return; }
+                    fetch('../shared/billing_actions.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'toggle_discount', billing_id: billingId, apply: apply })
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        alert(data.message || (data.success ? 'Done' : 'Failed'));
+                        if (data.success) location.reload();
+                    })
+                    .catch(() => alert('Request failed. Please try again.'));
                 }
 
                 document.addEventListener('click', function(e) {

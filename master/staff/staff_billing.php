@@ -99,7 +99,10 @@ try {
                 COALESCE(b.payment_status, 'unpaid') as payment_status,
                 b.billing_date,
                 b.paid_amount,
-                b.notes as billing_notes
+                b.notes as billing_notes,
+                b.subtotal_amount,
+                b.discount_type,
+                b.discount_amount
             FROM queue q
             LEFT JOIN patients p ON q.patient_id = p.id
             LEFT JOIN billing b ON b.patient_id = q.patient_id AND DATE(b.billing_date) = DATE(q.created_at)
@@ -295,7 +298,17 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                     <span class="teeth-info">Teeth: <?php echo htmlspecialchars($record['teeth_numbers']); ?></span>
                                     <?php endif; ?>
                                 </td>
-                                <td><strong>P<?php echo number_format($calculatedAmount, 2); ?></strong></td>
+                                <td>
+                                    <strong>P<?php echo number_format($calculatedAmount, 2); ?></strong>
+                                    <?php if (($record['discount_amount'] ?? 0) > 0): ?>
+                                        <div style="margin-top:3px;">
+                                            <span style="text-decoration:line-through;color:#94a3b8;font-size:11px;">P<?php echo number_format((float)($record['subtotal_amount'] ?: ($calculatedAmount + $record['discount_amount'])), 2); ?></span>
+                                            <span style="display:inline-block;background:#ecfdf5;color:#047857;font-size:10px;font-weight:700;padding:1px 7px;border-radius:9999px;border:1px solid #a7f3d0;margin-left:4px;">
+                                                <?php echo strtoupper($record['discount_type']); ?> 20% &minus;P<?php echo number_format((float)$record['discount_amount'], 2); ?>
+                                            </span>
+                                        </div>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <?php if ($record['queue_status'] === 'completed'): ?>
                                         <span class="status-badge queue-completed">Completed</span>
@@ -355,6 +368,17 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                                 </svg>
                                                 Set Due Date
                                             </button>
+                                            <?php if ((int)($record['billing_id'] ?? 0) > 0 && ($record['discount_type'] ?? 'none') === 'none'): ?>
+                                            <button class="kebab-item" onclick="toggleDiscount(<?php echo (int)$record['billing_id']; ?>, true)">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M21.41 11.58l-9-9A2 2 0 0 0 11 2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 .59 1.42l9 9A2 2 0 0 0 13 22a2 2 0 0 0 1.41-.59l7-7A2 2 0 0 0 22 13a2 2 0 0 0-.59-1.42M6.5 8A1.5 1.5 0 1 1 8 6.5A1.5 1.5 0 0 1 6.5 8"/></svg>
+                                                Apply SC/PWD Discount
+                                            </button>
+                                            <?php elseif ((int)($record['billing_id'] ?? 0) > 0 && ($record['discount_type'] ?? 'none') !== 'none'): ?>
+                                            <button class="kebab-item" onclick="toggleDiscount(<?php echo (int)$record['billing_id']; ?>, false)">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12z"/></svg>
+                                                Remove SC/PWD Discount
+                                            </button>
+                                            <?php endif; ?>
                                             <?php endif; ?>
                                         </div>
                                     </div>
@@ -1188,6 +1212,22 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
 
                 function closeBillingModal() {
                     document.getElementById('billingModal').style.display = 'none';
+                }
+
+                function toggleDiscount(billingId, apply) {
+                    document.querySelectorAll('.kebab-dropdown.active').forEach(d => d.classList.remove('active'));
+                    if (!billingId) return;
+                    fetch('../shared/billing_actions.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'toggle_discount', billing_id: billingId, apply: apply })
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        alert(data.message || (data.success ? 'Done' : 'Failed'));
+                        if (data.success) location.reload();
+                    })
+                    .catch(() => alert('Request failed. Please try again.'));
                 }
 
                 function markAsPaid(queueId, patientId, amount, treatment, billingId) {

@@ -1226,6 +1226,21 @@ function editPatientInfo(patientId) {
                             </select>
                         </div>
                     </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+                        <div>
+                            <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Senior Citizen (OSCA) ID No.</label>
+                            <input type="text" name="senior_citizen_id" value="${patient.senior_citizen_id || ''}" placeholder="e.g., OSCA-0123-4567"
+                                style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
+                            ${patient.senior_citizen_id || (patient.date_of_birth && (() => { const a = Math.floor((Date.now() - new Date(patient.date_of_birth)) / 31557600000); return a >= 60 ? `<span style="font-size:11px;color:#16a34a;font-weight:600;">Age ${a} — qualifies as senior even without ID</span>` : ''; })()) ? '<span style="font-size:11px;color:#16a34a;">20% discount eligible (RA 9994)</span>' : ''}
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">PWD ID No.</label>
+                            <input type="text" name="pwd_id" value="${patient.pwd_id || ''}" placeholder="e.g., PWD-CDO-2024-00123"
+                                style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
+                            ${patient.pwd_id ? '<span style="font-size:11px;color:#16a34a;">20% discount eligible (RA 10754)</span>' : ''}
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- Buttons -->

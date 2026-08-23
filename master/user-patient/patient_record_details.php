@@ -352,6 +352,7 @@ try {
         $stmt = $pdo->prepare("
             SELECT b.id, b.total_amount, b.paid_amount, b.balance, b.payment_status,
                    b.billing_date, b.due_date, b.notes, b.appointment_id, b.patient_id,
+                    b.subtotal_amount, b.discount_type, b.discount_amount,
                     COALESCE(svc.name, q.treatment_type, 'General Service') as service_name,
                     svc.price as service_price
             FROM billing b

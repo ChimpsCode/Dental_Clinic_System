@@ -83,6 +83,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 // Include audit helper
 require_once __DIR__ . '/../../includes/audit_helper.php';
 
+// Include Senior/PWD discount helper
+require_once __DIR__ . '/../../includes/discount_helper.php';
+
 // Ensure printed_at column exists for logging prints
 try {
     $colCheck = $pdo->query("SHOW COLUMNS FROM billing LIKE 'printed_at'");
@@ -445,6 +448,9 @@ try {
             $old_status = 'unknown';
             $new_status = 'paid';
             
+            // Amounts entered are pre-discount subtotals; discount auto-applies when eligible
+            $paymentAmount = $amount;
+            
             $pdo->beginTransaction();
             
             try {
@@ -494,14 +500,25 @@ try {
                             $stmt->execute([$billing_id]);
                         }
                     } else {
-                        // Create new billing - column check
+                        // Create new billing - column check (with Senior/PWD discount)
+                        $disc = getPatientDiscount($pdo, (int)$patient_id);
+                        $totals = computeDiscountedTotals(floatval($amount), $disc);
+                        if ($disc['eligible']) {
+                            $paymentAmount = $totals['total'];
+                        }
                         $stmt = $pdo->query("DESCRIBE billing");
                         $bcols = array_column($stmt->fetchAll(), 'Field');
                         $bcolsList = [];
                         $bvals = [];
                         if (in_array('patient_id', $bcols)) { $bcolsList[] = "patient_id"; $bvals[] = $patient_id; }
-                        if (in_array('total_amount', $bcols)) { $bcolsList[] = "total_amount"; $bvals[] = $amount; }
-                        if (in_array('paid_amount', $bcols)) { $bcolsList[] = "paid_amount"; $bvals[] = $amount; }
+                        if (in_array('total_amount', $bcols)) { $bcolsList[] = "total_amount"; $bvals[] = $totals['total']; }
+                        if ($disc['eligible'] && in_array('subtotal_amount', $bcols)) { $bcolsList[] = "subtotal_amount"; $bvals[] = $totals['subtotal']; }
+                        if ($disc['eligible'] && in_array('discount_type', $bcols)) { $bcolsList[] = "discount_type"; $bvals[] = $disc['type']; }
+                        if ($disc['eligible'] && in_array('discount_rate', $bcols)) { $bcolsList[] = "discount_rate"; $bvals[] = $disc['rate']; }
+                        if ($disc['eligible'] && in_array('discount_amount', $bcols)) { $bcolsList[] = "discount_amount"; $bvals[] = $totals['discount_amount']; }
+                        if ($disc['eligible'] && in_array('discount_id_no', $bcols)) { $bcolsList[] = "discount_id_no"; $bvals[] = $disc['id_no']; }
+                        if ($disc['eligible'] && in_array('discount_holder_name', $bcols)) { $bcolsList[] = "discount_holder_name"; $bvals[] = $disc['holder_name']; }
+                        if (in_array('paid_amount', $bcols)) { $bcolsList[] = "paid_amount"; $bvals[] = $paymentAmount; }
                         if (in_array('balance', $bcols)) { $bcolsList[] = "balance"; $bvals[] = 0; }
                         if (in_array('payment_status_id', $bcols)) { $bcolsList[] = "payment_status_id"; $bvals[] = 1; }
                         if (in_array('payment_status', $bcols)) { $bcolsList[] = "payment_status"; $bvals[] = 'paid'; }
@@ -514,6 +531,9 @@ try {
                             $stmt = $pdo->prepare($sql);
                             $stmt->execute($bvals);
                             $billing_id = $pdo->lastInsertId();
+                            if ($disc['eligible']) {
+                                logDiscountAudit($pdo, 'discount', (int)$billing_id, 'Auto-applied ' . $disc['label'] . ' ' . $disc['rate'] . '% discount (' . number_format($totals['discount_amount'], 2) . ') on mark-paid bill');
+                            }
                         }
                     }
                 }
@@ -523,7 +543,7 @@ try {
                     INSERT INTO payments (billing_id, patient_id, amount, payment_method, payment_date, created_by, created_at)
                     VALUES (?, ?, ?, 'Cash', ?, ?, NOW())
                 ");
-                $stmt->execute([$billing_id, $patient_id, $amount, $paymentDate, $current_user_id]);
+                $stmt->execute([$billing_id, $patient_id, $paymentAmount, $paymentDate, $current_user_id]);
                 $payment_id = $pdo->lastInsertId();
                 
                 // Update queue status to completed if queue_id exists
@@ -620,18 +640,24 @@ try {
                     $stmt = $pdo->prepare("UPDATE billing SET " . implode(', ', $bupdates) . " WHERE id = ?");
                     $stmt->execute($bparams);
                 } else {
-                    // Create new billing if none exists
-                    $total_amount = $amount;
-                    $new_paid = $amount;
-                    $new_balance = 0;
+                    // Create new billing if none exists (with Senior/PWD discount)
+                    $disc = getPatientDiscount($pdo, (int)$patient_id);
+                    $totals = computeDiscountedTotals(floatval($amount), $disc);
+                    $paymentAmount = $totals['total'];
                     
                     $stmt = $pdo->query("DESCRIBE billing");
                     $bcols = array_column($stmt->fetchAll(), 'Field');
                     $bcolsList = [];
                     $bvals = [];
                     if (in_array('patient_id', $bcols)) { $bcolsList[] = "patient_id"; $bvals[] = $patient_id; }
-                    if (in_array('total_amount', $bcols)) { $bcolsList[] = "total_amount"; $bvals[] = $amount; }
-                    if (in_array('paid_amount', $bcols)) { $bcolsList[] = "paid_amount"; $bvals[] = $amount; }
+                    if (in_array('total_amount', $bcols)) { $bcolsList[] = "total_amount"; $bvals[] = $totals['total']; }
+                    if ($disc['eligible'] && in_array('subtotal_amount', $bcols)) { $bcolsList[] = "subtotal_amount"; $bvals[] = $totals['subtotal']; }
+                    if ($disc['eligible'] && in_array('discount_type', $bcols)) { $bcolsList[] = "discount_type"; $bvals[] = $disc['type']; }
+                    if ($disc['eligible'] && in_array('discount_rate', $bcols)) { $bcolsList[] = "discount_rate"; $bvals[] = $disc['rate']; }
+                    if ($disc['eligible'] && in_array('discount_amount', $bcols)) { $bcolsList[] = "discount_amount"; $bvals[] = $totals['discount_amount']; }
+                    if ($disc['eligible'] && in_array('discount_id_no', $bcols)) { $bcolsList[] = "discount_id_no"; $bvals[] = $disc['id_no']; }
+                    if ($disc['eligible'] && in_array('discount_holder_name', $bcols)) { $bcolsList[] = "discount_holder_name"; $bvals[] = $disc['holder_name']; }
+                    if (in_array('paid_amount', $bcols)) { $bcolsList[] = "paid_amount"; $bvals[] = $paymentAmount; }
                     if (in_array('balance', $bcols)) { $bcolsList[] = "balance"; $bvals[] = 0; }
                     if (in_array('payment_status', $bcols)) { $bcolsList[] = "payment_status"; $bvals[] = 'paid'; }
                     if (in_array('billing_date', $bcols)) { $bcolsList[] = "billing_date"; $bvals[] = $paymentDate; }
@@ -643,6 +669,9 @@ try {
                         $stmt = $pdo->prepare($sql);
                         $stmt->execute($bvals);
                         $billing_id = $pdo->lastInsertId();
+                        if ($disc['eligible']) {
+                            logDiscountAudit($pdo, 'discount', (int)$billing_id, 'Auto-applied ' . $disc['label'] . ' ' . $disc['rate'] . '% discount (' . number_format($totals['discount_amount'], 2) . ') on first-payment bill');
+                        }
                     }
                 }
                 
@@ -651,7 +680,7 @@ try {
                     INSERT INTO payments (billing_id, patient_id, amount, payment_method, payment_date, created_by, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, NOW())
                 ");
-                $stmt->execute([$billing_id, $patient_id, $amount, $payment_method, $paymentDate, $current_user_id]);
+                $stmt->execute([$billing_id, $patient_id, $paymentAmount ?? $amount, $payment_method, $paymentDate, $current_user_id]);
                 $payment_id = $pdo->lastInsertId();
                 
                 $pdo->commit();
@@ -750,18 +779,29 @@ try {
             $patient_name = getPatientName($pdo, $billing['patient_id']);
             $old_amount = $billing['total_amount'];
             $paid_amount = $billing['paid_amount'];
-            $new_balance = max(0, $new_amount - $paid_amount);
+            
+            // Entered amount is a pre-discount subtotal; discount auto-applies when eligible
+            $disc = getPatientDiscount($pdo, (int)$billing['patient_id']);
+            $totals = computeDiscountedTotals(floatval($new_amount), $disc);
+            $payable = $totals['total'];
+            $new_balance = max(0, $payable - $paid_amount);
             
             // Update billing amount
             $stmt = $pdo->query("DESCRIBE billing");
             $bcols = array_column($stmt->fetchAll(), 'Field');
             $bupdates = [];
             $bparams = [];
-            if (in_array('total_amount', $bcols)) { $bupdates[] = "total_amount = ?"; $bparams[] = $new_amount; }
-            if (in_array('balance', $bcols)) { $bupdates[] = "balance = ?"; $bparams[] = max(0, $new_amount - $paid_amount); }
+            if (in_array('total_amount', $bcols)) { $bupdates[] = "total_amount = ?"; $bparams[] = $payable; }
+            if ($disc['eligible'] && in_array('subtotal_amount', $bcols)) { $bupdates[] = "subtotal_amount = ?"; $bparams[] = $totals['subtotal']; }
+            if ($disc['eligible'] && in_array('discount_type', $bcols)) { $bupdates[] = "discount_type = ?"; $bparams[] = $disc['type']; }
+            if ($disc['eligible'] && in_array('discount_rate', $bcols)) { $bupdates[] = "discount_rate = ?"; $bparams[] = $disc['rate']; }
+            if ($disc['eligible'] && in_array('discount_amount', $bcols)) { $bupdates[] = "discount_amount = ?"; $bparams[] = $totals['discount_amount']; }
+            if ($disc['eligible'] && in_array('discount_id_no', $bcols)) { $bupdates[] = "discount_id_no = ?"; $bparams[] = $disc['id_no']; }
+            if ($disc['eligible'] && in_array('discount_holder_name', $bcols)) { $bupdates[] = "discount_holder_name = ?"; $bparams[] = $disc['holder_name']; }
+            if (in_array('balance', $bcols)) { $bupdates[] = "balance = ?"; $bparams[] = $new_balance; }
             if (in_array('updated_at', $bcols)) { $bupdates[] = "updated_at = NOW()"; }
             // If new amount exceeds what was already paid, reset payment status to partial
-            if ($new_amount > $paid_amount && $paid_amount > 0) {
+            if ($payable > $paid_amount && $paid_amount > 0) {
                 if (in_array('payment_status_id', $bcols)) { $bupdates[] = "payment_status_id = 2"; }
                 if (in_array('payment_status', $bcols)) { $bupdates[] = "payment_status = 'partial'"; }
             }
@@ -771,11 +811,90 @@ try {
                 $stmt->execute($bparams);
             }
             
+            if ($disc['eligible']) {
+                logDiscountAudit($pdo, 'discount', (int)$billing_id, 'Auto-applied ' . $disc['label'] . ' ' . $disc['rate'] . '% discount (' . number_format($totals['discount_amount'], 2) . ') on amount update');
+            }
+            
             // Log audit - billing updated
-            logAudit($pdo, $current_user_id, $current_username, $current_role, 'update', 'billing', 'Updated billing amount: ₱' . number_format($old_amount, 2) . ' → ₱' . number_format($new_amount, 2) . ' for patient: ' . $patient_name . ' (INV-' . str_pad($billing_id, 3, '0', STR_PAD_LEFT) . ')' . ($reason ? ' - Reason: ' . $reason : ''), $billing_id, 'billing', '₱' . number_format($old_amount, 2), '₱' . number_format($new_amount, 2));
+            logAudit($pdo, $current_user_id, $current_username, $current_role, 'update', 'billing', 'Updated billing amount: ₱' . number_format($old_amount, 2) . ' → ₱' . number_format($payable, 2) . ' for patient: ' . $patient_name . ' (INV-' . str_pad($billing_id, 3, '0', STR_PAD_LEFT) . ')' . ($reason ? ' - Reason: ' . $reason : ''), $billing_id, 'billing', '₱' . number_format($old_amount, 2), '₱' . number_format($payable, 2));
             
             $response['success'] = true;
             $response['message'] = 'Payment amount updated successfully';
+            break;
+            
+        case 'toggle_discount':
+            // Retroactively apply/remove Senior/PWD discount on an unpaid/partial bill
+            $input = json_decode(file_get_contents('php://input'), true);
+            $billing_id = intval($input['billing_id'] ?? 0);
+            $apply = !empty($input['apply']);
+            
+            if (!$billing_id) {
+                $response['message'] = 'Billing ID is required';
+                break;
+            }
+            
+            try {
+                $stmt = $pdo->prepare("SELECT * FROM billing WHERE id = ?");
+                $stmt->execute([$billing_id]);
+                $bill = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if (!$bill) {
+                    $response['message'] = 'Billing record not found';
+                    break;
+                }
+                
+                $status = strtolower($bill['payment_status'] ?? 'unpaid');
+                if ($status === 'paid') {
+                    $response['message'] = 'Cannot modify a fully paid bill';
+                    break;
+                }
+                
+                $patientId = (int)$bill['patient_id'];
+                $paid = floatval($bill['paid_amount'] ?? 0);
+                $disc = getPatientDiscount($pdo, $patientId);
+                $patient_name = getPatientName($pdo, $patientId);
+                
+                if ($apply) {
+                    if (!$disc['eligible']) {
+                        $response['message'] = 'Patient is not eligible for Senior/PWD discount';
+                        break;
+                    }
+                    if (($bill['discount_type'] ?? 'none') !== 'none') {
+                        $response['success'] = true;
+                        $response['message'] = 'Discount already applied';
+                        break;
+                    }
+                    // Subtotal is the current undiscounted total (or stored subtotal if present)
+                    $subtotal = floatval($bill['subtotal_amount'] ?: $bill['total_amount']);
+                    $totals = computeDiscountedTotals($subtotal, $disc);
+                    
+                    $stmt = $pdo->prepare("UPDATE billing SET total_amount = ?, subtotal_amount = ?, discount_type = ?, discount_rate = ?, discount_amount = ?, discount_id_no = ?, discount_holder_name = ?, balance = GREATEST(0, ? - ?), updated_at = NOW() WHERE id = ?");
+                    $stmt->execute([$totals['total'], $totals['subtotal'], $disc['type'], $disc['rate'], $totals['discount_amount'], $disc['id_no'], $disc['holder_name'], $totals['total'], $paid, $billing_id]);
+                    
+                    logDiscountAudit($pdo, 'discount', $billing_id, 'Applied ' . $disc['label'] . ' ' . $disc['rate'] . '% discount (' . number_format($totals['discount_amount'], 2) . ') to bill of ' . $patient_name);
+                    
+                    $response['success'] = true;
+                    $response['message'] = $disc['label'] . ' 20% discount applied. New total: ₱' . number_format($totals['total'], 2);
+                } else {
+                    if (($bill['discount_type'] ?? 'none') === 'none') {
+                        $response['success'] = true;
+                        $response['message'] = 'No discount to remove';
+                        break;
+                    }
+                    // Restore the pre-discount amount
+                    $restored = floatval($bill['subtotal_amount'] ?: ($bill['total_amount'] + $bill['discount_amount']));
+                    
+                    $stmt = $pdo->prepare("UPDATE billing SET total_amount = ?, subtotal_amount = NULL, discount_type = 'none', discount_rate = 0, discount_amount = 0, discount_id_no = NULL, discount_holder_name = NULL, balance = GREATEST(0, ? - ?), updated_at = NOW() WHERE id = ?");
+                    $stmt->execute([$restored, $restored, $paid, $billing_id]);
+                    
+                    logDiscountAudit($pdo, 'discount', $billing_id, 'Removed discount from bill of ' . $patient_name . ' (restored ₱' . number_format($restored, 2) . ')');
+                    
+                    $response['success'] = true;
+                    $response['message'] = 'Discount removed. New total: ₱' . number_format($restored, 2);
+                }
+            } catch (Exception $e) {
+                throw $e;
+            }
             break;
             
         default:

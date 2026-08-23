@@ -60,6 +60,10 @@ try {
     $emergencyContactPhone = trim($_POST['emergency_contact_phone'] ?? '');
     $emergencyContactRelationship = trim($_POST['emergency_contact_relationship'] ?? '');
     
+    // Senior / PWD discount IDs (RA 9994 / RA 10754)
+    $seniorCitizenId = trim($_POST['senior_citizen_id'] ?? '') ?: null;
+    $pwdId = trim($_POST['pwd_id'] ?? '') ?: null;
+    
     // Insurance
     $dentalInsurance = trim($_POST['dentalInsurance'] ?? '');
     $insuranceEffectiveDate = $_POST['effectiveDate'] ?? null;
@@ -104,6 +108,13 @@ try {
             'emergency_contact_relationship' => $emergencyContactRelationship,
         ];
         
+        if (!is_null($seniorCitizenId) && in_array('senior_citizen_id', $availableColumns)) {
+            $updateMap['senior_citizen_id'] = $seniorCitizenId;
+        }
+        if (!is_null($pwdId) && in_array('pwd_id', $availableColumns)) {
+            $updateMap['pwd_id'] = $pwdId;
+        }
+        
         foreach ($updateMap as $col => $val) {
             if (in_array($col, $availableColumns)) {
                 $updateParts[] = "$col = ?";
@@ -142,6 +153,13 @@ try {
             'emergency_contact_phone' => $emergencyContactPhone,
             'emergency_contact_relationship' => $emergencyContactRelationship,
         ];
+        
+        if (!is_null($seniorCitizenId)) {
+            $fieldMap['senior_citizen_id'] = $seniorCitizenId;
+        }
+        if (!is_null($pwdId)) {
+            $fieldMap['pwd_id'] = $pwdId;
+        }
         
         foreach ($fieldMap as $col => $val) {
             if (in_array($col, $availableColumns)) {
@@ -469,6 +487,8 @@ if ($appointmentId) {
     $billingNotes = 'Initial billing from admission - Services: ' . $treatmentType;
     
     try {
+        require_once __DIR__ . '/../../includes/discount_helper.php';
+        
         $bCols = $pdo->query("DESCRIBE billing");
         $bAvailable = array_column($bCols->fetchAll(), 'Field');
         
@@ -476,15 +496,28 @@ if ($appointmentId) {
         $bValues = [];
         $bSetClauses = [];
         
+        // Auto-apply Senior/PWD discount when eligible
+        $disc = getPatientDiscount($pdo, (int)$patientId);
+        $totals = computeDiscountedTotals($totalAmount, $disc);
+        
         $bFieldMap = [
             'patient_id' => $patientId,
             'appointment_id' => $appointmentId,
-            'total_amount' => $totalAmount,
+            'total_amount' => $totals['total'],
             'paid_amount' => 0,
-            'balance' => $totalAmount,
+            'balance' => $totals['total'],
             'payment_status' => 'unpaid',
             'notes' => $billingNotes,
         ];
+        
+        if ($disc['eligible']) {
+            $bFieldMap['subtotal_amount'] = $totals['subtotal'];
+            $bFieldMap['discount_type'] = $disc['type'];
+            $bFieldMap['discount_rate'] = $disc['rate'];
+            $bFieldMap['discount_amount'] = $totals['discount_amount'];
+            $bFieldMap['discount_id_no'] = $disc['id_no'];
+            $bFieldMap['discount_holder_name'] = $disc['holder_name'];
+        }
         
         foreach ($bFieldMap as $col => $val) {
             if (in_array($col, $bAvailable)) {
@@ -501,6 +534,10 @@ if ($appointmentId) {
         $stmt = $pdo->prepare($billingSql);
         $stmt->execute($bValues);
         $billingId = $pdo->lastInsertId();
+        
+        if ($disc['eligible']) {
+            logDiscountAudit($pdo, 'discount', (int)$billingId, 'Auto-applied ' . $disc['label'] . ' ' . $disc['rate'] . '% discount (' . number_format($totals['discount_amount'], 2) . ') on admission bill');
+        }
     } catch (Exception $bErr) {
         $billingId = 0;
     }

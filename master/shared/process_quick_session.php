@@ -105,13 +105,25 @@ try {
     $billingId = null;
     if ($totalAmount > 0) {
         try {
-            $stmt = $pdo->prepare("
-                INSERT INTO billing (patient_id, total_amount, paid_amount, balance, payment_status, billing_date, due_date, notes, created_at, updated_at)
-                VALUES (?, ?, 0, ?, 'unpaid', CURDATE(), CURDATE(), ?, NOW(), NOW())
-            ");
-            $stmt->execute([$patient_id, $totalAmount, $totalAmount, 'Billing from quick session - ' . $treatment_type]);
+            require_once __DIR__ . '/../../includes/discount_helper.php';
+            $disc = getPatientDiscount($pdo, (int)$patient_id);
+            $totals = computeDiscountedTotals($totalAmount, $disc);
+            if ($disc['eligible']) {
+                $stmt = $pdo->prepare("
+                    INSERT INTO billing (patient_id, total_amount, subtotal_amount, discount_type, discount_rate, discount_amount, discount_id_no, discount_holder_name, paid_amount, balance, payment_status, billing_date, due_date, notes, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 'unpaid', CURDATE(), CURDATE(), ?, NOW(), NOW())
+                ");
+                $stmt->execute([$patient_id, $totals['total'], $totals['subtotal'], $disc['type'], $disc['rate'], $totals['discount_amount'], $disc['id_no'], $disc['holder_name'], $totals['total'], 'Billing from quick session - ' . $treatment_type]);
+                logDiscountAudit($pdo, 'discount', (int)$pdo->lastInsertId(), 'Auto-applied ' . $disc['label'] . ' ' . $disc['rate'] . '% discount (' . number_format($totals['discount_amount'], 2) . ') on quick session bill');
+            } else {
+                $stmt = $pdo->prepare("
+                    INSERT INTO billing (patient_id, total_amount, paid_amount, balance, payment_status, billing_date, due_date, notes, created_at, updated_at)
+                    VALUES (?, ?, 0, ?, 'unpaid', CURDATE(), CURDATE(), ?, NOW(), NOW())
+                ");
+                $stmt->execute([$patient_id, $totalAmount, $totalAmount, 'Billing from quick session - ' . $treatment_type]);
+            }
             $billingId = $pdo->lastInsertId();
-            error_log("Quick Session - billing created: id=$billingId, total=$totalAmount");
+            error_log("Quick Session - billing created: id=$billingId, total={$totals['total']}");
         } catch (Exception $e) {
             error_log("Quick Session billing error: " . $e->getMessage());
         }

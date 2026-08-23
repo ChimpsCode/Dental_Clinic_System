@@ -263,6 +263,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         try {
+            require_once __DIR__ . '/../../includes/discount_helper.php';
+            
             $pdo->beginTransaction();
             
             // Get the latest queue for this patient
@@ -280,19 +282,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             // Check if billing record already exists for this patient
-            $checkStmt = $pdo->prepare("SELECT id, paid_amount, payment_status FROM billing WHERE patient_id = ? ORDER BY created_at DESC LIMIT 1");
+            $checkStmt = $pdo->prepare("SELECT id, paid_amount, payment_status, discount_type FROM billing WHERE patient_id = ? ORDER BY created_at DESC LIMIT 1");
             $checkStmt->execute([$patientId]);
             $existingBilling = $checkStmt->fetch(PDO::FETCH_ASSOC);
+            
+            // Senior/PWD discount: the entered amount is the subtotal; total becomes discounted
+            $disc = getPatientDiscount($pdo, $patientId);
+            $totals = computeDiscountedTotals($newAmount, $disc);
+            $payable = $totals['total'];
             
             if (is_array($existingBilling)) {
                 // Calculate new balance
                 $paidAmount = floatval($existingBilling['paid_amount']);
-                $newBalance = $newAmount - $paidAmount;
+                $newBalance = $payable - $paidAmount;
                 if ($newBalance < 0) $newBalance = 0;
                 
                 // Determine new status
                 $newStatus = 'unpaid';
-                if ($paidAmount >= $newAmount && $newAmount > 0) {
+                if ($paidAmount >= $payable && $payable > 0) {
                     $newStatus = 'paid';
                 } elseif ($paidAmount > 0) {
                     $newStatus = 'partial';
@@ -302,13 +309,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $updateStmt = $pdo->prepare("
                     UPDATE billing 
                     SET total_amount = ?, 
+                        subtotal_amount = ?,
+                        discount_type = ?,
+                        discount_rate = ?,
+                        discount_amount = ?,
+                        discount_id_no = ?,
+                        discount_holder_name = ?,
                         balance = ?,
                         payment_status = ?,
                         notes = ?,
                         updated_at = NOW()
                     WHERE id = ?
                 ");
-                $updateStmt->execute([$newAmount, $newBalance, $newStatus, $notes, $existingBilling['id']]);
+                $updateStmt->execute([
+                    $payable,
+                    $totals['subtotal'],
+                    $disc['eligible'] ? $disc['type'] : 'none',
+                    $disc['rate'],
+                    $totals['discount_amount'],
+                    $disc['id_no'],
+                    $disc['holder_name'],
+                    $newBalance,
+                    $newStatus,
+                    $notes,
+                    $existingBilling['id']
+                ]);
+
+                if ($disc['eligible'] && ($existingBilling['discount_type'] ?? 'none') === 'none') {
+                    logDiscountAudit($pdo, 'discount', (int)$existingBilling['id'], 'Auto-applied ' . $disc['label'] . ' ' . $disc['rate'] . '% discount (' . number_format($totals['discount_amount'], 2) . ') when dentist set bill amount');
+                }
                 
                 $billingId = $existingBilling['id'];
             } else {
@@ -317,6 +346,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     INSERT INTO billing (
                         patient_id, 
                         total_amount, 
+                        subtotal_amount,
+                        discount_type,
+                        discount_rate,
+                        discount_amount,
+                        discount_id_no,
+                        discount_holder_name,
                         paid_amount, 
                         balance, 
                         payment_status, 
@@ -325,18 +360,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         notes,
                         created_at,
                         updated_at
-                    ) VALUES (?, ?, 0, ?, 'unpaid', ?, ?, ?, NOW(), NOW())
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 'unpaid', ?, ?, ?, NOW(), NOW())
                 ");
                 $insertStmt->execute([
                     $patientId,
-                    $newAmount,
-                    $newAmount,
+                    $payable,
+                    $totals['subtotal'],
+                    $disc['eligible'] ? $disc['type'] : 'none',
+                    $disc['rate'],
+                    $totals['discount_amount'],
+                    $disc['id_no'],
+                    $disc['holder_name'],
+                    $payable,
                     $queueDate,
                     $queueDate,
                     $notes ?: 'Billing amount set by dentist'
                 ]);
                 
                 $billingId = $pdo->lastInsertId();
+
+                if ($disc['eligible']) {
+                    logDiscountAudit($pdo, 'discount', (int)$billingId, 'Auto-applied ' . $disc['label'] . ' ' . $disc['rate'] . '% discount (' . number_format($totals['discount_amount'], 2) . ') on new dentist-set bill');
+                }
             }
             
             $pdo->commit();

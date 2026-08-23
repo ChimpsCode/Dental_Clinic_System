@@ -123,7 +123,7 @@ elseif ($appointmentId) {
                             p.first_name, p.middle_name, p.last_name, p.suffix,
                             p.phone as patient_phone, p.date_of_birth, p.gender,
                             p.street_address as address, p.city, p.province, p.zip_code,
-                            p.email,
+                            p.email, p.senior_citizen_id, p.pwd_id,
                             s.name as service_name
                             FROM appointments a 
                             LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
@@ -149,7 +149,9 @@ elseif ($appointmentId) {
                     'city' => $appointmentData['city'] ?? '',
                     'province' => $appointmentData['province'] ?? '',
                     'zip_code' => $appointmentData['zip_code'] ?? '',
-                    'email' => $appointmentData['email'] ?? ''
+                    'email' => $appointmentData['email'] ?? '',
+                    'senior_citizen_id' => $appointmentData['senior_citizen_id'] ?? '',
+                    'pwd_id' => $appointmentData['pwd_id'] ?? ''
                 ];
             }
             // If no patient linked, check if appointment has patient info directly stored
@@ -551,6 +553,17 @@ elseif ($appointmentId) {
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Emergency Contact Relationship</label>
                                 <input type="text" name="emergency_contact_relationship" value="<?php echo htmlspecialchars($patientFromAppointment['emergency_contact_relationship'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Parent, Spouse, Sibling">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Senior Citizen (OSCA) ID No. <span class="text-slate-400 font-normal">(Optional)</span></label>
+                                <input type="text" name="senior_citizen_id" value="<?php echo htmlspecialchars($patientFromAppointment['senior_citizen_id'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="For 20% Senior discount (RA 9994)">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">PWD ID No. <span class="text-slate-400 font-normal">(Optional)</span></label>
+                                <input type="text" name="pwd_id" value="<?php echo htmlspecialchars($patientFromAppointment['pwd_id'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="For 20% PWD discount (RA 10754)">
                             </div>
                         </div>
                     </section>

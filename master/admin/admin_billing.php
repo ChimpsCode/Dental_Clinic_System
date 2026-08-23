@@ -74,6 +74,20 @@ try {
     $totalTransactions = (int)($stats['total_transactions'] ?? 0);
     $overdueCount = (int)($stats['overdue_count'] ?? 0);
 
+    // Senior/PWD discounts this calendar month (for BIR purchase book reference)
+    try {
+        $discStmt = $pdo->query("SELECT
+                COUNT(*) AS discount_count,
+                COALESCE(SUM(discount_amount), 0) AS discount_total,
+                COALESCE(SUM(CASE WHEN discount_type = 'senior' THEN discount_amount ELSE 0 END), 0) AS senior_total,
+                COALESCE(SUM(CASE WHEN discount_type = 'pwd' THEN discount_amount ELSE 0 END), 0) AS pwd_total
+            FROM billing
+            WHERE discount_amount > 0 AND YEAR(billing_date) = YEAR(CURDATE()) AND MONTH(billing_date) = MONTH(CURDATE())");
+        $discStats = $discStmt->fetch(PDO::FETCH_ASSOC) ?: ['discount_count' => 0, 'discount_total' => 0, 'senior_total' => 0, 'pwd_total' => 0];
+    } catch (Exception $e) {
+        $discStats = ['discount_count' => 0, 'discount_total' => 0, 'senior_total' => 0, 'pwd_total' => 0];
+    }
+
     $sql = "
         SELECT
             b.id AS billing_id,
@@ -84,6 +98,9 @@ try {
             b.payment_status,
             b.billing_date,
             b.due_date,
+            b.subtotal_amount,
+            b.discount_type,
+            b.discount_amount,
             p.first_name,
             p.last_name,
             svc.name AS service_name,
@@ -156,6 +173,13 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                             <p>Overdue</p>
                         </div>
                     </div>
+                    <div class="summary-card" title="Senior: &#8369;<?php echo number_format((float)$discStats['senior_total'], 2); ?> · PWD: &#8369;<?php echo number_format((float)$discStats['pwd_total'], 2); ?>">
+                        <div class="summary-icon green">&#127875;</div>
+                        <div class="summary-info">
+                            <h3>&#8369;<?php echo number_format((float)$discStats['discount_total'], 2); ?></h3>
+                            <p>SC/PWD Discounts (This Month &middot; <?php echo (int)$discStats['discount_count']; ?>)</p>
+                        </div>
+                    </div>
                 </div>
 
                 <form method="GET" class="search-filters">
@@ -207,7 +231,17 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                 <td><?php echo $invoiceNum; ?></td>
                                 <td><?php echo htmlspecialchars($fullName ?: 'Unknown'); ?></td>
                                 <td><?php echo htmlspecialchars($services); ?></td>
-                                <td>&#8369;<?php echo number_format($record['total_amount'] ?? 0, 2); ?></td>
+                                <td>
+                                    &#8369;<?php echo number_format($record['total_amount'] ?? 0, 2); ?>
+                                    <?php if (($record['discount_amount'] ?? 0) > 0): ?>
+                                        <div style="margin-top:3px;">
+                                            <span style="text-decoration:line-through;color:#94a3b8;font-size:11px;">&#8369;<?php echo number_format((float)($record['subtotal_amount'] ?: (($record['total_amount'] ?? 0) + $record['discount_amount'])), 2); ?></span>
+                                            <span style="display:inline-block;background:#ecfdf5;color:#047857;font-size:10px;font-weight:700;padding:1px 7px;border-radius:9999px;border:1px solid #a7f3d0;margin-left:4px;">
+                                                <?php echo strtoupper($record['discount_type']); ?> 20% &minus;&#8369;<?php echo number_format((float)$record['discount_amount'], 2); ?>
+                                            </span>
+                                        </div>
+                                    <?php endif; ?>
+                                </td>
                                 <td><?php echo date('Y-m-d', strtotime($record['billing_date'])); ?></td>
                                 <td><?php echo !empty($record['due_date']) ? date('Y-m-d', strtotime($record['due_date'])) : 'N/A'; ?></td>
                                 <td>
