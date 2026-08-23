@@ -210,6 +210,42 @@ try {
             }
         }
 
+        // Ensure diagnosis (ICD-10) columns exist on consultations + icd10_codes table
+        $consultColumns = [];
+        try {
+            $colStmt = $pdo->query("SHOW COLUMNS FROM consultations");
+            foreach ($colStmt->fetchAll(PDO::FETCH_ASSOC) as $col) {
+                $consultColumns[$col['Field']] = true;
+            }
+        } catch (Exception $e) {}
+
+        $requiredConsultCols = [
+            'primary_icd10' => "ALTER TABLE consultations ADD COLUMN primary_icd10 VARCHAR(10) DEFAULT NULL",
+            'primary_icd10_desc' => "ALTER TABLE consultations ADD COLUMN primary_icd10_desc VARCHAR(255) DEFAULT NULL",
+            'secondary_icd10' => "ALTER TABLE consultations ADD COLUMN secondary_icd10 VARCHAR(10) DEFAULT NULL",
+            'secondary_icd10_desc' => "ALTER TABLE consultations ADD COLUMN secondary_icd10_desc VARCHAR(255) DEFAULT NULL",
+            'diagnosis_narrative' => "ALTER TABLE consultations ADD COLUMN diagnosis_narrative TEXT DEFAULT NULL",
+        ];
+        foreach ($requiredConsultCols as $field => $sql) {
+            if (!isset($consultColumns[$field])) {
+                try { $pdo->exec($sql); } catch (Exception $e) {}
+            }
+        }
+
+        try {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS icd10_codes (
+                id int(11) NOT NULL AUTO_INCREMENT,
+                code varchar(10) NOT NULL,
+                description varchar(255) NOT NULL,
+                chapter varchar(100) DEFAULT NULL,
+                active tinyint(1) DEFAULT 1,
+                created_at timestamp NOT NULL DEFAULT current_timestamp(),
+                PRIMARY KEY (id),
+                UNIQUE KEY uq_icd10_code (code),
+                KEY idx_icd10_description (description)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        } catch (Exception $e) {}
+
         ob_clean();
     }
 
@@ -413,6 +449,91 @@ try {
             $stmt->execute([$input['dental_medical_history_notes'] ?? '', $consultId]);
             ob_clean();
             echo json_encode(['success' => true, 'message' => 'History saved']);
+            break;
+
+        case 'search_icd10':
+            $q = trim($_GET['q'] ?? '');
+            if ($q === '') {
+                ob_clean();
+                echo json_encode(['success' => true, 'results' => []]);
+                break;
+            }
+            $like = '%' . $q . '%';
+            $stmt = $pdo->prepare("
+                SELECT code, description
+                FROM icd10_codes
+                WHERE active = 1 AND (code LIKE ? OR description LIKE ?)
+                ORDER BY code ASC
+                LIMIT 20
+            ");
+            $stmt->execute([$like, $like]);
+            ob_clean();
+            echo json_encode(['success' => true, 'results' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+            break;
+
+        case 'save_diagnosis':
+            $input = json_decode(file_get_contents('php://input'), true);
+            $consultId = (int)($input['consultation_id'] ?? 0);
+            if (!$consultId) {
+                ob_clean();
+                echo json_encode(['success' => false, 'message' => 'Consultation ID required']);
+                break;
+            }
+
+            // Resolve + validate codes against the reference table (snapshots description)
+            $resolveCode = function ($code) use ($pdo) {
+                $code = strtoupper(trim((string)$code));
+                if ($code === '') return [null, null];
+                $stmt = $pdo->prepare("SELECT description FROM icd10_codes WHERE active = 1 AND UPPER(code) = ?");
+                $stmt->execute([$code]);
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                if (!$row) return [false, null];
+                return [$code, $row['description']];
+            };
+
+            list($primaryCode, $primaryDesc) = $resolveCode($input['primary_icd10'] ?? '');
+            list($secondaryCode, $secondaryDesc) = $resolveCode($input['secondary_icd10'] ?? '');
+
+            if ($primaryCode === false || $secondaryCode === false) {
+                ob_clean();
+                echo json_encode(['success' => false, 'message' => 'Invalid ICD-10 code']);
+                break;
+            }
+
+            $narrative = trim((string)($input['diagnosis_narrative'] ?? ''));
+            if (mb_strlen($narrative) > 5000) {
+                $narrative = mb_substr($narrative, 0, 5000);
+            }
+
+            $stmt = $pdo->prepare("UPDATE consultations SET
+                primary_icd10 = ?,
+                primary_icd10_desc = ?,
+                secondary_icd10 = ?,
+                secondary_icd10_desc = ?,
+                diagnosis_narrative = ?
+                WHERE id = ?
+            ");
+            $stmt->execute([
+                $primaryCode,
+                $primaryDesc,
+                $secondaryCode,
+                $secondaryDesc,
+                $narrative !== '' ? $narrative : null,
+                $consultId
+            ]);
+
+            ob_clean();
+            echo json_encode([
+                'success' => true,
+                'message' => 'Diagnosis saved',
+                'diagnosis' => [
+                    'primary_icd10' => $primaryCode,
+                    'primary_icd10_desc' => $primaryDesc,
+                    'secondary_icd10' => $secondaryCode,
+                    'secondary_icd10_desc' => $secondaryDesc,
+                    'diagnosis_narrative' => $narrative
+                ]
+            ]);
             break;
 
         case 'save_medical_history':

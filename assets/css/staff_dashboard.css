@@ -1159,6 +1159,16 @@ header.top-header {
     gap: 20px;
     min-width: 0;
 }
+.compact-queue .patient-list {
+    gap: 0px;
+    min-height: 50px;
+}
+#pending-approval-list {
+    min-height: 95px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 
 .compact-queue .action-btn.icon {
     width: 28px;
@@ -1234,9 +1244,6 @@ header.top-header {
     background: #0b6cf3;
 }
 
-.compact-queue .patient-list {
-    gap: 8px;
-}
 
 .compact-queue .patient-item {
     padding: 8px 10px;

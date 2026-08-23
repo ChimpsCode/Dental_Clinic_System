@@ -204,7 +204,7 @@ try {
         ORDER BY a.appointment_date ASC, a.appointment_time ASC
     ")->fetchAll(PDO::FETCH_ASSOC);
     $pendingApprovalCount = count($pendingApprovalAll);
-    $pendingApprovalItems = array_slice($pendingApprovalAll, 0, 5);
+    $pendingApprovalItems = array_slice($pendingApprovalAll, 0, 3);
 
     // Upcoming Appointments (within the next 24 hours)
     $upcomingApptAll = $pdo->query("
@@ -507,7 +507,7 @@ try {
                     <h2 class="section-title">🕓 Pending Approval <span class="section-count pending-count" id="count-pending-approval"><?php echo $pendingApprovalCount; ?></span></h2>
                     <div class="patient-list" id="pending-approval-list">
                         <?php if (empty($pendingApprovalItems)): ?>
-                            <div style="text-align: center; padding: 0; color: #6b7280;">
+                            <div style=" padding: 0; color: #6b7280;">
                                 <p>No pending approvals</p>
                             </div>
                         <?php else: ?>
@@ -537,7 +537,7 @@ try {
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </div>
-                    <a href="staff_appointments.php" class="see-all-link">View All (<?php echo $pendingApprovalCount; ?>)</a>
+                    <a href="staff_appointments.php" class="see-all-link" style="<?php echo $pendingApprovalCount <= 3 ? 'display:none;' : ''; ?>">View All (<?php echo $pendingApprovalCount; ?>)</a>
                 </div>
                 </div>
             </div>
@@ -934,7 +934,7 @@ function renderDashboardPending(items) {
     const container = document.getElementById('pending-approval-list');
     if (!container) return;
     if (!items.length) {
-        container.innerHTML = '<div style="text-align: center; padding: 0; color: #6b7280;"><p>No pending approvals</p></div>';
+        container.innerHTML = '<div style="text-align: center; padding-top: 0; color: #6b7280;"><p>No pending approvals</p></div>';
         document.getElementById('count-pending-approval').textContent = '0';
         return;
     }

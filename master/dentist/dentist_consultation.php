@@ -738,6 +738,131 @@ $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doc
     margin-top: 8px;
 }
 
+/* Diagnosis */
+.dx-info-banner {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    font-size: 0.85rem;
+    color: #1e40af;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+.dx-label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #334155;
+    margin: 0 0 6px 0;
+}
+.dx-field-group {
+    margin-bottom: 18px;
+}
+.dx-code-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+.dx-combobox {
+    position: relative;
+    flex: 1;
+}
+.dx-input {
+    width: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    outline: none;
+    background: white;
+}
+.dx-input:focus {
+    border-color: #0ea5e9;
+    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+}
+.dx-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
+    max-height: 260px;
+    overflow-y: auto;
+    z-index: 60;
+    display: none;
+}
+.dx-dropdown.open {
+    display: block;
+}
+.dx-dropdown-item {
+    padding: 9px 14px;
+    font-size: 0.85rem;
+    color: #334155;
+    cursor: pointer;
+    border-bottom: 1px solid #f1f5f9;
+}
+.dx-dropdown-item:last-child {
+    border-bottom: none;
+}
+.dx-dropdown-item:hover,
+.dx-dropdown-item.highlighted {
+    background: #eff6ff;
+}
+.dx-dropdown-item .dx-dd-code {
+    font-weight: 700;
+    color: #0369a1;
+    margin-right: 8px;
+}
+.dx-dropdown-empty {
+    padding: 10px 14px;
+    font-size: 0.82rem;
+    color: #94a3b8;
+}
+.dx-clear-btn {
+    background: white;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 9px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.dx-clear-btn:hover {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #dc2626;
+}
+.dx-selected-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #ecfdf5;
+    border: 1px solid #bbf7d0;
+    color: #047857;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 999px;
+    margin-top: 8px;
+}
+.dx-selected-chip .dx-chip-x {
+    cursor: pointer;
+    font-weight: 700;
+    color: #059669;
+}
+.dx-selected-chip .dx-chip-x:hover {
+    color: #dc2626;
+}
+
 /* Medical History */
 .history-section {
     background: #f8fafc;
@@ -1815,6 +1940,7 @@ $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doc
         <button class="consult-tab-btn active" data-tab="dental-exam" onclick="switchConsultTab(this, 'dental-exam')">Dental Examination</button>
         <button class="consult-tab-btn" data-tab="notes" onclick="switchConsultTab(this, 'notes')">Notes</button>
         <button class="consult-tab-btn" data-tab="history" onclick="switchConsultTab(this, 'history')">Dental & Medical History</button>
+        <button class="consult-tab-btn" data-tab="diagnosis" onclick="switchConsultTab(this, 'diagnosis')">Diagnosis</button>
         <button class="consult-tab-btn" data-tab="treatment-plan" onclick="switchConsultTab(this, 'treatment-plan')">Treatment Plan</button>
         <button class="consult-tab-btn" data-tab="prescription" onclick="switchConsultTab(this, 'prescription')">Prescription</button>
     </div>
@@ -2026,6 +2152,51 @@ $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doc
                     <h4>Dental History Notes</h4>
                     <textarea class="notes-textarea" id="dentalHistoryNotes" style="min-height:150px;" placeholder="Add dental history observations..." oninput="debounceHistorySave()"></textarea>
                     <div class="notes-save-status" id="historySaveStatus"></div>
+                </div>
+            </div>
+
+            <!-- Diagnosis -->
+            <div class="consult-tab-panel" id="panel-diagnosis">
+                <?php if ($isPastView): ?><div class="read-only-overlay-msg">This is a completed past consultation. All data is read-only.</div><?php endif; ?>
+                <div style="max-width:700px;">
+                    <h3 style="font-size:1rem;font-weight:700;color:#1e293b;margin:0 0 12px;">Diagnosis</h3>
+                    <div class="dx-info-banner">
+                        <svg style="flex-shrink:0;margin-top:1px;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                        <span>Search and select ICD-10 codes (Philippines/WHO) for billing and reporting. Use the narrative below for free-text clinical wording when needed.</span>
+                    </div>
+
+                    <!-- Primary ICD-10 -->
+                    <div class="dx-field-group">
+                        <label class="dx-label">Primary ICD-10</label>
+                        <div class="dx-code-row">
+                            <div class="dx-combobox">
+                                <input type="text" class="dx-input" id="dxPrimaryInput" placeholder="Search code or description (e.g. K02.9, hypertension)..." autocomplete="off" oninput="dxSearch('primary')" onkeydown="dxInputKeydown(event, 'primary')" onfocus="if(this.value.trim()) dxSearch('primary')">
+                                <div class="dx-dropdown" id="dxPrimaryDropdown"></div>
+                            </div>
+                            <button type="button" class="dx-clear-btn" onclick="clearIcdCode('primary')">Clear</button>
+                        </div>
+                        <div id="dxPrimarySelected"></div>
+                    </div>
+
+                    <!-- Secondary ICD-10 -->
+                    <div class="dx-field-group">
+                        <label class="dx-label">Secondary ICD-10</label>
+                        <div class="dx-code-row">
+                            <div class="dx-combobox">
+                                <input type="text" class="dx-input" id="dxSecondaryInput" placeholder="Search code or description (e.g. I10, asthma)..." autocomplete="off" oninput="dxSearch('secondary')" onkeydown="dxInputKeydown(event, 'secondary')" onfocus="if(this.value.trim()) dxSearch('secondary')">
+                                <div class="dx-dropdown" id="dxSecondaryDropdown"></div>
+                            </div>
+                            <button type="button" class="dx-clear-btn" onclick="clearIcdCode('secondary')">Clear</button>
+                        </div>
+                        <div id="dxSecondarySelected"></div>
+                    </div>
+
+                    <!-- Narrative -->
+                    <div class="dx-field-group">
+                        <label class="dx-label">Diagnosis (Narrative)</label>
+                        <textarea class="notes-textarea" id="diagnosisNarrative" style="min-height:150px;" placeholder="e.g. upper respiratory tract infection, hypertension, controlled" oninput="debounceDiagnosisSave()"></textarea>
+                        <div class="notes-save-status" id="diagnosisSaveStatus"></div>
+                    </div>
                 </div>
             </div>
 
@@ -2420,9 +2591,11 @@ var currentConsentSignatureData = {
     witness: null
 };
 var currentToothSurface = null;
-var notesSaveTimeout = null;
-var historySaveTimeout = null;
+    var notesSaveTimeout = null;
 
+    var historySaveTimeout = null;
+
+    var diagnosisSaveTimeout = null;
 // ===================== QUEUE SELECTION =====================
 function selectConsultPatient(chip) {
     document.querySelectorAll('.consult-queue-chip').forEach(function(c) { c.classList.remove('active'); });
@@ -2451,6 +2624,7 @@ function loadConsultation(queueId) {
             populateVitals();
             populateNotes();
             populateHistory();
+            populateDiagnosis();
             populatePrescription();
             populateConsent();
             renderToothFindings();
@@ -3008,6 +3182,183 @@ function saveHistory() {
     });
 }
 
+// ===================== DIAGNOSIS =====================
+var dxState = {
+    primary:   { code: null, desc: null, timer: null, results: [], highlighted: -1 },
+    secondary: { code: null, desc: null, timer: null, results: [], highlighted: -1 }
+};
+
+function populateDiagnosis() {
+    var c = currentConsultation || {};
+    dxState.primary.code = c.primary_icd10 || null;
+    dxState.primary.desc = c.primary_icd10_desc || null;
+    dxState.secondary.code = c.secondary_icd10 || null;
+    dxState.secondary.desc = c.secondary_icd10_desc || null;
+    document.getElementById('dxPrimaryInput').value = '';
+    document.getElementById('dxSecondaryInput').value = '';
+    closeDxDropdown('primary');
+    closeDxDropdown('secondary');
+    renderIcdChip('primary');
+    renderIcdChip('secondary');
+    document.getElementById('diagnosisNarrative').value = c.diagnosis_narrative || '';
+    document.getElementById('diagnosisSaveStatus').textContent = '';
+}
+
+function dxInputId(type) {
+    return type === 'primary' ? 'dxPrimaryInput' : 'dxSecondaryInput';
+}
+
+function dxDropdownId(type) {
+    return type === 'primary' ? 'dxPrimaryDropdown' : 'dxSecondaryDropdown';
+}
+
+function renderIcdChip(type) {
+    var container = document.getElementById(type === 'primary' ? 'dxPrimarySelected' : 'dxSecondarySelected');
+    var s = dxState[type];
+    if (!s.code) {
+        container.innerHTML = '';
+        return;
+    }
+    var label = escapeHtml(s.code) + (s.desc ? ' &mdash; ' + escapeHtml(s.desc) : '');
+    container.innerHTML = '<span class="dx-selected-chip">' + label
+        + '<span class="dx-chip-x" title="Remove" onclick="clearIcdCode(\'' + type + '\')">&times;</span></span>';
+}
+
+function clearIcdCode(type) {
+    if (isPastView) return;
+    var s = dxState[type];
+    s.code = null;
+    s.desc = null;
+    document.getElementById(dxInputId(type)).value = '';
+    closeDxDropdown(type);
+    renderIcdChip(type);
+    saveDiagnosis();
+}
+
+function dxSearch(type) {
+    var q = document.getElementById(dxInputId(type)).value.trim();
+    clearTimeout(dxState[type].timer);
+    if (!q) {
+        closeDxDropdown(type);
+        return;
+    }
+    dxState[type].timer = setTimeout(function() {
+        fetch('consultation_actions.php?action=search_icd10&q=' + encodeURIComponent(q))
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (!d.success) return;
+            dxState[type].results = d.results || [];
+            dxState[type].highlighted = -1;
+            renderDxDropdown(type);
+        });
+    }, 300);
+}
+
+function renderDxDropdown(type) {
+    var dropdown = document.getElementById(dxDropdownId(type));
+    var results = dxState[type].results;
+    if (!results.length) {
+        dropdown.innerHTML = '<div class="dx-dropdown-empty">No matching ICD-10 codes found</div>';
+    } else {
+        var html = '';
+        results.forEach(function(r, idx) {
+            html += '<div class="dx-dropdown-item' + (idx === dxState[type].highlighted ? ' highlighted' : '') + '"'
+                + ' onclick="selectIcdCode(\'' + type + '\', ' + idx + ')">'
+                + '<span class="dx-dd-code">' + escapeHtml(r.code) + '</span>'
+                + escapeHtml(r.description)
+                + '</div>';
+        });
+        dropdown.innerHTML = html;
+    }
+    dropdown.classList.add('open');
+}
+
+function closeDxDropdown(type) {
+    var dropdown = document.getElementById(dxDropdownId(type));
+    if (dropdown) dropdown.classList.remove('open');
+}
+
+function selectIcdCode(type, idx) {
+    if (isPastView) return;
+    var r = dxState[type].results[idx];
+    if (!r) return;
+    dxState[type].code = r.code;
+    dxState[type].desc = r.description;
+    document.getElementById(dxInputId(type)).value = '';
+    closeDxDropdown(type);
+    renderIcdChip(type);
+    saveDiagnosis();
+}
+
+function dxInputKeydown(event, type) {
+    var dropdown = document.getElementById(dxDropdownId(type));
+    if (!dropdown.classList.contains('open')) return;
+    var items = dropdown.querySelectorAll('.dx-dropdown-item');
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        if (!items.length) return;
+        dxState[type].highlighted += (event.key === 'ArrowDown') ? 1 : -1;
+        if (dxState[type].highlighted < 0) dxState[type].highlighted = items.length - 1;
+        if (dxState[type].highlighted >= items.length) dxState[type].highlighted = 0;
+        items.forEach(function(el, i) { el.classList.toggle('highlighted', i === dxState[type].highlighted); });
+    } else if (event.key === 'Enter') {
+        event.preventDefault();
+        if (dxState[type].highlighted >= 0) selectIcdCode(type, dxState[type].highlighted);
+        else if (items.length === 1) selectIcdCode(type, 0);
+    } else if (event.key === 'Escape') {
+        closeDxDropdown(type);
+    }
+}
+
+function debounceDiagnosisSave() {
+    if (isPastView) return;
+    clearTimeout(diagnosisSaveTimeout);
+    diagnosisSaveTimeout = setTimeout(saveDiagnosis, 2000);
+    document.getElementById('diagnosisSaveStatus').textContent = 'Unsaved changes...';
+}
+
+function saveDiagnosis() {
+    if (isPastView || !currentConsultation) return;
+    var statusEl = document.getElementById('diagnosisSaveStatus');
+    statusEl.textContent = 'Saving...';
+    fetch('consultation_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'save_diagnosis',
+            consultation_id: currentConsultation.id,
+            primary_icd10: dxState.primary.code || '',
+            secondary_icd10: dxState.secondary.code || '',
+            diagnosis_narrative: document.getElementById('diagnosisNarrative').value
+        })
+    }).then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (d.success && d.diagnosis) {
+            currentConsultation.primary_icd10 = d.diagnosis.primary_icd10;
+            currentConsultation.primary_icd10_desc = d.diagnosis.primary_icd10_desc;
+            currentConsultation.secondary_icd10 = d.diagnosis.secondary_icd10;
+            currentConsultation.secondary_icd10_desc = d.diagnosis.secondary_icd10_desc;
+            currentConsultation.diagnosis_narrative = d.diagnosis.diagnosis_narrative;
+            statusEl.textContent = 'Saved!';
+            setTimeout(function() { statusEl.textContent = ''; }, 2000);
+        } else if (!d.success) {
+            statusEl.textContent = d.message || 'Save failed';
+        }
+    }).catch(function() {
+        statusEl.textContent = 'Save failed';
+    });
+}
+
+document.addEventListener('click', function(e) {
+    ['primary', 'secondary'].forEach(function(type) {
+        var combo = document.getElementById(dxInputId(type));
+        var dropdown = document.getElementById(dxDropdownId(type));
+        if (combo && dropdown && !combo.contains(e.target) && !dropdown.contains(e.target)) {
+            closeDxDropdown(type);
+        }
+    });
+});
+
 // ===================== PRESCRIPTION =====================
 function populatePrescription() {
     var container = document.getElementById('prescriptionItems');
@@ -3450,6 +3801,7 @@ function loadPastConsultationData(consultId) {
             populateVitals();
             populateNotes();
             populateHistory();
+            populateDiagnosis();
             populatePrescription();
             populateConsent();
             renderToothFindings();
@@ -3477,6 +3829,7 @@ function applyReadOnlyMode() {
     document.querySelectorAll('#panel-treatment-plan .sess-btn').forEach(function(el) { el.disabled = true; });
     if (document.getElementById('notesSaveStatus')) document.getElementById('notesSaveStatus').textContent = '';
     if (document.getElementById('historySaveStatus')) document.getElementById('historySaveStatus').textContent = '';
+    if (document.getElementById('diagnosisSaveStatus')) document.getElementById('diagnosisSaveStatus').textContent = '';
 }
 
 // ===================== PAST CONSULTATIONS =====================
