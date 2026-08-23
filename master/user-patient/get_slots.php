@@ -1,6 +1,5 @@
 <?php
-session_start();
-ob_start();
+require_once __DIR__ . '/../../includes/session_bootstrap.php';ob_start();
 
 header('Content-Type: application/json; charset=utf-8');
 

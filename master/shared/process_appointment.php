@@ -1,18 +1,7 @@
 <?php
 ob_start();
 
-$__sessionLifetime = 600;
-if (session_status() === PHP_SESSION_NONE) {
-    session_set_cookie_params([
-        'lifetime' => $__sessionLifetime,
-        'path' => '/',
-        'secure' => false,
-        'httponly' => true,
-        'samesite' => 'Lax'
-    ]);
-    ini_set('session.gc_maxlifetime', $__sessionLifetime);
-    session_start();
-}
+require_once __DIR__ . '/../../includes/session_bootstrap.php';
 
 error_reporting(0);
 ini_set('display_errors', 0);

@@ -1,6 +1,5 @@
 <?php
-session_start();
-require_once '../../config/database.php';
+require_once __DIR__ . '/../../includes/session_bootstrap.php';require_once '../../config/database.php';
 
 // Load clinic settings
 $settingsStmt = $pdo->query("SELECT setting_key, setting_value FROM settings");

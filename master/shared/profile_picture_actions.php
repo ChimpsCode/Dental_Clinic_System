@@ -1,7 +1,6 @@
 <?php
 ob_start();
-session_start();
-
+require_once __DIR__ . '/../../includes/session_bootstrap.php';
 $userId = (int)($_SESSION['user_id'] ?? 0);
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 

@@ -5,8 +5,7 @@
  * - Admin only: Permanent delete from Archive page
  */
 
-session_start();
-require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/session_bootstrap.php';require_once __DIR__ . '/../../config/database.php';
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

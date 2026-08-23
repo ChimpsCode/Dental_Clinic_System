@@ -1,6 +1,5 @@
 <?php
-session_start();
-require_once '../../config/database.php';
+require_once __DIR__ . '/../../includes/session_bootstrap.php';require_once '../../config/database.php';
 
 // Registration is admin-only (role = 'admin')
 $isAdmin = (isset($_SESSION['role']) && $_SESSION['role'] === 'admin');

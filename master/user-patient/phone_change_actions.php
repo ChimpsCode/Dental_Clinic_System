@@ -1,7 +1,6 @@
 <?php
 ob_start();
-session_start();
-header('Content-Type: application/json');
+require_once __DIR__ . '/../../includes/session_bootstrap.php';header('Content-Type: application/json');
 
 require_once '../../config/database.php';
 require_once '../../includes/sms_functions.php';

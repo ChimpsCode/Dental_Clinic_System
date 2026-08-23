@@ -1,19 +1,7 @@
 <?php
 ob_start();
 
-// Set 10-minute session lifetime
-$__sessionLifetime = 600;
-if (session_status() === PHP_SESSION_NONE) {
-    session_set_cookie_params([
-        'lifetime' => $__sessionLifetime,
-        'path' => '/',
-        'secure' => false,
-        'httponly' => true,
-        'samesite' => 'Lax'
-    ]);
-    ini_set('session.gc_maxlifetime', $__sessionLifetime);
-    session_start();
-}
+require_once __DIR__ . '/../../includes/session_bootstrap.php';
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {

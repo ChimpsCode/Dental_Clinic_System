@@ -1,6 +1,5 @@
 <?php
-session_start();
-error_reporting(0);
+require_once __DIR__ . '/../../includes/session_bootstrap.php';error_reporting(0);
 ini_set('display_errors', 0);
 
 if (!isset($_SESSION['user_id'])) {

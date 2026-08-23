@@ -1,6 +1,5 @@
 <?php
-session_start();
-
+require_once __DIR__ . '/../../includes/session_bootstrap.php';
 header('Content-Type: image/png');
 header('Cache-Control: no-cache, must-revalidate');
 header('Pragma: no-cache');

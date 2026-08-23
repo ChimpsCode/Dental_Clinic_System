@@ -1,59 +1,14 @@
 <?php
 ob_start();
 
-// Read session timeout from database settings, default to 600 (10 minutes)
-$__sessionLifetime = 600;
-if (isset($pdo)) {
-    try {
-        $toStmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'session_timeout' LIMIT 1");
-        $toStmt->execute();
-        $toVal = $toStmt->fetchColumn();
-        if ($toVal !== false && $toVal !== null) {
-            $minutes = (int)$toVal;
-            if ($minutes > 0) {
-                $__sessionLifetime = $minutes * 60;
-            }
-        }
-    } catch (Exception $e) {}
-}
+require_once __DIR__ . '/session_bootstrap.php';
 
-// Also store as cookie for JS-based timeout tracking
-$__sessionTimeoutMinutes = $__sessionLifetime / 60;
-
-if (session_status() === PHP_SESSION_NONE) {
-    session_set_cookie_params([
-        'lifetime' => $__sessionLifetime,
-        'path' => '/',
-        'secure' => false,
-        'httponly' => true,
-        'samesite' => 'Lax'
-    ]);
-    ini_set('session.cookie_lifetime', $__sessionLifetime);
-    ini_set('session.gc_maxlifetime', $__sessionLifetime);
-    session_start();
-}
-
-$__sessionNow = time();
-$__sessionTimeoutSeconds = max(60, (int)$__sessionLifetime);
-
-if (isset($_SESSION['session_expires_at']) && $__sessionNow > (int)$_SESSION['session_expires_at']) {
-    session_unset();
-    session_destroy();
-    session_write_close();
+// Session already expired on entry (inactivity window elapsed) -> bounce to login
+if (!empty($GLOBALS['APP_SESSION_EXPIRED'])) {
     ob_end_clean();
     header('Location: ../../master/welcome-page/login.php?expired=1');
     exit();
 }
-
-if (!isset($_SESSION['last_activity'])) {
-    $_SESSION['last_activity'] = $__sessionNow;
-}
-if (!isset($_SESSION['session_expires_at'])) {
-    $_SESSION['session_expires_at'] = $__sessionNow + $__sessionTimeoutSeconds;
-}
-
-$_SESSION['last_activity'] = $__sessionNow;
-$_SESSION['session_expires_at'] = $__sessionNow + $__sessionTimeoutSeconds;
 
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();

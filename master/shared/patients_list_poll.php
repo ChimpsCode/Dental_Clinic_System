@@ -6,8 +6,7 @@
  */
 
 ob_start();
-session_start();
-
+require_once __DIR__ . '/../../includes/session_bootstrap.php';
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
     header('Content-Type: application/json');

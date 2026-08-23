@@ -4,8 +4,7 @@
  * Only accessible to logged-in admins.
  */
 
-session_start();
-header('Content-Type: application/json');
+require_once __DIR__ . '/../../includes/session_bootstrap.php';header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/patient_user_sync_helper.php';

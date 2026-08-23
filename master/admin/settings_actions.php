@@ -3,8 +3,7 @@
  * Settings Actions - Handle saving and loading system settings
  */
 
-session_start();
-header('Content-Type: application/json');
+require_once __DIR__ . '/../../includes/session_bootstrap.php';header('Content-Type: application/json');
 
 require_once '../../config/database.php';
 

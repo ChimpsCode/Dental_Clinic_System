@@ -12,8 +12,7 @@
  * @date 2026-02-04
  */
 
-session_start();
-header('Content-Type: application/json');
+require_once __DIR__ . '/../../includes/session_bootstrap.php';header('Content-Type: application/json');
 
 // Allow any request for now - archive is always accessible
 // if (!isset($_SESSION['user_id'])) {

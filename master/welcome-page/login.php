@@ -1,16 +1,5 @@
 <?php
-// Set session cookie params with a sensible default before starting the session
-$__loginLifetime = 3600;
-ini_set('session.cookie_lifetime', $__loginLifetime);
-ini_set('session.gc_maxlifetime', $__loginLifetime);
-session_set_cookie_params([
-    'lifetime' => $__loginLifetime,
-    'path' => '/',
-    'secure' => false,
-    'httponly' => true,
-    'samesite' => 'Lax'
-]);
-session_start();
+require_once __DIR__ . '/../../includes/session_bootstrap.php';
 
 require_once '../../config/database.php';
 
@@ -22,17 +11,7 @@ foreach ($settingsRows as $key => $value) {
     $clinicSettings[$key] = $value;
 }
 
-// Apply the configured lifetime before successful login regenerates the session.
-$__dbTimeout = max(60, (int)($clinicSettings['session_timeout'] ?? 60) * 60);
-ini_set('session.cookie_lifetime', (string)$__dbTimeout);
-ini_set('session.gc_maxlifetime', (string)$__dbTimeout);
-session_set_cookie_params([
-    'lifetime' => $__dbTimeout,
-    'path' => '/',
-    'secure' => false,
-    'httponly' => true,
-    'samesite' => 'Lax'
-]);
+// Timeout/cookie handling is centralized in session_bootstrap.php.
 $clinicName = $clinicSettings['clinic_name'] ?? 'RF Dental Clinic';
 $welcomeLogo = $clinicSettings['welcome_logo'] ?? '';
 $loginLogo = $welcomeLogo ? '../../' . $welcomeLogo : '../../assets/images/Logo.png';

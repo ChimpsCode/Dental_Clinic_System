@@ -6,9 +6,7 @@
  */
 
 // Start session only if not already started
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/../../includes/session_bootstrap.php';
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {

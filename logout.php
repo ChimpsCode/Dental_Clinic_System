@@ -1,6 +1,5 @@
 <?php
-session_start();
-
+require_once __DIR__ . '/includes/session_bootstrap.php';
 // Log logout before destroying session
 if (isset($_SESSION['user_id'])) {
     $user_id = $_SESSION['user_id'];

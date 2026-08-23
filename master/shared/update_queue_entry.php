@@ -10,8 +10,7 @@
  *   - appointments (dentist_id) when the queue entry is linked to an appointment
  */
 
-session_start();
-header('Content-Type: application/json');
+require_once __DIR__ . '/../../includes/session_bootstrap.php';header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);

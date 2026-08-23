@@ -4,8 +4,7 @@
  * Verifies admin password before destructive actions
  */
 
-session_start();
-header('Content-Type: application/json');
+require_once __DIR__ . '/../../includes/session_bootstrap.php';header('Content-Type: application/json');
 
 $password = $_POST['password'] ?? '';
 

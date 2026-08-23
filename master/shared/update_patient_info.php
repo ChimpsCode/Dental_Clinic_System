@@ -5,8 +5,7 @@
  * Notifies patient if their info was changed
  */
 
-session_start();
-header('Content-Type: application/json');
+require_once __DIR__ . '/../../includes/session_bootstrap.php';header('Content-Type: application/json');
 
 if (($_SESSION['role'] ?? '') !== 'admin') {
     http_response_code(403);

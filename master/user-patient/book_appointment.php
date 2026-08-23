@@ -3,8 +3,7 @@ error_reporting(0);
 ini_set('display_errors', 0);
 header('Content-Type: application/json');
 
-session_start();
-
+require_once __DIR__ . '/../../includes/session_bootstrap.php';
 try {
     require_once '../../config/database.php';
     require_once '../../includes/appointment_approval_helper.php';
