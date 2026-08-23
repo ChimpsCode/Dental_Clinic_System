@@ -733,7 +733,7 @@ $pageTitle = 'Inquiry / Consultation';
             if (!overlay) {
                 overlay = document.createElement('div');
                 overlay.id = 'imgLightbox';
-                overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+                overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999999;display:flex;align-items:center;justify-content:center;cursor:pointer;';
                 overlay.innerHTML = '<img id="lightboxImg" style="max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.5);">';
                 overlay.addEventListener('click', () => overlay.style.display = 'none');
                 document.body.appendChild(overlay);

@@ -7,7 +7,6 @@ require_once '../../config/database.php';
 require_once '../../includes/inquiry_module_helper.php';
 
 ensureInquiryModuleSchema($pdo);
-ensureInquiryReplySchema($pdo);
 
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();

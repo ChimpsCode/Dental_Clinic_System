@@ -49,8 +49,14 @@ function ensureInquiryModuleSchema(PDO $pdo): void
         return;
     }
 
+    $cacheFile = dirname(__DIR__) . '/cache/.inquiry_schema_ok';
+    if (file_exists($cacheFile) && (time() - (int)filemtime($cacheFile)) < 3600) {
+        $ensured = true;
+        return;
+    }
+
     if (!tableExists($pdo, 'inquiry_statuses')) {
-        $pdo->exec(" 
+        $pdo->exec("
             CREATE TABLE IF NOT EXISTS inquiry_statuses (
                 id INT(11) NOT NULL AUTO_INCREMENT,
                 status_name VARCHAR(50) NOT NULL,
@@ -62,7 +68,7 @@ function ensureInquiryModuleSchema(PDO $pdo): void
     }
 
     if (!tableExists($pdo, 'appointment_statuses')) {
-        $pdo->exec(" 
+        $pdo->exec("
             CREATE TABLE IF NOT EXISTS appointment_statuses (
                 id INT(11) NOT NULL AUTO_INCREMENT,
                 status_name VARCHAR(50) NOT NULL,
@@ -126,7 +132,6 @@ function ensureInquiryModuleSchema(PDO $pdo): void
         $pdo->exec("ALTER TABLE appointments ADD COLUMN status VARCHAR(30) NULL DEFAULT 'scheduled' AFTER notes");
     }
 
-    // Backfill modern fields from legacy data when legacy columns are available.
     $backfillAssignments = [];
 
     if (
@@ -177,11 +182,19 @@ function ensureInquiryModuleSchema(PDO $pdo): void
         $pdo->exec("ALTER TABLE inquiries ADD COLUMN fb_sender_id VARCHAR(100) NULL AFTER source");
     }
 
+    @mkdir(dirname($cacheFile), 0755, true);
+    @file_put_contents($cacheFile, (string)time());
+
     $ensured = true;
 }
 
 function ensureInquiryReplySchema(PDO $pdo): void
 {
+    static $ensured = false;
+    if ($ensured) {
+        return;
+    }
+
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS `inquiry_replies` (
             `id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -203,6 +216,8 @@ function ensureInquiryReplySchema(PDO $pdo): void
     if (!inquiryModuleColumnExists($pdo, 'inquiry_replies', 'attachment')) {
         $pdo->exec("ALTER TABLE `inquiry_replies` ADD COLUMN `attachment` VARCHAR(500) DEFAULT NULL AFTER `sender_type`");
     }
+
+    $ensured = true;
 }
 
 function fetchInquiryReplies(PDO $pdo, int $inquiryId): array
