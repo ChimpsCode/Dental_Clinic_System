@@ -180,8 +180,8 @@ var currentPage = 1;
 var perPage = 7;
 var filteredPatients = allPatients.slice(0);
 
-var statusLabels = {'waiting':'Waiting','in_procedure':'In Procedure','on_hold':'On Hold','completed':'Completed','cancelled':'Cancelled','Scheduled':'Scheduled','In Queue':'In Queue','Pending Payment':'Pending Payment'};
-var statusColors = {'waiting':'#fef3c7:#92400e','in_procedure':'#dbeafe:#1e40af','on_hold':'#fed7aa:#9a3412','completed':'#d1fae5:#065f46','cancelled':'#fee2e2:#dc2626','Scheduled':'#dbeafe:#1d4ed8','In Queue':'#fef3c7:#92400e','Pending Payment':'#fed7aa:#c2410c'};
+var statusLabels = {'waiting':'Waiting','in_procedure':'In Procedure','on_hold':'On Hold','completed':'Completed','cancelled':'Cancelled','pending_payment':'Pending Payment','Scheduled':'Scheduled','In Queue':'In Queue','Pending Payment':'Pending Payment'};
+var statusColors = {'waiting':'#fef3c7:#92400e','in_procedure':'#dbeafe:#1e40af','on_hold':'#fed7aa:#9a3412','completed':'#d1fae5:#065f46','cancelled':'#fee2e2:#dc2626','pending_payment':'#fed7aa:#c2410c','Scheduled':'#dbeafe:#1d4ed8','In Queue':'#fef3c7:#92400e','Pending Payment':'#fed7aa:#c2410c'};
 
 // Portal Pattern: Move modals to body level
 (function() {
@@ -266,7 +266,10 @@ function applyFilters(keepPage) {
         let matchesStatus = true;
         if (statusVal) {
             const s = (p.queue_status || p.appointment_status || '');
-            matchesStatus = (s === statusVal);
+            // Normalize variants ('pending_payment', 'Pending Payment', 'In Queue') so
+            // the dropdown values match live queue statuses from the backend
+            const norm = v => String(v || '').toLowerCase().replace(/_/g, ' ').trim();
+            matchesStatus = (norm(s) === norm(statusVal));
         }
         return matchesSearch && matchesStatus;
     });

@@ -138,14 +138,14 @@ try {
         <table class="data-table" style="width: 100%; border-collapse: collapse; border-radius: 26px;">
             <thead>
                 <tr>
-                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">First Name</th>
-                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Middle Name</th>
-                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Last Name</th>
-                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Age/Gender</th>
-                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Contact</th>
-                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Current Treatment</th>
-                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Queue Status</th>
-                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.85rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">Actions</th>
+                    <th style="padding: 10px 12px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.78rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6; white-space: nowrap;">First Name</th>
+                    <th style="padding: 10px 12px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.78rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6; white-space: nowrap;">Middle Name</th>
+                    <th style="padding: 10px 12px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.78rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6; white-space: nowrap;">Last Name</th>
+                    <th style="padding: 10px 12px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.78rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6; white-space: nowrap;">Age/Gender</th>
+                    <th style="padding: 10px 12px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.78rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6; white-space: nowrap;">Contact</th>
+                    <th style="padding: 10px 12px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.78rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6; white-space: nowrap;">Current Treatment</th>
+                    <th style="padding: 10px 12px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.78rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6; white-space: nowrap;">Queue Status</th>
+                    <th style="padding: 10px 12px; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.78rem; text-transform: uppercase; background: #f9fafb; border-bottom: 1px solid #f3f4f6; white-space: nowrap;">Actions</th>
                 </tr>
             </thead>
             <tbody id="patientsTableBody">
@@ -739,17 +739,20 @@ let currentPage = 1;
 let perPage = 10;
 let filteredPatients = [...allPatients];
 
-const statusLabels = {'waiting':'Waiting','in_procedure':'In Procedure','on_hold':'On Hold','completed':'Completed','cancelled':'Cancelled','Scheduled':'Scheduled','In Queue':'In Queue','Pending Payment':'Pending Payment'};
-const statusColors = {'waiting':'#fef3c7:#92400e','in_procedure':'#dbeafe:#1e40af','on_hold':'#fed7aa:#9a3412','completed':'#d1fae5:#065f46','cancelled':'#fee2e2:#dc2626','Scheduled':'#dbeafe:#1d4ed8','In Queue':'#fef3c7:#92400e','Pending Payment':'#fed7aa:#c2410c'};
+const statusLabels = {'waiting':'Waiting','in_procedure':'In Procedure','on_hold':'On Hold','completed':'Completed','cancelled':'Cancelled','pending_payment':'Pending Payment','Scheduled':'Scheduled','In Queue':'In Queue','Pending Payment':'Pending Payment'};
+const statusColors = {'waiting':'#fef3c7:#92400e','in_procedure':'#dbeafe:#1e40af','on_hold':'#fed7aa:#9a3412','completed':'#d1fae5:#065f46','cancelled':'#fee2e2:#dc2626','pending_payment':'#fed7aa:#c2410c','Scheduled':'#dbeafe:#1d4ed8','In Queue':'#fef3c7:#92400e','Pending Payment':'#fed7aa:#c2410c'};
 
-// Portal Pattern: Move modals to body level
-(function() {
+// Portal Pattern: Move modals to body level.
+// Runs at DOMContentLoaded so modals defined LATER in the markup (recordPaymentModal,
+// paymentHistoryModal, setDueDateModal) exist and get portaled too — otherwise they
+// stay earlier in the DOM and paint BEHIND the Patient Record Details modal.
+document.addEventListener('DOMContentLoaded', function() {
     var modals = ['patientRecordModal','appointmentModal','recordPaymentModal','paymentHistoryModal','setDueDateModal'];
     modals.forEach(function(id) {
         var el = document.getElementById(id);
         if (el) document.body.appendChild(el);
     });
-})();
+});
 
 document.getElementById('searchInput').addEventListener('input', applyFilters);
 document.getElementById('statusFilter').addEventListener('change', applyFilters);
@@ -825,7 +828,10 @@ function applyFilters(keepPage) {
         let matchesStatus = true;
         if (statusVal) {
             const s = (p.queue_status || p.appointment_status || '');
-            matchesStatus = (s === statusVal);
+            // Normalize variants ('pending_payment', 'Pending Payment', 'In Queue') so
+            // the dropdown values match live queue statuses from the backend
+            const norm = v => String(v || '').toLowerCase().replace(/_/g, ' ').trim();
+            matchesStatus = (norm(s) === norm(statusVal));
         }
         return matchesSearch && matchesStatus;
     });
@@ -862,14 +868,14 @@ function renderTable() {
         const ln = escapeHtml(p.last_name || '');
 
         return '<tr class="patient-row">' +
-            '<td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;">' + fn + '</td>' +
-            '<td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;">' + mn + '</td>' +
-            '<td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;">' + ln + '</td>' +
-            '<td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;"><div style="font-size:0.9rem;"><span style="font-weight:500;">' + age + ' yrs</span><span style="color:#6b7280;margin-left:8px;">' + escapeHtml(gender.charAt(0).toUpperCase() + gender.slice(1)) + '</span></div></td>' +
-            '<td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;"><div style="font-size:0.85rem;color:#6b7280;"><div>' + escapeHtml(phone) + '</div><div>' + escapeHtml(email) + '</div></div></td>' +
-            '<td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;"><span style="font-weight:500;color:#111827;">' + escapeHtml(svc) + '</span></td>' +
-            '<td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;"><span style="background:' + bg + ';color:' + text + ';padding:4px 12px;border-radius:9999px;font-size:0.75rem;font-weight:600;">' + label + '</span></td>' +
-            '<td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;"><div class="patient-kebab-menu"><button class="patient-kebab-btn" data-patient-id="' + pid + '">' +
+            '<td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;font-size:0.85rem;">' + fn + '</td>' +
+            '<td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;font-size:0.85rem;">' + mn + '</td>' +
+            '<td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;font-size:0.85rem;">' + ln + '</td>' +
+            '<td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;"><div style="font-size:0.8rem;"><span style="font-weight:500;">' + age + ' yrs</span><span style="color:#6b7280;margin-left:6px;">' + escapeHtml(gender.charAt(0).toUpperCase() + gender.slice(1)) + '</span></div></td>' +
+            '<td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;"><div style="font-size:0.78rem;color:#6b7280;"><div>' + escapeHtml(phone) + '</div><div>' + escapeHtml(email) + '</div></div></td>' +
+            '<td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;"><span style="font-weight:500;color:#111827;font-size:0.82rem;white-space:nowrap;">' + escapeHtml(svc) + '</span></td>' +
+            '<td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;"><span style="background:' + bg + ';color:' + text + ';padding:3px 10px;border-radius:9999px;font-size:0.72rem;font-weight:600;display:inline-block;white-space:nowrap;">' + label + '</span></td>' +
+            '<td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;"><div class="patient-kebab-menu"><button class="patient-kebab-btn" data-patient-id="' + pid + '">' +
             '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">' +
             '<circle cx="12" cy="6" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="18" r="2"/></svg></button></div></td>' +
             '</tr>';
@@ -1170,7 +1176,7 @@ function viewPatientRecord(patientId) {
 
                 <!-- Odontogram History -->
                 <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-top: 20px;">
-                    <h3 style="font-size: 1rem; font-weight: 600; color: #374151; margin-bottom: 16px;">🦷 Odontogram History</h3>
+                    <h3 style="font-size: 1rem; font-weight: 600; color: #374151; margin-bottom: 16px;">📋 Consultation History</h3>
                     ${odontogramSessions.length > 0 ? `
                         <div style="display:flex;flex-direction:column;gap:10px;">
                             ${odontogramSessions.map(function(session) {
@@ -1565,11 +1571,15 @@ function openRecordPayment(patientId, billingId, totalAmount, paidAmount, balanc
         breakdownHtml = '<div style="color:#16a34a;text-align:center;padding:4px;">All services paid</div>';
     }
     document.getElementById('recordPaymentBreakdown').innerHTML = breakdownHtml;
-    document.getElementById('recordPaymentModal').style.display = 'flex';
+    var rpModal = document.getElementById('recordPaymentModal');
+    rpModal.classList.add('active');
+    rpModal.style.display = 'flex';
 }
 
 function closeRecordPaymentModal() {
-    document.getElementById('recordPaymentModal').style.display = 'none';
+    var rpModal = document.getElementById('recordPaymentModal');
+    rpModal.classList.remove('active');
+    rpModal.style.display = 'none';
 }
 
 function confirmRecordPayment() {
@@ -1618,6 +1628,7 @@ function openPaymentHistory(billingId) {
     var modal = document.getElementById('paymentHistoryModal');
     var tbody = document.getElementById('paymentHistoryBody');
     var empty = document.getElementById('paymentHistoryEmpty');
+    modal.classList.add('active');
     modal.style.display = 'flex';
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:#6b7280;">Loading...</td></tr>';
     empty.style.display = 'none';
@@ -1644,7 +1655,9 @@ function openPaymentHistory(billingId) {
 }
 
 function closePaymentHistoryModal() {
-    document.getElementById('paymentHistoryModal').style.display = 'none';
+    var phModal = document.getElementById('paymentHistoryModal');
+    phModal.classList.remove('active');
+    phModal.style.display = 'none';
 }
 
 function openSetDueDate(billingId) {
@@ -1681,11 +1694,14 @@ function openSetDueDate(billingId) {
             document.getElementById('setDueDateInput').value = future.toISOString().split('T')[0];
         });
 
+    modal.classList.add('active');
     modal.style.display = 'flex';
 }
 
 function closeSetDueDateModal() {
-    document.getElementById('setDueDateModal').style.display = 'none';
+    var sdModal = document.getElementById('setDueDateModal');
+    sdModal.classList.remove('active');
+    sdModal.style.display = 'none';
 }
 
 function confirmSetDueDate() {
@@ -1999,7 +2015,7 @@ function closeOdontogramModalDirect() {
 </div>
 
 <!-- Record Payment Modal -->
-<div id="recordPaymentModal" class="modal-overlay">
+<div id="recordPaymentModal" class="modal-overlay" style="z-index:120000;">
     <div class="modal-backdrop"></div>
     <div class="modal-container">
         <div class="modal" style="max-width:480px;">
@@ -2040,7 +2056,7 @@ function closeOdontogramModalDirect() {
 </div>
 
 <!-- Payment History Modal -->
-<div id="paymentHistoryModal" class="modal-overlay">
+<div id="paymentHistoryModal" class="modal-overlay" style="z-index:120000;">
     <div class="modal-backdrop"></div>
     <div class="modal-container">
         <div class="modal" style="max-width:600px;">
@@ -2066,7 +2082,7 @@ function closeOdontogramModalDirect() {
 </div>
 
 <!-- Set Due Date Modal -->
-<div id="setDueDateModal" class="modal-overlay">
+<div id="setDueDateModal" class="modal-overlay" style="z-index:120000;">
     <div class="modal-backdrop"></div>
     <div class="modal-container">
         <div class="modal" style="max-width:400px;">

@@ -440,12 +440,30 @@ try {
         $prescriptions = [];
     }
 
+    // Intake dental history questionnaire (filled once by staff during new admission)
+    $intakeDentalHistory = null;
+    try {
+        $stmt = $pdo->prepare("
+            SELECT previous_dentist, last_visit_date, reason_last_visit,
+                   previous_treatments, current_complaints, created_at
+            FROM dental_history
+            WHERE patient_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+        ");
+        $stmt->execute([$patientId]);
+        $intakeDentalHistory = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    } catch (Exception $e) {
+        $intakeDentalHistory = null;
+    }
+
     echo json_encode([
         'success' => true,
         'patient' => $patient,
         'patient_personal_info_update' => $patientPersonalInfoUpdate,
         'medical_history' => $medicalHistory,
         'dental_history' => $dentalHistory,
+        'intake_dental_history' => $intakeDentalHistory,
         'queue_item' => $queueItem,
         'billing' => $billing,
         'all_billings' => $allBillings,
