@@ -863,6 +863,81 @@ $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doc
     color: #dc2626;
 }
 
+/* X-Ray */
+.xray-upload-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: #0ea5e9;
+    color: white;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 9px 18px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.xray-upload-btn:hover {
+    background: #0284c7;
+}
+.xray-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 14px;
+}
+.xray-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+}
+.xray-thumb {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    display: block;
+    background: #f1f5f9;
+    cursor: pointer;
+}
+.xray-card-info {
+    padding: 8px 10px;
+}
+.xray-card-name {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #334155;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.xray-card-date {
+    font-size: 0.65rem;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+.xray-delete-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 6px;
+    background: rgba(15, 23, 42, 0.65);
+    color: white;
+    font-size: 0.85rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease;
+}
+.xray-delete-btn:hover {
+    background: #dc2626;
+}
+
 /* Medical History */
 .history-section {
     background: #f8fafc;
@@ -1938,6 +2013,7 @@ $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doc
     <div class="consult-tabs-bar">
         <button class="consult-tab-btn" data-tab="consent" onclick="switchConsultTab(this, 'consent')">Informed Consent</button>
         <button class="consult-tab-btn active" data-tab="dental-exam" onclick="switchConsultTab(this, 'dental-exam')">Dental Examination</button>
+        <button class="consult-tab-btn" data-tab="xray" onclick="switchConsultTab(this, 'xray')">X-Ray</button>
         <button class="consult-tab-btn" data-tab="notes" onclick="switchConsultTab(this, 'notes')">Notes</button>
         <button class="consult-tab-btn" data-tab="history" onclick="switchConsultTab(this, 'history')">Dental & Medical History</button>
         <button class="consult-tab-btn" data-tab="diagnosis" onclick="switchConsultTab(this, 'diagnosis')">Diagnosis</button>
@@ -2126,6 +2202,24 @@ $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doc
                             <div id="findingsChips"><span style="color:#94a3b8;font-size:0.78rem;">No findings yet. Click a tooth surface to begin.</span></div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- X-Ray -->
+            <div class="consult-tab-panel" id="panel-xray">
+                <?php if ($isPastView): ?><div class="read-only-overlay-msg">This is a completed past consultation. All data is read-only.</div><?php endif; ?>
+                <div style="max-width:900px;">
+                    <h3 style="font-size:1rem;font-weight:700;color:#1e293b;margin:0 0 6px;">X-Ray</h3>
+                    <p style="font-size:0.85rem;color:#64748b;margin:0 0 14px;">Upload x-ray images for this consultation (JPG, PNG, GIF, WebP &mdash; max 10MB each).</p>
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                        <label class="xray-upload-btn" id="xrayUploadBtn">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            Upload X-Ray
+                            <input type="file" id="xrayFileInput" accept="image/jpeg,image/png,image/gif,image/webp" multiple style="display:none;" onchange="uploadXrays(this)">
+                        </label>
+                        <span class="notes-save-status" id="xraySaveStatus"></span>
+                    </div>
+                    <div class="xray-grid" id="xrayGrid"></div>
                 </div>
             </div>
 
@@ -2625,6 +2719,7 @@ function loadConsultation(queueId) {
             populateNotes();
             populateHistory();
             populateDiagnosis();
+            populateXrays();
             populatePrescription();
             populateConsent();
             renderToothFindings();
@@ -3359,6 +3454,115 @@ document.addEventListener('click', function(e) {
     });
 });
 
+// ===================== X-RAY =====================
+var xraysCache = [];
+
+function populateXrays() {
+    var uploadBtn = document.getElementById('xrayUploadBtn');
+    if (uploadBtn) uploadBtn.style.display = isPastView ? 'none' : 'inline-flex';
+    var statusEl = document.getElementById('xraySaveStatus');
+    if (statusEl) statusEl.textContent = '';
+    if (!currentConsultation || !currentConsultation.id) {
+        xraysCache = [];
+        renderXrays();
+        return;
+    }
+    var grid = document.getElementById('xrayGrid');
+    grid.innerHTML = '<span style="color:#94a3b8;font-size:0.82rem;">Loading x-rays...</span>';
+    fetch('../shared/xray_actions.php?action=get&consultation_id=' + currentConsultation.id)
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        xraysCache = (d.success && d.xrays) ? d.xrays : [];
+        renderXrays();
+    })
+    .catch(function() {
+        showXrayError('Error loading x-rays.');
+    });
+}
+
+function renderXrays() {
+    var grid = document.getElementById('xrayGrid');
+    if (!xraysCache.length) {
+        grid.innerHTML = '<span style="color:#94a3b8;font-size:0.82rem;">No x-ray images uploaded yet.</span>';
+        return;
+    }
+    var html = '';
+    xraysCache.forEach(function(x) {
+        var name = x.original_filename || x.file_path.split('/').pop();
+        var dateStr = x.created_at ? new Date(x.created_at.replace(' ', 'T')).toLocaleDateString('en-PH', { year:'numeric', month:'short', day:'numeric' }) : '';
+        html += '<div class="xray-card">'
+            + (!isPastView ? '<button type="button" class="xray-delete-btn" title="Delete" onclick="deleteXrayFile(' + x.id + ')">&times;</button>' : '')
+            + '<img class="xray-thumb" src="../../' + escapeHtml(x.file_path) + '" alt="' + escapeHtml(name) + '" onclick="window.open(this.src, \'_blank\')">'
+            + '<div class="xray-card-info"><div class="xray-card-name" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</div>'
+            + '<div class="xray-card-date">' + dateStr + '</div></div>'
+            + '</div>';
+    });
+    grid.innerHTML = html;
+}
+
+function showXrayError(msg) {
+    var grid = document.getElementById('xrayGrid');
+    if (grid) grid.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;font-size:0.82rem;padding:10px 14px;border-radius:8px;grid-column:1/-1;">' + escapeHtml(msg) + '</div>';
+}
+
+function uploadXrays(inputEl) {
+    if (isPastView || !currentConsultation || !inputEl.files || !inputEl.files.length) return;
+    var statusEl = document.getElementById('xraySaveStatus');
+    var files = Array.prototype.slice.call(inputEl.files);
+    inputEl.value = '';
+    var done = 0, failed = 0, succeeded = 0;
+
+    if (files.length) {
+        var grid = document.getElementById('xrayGrid');
+        grid.innerHTML = '<span style="color:#94a3b8;font-size:0.82rem;">Uploading ' + files.length + ' file(s)...</span>';
+    }
+
+    files.forEach(function(file) {
+        statusEl.textContent = 'Uploading ' + file.name + '...';
+        var fd = new FormData();
+        fd.append('action', 'upload');
+        fd.append('consultation_id', currentConsultation.id);
+        fd.append('xray_file', file);
+        fetch('../shared/xray_actions.php', { method: 'POST', body: fd })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (!d.success) {
+                failed++;
+                showXrayError(d.message || 'Upload failed');
+                statusEl.textContent = '';
+                return d;
+            }
+            succeeded++;
+            return d;
+        })
+        .catch(function() { failed++; })
+        .then(function() {
+            if (++done === files.length) {
+                statusEl.textContent = '';
+                if (succeeded > 0) {
+                    populateXrays();
+                } else if (!failed) {
+                    renderXrays();
+                }
+            }
+        });
+    });
+}
+
+function deleteXrayFile(id) {
+    if (isPastView) return;
+    if (!confirm('Delete this x-ray image?')) return;
+    var fd = new FormData();
+    fd.append('action', 'delete');
+    fd.append('id', id);
+    fetch('../shared/xray_actions.php', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (d.success) populateXrays();
+        else alert(d.message || 'Delete failed');
+    });
+}
+
 // ===================== PRESCRIPTION =====================
 function populatePrescription() {
     var container = document.getElementById('prescriptionItems');
@@ -3802,6 +4006,7 @@ function loadPastConsultationData(consultId) {
             populateNotes();
             populateHistory();
             populateDiagnosis();
+            populateXrays();
             populatePrescription();
             populateConsent();
             renderToothFindings();

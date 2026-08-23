@@ -1661,6 +1661,9 @@ function openOdontogramModal(sessionId, dateStr, dentistName, findingsJson, sess
     examHtml += '</div>';
     content += odxSection('Dental Examination', examHtml);
 
+    // X-Ray images
+    content += odxSection('X-Ray', '<div id="odXrayContainer"><span class="odx-empty">Loading x-rays...</span></div>');
+
     // Consultation Notes
     var notesVal = (session.consultation_notes || '').trim();
     content += odxSection('Consultation Notes', notesVal
@@ -1734,6 +1737,58 @@ function openOdontogramModal(sessionId, dateStr, dentistName, findingsJson, sess
     odRenderToothChart();
     odRenderFindings();
     loadOdontogramTreatmentPlans(window._currentRecordPatientId);
+    loadOdontogramXrays(sessionId);
+}
+function loadOdontogramXrays(consultationId) {
+    var container = document.getElementById('odXrayContainer');
+    if (!container) return;
+    if (!consultationId) {
+        container.innerHTML = '<span class="odx-empty">No x-rays available.</span>';
+        return;
+    }
+    window._odXrayList = [];
+    fetch('../shared/xray_actions.php?action=get&consultation_id=' + consultationId)
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (!container.isConnected) return;
+        var xrays = (d.success && d.xrays) ? d.xrays : [];
+        if (!xrays.length) {
+            container.innerHTML = '<span class="odx-empty">No x-ray images uploaded for this consultation.</span>';
+            return;
+        }
+        window._odXrayList = xrays;
+        var html = '';
+        xrays.forEach(function(x, idx) {
+            var name = x.original_filename || x.file_path.split('/').pop();
+            html += '<div class="odx-xray-row">'
+                + '<span class="odx-xray-name" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</span>'
+                + '<button type="button" class="odx-eye-btn" title="View x-ray" onclick="openOdXrayViewer(' + idx + ')">'
+                + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'
+                + '</button></div>';
+        });
+        container.innerHTML = html;
+    })
+    .catch(function() {
+        if (container && container.isConnected) container.innerHTML = '<span class="odx-empty">Error loading x-rays.</span>';
+    });
+}
+function openOdXrayViewer(idx) {
+    var x = (window._odXrayList || [])[idx];
+    if (!x) return;
+    var name = x.original_filename || x.file_path.split('/').pop();
+    var src = '../../' + x.file_path;
+    document.getElementById('odXrayViewerTitle').textContent = name;
+    document.getElementById('odXrayViewerImg').src = src;
+    var dl = document.getElementById('odXrayDownloadBtn');
+    dl.href = src;
+    dl.setAttribute('download', name);
+    document.getElementById('odXrayViewerOverlay').style.display = 'flex';
+}
+function closeOdXrayViewerDirect() {
+    document.getElementById('odXrayViewerOverlay').style.display = 'none';
+}
+function closeOdXrayViewer(e) {
+    if (e.target === document.getElementById('odXrayViewerOverlay')) closeOdXrayViewerDirect();
 }
 function closeOdontogramModal(e) {
     if (e.target === document.getElementById('odontogramModalOverlay')) {
@@ -2613,6 +2668,37 @@ function closeOdontogramModalDirect() {
 .odx-tx-status.cancelled, .odx-tx-status.discontinued { background: #fee2e2; color: #b91c1c; }
 .odx-tx-meta { font-size: 0.76rem; color: #64748b; margin-top: 3px; }
 .odx-tx-session { font-size: 0.76rem; color: #475569; margin-top: 4px; }
+
+/* X-Ray section in chart modal */
+.odx-xray-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 7px 12px;
+    margin-bottom: 6px;
+}
+.odx-xray-name {
+    font-size: 0.8rem;
+    color: #334155;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: 10px;
+}
+.odx-eye-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+}
+.odx-eye-btn:hover { color: #0ea5e9; }
 .odontogram-modal-overlay {
     display: none;
     position: fixed;
@@ -2692,6 +2778,25 @@ function closeOdontogramModalDirect() {
             <button class="odontogram-modal-close" onclick="closeOdontogramModalDirect()">&times;</button>
         </div>
         <div id="odontogramModalContent"></div>
+    </div>
+</div>
+
+<!-- X-Ray Viewer Overlay -->
+<div id="odXrayViewerOverlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.75);z-index:1100000;align-items:center;justify-content:center;" onclick="closeOdXrayViewer(event)">
+    <div style="background:white;border-radius:14px;max-width:640px;width:92%;max-height:88vh;padding:16px;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.4);" onclick="event.stopPropagation()">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="font-weight:700;color:#0f172a;font-size:0.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:12px;" id="odXrayViewerTitle">X-Ray</div>
+            <button type="button" onclick="closeOdXrayViewerDirect()" style="background:none;border:none;font-size:1.5rem;line-height:1;cursor:pointer;color:#64748b;">&times;</button>
+        </div>
+        <div style="overflow:auto;text-align:center;background:#f8fafc;border-radius:8px;padding:8px;">
+            <img id="odXrayViewerImg" src="" alt="X-Ray" style="max-width:100%;max-height:60vh;">
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+            <a id="odXrayDownloadBtn" href="#" download style="display:inline-flex;align-items:center;gap:6px;background:#0ea5e9;color:white;font-size:0.82rem;font-weight:600;padding:8px 16px;border-radius:8px;text-decoration:none;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download
+            </a>
+        </div>
     </div>
 </div>
 
