@@ -7,6 +7,7 @@ require_once '../../config/database.php';
 require_once '../../includes/inquiry_module_helper.php';
 
 ensureInquiryModuleSchema($pdo);
+ensureInquiryReplySchema($pdo);
 
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
@@ -32,6 +33,64 @@ function inquiryCanManage(string $role): bool
 function inquiryCanPatient(string $role): bool
 {
     return $role === 'user';
+}
+
+function handleInquiryAttachment(): ?string
+{
+    if (!isset($_FILES['attachment']) || $_FILES['attachment']['error'] !== UPLOAD_ERR_OK) {
+        if (isset($_FILES['attachment'])) {
+            error_log('Inquiry attachment upload error code: ' . $_FILES['attachment']['error']);
+        }
+        return null;
+    }
+
+    $file = $_FILES['attachment'];
+    $maxSize = 10 * 1024 * 1024;
+    if ($file['size'] > $maxSize) {
+        error_log('Inquiry attachment too large: ' . $file['size']);
+        return null;
+    }
+
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mimeType = $finfo->file($file['tmp_name']);
+
+    $allowedMimes = [
+        'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'text/plain',
+    ];
+    if (!in_array($mimeType, $allowedMimes)) {
+        error_log('Inquiry attachment rejected MIME: ' . $mimeType . ' for file: ' . $file['name']);
+        return null;
+    }
+
+    $uploadDir = __DIR__ . '/../uploads/inquiry_attachments';
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0755, true);
+    }
+
+    $allowedExts = ['jpg','jpeg','png','gif','webp','pdf','doc','docx','xls','xlsx','txt'];
+    $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    if (!in_array($ext, $allowedExts)) {
+        error_log('Inquiry attachment rejected ext: ' . $ext);
+        return null;
+    }
+
+    $filename = 'inquiry_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
+    $destination = $uploadDir . '/' . $filename;
+
+    if (move_uploaded_file($file['tmp_name'], $destination)) {
+        $relativePath = 'uploads/inquiry_attachments/' . $filename;
+        error_log('Inquiry attachment saved: ' . $relativePath);
+        return $relativePath;
+    }
+
+    error_log('Inquiry attachment move_uploaded_file failed for: ' . $file['name']);
+    return null;
 }
 
 function resolveInquiryStatusId(PDO $pdo, string $statusName): ?int
@@ -522,9 +581,10 @@ if ($action === 'create') {
     }
 
     $concern = trim($_POST['concern'] ?? '');
+    $attachment = handleInquiryAttachment();
 
-    if ($concern === '') {
-        inquiryJson(['success' => false, 'message' => 'Concern / Message is required.']);
+    if ($concern === '' && $attachment === null) {
+        inquiryJson(['success' => false, 'message' => 'Concern / Message or attachment is required.']);
     }
 
     $compatibleStatus = getCompatibleInquiryStatus($pdo, 'Unread');
@@ -544,11 +604,19 @@ if ($action === 'create') {
     if ($existingInquiry) {
         ensureInquiryReplySchema($pdo);
 
-        $replyStmt = $pdo->prepare("
-            INSERT INTO inquiry_replies (inquiry_id, message, sender_type, created_at)
-            VALUES (?, ?, 'patient', NOW())
-        ");
-        $replyStmt->execute([(int)$existingInquiry['id'], $concern]);
+        if ($attachment !== null && inquiryModuleColumnExists($pdo, 'inquiry_replies', 'attachment')) {
+            $replyStmt = $pdo->prepare("
+                INSERT INTO inquiry_replies (inquiry_id, message, sender_type, attachment, created_at)
+                VALUES (?, ?, 'patient', ?, NOW())
+            ");
+            $replyStmt->execute([(int)$existingInquiry['id'], $concern, $attachment]);
+        } else {
+            $replyStmt = $pdo->prepare("
+                INSERT INTO inquiry_replies (inquiry_id, message, sender_type, created_at)
+                VALUES (?, ?, 'patient', NOW())
+            ");
+            $replyStmt->execute([(int)$existingInquiry['id'], $concern]);
+        }
 
         updateInquiryRecord($pdo, (int)$existingInquiry['id'], ['status' => 'Unread']);
 
@@ -929,8 +997,10 @@ if ($action === 'convert_to_appointment') {
 
 if ($action === 'staff_reply') {
     $replyMessage = trim($_POST['message'] ?? '');
-    if ($replyMessage === '') {
-        inquiryJson(['success' => false, 'message' => 'Reply message is required.']);
+    $attachment = handleInquiryAttachment();
+
+    if ($replyMessage === '' && $attachment === null) {
+        inquiryJson(['success' => false, 'message' => 'Reply message or attachment is required.']);
     }
 
     ensureInquiryReplySchema($pdo);
@@ -941,11 +1011,19 @@ if ($action === 'staff_reply') {
     $existingNotes = $inquiry['notes'] ?? '';
     $newNotes = $existingNotes . $replyEntry;
 
-    $replyStmt = $pdo->prepare("
-        INSERT INTO inquiry_replies (inquiry_id, message, sender_type, created_at)
-        VALUES (?, ?, 'staff', NOW())
-    ");
-    $replyStmt->execute([$id, $replyMessage]);
+    if ($attachment !== null && inquiryModuleColumnExists($pdo, 'inquiry_replies', 'attachment')) {
+        $replyStmt = $pdo->prepare("
+            INSERT INTO inquiry_replies (inquiry_id, message, sender_type, attachment, created_at)
+            VALUES (?, ?, 'staff', ?, NOW())
+        ");
+        $replyStmt->execute([$id, $replyMessage, $attachment]);
+    } else {
+        $replyStmt = $pdo->prepare("
+            INSERT INTO inquiry_replies (inquiry_id, message, sender_type, created_at)
+            VALUES (?, ?, 'staff', NOW())
+        ");
+        $replyStmt->execute([$id, $replyMessage]);
+    }
 
     if (($inquiry['source'] ?? '') === 'Patient Portal' && !empty($inquiry['patient_id'])) {
         $patientId = (int)$inquiry['patient_id'];
@@ -971,12 +1049,23 @@ if ($action === 'staff_reply') {
         if (!inquiryColumnExists($pdo, 'messages', 'is_read')) {
             $pdo->exec("ALTER TABLE `messages` ADD COLUMN `is_read` TINYINT(1) NOT NULL DEFAULT 0");
         }
+        if (!inquiryColumnExists($pdo, 'messages', 'attachment')) {
+            $pdo->exec("ALTER TABLE `messages` ADD COLUMN `attachment` VARCHAR(500) DEFAULT NULL");
+        }
 
-        $msgStmt = $pdo->prepare("
-            INSERT INTO messages (patient_id, sender_id, message, sender_type, sent_by, created_at)
-            VALUES (?, ?, ?, 'admin', 'admin', NOW())
-        ");
-        $msgStmt->execute([$patientId, $staffUserId, $replyMessage]);
+        if ($attachment !== null && inquiryColumnExists($pdo, 'messages', 'attachment')) {
+            $msgStmt = $pdo->prepare("
+                INSERT INTO messages (patient_id, sender_id, message, sender_type, sent_by, attachment, created_at)
+                VALUES (?, ?, ?, 'admin', 'admin', ?, NOW())
+            ");
+            $msgStmt->execute([$patientId, $staffUserId, $replyMessage, $attachment]);
+        } else {
+            $msgStmt = $pdo->prepare("
+                INSERT INTO messages (patient_id, sender_id, message, sender_type, sent_by, created_at)
+                VALUES (?, ?, ?, 'admin', 'admin', NOW())
+            ");
+            $msgStmt->execute([$patientId, $staffUserId, $replyMessage]);
+        }
     } elseif (($inquiry['source'] ?? '') === 'Fb messenger' && !empty($inquiry['fb_sender_id'])) {
         require_once __DIR__ . '/../../config/facebook_config.php';
         require_once __DIR__ . '/../../includes/fb_messenger_helper.php';
@@ -1035,7 +1124,7 @@ if ($action === 'staff_reply') {
     }
 
     updateInquiryRecord($pdo, $id, ['status' => 'Replied', 'notes' => $newNotes, 'assigned_staff_id' => (int)$_SESSION['user_id']]);
-    inquiryJson(['success' => true, 'message' => 'Reply sent successfully.']);
+    inquiryJson(['success' => true, 'message' => 'Reply sent successfully.', 'attachment' => $attachment]);
 }
 
 inquiryJson(['success' => false, 'message' => 'Unknown action.']);

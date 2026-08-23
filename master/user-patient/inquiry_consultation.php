@@ -26,6 +26,7 @@ $patientSessionSettings = getPatientSessionSettings($pdo, (int)($_SESSION['user_
 require_once '../../includes/inquiry_module_helper.php';
 
 ensureInquiryModuleSchema($pdo);
+ensureInquiryReplySchema($pdo);
 
 // Load clinic settings
 $settingsStmt = $pdo->query("SELECT setting_key, setting_value FROM settings");
@@ -198,6 +199,7 @@ if ($activeInquiry) {
         $messages[] = [
             'type' => $reply['sender_type'] === 'staff' ? 'clinic' : 'patient',
             'message' => $reply['message'],
+            'attachment' => $reply['attachment'] ?? null,
             'created_at' => $reply['created_at'],
         ];
     }
@@ -283,6 +285,15 @@ $pageTitle = 'Inquiry / Consultation';
         .conv-text:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
         .send-btn { background:#f3f4f6; border:none; color:#6b7280; padding:12px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition: color 0.2s, background 0.2s; }
         .send-btn.has-text { color:#0070f3; background:#dbeaf1; }
+
+        .attachment-preview { padding:8px 20px 0; background:#fff; }
+        .attachment-preview-item { display:inline-flex; align-items:center; gap:8px; padding:6px 12px; background:#f0f4ff; border:1px solid #c7d2fe; border-radius:8px; font-size:13px; color:#3730a3; max-width:250px; }
+        .attachment-preview-item img { width:48px; height:48px; object-fit:cover; border-radius:6px; }
+        .attachment-preview-item .att-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+        .attachment-preview-item .att-remove { background:none; border:none; color:#ef4444; cursor:pointer; font-size:16px; padding:0 2px; line-height:1; }
+        .chat-attachment-img { max-width:280px; max-height:280px; border-radius:8px; margin-top:6px; cursor:pointer; display:block; }
+        .chat-attachment-file { display:inline-flex; align-items:center; gap:6px; padding:8px 14px; background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.25); border-radius:8px; margin-top:6px; color:inherit; text-decoration:none; font-size:13px; }
+        .chat-attachment-file.file-received { background:rgba(0,0,0,0.05); border-color:rgba(0,0,0,0.1); color:#3730a3; }
 
         /* Clinic Profile Panel (Right Side) */
         .clinic-profile-card {
@@ -519,18 +530,38 @@ $pageTitle = 'Inquiry / Consultation';
                         <?php else: ?>
                             <?php foreach ($messages as $msg): ?>
                                 <?php $ts = date('h:i A', strtotime($msg['created_at'] ?? 'now')); ?>
+                                <?php $att = $msg['attachment'] ?? null; ?>
+                                <?php $isImage = $att && preg_match('/\.(jpe?g|png|gif|webp)$/i', $att); ?>
                                 <?php if ($msg['type'] === 'clinic'): ?>
                                     <div class="message-row left">
                                         <img src="<?php echo htmlspecialchars($clinicAvatar); ?>" alt="<?php echo htmlspecialchars($clinicName); ?>" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
                                         <div>
-                                            <div class="bubble bubble-left"><?php echo nl2br(htmlspecialchars($msg['message'])); ?></div>
+                                            <div class="bubble bubble-left">
+                                                <?php if ($msg['message']): ?><?php echo nl2br(htmlspecialchars($msg['message'])); ?><?php endif; ?>
+                                                <?php if ($att): ?>
+                                                    <?php if ($isImage): ?>
+                                                        <img src="../<?php echo htmlspecialchars($att); ?>" class="chat-attachment-img" alt="Attachment" onclick="openLightbox(this.src)" style="cursor:pointer;">
+                                                    <?php else: ?>
+                                                        <a href="../<?php echo htmlspecialchars($att); ?>" target="_blank" class="chat-attachment-file file-received"><i class="fas fa-paperclip"></i> <?php echo htmlspecialchars(basename($att)); ?></a>
+                                                    <?php endif; ?>
+                                                <?php endif; ?>
+                                            </div>
                                             <div class="ts"><?php echo $ts; ?></div>
                                         </div>
                                     </div>
                                 <?php else: ?>
                                     <div class="message-row right">
                                         <div>
-                                            <div class="bubble bubble-right"><?php echo nl2br(htmlspecialchars($msg['message'] ?: 'No message provided')); ?></div>
+                                            <div class="bubble bubble-right">
+                                                <?php if ($msg['message']): ?><?php echo nl2br(htmlspecialchars($msg['message'])); ?><?php endif; ?>
+                                                <?php if ($att): ?>
+                                                    <?php if ($isImage): ?>
+                                                        <img src="../<?php echo htmlspecialchars($att); ?>" class="chat-attachment-img" alt="Attachment" onclick="openLightbox(this.src)" style="cursor:pointer;">
+                                                    <?php else: ?>
+                                                        <a href="../<?php echo htmlspecialchars($att); ?>" target="_blank" class="chat-attachment-file"><i class="fas fa-paperclip"></i> <?php echo htmlspecialchars(basename($att)); ?></a>
+                                                    <?php endif; ?>
+                                                <?php endif; ?>
+                                            </div>
                                             <div class="ts" style="text-align: right;"><?php echo $ts; ?></div>
                                         </div>
                                     </div>
@@ -541,10 +572,12 @@ $pageTitle = 'Inquiry / Consultation';
 
                     <form id="inquiryForm">
                         <input type="hidden" name="action" value="create">
+                        <div id="attachmentPreview" class="attachment-preview" style="display:none;"></div>
                         <div class="conv-input">
-                            <button type="button" class="icon-btn" aria-label="attach"><i class="fas fa-paperclip"></i></button>
-                            <button type="button" class="icon-btn" aria-label="image"><i class="fas fa-image"></i></button>
-                            <input id="concern" name="concern" class="conv-text" placeholder="Type a message" required />
+                            <button type="button" class="icon-btn" id="attachFileBtn" aria-label="attach"><i class="fas fa-paperclip"></i></button>
+                            <button type="button" class="icon-btn" id="attachImageBtn" aria-label="image"><i class="fas fa-image"></i></button>
+                            <input type="file" id="fileInput" style="display:none;" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,image/*">
+                            <input id="concern" name="concern" class="conv-text" placeholder="Type a message" />
                             <button type="submit" class="send-btn" aria-label="send"><i class="fas fa-paper-plane"></i></button>
                         </div>
                     </form>
@@ -640,20 +673,90 @@ $pageTitle = 'Inquiry / Consultation';
         const messagesList = document.getElementById('messagesList');
         const concernInput = document.getElementById('concern');
         const sendBtn = document.querySelector('.send-btn');
+        const fileInput = document.getElementById('fileInput');
+        const attachFileBtn = document.getElementById('attachFileBtn');
+        const attachImageBtn = document.getElementById('attachImageBtn');
+        const attachmentPreview = document.getElementById('attachmentPreview');
+        let selectedFile = null;
 
         concernInput.addEventListener('input', () => {
-            sendBtn.classList.toggle('has-text', concernInput.value.trim().length > 0);
+            sendBtn.classList.toggle('has-text', concernInput.value.trim().length > 0 || selectedFile !== null);
         });
+
+        attachFileBtn.addEventListener('click', () => {
+            fileInput.accept = '.pdf,.doc,.docx,.xls,.xlsx,.txt,image/*';
+            fileInput.click();
+        });
+        attachImageBtn.addEventListener('click', () => {
+            fileInput.accept = 'image/*';
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', () => handleFileSelect(fileInput.files[0]));
+
+        function handleFileSelect(file) {
+            if (!file) return;
+            if (file.size > 10 * 1024 * 1024) {
+                showFormAlert('error', 'File size must be 10MB or less.');
+                return;
+            }
+            selectedFile = file;
+            attachmentPreview.style.display = 'block';
+            const isImage = file.type.startsWith('image/');
+            attachmentPreview.innerHTML = '<div class="attachment-preview-item">'
+                + (isImage ? '<img src="' + URL.createObjectURL(file) + '" alt="Preview">' : '<i class="fas fa-file" style="font-size:20px;"></i>')
+                + '<span class="att-name">' + escapeHtml(file.name) + '</span>'
+                + '<button type="button" class="att-remove" onclick="clearAttachment()">&times;</button>'
+                + '</div>';
+            sendBtn.classList.add('has-text');
+        }
+
+        function clearAttachment() {
+            selectedFile = null;
+            fileInput.value = '';
+            attachmentPreview.style.display = 'none';
+            attachmentPreview.innerHTML = '';
+            sendBtn.classList.toggle('has-text', concernInput.value.trim().length > 0);
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        }
 
         function showFormAlert(type, message) {
             formAlert.className = `alert show ${type}`;
             formAlert.textContent = message;
         }
 
+        function openLightbox(src) {
+            let overlay = document.getElementById('imgLightbox');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'imgLightbox';
+                overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+                overlay.innerHTML = '<img id="lightboxImg" style="max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.5);">';
+                overlay.addEventListener('click', () => overlay.style.display = 'none');
+                document.body.appendChild(overlay);
+            }
+            document.getElementById('lightboxImg').src = src;
+            overlay.style.display = 'flex';
+        }
+
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
+            const message = concernInput.value.trim();
+            if (!message && !selectedFile) {
+                showFormAlert('error', 'Please type a message or attach a file.');
+                return;
+            }
+
             const formData = new FormData(form);
             formData.append('action', 'create');
+            if (selectedFile) {
+                formData.append('attachment', selectedFile);
+            } else {
+                formData.delete('attachment');
+            }
 
             try {
                 const response = await fetch('../shared/inquiry_actions.php', {
@@ -667,6 +770,7 @@ $pageTitle = 'Inquiry / Consultation';
                 }
 
                 form.reset();
+                clearAttachment();
                 window.location.reload();
             } catch (error) {
                 showFormAlert('error', 'Something went wrong while submitting your inquiry.');

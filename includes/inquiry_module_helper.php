@@ -188,6 +188,7 @@ function ensureInquiryReplySchema(PDO $pdo): void
             `inquiry_id` INT(11) NOT NULL,
             `message` TEXT NOT NULL,
             `sender_type` ENUM('staff','guest','patient') NOT NULL DEFAULT 'guest',
+            `attachment` VARCHAR(500) DEFAULT NULL,
             `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (`id`),
             KEY `idx_inquiry_id` (`inquiry_id`),
@@ -198,18 +199,33 @@ function ensureInquiryReplySchema(PDO $pdo): void
     if (inquiryModuleColumnExists($pdo, 'inquiry_replies', 'sender_type')) {
         $pdo->exec("ALTER TABLE `inquiry_replies` MODIFY COLUMN `sender_type` ENUM('staff','guest','patient') NOT NULL DEFAULT 'guest'");
     }
+
+    if (!inquiryModuleColumnExists($pdo, 'inquiry_replies', 'attachment')) {
+        $pdo->exec("ALTER TABLE `inquiry_replies` ADD COLUMN `attachment` VARCHAR(500) DEFAULT NULL AFTER `sender_type`");
+    }
 }
 
 function fetchInquiryReplies(PDO $pdo, int $inquiryId): array
 {
-    $stmt = $pdo->prepare("
-        SELECT id, message, sender_type, created_at
-        FROM inquiry_replies
-        WHERE inquiry_id = ?
-        ORDER BY created_at ASC, id ASC
-    ");
-    $stmt->execute([$inquiryId]);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    try {
+        $stmt = $pdo->prepare("
+            SELECT id, message, sender_type, attachment, created_at
+            FROM inquiry_replies
+            WHERE inquiry_id = ?
+            ORDER BY created_at ASC, id ASC
+        ");
+        $stmt->execute([$inquiryId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        $stmt = $pdo->prepare("
+            SELECT id, message, sender_type, NULL AS attachment, created_at
+            FROM inquiry_replies
+            WHERE inquiry_id = ?
+            ORDER BY created_at ASC, id ASC
+        ");
+        $stmt->execute([$inquiryId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }
 
 function generateReplyToken(): string

@@ -5,6 +5,7 @@ require_once '../../config/database.php';
 require_once '../../includes/inquiry_module_helper.php';
 
 ensureInquiryModuleSchema($pdo);
+ensureInquiryReplySchema($pdo);
 
 $query = "
     SELECT i.*,
@@ -585,6 +586,86 @@ require_once '../../includes/staff_layout_start.php';
     cursor: not-allowed;
     transform: none;
 }
+.chat-attach-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: #f1f5f9;
+    color: #64748b;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.2s, color 0.2s;
+}
+.chat-attach-btn:hover {
+    background: #e2e8f0;
+    color: #2563eb;
+}
+.chat-attachment-preview {
+    padding: 8px 0 4px;
+}
+.chat-attachment-preview-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: #f0f4ff;
+    border: 1px solid #c7d2fe;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #3730a3;
+    max-width: 250px;
+}
+.chat-attachment-preview-item img {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 6px;
+}
+.chat-attachment-preview-item .att-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+.chat-attachment-preview-item .att-remove {
+    background: none;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0 2px;
+    line-height: 1;
+}
+.chat-bubble .chat-att-img {
+    max-width: 260px;
+    max-height: 260px;
+    border-radius: 8px;
+    margin-top: 6px;
+    cursor: pointer;
+    display: block;
+}
+.chat-bubble .chat-att-file {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 8px;
+    margin-top: 6px;
+    color: inherit;
+    text-decoration: none;
+    font-size: 13px;
+}
+.chat-bubble.received .chat-att-file {
+    background: rgba(0,0,0,0.05);
+    border-color: rgba(0,0,0,0.1);
+    color: #3730a3;
+}
 .form-textarea {
     min-height: 120px;
     resize: vertical;
@@ -805,8 +886,12 @@ require_once '../../includes/staff_layout_start.php';
         <div class="chat-channel-info" id="replyChannelInfo"></div>
         <form id="replyForm" class="chat-compose">
             <input type="hidden" id="reply_inquiry_id">
+            <div id="replyAttachmentPreview" class="chat-attachment-preview" style="display:none;"></div>
             <div class="chat-send-row">
-                <textarea id="reply_message" name="message" placeholder="Type your reply..." rows="1" required></textarea>
+                <button type="button" class="chat-attach-btn" id="replyAttachFile" title="Attach file"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
+                <button type="button" class="chat-attach-btn" id="replyAttachImage" title="Attach image"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></button>
+                <input type="file" id="replyFileInput" style="display:none;" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,image/*">
+                <textarea id="reply_message" name="message" placeholder="Type your reply..." rows="1"></textarea>
                 <button type="submit" class="chat-send-btn" aria-label="Send">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4Z"/>
@@ -846,6 +931,20 @@ function escapeHtml(value) {
         '"': '&quot;',
         "'": '&#39;'
     }[character]));
+}
+
+function openLightbox(src) {
+    let overlay = document.getElementById('imgLightbox');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'imgLightbox';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+        overlay.innerHTML = '<img id="lightboxImg" style="max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.5);">';
+        overlay.addEventListener('click', () => overlay.style.display = 'none');
+        document.body.appendChild(overlay);
+    }
+    document.getElementById('lightboxImg').src = src;
+    overlay.style.display = 'flex';
 }
 
 function formatCreatedAt(value) {
@@ -1292,12 +1391,24 @@ function getInitials(name) {
     return ((first[0] || '') + (last[0] || '')).toUpperCase() || 'P';
 }
 
-function addChatBubble(text, type, timestamp, label) {
+function addChatBubble(text, type, timestamp, label, attachment) {
     const container = document.getElementById('chatMessages');
     const bubble = document.createElement('div');
     bubble.className = 'chat-bubble ' + type;
     const labelHtml = label ? '<div style="font-size:11px;font-weight:600;color:' + (type === 'received' ? '#64748b' : 'rgba(255,255,255,0.7)') + ';margin-bottom:3px;">' + escapeHtml(label) + '</div>' : '';
-    bubble.innerHTML = labelHtml + '<div>' + escapeHtml(text).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(timestamp || 'just now') + '</div>';
+    let contentHtml = '';
+    if (text) {
+        contentHtml += escapeHtml(text).replace(/\n/g, '<br>');
+    }
+        if (attachment) {
+        const isImg = /\.(jpe?g|png|gif|webp)$/i.test(attachment);
+        if (isImg) {
+            contentHtml += '<img src="../' + escapeHtml(attachment) + '" class="chat-att-img" alt="Attachment" onclick="openLightbox(this.src)" style="cursor:pointer;">';
+        } else {
+            contentHtml += '<a href="../' + escapeHtml(attachment) + '" target="_blank" class="chat-att-file"><i class="fas fa-paperclip"></i> ' + escapeHtml(attachment.split('/').pop()) + '</a>';
+        }
+    }
+    bubble.innerHTML = labelHtml + '<div>' + contentHtml + '</div><div class="chat-meta">' + escapeHtml(timestamp || 'just now') + '</div>';
     container.appendChild(bubble);
     container.scrollTop = container.scrollHeight;
 }
@@ -1366,7 +1477,17 @@ async function openReplyModal(id) {
                     bubble.className = 'chat-bubble sent';
                 }
                 const label = reply.sender_type !== 'staff' ? (fullName) : 'Staff';
-                bubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:' + (reply.sender_type !== 'staff' ? '#64748b' : 'rgba(255,255,255,0.7)') + ';margin-bottom:3px;">' + escapeHtml(label) + '</div><div>' + escapeHtml(reply.message).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(formatCreatedAt(reply.created_at)) + '</div>';
+                const msgText = reply.message ? escapeHtml(reply.message).replace(/\n/g, '<br>') : '';
+                let attHtml = '';
+                if (reply.attachment) {
+                    const isImg = /\.(jpe?g|png|gif|webp)$/i.test(reply.attachment);
+                    if (isImg) {
+                        attHtml = '<img src="../' + escapeHtml(reply.attachment) + '" class="chat-att-img" alt="Attachment" onclick="openLightbox(this.src)" style="cursor:pointer;">';
+                    } else {
+                        attHtml = '<a href="../' + escapeHtml(reply.attachment) + '" target="_blank" class="chat-att-file"><i class="fas fa-paperclip"></i> ' + escapeHtml(reply.attachment.split('/').pop()) + '</a>';
+                    }
+                }
+                bubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:' + (reply.sender_type !== 'staff' ? '#64748b' : 'rgba(255,255,255,0.7)') + ';margin-bottom:3px;">' + escapeHtml(label) + '</div><div>' + msgText + attHtml + '</div><div class="chat-meta">' + escapeHtml(formatCreatedAt(reply.created_at)) + '</div>';
                 messageContainer.appendChild(bubble);
             });
         }
@@ -1409,8 +1530,10 @@ document.getElementById('replyForm').addEventListener('submit', async (event) =>
     event.preventDefault();
     const id = document.getElementById('reply_inquiry_id').value;
     const message = document.getElementById('reply_message').value.trim();
-    if (!id || !message) {
-        showToast('Reply message is required.', true);
+    const replyFileInput = document.getElementById('replyFileInput');
+    const selectedFile = replyFileInput.files[0] || null;
+    if (!id || (!message && !selectedFile)) {
+        showToast('Reply message or attachment is required.', true);
         return;
     }
 
@@ -1425,11 +1548,19 @@ document.getElementById('replyForm').addEventListener('submit', async (event) =>
         if (isFBMessenger) {
             const formData = new FormData();
             formData.append('id', id);
-            formData.append('message', message);
+            formData.append('message', message || '[Attachment]');
             const resp = await fetch('../api/fb_send_reply.php', { method: 'POST', body: formData });
             data = await resp.json();
         } else {
-            data = await postAction({ action: 'staff_reply', id, message });
+            const formData = new FormData();
+            formData.append('action', 'staff_reply');
+            formData.append('id', id);
+            formData.append('message', message || '');
+            if (selectedFile) {
+                formData.append('attachment', selectedFile);
+            }
+            const resp = await fetch('../shared/inquiry_actions.php', { method: 'POST', body: formData });
+            data = await resp.json();
         }
         if (!data.success) {
             showToast(data.message || 'Unable to send reply.', true);
@@ -1438,13 +1569,16 @@ document.getElementById('replyForm').addEventListener('submit', async (event) =>
         }
         const now = new Date();
         const ts = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
-        addChatBubble(message, 'sent', ts, 'Staff');
+        const attPath = data.attachment || null;
+        addChatBubble(message, 'sent', ts, 'Staff', attPath);
         const entry = inquiryMap[String(id)];
         if (entry) {
             entry.notes = (entry.notes || '') + '\n[Staff replied on ' + ts + ']\n' + message;
         }
         textarea.value = '';
         textarea.style.height = 'auto';
+        replyFileInput.value = '';
+        clearReplyAttachment();
         btn.disabled = false;
         textarea.focus();
         showToast('Reply sent.');
@@ -1460,6 +1594,37 @@ replyTextarea.addEventListener('input', function () {
     this.style.height = 'auto';
     this.style.height = Math.min(this.scrollHeight, 120) + 'px';
 });
+
+document.getElementById('replyAttachFile').addEventListener('click', () => {
+    const inp = document.getElementById('replyFileInput');
+    inp.accept = '.pdf,.doc,.docx,.xls,.xlsx,.txt,image/*';
+    inp.click();
+});
+document.getElementById('replyAttachImage').addEventListener('click', () => {
+    const inp = document.getElementById('replyFileInput');
+    inp.accept = 'image/*';
+    inp.click();
+});
+document.getElementById('replyFileInput').addEventListener('change', function() { showReplyAttachmentPreview(this.files[0]); });
+
+function showReplyAttachmentPreview(file) {
+    if (!file) return;
+    const preview = document.getElementById('replyAttachmentPreview');
+    const isImage = file.type.startsWith('image/');
+    preview.style.display = 'block';
+    preview.innerHTML = '<div class="chat-attachment-preview-item">'
+        + (isImage ? '<img src="' + URL.createObjectURL(file) + '" alt="Preview">' : '<i class="fas fa-file" style="font-size:20px;"></i>')
+        + '<span class="att-name">' + escapeHtml(file.name) + '</span>'
+        + '<button type="button" class="att-remove" onclick="clearReplyAttachment()">&times;</button>'
+        + '</div>';
+}
+
+function clearReplyAttachment() {
+    document.getElementById('replyFileInput').value = '';
+    const preview = document.getElementById('replyAttachmentPreview');
+    preview.style.display = 'none';
+    preview.innerHTML = '';
+}
 
 [searchInput, statusFilter, sourceFilter, dateFrom, dateTo].forEach((element) => {
     element.addEventListener('input', applyFilters);
