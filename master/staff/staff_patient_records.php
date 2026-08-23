@@ -662,6 +662,132 @@ try {
 .odontogram-tooth-finding-badge.treatment { background: #bae6fd; color: #0369a1; }
 .odontogram-tooth-finding-badge.condition { background: #e2e8f0; color: #475569; }
 .odontogram-tooth-finding-badge.surgery { background: #fef3c7; color: #92400e; }
+
+/* Full Consultation Chart Styles */
+.odx-section {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+}
+.odx-section h5 {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+.odx-vitals-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+    gap: 8px;
+}
+.odx-vital {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 6px 10px;
+}
+.odx-vital-label {
+    font-size: 0.62rem;
+    color: #64748b;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+.odx-vital-value {
+    font-size: 0.88rem;
+    color: #0f172a;
+    font-weight: 600;
+    margin-top: 1px;
+}
+.odx-subrow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+.odx-subblock { flex: 1; min-width: 200px; }
+.odx-subblock-title {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+.odx-check-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.odx-chip {
+    font-size: 0.72rem;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 3px 9px;
+    color: #94a3b8;
+}
+.odx-chip.on {
+    background: #ecfdf5;
+    border-color: #bbf7d0;
+    color: #047857;
+    font-weight: 600;
+}
+.odx-text {
+    font-size: 0.85rem;
+    color: #374151;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+.odx-empty { color: #94a3b8; font-size: 0.8rem; font-style: italic; }
+.odx-rx-item {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 9px 12px;
+    margin-bottom: 8px;
+}
+.odx-rx-name { font-weight: 700; color: #0f172a; font-size: 0.88rem; }
+.odx-rx-meta { font-size: 0.78rem; color: #64748b; margin-top: 2px; }
+.odx-rx-instr { font-size: 0.78rem; color: #15803d; margin-top: 4px; }
+.odx-dx-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: white;
+    border: 1px solid #bae6fd;
+    color: #0369a1;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 999px;
+    margin-right: 6px;
+    margin-bottom: 6px;
+}
+.odx-tx-plan {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 9px 12px;
+    margin-bottom: 8px;
+}
+.odx-tx-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.odx-tx-name { font-weight: 700; color: #0f172a; font-size: 0.86rem; }
+.odx-tx-status {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: #dbeafe;
+    color: #1d4ed8;
+    text-transform: capitalize;
+}
+.odx-tx-status.completed { background: #dcfce7; color: #15803d; }
+.odx-tx-status.cancelled, .odx-tx-status.discontinued { background: #fee2e2; color: #b91c1c; }
+.odx-tx-meta { font-size: 0.76rem; color: #64748b; margin-top: 3px; }
+.odx-tx-session { font-size: 0.76rem; color: #475569; margin-top: 4px; }
 .odontogram-modal-overlay {
     display: none;
     position: fixed;
@@ -952,6 +1078,7 @@ function viewPatientRecord(patientId) {
             const p = data.patient;
             const m = data.medical_history || {};
             const d = data.dental_history || {};
+            const dh = data.intake_dental_history || {};
             const odontogramSessions = data.odontogram_sessions || [];
             const q = data.queue_item;
             const b = data.billing || {};
@@ -990,6 +1117,8 @@ function viewPatientRecord(patientId) {
             const dueDate = b.due_date || null;
             
             document.getElementById('staffModalPatientName').innerText = (p.first_name || '') + ' ' + (p.last_name || '');
+            window._currentRecordPatientId = p.id;
+            window._currentRecordMedicalHistory = m;
 
             // Populate header avatar and registration badge
             try {
@@ -1174,7 +1303,7 @@ function viewPatientRecord(patientId) {
                 </div>
                 `}
 
-                <!-- Odontogram History -->
+                <!-- Consultation History (includes Dental History) -->
                 <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-top: 20px;">
                     <h3 style="font-size: 1rem; font-weight: 600; color: #374151; margin-bottom: 16px;">📋 Consultation History</h3>
                     ${odontogramSessions.length > 0 ? `
@@ -1185,7 +1314,7 @@ function viewPatientRecord(patientId) {
                                 var dentistName = session.dentist_first_name ? 'Dr. ' + session.dentist_first_name + ' ' + session.dentist_last_name : 'Unknown Dentist';
                                 var findingsCount = 0;
                                 try { var fd = typeof session.teeth_data === 'string' ? JSON.parse(session.teeth_data) : session.teeth_data; findingsCount = fd ? fd.length : 0; } catch(e) { findingsCount = 0; }
-                                window._odontogramSessionMap[session.id] = { date: sessionDate, time: sessionTime, dentist: dentistName, teeth_data: session.teeth_data };
+                                window._odontogramSessionMap[session.id] = { date: sessionDate, time: sessionTime, dentist: dentistName, teeth_data: session.teeth_data, session: session };
                                 return '<div style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;">'+
                                     '<div>'+
                                         '<div style="font-weight:600;color:#111827;font-size:0.95rem;">'+sessionDate+' <span style="color:#6b7280;font-weight:400;font-size:0.85rem;">'+sessionTime+'</span></div>'+
@@ -1198,26 +1327,25 @@ function viewPatientRecord(patientId) {
                     ` : `
                         <p style="color:#6b7280;text-align:center;padding:20px;background:#f3f4f6;border-radius:8px;">No odontogram records found.</p>
                     `}
-                </div>
-
-                <div style="background: #f9fafb; border-radius: 12px; padding: 20px;">
-                    <h3 style="font-size: 1rem; font-weight: 600; color: #374151; margin-bottom: 16px;">📜 Dental History</h3>
-                    <div class="patient-info-grid">
-                        <div class="patient-info-item">
-                            <div class="patient-info-label">Previous Dentist</div>
-                            <div class="patient-info-value">${d.previous_dentist || 'N/A'}</div>
-                        </div>
-                        <div class="patient-info-item">
-                            <div class="patient-info-label">Last Visit</div>
-                            <div class="patient-info-value">${d.last_visit_date || 'N/A'}</div>
-                        </div>
-                        <div class="patient-info-item" style="grid-column: 1 / -1;">
-                            <div class="patient-info-label">Current Complaints</div>
-                            <div class="patient-info-value">${d.current_complaints || 'None'}</div>
+                    <div style="margin-top:16px;padding-top:14px;border-top:1px solid #e5e7eb;">
+                        <h4 style="font-size:0.9rem;font-weight:600;color:#374151;margin:0 0 12px;">📜 Dental History</h4>
+                        <div class="patient-info-grid">
+                            <div class="patient-info-item">
+                                <div class="patient-info-label">Previous Dentist</div>
+                                <div class="patient-info-value">${dh.previous_dentist || d.previous_dentist || 'N/A'}</div>
+                            </div>
+                            <div class="patient-info-item">
+                                <div class="patient-info-label">Last Visit</div>
+                                <div class="patient-info-value">${dh.last_visit_date || d.last_visit_date || 'N/A'}</div>
+                            </div>
+                            <div class="patient-info-item" style="grid-column: 1 / -1;">
+                                <div class="patient-info-label">Current Complaints</div>
+                                <div class="patient-info-value">${dh.current_complaints || d.current_complaints || 'None'}</div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- bottom close removed; using top-right close button -->
             `;
         }
@@ -1912,13 +2040,27 @@ function openOdontogramSession(sessionId) {
     var s = window._odontogramSessionMap[sessionId];
     if (!s) return;
     var dateStr = s.date + (s.time ? ' ' + s.time : '');
-    openOdontogramModal(sessionId, dateStr, s.dentist, s.teeth_data);
+    openOdontogramModal(sessionId, dateStr, s.dentist, s.teeth_data, s.session);
 }
-function openOdontogramModal(sessionId, dateStr, dentistName, findingsJson) {
+function odxVitalHtml(label, value, suffix) {
+    var v = (value === null || value === undefined) ? '' : String(value).trim();
+    return '<div class="odx-vital"><div class="odx-vital-label">' + label + '</div><div class="odx-vital-value">'
+        + (v ? escapeHtml(v) + (suffix || '') : '&mdash;') + '</div></div>';
+}
+function odxChipHtml(label, val) {
+    var on = !!parseInt(val);
+    return '<span class="odx-chip' + (on ? ' on' : '') + '">' + (on ? '&#10003; ' : '') + label + '</span>';
+}
+function odxSection(title, innerHtml) {
+    return '<div class="odx-section"><h5>' + title + '</h5>' + innerHtml + '</div>';
+}
+function openOdontogramModal(sessionId, dateStr, dentistName, findingsJson, session) {
+    session = session || {};
     try {
-        odontogramTeethFindings = typeof findingsJson === 'string' ? JSON.parse(findingsJson) : findingsJson;
+        odontogramTeethFindings = typeof findingsJson === 'string' ? JSON.parse(findingsJson) : (findingsJson || []);
     } catch(e) { odontogramTeethFindings = []; }
     document.getElementById('odontogramModalTitle').textContent = 'Odontogram - ' + dateStr + (dentistName ? ' | ' + dentistName : '');
+
     var content = '<div class="odontogram-chart-area">';
     content += '<div class="odontogram-chart-section-label">Adult Teeth</div>';
     content += '<div id="odAdultTeethChart"></div>';
@@ -1926,10 +2068,174 @@ function openOdontogramModal(sessionId, dateStr, dentistName, findingsJson) {
     content += '<div id="odPedTeethChart"></div>';
     content += '<div class="odontogram-findings-display"><h5>Tooth Findings</h5><div id="odFindingsChips"></div></div>';
     content += '</div>';
+
+    // Compact Dental Examination summary (vitals + exam checkboxes)
+    var examHtml = '<div class="odx-subrow" style="margin-bottom:12px;">';
+    examHtml += '<div style="flex:1 1 100%;"><div class="odx-subblock-title">Vital Signs &amp; Body Measurement</div><div class="odx-vitals-grid">';
+    examHtml += odxVitalHtml('Blood Pressure', session.blood_pressure, '');
+    examHtml += odxVitalHtml('Heart Rate', session.heart_rate, ' bpm');
+    examHtml += odxVitalHtml('Temperature', session.temperature, ' &deg;C');
+    examHtml += odxVitalHtml('O2 Saturation', session.oxygen_saturation, ' %');
+    examHtml += odxVitalHtml('Height', session.height, ' cm');
+    examHtml += odxVitalHtml('Weight', session.weight, ' kg');
+    examHtml += '</div></div></div>';
+
+    var periodontal = (session.periodontal_screening || '').trim();
+    var occChips = odxChipHtml('Class (Molar)', session.occlusion_class_molar)
+        + odxChipHtml('Overjet', session.occlusion_overjet)
+        + odxChipHtml('Overbite', session.occlusion_overbite)
+        + odxChipHtml('Midline Deviation', session.occlusion_midline_deviation)
+        + odxChipHtml('Crossbite', session.occlusion_crossbite);
+    var appChips = odxChipHtml('Orthodontic', session.appliances_orthodontic)
+        + odxChipHtml('Skyplate', session.appliances_skyplate)
+        + odxChipHtml('Others', session.appliances_others);
+    if (parseInt(session.appliances_others) && session.appliances_others_text) {
+        appChips += '<span class="odx-chip on">' + escapeHtml(session.appliances_others_text) + '</span>';
+    }
+    var tmdChips = odxChipHtml('Clenching', session.tmd_clenching)
+        + odxChipHtml('Clicking', session.tmd_clicking)
+        + odxChipHtml('Trismus', session.tmd_trismus)
+        + odxChipHtml('Muscle Spasm', session.tmd_muscle_spasm);
+
+    examHtml += '<div class="odx-subrow">';
+    examHtml += '<div class="odx-subblock"><div class="odx-subblock-title">Periodontal Screening</div><div>'
+        + (periodontal ? '<span class="odx-chip on">' + escapeHtml(periodontal) + '</span>' : '<span class="odx-empty">Not recorded</span>')
+        + '</div></div>';
+    examHtml += '<div class="odx-subblock"><div class="odx-subblock-title">Occlusion</div><div class="odx-check-row">' + occChips + '</div></div>';
+    examHtml += '</div>';
+    examHtml += '<div class="odx-subrow" style="margin-top:10px;">';
+    examHtml += '<div class="odx-subblock"><div class="odx-subblock-title">Appliances</div><div class="odx-check-row">' + appChips + '</div></div>';
+    examHtml += '<div class="odx-subblock"><div class="odx-subblock-title">TMD</div><div class="odx-check-row">' + tmdChips + '</div></div>';
+    examHtml += '</div>';
+    content += odxSection('Dental Examination', examHtml);
+
+    // Consultation Notes
+    var notesVal = (session.consultation_notes || '').trim();
+    content += odxSection('Consultation Notes', notesVal
+        ? '<div class="odx-text">' + escapeHtml(notesVal) + '</div>'
+        : '<span class="odx-empty">No consultation notes recorded.</span>');
+
+    // Dental & Medical History
+    var mh = window._currentRecordMedicalHistory || {};
+    var mhLabels = [
+        ['heart_condition','Heart Condition'],['diabetes','Diabetes'],['bleeding_disorder','Bleeding Disorder'],
+        ['pregnancy','Pregnancy'],['blood_pressure','Blood Pressure Issues'],['hiv_aids','HIV/AIDS'],
+        ['hepatitis','Hepatitis'],['tuberculosis','Tuberculosis'],['asthma','Asthma'],['epilepsy','Epilepsy'],
+        ['std','STD'],['stomach_ulcer','Stomach Ulcer'],['fainting_seizure','Fainting / Seizure'],
+        ['rapid_weight_loss','Rapid Weight Loss'],['rheumatic_fever','Rheumatic Fever'],['hay_fever','Hay Fever / Allergies'],
+        ['respiratory_problems','Respiratory Problems'],['swollen_ankles','Swollen Ankles'],['kidney_disease','Kidney Disease'],
+        ['chest_pain','Chest Pain'],['stroke','Stroke']
+    ];
+    var historyInner = '';
+    var mhPositive = '';
+    mhLabels.forEach(function(f) {
+        if (mh[f[0]] == 1 || mh[f[0]] === '1') {
+            mhPositive += '<span class="odx-chip on">' + f[1] + '</span> ';
+        }
+    });
+    historyInner += '<div class="odx-subrow"><div class="odx-subblock"><div class="odx-subblock-title">Medical History</div>';
+    historyInner += mhPositive ? '<div class="odx-check-row">' + mhPositive + '</div>' : '<span class="odx-empty">No conditions marked.</span>';
+    if (mh.allergies) historyInner += '<div class="odx-tx-meta" style="margin-top:6px;"><strong>Allergies:</strong> ' + escapeHtml(mh.allergies) + '</div>';
+    if (mh.current_medications) historyInner += '<div class="odx-tx-meta" style="margin-top:3px;"><strong>Medications:</strong> ' + escapeHtml(mh.current_medications) + '</div>';
+    historyInner += '</div>';
+    var dhNotes = (session.dental_medical_history_notes || '').trim();
+    historyInner += '<div class="odx-subblock"><div class="odx-subblock-title">Dental History Notes</div>'
+        + (dhNotes ? '<div class="odx-text">' + escapeHtml(dhNotes) + '</div>' : '<span class="odx-empty">No dental history notes recorded.</span>')
+        + '</div></div>';
+    content += odxSection('Dental & Medical History', historyInner);
+
+    // Treatment Plan (patient-level, loaded async)
+    content += odxSection('Treatment Plan', '<div id="odTxPlansContainer"><span class="odx-empty">Loading treatment plans...</span></div>');
+
+    // Prescription
+    var rxItems = [];
+    try { rxItems = typeof session.prescription_data === 'string' ? JSON.parse(session.prescription_data) : (session.prescription_data || []); } catch(e) { rxItems = []; }
+    var rxHtml = '';
+    if (rxItems.length) {
+        rxItems.forEach(function(item) {
+            if (!item || !item.name) return;
+            rxHtml += '<div class="odx-rx-item"><div class="odx-rx-name">' + escapeHtml(item.name) + '</div>';
+            var meta = [item.dosage, item.frequency, item.duration].filter(function(x) { return x && String(x).trim(); }).map(escapeHtml).join(' &middot; ');
+            if (meta) rxHtml += '<div class="odx-rx-meta">' + meta + '</div>';
+            if (item.instructions) rxHtml += '<div class="odx-rx-instr">&#128221; ' + escapeHtml(item.instructions) + '</div>';
+            rxHtml += '</div>';
+        });
+    }
+    content += odxSection('Prescription', rxHtml || '<span class="odx-empty">No medications prescribed.</span>');
+
+    // Diagnosis
+    var dxHtml = '';
+    if (session.primary_icd10) {
+        dxHtml += '<span class="odx-dx-chip"><strong>' + escapeHtml(session.primary_icd10) + '</strong> ' + escapeHtml(session.primary_icd10_desc || '') + '</span>';
+    }
+    if (session.secondary_icd10) {
+        dxHtml += '<span class="odx-dx-chip"><strong>' + escapeHtml(session.secondary_icd10) + '</strong> ' + escapeHtml(session.secondary_icd10_desc || '') + '</span>';
+    }
+    var narrative = (session.diagnosis_narrative || '').trim();
+    if (narrative) {
+        dxHtml += '<div class="odx-text" style="margin-top:8px;">' + escapeHtml(narrative) + '</div>';
+    }
+    content += odxSection('Diagnosis', dxHtml || '<span class="odx-empty">No diagnosis recorded.</span>');
+
     document.getElementById('odontogramModalContent').innerHTML = content;
     document.getElementById('odontogramModalOverlay').classList.add('active');
     odRenderToothChart();
     odRenderFindings();
+    loadOdontogramTreatmentPlans(window._currentRecordPatientId);
+}
+function loadOdontogramTreatmentPlans(patientId) {
+    var container = document.getElementById('odTxPlansContainer');
+    if (!container) return;
+    if (!patientId) {
+        container.innerHTML = '<span class="odx-empty">No patient linked.</span>';
+        return;
+    }
+    fetch('../shared/process_treatment_plan.php?patient_id=' + encodeURIComponent(patientId))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (!container.isConnected) return;
+        if (data.success && data.plans && data.plans.length) {
+            var html = '';
+            data.plans.forEach(function(plan) {
+                var status = (plan.overall_status || 'Active');
+                var statusCls = status.toLowerCase().replace(/\s+/g, '-');
+                html += '<div class="odx-tx-plan"><div class="odx-tx-head"><span class="odx-tx-name">' + escapeHtml(plan.plan_name || 'Treatment Plan') + '</span>'
+                    + '<span class="odx-tx-status ' + statusCls + '">' + escapeHtml(status) + '</span></div>';
+                var meta = [(plan.total_sessions || 1) + ' session(s)'];
+                if (plan.total_estimated_cost && parseFloat(plan.total_estimated_cost) > 0) {
+                    meta.push('Est. Cost: P' + parseFloat(plan.total_estimated_cost).toFixed(2));
+                }
+                if (plan.teeth_numbers) meta.push('Teeth: ' + plan.teeth_numbers);
+                html += '<div class="odx-tx-meta">' + meta.map(escapeHtml).join(' | ') + '</div>';
+                if (plan.sessions_data) {
+                    try {
+                        var sessions = JSON.parse(plan.sessions_data);
+                        sessions.forEach(function(s, idx) {
+                            var parts = [];
+                            if (s.date) {
+                                var d = new Date(s.date + 'T' + (s.time || '00:00:00'));
+                                parts.push(d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }));
+                            }
+                            if (s.time) parts.push(s.time);
+                            html += '<div class="odx-tx-session">Session ' + (idx + 1) + ': '
+                                + (parts.length ? escapeHtml(parts.join(' @ ')) : '<span class="odx-empty">Not scheduled</span>')
+                                + (s.treatment ? ' &mdash; ' + escapeHtml(s.treatment) : '')
+                                + (s.status ? ' (' + escapeHtml(s.status) + ')' : '')
+                                + '</div>';
+                        });
+                    } catch(e) {}
+                }
+                if (plan.notes) html += '<div class="odx-tx-session">&#128221; ' + escapeHtml(plan.notes) + '</div>';
+                html += '</div>';
+            });
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = '<span class="odx-empty">No treatment plans for this patient.</span>';
+        }
+    })
+    .catch(function() {
+        if (container && container.isConnected) container.innerHTML = '<span class="odx-empty">Error loading treatment plans.</span>';
+    });
 }
 function closeOdontogramModal(e) {
     if (e.target === document.getElementById('odontogramModalOverlay')) {

@@ -398,6 +398,9 @@ try {
                    c.consent_provider, c.consent_procedure, c.consent_date, c.consent_place,
                    c.consent_given, c.consent_patient_signature, c.consent_doctor_signature, c.consent_witness_signature,
                    c.consent_patient_sign_name, c.consent_witness_sign_name,
+                   c.primary_icd10, c.primary_icd10_desc, c.secondary_icd10, c.secondary_icd10_desc,
+                   c.diagnosis_narrative,
+                   q.blood_pressure, q.heart_rate, q.temperature, q.oxygen_saturation, q.height, q.weight,
                    q.treatment_type AS queue_treatment_type, q.queue_number,
                    u.first_name AS dentist_first_name, u.last_name AS dentist_last_name
             FROM consultations c
