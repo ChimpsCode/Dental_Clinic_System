@@ -15,7 +15,8 @@ $query = "
            ass.username AS assigned_username,
            up.profile_picture AS patient_profile_picture,
            lr.message AS latest_reply_message,
-           lr.sender_type AS latest_reply_sender_type
+           lr.sender_type AS latest_reply_sender_type,
+           lr.attachment AS latest_reply_attachment
     FROM inquiries i
     LEFT JOIN services s ON s.id = i.service_id
     LEFT JOIN users ass ON ass.id = i.assigned_staff_id
@@ -26,7 +27,7 @@ $query = "
         LIMIT 1
     )
     LEFT JOIN (
-        SELECT r1.inquiry_id, r1.message, r1.sender_type, r1.created_at
+        SELECT r1.inquiry_id, r1.message, r1.sender_type, r1.attachment, r1.created_at
         FROM inquiry_replies r1
         INNER JOIN (
             SELECT inquiry_id, MAX(id) AS max_id
@@ -1046,8 +1047,20 @@ function renderTable() {
 
     tableBody.innerHTML = pageItems.map((inquiry) => {
         const lastReply = inquiry.latest_reply_message || '';
+        const lastAttachment = inquiry.latest_reply_attachment || '';
         const lastSender = inquiry.latest_reply_sender_type || '';
-        const previewSource = lastReply ? (lastSender === 'staff' ? 'you: ' + lastReply : lastReply) : (inquiry.concern || inquiry.inquiry_message || 'No concern provided');
+        let previewSource = lastReply ? (lastSender === 'staff' ? 'you: ' + lastReply : lastReply) : (inquiry.concern || inquiry.inquiry_message || 'No concern provided');
+        if (lastAttachment) {
+            const hasImage = /\.(jpe?g|png|gif|webp)$/i.test(lastAttachment);
+            const suffix = hasImage ? '[Image]' : '[Attachment]';
+            if (!lastReply) {
+                previewSource = lastSender === 'staff' ? 'you: ' + suffix : suffix;
+            } else {
+                previewSource += ' ' + suffix;
+            }
+        } else if (!lastReply && !inquiry.concern && !inquiry.inquiry_message) {
+            previewSource = 'No concern provided';
+        }
         const preview = previewSource.length > 92 ? `${previewSource.slice(0, 92)}...` : previewSource;
         const displayFirstName = escapeHtml(inquiry.first_name || '');
         const displayMiddleName = inquiry.middle_name ? escapeHtml(inquiry.middle_name) : null;
