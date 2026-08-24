@@ -64,6 +64,8 @@ try {
         'COALESCE(p.email, u.email) as email',
         'COALESCE(p.gender, u.gender) as gender',
         'p.date_of_birth',
+        'p.senior_citizen_id',
+        'p.pwd_id',
         'p.updated_at',
         'TIMESTAMPDIFF(YEAR, p.date_of_birth, CURDATE()) as age',
     ];

@@ -1087,7 +1087,7 @@ $assets = [
               <div class="form-row">
                 <div class="form-group">
                   <label for="reg-dob">Date of Birth</label>
-                  <input type="date" id="reg-dob" name="date_of_birth" onchange="var d=new Date(this.value);var a=new Date().getFullYear()-d.getFullYear();if(new Date().getMonth()<d.getMonth()||(new Date().getMonth()==d.getMonth()&&new Date().getDate()<d.getDate()))a--;document.getElementById('reg-age').value=a>0&&a<120?a:''" />
+                  <input type="date" id="reg-dob" name="date_of_birth" onchange="var d=new Date(this.value);var a=new Date().getFullYear()-d.getFullYear();if(new Date().getMonth()<d.getMonth()||(new Date().getMonth()==d.getMonth()&&new Date().getDate()<d.getDate()))a--;document.getElementById('reg-age').value=a>0&&a<120?a:'';var h=document.getElementById('reg-senior-hint');if(h)h.style.display=(a>=60)?'block':'none'" />
                 </div>
                 <div class="form-group">
                   <label for="reg-age">Age</label>
@@ -1111,6 +1111,17 @@ $assets = [
               <div class="form-group">
                 <label for="reg-emergency-relationship">Relationship</label>
                 <input type="text" id="reg-emergency-relationship" name="emergency_contact_relationship" placeholder="Example: Parent, Spouse, Sibling" required />
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="reg-senior-id">Senior Citizen (OSCA) ID No. <span style="color:#6b7280;font-weight:400;">(Optional)</span></label>
+                  <input type="text" id="reg-senior-id" name="senior_citizen_id" placeholder="e.g., OSCA-0123-4567" maxlength="30" />
+                  <div id="reg-senior-hint" style="display:none;font-size:12px;color:#16a34a;margin-top:4px;">Age 60+ — qualifies as senior even without an ID</div>
+                </div>
+                <div class="form-group">
+                  <label for="reg-pwd-id">PWD ID No. <span style="color:#6b7280;font-weight:400;">(Optional)</span></label>
+                  <input type="text" id="reg-pwd-id" name="pwd_id" placeholder="e.g., PWD-CDO-2024-00123" maxlength="30" />
+                </div>
               </div>
             </div>
             

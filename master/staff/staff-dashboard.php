@@ -7,6 +7,7 @@ require_once __DIR__ . '/../../includes/appointment_approval_helper.php';
 if (isset($_GET['ajax']) && $_GET['ajax'] === 'dashboard') {
     try {
         ensureQueueManagementSchema($pdo);
+        archiveStaleQueueEntries($pdo);
         $stmt = $pdo->query("
             SELECT q.*, COALESCE(p.first_name, 'Unknown') as first_name, COALESCE(p.middle_name, '') as middle_name, COALESCE(p.last_name, '') as last_name, COALESCE(p.suffix, '') as suffix, COALESCE(p.phone, '') as phone, COALESCE(q.status, 'waiting') as status_text
             FROM queue q 
@@ -157,6 +158,8 @@ require_once '../../includes/staff_layout_start.php';
 try {
     // Ensure queue table has proper schema
     ensureQueueManagementSchema($pdo);
+    // Daily reset: cancel stale unfinished queue entries from previous days
+    archiveStaleQueueEntries($pdo);
     // Get queue data
     $stmt = $pdo->query("
         SELECT q.*, COALESCE(p.first_name, 'Unknown') as first_name, COALESCE(p.middle_name, '') as middle_name, COALESCE(p.last_name, '') as last_name, COALESCE(p.suffix, '') as suffix, COALESCE(p.phone, '') as phone, COALESCE(q.status, 'waiting') as status_text

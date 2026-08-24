@@ -574,6 +574,14 @@ $pageTitle = 'My Profile';
                             <label class="form-label">Age</label>
                             <input type="text" class="form-input" value="<?php echo $patientAge !== null ? htmlspecialchars((string)$patientAge) : 'Not provided'; ?>" readonly>
                         </div>
+                        <div class="form-group">
+                            <label class="form-label">Senior Citizen (OSCA) ID No. <span style="color:#6b7280;font-weight:400;">(Optional)</span></label>
+                            <input type="text" class="form-input" value="<?php echo htmlspecialchars($patient['senior_citizen_id'] ?? ''); ?>" placeholder="Not provided" readonly style="background-color:#f9fafb;">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">PWD ID No. <span style="color:#6b7280;font-weight:400;">(Optional)</span></label>
+                            <input type="text" class="form-input" value="<?php echo htmlspecialchars($patient['pwd_id'] ?? ''); ?>" placeholder="Not provided" readonly style="background-color:#f9fafb;">
+                        </div>
                     </div>
 
                     <!-- Contact Information & Address -->

@@ -6,6 +6,8 @@ require_once '../../includes/dentist_layout_start.php';
 
 try {
     ensureQueueManagementSchema($pdo);
+    // Daily reset: cancel stale unfinished queue entries from previous days
+    archiveStaleQueueEntries($pdo);
     require_once '../../config/database.php';
     
     // Get queue statistics - use status column directly

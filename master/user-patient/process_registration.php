@@ -62,6 +62,8 @@ if ($action === 'verify_otp') {
         $emergencyContactName = trim($_POST['emergency_contact_name'] ?? '');
         $emergencyContactPhone = trim($_POST['emergency_contact_phone'] ?? '');
         $emergencyContactRelationship = trim($_POST['emergency_contact_relationship'] ?? '');
+        $seniorCitizenId = trim($_POST['senior_citizen_id'] ?? '');
+        $pwdId = trim($_POST['pwd_id'] ?? '');
         $password = (string)($_POST['password'] ?? '');
 
         if ($firstName !== '' && $lastName !== '' && $email !== '' && $phone !== '' && $password !== '') {
@@ -77,6 +79,8 @@ if ($action === 'verify_otp') {
                 'emergency_contact_name' => $emergencyContactName,
                 'emergency_contact_phone' => $emergencyContactPhone,
                 'emergency_contact_relationship' => $emergencyContactRelationship,
+                'senior_citizen_id' => $seniorCitizenId,
+                'pwd_id' => $pwdId,
                 'password' => $password,
             ];
         }
@@ -182,6 +186,14 @@ if ($action === 'verify_otp') {
         if (tableHasColumn($pdo, 'patients', 'emergency_contact_relationship')) {
             $patientInsertColumns[] = 'emergency_contact_relationship';
             $patientInsertValues[] = $emergencyContactRelationship !== '' ? $emergencyContactRelationship : null;
+        }
+        if (tableHasColumn($pdo, 'patients', 'senior_citizen_id')) {
+            $patientInsertColumns[] = 'senior_citizen_id';
+            $patientInsertValues[] = ($regData['senior_citizen_id'] ?? '') !== '' ? $regData['senior_citizen_id'] : null;
+        }
+        if (tableHasColumn($pdo, 'patients', 'pwd_id')) {
+            $patientInsertColumns[] = 'pwd_id';
+            $patientInsertValues[] = ($regData['pwd_id'] ?? '') !== '' ? $regData['pwd_id'] : null;
         }
 
         $insertPatientSql = "
@@ -303,6 +315,8 @@ try {
     $emergency_contact_name = trim($_POST['emergency_contact_name'] ?? '');
     $emergency_contact_phone = trim($_POST['emergency_contact_phone'] ?? '');
     $emergency_contact_relationship = trim($_POST['emergency_contact_relationship'] ?? '');
+    $senior_citizen_id = trim($_POST['senior_citizen_id'] ?? '');
+    $pwd_id = trim($_POST['pwd_id'] ?? '');
 
     $otpCode = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
     $_SESSION['reg_otp'] = $otpCode;
@@ -319,6 +333,8 @@ try {
         'emergency_contact_name' => $emergency_contact_name,
         'emergency_contact_phone' => $emergency_contact_phone,
         'emergency_contact_relationship' => $emergency_contact_relationship,
+        'senior_citizen_id' => $senior_citizen_id,
+        'pwd_id' => $pwd_id,
         'password' => $password,
     ];
 

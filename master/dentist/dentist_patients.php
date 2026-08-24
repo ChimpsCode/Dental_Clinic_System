@@ -445,6 +445,8 @@ function viewPatientDetails(patientId) {
                             <div><p style="margin:0;color:#6b7280;font-size:12px;">Gender</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.gender || '-'}</p></div>
                             <div><p style="margin:0;color:#6b7280;font-size:12px;">Date of Birth</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.date_of_birth || '-'}</p></div>
                             <div><p style="margin:0;color:#6b7280;font-size:12px;">Age</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.age || '-'}</p></div>
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">Senior Citizen (OSCA) ID</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.senior_citizen_id || '-'}</p></div>
+                            <div><p style="margin:0;color:#6b7280;font-size:12px;">PWD ID</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.pwd_id || '-'}</p></div>
                         </div>
                     </div>
 

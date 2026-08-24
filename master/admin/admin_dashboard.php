@@ -29,6 +29,12 @@ $endStr = $endDate->format('Y-m-d');
 
 try {
     // ensureQueueManagementSchema($pdo); // Disabled on shared hosting (no DDL privileges)
+    // Daily reset: cancel stale unfinished queue entries from previous days (best-effort)
+    try {
+        archiveStaleQueueEntries($pdo);
+    } catch (Throwable $cleanupEx) {
+        error_log("Admin dashboard stale queue cleanup skipped: " . $cleanupEx->getMessage());
+    }
     // Total Patients (only active, not archived)
     $totalPatients = (int)($pdo->query("SELECT COUNT(*) FROM patients WHERE is_archived = 0")->fetchColumn() ?? 0);
     

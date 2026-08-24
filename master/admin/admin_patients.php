@@ -723,6 +723,14 @@ function viewPatientDetails(patientId) {
                     <div class="patient-info-value">${p.gender || 'N/A'}</div>
                 </div>
                 <div class="patient-info-item">
+                    <div class="patient-info-label">Senior Citizen (OSCA) ID</div>
+                    <div class="patient-info-value">${p.senior_citizen_id || 'N/A'}</div>
+                </div>
+                <div class="patient-info-item">
+                    <div class="patient-info-label">PWD ID</div>
+                    <div class="patient-info-value">${p.pwd_id || 'N/A'}</div>
+                </div>
+                <div class="patient-info-item">
                     <div class="patient-info-label">Phone</div>
                     <div class="patient-info-value">${p.phone || 'N/A'}</div>
                 </div>

@@ -21,6 +21,14 @@ header('Content-Type: application/json');
 try {
     require_once '../../config/database.php';
 
+    // Daily reset: cancel stale unfinished queue entries from previous days
+    try {
+        require_once '../../includes/queue_management_helper.php';
+        archiveStaleQueueEntries($pdo);
+    } catch (Exception $cleanupEx) {
+        error_log("Stale queue cleanup skipped: " . $cleanupEx->getMessage());
+    }
+
     $today = date('Y-m-d');
     $queueColumns = array_flip($pdo->query('SHOW COLUMNS FROM queue')->fetchAll(PDO::FETCH_COLUMN));
     $queueDateExpression = isset($queueColumns['queue_date'])
