@@ -6,6 +6,11 @@
 require_once __DIR__ . '/../../includes/session_bootstrap.php';header('Content-Type: application/json');
 
 require_once '../../config/database.php';
+require_once '../../includes/audit_helper.php';
+
+$auditUserId = $_SESSION['user_id'] ?? null;
+$auditUsername = $_SESSION['username'] ?? 'unknown';
+$auditRole = $_SESSION['role'] ?? 'admin';
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
@@ -29,10 +34,8 @@ if ($action === 'save_settings') {
         'clinic_email' => $clinicEmail
     ];
     
-    $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
-    
     foreach ($settingsToSave as $key => $value) {
-        $stmt->execute([$key, $value]);
+        auditedUpsertSetting($pdo, $key, $value, 'Updated clinic settings', $auditUserId, $auditUsername, $auditRole);
     }
     
     echo json_encode(['success' => true, 'message' => 'Settings saved successfully']);
@@ -48,8 +51,7 @@ if ($action === 'save_business_hours') {
         exit;
     }
     
-    $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
-    $stmt->execute(['business_hours', json_encode($businessHours)]);
+    auditedUpsertSetting($pdo, 'business_hours', json_encode($businessHours), 'Updated business hours', $auditUserId, $auditUsername, $auditRole);
     
     echo json_encode(['success' => true, 'message' => 'Business hours saved successfully']);
     exit;
@@ -110,8 +112,7 @@ if ($action === 'save_unavailable_date') {
         return strtotime($a['date']) - strtotime($b['date']);
     });
     
-    $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
-    $stmt->execute(['unavailable_dates', json_encode($unavailableDates)]);
+    auditedUpsertSetting($pdo, 'unavailable_dates', json_encode($unavailableDates), 'Updated unavailable dates', $auditUserId, $auditUsername, $auditRole);
     
     echo json_encode(['success' => true, 'message' => 'Date saved successfully']);
     exit;
@@ -135,8 +136,7 @@ if ($action === 'delete_unavailable_date') {
         return $entry['date'] !== $date;
     }));
     
-    $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
-    $stmt->execute(['unavailable_dates', json_encode($unavailableDates)]);
+    auditedUpsertSetting($pdo, 'unavailable_dates', json_encode($unavailableDates), 'Removed unavailable date', $auditUserId, $auditUsername, $auditRole);
     
     echo json_encode(['success' => true, 'message' => 'Date removed successfully']);
     exit;
@@ -199,8 +199,7 @@ if ($action === 'bulk_add_unavailable_dates') {
         return strtotime($a['date']) - strtotime($b['date']);
     });
     
-    $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
-    $stmt->execute(['unavailable_dates', json_encode($unavailableDates)]);
+    auditedUpsertSetting($pdo, 'unavailable_dates', json_encode($unavailableDates), 'Bulk updated unavailable dates', $auditUserId, $auditUsername, $auditRole);
     
     echo json_encode(['success' => true, 'message' => "Added $added date(s) successfully"]);
     exit;
@@ -227,9 +226,8 @@ if ($action === 'save_auto_cancel_settings') {
         $minutes = 15;
     }
 
-    $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
-    $stmt->execute(['auto_cancel_enabled', $enabled]);
-    $stmt->execute(['auto_cancel_minutes', (string)$minutes]);
+    auditedUpsertSetting($pdo, 'auto_cancel_enabled', $enabled, 'Updated auto-cancel settings', $auditUserId, $auditUsername, $auditRole);
+    auditedUpsertSetting($pdo, 'auto_cancel_minutes', (string)$minutes, 'Updated auto-cancel settings', $auditUserId, $auditUsername, $auditRole);
 
     echo json_encode(['success' => true, 'message' => 'Auto-cancel settings saved successfully']);
     exit;
@@ -242,9 +240,8 @@ if ($action === 'save_security_settings') {
     }
     $twoFactorAuth = ($_POST['two_factor_auth'] ?? '0') === '1' ? '1' : '0';
 
-    $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
-    $stmt->execute(['session_timeout', (string)$sessionTimeout]);
-    $stmt->execute(['two_factor_auth', $twoFactorAuth]);
+    auditedUpsertSetting($pdo, 'session_timeout', (string)$sessionTimeout, 'Updated security settings', $auditUserId, $auditUsername, $auditRole);
+    auditedUpsertSetting($pdo, 'two_factor_auth', $twoFactorAuth, 'Updated security settings', $auditUserId, $auditUsername, $auditRole);
 
     echo json_encode(['success' => true, 'message' => 'Security settings saved successfully']);
     exit;

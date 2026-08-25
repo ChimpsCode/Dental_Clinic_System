@@ -2,12 +2,20 @@
 require_once __DIR__ . '/../../includes/session_bootstrap.php';header('Content-Type: application/json');
 
 require_once '../../config/database.php';
+require_once '../../includes/audit_helper.php';
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
 function upsertSetting($pdo, $key, $value) {
-    $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
-    $stmt->execute([$key, $value]);
+    auditedUpsertSetting(
+        $pdo,
+        (string)$key,
+        $value === null ? null : (string)$value,
+        'Updated welcome page content',
+        $_SESSION['user_id'] ?? null,
+        $_SESSION['username'] ?? 'unknown',
+        $_SESSION['role'] ?? 'admin'
+    );
 }
 
 function handleImageUpload($pdo, $file, $section) {
@@ -43,8 +51,23 @@ function handleImageUpload($pdo, $file, $section) {
         $section,
         $_SESSION['user_id'] ?? null
     ]);
+    $contentImageId = (int)$pdo->lastInsertId();
 
-    return ['success' => true, 'file_path' => $relativePath, 'id' => $pdo->lastInsertId()];
+    logAudit(
+        $pdo,
+        $_SESSION['user_id'] ?? null,
+        $_SESSION['username'] ?? 'unknown',
+        $_SESSION['role'] ?? 'admin',
+        'create',
+        'content',
+        'Uploaded welcome page image for ' . $section . ': ' . $fileName,
+        $contentImageId,
+        'content_images',
+        null,
+        json_encode(['file_path' => $relativePath, 'section' => $section], JSON_UNESCAPED_UNICODE)
+    );
+
+    return ['success' => true, 'file_path' => $relativePath, 'id' => $contentImageId];
 }
 
 // ----- UPLOAD IMAGE -----

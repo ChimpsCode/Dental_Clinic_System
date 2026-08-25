@@ -144,6 +144,22 @@ function logRecordChange($pdo, $user_id, $username, $user_role, $action_type, $m
     );
 }
 
+function auditedUpsertSetting(PDO $pdo, string $key, ?string $value, string $description, $userId, string $username, string $userRole): bool
+{
+    $oldStmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = ? LIMIT 1");
+    $oldStmt->execute([$key]);
+    $oldValue = $oldStmt->fetchColumn();
+
+    $saveStmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
+    $saveStmt->execute([$key, $value]);
+
+    if ((string)$oldValue !== (string)$value) {
+        logAudit($pdo, $userId, $username, $userRole, 'update', 'settings', $description . ': ' . $key, null, 'settings', $oldValue === false ? null : (string)$oldValue, $value);
+    }
+
+    return true;
+}
+
 /**
  * Log a failed login attempt
  * 
