@@ -5,9 +5,20 @@ require_once __DIR__ . '/../config/database.php';
 
 function getUserInfo($pdo, $user_id, $username) {
     $user_info = null;
+    $roleSelect = "NULL AS role";
+    try {
+        $userColumns = array_column($pdo->query("SHOW COLUMNS FROM users")->fetchAll(PDO::FETCH_ASSOC), 'Field');
+        if (in_array('role', $userColumns, true)) {
+            $roleSelect = 'role';
+        } elseif (in_array('role_id', $userColumns, true) && $pdo->query("SHOW TABLES LIKE 'roles'")->fetchColumn()) {
+            $roleSelect = "(SELECT r.role_name FROM roles r WHERE r.id = users.role_id LIMIT 1) AS role";
+        }
+    } catch (Exception $e) {
+        error_log("Error inspecting user role columns: " . $e->getMessage());
+    }
     if ($user_id) {
         try {
-            $stmt = $pdo->prepare("SELECT id, username, first_name, last_name, role FROM users WHERE id = ? LIMIT 1");
+            $stmt = $pdo->prepare("SELECT id, username, first_name, last_name, {$roleSelect} FROM users WHERE id = ? LIMIT 1");
             $stmt->execute([$user_id]);
             $user_info = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($user_info) {
@@ -18,7 +29,7 @@ function getUserInfo($pdo, $user_id, $username) {
         }
     } elseif ($username) {
         try {
-            $stmt = $pdo->prepare("SELECT id, username, first_name, last_name, role FROM users WHERE username = ? LIMIT 1");
+            $stmt = $pdo->prepare("SELECT id, username, first_name, last_name, {$roleSelect} FROM users WHERE username = ? LIMIT 1");
             $stmt->execute([$username]);
             $user_info = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($user_info) {
@@ -92,6 +103,45 @@ function logAudit($pdo, $user_id, $username, $user_role, $action_type, $module, 
         error_log("Audit logging error: " . $e->getMessage());
         return false;
     }
+}
+
+/**
+ * Log a record mutation with only the fields that changed.
+ */
+function logRecordChange($pdo, $user_id, $username, $user_role, $action_type, $module, $table, $recordId, $label, $oldRecord = [], $newRecord = []) {
+    $oldChanges = [];
+    $newChanges = [];
+    foreach (array_unique(array_merge(array_keys($oldRecord), array_keys($newRecord))) as $field) {
+        $oldValue = $oldRecord[$field] ?? null;
+        $newValue = $newRecord[$field] ?? null;
+        if ((string)$oldValue !== (string)$newValue) {
+            $oldChanges[$field] = $oldValue;
+            $newChanges[$field] = $newValue;
+        }
+    }
+
+    if ($action_type === 'update' && $oldChanges === []) {
+        return true;
+    }
+
+    $description = ucfirst($action_type) . ' ' . $label;
+    if ($action_type === 'update') {
+        $description .= ': ' . implode(', ', array_keys($oldChanges));
+    }
+
+    return logAudit(
+        $pdo,
+        $user_id,
+        $username,
+        $user_role,
+        $action_type,
+        $module,
+        $description,
+        $recordId,
+        $table,
+        $oldChanges ? json_encode($oldChanges, JSON_UNESCAPED_UNICODE) : null,
+        $newChanges ? json_encode($newChanges, JSON_UNESCAPED_UNICODE) : null
+    );
 }
 
 /**

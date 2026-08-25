@@ -220,6 +220,12 @@ if (!function_exists('archivePatientWithUser')) {
                 ? ($hasArchivedAt ? "is_archived = 1, archived_at = NOW()" : "is_archived = 1")
                 : ($hasArchivedAt ? "is_archived = 0, archived_at = NULL" : "is_archived = 0");
             $pdo->prepare("UPDATE users SET $userSet WHERE patient_id = ?")->execute([$patientId]);
+        } elseif (pusync_tableColumn($pdo, 'patients', 'user_id')) {
+            $hasArchivedAt = pusync_tableColumn($pdo, 'users', 'archived_at');
+            $userSet = $archived
+                ? ($hasArchivedAt ? "is_archived = 1, archived_at = NOW()" : "is_archived = 1")
+                : ($hasArchivedAt ? "is_archived = 0, archived_at = NULL" : "is_archived = 0");
+            $pdo->prepare("UPDATE users SET $userSet WHERE id = (SELECT user_id FROM patients WHERE id = ? LIMIT 1)")->execute([$patientId]);
         }
     }
 }

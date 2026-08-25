@@ -111,6 +111,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                         <option value="create" <?php echo $actionFilter === 'create' ? 'selected' : ''; ?>>Create</option>
                         <option value="read" <?php echo $actionFilter === 'read' ? 'selected' : ''; ?>>Read</option>
                         <option value="update" <?php echo $actionFilter === 'update' ? 'selected' : ''; ?>>Update</option>
+                        <option value="archive" <?php echo $actionFilter === 'archive' ? 'selected' : ''; ?>>Archive</option>
                         <option value="delete" <?php echo $actionFilter === 'delete' ? 'selected' : ''; ?>>Delete</option>
                         <option value="status_change" <?php echo $actionFilter === 'status_change' ? 'selected' : ''; ?>>Status Change</option>
                         <option value="payment" <?php echo $actionFilter === 'payment' ? 'selected' : ''; ?>>Payment</option>

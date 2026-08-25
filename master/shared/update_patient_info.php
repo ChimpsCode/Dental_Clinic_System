@@ -14,6 +14,7 @@ if (($_SESSION['role'] ?? '') !== 'admin') {
 }
 
 require_once '../../config/database.php';
+require_once '../../includes/audit_helper.php';
 
 $patient_id = $_POST['patient_id'] ?? null;
 $first_name = $_POST['first_name'] ?? '';
@@ -83,6 +84,19 @@ try {
     ]);
     
     if ($result) {
+        $newPatient = $oldPatient;
+        $newPatient['first_name'] = $first_name;
+        $newPatient['middle_name'] = $middle_name;
+        $newPatient['last_name'] = $last_name;
+        $newPatient['suffix'] = $suffix;
+        $newPatient['phone'] = $phone;
+        $newPatient['email'] = $email;
+        $newPatient['date_of_birth'] = $date_of_birth;
+        $newPatient['gender'] = $gender;
+        $newPatient['senior_citizen_id'] = $senior_citizen_id;
+        $newPatient['pwd_id'] = $pwd_id;
+        logRecordChange($pdo, $_SESSION['user_id'], $_SESSION['username'] ?? 'unknown', 'admin', 'update', 'patients', 'patients', (int)$patient_id, 'patient record #' . $patient_id, $oldPatient, $newPatient);
+
         // Build change notification
         $changes = [];
         if ($oldPatient['first_name'] !== $first_name) $changes[] = "Name: {$oldPatient['first_name']} → {$first_name}";

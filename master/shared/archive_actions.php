@@ -22,6 +22,7 @@ require_once __DIR__ . '/../../includes/session_bootstrap.php';header('Content-T
 
 require_once '../../config/database.php';
 require_once __DIR__ . '/../../includes/patient_user_sync_helper.php';
+require_once __DIR__ . '/../../includes/audit_helper.php';
 
 $action = $_POST['action'] ?? '';
 $module = $_POST['module'] ?? '';
@@ -585,6 +586,10 @@ function handleDeleteForever($pdo, $module, $ids) {
                 $placeholders = implode(',', array_fill(0, count($patientIds), '?'));
                 $pdo->beginTransaction();
                 try {
+                    $patientSnapshotStmt = $pdo->prepare("SELECT * FROM patients WHERE id IN ($placeholders) AND is_archived = 1");
+                    $patientSnapshotStmt->execute($patientIds);
+                    $patientSnapshots = $patientSnapshotStmt->fetchAll(PDO::FETCH_ASSOC);
+
                     // Get emails of patients being deleted
                     $patStmt = $pdo->prepare("SELECT email FROM patients WHERE id IN ($placeholders) AND is_archived = 1");
                     $patStmt->execute($patientIds);
@@ -614,6 +619,9 @@ function handleDeleteForever($pdo, $module, $ids) {
                     $totalDeleted += $delStmt->rowCount();
                     
                     $pdo->commit();
+                    foreach ($patientSnapshots as $patientSnapshot) {
+                        logRecordChange($pdo, $_SESSION['user_id'] ?? null, $_SESSION['username'] ?? 'unknown', $_SESSION['role'] ?? 'admin', 'delete', 'patients', 'patients', (int)$patientSnapshot['id'], 'patient record #' . $patientSnapshot['id'] . ' permanently deleted', $patientSnapshot, []);
+                    }
                 } catch (Exception $e) {
                     $pdo->rollBack();
                     throw $e;
@@ -625,6 +633,10 @@ function handleDeleteForever($pdo, $module, $ids) {
                 $placeholders = implode(',', array_fill(0, count($userIds), '?'));
                 $pdo->beginTransaction();
                 try {
+                    $userSnapshotStmt = $pdo->prepare("SELECT * FROM users WHERE id IN ($placeholders) AND is_archived = 1");
+                    $userSnapshotStmt->execute($userIds);
+                    $userSnapshots = $userSnapshotStmt->fetchAll(PDO::FETCH_ASSOC);
+
                     // Get emails of users being deleted
                     $userStmt = $pdo->prepare("SELECT email FROM users WHERE id IN ($placeholders) AND is_archived = 1");
                     $userStmt->execute($userIds);
@@ -660,6 +672,9 @@ function handleDeleteForever($pdo, $module, $ids) {
                     $totalDeleted += $delStmt->rowCount();
                     
                     $pdo->commit();
+                    foreach ($userSnapshots as $userSnapshot) {
+                        logRecordChange($pdo, $_SESSION['user_id'] ?? null, $_SESSION['username'] ?? 'unknown', $_SESSION['role'] ?? 'admin', 'delete', 'users', 'users', (int)$userSnapshot['id'], 'user record #' . $userSnapshot['id'] . ' permanently deleted', $userSnapshot, []);
+                    }
                 } catch (Exception $e) {
                     $pdo->rollBack();
                     throw $e;

@@ -8,6 +8,7 @@ require_once __DIR__ . '/../../includes/session_bootstrap.php';header('Content-T
 
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/patient_user_sync_helper.php';
+require_once __DIR__ . '/../../includes/audit_helper.php';
 
 // Basic auth check – must be logged in admin
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? null) !== 'admin') {
@@ -248,6 +249,13 @@ try {
                 jsonError('You cannot modify the primary admin account.');
             }
 
+            $beforeStmt = $pdo->prepare("SELECT * FROM users WHERE id = ? LIMIT 1");
+            $beforeStmt->execute([$id]);
+            $oldUser = $beforeStmt->fetch(PDO::FETCH_ASSOC);
+            if (!$oldUser) {
+                jsonError('User not found.', 404);
+            }
+
             // Check username uniqueness (excluding current user)
             $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ? AND id <> ? LIMIT 1");
             $stmt->execute([$username, $id]);
@@ -311,6 +319,11 @@ try {
             // Address / emergency contacts belong on the clinical record.
             savePatientContactDetails($pdo, $id, $_POST);
 
+            $afterStmt = $pdo->prepare("SELECT * FROM users WHERE id = ? LIMIT 1");
+            $afterStmt->execute([$id]);
+            $newUser = $afterStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+            logRecordChange($pdo, $_SESSION['user_id'], $_SESSION['username'] ?? 'unknown', 'admin', 'update', 'users', 'users', $id, 'user record #' . $id, $oldUser, $newUser);
+
             // Refresh session display_name if editing own profile
             if ((int)$id === (int)$_SESSION['user_id']) {
                 $firstNameOnly = explode(' ', $firstName)[0] ?? '';
@@ -348,9 +361,20 @@ try {
             jsonError('Archive feature not configured.');
         }
 
+        $beforeStmt = $pdo->prepare("SELECT * FROM users WHERE id = ? LIMIT 1");
+        $beforeStmt->execute([$id]);
+        $oldUser = $beforeStmt->fetch(PDO::FETCH_ASSOC);
+        if (!$oldUser) {
+            jsonError('User not found.', 404);
+        }
+
         // Soft delete - archive the user together with its linked patient record
         // (one person = one archive entry, linked via users.patient_id).
         archiveUserWithPatient($pdo, $id, true);
+
+        $newUser = $oldUser;
+        $newUser['is_archived'] = 1;
+        logRecordChange($pdo, $_SESSION['user_id'], $_SESSION['username'] ?? 'unknown', 'admin', 'archive', 'users', 'users', $id, 'user record #' . $id . ' archived', $oldUser, $newUser);
 
         echo json_encode(['success' => true, 'message' => 'User archived successfully.']);
         exit;

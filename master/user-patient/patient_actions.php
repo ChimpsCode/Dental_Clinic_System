@@ -33,6 +33,7 @@ if ($action === 'self_delete') {
     try {
 require_once '../../config/database.php';
 require_once '../../includes/patient_user_sync_helper.php';
+require_once '../../includes/audit_helper.php';
 
         // Verify password
         $stmt = $pdo->prepare("SELECT password FROM users WHERE id = ? AND is_archived = 0");
@@ -87,6 +88,7 @@ if (!$patientId || !is_numeric($patientId)) {
 try {
     require_once '../../config/database.php';
     require_once '../../includes/patient_user_sync_helper.php';
+    require_once '../../includes/audit_helper.php';
 
     switch ($action) {
         case 'archive':
@@ -101,10 +103,16 @@ try {
             }
             
             // Soft delete - archive the patient together with its linked user account
-            $stmt = $pdo->prepare("SELECT 1 FROM patients WHERE id = ? AND is_archived = 0");
+            $stmt = $pdo->prepare("SELECT 1 FROM patients WHERE id = ? AND COALESCE(is_archived, 0) = 0");
             $stmt->execute([$patientId]);
             if ($stmt->fetchColumn()) {
+                $beforeStmt = $pdo->prepare("SELECT * FROM patients WHERE id = ? LIMIT 1");
+                $beforeStmt->execute([$patientId]);
+                $oldPatient = $beforeStmt->fetch(PDO::FETCH_ASSOC) ?: [];
                 archivePatientWithUser($pdo, (int)$patientId, true);
+                $newPatient = $oldPatient;
+                $newPatient['is_archived'] = 1;
+                logRecordChange($pdo, $_SESSION['user_id'], $_SESSION['username'] ?? 'unknown', $role, 'archive', 'patients', 'patients', (int)$patientId, 'patient record #' . $patientId . ' archived', $oldPatient, $newPatient);
                 echo json_encode(['success' => true, 'message' => 'Patient archived successfully']);
             } else {
                 echo json_encode(['success' => false, 'message' => 'Failed to archive patient']);
@@ -116,6 +124,12 @@ try {
             $pdo->beginTransaction();
             
             try {
+                        $beforeStmt = $pdo->prepare("SELECT * FROM patients WHERE id = ? LIMIT 1");
+                        $beforeStmt->execute([$patientId]);
+                        $oldPatient = $beforeStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+                        if (!$oldPatient) {
+                            throw new Exception('Patient not found');
+                        }
                 // Delete related medical history first
                 $stmt = $pdo->prepare("DELETE FROM medical_history WHERE patient_id = ?");
                 $stmt->execute([$patientId]);
@@ -147,6 +161,7 @@ try {
                 $pdo->commit();
                 
                 if ($result) {
+                    logRecordChange($pdo, $_SESSION['user_id'], $_SESSION['username'] ?? 'unknown', $role, 'delete', 'patients', 'patients', (int)$patientId, 'patient record #' . $patientId . ' permanently deleted', $oldPatient, []);
                     echo json_encode(['success' => true, 'message' => 'Patient deleted permanently']);
                 } else {
                     echo json_encode(['success' => false, 'message' => 'Failed to delete patient']);
