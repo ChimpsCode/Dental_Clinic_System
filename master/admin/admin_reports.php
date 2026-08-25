@@ -40,8 +40,12 @@ switch ($dateFilter) {
 // Check if filtering by specific month (format: 2026-01)
 $selectedMonth = $_GET['month'] ?? '';
 if (!empty($selectedMonth)) {
-    $dateCondition = " AND DATE_FORMAT(b.billing_date, '%Y-%m') = '" . $pdo->quote($selectedMonth) . "'";
-    $dateFilter = 'month';
+    if (preg_match('/^\d{4}-\d{2}$/', $selectedMonth)) {
+        $dateCondition = " AND DATE_FORMAT(b.billing_date, '%Y-%m') = '" . $selectedMonth . "'";
+        $dateFilter = 'month';
+    } else {
+        $selectedMonth = '';
+    }
 }
 
 function buildReportTable($headers, $rows) {
@@ -502,7 +506,7 @@ function buildTable(headers, rows) {
 }
 
 function renderNewReport(type) {
-    const data = reportData[type] || [];
+    const data = getReportData(type);
     let headers = [];
     let rows = [];
 
@@ -632,6 +636,43 @@ function renderNewReport(type) {
     `;
 }
 
+function getReportData(type) {
+    const source = reportData[type] || [];
+    if (type !== 'patients' && type !== 'billing') return source;
+
+    const selectedRange = document.getElementById('dateRange')?.value || 'all';
+    if (selectedRange === 'all') return source;
+
+    const now = new Date();
+    const start = new Date(now);
+    let end = new Date(now);
+    end.setHours(23, 59, 59, 999);
+
+    if (/^\d{4}-\d{2}$/.test(selectedRange)) {
+        const [year, month] = selectedRange.split('-').map(Number);
+        start.setFullYear(year, month - 1, 1);
+        start.setHours(0, 0, 0, 0);
+        end = new Date(year, month, 0, 23, 59, 59, 999);
+    } else if (selectedRange === 'today') {
+        start.setHours(0, 0, 0, 0);
+    } else if (selectedRange === 'week') {
+        start.setDate(start.getDate() - 6);
+        start.setHours(0, 0, 0, 0);
+    } else if (selectedRange === 'month') {
+        start.setDate(start.getDate() - 29);
+        start.setHours(0, 0, 0, 0);
+    } else {
+        return source;
+    }
+
+    const dateField = type === 'patients' ? 'created_at' : 'billing_date';
+    return source.filter(record => {
+        if (!record[dateField]) return false;
+        const recordDate = new Date(String(record[dateField]).replace(' ', 'T'));
+        return !Number.isNaN(recordDate.getTime()) && recordDate >= start && recordDate <= end;
+    });
+}
+
 // Renamed all functions with 'rf' prefix to bypass hidden scripts
 window.rfPreviewReport = function(type) {
     lastPreviewType = type;
@@ -680,7 +721,13 @@ window.rfExportToPDF = function() { window.rfPrintReport(document.getElementById
 window.applyDateFilter = function() {
     const filter = document.getElementById('dateRange').value;
     const url = new URL(window.location.href);
-    url.searchParams.set('date_filter', filter);
+    if (/^\d{4}-\d{2}$/.test(filter)) {
+        url.searchParams.set('date_filter', 'month');
+        url.searchParams.set('month', filter);
+    } else {
+        url.searchParams.set('date_filter', filter);
+        url.searchParams.delete('month');
+    }
     window.location.href = url.href;
 };
 </script>
