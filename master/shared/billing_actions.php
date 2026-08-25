@@ -7,6 +7,8 @@
 require_once __DIR__ . '/../../includes/session_bootstrap.php';
 
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/notification_functions.php';
+ensureNotificationSchema($pdo);
 
 header('Content-Type: application/json');
 
@@ -44,7 +46,6 @@ if ($skipAuth && !in_array($current_role, $allowed_roles)) {
         // Check for admin bypass in POST
         if (!empty($input['username']) && !empty($input['password'])) {
             // Try direct database login for admin
-            require_once __DIR__ . '/../../config/database.php';
             $directUser = $input['username'];
             $directPass = $input['password'];
             
@@ -400,6 +401,7 @@ try {
             $patient_id = $input['patient_id'] ?? 0;
             $amount = $input['amount'] ?? 0;
             $treatment = $input['treatment'] ?? '';
+            $payment_method = $input['payment_method'] ?? 'Cash';
             $queueDate = date('Y-m-d'); // default to today
             $paymentDate = date('Y-m-d'); // actual payment date (today)
             
@@ -457,23 +459,27 @@ try {
                 // Find or create billing record
                 if ($billing_id) {
                     // Get old status before update
-                    $stmt = $pdo->prepare("SELECT payment_status FROM billing WHERE id = ?");
+                    $stmt = $pdo->prepare("SELECT payment_status, total_amount FROM billing WHERE id = ?");
                     $stmt->execute([$billing_id]);
-                    $old_status = strtolower($stmt->fetchColumn() ?: 'unpaid');
+                    $existingBilling = $stmt->fetch(PDO::FETCH_ASSOC);
+                    $old_status = strtolower(($existingBilling['payment_status'] ?? '') ?: 'unpaid');
+                    $totalAmt = floatval($existingBilling['total_amount'] ?? $amount);
                     
-                    // Check billing columns
-                        $stmt = $pdo->query("DESCRIBE billing");
-                        $bcols = array_column($stmt->fetchAll(), 'Field');
-                        $bupdates = [];
-                        if (in_array('payment_status_id', $bcols)) { $bupdates[] = "payment_status_id = 1"; }
-                        if (in_array('payment_status', $bcols)) { $bupdates[] = "payment_status = 'paid'"; }
-                        if (in_array('paid_amount', $bcols)) { $bupdates[] = "paid_amount = COALESCE(paid_amount, 0) + " . $amount; }
-                        if (in_array('balance', $bcols)) { $bupdates[] = "balance = 0"; }
-                        if (in_array('updated_at', $bcols)) { $bupdates[] = "updated_at = NOW()"; }
-                        if (!empty($bupdates)) {
-                            $stmt = $pdo->prepare("UPDATE billing SET " . implode(', ', $bupdates) . " WHERE id = ?");
-                            $stmt->execute([$billing_id]);
-                        }
+                    // Mark as fully paid: set paid_amount = total_amount, balance = 0
+                    $stmt = $pdo->query("DESCRIBE billing");
+                    $bcols = array_column($stmt->fetchAll(), 'Field');
+                    $bupdates = [];
+                    $bparams = [];
+                    if (in_array('payment_status_id', $bcols)) { $bupdates[] = "payment_status_id = 1"; }
+                    if (in_array('payment_status', $bcols)) { $bupdates[] = "payment_status = 'Paid'"; }
+                    if (in_array('paid_amount', $bcols)) { $bupdates[] = "paid_amount = ?"; $bparams[] = $totalAmt; }
+                    if (in_array('balance', $bcols)) { $bupdates[] = "balance = 0"; }
+                    if (in_array('updated_at', $bcols)) { $bupdates[] = "updated_at = NOW()"; }
+                    if (!empty($bupdates)) {
+                        $bparams[] = $billing_id;
+                        $stmt = $pdo->prepare("UPDATE billing SET " . implode(', ', $bupdates) . " WHERE id = ?");
+                        $stmt->execute($bparams);
+                    }
                 } else {
                     // Check if billing exists for today
                     $stmt = $pdo->prepare("
@@ -484,20 +490,25 @@ try {
                     $existing = $stmt->fetch();
                     
                     if ($existing) {
-                        // Update existing - use column checks
+                        // Update existing - mark as fully paid
                         $billing_id = $existing['id'];
                         $old_status = strtolower($existing['payment_status'] ?: 'unpaid');
+                        $stmt = $pdo->prepare("SELECT total_amount FROM billing WHERE id = ?");
+                        $stmt->execute([$billing_id]);
+                        $totalAmt = floatval($stmt->fetchColumn() ?: $amount);
                         $stmt = $pdo->query("DESCRIBE billing");
                         $bcols = array_column($stmt->fetchAll(), 'Field');
                         $bupdates = [];
+                        $bparamsUpd = [];
                         if (in_array('payment_status_id', $bcols)) { $bupdates[] = "payment_status_id = 1"; }
-                        if (in_array('payment_status', $bcols)) { $bupdates[] = "payment_status = 'paid'"; }
-                        if (in_array('paid_amount', $bcols)) { $bupdates[] = "paid_amount = COALESCE(paid_amount, 0) + " . $amount; }
+                        if (in_array('payment_status', $bcols)) { $bupdates[] = "payment_status = 'Paid'"; }
+                        if (in_array('paid_amount', $bcols)) { $bupdates[] = "paid_amount = ?"; $bparamsUpd[] = $totalAmt; }
                         if (in_array('balance', $bcols)) { $bupdates[] = "balance = 0"; }
                         if (in_array('updated_at', $bcols)) { $bupdates[] = "updated_at = NOW()"; }
                         if (!empty($bupdates)) {
+                            $bparamsUpd[] = $billing_id;
                             $stmt = $pdo->prepare("UPDATE billing SET " . implode(', ', $bupdates) . " WHERE id = ?");
-                            $stmt->execute([$billing_id]);
+                            $stmt->execute($bparamsUpd);
                         }
                     } else {
                         // Create new billing - column check (with Senior/PWD discount)
@@ -541,9 +552,9 @@ try {
                 // Create payment record
                 $stmt = $pdo->prepare("
                     INSERT INTO payments (billing_id, patient_id, amount, payment_method, payment_date, created_by, created_at)
-                    VALUES (?, ?, ?, 'Cash', ?, ?, NOW())
+                    VALUES (?, ?, ?, ?, ?, ?, NOW())
                 ");
-                $stmt->execute([$billing_id, $patient_id, $paymentAmount, $paymentDate, $current_user_id]);
+                $stmt->execute([$billing_id, $patient_id, $paymentAmount, $payment_method, $paymentDate, $current_user_id]);
                 $payment_id = $pdo->lastInsertId();
                 
                 // Update queue status to completed if queue_id exists
@@ -575,6 +586,15 @@ try {
                 // Log audit - payment record created
                 logAudit($pdo, $current_user_id, $current_username, $current_role, 'create', 'payments', 'Created payment record: ₱' . number_format($amount, 2) . ' for patient: ' . $patient_name, $payment_id, 'payments', null, '₱' . number_format($amount, 2));
                 
+                if (!empty($patient_id)) {
+                    $notifResult = notifyPatientPaymentRecorded($pdo, (int)$patient_id, floatval($paymentAmount), $payment_method, $treatment ?: 'consultation', 0);
+                    if ($notifResult === false) {
+                        notifLog("billing_actions mark_paid: notifyPatientPaymentRecorded FAILED for patient_id={$patient_id}");
+                    } else {
+                        notifLog("billing_actions mark_paid: notifyPatientPaymentRecorded OK for patient_id={$patient_id} amount={$paymentAmount} method={$payment_method}");
+                    }
+                }
+
                 $response['success'] = true;
                 $response['message'] = 'Payment marked as paid successfully';
             } catch (Exception $e) {
@@ -687,11 +707,30 @@ try {
                 
                 logAudit($pdo, $current_user_id, $current_username, $current_role, 'payment', 'billing', 'Partial payment recorded: ₱' . number_format($amount, 2) . ' via ' . $payment_method . ' for patient: ' . $patient_name, $billing_id, 'billing', 'pending', $new_status ?? 'partial');
                 logAudit($pdo, $current_user_id, $current_username, $current_role, 'create', 'payments', 'Created payment record: ₱' . number_format($amount, 2) . ' for patient: ' . $patient_name, $payment_id, 'payments', null, '₱' . number_format($amount, 2));
-                
+
+                if (!empty($patient_id)) {
+                    $treatmentType = 'consultation';
+                    if (!empty($queue_id)) {
+                        $tStmt = $pdo->prepare("SELECT treatment_type FROM queue WHERE id = ?");
+                        $tStmt->execute([(int)$queue_id]);
+                        $treatmentType = $tStmt->fetchColumn() ?: 'consultation';
+                    }
+                    $pTotal = floatval($total_amount ?? 0);
+                    $pPaid = floatval($new_paid ?? 0);
+                    $recordedBalance = $pTotal > 0 ? max(0, $pTotal - $pPaid) : 0;
+                    $notifResult = notifyPatientPaymentRecorded($pdo, (int)$patient_id, floatval($amount), $payment_method, $treatmentType, $recordedBalance);
+                    if ($notifResult === false) {
+                        notifLog("billing_actions: notifyPatientPaymentRecorded FAILED for patient_id={$patient_id} user_id check needed");
+                    } else {
+                        notifLog("billing_actions: notifyPatientPaymentRecorded OK for patient_id={$patient_id} amount={$amount} method={$payment_method}");
+                    }
+                }
+
                 $response['success'] = true;
                 $response['message'] = 'Payment recorded successfully';
             } catch (Exception $e) {
                 $pdo->rollBack();
+                error_log("billing_actions record_payment error: " . $e->getMessage());
                 throw $e;
             }
             break;

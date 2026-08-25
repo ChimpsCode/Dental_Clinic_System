@@ -40,6 +40,8 @@ try {
     require_once '../../config/database.php';
     require_once '../../includes/audit_helper.php';
     require_once '../../includes/billing_helper.php';
+    require_once '../../includes/notification_functions.php';
+    ensureNotificationSchema($pdo);
     
     // Helper function to build full name
     function buildFullName($item) {
@@ -58,6 +60,11 @@ try {
             $stmt->execute([$queueId]);
 
             logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Called patient: ' . $patientName, $queueId, 'queue', 'waiting', 'in_procedure');
+
+            if (!empty($queueItem['patient_id'])) {
+                $queueNum = $queueItem['queue_number'] ?? $queueId;
+                notifyPatientQueueUpdate($pdo, (int)$queueItem['patient_id'], (string)$queueNum, 'in_procedure');
+            }
 
             echo json_encode([
                 'success' => true, 
@@ -107,7 +114,12 @@ try {
             $patientName = buildFullName($queueItem);
             
             logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Started procedure for patient: ' . $patientName, $queueId, 'queue', $oldStatus, 'in_procedure');
-            
+
+            if (!empty($queueItem['patient_id'])) {
+                $queueNum = $queueItem['queue_number'] ?? $queueId;
+                notifyPatientQueueUpdate($pdo, (int)$queueItem['patient_id'], (string)$queueNum, 'in_procedure');
+            }
+
             echo json_encode(['success' => true, 'message' => 'Patient moved to procedure', 'patient_name' => $patientName]);
             break;
             
@@ -210,6 +222,14 @@ try {
             
             logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Completed procedure for: ' . $patientName, $queueId, 'queue', 'in_procedure', 'pending_payment');
 
+            if (!empty($patientId)) {
+                $queueNum = $queueItem['queue_number'] ?? $queueId;
+                notifyPatientQueueUpdate($pdo, (int)$patientId, (string)$queueNum, 'pending_payment');
+                if ($estimatedAmount > 0) {
+                    notifyPatientPaymentReminder($pdo, (int)$patientId, $estimatedAmount, $treatmentType);
+                }
+            }
+
             echo json_encode([
                 'success' => true,
                 'message' => 'Procedure completed. Record moved to billing.',
@@ -240,7 +260,12 @@ try {
             $patientName = buildFullName($queueItem);
             
             logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Patient put on hold: ' . $patientName, $queueId, 'queue', $oldStatusName, 'on_hold');
-            
+
+            if (!empty($queueItem['patient_id'])) {
+                $queueNum = $queueItem['queue_number'] ?? $queueId;
+                notifyPatientQueueUpdate($pdo, (int)$queueItem['patient_id'], (string)$queueNum, 'on_hold');
+            }
+
             echo json_encode(['success' => true, 'message' => 'Patient put on hold']);
             break;
             
@@ -294,7 +319,12 @@ try {
             $patientName = buildFullName($queueItem);
             
             logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Patient re-queued: ' . $patientName, $queueId, 'queue', $oldStatusName, 'waiting');
-            
+
+            if (!empty($queueItem['patient_id'])) {
+                $queueNum = $queueItem['queue_number'] ?? $queueId;
+                notifyPatientQueueUpdate($pdo, (int)$queueItem['patient_id'], (string)$queueNum, 'waiting');
+            }
+
             echo json_encode(['success' => true, 'message' => 'Patient re-queued']);
             break;
             

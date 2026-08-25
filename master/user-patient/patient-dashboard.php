@@ -423,17 +423,6 @@ $pageTitle = 'Patient Dashboard';
             gap: 16px;
         }
 
-        .notification-bell {
-            font-size: 20px;
-            color: #6b7280;
-            cursor: pointer;
-            transition: color 0.2s;
-        }
-
-        .notification-bell:hover {
-            color: #1f2937;
-        }
-
         .user-profile {
             position: relative;
             display: flex;
@@ -1213,9 +1202,7 @@ $pageTitle = 'Patient Dashboard';
 </div>
                 </div>
             <div class="header-right">
-                <div class="notification-bell">
-                    <i class="fas fa-bell"></i>
-                </div>
+                <?php include '../../includes/patient_notification_widget.php'; ?>
                 <div class="user-profile">
                     <div class="user-avatar">
                         <?php 

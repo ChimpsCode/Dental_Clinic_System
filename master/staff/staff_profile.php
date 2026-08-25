@@ -1,5 +1,5 @@
 <?php
-$pageTitle = 'Settings';
+$pageTitle = 'Profile & Settings';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/staff_layout_start.php';
 

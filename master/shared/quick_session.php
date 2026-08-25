@@ -36,9 +36,20 @@ try {
     // Get all services for dropdown with mode
     $stmt = $pdo->query("SELECT id, name, price, duration_minutes, mode FROM services WHERE is_active = 1 ORDER BY name");
     $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (Exception $e) {
-    $services = [];
-}
+    } catch (Exception $e) {
+        $services = [];
+    }
+
+    // Clinic info for queue ticket print
+    $queueClinicName = 'RF Dental Clinic';
+    $queueClinicAddress = '';
+    try {
+        $settingsRows = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('clinic_name', 'clinic_address')")->fetchAll(PDO::FETCH_KEY_PAIR);
+        $queueClinicName = $settingsRows['clinic_name'] ?? $queueClinicName;
+        $queueClinicAddress = $settingsRows['clinic_address'] ?? '';
+    } catch (Exception $e) {
+        // best-effort
+    }
 
 // Get patient ID from URL
 $patientId = $_GET['patient_id'] ?? 0;
@@ -220,194 +231,150 @@ try {
             min-height: 80px;
         }
 
-        .dental-chart-container {
-            perspective: 1000px;
-            padding: 24px;
+        .vital-signs-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
         }
 
-        .dental-chart-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .dental-chart-header h3 {
-            font-size: 1rem;
-            font-weight: 600;
-            color: #0f172a;
-        }
-
-        .tooth-type-toggle {
-            display: flex;
-            gap: 8px;
-        }
-
-        .tooth-type-btn {
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            background: white;
-            border: 2px solid #e2e8f0;
-            color: #64748b;
-        }
-
-        .tooth-type-btn.active {
-            background: #3b82f6;
-            border-color: #3b82f6;
-            color: white;
-        }
-
-        .tooth-type-btn:not(.active):hover {
-            border-color: #cbd5e1;
-            background: #f8fafc;
-        }
-
-        .arch-container {
-            display: flex;
+        .success-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.5);
+            z-index: 9999;
             justify-content: center;
-            gap: 6px;
-            margin-bottom: 32px;
-            transform-style: preserve-3d;
+            align-items: center;
+            backdrop-filter: blur(4px);
         }
 
-        .arch-label {
+        .success-modal-overlay.active {
+            display: flex;
+        }
+
+        .success-modal {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 440px;
+            width: 90%;
             text-align: center;
-            font-size: 0.7rem;
-            color: #94a3b8;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            margin-bottom: 12px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.2);
+            animation: modalSlideIn 0.3s ease;
         }
 
-        .tooth-wrapper {
-            width: 34px;
-            height: 46px;
-            position: relative;
-            transform-style: preserve-3d;
-            transform: rotateX(-20deg) rotateY(0deg);
-            transition: transform 0.3s ease;
-            cursor: pointer;
+        @keyframes modalSlideIn {
+            from { opacity: 0; transform: translateY(20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
-        .tooth-wrapper:hover {
-            transform: rotateX(0deg) scale(1.1);
-            z-index: 10;
-        }
-
-        .tooth-face {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background: white;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px 6px 12px 12px;
+        .success-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: #d1fae5;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 600;
-            font-size: 0.7rem;
-            color: #64748b;
-            box-shadow: 
-                0 4px 0 #94a3b8,
-                0 5px 6px rgba(0,0,0,0.1);
-            transition: all 0.2s ease;
+            margin: 0 auto 20px;
         }
 
-        .tooth-face::after {
-            content: '';
-            position: absolute;
-            bottom: -4px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 60%;
-            height: 4px;
-            background: #cbd5e1;
-            border-radius: 0 0 4px 4px;
-            z-index: -1;
+        .success-icon svg {
+            width: 32px;
+            height: 32px;
+            color: #059669;
         }
 
-        .tooth-wrapper.selected .tooth-face {
-            background: #bfdbfe;
-            border-color: #3b82f6;
-            color: #1e3a8a;
-            box-shadow: 
-                0 4px 0 #3b82f6,
-                0 5px 10px rgba(59, 130, 246, 0.3);
-            transform: translateY(-2px);
+        .success-modal h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 8px;
         }
 
-        .tooth-wrapper.selected .tooth-face::after {
-            background: #3b82f6;
+        .success-modal .queue-number {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #3b82f6;
+            margin: 12px 0 24px;
         }
 
-        .tooth-wrapper.attention .tooth-face {
-            background: #fef08a;
-            border-color: #eab308;
-            color: #713f12;
-            box-shadow: 
-                0 4px 0 #eab308,
-                0 5px 10px rgba(234, 179, 8, 0.3);
-            transform: translateY(-2px);
-        }
-
-        .tooth-wrapper.attention .tooth-face::after {
-            background: #eab308;
-        }
-
-        .legend {
-            display: flex;
-            justify-content: center;
-            gap: 32px;
-            padding-top: 20px;
-            border-top: 1px solid #f1f5f9;
-            margin-top: 24px;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .legend-color {
-            width: 24px;
-            height: 24px;
-            border-radius: 4px;
-            border: 1px solid;
-        }
-
-        .legend-text {
-            font-size: 0.8rem;
-            color: #64748b;
-        }
-
-        .arch-buttons {
+        .success-modal .modal-buttons {
             display: flex;
             gap: 12px;
-            margin-bottom: 20px;
+            justify-content: center;
         }
 
-        .arch-btn {
+        .btn-print-queue {
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 2px solid #3b82f6;
+            background: white;
+            color: #3b82f6;
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            padding: 10px 20px;
-            background: #3b82f6;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
         }
 
-        .arch-btn:hover {
+        .btn-print-queue:hover {
+            background: #eff6ff;
+        }
+
+        .btn-done {
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            background: #3b82f6;
+            color: white;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-done:hover {
             background: #2563eb;
+        }
+
+        /* Queue ticket print */
+        #queuePrintContainer { display: none; }
+        @media print {
+            @page { size: 58mm auto; margin: 0; }
+            /* 58mm paper has ~48mm printable area - keep everything inside it */
+            html, body { width: 48mm; height: auto; margin: 0 !important; padding: 0 !important; background: #fff !important; overflow: hidden !important; }
+            body * { visibility: hidden !important; box-sizing: border-box !important; float: none !important; }
+            #queuePrintContainer, #queuePrintContainer * {
+                visibility: visible !important;
+                font-family: 'Courier New', monospace !important;
+                box-sizing: border-box !important;
+                text-align: center !important;
+            }
+            #queuePrintContainer {
+                display: block !important;
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                right: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 48mm !important;
+                text-align: center !important;
+            }
+            /* Physical mm sizing - immune to driver DPI/scaling. No CSS borders (thermal drivers drop hairlines); separators are dash characters */
+            .queue-ticket { width: 100% !important; padding: 0 !important; margin: 0 auto; border: none !important; text-align: center !important; }
+            .queue-ticket .qt-line { font-size: 2.5mm; font-weight: 700; line-height: 1.1; white-space: nowrap; overflow: hidden; }
+            .queue-ticket .qt-clinic { font-size: 3.6mm; font-weight: 700; text-transform: uppercase; white-space: normal; word-break: break-word; margin-top: 1mm; }
+            .queue-ticket .qt-address { font-size: 2.2mm; margin-bottom: 1mm; white-space: normal; word-break: break-word; }
+            .queue-ticket .qt-label { font-size: 2.8mm; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-top: 2mm; }
+            .queue-ticket .qt-number { font-size: 15mm; font-weight: 700; line-height: 1.05; margin: 0; }
+            .queue-ticket .qt-meta { font-size: 2.5mm; margin-top: 1mm; white-space: normal; word-break: break-word; }
         }
 
         .hidden {
@@ -469,18 +436,8 @@ try {
                 grid-template-columns: 1fr;
             }
 
-            .arch-container {
-                gap: 4px;
-            }
-
-            .tooth-wrapper {
-                width: 28px;
-                height: 40px;
-            }
-
-            .legend {
-                flex-wrap: wrap;
-                gap: 16px;
+            .vital-signs-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -549,11 +506,11 @@ try {
                             <select name="treatment_type" id="treatmentType" class="form-control" required onchange="handleServiceChange()">
                                 <option value="">Select a service...</option>
                                 <?php foreach ($services as $service): ?>
-                                    <option value="<?php echo htmlspecialchars($service['name']); ?>" data-mode="<?php echo $service['mode']; ?>" data-id="<?php echo $service['id']; ?>">
+                                    <option value="<?php echo htmlspecialchars($service['name']); ?>" data-id="<?php echo $service['id']; ?>">
                                         <?php echo htmlspecialchars($service['name']); ?> (₱<?php echo number_format($service['price'], 2); ?>)
                                     </option>
                                 <?php endforeach; ?>
-                                <option value="Other" data-mode="SINGLE" data-id="">Other (Custom)</option>
+                                <option value="Other" data-id="">Other (Custom)</option>
                             </select>
                             <input type="hidden" name="service_id" id="serviceIdInput" value="">
                         </div>
@@ -565,127 +522,48 @@ try {
                     </div>
                 </div>
 
-                <!-- Right Column: Dental Chart & Notes -->
+                <!-- Right Column: Vital Signs, Body Measurement & Notes -->
                 <div>
-                    <!-- Dental Chart -->
-                    <div class="card dental-chart-container">
-                        <div class="dental-chart-header">
-                            <h3>Dental Chart</h3>
-                            
-                            <!-- Tooth Type Toggle -->
-                            <div class="tooth-type-toggle">
-                                <button type="button" id="btn-primary" onclick="setToothType('primary')" class="tooth-type-btn">Primary</button>
-                                <button type="button" id="btn-permanent" onclick="setToothType('permanent')" class="tooth-type-btn active">Adult</button>
+                    <!-- Vital Signs (Optional) -->
+                    <div class="card" style="margin-bottom: 24px;">
+                        <h3 class="card-title">Vital Signs <span style="font-weight:400;color:#94a3b8;font-size:0.85rem;">(Optional)</span></h3>
+                        <div class="vital-signs-grid">
+                            <div class="form-group">
+                                <label class="form-label">Blood Pressure</label>
+                                <input type="text" name="blood_pressure" class="form-control" placeholder="e.g., 120/80 mmHg">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Heart Rate</label>
+                                <input type="text" name="heart_rate" class="form-control" placeholder="e.g., 72 bpm">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Temperature</label>
+                                <input type="text" name="temperature" class="form-control" placeholder="e.g., 36.5 C">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Oxygen Saturation</label>
+                                <input type="text" name="oxygen_saturation" class="form-control" placeholder="e.g., 98%">
                             </div>
                         </div>
-                        
-                        <!-- Arch Selection Buttons (Hidden by default, shown for BULK services) -->
-                        <div id="archSelectionButtons" class="arch-buttons" style="display: none; justify-content: center; gap: 16px; margin-bottom: 24px;">
-                            <button type="button" onclick="selectArch('upper')" class="arch-btn">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M2 12h20M2 12a4 4 0 0 1 4-4h12a4 4 0 0 1 4 4"/>
-                                </svg>
-                                Select Upper Arch
-                            </button>
-                            <button type="button" onclick="selectArch('lower')" class="arch-btn">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M2 12h20M2 12a4 4 0 0 0 4 4h12a4 4 0 0 0 4-4"/>
-                                </svg>
-                                Select Lower Arch
-                            </button>
-                        </div>
-                        
-                        <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 20px;" id="chartInstruction">Click on affected teeth to mark them for treatment. Click again to mark for attention.</p>
+                    </div>
 
-                        <!-- Permanent Teeth (Default) -->
-                        <div id="permanentTeethSection">
-                            <!-- UPPER ARCH -->
-                            <div class="arch-label">Upper Arch (Maxilla)</div>
-                            <div class="arch-container" id="upperArch">
-                                <?php for ($i = 18; $i >= 11; $i--): ?>
-                                    <div class="tooth-wrapper" data-tooth="<?php echo $i; ?>" onclick="toggleTooth3D(this)">
-                                        <div class="tooth-face"><?php echo $i; ?></div>
-                                    </div>
-                                <?php endfor; ?>
-                                <div style="width: 12px;"></div>
-                                <?php for ($i = 21; $i <= 28; $i++): ?>
-                                    <div class="tooth-wrapper" data-tooth="<?php echo $i; ?>" onclick="toggleTooth3D(this)">
-                                        <div class="tooth-face"><?php echo $i; ?></div>
-                                    </div>
-                                <?php endfor; ?>
+                    <!-- Body Measurement (Optional) -->
+                    <div class="card" style="margin-bottom: 24px;">
+                        <h3 class="card-title">Body Measurement <span style="font-weight:400;color:#94a3b8;font-size:0.85rem;">(Optional)</span></h3>
+                        <div class="vital-signs-grid">
+                            <div class="form-group">
+                                <label class="form-label">Height</label>
+                                <input type="text" name="height" class="form-control" placeholder="e.g., 170 cm">
                             </div>
-
-                            <!-- LOWER ARCH -->
-                            <div class="arch-label">Lower Arch (Mandible)</div>
-                            <div class="arch-container" id="lowerArch">
-                                <?php for ($i = 48; $i >= 41; $i--): ?>
-                                    <div class="tooth-wrapper" data-tooth="<?php echo $i; ?>" onclick="toggleTooth3D(this)">
-                                        <div class="tooth-face"><?php echo $i; ?></div>
-                                    </div>
-                                <?php endfor; ?>
-                                <div style="width: 12px;"></div>
-                                <?php for ($i = 31; $i <= 38; $i++): ?>
-                                    <div class="tooth-wrapper" data-tooth="<?php echo $i; ?>" onclick="toggleTooth3D(this)">
-                                        <div class="tooth-face"><?php echo $i; ?></div>
-                                    </div>
-                                <?php endfor; ?>
-                            </div>
-                        </div>
-
-                        <!-- Primary Teeth (Hidden by default) -->
-                        <div id="primaryTeethSection" class="hidden">
-                            <div class="arch-label">Primary Upper Arch</div>
-                            <div class="arch-container" id="primaryUpperArch">
-                                <?php for ($i = 55; $i >= 51; $i--): ?>
-                                    <div class="tooth-wrapper" data-tooth="<?php echo $i; ?>" onclick="toggleTooth3D(this)">
-                                        <div class="tooth-face"><?php echo $i; ?></div>
-                                    </div>
-                                <?php endfor; ?>
-                                <div style="width: 12px;"></div>
-                                <?php for ($i = 61; $i <= 65; $i++): ?>
-                                    <div class="tooth-wrapper" data-tooth="<?php echo $i; ?>" onclick="toggleTooth3D(this)">
-                                        <div class="tooth-face"><?php echo $i; ?></div>
-                                    </div>
-                                <?php endfor; ?>
-                            </div>
-
-                            <div class="arch-label">Primary Lower Arch</div>
-                            <div class="arch-container" id="primaryLowerArch">
-                                <?php for ($i = 85; $i >= 81; $i--): ?>
-                                    <div class="tooth-wrapper" data-tooth="<?php echo $i; ?>" onclick="toggleTooth3D(this)">
-                                        <div class="tooth-face"><?php echo $i; ?></div>
-                                    </div>
-                                <?php endfor; ?>
-                                <div style="width: 12px;"></div>
-                                <?php for ($i = 71; $i <= 75; $i++): ?>
-                                    <div class="tooth-wrapper" data-tooth="<?php echo $i; ?>" onclick="toggleTooth3D(this)">
-                                        <div class="tooth-face"><?php echo $i; ?></div>
-                                    </div>
-                                <?php endfor; ?>
-                            </div>
-                        </div>
-
-                        <input type="hidden" name="teeth_numbers" id="teethNumbers" value="">
-
-                        <!-- Legend -->
-                        <div class="legend">
-                            <div class="legend-item">
-                                <div class="legend-color" style="background: white; border-color: #cbd5e1; box-shadow: 0 2px 0 #94a3b8;"></div>
-                                <span class="legend-text">Healthy</span>
-                            </div>
-                            <div class="legend-item">
-                                <div class="legend-color" style="background: #bfdbfe; border-color: #3b82f6;"></div>
-                                <span class="legend-text">Selected</span>
-                            </div>
-                            <div class="legend-item">
-                                <div class="legend-color" style="background: #fef08a; border-color: #eab308;"></div>
-                                <span class="legend-text">Attention</span>
+                            <div class="form-group">
+                                <label class="form-label">Weight</label>
+                                <input type="text" name="weight" class="form-control" placeholder="e.g., 65 kg">
                             </div>
                         </div>
                     </div>
 
                     <!-- Notes -->
-                    <div class="card" style="margin-top: 24px;">
+                    <div class="card">
                         <h3 class="card-title">Notes & Complaints</h3>
                         
                         <div class="form-group">
@@ -715,183 +593,154 @@ try {
         </form>
     </div>
 
+    <!-- Success Modal -->
+    <div class="success-modal-overlay" id="successModal">
+        <div class="success-modal">
+            <div class="success-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            </div>
+            <h3>Patient added to queue successfully!</h3>
+            <div class="queue-number" id="modalQueueNumber">#0</div>
+            <div class="modal-buttons">
+                <button type="button" class="btn-print-queue" onclick="printQueueNumber()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                        <rect x="6" y="14" width="12" height="8"></rect>
+                    </svg>
+                    Print Queue No.
+                </button>
+                <button type="button" class="btn-done" onclick="goToQueue()">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden queue ticket used for print -->
+    <div id="queuePrintContainer"></div>
+
     <script>
-        // Tooth type toggle
-        let toothType = 'permanent';
-        
-        function setToothType(type) {
-            toothType = type;
-            updateToothTypeButtons();
-            updateToothVisibility();
-        }
-        
-        function updateToothTypeButtons() {
-            const primaryBtn = document.getElementById('btn-primary');
-            const permanentBtn = document.getElementById('btn-permanent');
-            
-            if (toothType === 'primary') {
-                primaryBtn.classList.add('active');
-                permanentBtn.classList.remove('active');
-            } else {
-                permanentBtn.classList.add('active');
-                primaryBtn.classList.remove('active');
-            }
-        }
-        
-        function updateToothVisibility() {
-            const permanentSection = document.getElementById('permanentTeethSection');
-            const primarySection = document.getElementById('primaryTeethSection');
-            
-            if (toothType === 'primary') {
-                permanentSection.classList.add('hidden');
-                primarySection.classList.remove('hidden');
-            } else {
-                permanentSection.classList.remove('hidden');
-                primarySection.classList.add('hidden');
-            }
-        }
-        
-        function toggleTooth3D(wrapper) {
-            if (wrapper.classList.contains('selected')) {
-                wrapper.classList.remove('selected');
-                wrapper.classList.add('attention');
-            } else if (wrapper.classList.contains('attention')) {
-                wrapper.classList.remove('attention');
-            } else {
-                wrapper.classList.add('selected');
-            }
-            updateTeethNumbers();
-        }
-        
-        function updateTeethNumbers() {
-            const selected = document.querySelectorAll('.tooth-wrapper.selected, .tooth-wrapper.attention');
-            const teeth = Array.from(selected).map(wrapper => wrapper.dataset.tooth);
-            document.getElementById('teethNumbers').value = teeth.join(',');
+        var _queuePage = '<?php echo $queuePage; ?>';
+        var _queueId = 0;
+        var queueClinicPrintInfo = {
+            name: <?php echo json_encode($queueClinicName); ?>,
+            address: <?php echo json_encode($queueClinicAddress); ?>
+        };
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            var d = document.createElement('div');
+            d.textContent = str;
+            return d.innerHTML;
         }
 
-        // Handle service change - detect BULK mode and show/hide arch buttons
+        // Handle service change - show/hide custom treatment input
         function handleServiceChange() {
-            const select = document.getElementById('treatmentType');
-            const customGroup = document.getElementById('customTreatmentGroup');
-            const archButtons = document.getElementById('archSelectionButtons');
-            const instruction = document.getElementById('chartInstruction');
-            const selectedOption = select.options[select.selectedIndex];
-            const mode = selectedOption.dataset.mode || 'SINGLE';
-            const serviceName = select.value;
-            const serviceId = selectedOption.dataset.id || '';
+            var select = document.getElementById('treatmentType');
+            var customGroup = document.getElementById('customTreatmentGroup');
+            var selectedOption = select.options[select.selectedIndex];
+            var serviceName = select.value;
+            var serviceId = selectedOption.dataset.id || '';
             document.getElementById('serviceIdInput').value = serviceId;
 
-            // Show/hide custom treatment input
             if (serviceName === 'Other') {
                 customGroup.style.display = 'block';
             } else {
                 customGroup.style.display = 'none';
             }
-
-            // Show/hide arch buttons based on mode
-            if (mode === 'BULK') {
-                archButtons.style.display = 'flex';
-                instruction.textContent = 'Click "Select Upper Arch" or "Select Lower Arch" to mark entire arch, or click individual teeth.';
-            } else if (mode === 'SINGLE') {
-                archButtons.style.display = 'none';
-                instruction.textContent = 'Click on affected teeth to mark them for treatment. Click again to mark for attention.';
-            } else {
-                archButtons.style.display = 'none';
-                instruction.textContent = 'Select a service to enable dental chart.';
-            }
-        }
-
-        // Select all teeth in an arch
-        function selectArch(arch) {
-            // Get the appropriate arch element based on current tooth type
-            let archElement;
-            if (toothType === 'primary') {
-                archElement = document.getElementById('primary' + arch.charAt(0).toUpperCase() + arch.slice(1) + 'Arch');
-            } else {
-                archElement = document.getElementById(arch + 'Arch');
-            }
-            
-            if (!archElement) return;
-            
-            const teeth = archElement.querySelectorAll('.tooth-wrapper');
-            
-            // Check if all teeth are already selected
-            const allSelected = Array.from(teeth).every(tooth => 
-                tooth.classList.contains('selected')
-            );
-            
-            teeth.forEach(tooth => {
-                if (allSelected) {
-                    // Deselect all
-                    tooth.classList.remove('selected', 'attention');
-                } else {
-                    // Select all
-                    tooth.classList.add('selected');
-                    tooth.classList.remove('attention');
-                }
-            });
-            
-            updateTeethNumbers();
         }
 
         // Form submission
         document.getElementById('quickSessionForm').addEventListener('submit', function(e) {
             e.preventDefault();
 
-            const submitButton = document.getElementById('addToQueueButton');
+            var submitButton = document.getElementById('addToQueueButton');
             if (submitButton && submitButton.disabled) return;
             if (submitButton) {
                 submitButton.disabled = true;
-                submitButton.dataset.originalText = submitButton.textContent.trim();
-                submitButton.textContent = 'Adding...';
+                submitButton.dataset.originalText = submitButton.innerHTML;
+                submitButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="32"><animate attributeName="stroke-dashoffset" values="32;0" dur="0.8s" repeatCount="indefinite"/></circle></svg> Adding...';
             }
-            
-            const formData = new FormData(this);
-            const treatmentType = formData.get('treatment_type');
-            const customTreatment = formData.get('custom_treatment');
-            
+
+            var formData = new FormData(this);
+            var treatmentType = formData.get('treatment_type');
+            var customTreatment = formData.get('custom_treatment');
+
             if (treatmentType === 'Other' && customTreatment) {
                 formData.set('treatment_type', customTreatment);
             }
-            
+
             fetch('process_quick_session.php', {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
-            .then(data => {
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
                 if (data.success) {
-                    alert(data.already_in_queue
-                        ? 'This patient is already in the active queue.\n\nQueue #: ' + data.queue_number
-                        : 'Patient added to queue successfully!\n\nQueue #: ' + data.queue_number);
-                    window.location.href = '<?php echo $queuePage; ?>?highlight=' + data.queue_id;
+                    var modal = document.getElementById('successModal');
+                    document.getElementById('modalQueueNumber').textContent = data.queue_label || ('#' + data.queue_number);
+                    _queueId = data.queue_id;
+                    if (data.already_in_queue) {
+                        modal.querySelector('h3').textContent = 'Patient is already in the queue!';
+                    } else {
+                        modal.querySelector('h3').textContent = 'Patient added to queue successfully!';
+                    }
+                    modal.classList.add('active');
                 } else {
                     alert('Error: ' + data.message);
                     if (submitButton) {
                         submitButton.disabled = false;
-                        submitButton.textContent = submitButton.dataset.originalText || 'Add to Queue';
+                        submitButton.innerHTML = submitButton.dataset.originalText || 'Add to Queue';
                     }
                 }
             })
-            .catch(error => {
+            .catch(function(error) {
                 console.error('Error:', error);
                 alert('An error occurred. Please try again.');
                 if (submitButton) {
                     submitButton.disabled = false;
-                    submitButton.textContent = submitButton.dataset.originalText || 'Add to Queue';
+                    submitButton.innerHTML = submitButton.dataset.originalText || 'Add to Queue';
                 }
             });
         });
-        
-        // Auto-detect tooth type based on age
-        document.addEventListener('DOMContentLoaded', function() {
-            const age = <?php echo $patient['age'] ?? 0; ?>;
-            if (age < 12) {
-                setToothType('primary');
-            } else {
-                setToothType('permanent');
-            }
-        });
+
+        function printQueueNumber() {
+            var container = document.getElementById('queuePrintContainer');
+            if (!container) return;
+
+            var queueNum = document.getElementById('modalQueueNumber').textContent;
+            var patientName = '<?php echo addslashes(htmlspecialchars($patientFullName)); ?>';
+            var treatmentType = document.getElementById('treatmentType').value || 'General Checkup';
+            var now = new Date();
+            var dateStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+            var timeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+            var number = String(queueNum).replace('#', '');
+            var label = number ? '#' + number : '';
+            var LINE = '----------------------------------------';
+
+            container.innerHTML =
+                '<div class="queue-ticket">' +
+                    '<div class="qt-line">' + LINE + '</div>' +
+                    '<div class="qt-clinic">' + escapeHtml(queueClinicPrintInfo.name || 'RF Dental Clinic') + '</div>' +
+                    (queueClinicPrintInfo.address ? '<div class="qt-address">' + escapeHtml(queueClinicPrintInfo.address) + '</div>' : '') +
+                    '<div class="qt-label">Queue Number</div>' +
+                    '<div class="qt-number">' + escapeHtml(label) + '</div>' +
+                    '<div class="qt-line">' + LINE + '</div>' +
+                    '<div class="qt-meta">Patient: ' + escapeHtml(patientName) + '</div>' +
+                    '<div class="qt-meta">Treatment: ' + escapeHtml(treatmentType) + '</div>' +
+                    '<div class="qt-meta">Date: ' + escapeHtml(dateStr) + '  Time: ' + escapeHtml(timeStr) + '</div>' +
+                    '<div class="qt-line">' + LINE + '</div>' +
+                '</div>';
+
+            // Move container to <body> so no transformed/offset ancestor shifts the ticket
+            document.body.appendChild(container);
+            window.print();
+        }
+
+        function goToQueue() {
+            window.location.href = _queuePage + '?highlight=' + _queueId;
+        }
     </script>
 </body>
 </html>

@@ -269,26 +269,26 @@ function createQueueEntry(PDO $pdo, array $payload): array
     $queueTime = trim((string)($payload['queue_time'] ?? date('H:i:s')));
     $doctorId = isset($payload['doctor_id']) && $payload['doctor_id'] !== '' ? (int)$payload['doctor_id'] : null;
 
-    $stmt = $pdo->prepare("
-        INSERT INTO queue (
-            patient_id,
-            appointment_id,
-            queue_number,
-            queue_label,
-            queue_date,
-            treatment_type,
-            doctor_id,
-            teeth_numbers,
-            procedure_notes,
-            status,
-            priority,
-            queue_time,
-            notes,
-            created_at,
-            updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-    ");
-    $stmt->execute([
+    $extraCols = [];
+    $extraVals = [];
+    $vitalFields = ['blood_pressure', 'heart_rate', 'temperature', 'oxygen_saturation', 'height', 'weight', 'service_id'];
+    foreach ($vitalFields as $field) {
+        if (isset($payload[$field]) && $payload[$field] !== '' && $payload[$field] !== null) {
+            $extraCols[] = $field;
+            $extraVals[] = $payload[$field];
+        }
+    }
+
+    $allCols = array_merge([
+        'patient_id', 'appointment_id', 'queue_number', 'queue_label', 'queue_date',
+        'treatment_type', 'doctor_id', 'teeth_numbers', 'procedure_notes',
+        'status', 'priority', 'queue_time', 'notes', 'created_at', 'updated_at'
+    ], $extraCols);
+
+    $allPlaceholders = array_merge(['?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', 'NOW()', 'NOW()'], array_fill(0, count($extraCols), '?'));
+
+    $sql = "INSERT INTO queue (" . implode(', ', $allCols) . ") VALUES (" . implode(', ', $allPlaceholders) . ")";
+    $params = array_merge([
         $patientId,
         $appointmentId,
         $queueNumber,
@@ -302,7 +302,10 @@ function createQueueEntry(PDO $pdo, array $payload): array
         $priority,
         $queueTime !== '' ? $queueTime : null,
         $notes !== '' ? $notes : null
-    ]);
+    ], $extraVals);
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
 
     $queueId = (int)$pdo->lastInsertId();
     $selectStmt = $pdo->prepare("SELECT * FROM queue WHERE id = ? LIMIT 1");

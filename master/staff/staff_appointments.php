@@ -939,17 +939,35 @@ try {
 /* Queue ticket print */
 #queuePrintContainer { display: none; }
 @media print {
-    body * { visibility: hidden !important; }
-    #queuePrintContainer, #queuePrintContainer * { visibility: visible !important; }
-    #queuePrintContainer { display: block !important; position: absolute; left: 0; top: 0; width: 72mm; padding: 4mm; font-family: 'Courier New', monospace; }
-    .queue-ticket { border: 1px dashed #000; padding: 4mm; text-align: center; }
-    .queue-ticket .qt-clinic { font-size: 14px; font-weight: 700; text-transform: uppercase; margin-bottom: 2px; }
-    .queue-ticket .qt-address { font-size: 8px; margin-bottom: 6px; }
-    .queue-ticket .qt-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; margin-top: 6px; }
-    .queue-ticket .qt-number { font-size: 40px; font-weight: 700; line-height: 1.1; }
-    .queue-ticket .qt-meta { font-size: 10px; margin-top: 6px; }
-    .queue-ticket .qt-divider { border-top: 1px dashed #000; margin: 6px 0; }
-    @page { margin: 0; }
+    @page { size: 58mm auto; margin: 0; }
+    /* 58mm paper has ~48mm printable area - keep everything inside it */
+    html, body { width: 48mm; height: auto; margin: 0 !important; padding: 0 !important; background: #fff !important; overflow: hidden !important; }
+    body * { visibility: hidden !important; box-sizing: border-box !important; float: none !important; }
+    #queuePrintContainer, #queuePrintContainer * {
+        visibility: visible !important;
+        font-family: 'Courier New', monospace !important;
+        box-sizing: border-box !important;
+        text-align: center !important;
+    }
+    #queuePrintContainer {
+        display: block !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        right: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 48mm !important;
+        text-align: center !important;
+    }
+    /* Physical mm sizing - immune to driver DPI/scaling. No CSS borders (thermal drivers drop hairlines); separators are dash characters */
+    .queue-ticket { width: 100% !important; padding: 0 !important; margin: 0 auto; border: none !important; text-align: center !important; }
+    .queue-ticket .qt-line { font-size: 2.5mm; font-weight: 700; line-height: 1.1; white-space: nowrap; overflow: hidden; }
+    .queue-ticket .qt-clinic { font-size: 3.6mm; font-weight: 700; text-transform: uppercase; white-space: normal; word-break: break-word; margin-top: 1mm; }
+    .queue-ticket .qt-address { font-size: 2.2mm; margin-bottom: 1mm; white-space: normal; word-break: break-word; }
+    .queue-ticket .qt-label { font-size: 2.8mm; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-top: 2mm; }
+    .queue-ticket .qt-number { font-size: 15mm; font-weight: 700; line-height: 1.05; margin: 0; }
+    .queue-ticket .qt-meta { font-size: 2.5mm; margin-top: 1mm; white-space: normal; word-break: break-word; }
 }
 </style>
 
@@ -977,17 +995,23 @@ try {
         var timeStr = o.time || (String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0'));
         var number = (o.queueNumber || o.queueLabel || '').replace('#', '');
         var label = o.queueLabel || (number ? '#' + number : '');
+        var LINE = '----------------------------------------';
         container.innerHTML =
             '<div class="queue-ticket">' +
+                '<div class="qt-line">' + LINE + '</div>' +
                 '<div class="qt-clinic">' + escapeHtmlQueue(clinicPrintInfo.name || 'RF Dental Clinic') + '</div>' +
                 (clinicPrintInfo.address ? '<div class="qt-address">' + escapeHtmlQueue(clinicPrintInfo.address) + '</div>' : '') +
                 '<div class="qt-label">Queue Number</div>' +
                 '<div class="qt-number">' + escapeHtmlQueue(label) + '</div>' +
-                '<div class="qt-divider"></div>' +
+                '<div class="qt-line">' + LINE + '</div>' +
                 '<div class="qt-meta">Patient: ' + escapeHtmlQueue(o.patientName || '') + '</div>' +
                 '<div class="qt-meta">Treatment: ' + escapeHtmlQueue(o.treatment || '') + '</div>' +
                 '<div class="qt-meta">Date: ' + escapeHtmlQueue(dateStr) + '  Time: ' + escapeHtmlQueue(timeStr) + '</div>' +
+                '<div class="qt-line">' + LINE + '</div>' +
             '</div>';
+
+        // Move container to <body> so no transformed/offset ancestor shifts the ticket
+        document.body.appendChild(container);
         window.print();
     }
 

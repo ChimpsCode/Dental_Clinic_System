@@ -440,9 +440,7 @@ $pageTitle = 'My Profile';
                 <p style="font-size: 13px; color: #6b7280; margin: 4px 0 0 0;">Manage your personal information</p>
             </div>
             <div class="header-right">
-                <div class="notification-bell">
-                    <i class="fas fa-bell"></i>
-                </div>
+                <?php include '../../includes/patient_notification_widget.php'; ?>
                 <div class="user-profile">
                     <div class="user-avatar">
                         <?php 

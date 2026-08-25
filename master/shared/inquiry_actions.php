@@ -5,8 +5,10 @@ header('Content-Type: application/json');
 
 require_once '../../config/database.php';
 require_once '../../includes/inquiry_module_helper.php';
+require_once '../../includes/notification_functions.php';
 
 ensureInquiryModuleSchema($pdo);
+ensureNotificationSchema($pdo);
 
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
@@ -1123,6 +1125,14 @@ if ($action === 'staff_reply') {
     }
 
     updateInquiryRecord($pdo, $id, ['status' => 'Replied', 'notes' => $newNotes, 'assigned_staff_id' => (int)$_SESSION['user_id']]);
+
+    if (!empty($inquiry['patient_id'])) {
+        $staffUser = $pdo->prepare("SELECT first_name FROM users WHERE id = ?");
+        $staffUser->execute([(int)$_SESSION['user_id']]);
+        $staffName = $staffUser->fetchColumn() ?: 'Staff';
+        notifyPatientInquiryResponse($pdo, (int)$inquiry['patient_id'], $replyMessage ?: $fullName . ' inquiry', $staffName);
+    }
+
     inquiryJson(['success' => true, 'message' => 'Reply sent successfully.', 'attachment' => $attachment]);
 }
 

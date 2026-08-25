@@ -227,7 +227,6 @@ $pageTitle = 'Inquiry / Consultation';
         .main-wrapper { flex: 1; margin-left: 220px; min-height: 100vh; display: flex; flex-direction: column; }
         .dashboard-header { background: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 50; height: 70px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .header-right { display: flex; align-items: center; gap: 16px; }
-        .notification-bell { font-size: 20px; color: #6b7280; }
         .user-profile { position: relative; display: flex; align-items: center; gap: 12px; }
         .user-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #005daa, #0571ca); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; }
         .user-details { display: flex; flex-direction: column; }
@@ -475,7 +474,7 @@ $pageTitle = 'Inquiry / Consultation';
                 <p style="font-size: 13px; color: #6b7280; margin: 4px 0 0;">Send a consultation request and track your inquiry status.</p>
             </div>
             <div class="header-right">
-                <div class="notification-bell"><i class="fas fa-bell"></i></div>
+                <?php include '../../includes/patient_notification_widget.php'; ?>
                 <div class="user-profile">
                     <div class="user-avatar">
                         <?php 

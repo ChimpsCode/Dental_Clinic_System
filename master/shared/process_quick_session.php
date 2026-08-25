@@ -21,6 +21,14 @@ try {
     $notes = trim($_POST['notes'] ?? '');
     $priority = $_POST['priority'] ?? 5;
 
+    // Vital signs & body measurement (optional)
+    $blood_pressure = trim($_POST['blood_pressure'] ?? '');
+    $heart_rate = trim($_POST['heart_rate'] ?? '');
+    $temperature = trim($_POST['temperature'] ?? '');
+    $oxygen_saturation = trim($_POST['oxygen_saturation'] ?? '');
+    $height = trim($_POST['height'] ?? '');
+    $weight = trim($_POST['weight'] ?? '');
+
     if (empty($patient_id)) {
         throw new Exception('Patient ID is required');
     }
@@ -87,15 +95,21 @@ try {
 
     // Create queue entry through helper
     $queueEntry = createQueueEntry($pdo, [
-        'patient_id'     => $patient_id,
-        'queue_date'     => date('Y-m-d'),
-        'treatment_type' => $treatment_type,
-        'service_id'     => $serviceId,
-        'teeth_numbers'  => $teeth_numbers,
-        'notes'          => $full_notes,
-        'queue_time'     => date('H:i:s'),
-        'status'         => 'waiting',
-        'priority'       => $priority,
+        'patient_id'        => $patient_id,
+        'queue_date'        => date('Y-m-d'),
+        'treatment_type'    => $treatment_type,
+        'service_id'        => $serviceId,
+        'teeth_numbers'     => $teeth_numbers,
+        'notes'             => $full_notes,
+        'queue_time'        => date('H:i:s'),
+        'status'            => 'waiting',
+        'priority'          => $priority,
+        'blood_pressure'    => $blood_pressure ?: null,
+        'heart_rate'        => $heart_rate ?: null,
+        'temperature'       => $temperature ?: null,
+        'oxygen_saturation' => $oxygen_saturation ?: null,
+        'height'            => $height ?: null,
+        'weight'            => $weight ?: null,
     ]);
     
     $queue_id = (int)$queueEntry['id'];

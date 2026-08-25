@@ -581,6 +581,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                 <option value="gcash">GCash</option>
                                 <option value="bank_transfer">Bank Transfer</option>
                                 <option value="installment">Installment</option>
+                                <option value="downpayment">Downpayment</option>
                             </select>
                         </div>
                         <input type="hidden" id="recordPaymentQueueId">

@@ -19,6 +19,8 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/appointment_approval_helper.php';
 require_once __DIR__ . '/../../includes/sms_functions.php';
+require_once __DIR__ . '/../../includes/notification_functions.php';
+ensureNotificationSchema($pdo);
 
 class ApprovalUserException extends Exception {}
 
@@ -136,6 +138,13 @@ try {
         if ($smsError) {
             $message .= ' The patient could not be notified by SMS.';
         }
+
+        if (!empty($appointment['patient_id'])) {
+            $svcName = $appointment['service_name'] ?? ($appointment['treatment'] ?? 'General Checkup');
+            notifyPatientAppointmentApproved($pdo, (int)$appointment['patient_id'], $appointment['appointment_date'], $appointment['appointment_time'], $svcName);
+            notifyPatientFollowUpReminder($pdo, (int)$appointment['patient_id'], $appointment['appointment_date'], $appointment['appointment_time'], $svcName);
+        }
+
         echo json_encode(['success' => true, 'message' => $message]);
     } else {
         $reason = $decline_reason !== '' ? $decline_reason : 'Declined by clinic staff';
@@ -180,6 +189,10 @@ try {
             'success' => true,
             'message' => 'Appointment request declined and cancelled.'
         ]);
+
+        if (!empty($appointment['patient_id'])) {
+            notifyPatientAppointmentDeclined($pdo, (int)$appointment['patient_id'], $appointment['appointment_date'], $reason);
+        }
     }
 
 } catch (ApprovalUserException $e) {

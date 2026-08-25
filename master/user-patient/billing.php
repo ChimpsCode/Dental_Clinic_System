@@ -22,24 +22,42 @@ require_once '../../config/database.php';
 require_once '../../includes/patient_session_helper.php';
 $patientSessionSettings = getPatientSessionSettings($pdo, (int)($_SESSION['user_id'] ?? 0));
 
+require_once '../../includes/notification_functions.php';
+ensureNotificationSchema($pdo);
+checkAndNotifyOverduePayments($pdo);
+
 try {
-    $stmt = $pdo->prepare("
-        SELECT p.*, COALESCE(u.first_name, p.first_name) AS first_name, COALESCE(u.middle_name, p.middle_name) AS middle_name, COALESCE(u.last_name, p.last_name) AS last_name, u.email, u.phone
-        FROM patients p 
-        LEFT JOIN users u ON u.id = p.user_id 
-        WHERE p.user_id = ?
-    ");
-    $stmt->execute([$user_id]);
-    $patient = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$patient && $patient_id) {
-        $stmt = $pdo->prepare("
-            SELECT p.*, COALESCE(u.first_name, p.first_name) AS first_name, COALESCE(u.middle_name, p.middle_name) AS middle_name, COALESCE(u.last_name, p.last_name) AS last_name, u.email, u.phone
-            FROM patients p 
-            LEFT JOIN users u ON u.id = p.user_id 
-            WHERE p.id = ?
-        ");
-        $stmt->execute([$patient_id]);
+    $accountStmt = $pdo->prepare("SELECT email, phone FROM users WHERE id = ? LIMIT 1");
+    $accountStmt->execute([$user_id]);
+    $account = $accountStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    $conditions = [];
+    $parameters = [];
+    if ($patient_id) {
+        $conditions[] = 'p.id = ?';
+        $parameters[] = (int)$patient_id;
+    }
+    if (!empty($account['email'])) {
+        $conditions[] = 'p.email = ?';
+        $parameters[] = $account['email'];
+    }
+    if (!empty($account['phone'])) {
+        $conditions[] = 'p.phone = ?';
+        $parameters[] = $account['phone'];
+    }
+    $patient = null;
+    if ($conditions) {
+        $stmt = $pdo->prepare(
+            "SELECT p.*, p.first_name, p.middle_name, p.last_name,
+                    COALESCE(u.email, p.email) AS email,
+                    COALESCE(u.phone, p.phone) AS phone
+             FROM patients p
+             LEFT JOIN users u ON u.id = ?
+             WHERE (" . implode(' OR ', $conditions) . ")
+               AND COALESCE(p.is_archived, 0) = 0
+             ORDER BY CASE WHEN p.id = ? THEN 0 ELSE 1 END
+             LIMIT 1"
+        );
+        $stmt->execute(array_merge([$user_id], $parameters, [(int)($patient_id ?: 0)]));
         $patient = $stmt->fetch(PDO::FETCH_ASSOC);
     }
     
@@ -47,34 +65,60 @@ try {
         throw new Exception('Patient not found');
     }
     
-    if (!$patient_id && $patient) {
+    if ($patient) {
         $patient_id = $patient['id'];
         $_SESSION['patient_id'] = $patient_id;
     }
-    
+
     $stmt = $pdo->prepare("
-        SELECT * FROM payments 
-        WHERE patient_id = ?
-        ORDER BY payment_date DESC
+        SELECT 
+            b.id AS billing_id,
+            CONCAT('INV-', LPAD(b.id, 4, '0')) AS invoice_number,
+            b.total_amount,
+            b.paid_amount,
+            b.balance,
+            COALESCE(b.payment_status, 'Unpaid') AS payment_status,
+            b.billing_date,
+            b.due_date,
+            q.treatment_type,
+            q.queue_number,
+            b.subtotal_amount,
+            b.discount_type,
+            b.discount_amount,
+            b.notes
+        FROM billing b
+        LEFT JOIN queue q ON CAST(q.patient_id AS UNSIGNED) = b.patient_id AND DATE(q.created_at) = DATE(b.billing_date)
+        WHERE b.patient_id = ?
+        ORDER BY b.billing_date DESC, b.id DESC
+    ");
+    $stmt->execute([$patient_id]);
+    $billings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $stmt = $pdo->prepare("
+        SELECT py.*, CONCAT('INV-', LPAD(py.billing_id, 4, '0')) AS invoice_number
+        FROM payments py
+        WHERE py.patient_id = ?
+        ORDER BY py.payment_date DESC, py.created_at DESC
     ");
     $stmt->execute([$patient_id]);
     $payments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
     $totalPaid = 0;
     $totalPending = 0;
-    foreach ($payments as $payment) {
-        if ($payment['status'] === 'completed') {
-            $totalPaid += $payment['amount'] ?? 0;
-        } else {
-            $totalPending += $payment['amount'] ?? 0;
-        }
+    $totalAmount = 0;
+    foreach ($billings as $b) {
+        $totalAmount += floatval($b['total_amount'] ?? 0);
+        $totalPaid += floatval($b['paid_amount'] ?? 0);
+        $totalPending += floatval($b['balance'] ?? 0);
     }
     
 } catch (Exception $e) {
     $patient = [];
+    $billings = [];
     $payments = [];
     $totalPaid = 0;
     $totalPending = 0;
+    $totalAmount = 0;
 }
 
 $pageTitle = 'Billing';
@@ -197,9 +241,7 @@ $pageTitle = 'Billing';
                 <p style="font-size: 13px; color: #6b7280; margin: 4px 0 0 0;">View your payment history and invoices</p>
             </div>
             <div class="header-right">
-                <div class="notification-bell">
-                    <i class="fas fa-bell"></i>
-                </div>
+                <?php include '../../includes/patient_notification_widget.php'; ?>
                 <div class="user-profile">
                     <div class="user-avatar">
                         <?php 
@@ -246,42 +288,62 @@ $pageTitle = 'Billing';
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-icon paid"><i class="fas fa-check-circle"></i></div>
-                    <div class="stat-value">$<?php echo number_format($totalPaid, 2); ?></div>
+                    <div class="stat-value">₱<?php echo number_format($totalPaid, 2); ?></div>
                     <div class="stat-label">Total Paid</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon pending"><i class="fas fa-clock"></i></div>
-                    <div class="stat-value">$<?php echo number_format($totalPending, 2); ?></div>
-                    <div class="stat-label">Pending</div>
+                    <div class="stat-value">₱<?php echo number_format($totalPending, 2); ?></div>
+                    <div class="stat-label">Outstanding Balance</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon total"><i class="fas fa-file-invoice-dollar"></i></div>
-                    <div class="stat-value"><?php echo count($payments); ?></div>
+                    <div class="stat-value"><?php echo count($billings); ?></div>
                     <div class="stat-label">Total Transactions</div>
                 </div>
             </div>
 
             <div class="section">
-                <h2 class="section-title">Payment History</h2>
-                <?php if (!empty($payments)): ?>
+                <h2 class="section-title">Billing History</h2>
+                <?php if (!empty($billings)): ?>
                     <table class="invoice-table">
                         <thead>
                             <tr>
                                 <th>Invoice #</th>
                                 <th>Date</th>
-                                <th>Description</th>
+                                <th>Treatment</th>
                                 <th>Amount</th>
+                                <th>Paid</th>
+                                <th>Balance</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($payments as $payment): ?>
+                            <?php foreach ($billings as $b): ?>
+                                <?php
+                                    $statusClass = strtolower($b['payment_status'] ?? 'unpaid');
+                                    if ($statusClass === 'paid') $statusClass = 'completed';
+                                    elseif ($statusClass === 'partial') $statusClass = 'pending';
+                                    else $statusClass = 'failed';
+                                    $treatmentDisplay = $b['treatment_type'] ?: ($b['notes'] ?: 'General Checkup');
+                                    $hasDiscount = !empty($b['discount_amount']) && floatval($b['discount_amount']) > 0;
+                                    $subtotal = floatval($b['subtotal_amount'] ?? 0);
+                                    $totalAmt = floatval($b['total_amount'] ?? 0);
+                                ?>
                                 <tr>
-                                    <td class="invoice-id"><?php echo htmlspecialchars($payment['invoice_number'] ?? 'INV-' . str_pad($payment['id'], 6, '0', STR_PAD_LEFT)); ?></td>
-                                    <td><?php echo date('M j, Y', strtotime($payment['payment_date'])); ?></td>
-                                    <td><?php echo htmlspecialchars($payment['description'] ?? $payment['treatment_type'] ?? 'Dental Service'); ?></td>
-                                    <td class="amount">$<?php echo number_format($payment['amount'], 2); ?></td>
-                                    <td><span class="status-badge status-<?php echo strtolower($payment['status'] ?? 'pending'); ?>"><?php echo htmlspecialchars(ucfirst($payment['status'] ?? 'Pending')); ?></span></td>
+                                    <td class="invoice-id"><?php echo htmlspecialchars($b['invoice_number']); ?></td>
+                                    <td><?php echo date('M j, Y', strtotime($b['billing_date'])); ?></td>
+                                    <td>
+                                        <?php echo htmlspecialchars($treatmentDisplay); ?>
+                                        <?php if ($hasDiscount): ?>
+                                            <br><small style="color:#6b7280;text-decoration:line-through;">₱<?php echo number_format($subtotal, 2); ?></small>
+                                            <small style="color:#dc2626;margin-left:4px;">(<?php echo htmlspecialchars(ucfirst($b['discount_type'])); ?>)</small>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="amount">₱<?php echo number_format($totalAmt, 2); ?></td>
+                                    <td class="amount" style="color:#065f46;">₱<?php echo number_format(floatval($b['paid_amount']), 2); ?></td>
+                                    <td class="amount" style="color:<?php echo $b['balance'] > 0 ? '#dc2626' : '#065f46'; ?>;">₱<?php echo number_format(floatval($b['balance']), 2); ?></td>
+                                    <td><span class="status-badge status-<?php echo $statusClass; ?>"><?php echo htmlspecialchars(ucfirst($b['payment_status'] ?? 'Unpaid')); ?></span></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -289,8 +351,42 @@ $pageTitle = 'Billing';
                 <?php else: ?>
                     <div class="empty-state">
                         <i class="fas fa-receipt"></i>
-                        <h3>No Payment History</h3>
-                        <p>Your payment history will appear here after your visits.</p>
+                        <h3>No Billing History</h3>
+                        <p>Your billing history will appear here after your visits.</p>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Payment Transactions</h2>
+                <?php if (!empty($payments)): ?>
+                    <table class="invoice-table">
+                        <thead>
+                            <tr>
+                                <th>Invoice #</th>
+                                <th>Date</th>
+                                <th>Amount</th>
+                                <th>Method</th>
+                                <th>Reference</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($payments as $payment): ?>
+                                <tr>
+                                    <td class="invoice-id"><?php echo htmlspecialchars($payment['invoice_number'] ?? ''); ?></td>
+                                    <td><?php echo date('M j, Y', strtotime($payment['payment_date'])); ?></td>
+                                    <td class="amount" style="color:#065f46;">₱<?php echo number_format(floatval($payment['amount']), 2); ?></td>
+                                    <td><?php echo htmlspecialchars(ucfirst($payment['payment_method'] ?? 'Cash')); ?></td>
+                                    <td><?php echo htmlspecialchars($payment['reference_number'] ?? '-'); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php else: ?>
+                    <div class="empty-state">
+                        <i class="fas fa-money-bill"></i>
+                        <h3>No Payments Yet</h3>
+                        <p>Your payment records will appear here once payments are processed.</p>
                     </div>
                 <?php endif; ?>
             </div>
