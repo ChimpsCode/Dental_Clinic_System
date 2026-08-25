@@ -609,6 +609,49 @@ try {
     </div>
 </div>
 
+<!-- Admin Dashboard Inquiry FAB -->
+<button type="button" id="dashboardInquiryFab" class="dashboard-inquiry-fab" onclick="toggleInquiryPanel()" aria-label="Inquiries" title="Inquiries">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 2 11 13"></path>
+        <path d="m22 2-7 20-4-9-9-4Z"></path>
+    </svg>
+    <span id="dashboardInquiryFabBadge" class="dashboard-inquiry-fab-badge" hidden>0</span>
+</button>
+
+<div id="dashboardInquiryBackdrop" class="dashboard-inquiry-backdrop" onclick="toggleInquiryPanel()"></div>
+<aside id="dashboardInquiryPanel" class="dashboard-inquiry-panel" aria-label="Patient inquiries">
+    <div id="inquiryPanelListView" class="dashboard-inquiry-view">
+        <div class="dashboard-inquiry-panel-header">
+            <h3>Inquiries</h3>
+            <span id="dashboardInquiryCount" class="dashboard-inquiry-panel-count">0</span>
+            <button type="button" class="dashboard-inquiry-panel-close" onclick="toggleInquiryPanel()" aria-label="Close">&times;</button>
+        </div>
+        <div id="dashboardInquiryList" class="dashboard-inquiry-panel-list">
+            <div class="dashboard-inquiry-loading">Loading...</div>
+        </div>
+    </div>
+    <div id="inquiryPanelChatView" class="dashboard-inquiry-view" hidden>
+        <div class="chat-modal-header">
+            <button type="button" class="chat-modal-back" onclick="showInquiryList()" aria-label="Back">&#8592;</button>
+            <div id="inquiryChatAvatar" class="chat-modal-avatar">P</div>
+            <div class="chat-modal-user-info">
+                <div id="inquiryChatName" class="chat-modal-name"></div>
+                <div id="inquiryChatContact" class="chat-modal-email"></div>
+            </div>
+            <div id="inquiryChatSource" class="chat-modal-source"></div>
+        </div>
+        <div id="inquiryChatMessages" class="chat-modal-messages"></div>
+        <div id="inquiryChatChannel" class="chat-channel-info"></div>
+        <form id="inquiryChatReplyForm" class="chat-compose">
+            <input type="hidden" id="inquiryChatReplyId">
+            <div class="chat-send-row">
+                <textarea id="inquiryChatReplyMsg" rows="1" placeholder="Type your reply..." aria-label="Reply message"></textarea>
+                <button type="submit" class="chat-send-btn" aria-label="Send reply">&#10148;</button>
+            </div>
+        </form>
+    </div>
+</aside>
+
 <?php
 // Include the layout end
 require_once __DIR__ . '/../../includes/admin_layout_end.php';
@@ -628,7 +671,231 @@ require_once __DIR__ . '/../../includes/admin_layout_end.php';
     width: 100%;
 }
 
+.dashboard-inquiry-fab { position: fixed; right: 24px; bottom: 24px; width: 58px; height: 58px; border: 0; border-radius: 50%; background: #0d92f7; color: #fff; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 14px 28px rgba(37, 99, 235, .28); z-index: 2001; cursor: pointer; }
+.dashboard-inquiry-fab:hover { background: #0b6cf3; transform: translateY(-2px); }
+.dashboard-inquiry-fab-badge { position: absolute; top: -2px; right: -2px; min-width: 22px; height: 22px; padding: 0 6px; border: 2px solid #fff; border-radius: 999px; background: #dc2626; color: #fff; font-size: 11px; font-weight: 700; align-items: center; justify-content: center; }
+.dashboard-inquiry-fab-badge:not([hidden]) { display: inline-flex; }
+.dashboard-inquiry-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); z-index: 2000; opacity: 0; visibility: hidden; transition: opacity .2s ease; }
+.dashboard-inquiry-backdrop.open { opacity: 1; visibility: visible; }
+.dashboard-inquiry-panel { position: fixed; top: 0; right: 0; bottom: 0; width: 400px; max-width: 100vw; background: #fff; box-shadow: -8px 0 30px rgba(15, 23, 42, .12); z-index: 2002; display: none; flex-direction: column; }
+.dashboard-inquiry-panel.open { display: flex; }
+.dashboard-inquiry-view { display: flex; flex: 1; min-height: 0; flex-direction: column; }
+.dashboard-inquiry-view[hidden] { display: none !important; }
+.dashboard-inquiry-panel-header { display: flex; align-items: center; gap: 10px; padding: 18px 20px; border-bottom: 1px solid #e5e7eb; background: #fafbff; }
+.dashboard-inquiry-panel-header h3 { margin: 0; font-size: 1.1rem; color: #0f172a; }
+.dashboard-inquiry-panel-count { min-width: 22px; padding: 3px 7px; border-radius: 999px; background: #dbeafe; color: #1d4ed8; font-size: 11px; font-weight: 700; text-align: center; }
+.dashboard-inquiry-panel-close { margin-left: auto; border: 0; background: transparent; color: #64748b; font-size: 1.5rem; cursor: pointer; }
+.dashboard-inquiry-panel-list { flex: 1; overflow-y: auto; padding: 8px; }
+.dashboard-inquiry-loading, .dashboard-inquiry-empty { padding: 40px 20px; text-align: center; color: #64748b; }
+.dashboard-inquiry-item { display: flex; gap: 12px; padding: 14px 12px; border-bottom: 1px solid #f1f5f9; }
+.dashboard-inquiry-item-avatar { width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%; background: #dbeafe; color: #1d4ed8; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+.dashboard-inquiry-item-body { min-width: 0; flex: 1; }
+.dashboard-inquiry-item-top { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.dashboard-inquiry-item-name { font-weight: 700; color: #1f2937; font-size: 13px; }
+.dashboard-inquiry-item-status { color: #2563eb; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.dashboard-inquiry-item-preview { margin: 5px 0 9px; color: #64748b; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dashboard-inquiry-item-reply { border: 0; border-radius: 6px; padding: 6px 10px; background: #eff6ff; color: #1d4ed8; cursor: pointer; font-size: 12px; font-weight: 700; }
+.chat-modal-header { display: flex; align-items: center; gap: 12px; padding: 16px 18px; border-bottom: 1px solid #e5e7eb; background: #fafbff; }
+.chat-modal-back { width: 34px; height: 34px; border: 0; border-radius: 50%; background: #eef2ff; color: #1d4ed8; cursor: pointer; font-size: 18px; }
+.chat-modal-avatar { width: 42px; height: 42px; flex-shrink: 0; border-radius: 50%; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+.chat-modal-user-info { min-width: 0; flex: 1; }
+.chat-modal-name { color: #0f172a; font-size: 14px; font-weight: 700; }
+.chat-modal-email { margin-top: 2px; color: #64748b; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-modal-source { padding: 4px 8px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 10px; font-weight: 700; }
+.chat-modal-messages { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 10px; background: #fcfdff; }
+.chat-bubble { max-width: 88%; padding: 10px 13px; border-radius: 16px; font-size: 13px; line-height: 1.45; word-break: break-word; }
+.chat-bubble.received { align-self: flex-start; background: #f0f2f5; color: #111827; border-bottom-left-radius: 5px; }
+.chat-bubble.sent { align-self: flex-end; background: #2563eb; color: #fff; border-bottom-right-radius: 5px; }
+.chat-meta { margin-top: 5px; font-size: 10px; opacity: .65; }
+.chat-channel-info { padding: 9px 18px; border-top: 1px solid #e5e7eb; background: #fafbff; color: #475569; font-size: 11px; }
+.chat-compose { padding: 12px 16px 16px; border-top: 1px solid #e5e7eb; background: #fff; }
+.chat-send-row { display: flex; align-items: flex-end; gap: 8px; }
+.chat-send-row textarea { flex: 1; min-height: 44px; max-height: 110px; resize: none; border: 1px solid #d1d5db; border-radius: 18px; padding: 11px 14px; font: inherit; font-size: 13px; outline: none; }
+.chat-send-row textarea:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, .1); }
+.chat-send-btn { width: 44px; height: 44px; border: 0; border-radius: 50%; background: #2563eb; color: #fff; cursor: pointer; font-size: 18px; }
+.chat-send-btn:disabled { opacity: .55; cursor: not-allowed; }
+@media (max-width: 600px) { .dashboard-inquiry-fab { right: 16px; bottom: 16px; } .dashboard-inquiry-panel { width: 100%; } }
+
 </style>
+
+<script>
+(function () {
+    const panel = document.getElementById('dashboardInquiryPanel');
+    const backdrop = document.getElementById('dashboardInquiryBackdrop');
+    const list = document.getElementById('dashboardInquiryList');
+    const badge = document.getElementById('dashboardInquiryFabBadge');
+    const count = document.getElementById('dashboardInquiryCount');
+    const listView = document.getElementById('inquiryPanelListView');
+    const chatView = document.getElementById('inquiryPanelChatView');
+    const messages = document.getElementById('inquiryChatMessages');
+    const replyForm = document.getElementById('inquiryChatReplyForm');
+    const replyMessage = document.getElementById('inquiryChatReplyMsg');
+    const apiUrl = '../shared/inquiry_actions.php';
+    let inquiries = [];
+    let inquiryMap = {};
+
+    window.toggleInquiryPanel = function () {
+        const open = panel.classList.toggle('open');
+        backdrop.classList.toggle('open', open);
+        if (open) loadInquiries();
+    };
+
+    window.showInquiryList = function () {
+        listView.hidden = false;
+        chatView.hidden = true;
+    };
+
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, character => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[character]));
+    }
+
+    function initials(name) {
+        const parts = String(name || 'Patient').trim().split(/\s+/);
+        return ((parts[0]?.[0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase() || 'P';
+    }
+
+    async function loadInquiries() {
+        try {
+            const response = await fetch(apiUrl + '?action=get_inquiries&limit=30');
+            const data = await response.json();
+            if (!data.success) return;
+            inquiries = data.inquiries || [];
+            inquiryMap = Object.fromEntries(inquiries.map(item => [String(item.id), item]));
+            renderInquiries();
+            updateBadge(data.unread_count || 0);
+        } catch (error) {
+            list.innerHTML = '<div class="dashboard-inquiry-empty">Unable to load inquiries.</div>';
+        }
+    }
+
+    function renderInquiries() {
+        count.textContent = String(inquiries.length);
+        if (!inquiries.length) {
+            list.innerHTML = '<div class="dashboard-inquiry-empty">No inquiries yet</div>';
+            return;
+        }
+        list.innerHTML = inquiries.map(inquiry => {
+            const name = [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown';
+            const preview = inquiry.latest_reply_message || inquiry.concern || inquiry.inquiry_message || 'No message';
+            const status = inquiry.status || 'Unread';
+            const avatar = inquiry.patient_profile_picture
+                ? '<img src="../../' + escapeHtml(inquiry.patient_profile_picture) + '" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">'
+                : escapeHtml(initials(name));
+            return `<div class="dashboard-inquiry-item">
+                <div class="dashboard-inquiry-item-avatar" style="overflow:hidden;">${avatar}</div>
+                <div class="dashboard-inquiry-item-body">
+                    <div class="dashboard-inquiry-item-top"><span class="dashboard-inquiry-item-name">${escapeHtml(name)}</span><span class="dashboard-inquiry-item-status">${escapeHtml(status)}</span></div>
+                    <div class="dashboard-inquiry-item-preview">${escapeHtml(preview)}</div>
+                    <button type="button" class="dashboard-inquiry-item-reply" data-inquiry-id="${Number(inquiry.id)}">Reply</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function updateBadge(value) {
+        const unread = Number(value) || 0;
+        badge.textContent = unread > 99 ? '99+' : String(unread);
+        badge.hidden = unread === 0;
+    }
+
+    list.addEventListener('click', event => {
+        const button = event.target.closest('[data-inquiry-id]');
+        if (button) openInquiry(button.dataset.inquiryId);
+    });
+
+    async function openInquiry(id) {
+        const inquiry = inquiryMap[String(id)];
+        if (!inquiry) return;
+        const name = [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown Patient';
+        document.getElementById('inquiryChatName').textContent = name;
+        document.getElementById('inquiryChatContact').textContent = [inquiry.email, inquiry.phone || inquiry.contact_info].filter(Boolean).join(' · ') || 'No contact';
+        document.getElementById('inquiryChatSource').textContent = inquiry.source || 'Website';
+        const chatAvatar = document.getElementById('inquiryChatAvatar');
+        if (inquiry.patient_profile_picture) {
+            chatAvatar.innerHTML = '<img src="../../' + escapeHtml(inquiry.patient_profile_picture) + '" alt="" style="width:42px;height:42px;border-radius:50%;object-fit:cover;">';
+        } else {
+            chatAvatar.textContent = initials(name);
+        }
+        document.getElementById('inquiryChatReplyId').value = id;
+        messages.innerHTML = '';
+        addBubble(name, inquiry.concern || inquiry.inquiry_message || 'No message', 'received', inquiry.created_at);
+        try {
+            const formData = new FormData();
+            formData.append('action', 'get_conversation');
+            formData.append('id', id);
+            const response = await fetch(apiUrl, { method: 'POST', body: formData });
+            const data = await response.json();
+            if (data.success) (data.replies || []).forEach(reply => addBubble(reply.sender_type === 'staff' ? 'Clinic' : name, reply.message, reply.sender_type === 'staff' ? 'sent' : 'received', reply.created_at, reply.attachment));
+        } catch (error) {}
+        document.getElementById('inquiryChatChannel').textContent = 'Replies appear in the patient account messages.';
+        listView.hidden = true;
+        chatView.hidden = false;
+        if ((inquiry.status || '').toLowerCase() === 'unread') {
+            fetch(apiUrl, { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'action=mark_read&id=' + encodeURIComponent(id) });
+            inquiry.status = 'Read';
+            renderInquiries();
+        }
+        replyMessage.value = '';
+        replyMessage.focus();
+    }
+
+    function addBubble(label, text, type, timestamp, attachment) {
+        const bubble = document.createElement('div');
+        bubble.className = 'chat-bubble ' + type;
+        let attachmentHtml = '';
+        if (attachment) {
+            const safeAttachment = escapeHtml(attachment);
+            const fileName = escapeHtml(String(attachment).split('/').pop());
+            const isImage = /\.(jpe?g|png|gif|webp)$/i.test(String(attachment));
+            attachmentHtml = isImage
+                ? '<img src="../' + safeAttachment + '" alt="Attachment" style="display:block;max-width:220px;max-height:180px;margin-top:8px;border-radius:8px;cursor:pointer;" onclick="window.open(this.src, \'_blank\')">'
+                : '<a href="../' + safeAttachment + '" target="_blank" rel="noopener" style="display:block;margin-top:8px;color:inherit;text-decoration:underline;"><i class="fas fa-paperclip"></i> ' + fileName + '</a>';
+        }
+        bubble.innerHTML = '<strong>' + escapeHtml(label) + '</strong><div>' + escapeHtml(text || '').replace(/\n/g, '<br>') + attachmentHtml + '</div><div class="chat-meta">' + escapeHtml(timestamp || '') + '</div>';
+        messages.appendChild(bubble);
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    replyForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        const id = document.getElementById('inquiryChatReplyId').value;
+        const message = replyMessage.value.trim();
+        if (!id || !message) return;
+        const button = replyForm.querySelector('button[type="submit"]');
+        button.disabled = true;
+        try {
+            const formData = new FormData();
+            formData.append('action', 'staff_reply');
+            formData.append('id', id);
+            formData.append('message', message);
+            const response = await fetch(apiUrl, { method: 'POST', body: formData });
+            const data = await response.json();
+            if (data.success) {
+                addBubble('Admin', message, 'sent', new Date().toLocaleString());
+                replyMessage.value = '';
+                await loadInquiries();
+            } else {
+                alert(data.message || 'Unable to send reply.');
+            }
+        } catch (error) {
+            alert('Unable to send reply.');
+        } finally {
+            button.disabled = false;
+        }
+    });
+
+    setInterval(async () => {
+        try {
+            const response = await fetch(apiUrl + '?action=get_inquiries&limit=1');
+            const data = await response.json();
+            if (data.success) updateBadge(data.unread_count || 0);
+        } catch (error) {}
+    }, 5000);
+    loadInquiries();
+})();
+</script>
 
 <script>
 // Complete Procedure Modal
