@@ -55,6 +55,11 @@ $topDentistName = 'Dentist';
 $topDentistCount = 0;
 $topStaffName = 'Staff';
 $topStaffCount = 0;
+$periodStats = [
+    'today' => ['inquiries' => 0, 'appointments' => 0],
+    'week' => ['inquiries' => 0, 'appointments' => 0],
+    'month' => ['inquiries' => 0, 'appointments' => 0],
+];
 
 try {
     $totalPatients = (int)($pdo->query("SELECT COUNT(*) FROM patients")->fetchColumn() ?? 0);
@@ -99,6 +104,39 @@ try {
         FROM patients
         WHERE DATE(created_at) = CURDATE()
     ")->fetchColumn() ?? 0);
+
+        $periodStatsStmt = $pdo->query("
+                SELECT
+                        (SELECT COUNT(*) FROM inquiries
+                         WHERE COALESCE(is_archived, 0) = 0
+                             AND created_at >= CURDATE()
+                             AND created_at < DATE_ADD(CURDATE(), INTERVAL 1 DAY)) AS inquiries_today,
+                        (SELECT COUNT(*) FROM inquiries
+                         WHERE COALESCE(is_archived, 0) = 0
+                             AND created_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
+                             AND created_at < DATE_ADD(DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY), INTERVAL 7 DAY)) AS inquiries_week,
+                        (SELECT COUNT(*) FROM inquiries
+                         WHERE COALESCE(is_archived, 0) = 0
+                             AND created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                             AND created_at < DATE_ADD(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 1 MONTH)) AS inquiries_month,
+                        (SELECT COUNT(*) FROM appointments
+                         WHERE COALESCE(is_archived, 0) = 0
+                             AND appointment_date = CURDATE()) AS appointments_today,
+                        (SELECT COUNT(*) FROM appointments
+                         WHERE COALESCE(is_archived, 0) = 0
+                             AND appointment_date >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
+                             AND appointment_date < DATE_ADD(DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY), INTERVAL 7 DAY)) AS appointments_week,
+                        (SELECT COUNT(*) FROM appointments
+                         WHERE COALESCE(is_archived, 0) = 0
+                             AND appointment_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                             AND appointment_date < DATE_ADD(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 1 MONTH)) AS appointments_month
+        ");
+        $periodStatsRow = $periodStatsStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+        $periodStats = [
+                'today' => ['inquiries' => (int)($periodStatsRow['inquiries_today'] ?? 0), 'appointments' => (int)($periodStatsRow['appointments_today'] ?? 0)],
+                'week' => ['inquiries' => (int)($periodStatsRow['inquiries_week'] ?? 0), 'appointments' => (int)($periodStatsRow['appointments_week'] ?? 0)],
+                'month' => ['inquiries' => (int)($periodStatsRow['inquiries_month'] ?? 0), 'appointments' => (int)($periodStatsRow['appointments_month'] ?? 0)],
+        ];
 
     // Revenue series for full year (2026)
     $stmt = $pdo->prepare("
@@ -282,6 +320,8 @@ try {
                     </div>
                 </div>
 
+                
+
                 <!-- Charts Row -->
                 <div class="charts-row" style="margin-bottom: 0px;">
                     <!-- Revenue Chart -->
@@ -354,6 +394,30 @@ try {
                         </div>
                     </div>
                 </div>
+
+                <section class="period-statistics" aria-label="Inquiry and appointment statistics">
+                    <div class="period-statistics-header">
+                        <div>
+                            <h2>Inquiry and Appointment Statistics</h2>
+                            <p>Automatically calculated from active records.</p>
+                        </div>
+                    </div>
+                    <div class="period-statistics-grid">
+                        <?php foreach (['today' => 'Today', 'week' => 'This Week', 'month' => 'This Month'] as $periodKey => $periodLabel): ?>
+                            <div class="period-stat-card">
+                                <h3><?php echo $periodLabel; ?></h3>
+                                <div class="period-stat-row">
+                                    <span>Patient inquiries</span>
+                                    <strong><?php echo number_format($periodStats[$periodKey]['inquiries']); ?></strong>
+                                </div>
+                                <div class="period-stat-row">
+                                    <span>Appointments</span>
+                                    <strong><?php echo number_format($periodStats[$periodKey]['appointments']); ?></strong>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </section>
 
                 <!-- Statistics Grid -->
                 <div class="stats-grid" style="margin-bottom:25px; padding-bottom: 35px;">
@@ -430,6 +494,56 @@ try {
     .content-main {
         
         margin-bottom: 40px;
+    }
+    .period-statistics {
+        padding: 20px;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        background: #ffffff;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    }
+    .period-statistics-header h2 {
+        margin: 0;
+        color: #1f2937;
+        font-size: 1.05rem;
+    }
+    .period-statistics-header p {
+        margin: 4px 0 16px;
+        color: #64748b;
+        font-size: 0.82rem;
+    }
+    .period-statistics-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+    }
+    .period-stat-card {
+        padding: 16px;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        background: #f8fafc;
+    }
+    .period-stat-card h3 {
+        margin: 0 0 10px;
+        color: #1d4ed8;
+        font-size: 0.95rem;
+    }
+    .period-stat-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 0;
+        border-top: 1px solid #e2e8f0;
+        color: #64748b;
+        font-size: 0.82rem;
+    }
+    .period-stat-row strong {
+        color: #0f172a;
+        font-size: 1.1rem;
+    }
+    @media (max-width: 900px) {
+        .period-statistics-grid { grid-template-columns: 1fr; }
     }
 </style>
 <?php

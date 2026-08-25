@@ -73,13 +73,32 @@ try {
 
     $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'is_archived'");
     $hasArchiveColumn = $checkCol->rowCount() > 0;
-    $whereClause = $hasArchiveColumn ? "WHERE (a.is_archived = 0 OR a.is_archived IS NULL)" : "";
+    $appointmentWhere = $hasArchiveColumn ? "WHERE (a.is_archived = 0 OR a.is_archived IS NULL)" : "WHERE 1=1";
+    $appointmentDateCondition = '';
+    switch ($dateFilter) {
+        case 'today':
+            $appointmentDateCondition = " AND a.appointment_date = CURDATE()";
+            break;
+        case 'week':
+            $appointmentDateCondition = " AND a.appointment_date >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)"
+                . " AND a.appointment_date < DATE_ADD(DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY), INTERVAL 7 DAY)";
+            break;
+        case 'month':
+            if ($selectedMonth !== '') {
+                $appointmentDateCondition = " AND DATE_FORMAT(a.appointment_date, '%Y-%m') = '" . $selectedMonth . "'";
+            } else {
+                $appointmentDateCondition = " AND a.appointment_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')"
+                    . " AND a.appointment_date < DATE_ADD(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 1 MONTH)";
+            }
+            break;
+    }
 
     $appointmentsReport = $pdo->query("
         SELECT a.id, p.first_name, p.middle_name, p.last_name,
                a.appointment_date, a.appointment_time, a.status
         FROM appointments a
         LEFT JOIN patients p ON p.id = a.patient_id
+        " . $appointmentWhere . $appointmentDateCondition . "
         ORDER BY a.appointment_date DESC, a.appointment_time DESC
     ")->fetchAll(PDO::FETCH_ASSOC);
 
@@ -291,12 +310,17 @@ $availableMonths = $pdo->query("
             'day' => $dayKey,
             'new_patients' => 0,
             'appointments' => 0,
+            'inquiries' => 0,
             'revenue' => 0
         ];
     }
 
     // New patients per day
-    $stmt = $pdo->prepare("SELECT DATE(created_at) AS day, COUNT(*) AS total FROM patients WHERE DATE(created_at) BETWEEN ? AND ? GROUP BY DATE(created_at)");
+        $stmt = $pdo->prepare("SELECT DATE(created_at) AS day, COUNT(*) AS total
+                FROM patients
+                WHERE COALESCE(is_archived, 0) = 0
+                    AND DATE(created_at) BETWEEN ? AND ?
+                GROUP BY DATE(created_at)");
     $stmt->execute([$dailyStartDate, $dailyEndDate]);
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $np) {
         if (isset($dailySummaryReport[$np['day']])) {
@@ -305,11 +329,28 @@ $availableMonths = $pdo->query("
     }
 
     // Appointments per day
-    $stmt = $pdo->prepare("SELECT appointment_date AS day, COUNT(*) AS total FROM appointments WHERE appointment_date BETWEEN ? AND ? GROUP BY appointment_date");
+        $stmt = $pdo->prepare("SELECT appointment_date AS day, COUNT(*) AS total
+                FROM appointments
+                WHERE COALESCE(is_archived, 0) = 0
+                    AND appointment_date BETWEEN ? AND ?
+                GROUP BY appointment_date");
     $stmt->execute([$dailyStartDate, $dailyEndDate]);
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $ad) {
         if (isset($dailySummaryReport[$ad['day']])) {
             $dailySummaryReport[$ad['day']]['appointments'] = (int)$ad['total'];
+        }
+    }
+
+    // Inquiries received per day
+    $stmt = $pdo->prepare("SELECT DATE(created_at) AS day, COUNT(*) AS total
+        FROM inquiries
+        WHERE COALESCE(is_archived, 0) = 0
+          AND DATE(created_at) BETWEEN ? AND ?
+        GROUP BY DATE(created_at)");
+    $stmt->execute([$dailyStartDate, $dailyEndDate]);
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $iq) {
+        if (isset($dailySummaryReport[$iq['day']])) {
+            $dailySummaryReport[$iq['day']]['inquiries'] = (int)$iq['total'];
         }
     }
 
@@ -596,8 +637,8 @@ function renderNewReport(type) {
             `₱${Number(s.revenue || 0).toLocaleString()}`
         ]);
     } else if (type === 'daily') {
-        headers = ['Date', 'New Patients', 'Appointments', 'Revenue'];
-        rows = data.map(d => [d.day ?? '', d.new_patients ?? 0, d.appointments ?? 0, `₱${Number(d.revenue || 0).toLocaleString()}`]);
+        headers = ['Date', 'New Patients', 'Inquiries', 'Appointments', 'Revenue'];
+        rows = data.map(d => [d.day ?? '', d.new_patients ?? 0, d.inquiries ?? 0, d.appointments ?? 0, `₱${Number(d.revenue || 0).toLocaleString()}`]);
     } else if (type === 'printed') {
         headers = ['Invoice #', 'Patient', 'Total Amount', 'Payment Status', 'Printed At'];
         rows = data.map(p => [

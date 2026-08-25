@@ -287,7 +287,6 @@ try {
                     </div>
                 </div>
 
-
                 <!-- Revenue Overview & Live Queue Side by Side -->
                 <div class="dashboard-row" style="display: flex; flex-direction: row; gap: 20px; width: 100%;">
                     <!-- Revenue Overview -->
@@ -1201,4 +1200,5 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('adCalPrev'))
 .summary-cards .summary-card.card-collected::after {
     background-image: url('../../assets/icons/peso.png');
 }
+
 </style>
