@@ -593,6 +593,30 @@ body {
     padding-left: 18px;
 }
 
+#reg_password,
+#reg_password:focus,
+#reg_password:hover,
+#reg_password[data-strength="weak"],
+#reg_password[data-strength="medium"],
+#reg_password[data-strength="strong"] {
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+#reg_password[data-strength="weak"] {
+    border-color: #ef4444 !important;
+    box-shadow: none !important;
+}
+
+#reg_password[data-strength="medium"] {
+    border-color: #f59e0b !important;
+    box-shadow: none !important;
+}
+
+#reg_password[data-strength="strong"] {
+    border-color: #16a34a !important;
+    box-shadow: none !important;
+}
+
 .toggle-password {
     position: absolute;
     right: 14px;

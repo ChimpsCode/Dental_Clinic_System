@@ -1169,10 +1169,21 @@ $showDeletedMsg = isset($_GET['deleted']) && $_GET['deleted'] === '1';
 
                         <div style="display: flex; gap: 12px; width: 100%;">
                             <div class="input-group" style="flex:1;">
-                                <input type="tel" id="reg_emergency_phone" name="emergency_contact_phone" placeholder="Emergency Contact Number" required maxlength="11">
+                                <input type="tel" id="reg_emergency_phone" name="emergency_contact_phone" placeholder="Emergency Contact Number" required maxlength="11" inputmode="numeric" pattern="[0-9]*" autocomplete="tel">
                             </div>
                             <div class="input-group" style="flex:1;">
-                                <input type="text" id="reg_emergency_relationship" name="emergency_contact_relationship" placeholder="Relationship" required>
+                                <select id="reg_emergency_relationship" name="emergency_contact_relationship" required>
+                                    <option value="" disabled selected>Select relationship</option>
+                                    <option value="Parent">Parent</option>
+                                    <option value="Spouse">Spouse</option>
+                                    <option value="Child">Child</option>
+                                    <option value="Sibling">Sibling</option>
+                                    <option value="Grandparent">Grandparent</option>
+                                    <option value="Relative">Relative</option>
+                                    <option value="Guardian">Guardian</option>
+                                    <option value="Friend">Friend</option>
+                                    <option value="Other">Other</option>
+                                </select>
                             </div>
                         </div>
 
@@ -1200,6 +1211,17 @@ $showDeletedMsg = isset($_GET['deleted']) && $_GET['deleted'] === '1';
                             </button>
                         </div>
 
+                        <div class="registration-password-box" id="regPasswordStrengthBox">
+                            <div class="registration-password-title">Password Requirements:</div>
+                            <ul style="margin:0; padding-left:18px;">
+                                <li>At least 8 characters</li>
+                                <li>At least one uppercase letter</li>
+                                <li>At least one lowercase letter</li>
+                                <li>At least one number</li>
+                                <li>At least one symbol</li>
+                            </ul>
+                        </div>
+
                         <div class="input-group">
                             <input type="password" id="reg_confirm_password" name="confirm_password" placeholder="Confirm Password" required autocomplete="new-password">
                             <button type="button" class="toggle-password" id="toggleRegConfirmPassword" aria-label="Toggle confirm password visibility" style="display: none;">
@@ -1212,17 +1234,6 @@ $showDeletedMsg = isset($_GET['deleted']) && $_GET['deleted'] === '1';
                                     <line x1="1" y1="1" x2="23" y2="23"></line>
                                 </svg>
                             </button>
-                        </div>
-
-                        <div class="registration-password-box">
-                            <div class="registration-password-title">Password Requirements:</div>
-                            <ul>
-                                <li>At least 8 characters</li>
-                                <li>At least one uppercase letter</li>
-                                <li>At least one lowercase letter</li>
-                                <li>At least one number</li>
-                                <li>At least one symbol</li>
-                            </ul>
                         </div>
 
                         <div class="form-links" style="margin-bottom: 20px;">

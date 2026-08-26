@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', function() {
+﻿document.addEventListener('DOMContentLoaded', function() {
     // Initialize Carousel
     initializeCarousel();
     
@@ -366,6 +366,104 @@ document.addEventListener('DOMContentLoaded', function() {
             && /[0-9]/.test(password)
             && /[^A-Za-z0-9]/.test(password);
     }
+
+    function getPasswordStrengthState(password) {
+        const hasLength = password.length >= 8;
+        const hasUpper = /[A-Z]/.test(password);
+        const hasLower = /[a-z]/.test(password);
+        const hasNumber = /[0-9]/.test(password);
+        const hasSymbol = /[^A-Za-z0-9]/.test(password);
+
+        const matchedRules = [hasLength, hasUpper, hasLower, hasNumber, hasSymbol].filter(Boolean).length;
+
+        if (!password) {
+            return {
+                strength: 'empty',
+                label: 'Not started',
+                message: 'Use at least 8 characters with uppercase, lowercase, number, and symbol.',
+                width: '0%',
+            };
+        }
+
+        if (!hasLength || matchedRules <= 2) {
+            return {
+                strength: 'weak',
+                label: 'Weak',
+                message: 'Add more length and mix in uppercase, lowercase, numbers, and symbols.',
+                width: '33%',
+            };
+        }
+
+        if (matchedRules === 3) {
+            return {
+                strength: 'medium',
+                label: 'Medium',
+                message: 'Almost there. Add one more requirement to make it stronger.',
+                width: '66%',
+            };
+        }
+
+        return {
+            strength: 'strong',
+            label: 'Strong',
+            message: 'Strong password. This is a good choice.',
+            width: '100%',
+        };
+    }
+
+    function setupPasswordStrengthMeter(input) {
+        if (!input) return;
+
+        const update = () => {
+            const value = input.value || '';
+            const state = getPasswordStrengthState(value);
+            input.dataset.strength = state.strength;
+        };
+
+        input.addEventListener('input', update);
+        input.addEventListener('blur', update);
+        update();
+        return update;
+    }
+
+    setupPasswordStrengthMeter(
+        registerPasswordInput
+    );
+
+    function bindDigitsOnlyField(field) {
+        if (!field) return;
+
+        const sanitize = () => {
+            const digits = field.value.replace(/\D+/g, '');
+            if (field.value !== digits) {
+                field.value = digits;
+            }
+        };
+
+        field.addEventListener('keydown', function(e) {
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            const allowedKeys = [
+                'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+                'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                'Home', 'End'
+            ];
+
+            if (allowedKeys.includes(e.key)) return;
+            if (/^[0-9]$/.test(e.key)) return;
+            if (e.key.startsWith('F') && e.key.length <= 3) return;
+
+            e.preventDefault();
+        });
+
+        field.addEventListener('input', sanitize);
+        field.addEventListener('paste', () => setTimeout(sanitize, 0));
+        field.addEventListener('blur', sanitize);
+        sanitize();
+    }
+
+    bindDigitsOnlyField(document.getElementById('reg-phone'));
+    bindDigitsOnlyField(document.getElementById('reg_emergency_phone'));
+    bindDigitsOnlyField(document.getElementById('reg-emergency-phone'));
 
     if (registerNextBtn) {
         registerNextBtn.addEventListener('click', function() {
@@ -741,9 +839,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update icon based on type
         if (toastIcon) {
             if (type === 'error') {
-                toastIcon.textContent = '✕';
+                toastIcon.textContent = 'âœ•';
             } else {
-                toastIcon.textContent = '✓';
+                toastIcon.textContent = 'âœ“';
             }
         }
         
@@ -1169,3 +1267,4 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+

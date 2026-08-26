@@ -906,6 +906,9 @@ $assets = [
             document.getElementById('reg-address').value = '';
             document.getElementById('reg-password').value = '';
             document.getElementById('reg-confirm-password').value = '';
+            if (typeof window.updateRegistrationPasswordStrength === 'function') {
+              window.updateRegistrationPasswordStrength();
+            }
 
             if (bookingData.email) {
               fetch('../user-patient/check_user_exists.php', {
@@ -1073,7 +1076,7 @@ $assets = [
               <div class="form-row">
                 <div class="form-group">
                   <label for="reg-phone">Phone Number</label>
-                  <input type="tel" id="reg-phone" name="phone" required placeholder="09123456789" maxlength="11" />
+                  <input type="tel" id="reg-phone" name="phone" required placeholder="09123456789" maxlength="11" inputmode="numeric" pattern="[0-9]*" autocomplete="tel" />
                 </div>
                 <div class="form-group">
                   <label for="reg-gender">Gender</label>
@@ -1105,12 +1108,23 @@ $assets = [
                 </div>
                 <div class="form-group">
                   <label for="reg-emergency-phone">Emergency Contact Number</label>
-                  <input type="tel" id="reg-emergency-phone" name="emergency_contact_phone" placeholder="09123456789" maxlength="11" required />
+                  <input type="tel" id="reg-emergency-phone" name="emergency_contact_phone" placeholder="09123456789" maxlength="11" required inputmode="numeric" pattern="[0-9]*" autocomplete="tel" />
                 </div>
               </div>
               <div class="form-group">
                 <label for="reg-emergency-relationship">Relationship</label>
-                <input type="text" id="reg-emergency-relationship" name="emergency_contact_relationship" placeholder="Example: Parent, Spouse, Sibling" required />
+                <select id="reg-emergency-relationship" name="emergency_contact_relationship" required>
+                  <option value="" disabled selected>Select relationship</option>
+                  <option value="Parent">Parent</option>
+                  <option value="Spouse">Spouse</option>
+                  <option value="Child">Child</option>
+                  <option value="Sibling">Sibling</option>
+                  <option value="Grandparent">Grandparent</option>
+                  <option value="Relative">Relative</option>
+                  <option value="Guardian">Guardian</option>
+                  <option value="Friend">Friend</option>
+                  <option value="Other">Other</option>
+                </select>
               </div>
               <div class="form-row">
                 <div class="form-group">
@@ -1292,6 +1306,102 @@ $assets = [
         const regTogglePassword = document.getElementById('regTogglePassword');
         const regToggleConfirmPassword = document.getElementById('regToggleConfirmPassword');
         const passwordRequirementsBox = document.getElementById('passwordRequirementsBox');
+        const regPhoneInput = document.getElementById('reg-phone');
+        const regEmergencyPhoneInput = document.getElementById('reg-emergency-phone');
+
+        function bindDigitsOnlyField(field) {
+          if (!field) return;
+
+          const sanitize = function() {
+            const digitsOnly = field.value.replace(/\D+/g, '');
+            if (field.value !== digitsOnly) {
+              field.value = digitsOnly;
+            }
+          };
+
+          field.addEventListener('keydown', function(e) {
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            const allowedKeys = [
+              'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+              'ArrowLeft', 'ArrowRight', 'Home', 'End'
+            ];
+            if (allowedKeys.includes(e.key)) return;
+            if (/^[0-9]$/.test(e.key)) return;
+            e.preventDefault();
+          });
+
+          field.addEventListener('input', sanitize);
+          field.addEventListener('paste', function() {
+            setTimeout(sanitize, 0);
+          });
+          field.addEventListener('blur', sanitize);
+          sanitize();
+        }
+
+        bindDigitsOnlyField(regPhoneInput);
+        bindDigitsOnlyField(regEmergencyPhoneInput);
+
+        function getPasswordStrengthState(password) {
+          const hasLength = password.length >= 8;
+          const hasUpper = /[A-Z]/.test(password);
+          const hasLower = /[a-z]/.test(password);
+          const hasNumber = /[0-9]/.test(password);
+          const hasSymbol = /[^A-Za-z0-9]/.test(password);
+          const matchedRules = [hasLength, hasUpper, hasLower, hasNumber, hasSymbol].filter(Boolean).length;
+
+          if (!password) {
+            return {
+              strength: 'empty',
+              label: 'Not started',
+              message: 'Use at least 8 characters with uppercase, lowercase, number, and symbol.',
+              width: '0%'
+            };
+          }
+
+          if (!hasLength || matchedRules <= 2) {
+            return {
+              strength: 'weak',
+              label: 'Weak',
+              message: 'Add more length and mix in uppercase, lowercase, numbers, and symbols.',
+              width: '33%'
+            };
+          }
+
+          if (matchedRules === 3) {
+            return {
+              strength: 'medium',
+              label: 'Medium',
+              message: 'Almost there. Add one more requirement to make it stronger.',
+              width: '66%'
+            };
+          }
+
+          return {
+            strength: 'strong',
+            label: 'Strong',
+            message: 'Strong password. This is a good choice.',
+            width: '100%'
+          };
+        }
+
+        function setupPasswordStrengthMeter(input) {
+          if (!input) return null;
+
+          const update = function() {
+            const value = input.value || '';
+            const state = getPasswordStrengthState(value);
+            input.dataset.strength = state.strength;
+          };
+
+          input.addEventListener('input', update);
+          input.addEventListener('blur', update);
+          update();
+          return update;
+        }
+
+        window.updateRegistrationPasswordStrength = setupPasswordStrengthMeter(
+          regPasswordInput
+        );
 
         // Step 1 is handled by the IIFE above (choice modal → booking modal with registration)
 
@@ -1985,12 +2095,30 @@ $assets = [
         box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
       }
 
-      #passwordRequirementsBox.password-requirements-error {
-        border-color: #dc3545 !important;
-        background: rgba(220,53,69,0.05) !important;
-        box-shadow: 0 0 0 3px rgba(220,53,69,0.08);
+      #reg-password,
+      #reg-password:focus,
+      #reg-password:hover,
+      #reg-password[data-strength="weak"],
+      #reg-password[data-strength="medium"],
+      #reg-password[data-strength="strong"] {
+        transition: border-color 0.25s ease, box-shadow 0.25s ease;
       }
-      
+
+      #reg-password[data-strength="weak"] {
+        border-color: #ef4444 !important;
+        box-shadow: none !important;
+      }
+
+      #reg-password[data-strength="medium"] {
+        border-color: #f59e0b !important;
+        box-shadow: none !important;
+      }
+
+      #reg-password[data-strength="strong"] {
+        border-color: #16a34a !important;
+        box-shadow: none !important;
+      }
+
       .btn-block {
         width: 100%;
         margin-top: 8px;
