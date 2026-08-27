@@ -120,8 +120,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $mailer->isSMTP();
                         $mailer->Host       = SMTP_HOST;
                         $mailer->SMTPAuth   = true;
-                        $mailer->Username   = SMTP_USER;
-                        $mailer->Password   = SMTP_PASS;
+                        $mailer->Username   = trim((string)SMTP_USER);
+                        $mailer->Password   = preg_replace('/\s+/', '', (string)SMTP_PASS);
                         $mailer->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
                         $mailer->Port       = SMTP_PORT;
 

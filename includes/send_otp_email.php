@@ -1,8 +1,10 @@
 <?php
 
-function sendOtpEmail(string $email, string $firstName, string $otpCode, string $purpose = 'registration'): bool {
+function sendOtpEmail(string $email, string $firstName, string $otpCode, string $purpose = 'registration', ?string &$errorMessage = null): bool {
+    $errorMessage = null;
     $configPath = __DIR__ . '/../config/mailer_config.php';
     if (!file_exists($configPath)) {
+        $errorMessage = 'Mailer configuration file not found.';
         error_log('sendOtpEmail: mailer_config.php not found');
         return false;
     }
@@ -10,6 +12,7 @@ function sendOtpEmail(string $email, string $firstName, string $otpCode, string 
 
     $phpMailerBase = __DIR__ . '/../PHPMailer/src';
     if (!file_exists($phpMailerBase . '/PHPMailer.php')) {
+        $errorMessage = 'PHPMailer library not found.';
         error_log('sendOtpEmail: PHPMailer not found at ' . $phpMailerBase);
         return false;
     }
@@ -21,12 +24,13 @@ function sendOtpEmail(string $email, string $firstName, string $otpCode, string 
     try {
         $mailer = new \PHPMailer\PHPMailer\PHPMailer(true);
         $mailer->isSMTP();
-        $mailer->Host = gethostbyname(SMTP_HOST);
+        $mailer->Host = trim((string)SMTP_HOST);
         $mailer->SMTPAuth = true;
-        $mailer->Username = SMTP_USER;
-        $mailer->Password = SMTP_PASS;
+        $mailer->Username = trim((string)SMTP_USER);
+        $mailer->Password = preg_replace('/\s+/', '', (string)SMTP_PASS);
         $mailer->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
         $mailer->Port = SMTP_PORT;
+        $mailer->CharSet = 'UTF-8';
         $mailer->SMTPOptions = [
             'ssl' => [
                 'verify_peer' => false,
@@ -64,9 +68,12 @@ function sendOtpEmail(string $email, string $firstName, string $otpCode, string 
         $mailer->send();
         return true;
     } catch (\PHPMailer\PHPMailer\Exception $e) {
+        $errorMessage = 'SMTP error: ' . $e->getMessage();
         error_log('sendOtpEmail PHPMailer error: ' . $e->getMessage());
+        error_log('sendOtpEmail PHPMailer detailed error: ' . $mailer->ErrorInfo);
         return false;
     } catch (Exception $e) {
+        $errorMessage = 'Mailer error: ' . $e->getMessage();
         error_log('sendOtpEmail error: ' . $e->getMessage());
         return false;
     }

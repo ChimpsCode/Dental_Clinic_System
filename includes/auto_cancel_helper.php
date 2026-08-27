@@ -57,10 +57,10 @@ function autoCancelNoShows($pdo) {
 
                 $mailer = new \PHPMailer\PHPMailer\PHPMailer(true);
                 $mailer->isSMTP();
-                $mailer->Host = gethostbyname(SMTP_HOST);
+                $mailer->Host = trim((string)SMTP_HOST);
                 $mailer->SMTPAuth = true;
                 $mailer->Username = SMTP_USER;
-                $mailer->Password = SMTP_PASS;
+                $mailer->Password = preg_replace('/\s+/', '', (string)SMTP_PASS);
                 $mailer->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
                 $mailer->Port = SMTP_PORT;
                 $mailer->SMTPOptions = ['ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true]];
