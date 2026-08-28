@@ -839,9 +839,9 @@
         // Update icon based on type
         if (toastIcon) {
             if (type === 'error') {
-                toastIcon.textContent = 'âœ•';
+                toastIcon.textContent = '✕';
             } else {
-                toastIcon.textContent = 'âœ“';
+                toastIcon.textContent = '✓';
             }
         }
         

@@ -460,15 +460,15 @@ elseif ($appointmentId) {
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">First Name</label>
-                                <input type="text" name="firstName" value="<?php echo htmlspecialchars($inquiryData['first_name'] ?? $patientFromAppointment['first_name'] ?? $appointmentData['first_name'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Juan">
+                                <input type="text" name="firstName" value="<?php echo htmlspecialchars($inquiryData['first_name'] ?? $patientFromAppointment['first_name'] ?? $appointmentData['first_name'] ?? ''); ?>" pattern="[\p{L}\s'\-]*" title="Use only letters, spaces, hyphens, and apostrophes" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Juan">
                             </div>
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Middle Name</label>
-                                <input type="text" name="middleName" value="<?php echo htmlspecialchars($inquiryData['middle_name'] ?? $patientFromAppointment['middle_name'] ?? $appointmentData['middle_name'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="">
+                                <input type="text" name="middleName" value="<?php echo htmlspecialchars($inquiryData['middle_name'] ?? $patientFromAppointment['middle_name'] ?? $appointmentData['middle_name'] ?? ''); ?>" pattern="[\p{L}\s'\-]*" title="Use only letters, spaces, hyphens, and apostrophes" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="">
                             </div>
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Last Name</label>
-                                <input type="text" name="lastName" value="<?php echo htmlspecialchars($inquiryData['last_name'] ?? $patientFromAppointment['last_name'] ?? $appointmentData['last_name'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Dela Cruz">
+                                <input type="text" name="lastName" value="<?php echo htmlspecialchars($inquiryData['last_name'] ?? $patientFromAppointment['last_name'] ?? $appointmentData['last_name'] ?? ''); ?>" pattern="[\p{L}\s'\-]*" title="Use only letters, spaces, hyphens, and apostrophes" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Dela Cruz">
                             </div>
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Suffix</label>
@@ -509,18 +509,18 @@ elseif ($appointmentId) {
                         <div class="grid grid-cols-1 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Home Address</label>
-                                <input type="text" name="address" value="<?php echo htmlspecialchars($patientFromAppointment['address'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="123 Main St, Barangay">
+                                <input type="text" name="address" value="<?php echo htmlspecialchars($patientFromAppointment['address'] ?? ''); ?>" pattern="[\p{L}\s'\-]*" title="Use only letters, spaces, hyphens, and apostrophes" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Main Street, Barangay">
                             </div>
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">City</label>
-                                <input type="text" name="city" value="<?php echo htmlspecialchars($patientFromAppointment['city'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                <input type="text" name="city" value="<?php echo htmlspecialchars($patientFromAppointment['city'] ?? ''); ?>" pattern="[\p{L}\s'\-]*" title="Use only letters, spaces, hyphens, and apostrophes" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Province</label>
-                                <input type="text" name="province" value="<?php echo htmlspecialchars($patientFromAppointment['province'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                <input type="text" name="province" value="<?php echo htmlspecialchars($patientFromAppointment['province'] ?? ''); ?>" pattern="[\p{L}\s'\-]*" title="Use only letters, spaces, hyphens, and apostrophes" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Zip Code</label>
@@ -544,7 +544,7 @@ elseif ($appointmentId) {
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Emergency Contact Name</label>
-                                <input type="text" name="emergency_contact_name" value="<?php echo htmlspecialchars($patientFromAppointment['emergency_contact_name'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Full name">
+                                <input type="text" name="emergency_contact_name" value="<?php echo htmlspecialchars($patientFromAppointment['emergency_contact_name'] ?? ''); ?>" pattern="[\p{L}\s'\-]*" title="Use only letters, spaces, hyphens, and apostrophes" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Full name">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Emergency Contact Number</label>
@@ -552,7 +552,27 @@ elseif ($appointmentId) {
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Emergency Contact Relationship</label>
-                                <input type="text" name="emergency_contact_relationship" value="<?php echo htmlspecialchars($patientFromAppointment['emergency_contact_relationship'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Parent, Spouse, Sibling">
+                                <select name="emergency_contact_relationship" class="w-full px-3 py-2 border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-slate-600 bg-white">
+                                    <option value="">Select relationship</option>
+                                    <optgroup label="Immediate Family">
+                                        <option value="Spouse" <?php echo ($patientFromAppointment['emergency_contact_relationship'] ?? '') === 'Spouse' ? 'selected' : ''; ?>>Spouse</option>
+                                        <option value="Parent" <?php echo ($patientFromAppointment['emergency_contact_relationship'] ?? '') === 'Parent' ? 'selected' : ''; ?>>Parent</option>
+                                        <option value="Child" <?php echo ($patientFromAppointment['emergency_contact_relationship'] ?? '') === 'Child' ? 'selected' : ''; ?>>Child</option>
+                                        <option value="Sibling" <?php echo ($patientFromAppointment['emergency_contact_relationship'] ?? '') === 'Sibling' ? 'selected' : ''; ?>>Sibling</option>
+                                    </optgroup>
+                                    <optgroup label="Extended Family">
+                                        <option value="Grandparent" <?php echo ($patientFromAppointment['emergency_contact_relationship'] ?? '') === 'Grandparent' ? 'selected' : ''; ?>>Grandparent</option>
+                                        <option value="Aunt_Uncle" <?php echo ($patientFromAppointment['emergency_contact_relationship'] ?? '') === 'Aunt_Uncle' ? 'selected' : ''; ?>>Aunt / Uncle</option>
+                                        <option value="Cousin" <?php echo ($patientFromAppointment['emergency_contact_relationship'] ?? '') === 'Cousin' ? 'selected' : ''; ?>>Cousin</option>
+                                    </optgroup>
+                                    <optgroup label="Other">
+                                        <option value="Guardian" <?php echo ($patientFromAppointment['emergency_contact_relationship'] ?? '') === 'Guardian' ? 'selected' : ''; ?>>Legal Guardian</option>
+                                        <option value="Partner" <?php echo ($patientFromAppointment['emergency_contact_relationship'] ?? '') === 'Partner' ? 'selected' : ''; ?>>Partner</option>
+                                        <option value="Friend" <?php echo ($patientFromAppointment['emergency_contact_relationship'] ?? '') === 'Friend' ? 'selected' : ''; ?>>Friend</option>
+                                        <option value="Colleague" <?php echo ($patientFromAppointment['emergency_contact_relationship'] ?? '') === 'Colleague' ? 'selected' : ''; ?>>Colleague</option>
+                                        <option value="Other" <?php echo ($patientFromAppointment['emergency_contact_relationship'] ?? '') === 'Other' ? 'selected' : ''; ?>>Other</option>
+                                    </optgroup>
+                                </select>
                             </div>
                         </div>
 
@@ -858,7 +878,7 @@ elseif ($appointmentId) {
     <script>
         // Go back to dashboard based on user role
         function goBackToDashboard() {
-            const userRole = '<?php echo $_SESSION['role'] ?? ''; ?>';
+            const userRole = <?php echo json_encode($_SESSION['role'] ?? '', JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
             
             // Try to go back in browser history first
             if (document.referrer && document.referrer.includes('dashboard')) {
@@ -1109,10 +1129,35 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
             const mobile = document.querySelector('input[name="mobileNumber"]').value.trim();
             const validationMessage = document.getElementById('patientInfoValidation');
 
+            const allowlist = /^[\p{L}\s'-]*$/u;
+            const allowlistedFields = [
+                ['First Name', firstName],
+                ['Middle Name', document.querySelector('input[name="middleName"]').value.trim()],
+                ['Last Name', lastName],
+                ['Home Address', document.querySelector('input[name="address"]').value.trim()],
+                ['City', document.querySelector('input[name="city"]').value.trim()],
+                ['Province', document.querySelector('input[name="province"]').value.trim()],
+                ['Emergency Contact Name', document.querySelector('input[name="emergency_contact_name"]').value.trim()]
+            ];
+            const invalidField = allowlistedFields.find(function(field) {
+                return !allowlist.test(field[1]);
+            });
+
+            if (invalidField) {
+                if (validationMessage) {
+                    validationMessage.textContent = invalidField[0] + ' may contain only letters, spaces, hyphens, and apostrophes.';
+                    validationMessage.classList.remove('hidden');
+                }
+                return false;
+            }
+
             const isValid = firstName && lastName && birthdate && gender && mobile && mobile.length === 11;
 
             if (!isValid) {
-                if (validationMessage) validationMessage.classList.remove('hidden');
+                if (validationMessage) {
+                    validationMessage.textContent = 'Please complete required patient information: First Name, Last Name, Birthdate, Gender, and Mobile Number.';
+                    validationMessage.classList.remove('hidden');
+                }
                 return false;
             }
 
@@ -1246,6 +1291,39 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
 
 // Add event listeners to hide validation messages
         document.addEventListener('DOMContentLoaded', function() {
+            // Keep the requested text fields within the allowlist and capitalize each word.
+            // Unicode letter support includes accented characters and ñ.
+            const allowlistedTextFields = [
+                'firstName', 'middleName', 'lastName', 'address', 'city', 'province',
+                'emergency_contact_name'
+            ];
+            const allowedTextPattern = /^[\p{L}\s'-]*$/u;
+            const sanitizeAllowedText = function(value) {
+                // Remove anything outside the allowlist immediately (including digits).
+                return value.replace(/[^\p{L}\s'-]/gu, '');
+            };
+            const capitalizeWords = function(value) {
+                return value.toLocaleLowerCase().replace(/(^|[\s'-])(\p{L})/gu, function(match, separator, letter) {
+                    return separator + letter.toLocaleUpperCase();
+                });
+            };
+
+            allowlistedTextFields.forEach(function(fieldName) {
+                const field = document.querySelector('[name="' + fieldName + '"]');
+                if (!field) return;
+
+                // Normalize values prefilled from an appointment/inquiry as well as typed values.
+                field.value = capitalizeWords(sanitizeAllowedText(field.value));
+                field.addEventListener('input', function() {
+                    const cursorPosition = this.selectionStart;
+                    this.value = capitalizeWords(sanitizeAllowedText(this.value));
+                    // Keep the cursor stable after capitalization changes string length.
+                    const safeCursorPosition = Math.min(cursorPosition, this.value.length);
+                    this.setSelectionRange(safeCursorPosition, safeCursorPosition);
+                    this.setCustomValidity(allowedTextPattern.test(this.value) ? '' : 'Use only letters, spaces, hyphens, and apostrophes.');
+                });
+            });
+
             // Load previous dentist dropdown
             const prevDentistSelect = document.getElementById('prevDentistSelect');
             if (prevDentistSelect) {
@@ -1490,7 +1568,7 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
                     } else {
                         console.error('[SERVICES] Error:', data.message);
                         if (container) {
-                            container.innerHTML = '<div style="text-align: center; padding: 40px; color: #dc2626; grid-column: 1 / -1;">Error loading services: ' + data.message + '</div>';
+                            container.innerHTML = '<div style="text-align: center; padding: 40px; color: #dc2626; grid-column: 1 / -1;">Error loading services: ' + escapeHtml(data.message || 'Unknown error') + '</div>';
                         }
                     }
                 })
@@ -1710,7 +1788,7 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
                     const result = JSON.parse(text);
                     if (result.success) {
                         const debugInfo = 'Queue #: ' + (result.queue_number || 'N/A');
-                        const userRole = '<?php echo $_SESSION['role'] ?? ''; ?>';
+                        const userRole = <?php echo json_encode($_SESSION['role'] ?? '', JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
                         
                         let queueUrl = 'staff_queue.php';
                         let dashboardUrl = 'staff-dashboard.php';
@@ -1722,7 +1800,9 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
                             dashboardUrl = '../dentist/dentist_dashboard.php';
                         }
                         
-                        showModal('success', 'Success!', 'Patient <strong>' + patientName + '</strong> has been admitted and added to the queue.<br><br>' + debugInfo, [
+                        // showModal renders messages as text, so user-entered names cannot be
+                        // interpreted as HTML/JavaScript.
+                        showModal('success', 'Success!', 'Patient ' + patientName + ' has been admitted and added to the queue.\n\n' + debugInfo, [
                             { text: 'View Queue', onclick: () => { window.location.href = queueUrl; } },
                             { text: 'Go to Dashboard', onclick: () => { window.location.href = dashboardUrl; } }
                         ]);
@@ -1764,7 +1844,10 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
             }
 
             titleEl.textContent = title;
-            messageEl.innerHTML = message;
+            // Never insert request/database data with innerHTML.  textContent treats
+            // markup such as <svg/onload=...> as literal text.
+            messageEl.textContent = String(message ?? '');
+            messageEl.style.whiteSpace = 'pre-line';
 
             // Clear and add buttons
             buttonsContainer.innerHTML = '';
