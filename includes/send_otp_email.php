@@ -10,6 +10,13 @@ function sendOtpEmail(string $email, string $firstName, string $otpCode, string 
     }
     require_once $configPath;
 
+    $configErrors = mailer_config_validate();
+    if ($configErrors !== []) {
+        $errorMessage = implode(' ', $configErrors);
+        error_log('sendOtpEmail: SMTP config invalid: ' . $errorMessage);
+        return false;
+    }
+
     $phpMailerBase = __DIR__ . '/../PHPMailer/src';
     if (!file_exists($phpMailerBase . '/PHPMailer.php')) {
         $errorMessage = 'PHPMailer library not found.';

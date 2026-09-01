@@ -25,6 +25,13 @@ if (!function_exists('mailer_config_get')) {
     }
 }
 
+if (!function_exists('mailer_config_is_empty')) {
+    function mailer_config_is_empty($value): bool
+    {
+        return $value === null || (is_string($value) && trim($value) === '');
+    }
+}
+
 $localConfig = [];
 $localConfigFile = __DIR__ . '/mailer_config.local.php';
 if (file_exists($localConfigFile)) {
@@ -51,10 +58,40 @@ if (!defined('SMTP_PASS')) {
 }
 
 if (!defined('MAIL_FROM')) {
-    define('MAIL_FROM', (string)mailer_config_get($localConfig, 'MAILER_MAIL_FROM', 'MAIL_FROM', SMTP_USER));
+    $defaultFrom = SMTP_USER;
+    define('MAIL_FROM', (string)mailer_config_get($localConfig, 'MAILER_MAIL_FROM', 'MAIL_FROM', $defaultFrom));
 }
 
 if (!defined('MAIL_FROM_NAME')) {
     define('MAIL_FROM_NAME', (string)mailer_config_get($localConfig, 'MAILER_MAIL_FROM_NAME', 'MAIL_FROM_NAME', 'RF Dental Clinic'));
+}
+
+if (!function_exists('mailer_config_validate')) {
+    function mailer_config_validate(): array
+    {
+        $errors = [];
+
+        if (mailer_config_is_empty(SMTP_HOST)) {
+            $errors[] = 'SMTP host is missing.';
+        }
+
+        if ((int)SMTP_PORT <= 0 || (int)SMTP_PORT > 65535) {
+            $errors[] = 'SMTP port is invalid.';
+        }
+
+        if (mailer_config_is_empty(SMTP_USER)) {
+            $errors[] = 'SMTP username is missing. Set MAILER_SMTP_USER or configure config/mailer_config.local.php.';
+        }
+
+        if (mailer_config_is_empty(SMTP_PASS)) {
+            $errors[] = 'SMTP password is missing. Use a valid Gmail App Password or set MAILER_SMTP_PASS.';
+        }
+
+        if (!empty(MAIL_FROM) && !filter_var(MAIL_FROM, FILTER_VALIDATE_EMAIL)) {
+            $errors[] = 'MAIL_FROM is not a valid email address.';
+        }
+
+        return $errors;
+    }
 }
 
