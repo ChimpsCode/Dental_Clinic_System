@@ -3,6 +3,12 @@ ob_start();
 
 require_once __DIR__ . '/../../includes/session_bootstrap.php';
 
+if (!empty($GLOBALS['APP_SESSION_EXPIRED'])) {
+    ob_end_clean();
+    header('Location: ../../master/welcome-page/login.php?expired=1');
+    exit();
+}
+
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Cache-Control: post-check=0, pre-check=0', false);
 header('Pragma: no-cache');

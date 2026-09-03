@@ -252,10 +252,10 @@ if (
 
             $mailer = new \PHPMailer\PHPMailer\PHPMailer(true);
             $mailer->isSMTP();
-            $mailer->Host = gethostbyname(SMTP_HOST);
+            $mailer->Host = trim((string)SMTP_HOST);
             $mailer->SMTPAuth = true;
             $mailer->Username = SMTP_USER;
-            $mailer->Password = SMTP_PASS;
+            $mailer->Password = preg_replace('/\s+/', '', (string)SMTP_PASS);
             $mailer->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
             $mailer->Port = SMTP_PORT;
             $mailer->SMTPOptions = [
@@ -520,10 +520,10 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
 
                         $mailer = new \PHPMailer\PHPMailer\PHPMailer(true);
                         $mailer->isSMTP();
-                        $mailer->Host = gethostbyname(SMTP_HOST);
+                        $mailer->Host = trim((string)SMTP_HOST);
                         $mailer->SMTPAuth = true;
                         $mailer->Username = SMTP_USER;
-                        $mailer->Password = SMTP_PASS;
+                        $mailer->Password = preg_replace('/\s+/', '', (string)SMTP_PASS);
                         $mailer->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
                         $mailer->Port = SMTP_PORT;
                         $mailer->SMTPOptions = ['ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true]];
@@ -637,6 +637,20 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
                 $redirect = '../../dashboard.php';
             }
             $_SESSION['login_redirect'] = $redirect;
+
+            // Remember Me: extend cookie lifetime to 30 days
+            if (isset($_POST['remember_me']) && $_POST['remember_me'] === '1') {
+                $rememberLifetime = 30 * 24 * 60 * 60; // 30 days
+                if (!headers_sent()) {
+                    setcookie(session_name(), session_id(), [
+                        'expires' => time() + $rememberLifetime,
+                        'path' => '/',
+                        'httponly' => true,
+                        'samesite' => 'Lax',
+                    ]);
+                }
+            }
+
             echo json_encode(['success' => true, 'message' => 'Logged in successfully', 'redirect' => $redirect, 'role' => $role]);
             exit();
         } else {
@@ -762,16 +776,31 @@ if ($role === 'dentist') {
                 
             // Redirect based on role
                 if ($role === 'admin') {
-                    header('Location: ../admin/admin_dashboard.php');
+                    $redirect = '../admin/admin_dashboard.php';
                 } elseif ($role === 'staff') {
-                    header('Location: ../staff/staff-dashboard.php');
+                    $redirect = '../staff/staff-dashboard.php';
                 } elseif ($role === 'dentist') {
-                    header('Location: ../dentist/dentist_dashboard.php');
+                    $redirect = '../dentist/dentist_dashboard.php';
                 } elseif ($role === 'user') {
-                    header('Location: ../user-patient/patient-dashboard.php');
+                    $redirect = '../user-patient/patient-dashboard.php';
                 } else {
-                    header('Location: ../../dashboard.php');
+                    $redirect = '../../dashboard.php';
                 }
+
+                // Remember Me: extend cookie lifetime to 30 days
+                if (isset($_POST['remember_me']) && $_POST['remember_me'] === '1') {
+                    $rememberLifetime = 30 * 24 * 60 * 60; // 30 days
+                    if (!headers_sent()) {
+                        setcookie(session_name(), session_id(), [
+                            'expires' => time() + $rememberLifetime,
+                            'path' => '/',
+                            'httponly' => true,
+                            'samesite' => 'Lax',
+                        ]);
+                    }
+                }
+
+                header('Location: ' . $redirect);
                 exit();
             } else {
                 // Skip duplicate failed login logging - already logged at line 410

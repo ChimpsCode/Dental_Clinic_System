@@ -531,6 +531,9 @@
                         const email = document.getElementById('reg_email')?.value || '';
                         showRegOtpStep(email);
                         showToast('Success', 'Verification code sent to your email.', 'success');
+                        if (data.dev_otp) {
+                            showToast('Info', 'Local development mode code: ' + data.dev_otp, 'info');
+                        }
                     } else {
                         if (registerSuccess) {
                             registerSuccess.textContent = data.message || 'Account created successfully!';
@@ -650,6 +653,9 @@
                 if (data.success && data.step === 'otp') {
                     showToast('Success', 'New verification code sent.', 'success');
                     startRegOtpTimer();
+                    if (data.dev_otp) {
+                        showToast('Info', 'Local development mode code: ' + data.dev_otp, 'info');
+                    }
                 } else {
                     const msg = data.message || 'Failed to resend code.';
                     showToast('Error', msg, 'error');
@@ -1217,9 +1223,7 @@
                     fpChangeBtn.click();
                 }
             } else if (isRegisterVisible) {
-                if (regOtpStep && regOtpStep.style.display !== 'none' && regOtpVerifyBtn && !regOtpVerifyBtn.disabled) {
-                    regOtpVerifyBtn.click();
-                } else if (registerForm && registerForm.style.display !== 'none' && registerBtn && !registerBtn.disabled) {
+                if (registerForm && registerForm.style.display !== 'none' && registerBtn && !registerBtn.disabled) {
                     registerBtn.click();
                 }
             } else if (loginBtn && !loginBtn.disabled) {

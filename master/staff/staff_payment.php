@@ -119,9 +119,9 @@ try {
                 b.billing_date,
                 b.paid_amount,
                 b.notes as billing_notes,
-                b.subtotal_amount,
-                b.discount_type,
-                b.discount_amount
+                COALESCE(b.total_amount, 0) as subtotal_amount,
+                'none' as discount_type,
+                0 as discount_amount
             FROM billing b
             LEFT JOIN patients p ON b.patient_id = p.id
             LEFT JOIN queue q ON CAST(q.patient_id AS UNSIGNED) = b.patient_id AND DATE(q.created_at) = DATE(b.billing_date)
@@ -1109,8 +1109,8 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                 }
 
                 .print-invoice-modal {
-                    max-width: min(96vw, 920px);
-                    width: min(96vw, 920px);
+                    max-width: min(96vw, 1240px);
+                    width: min(96vw, 1240px);
                 }
 
                 .print-payment-body {
@@ -1119,16 +1119,16 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                 }
 
                 .receipt-preview-shell {
-                    width: 174mm;
-                    height: auto;
+                    width: 1160px;
+                    height: 720px;
                     margin: 0 auto;
-                    overflow: visible;
+                    overflow: hidden;
                     background: transparent;
                 }
 
                 .receipt-preview-frame {
-                    width: 174mm;
-                    height: auto;
+                    width: 1160px;
+                    height: 720px;
                     border: 0;
                     display: block;
                     background: #ffffff;
@@ -1221,48 +1221,50 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                 const receiptImageUrl = receiptBaseUrl + 'assets/images/profile.png';
                 const receiptPreviewOverrides = `
                     .receipt-book {
-                        width: min(174mm, 100%) !important;
-                        max-width: 174mm !important;
-                        min-height: 248mm !important;
-                        padding: 10px !important;
+                        width: 1160px !important;
+                        max-width: 1160px !important;
+                        min-height: 610px !important;
+                        padding: 0 !important;
                         transform: none !important;
                         transform-origin: top center;
                         margin: 0 auto;
                     }
 
                     .invoice-paper {
-                        min-height: 248mm;
+                        grid-template-columns: 305px minmax(0, 1fr) !important;
+                        gap: 28px !important;
+                        min-height: 610px !important;
                     }
 
                     .invoice-content {
-                        padding: 24px 26px 20px !important;
+                        padding: 46px 42px 34px 32px !important;
                     }
 
                     .invoice-content::after {
-                        inset: 12px !important;
+                        inset: 0 !important;
                     }
 
                     @media print {
                         @page {
-                            size: A5 portrait;
+                            size: A4 landscape;
                             margin: 6mm;
                         }
 
                         html, body {
-                            width: 174mm;
-                            height: 248mm;
+                            width: 297mm;
+                            height: 210mm;
                         }
 
                         .receipt-book {
-                            width: 174mm !important;
-                            max-width: 174mm !important;
-                            min-height: 248mm !important;
+                            width: 297mm !important;
+                            max-width: 297mm !important;
+                            min-height: 210mm !important;
                             padding: 0 !important;
                             transform: none !important;
                         }
 
                         .invoice-paper {
-                            min-height: 248mm;
+                            min-height: 210mm;
                         }
 
                         .print-btn {
@@ -1272,7 +1274,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
 
                     @media (max-width: 760px) {
                         .receipt-book {
-                            width: min(100%, 174mm) !important;
+                            width: min(100%, 1160px) !important;
                         }
                     }
                 `;
@@ -2112,6 +2114,22 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     });
                 }
 
+                function formatReceiptDateParts(value) {
+                    var dateValue = value ? new Date(value) : new Date();
+                    if (Number.isNaN(dateValue.getTime())) {
+                        dateValue = new Date();
+                    }
+
+                    var month = dateValue.toLocaleDateString('en-US', { month: 'short' });
+                    var day = String(dateValue.getDate()).padStart(2, '0');
+                    var year = String(dateValue.getFullYear()).slice(-2);
+
+                    return {
+                        monthDay: month + ' ' + day,
+                        year: year
+                    };
+                }
+
                 function fillReceiptPreview(frame, p) {
                     var doc = frame.contentDocument || (frame.contentWindow && frame.contentWindow.document);
                     if (!doc) return;
@@ -2132,9 +2150,13 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                         invoiceInput.value = p.invoice_id || 'N/A';
                     }
 
-                    var metaInputs = doc.querySelectorAll('.invoice-meta .line-input');
-                    if (metaInputs[0]) {
-                        metaInputs[0].value = formatReceiptDate(p.date || '');
+                    var receiptDate = formatReceiptDateParts(new Date());
+                    var dateInputs = doc.querySelectorAll('.date-line, .year-line');
+                    if (dateInputs[0]) {
+                        dateInputs[0].value = receiptDate.monthDay;
+                    }
+                    if (dateInputs[1]) {
+                        dateInputs[1].value = receiptDate.year;
                     }
 
                     var billInputs = doc.querySelectorAll('.bill-to .line-input');

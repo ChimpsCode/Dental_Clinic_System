@@ -351,13 +351,15 @@ try {
     ];
 
     require_once __DIR__ . '/../../includes/send_otp_email.php';
-    $emailSent = sendOtpEmail($email, $firstName, $otpCode);
+    $emailError = null;
+    $emailSent = sendOtpEmail($email, $firstName, $otpCode, 'registration', $emailError);
 
     if (!$emailSent) {
         $_SESSION['reg_otp'] = '';
         $_SESSION['reg_otp_expires'] = 0;
         $_SESSION['reg_data'] = null;
-        respond(false, 'Unable to send verification email. Please check your email address or try again later.');
+        $detail = $emailError ? ' (' . $emailError . ')' : '';
+        respond(false, 'Unable to send verification email. Please check your SMTP settings or try again later.' . $detail);
     }
 
     respond(true, 'Verification code sent to your email.', ['step' => 'otp']);

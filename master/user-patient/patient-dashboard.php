@@ -3,6 +3,13 @@ ob_start();
 
 require_once __DIR__ . '/../../includes/session_bootstrap.php';
 
+// Session already expired on entry (inactivity window elapsed) -> bounce to login
+if (!empty($GLOBALS['APP_SESSION_EXPIRED'])) {
+    ob_end_clean();
+    header('Location: ../../master/welcome-page/login.php?expired=1');
+    exit();
+}
+
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();

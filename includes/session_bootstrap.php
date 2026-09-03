@@ -52,6 +52,9 @@ try {
 }
 $lifetimeSeconds = max(60, $timeoutMinutes * 60);
 
+// Expose timeout in seconds so layout-end JS timers can use it
+$__sessionTimeoutSeconds = $lifetimeSeconds;
+
 // ---- 2. Private session storage (survives foreign GC on shared hosts) ----
 $saveDir = $appRoot . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'sessions';
 if (!is_dir($saveDir)) {
@@ -85,7 +88,15 @@ session_set_cookie_params([
 
 session_start();
 
-// ---- 4. Sliding inactivity window (server-side) ----
+// ---- 4. Prevent browser from caching authenticated pages ----
+// Without this, pressing Back after logout restores the dashboard from BFcache.
+if (!headers_sent()) {
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Cache-Control: post-check=0, pre-check=0', false);
+    header('Pragma: no-cache');
+}
+
+// ---- 5. Sliding inactivity window (server-side) ----
 $GLOBALS['APP_SESSION_EXPIRED'] = false;
 $now = time();
 if (isset($_SESSION['session_expires_at']) && $now > (int)$_SESSION['session_expires_at']) {
@@ -98,7 +109,7 @@ if (isset($_SESSION['session_expires_at']) && $now > (int)$_SESSION['session_exp
     $_SESSION['session_expires_at'] = $now + $lifetimeSeconds;
 }
 
-// ---- 5. Sliding cookie (client-side) ----
+// ---- 6. Sliding cookie (client-side) ----
 // Re-send with a fresh expiry on EVERY request so the browser never drops the
 // cookie while the user is active. Without this the cookie died exactly
 // N minutes after LOGIN regardless of activity.

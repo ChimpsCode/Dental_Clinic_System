@@ -1,164 +1,225 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RF Dental Clinic - Service Invoice</title>
-<link rel="stylesheet" href="receipt.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RF Dental Clinic - Service Invoice</title>
+  <link rel="stylesheet" href="receipt.css">
 </head>
 <body>
+  <main class="receipt-book" aria-label="RF Dental Clinic service invoice">
+    <section class="invoice-paper">
+      <aside class="settlement-panel" aria-label="Settlement details">
+        <table class="settlement-table">
+          <thead>
+            <tr>
+              <th colspan="2" class="settlement-title">In settlement of the following:</th>
+            </tr>
+            <tr>
+              <th>Particular</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><input class="table-input particular-input" type="text" aria-label="Particular 1"></td>
+              <td class="peso-cell"><span>P</span><input class="table-input amount-input" type="text" aria-label="Amount 1"></td>
+            </tr>
+            <tr>
+              <td><input class="table-input particular-input" type="text" aria-label="Particular 2"></td>
+              <td><input class="table-input amount-input" type="text" aria-label="Amount 2"></td>
+            </tr>
+            <tr>
+              <td><input class="table-input particular-input" type="text" aria-label="Particular 3"></td>
+              <td><input class="table-input amount-input" type="text" aria-label="Amount 3"></td>
+            </tr>
+            <tr>
+              <td><input class="table-input particular-input" type="text" aria-label="Particular 4"></td>
+              <td><input class="table-input amount-input" type="text" aria-label="Amount 4"></td>
+            </tr>
+            <tr>
+              <td><input class="table-input particular-input" type="text" aria-label="Particular 5"></td>
+              <td><input class="table-input amount-input" type="text" aria-label="Amount 5"></td>
+            </tr>
+            <tr>
+              <td><input class="table-input particular-input" type="text" aria-label="Particular 6"></td>
+              <td><input class="table-input amount-input" type="text" aria-label="Amount 6"></td>
+            </tr>
+            <tr class="summary-row">
+              <td>Total Sales</td>
+              <td><input class="table-input total-sales-input" type="text" aria-label="Total Sales" readonly></td>
+            </tr>
+            <tr class="summary-row">
+              <td>Less: SC/PWD Disc.</td>
+              <td><input class="table-input deduction-input" type="text" aria-label="Less SC PWD Discount"></td>
+            </tr>
+            <tr class="summary-row centered-row">
+              <td>Withholding Tax</td>
+              <td><input class="table-input withholding-input" type="text" aria-label="Withholding Tax"></td>
+            </tr>
+            <tr class="summary-row total-row">
+              <td>Total Amount Due</td>
+              <td class="peso-cell"><span>P</span><input class="table-input total-due-input" type="text" aria-label="Total Amount Due" readonly></td>
+            </tr>
+            <tr>
+              <th colspan="2" class="payment-title">Form of Payment:</th>
+            </tr>
+            <tr class="payment-row">
+              <td colspan="2">Cash</td>
+            </tr>
+            <tr class="payment-row">
+              <td colspan="2">Check</td>
+            </tr>
+          </tbody>
+        </table>
 
-<div class="receipt-book">
-  <div class="invoice-paper">
-    <div class="paper-accent" aria-hidden="true"></div>
-
-    <div class="invoice-content">
-      <!-- Header Section -->
-      <div class="header">
-        <div class="brand">
-          <img class="brand-mark" src="profile.png" alt="RF Dental Clinic logo">
-          <p class="brand-kicker">Dental Care Receipt</p>
-          <h1>RF DENTAL CLINIC</h1>
-          <p>Proprietor: REX JANUARIUS R. GAABUCAYAN</p>
-          <p>Cagayan de Oro City, Philippines</p>
-          <p>Tel No: 0967 187 8603 | Email: RFDC2023@gmail.com</p>
+        <div class="booklet-print">
+          <p>25 bks. (50x2) 0001-1250&nbsp;&nbsp; Date Issued 12-07-2023</p>
+          <p>BIR Auth. to Print No. 098AU20230000009069</p>
+          <p>AMD Printing Services Caballero-Yacapin 9000, CDOC.</p>
+          <p>(Capital), Misamis Oriental, Philippines</p>
+          <p>Non Vat Reg. TIN 942-977-347-00000</p>
         </div>
-        <div class="invoice-meta">
-          <h2>SERVICE INVOICE</h2>
-          <div class="meta-row">
-            No.
-            <input class="box-text editable-box" type="text" value="0436" aria-label="Invoice number">
+      </aside>
+
+      <section class="main-invoice" aria-label="Service invoice details">
+        <header class="clinic-header">
+          <div class="clinic-copy">
+            <h1>RF DENTAL CLINIC</h1>
+            <p>Ground Floor Celeste Bldg., Max Suniel, Carmen, 9000,</p>
+            <p>Cagayan de Oro City (Capita), Misamis Oriental, Philippines</p>
+            <p class="owner">REX JANUARIUS R. GAABUCAYAN - Prop.</p>
+            <p>Non Vat Reg. TIN 428-000-175-00000</p>
           </div>
-          <div class="meta-row">
-            Date
-            <input class="line-input" type="text" aria-label="Invoice date">
+        </header>
+
+        <div class="invoice-heading">
+          <div class="invoice-type">
+            <p>SERVICE INVOICE</p>
           </div>
-        </div>
-      </div>
-
-      <!-- Bill To Section -->
-      <div class="bill-to">
-        <div class="bill-row">
-          RECEIVED FROM:
-          <input class="line-input" type="text" aria-label="Received from">
-        </div>
-        <div class="bill-row">
-          ADDRESS:
-          <input class="line-input" type="text" aria-label="Address">
-        </div>
-      </div>
-
-      <!-- Services Table -->
-      <table class="services-table">
-        <thead>
-          <tr>
-            <th>Particular</th>
-            <th>Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><input class="table-input" type="text" aria-label="Particular 1"></td>
-            <td><input class="table-input amount-input" type="text" aria-label="Amount 1"></td>
-          </tr>
-          <tr>
-            <td><input class="table-input" type="text" aria-label="Particular 2"></td>
-            <td><input class="table-input amount-input" type="text" aria-label="Amount 2"></td>
-          </tr>
-          <tr>
-            <td><input class="table-input" type="text" aria-label="Particular 3"></td>
-            <td><input class="table-input amount-input" type="text" aria-label="Amount 3"></td>
-          </tr>
-          <tr>
-            <td><input class="table-input" type="text" aria-label="Particular 4"></td>
-            <td><input class="table-input amount-input" type="text" aria-label="Amount 4"></td>
-          </tr>
-          <tr>
-            <td><input class="table-input" type="text" aria-label="Particular 5"></td>
-            <td><input class="table-input amount-input" type="text" aria-label="Amount 5"></td>
-          </tr>
-          <tr>
-            <td><input class="table-input" type="text" aria-label="Particular 6"></td>
-            <td><input class="table-input amount-input" type="text" aria-label="Amount 6"></td>
-          </tr>
-          <tr>
-            <td><input class="table-input" type="text" aria-label="Particular 7"></td>
-            <td><input class="table-input amount-input" type="text" aria-label="Amount 7"></td>
-          </tr>
-        </tbody>
-        <tfoot>
-          <tr>
-            <td class="total-label">TOTAL AMOUNT DUE</td>
-            <td class="total-amount">
-              &#8369; <input class="total-input" type="text" aria-label="Total amount due" readonly>
-            </td>
-          </tr>
-        </tfoot>
-      </table>
-
-      <!-- Payment Method & Signature -->
-      <div class="footer-section">
-        <div class="payment-info">
-          <p class="section-label">Payment Method</p>
-          <div class="checkbox-group">
-            <span class="checkbox-item"><span class="box"></span> Cash</span>
-            <span class="checkbox-item"><span class="box"></span> GCash</span>
-            <span class="checkbox-item"><span class="box"></span> Installment</span>
-            <span class="checkbox-item"><span class="box"></span> Downpayment</span>
+          <div class="invoice-number" aria-label="Invoice number">
+            <span>Nº</span>
+            <strong>0436</strong>
           </div>
         </div>
 
-        <div class="signature-area">
-          <div class="sig-line"></div>
-          <p>Received by / Authorized Signature</p>
+        <div class="date-row">
+          <label>Date</label>
+          <input class="line-input date-line" type="text" aria-label="Date month and day">
+          <span>, 20</span>
+          <input class="line-input year-line" type="text" aria-label="Date year">
         </div>
-      </div>
 
-      <!-- Bottom Print Info -->
-      <div class="print-footer">
-        <p>
-          Printer:
-          <input class="line-input print-line" type="text" aria-label="Printer name">
-        </p>
-      </div>
-    </div>
-  </div>
-</div>
+        <form class="invoice-form">
+          <div class="form-row received-row">
+            <label><strong>RECEIVED</strong> from</label>
+            <input class="line-input" type="text" aria-label="Received from">
+          </div>
 
-<button class="print-btn" onclick="window.print()">Print Invoice</button>
+          <div class="form-row split-row">
+            <label>TIN</label>
+            <input class="line-input tin-line" type="text" aria-label="TIN">
+            <label>address</label>
+            <input class="line-input address-line" type="text" aria-label="Address">
+          </div>
 
-<script>
-  const amountInputs = document.querySelectorAll('.amount-input');
-  const totalInput = document.querySelector('.total-input');
+          <div class="form-row business-row">
+            <input class="line-input leading-line" type="text" aria-label="Business style prefix">
+            <label>business style</label>
+            <input class="line-input business-line" type="text" aria-label="Business style">
+          </div>
 
-  function parseAmount(value) {
-    const cleaned = String(value).replace(/[^0-9.-]/g, '');
-    const parsed = parseFloat(cleaned);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
+          <div class="form-row sum-row">
+            <label>the sum of</label>
+            <input class="line-input" type="text" aria-label="The sum of">
+          </div>
 
-  function formatTotal(value) {
-    return value.toLocaleString('en-PH', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+          <div class="form-row amount-row">
+            <input class="line-input words-line" type="text" aria-label="Amount in words continuation">
+            <label>pesos (P</label>
+            <input class="line-input peso-line" type="text" aria-label="Amount in pesos">
+            <span>)</span>
+          </div>
+
+          <div class="form-row payment-line-row">
+            <label>as</label>
+            <span>( ) full</span>
+            <span>( ) partial payment of</span>
+            <input class="line-input payment-for-line" type="text" aria-label="Payment of">
+          </div>
+
+          <div class="signature-area">
+            <div class="customer-box">
+              <label>OSCA/PWD ID No.</label>
+              <input type="text" aria-label="OSCA/PWD ID No.">
+              <label>Signature</label>
+              <input type="text" aria-label="Customer signature">
+            </div>
+
+            <div class="authorized-signature">
+              <label>By:</label>
+              <div>
+                <input class="line-input" type="text" aria-label="Authorized signature">
+                <p>Authorized Signature</p>
+              </div>
+            </div>
+          </div>
+        </form>
+
+        <footer class="invoice-footer">
+          <div></div>
+          <p>Printer's Accreditation No. 098MP20190000000012<br>Date issued 03-22-2019</p>
+          <p>&lsquo;THIS DOCUMENT IS NOT VALID<br>FOR CLAIMING INPUT TAXES&rsquo;</p>
+        </footer>
+      </section>
+    </section>
+  </main>
+
+  <button class="print-btn" type="button" onclick="printInvoice()">Print Invoice</button>
+
+  <script>
+    const amountInputs = document.querySelectorAll('.amount-input');
+    const deductionInput = document.querySelector('.deduction-input');
+    const withholdingInput = document.querySelector('.withholding-input');
+    const totalSalesInput = document.querySelector('.total-sales-input');
+    const totalDueInput = document.querySelector('.total-due-input');
+
+    function parseAmount(value) {
+      const cleaned = String(value).replace(/[^0-9.-]/g, '');
+      const parsed = parseFloat(cleaned);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function formatAmount(value) {
+      return value ? value.toLocaleString('en-PH', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }) : '';
+    }
+
+    function updateTotals() {
+      const totalSales = Array.from(amountInputs).reduce((sum, input) => {
+        return sum + parseAmount(input.value);
+      }, 0);
+
+      const totalDue = totalSales - parseAmount(deductionInput.value) - parseAmount(withholdingInput.value);
+
+      totalSalesInput.value = formatAmount(totalSales);
+      totalDueInput.value = formatAmount(totalDue);
+    }
+
+    [...amountInputs, deductionInput, withholdingInput].forEach((input) => {
+      input.addEventListener('input', updateTotals);
+      input.addEventListener('blur', updateTotals);
     });
-  }
 
-  function updateTotal() {
-    const total = Array.from(amountInputs).reduce((sum, input) => {
-      return sum + parseAmount(input.value);
-    }, 0);
+    function printInvoice() {
+      updateTotals();
+      window.print();
+    }
 
-    totalInput.value = formatTotal(total);
-  }
-
-  amountInputs.forEach((input) => {
-    input.addEventListener('input', updateTotal);
-    input.addEventListener('blur', updateTotal);
-  });
-
-  updateTotal();
-</script>
-
+    window.addEventListener('beforeprint', updateTotals);
+    updateTotals();
+  </script>
 </body>
 </html>

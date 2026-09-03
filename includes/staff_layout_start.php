@@ -161,6 +161,62 @@ try {
     <link rel="stylesheet" href="../../assets/css/appointments.css">
     <link rel="stylesheet" href="../../assets/css/mini_calendar.css">
     <style>
+        /* Inquiry panel base state. Must stay in <head>: the full panel styles
+           live at the bottom of the dashboard page, so without this the panel
+           paints unstyled and visible until that block is parsed. */
+        .dashboard-inquiry-panel {
+            position: fixed;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 400px;
+            max-width: 100vw;
+            background: #ffffff;
+            z-index: 2002;
+            display: flex;
+            flex-direction: column;
+            transform: translateX(100%);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.28s ease, visibility 0.28s;
+        }
+        .dashboard-inquiry-panel.open {
+            transform: translateX(0);
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+        .dashboard-inquiry-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.4);
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.28s ease, visibility 0.28s;
+        }
+        .dashboard-inquiry-backdrop.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        .dashboard-inquiry-fab {
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            width: 58px;
+            height: 58px;
+            border: none;
+            border-radius: 50%;
+            background: #0d92f7;
+            color: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2001;
+            cursor: pointer;
+        }
+
         /* Smooth sidebar navigation */
         .nav-item {
             transition: all 0.2s ease;

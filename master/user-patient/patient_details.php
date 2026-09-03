@@ -1,5 +1,9 @@
 <?php
 require_once __DIR__ . '/../../includes/session_bootstrap.php';
+if (!empty($GLOBALS['APP_SESSION_EXPIRED'])) {
+    header('Location: ../../master/welcome-page/login.php?expired=1');
+    exit();
+}
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../../master/welcome-page/login.php');
     exit();

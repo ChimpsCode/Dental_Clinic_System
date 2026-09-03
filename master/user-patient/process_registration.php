@@ -4,6 +4,15 @@ error_reporting(E_ALL);
 require_once __DIR__ . '/../../includes/session_bootstrap.php';header('Content-Type: application/json');
 require_once '../../config/database.php';
 
+function respond(bool $success, string $message, array $extra = [], int $status = 200): void {
+    http_response_code($status);
+    echo json_encode(array_merge([
+        'success' => $success,
+        'message' => $message
+    ], $extra));
+    exit();
+}
+
 function tableHasColumn(PDO $pdo, string $table, string $column): bool {
     static $cache = [];
     $key = $table . '.' . $column;
@@ -339,13 +348,15 @@ try {
     ];
 
     require_once __DIR__ . '/../../includes/send_otp_email.php';
-    $emailSent = sendOtpEmail($email, $first_name, $otpCode);
+    $emailError = null;
+    $emailSent = sendOtpEmail($email, $first_name, $otpCode, 'registration', $emailError);
 
     if (!$emailSent) {
         $_SESSION['reg_otp'] = '';
         $_SESSION['reg_otp_expires'] = 0;
         $_SESSION['reg_data'] = null;
-        throw new Exception('Unable to send verification email. Please check your email address or try again later.');
+        $detail = $emailError ? ' (' . $emailError . ')' : '';
+        throw new Exception('Unable to send verification email. Please check your SMTP settings or try again later.' . $detail);
     }
 
     echo json_encode([

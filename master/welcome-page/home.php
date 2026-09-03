@@ -1610,9 +1610,12 @@ $assets = [
             try {
               const result = await sendRegisterRequest(formData);
 
-              if (result.success) {
+            if (result.success) {
                 if (result.step === 'otp') {
                   showRegOtpStep(email);
+                  if (result.dev_otp) {
+                    alert('Local development mode: use this verification code: ' + result.dev_otp);
+                  }
                 } else {
                   registrationModal.style.display = 'none';
                   successModal.style.display = 'flex';
@@ -1727,6 +1730,9 @@ $assets = [
               const result = await sendRegisterRequest(formData);
               if (result.success && result.step === 'otp') {
                 startRegOtpTimer();
+                if (result.dev_otp) {
+                  alert('Local development mode: use this verification code: ' + result.dev_otp);
+                }
               } else {
                 alert(result.message || 'Failed to resend code.');
                 regOtpResendBtn.disabled = false;

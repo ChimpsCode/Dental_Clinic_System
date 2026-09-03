@@ -2418,16 +2418,19 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
     background: #ffffff;
     box-shadow: -8px 0 30px rgba(15, 23, 42, 0.12);
     z-index: 2002;
-    display: none;
+    display: flex;
     flex-direction: column;
-    animation: slideInRight 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateX(100%);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.28s ease, visibility 0.28s;
 }
 .dashboard-inquiry-panel.open {
-    display: flex;
-}
-@keyframes slideInRight {
-    from { transform: translateX(100%); }
-    to { transform: translateX(0); }
+    transform: translateX(0);
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
 }
 .dashboard-inquiry-panel-header {
     display: flex;
@@ -2810,11 +2813,14 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
     position: fixed;
     inset: 0;
     background: rgba(15, 23, 42, 0.4);
-    z-index: 2001;
-    display: none;
+    z-index: 2000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.28s ease, visibility 0.28s;
 }
 .dashboard-inquiry-backdrop.open {
-    display: block;
+    opacity: 1;
+    visibility: visible;
 }
 
 @media (max-width: 640px) {

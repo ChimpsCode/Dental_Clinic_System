@@ -34,5 +34,11 @@ if (isset($_SESSION['user_id'])) {
 }
 
 session_destroy();
+
+// Expire the session cookie so the browser drops it immediately
+if (!headers_sent()) {
+    setcookie(session_name(), '', time() - 3600, '/');
+}
+
 header('Location: master/welcome-page/login.php');
 exit();

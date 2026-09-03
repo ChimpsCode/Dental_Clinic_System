@@ -181,6 +181,91 @@ function isActivePage($page) {
     <link rel="stylesheet" href="../../assets/css/admin.css">
     <link rel="stylesheet" href="../../assets/css/appointments.css">
     <link rel="stylesheet" href="../../assets/css/mini_calendar.css">
+    <style>
+        /* Inquiry panel base state. Must stay in <head>: the full panel styles
+           live at the bottom of the dashboard page, so without this the panel
+           paints unstyled and visible until that block is parsed. */
+        .dashboard-inquiry-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 400px;
+            max-width: 100vw;
+            background: #fff;
+            z-index: 2002;
+            display: flex;
+            flex-direction: column;
+            transform: translateX(100%);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.28s ease, visibility 0.28s;
+        }
+        .dashboard-inquiry-panel.open {
+            transform: translateX(0);
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+        .dashboard-inquiry-view {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+            flex-direction: column;
+        }
+        .dashboard-inquiry-view[hidden] {
+            display: none !important;
+        }
+        .dashboard-inquiry-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.4);
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.28s ease, visibility 0.28s;
+        }
+        .dashboard-inquiry-backdrop.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        .dashboard-inquiry-fab {
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            width: 58px;
+            height: 58px;
+            border: 0;
+            border-radius: 50%;
+            background: #0d92f7;
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2001;
+            cursor: pointer;
+        }
+        .dashboard-inquiry-fab-badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            min-width: 22px;
+            height: 22px;
+            padding: 0 6px;
+            border: 2px solid #fff;
+            border-radius: 999px;
+            background: #dc2626;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            align-items: center;
+            justify-content: center;
+        }
+        .dashboard-inquiry-fab-badge:not([hidden]) {
+            display: inline-flex;
+        }
+    </style>
 </head>
 <body data-user-id="<?php echo (int)($_SESSION['user_id'] ?? 0); ?>">
     <div id="userModal" class="modal-overlay">
