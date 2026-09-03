@@ -35,21 +35,8 @@
                 });
             }
         })();
-
-        // Auto logout after 10 minutes of inactivity (client-side)
-        (function() {
-            const LOGOUT_AFTER_MS = <?php echo (int)($__sessionTimeoutSeconds ?? 600) * 1000; ?>;
-            let timer;
-            const reset = () => {
-                clearTimeout(timer);
-                timer = setTimeout(() => window.location.href = '../../logout.php', LOGOUT_AFTER_MS);
-            };
-            ['click','mousemove','keydown','scroll','touchstart'].forEach(evt =>
-                document.addEventListener(evt, reset, { passive: true })
-            );
-            reset();
-        })();
     </script>
+    <?php require __DIR__ . '/session_timeout_script.php'; ?>
     <script>
         // Mark single notification as read
         function markNotificationRead(notificationId, actionUrl, event) {

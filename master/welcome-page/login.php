@@ -815,6 +815,7 @@ if ($role === 'dentist') {
 }
 
 $showDeletedMsg = isset($_GET['deleted']) && $_GET['deleted'] === '1';
+$showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -1031,6 +1032,16 @@ $showDeletedMsg = isset($_GET['deleted']) && $_GET['deleted'] === '1';
                         document.addEventListener('DOMContentLoaded', function() {
                             var errorDiv = document.getElementById('errorMessage');
                             errorDiv.textContent = '<?php echo addslashes($error); ?>';
+                            errorDiv.style.display = 'block';
+                        });
+                    </script>
+                <?php elseif (!empty($showExpiredMsg)): ?>
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            var errorDiv = document.getElementById('errorMessage');
+                            errorDiv.classList.remove('alert-error');
+                            errorDiv.classList.add('alert-warning');
+                            errorDiv.textContent = 'You were logged out due to inactivity. Please sign in again to continue.';
                             errorDiv.style.display = 'block';
                         });
                     </script>

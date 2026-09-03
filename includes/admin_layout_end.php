@@ -14,20 +14,7 @@ if ($__pjax) {
     <script src="../../assets/js/admin.js"></script>
     <script src="../../assets/js/admin_router.js"></script>
     <?php if (isset($pageScript)) { echo $pageScript; } ?>
-    <script>
-        (function() {
-            const LOGOUT_AFTER_MS = <?php echo (int)($__sessionTimeoutSeconds ?? 600) * 1000; ?>;
-            let timer;
-            const reset = () => {
-                clearTimeout(timer);
-                timer = setTimeout(() => window.location.href = '../../logout.php', LOGOUT_AFTER_MS);
-            };
-            ['click','mousemove','keydown','scroll','touchstart'].forEach(evt =>
-                document.addEventListener(evt, reset, { passive: true })
-            );
-            reset();
-        })();
-    </script>
+    <?php require __DIR__ . '/session_timeout_script.php'; ?>
     <script>
         
         document.addEventListener('DOMContentLoaded', function() {

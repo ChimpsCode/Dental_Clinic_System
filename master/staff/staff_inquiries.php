@@ -811,7 +811,7 @@ require_once '../../includes/staff_layout_start.php';
                 <label for="sourceFilter">Source Filter</label>
                 <select id="sourceFilter" class="filter-select">
                     <option value="All">All Sources</option>
-                    <option value="Fb messenger">FB Messenger</option>
+                    <!-- <option value="Fb messenger">FB Messenger</option> -->
                     <option value="Website">Clinic Website</option>
                     <option value="Patient Portal">Patient Portal</option>
                 </select>

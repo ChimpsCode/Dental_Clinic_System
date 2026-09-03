@@ -60,12 +60,21 @@
         }
     }
 
+    function shouldKeepBodyNode(el) {
+        if (!el) return false;
+        if (coreBodyChildren.indexOf(el) !== -1) return true;
+        // Session-timeout overlay is appended after this snapshot and must survive nav.
+        if (el.id === 'stoOverlay') return true;
+        if (el.getAttribute && el.getAttribute('data-persist-layout') === '1') return true;
+        return false;
+    }
+
     // Remove body children that are not part of the persistent layout shell
     // (portals appended to <body>, initial page's after-layout style/link/script tags).
     function removePageBodyNodes() {
         var children = Array.prototype.slice.call(document.body.children);
         for (var i = 0; i < children.length; i++) {
-            if (coreBodyChildren.indexOf(children[i]) === -1) {
+            if (!shouldKeepBodyNode(children[i])) {
                 if (children[i].parentNode) children[i].parentNode.removeChild(children[i]);
             }
         }

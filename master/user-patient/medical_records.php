@@ -415,21 +415,10 @@ $pageTitle = 'Medical Records';
             setInterval(pollUnreadCount, 3000);
         })();
     </script>
-    <script>
-        (function() {
-            const SESSION_TIMEOUT_ENABLED = <?php echo $patientSessionSettings['enabled'] ? 'true' : 'false'; ?>;
-            const LOGOUT_AFTER_MS = <?php echo (int)$patientSessionSettings['timeout_minutes'] * 60 * 1000; ?>;
-            if (!SESSION_TIMEOUT_ENABLED) return;
-            let timer;
-            const reset = () => {
-                clearTimeout(timer);
-                timer = setTimeout(() => window.location.href = '../../logout.php', LOGOUT_AFTER_MS);
-            };
-            ['click','mousemove','keydown','scroll','touchstart'].forEach(evt =>
-                document.addEventListener(evt, reset, { passive: true })
-            );
-            reset();
-        })();
-    </script>
+    <?php
+        $__stoEnabled = !empty($patientSessionSettings['enabled']);
+        $__stoMs = (int)($patientSessionSettings['timeout_minutes'] ?? 60) * 60 * 1000;
+        require __DIR__ . '/../../includes/session_timeout_script.php';
+    ?>
 </body>
 </html>
