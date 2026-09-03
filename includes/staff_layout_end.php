@@ -57,11 +57,11 @@
             if (!notifs.length)
                 return '<div class="notif-empty"><i class="fas fa-bell-slash"></i>No notifications yet</div>';
             return notifs.map(function(n) {
-                return '<a class="notif-item' + (n.is_read == 0 ? ' unread' : '') + '" href="' + (n.action_url || '#') + '" data-notif-id="' + n.id + '">'
+                return '<div class="notif-item' + (n.is_read == 0 ? ' unread' : '') + '" data-notif-id="' + n.id + '">'
                      + '<div class="notif-icon ' + (n.type || 'system') + '"><i class="fas ' + (iconMap[n.type] || 'fa-bell') + '"></i></div>'
                      + '<div class="notif-content"><p class="notif-title">' + esc(n.title) + '</p>'
                      + '<p class="notif-msg">' + esc(n.message) + '</p>'
-                     + '<div class="notif-time">' + timeAgo(n.created_at) + '</div></div></a>';
+                     + '<div class="notif-time">' + timeAgo(n.created_at) + '</div></div></div>';
             }).join('');
         }
         function setBadge(c) {
@@ -118,21 +118,7 @@
             var item = e.target.closest('.notif-item');
             if (!item) return;
             e.preventDefault();
-            var id = item.dataset.notifId;
-            if (item.classList.contains('unread')) {
-                fetch(actionsUrl, { method:'POST',
-                    headers:{'Content-Type':'application/x-www-form-urlencoded'},
-                    body:'action=mark_read&id=' + id
-                }).then(function() {
-                    item.classList.remove('unread');
-                    var c = Math.max(0, lastCount - 1);
-                    setBadge(c);
-                    // update cached html
-                    cachedHtml = list.innerHTML;
-                });
-            }
-            var href = item.getAttribute('href');
-            if (href && href !== '#') { dropdown.classList.remove('open'); window.location.href = href; }
+            // Intentionally not navigating: notification items are non-clickable.
         });
 
         // ── Mark all read ─────────────────────────────────────────────────

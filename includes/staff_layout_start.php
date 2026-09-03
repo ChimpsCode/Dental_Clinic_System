@@ -268,7 +268,7 @@ try {
         .notif-list { overflow-y: auto; max-height: 370px; }
         .notif-item {
             display: flex; gap: 10px; padding: 12px 16px; border-bottom: 1px solid #f9fafb;
-            cursor: pointer; transition: background 0.12s; text-decoration: none; color: inherit;
+            cursor: default; transition: background 0.12s; text-decoration: none; color: inherit;
         }
         .notif-item:hover { background: #f9fafb; }
         .notif-item.unread { background: #eff6ff; }
@@ -584,21 +584,20 @@ try {
                                     $iconMap = ['queue'=>'fa-layer-group','reminder'=>'fa-calendar-check','payment'=>'fa-credit-card','inquiry'=>'fa-comment-dots','appointment'=>'fa-calendar','cancellation'=>'fa-times-circle','patient'=>'fa-user-plus','system'=>'fa-info-circle'];
                                     $icon = $iconMap[$n['type']] ?? 'fa-bell';
                                     $unread = empty($n['is_read']) ? ' unread' : '';
-                                    $href = !empty($n['action_url']) ? htmlspecialchars($n['action_url']) : '#';
                                     $diff = time() - strtotime($n['created_at']);
                                     if ($diff < 60) $timeAgo = 'Just now';
                                     elseif ($diff < 3600) $timeAgo = floor($diff/60).'m ago';
                                     elseif ($diff < 86400) $timeAgo = floor($diff/3600).'h ago';
                                     else $timeAgo = floor($diff/86400).'d ago';
                                 ?>
-                                <a class="notif-item<?php echo $unread; ?>" href="<?php echo $href; ?>" data-notif-id="<?php echo (int)$n['id']; ?>">
+                                <div class="notif-item<?php echo $unread; ?>" data-notif-id="<?php echo (int)$n['id']; ?>">
                                     <div class="notif-icon <?php echo $typeClass; ?>"><i class="fas <?php echo $icon; ?>"></i></div>
                                     <div class="notif-content">
                                         <p class="notif-title"><?php echo htmlspecialchars($n['title']); ?></p>
                                         <p class="notif-msg"><?php echo htmlspecialchars($n['message']); ?></p>
                                         <div class="notif-time"><?php echo $timeAgo; ?></div>
                                     </div>
-                                </a>
+                                </div>
                                 <?php endforeach; ?>
                             <?php endif; ?>
                         </div>

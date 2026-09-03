@@ -132,3 +132,5 @@
 2026-09-03 18:13:30 | createNotification OK: id=202 user_id=41 type=reminder title=Follow-up Reminder
 2026-09-03 18:15:46 | createNotification OK: id=207 user_id=41 type=appointment title=Appointment Approved
 2026-09-03 18:15:46 | createNotification OK: id=208 user_id=41 type=reminder title=Follow-up Reminder
+2026-09-03 18:19:19 | createNotification OK: id=213 user_id=41 type=appointment title=Appointment Approved
+2026-09-03 18:19:19 | createNotification OK: id=214 user_id=41 type=reminder title=Follow-up Reminder
