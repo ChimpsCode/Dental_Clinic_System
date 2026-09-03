@@ -93,3 +93,42 @@
 2026-09-03 16:28:53 | billing_actions mark_paid: notifyPatientPaymentRecorded OK for patient_id=70 amount=2000 method=Cash
 2026-09-03 16:28:57 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
 2026-09-03 17:03:38 | createNotification OK: id=145 user_id=40 type=inquiry title=Inquiry Response
+2026-09-03 17:15:13 | createNotification OK: id=146 user_id=41 type=inquiry title=Inquiry Response
+2026-09-03 17:18:07 | createNotification OK: id=147 user_id=41 type=inquiry title=Inquiry Response
+2026-09-03 17:19:10 | createNotification OK: id=148 user_id=41 type=inquiry title=Inquiry Response
+2026-09-03 17:20:03 | createNotification OK: id=149 user_id=41 type=inquiry title=Inquiry Response
+2026-09-03 17:20:30 | createNotification OK: id=150 user_id=41 type=inquiry title=Inquiry Response
+2026-09-03 17:21:08 | createNotification OK: id=151 user_id=41 type=appointment title=Appointment Declined
+2026-09-03 17:21:31 | createNotification OK: id=152 user_id=41 type=appointment title=Appointment Approved
+2026-09-03 17:21:31 | createNotification OK: id=153 user_id=41 type=reminder title=Follow-up Reminder
+2026-09-03 17:26:25 | createNotification OK: id=154 user_id=40 type=appointment title=Appointment Approved
+2026-09-03 17:26:25 | createNotification OK: id=155 user_id=40 type=reminder title=Follow-up Reminder
+2026-09-03 17:26:58 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
+2026-09-03 17:27:01 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
+2026-09-03 17:28:52 | createNotification OK: id=156 user_id=41 type=queue title=Queue Update
+2026-09-03 17:29:35 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
+2026-09-03 17:30:32 | notifyPatientPaymentRecorded: user_id=41 patient_id=71 amount=800 method=Cash treatment=Teeth Cleaning balance=0
+2026-09-03 17:30:32 | createNotification OK: id=157 user_id=41 type=payment title=Payment Recorded
+2026-09-03 17:30:32 | billing_actions mark_paid: notifyPatientPaymentRecorded OK for patient_id=71 amount=800 method=Cash
+2026-09-03 17:34:46 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-09-03 17:41:53 | createNotification OK: id=158 user_id=41 type=appointment title=Appointment Approved
+2026-09-03 17:41:53 | createNotification OK: id=159 user_id=41 type=reminder title=Follow-up Reminder
+2026-09-03 17:42:22 | createNotification OK: id=160 user_id=41 type=queue title=Queue Update
+2026-09-03 17:45:01 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
+2026-09-03 17:45:10 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
+2026-09-03 17:57:49 | createNotification OK: id=165 user_id=41 type=appointment title=Appointment Approved
+2026-09-03 17:57:49 | createNotification OK: id=166 user_id=41 type=reminder title=Follow-up Reminder
+2026-09-03 17:58:13 | createNotification OK: id=171 user_id=41 type=appointment title=Appointment Approved
+2026-09-03 17:58:13 | createNotification OK: id=172 user_id=41 type=reminder title=Follow-up Reminder
+2026-09-03 18:00:01 | createNotification OK: id=177 user_id=41 type=appointment title=Appointment Approved
+2026-09-03 18:00:01 | createNotification OK: id=178 user_id=41 type=reminder title=Follow-up Reminder
+2026-09-03 18:03:13 | createNotification OK: id=183 user_id=41 type=appointment title=Appointment Approved
+2026-09-03 18:03:13 | createNotification OK: id=184 user_id=41 type=reminder title=Follow-up Reminder
+2026-09-03 18:12:56 | createNotification OK: id=189 user_id=41 type=appointment title=Appointment Approved
+2026-09-03 18:12:56 | createNotification OK: id=190 user_id=41 type=reminder title=Follow-up Reminder
+2026-09-03 18:13:14 | createNotification OK: id=195 user_id=41 type=appointment title=Appointment Approved
+2026-09-03 18:13:14 | createNotification OK: id=196 user_id=41 type=reminder title=Follow-up Reminder
+2026-09-03 18:13:30 | createNotification OK: id=201 user_id=41 type=appointment title=Appointment Approved
+2026-09-03 18:13:30 | createNotification OK: id=202 user_id=41 type=reminder title=Follow-up Reminder
+2026-09-03 18:15:46 | createNotification OK: id=207 user_id=41 type=appointment title=Appointment Approved
+2026-09-03 18:15:46 | createNotification OK: id=208 user_id=41 type=reminder title=Follow-up Reminder
