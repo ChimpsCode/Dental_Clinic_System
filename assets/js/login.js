@@ -241,7 +241,7 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    function showTwoFactor() {
+    function showTwoFactor(method) {
         if (loginContainer) loginContainer.style.display = 'none';
         if (registrationContainer) registrationContainer.style.display = 'none';
         if (forgotContainer) forgotContainer.style.display = 'none';
@@ -250,6 +250,16 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
         if (twoFactorCode) { twoFactorCode.value = ''; twoFactorCode.focus(); }
         if (twoFactorError) twoFactorError.style.display = 'none';
+
+        const subtitle = document.getElementById('twoFactorSubtitle');
+        const helpText = document.getElementById('twoFactorHelpText');
+        if (method === 'email') {
+            if (subtitle) subtitle.textContent = 'Enter the 6-digit code sent to your email.';
+            if (helpText) helpText.textContent = "Didn't receive the code? ";
+        } else {
+            if (subtitle) subtitle.textContent = 'Enter the 6-digit code from your authenticator app.';
+            if (helpText) helpText.textContent = 'Open Google Authenticator to get your code. ';
+        }
     }
 
     [createAccountLink, backToLoginLink, forgotPasswordLink, backToLoginFromForgotLink, backToLoginFrom2faLink].forEach(link => {
@@ -1056,8 +1066,8 @@
                 if (data.success === true) {
                     if (data.two_factor_required === true) {
                         console.log('=== 2FA REQUIRED ===');
-                        showToast('Info', data.message || 'Verification code sent to your email', 'success');
-                        showTwoFactor();
+                        showToast('Info', data.message || 'Enter your verification code', 'success');
+                        showTwoFactor(data.two_factor_method || 'totp');
                         return;
                     }
 

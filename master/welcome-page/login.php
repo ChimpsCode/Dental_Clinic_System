@@ -336,7 +336,14 @@ if (
 
 // Handle 2FA clear (when user goes back to login)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'clear_2fa') {
-    unset($_SESSION['2fa_user_id'], $_SESSION['2fa_code'], $_SESSION['2fa_code_expiry'], $_SESSION['2fa_user_data']);
+    unset(
+        $_SESSION['2fa_user_id'],
+        $_SESSION['2fa_code'],
+        $_SESSION['2fa_code_expiry'],
+        $_SESSION['2fa_user_data'],
+        $_SESSION['2fa_method'],
+        $_SESSION['2fa_secret']
+    );
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['success' => true]);
     exit();
@@ -345,30 +352,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 // Handle 2FA verification
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'verify_2fa') {
     header('Content-Type: application/json; charset=utf-8');
+    require_once __DIR__ . '/../../lib/security/totp_lib.php';
+
     $code = trim($_POST['code'] ?? '');
     $userId = (int)($_SESSION['2fa_user_id'] ?? 0);
-    $storedHash = $_SESSION['2fa_code'] ?? '';
-    $expiry = (int)($_SESSION['2fa_code_expiry'] ?? 0);
-
-    if ($userId === 0 || empty($storedHash) || time() > $expiry) {
-        echo json_encode(['success' => false, 'message' => 'Code expired. Please login again.']);
-        exit();
-    }
-
-    if (empty($code) || !password_verify($code, $storedHash)) {
-        echo json_encode(['success' => false, 'message' => 'Invalid verification code.']);
-        exit();
-    }
-
+    $method = (string)($_SESSION['2fa_method'] ?? 'email');
     $user = $_SESSION['2fa_user_data'] ?? null;
-    if (!$user) {
+
+    if ($userId === 0 || !$user) {
         echo json_encode(['success' => false, 'message' => 'Session expired. Please login again.']);
         exit();
     }
 
-    // Clear 2FA session data
-    unset($_SESSION['2fa_user_id'], $_SESSION['2fa_code'], $_SESSION['2fa_code_expiry'], $_SESSION['2fa_user_data']);
+    $codeValid = false;
+    if ($method === 'totp') {
+        $secret = (string)($_SESSION['2fa_secret'] ?? ($user['two_factor_secret'] ?? ''));
+        $codeValid = totpIsValidSecret($secret) && totpVerify($secret, $code, 1);
+    } else {
+        $storedHash = $_SESSION['2fa_code'] ?? '';
+        $expiry = (int)($_SESSION['2fa_code_expiry'] ?? 0);
+        if ($storedHash === '' || time() > $expiry) {
+            echo json_encode(['success' => false, 'message' => 'Code expired. Please login again.']);
+            exit();
+        }
+        $codeValid = $code !== '' && password_verify($code, $storedHash);
+    }
 
+    if (!$codeValid) {
+        echo json_encode(['success' => false, 'message' => 'Invalid verification code.']);
+        exit();
+    }
+
+    // Clear 2FA session data
+    unset(
+        $_SESSION['2fa_user_id'],
+        $_SESSION['2fa_code'],
+        $_SESSION['2fa_code_expiry'],
+        $_SESSION['2fa_user_data'],
+        $_SESSION['2fa_method'],
+        $_SESSION['2fa_secret']
+    );
     // Complete login
     $_SESSION['user_id'] = $user['id'];
     $_SESSION['username'] = $user['username'];
@@ -497,50 +520,93 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             // Clear existing session and set new session data
             session_regenerate_id(false);
 
-            // Check if 2FA is enabled for this user (skip if no email)
+            // Check if 2FA is enabled for this user
             $twoFactorEnabled = (int)($user['two_factor_enabled'] ?? 0);
+            $totpSecret = trim((string)($user['two_factor_secret'] ?? ''));
             $userEmail = trim($user['email'] ?? '');
-            if ($twoFactorEnabled && !empty($userEmail)) {
-                // Clear any stale 2FA data from previous attempts
-                unset($_SESSION['2fa_user_id'], $_SESSION['2fa_code'], $_SESSION['2fa_code_expiry'], $_SESSION['2fa_user_data']);
 
-                $twoFactorCode = (string)random_int(100000, 999999);
-                $_SESSION['2fa_user_id'] = (int)$user['id'];
-                $_SESSION['2fa_code'] = password_hash($twoFactorCode, PASSWORD_DEFAULT);
-                $_SESSION['2fa_code_expiry'] = time() + 300;
-                $_SESSION['2fa_user_data'] = $user;
+            if ($twoFactorEnabled) {
+                require_once __DIR__ . '/../../lib/security/totp_lib.php';
 
-                try {
-                    require_once '../../config/mailer_config.php';
-                    $phpMailerBase = __DIR__ . '/../../PHPMailer/src';
-                    if (file_exists($phpMailerBase . '/PHPMailer.php')) {
-                        require_once $phpMailerBase . '/Exception.php';
-                        require_once $phpMailerBase . '/PHPMailer.php';
-                        require_once $phpMailerBase . '/SMTP.php';
+                // Prefer authenticator-app TOTP when a secret is enrolled.
+                if (totpIsValidSecret($totpSecret)) {
+                    unset(
+                        $_SESSION['2fa_user_id'],
+                        $_SESSION['2fa_code'],
+                        $_SESSION['2fa_code_expiry'],
+                        $_SESSION['2fa_user_data'],
+                        $_SESSION['2fa_method'],
+                        $_SESSION['2fa_secret']
+                    );
 
-                        $mailer = new \PHPMailer\PHPMailer\PHPMailer(true);
-                        $mailer->isSMTP();
-                        $mailer->Host = trim((string)SMTP_HOST);
-                        $mailer->SMTPAuth = true;
-                        $mailer->Username = SMTP_USER;
-                        $mailer->Password = preg_replace('/\s+/', '', (string)SMTP_PASS);
-                        $mailer->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-                        $mailer->Port = SMTP_PORT;
-                        $mailer->SMTPOptions = ['ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true]];
-                        $mailer->setFrom(MAIL_FROM, MAIL_FROM_NAME);
-                        $mailer->addAddress($user['email'], $user['username']);
-                        $mailer->isHTML(true);
-                        $mailer->Subject = 'RF Dental Clinic - Two-Factor Authentication Code';
-                        $mailer->Body = '<p>Hi ' . htmlspecialchars($user['username']) . ',</p><p>Your 2FA verification code is:</p><p style="font-size:22px;font-weight:bold;letter-spacing:4px;">' . htmlspecialchars($twoFactorCode) . '</p><p>This code expires in 5 minutes.</p>';
-                        $mailer->AltBody = 'Your 2FA code is: ' . $twoFactorCode;
-                        $mailer->send();
-                    }
-                } catch (Exception $e) {}
+                    $_SESSION['2fa_user_id'] = (int)$user['id'];
+                    $_SESSION['2fa_user_data'] = $user;
+                    $_SESSION['2fa_method'] = 'totp';
+                    $_SESSION['2fa_secret'] = $totpSecret;
 
-                echo json_encode(['success' => true, 'two_factor_required' => true, 'message' => 'Verification code sent to your email']);
-                exit();
-            }
-            
+                    echo json_encode([
+                        'success' => true,
+                        'two_factor_required' => true,
+                        'two_factor_method' => 'totp',
+                        'message' => 'Enter the 6-digit code from your authenticator app'
+                    ]);
+                    exit();
+                }
+
+                // Legacy fallback: email OTP when 2FA is flagged on but no secret exists.
+                if (!empty($userEmail)) {
+                    unset(
+                        $_SESSION['2fa_user_id'],
+                        $_SESSION['2fa_code'],
+                        $_SESSION['2fa_code_expiry'],
+                        $_SESSION['2fa_user_data'],
+                        $_SESSION['2fa_method'],
+                        $_SESSION['2fa_secret']
+                    );
+
+                    $twoFactorCode = (string)random_int(100000, 999999);
+                    $_SESSION['2fa_user_id'] = (int)$user['id'];
+                    $_SESSION['2fa_code'] = password_hash($twoFactorCode, PASSWORD_DEFAULT);
+                    $_SESSION['2fa_code_expiry'] = time() + 300;
+                    $_SESSION['2fa_user_data'] = $user;
+                    $_SESSION['2fa_method'] = 'email';
+
+                    try {
+                        require_once '../../config/mailer_config.php';
+                        $phpMailerBase = __DIR__ . '/../../PHPMailer/src';
+                        if (file_exists($phpMailerBase . '/PHPMailer.php')) {
+                            require_once $phpMailerBase . '/Exception.php';
+                            require_once $phpMailerBase . '/PHPMailer.php';
+                            require_once $phpMailerBase . '/SMTP.php';
+
+                            $mailer = new \PHPMailer\PHPMailer\PHPMailer(true);
+                            $mailer->isSMTP();
+                            $mailer->Host = trim((string)SMTP_HOST);
+                            $mailer->SMTPAuth = true;
+                            $mailer->Username = SMTP_USER;
+                            $mailer->Password = preg_replace('/\s+/', '', (string)SMTP_PASS);
+                            $mailer->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+                            $mailer->Port = SMTP_PORT;
+                            $mailer->SMTPOptions = ['ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true]];
+                            $mailer->setFrom(MAIL_FROM, MAIL_FROM_NAME);
+                            $mailer->addAddress($user['email'], $user['username']);
+                            $mailer->isHTML(true);
+                            $mailer->Subject = 'RF Dental Clinic - Two-Factor Authentication Code';
+                            $mailer->Body = '<p>Hi ' . htmlspecialchars($user['username']) . ',</p><p>Your 2FA verification code is:</p><p style="font-size:22px;font-weight:bold;letter-spacing:4px;">' . htmlspecialchars($twoFactorCode) . '</p><p>This code expires in 5 minutes.</p>';
+                            $mailer->AltBody = 'Your 2FA code is: ' . $twoFactorCode;
+                            $mailer->send();
+                        }
+                    } catch (Exception $e) {}
+
+                    echo json_encode([
+                        'success' => true,
+                        'two_factor_required' => true,
+                        'two_factor_method' => 'email',
+                        'message' => 'Verification code sent to your email'
+                    ]);
+                    exit();
+                }
+            }            
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
             $_SESSION['email'] = $user['email'] ?? '';
@@ -1051,7 +1117,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
             <!-- Two-Factor Authentication (inline) -->
             <div class="login-form-container" id="twoFactorContainer" style="display: none;">
                 <div class="logo-container">
-                    <img src="<?php echo htmlspecialchars($loginLogo); ?>" alt="RF Logo" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <!-- <img src="<?php echo htmlspecialchars($loginLogo); ?>" alt="RF Logo" class="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"> -->
                     <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display:none;">
                         <path d="M50 20 L30 40 L30 60 L50 80 L70 60 L70 40 Z" fill="#2563eb" stroke="#2563eb" stroke-width="2"/>
                         <text x="50" y="45" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">R</text>
@@ -1060,8 +1126,8 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
                 </div>
 
                 <h1 class="clinic-name">Two-Factor Authentication</h1>
-                <p class="login-subtitle" style="text-align:center; margin-bottom: 16px;">
-                    Enter the 6-digit code sent to your email.
+                <p class="login-subtitle" id="twoFactorSubtitle" style="text-align:center; margin-bottom: 16px;">
+                    Enter the 6-digit code from your authenticator app.
                 </p>
 
                 <div class="alert alert-error" id="twoFactorError" style="display: none;"></div>
@@ -1076,7 +1142,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
                 </form>
 
                 <div class="form-links" style="margin-top: 16px; justify-content: center;">
-                    <span>Didn't receive the code? </span>
+                    <span id="twoFactorHelpText">Open Google Authenticator to get your code. </span>
                     <a href="#login" class="link" id="backToLoginFrom2faLink">Back to login</a>
                 </div>
             </div>

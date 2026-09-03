@@ -33,6 +33,19 @@ $unavailableDates = isset($settings['unavailable_dates']) ? json_decode($setting
 if (!$unavailableDates) $unavailableDates = [];
 
 require_once __DIR__ . '/../../includes/admin_layout_start.php';
+
+// Two-factor status is per-user (Google Authenticator), not a clinic-wide flag.
+$adminTwoFactorEnabled = false;
+$adminUserId = (int)($_SESSION['user_id'] ?? 0);
+if ($adminUserId > 0) {
+    try {
+        $twoFaStmt = $pdo->prepare("SELECT two_factor_enabled FROM users WHERE id = ? LIMIT 1");
+        $twoFaStmt->execute([$adminUserId]);
+        $adminTwoFactorEnabled = (int)$twoFaStmt->fetchColumn() === 1;
+    } catch (Throwable $e) {
+        $adminTwoFactorEnabled = false;
+    }
+}
 ?>
             <style>
                 .schedule-tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 2px solid #e5e7eb; padding-bottom: 0; }
@@ -105,19 +118,34 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 .delete-date-btn { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 18px; padding: 4px 8px; }
                 .delete-date-btn:hover { background: #fee2e2; border-radius: 4px; }
                 
-                .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+                .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100001; justify-content: center; align-items: center; padding: 16px; }
                 .modal-overlay.active { display: flex; }
-                .modal-content { background: white; border-radius: 12px; padding: 24px; max-width: 400px; width: 100%; }
+                .modal-content { background: white; border-radius: 12px; padding: 24px; max-width: 400px; width: 100%; position: relative; z-index: 100002; }
+                .modal-content.modal-2fa { max-width: 460px; max-height: calc(100vh - 32px); overflow-y: auto; }
                 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-                .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280; }
+                .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280; line-height: 1; }
                 .form-group { margin-bottom: 16px; }
                 .form-group label { display: block; margin-bottom: 6px; font-weight: 500; color: #374151; }
-                .form-control { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
+                .form-control { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
                 .btn-primary { background: #005daa; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; }
                 .btn-primary:hover { background: #004080; }
+                .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
                 .btn-secondary { background: #f3f4f6; color: #374151; padding: 10px 20px; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; }
                 .btn-secondary:hover { background: #e5e7eb; }
                 .bulk-form { background: #f9fafb; padding: 20px; border-radius: 8px; margin-top: 20px; }
+
+                .twofa-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; margin-top: 6px; }
+                .twofa-status.on { background: #d1fae5; color: #065f46; }
+                .twofa-status.off { background: #f3f4f6; color: #6b7280; }
+                .twofa-steps { margin: 0 0 16px; padding-left: 18px; color: #4b5563; font-size: 14px; line-height: 1.5; }
+                .twofa-steps li { margin-bottom: 4px; }
+                .twofa-qr-wrap { display: flex; justify-content: center; margin: 8px 0 16px; }
+                .twofa-qr-wrap img, .twofa-qr-wrap svg { width: 220px; height: 220px; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; }
+                .twofa-secret-box { display: flex; gap: 8px; align-items: stretch; }
+                .twofa-secret-box input { flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 1px; text-align: center; font-weight: 600; }
+                .twofa-error { display: none; margin-bottom: 12px; padding: 10px 12px; border-radius: 8px; background: #fee2e2; color: #991b1b; font-size: 14px; }
+                .twofa-error.visible { display: block; }
+                .twofa-hint { font-size: 13px; color: #6b7280; margin: 0 0 12px; }
                 
                 @media (max-width: 768px) {
                     .cal-day { min-height: 40px; font-size: 12px; }
@@ -328,10 +356,13 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                             <div class="toggle-setting">
                                 <div class="toggle-info">
                                     <span class="toggle-label">Two-Factor Authentication</span>
-                                    <span class="toggle-description">Add extra security to admin accounts</span>
+                                    <span class="toggle-description">Protect your admin account with Google Authenticator (or any TOTP app)</span>
+                                    <span class="twofa-status <?php echo $adminTwoFactorEnabled ? 'on' : 'off'; ?>" id="twoFactorStatusBadge">
+                                        <?php echo $adminTwoFactorEnabled ? 'Enabled' : 'Disabled'; ?>
+                                    </span>
                                 </div>
                                 <label class="toggle-switch">
-                                    <input type="checkbox" id="twoFactorAuth" <?php echo ($settings['two_factor_auth'] ?? '0') === '1' ? 'checked' : ''; ?>>
+                                    <input type="checkbox" id="twoFactorAuth" <?php echo $adminTwoFactorEnabled ? 'checked' : ''; ?>>
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
@@ -425,6 +456,59 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 </div>
             </div>
 
+            <div class="modal-overlay" id="twoFactorSetupModal">
+                <div class="modal-content modal-2fa">
+                    <div class="modal-header">
+                        <h3>Set up Two-Factor Authentication</h3>
+                        <button type="button" class="modal-close" id="twoFactorSetupCloseBtn" aria-label="Close">&times;</button>
+                    </div>
+                    <div class="twofa-error" id="twoFactorSetupError"></div>
+                    <ol class="twofa-steps">
+                        <li>Install Google Authenticator (or any authenticator app) on your phone.</li>
+                        <li>Scan the QR code below, or enter the setup key manually.</li>
+                        <li>Enter the 6-digit code from the app to confirm.</li>
+                    </ol>
+                    <div class="twofa-qr-wrap" id="twoFactorQrWrap">
+                        <div style="padding: 40px; color: #6b7280;">Generating QR code...</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Setup key (manual entry)</label>
+                        <div class="twofa-secret-box">
+                            <input type="text" class="form-control" id="twoFactorSetupKey" readonly value="">
+                            <button type="button" class="btn-secondary" id="twoFactorCopyKeyBtn">Copy</button>
+                        </div>
+                        <p class="twofa-hint">Spaces are ignored by authenticator apps.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="twoFactorConfirmCode">Verification code</label>
+                        <input type="text" class="form-control" id="twoFactorConfirmCode" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="Enter 6-digit code" style="text-align: center; letter-spacing: 6px; font-size: 18px;">
+                    </div>
+                    <div style="display: flex; gap: 12px;">
+                        <button type="button" class="btn-primary" id="twoFactorConfirmBtn" style="flex: 1;">Enable 2FA</button>
+                        <button type="button" class="btn-secondary" id="twoFactorSetupCancelBtn">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-overlay" id="twoFactorDisableModal">
+                <div class="modal-content modal-2fa">
+                    <div class="modal-header">
+                        <h3>Disable Two-Factor Authentication</h3>
+                        <button type="button" class="modal-close" id="twoFactorDisableCloseBtn" aria-label="Close">&times;</button>
+                    </div>
+                    <div class="twofa-error" id="twoFactorDisableError"></div>
+                    <p class="twofa-hint">Enter the current 6-digit code from your authenticator app to turn off 2FA for this account.</p>
+                    <div class="form-group">
+                        <label for="twoFactorDisableCode">Verification code</label>
+                        <input type="text" class="form-control" id="twoFactorDisableCode" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="Enter 6-digit code" style="text-align: center; letter-spacing: 6px; font-size: 18px;">
+                    </div>
+                    <div style="display: flex; gap: 12px;">
+                        <button type="button" class="btn-primary" id="twoFactorDisableConfirmBtn" style="flex: 1; background: #dc2626;">Disable 2FA</button>
+                        <button type="button" class="btn-secondary" id="twoFactorDisableCancelBtn">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
 <?php
 require_once __DIR__ . '/../../includes/admin_layout_end.php';
 ?>
@@ -491,7 +575,6 @@ document.getElementById('securitySettingsForm').addEventListener('submit', funct
 
     const formData = new FormData();
     formData.append('action', 'save_security_settings');
-    formData.append('two_factor_auth', document.getElementById('twoFactorAuth').checked ? '1' : '0');
     formData.append('session_timeout', document.getElementById('sessionTimeout').value);
 
     fetch('settings_actions.php', {
@@ -510,6 +593,268 @@ document.getElementById('securitySettingsForm').addEventListener('submit', funct
         alert('Failed to save security settings');
     });
 });
+
+(function initTwoFactorUi() {
+    const toggle = document.getElementById('twoFactorAuth');
+    const statusBadge = document.getElementById('twoFactorStatusBadge');
+    const setupModal = document.getElementById('twoFactorSetupModal');
+    const disableModal = document.getElementById('twoFactorDisableModal');
+    const qrWrap = document.getElementById('twoFactorQrWrap');
+    const setupKeyInput = document.getElementById('twoFactorSetupKey');
+    const confirmCodeInput = document.getElementById('twoFactorConfirmCode');
+    const disableCodeInput = document.getElementById('twoFactorDisableCode');
+    const setupError = document.getElementById('twoFactorSetupError');
+    const disableError = document.getElementById('twoFactorDisableError');
+    const confirmBtn = document.getElementById('twoFactorConfirmBtn');
+    const disableConfirmBtn = document.getElementById('twoFactorDisableConfirmBtn');
+
+    if (!toggle || !setupModal || !disableModal) {
+        return;
+    }
+
+    let twoFactorEnabled = <?php echo $adminTwoFactorEnabled ? 'true' : 'false'; ?>;
+    let setupInFlight = false;
+
+    function setStatusBadge(enabled) {
+        twoFactorEnabled = enabled;
+        toggle.checked = enabled;
+        if (!statusBadge) return;
+        statusBadge.textContent = enabled ? 'Enabled' : 'Disabled';
+        statusBadge.classList.toggle('on', enabled);
+        statusBadge.classList.toggle('off', !enabled);
+    }
+
+    function showError(el, message) {
+        if (!el) return;
+        el.textContent = message || '';
+        el.classList.toggle('visible', !!message);
+    }
+
+    function openModal(modal) {
+        modal.classList.add('active');
+    }
+
+    function closeSetupModal(cancelPending) {
+        setupModal.classList.remove('active');
+        showError(setupError, '');
+        if (confirmCodeInput) confirmCodeInput.value = '';
+        if (cancelPending) {
+            const formData = new FormData();
+            formData.append('action', 'cancel_2fa_setup');
+            fetch('settings_actions.php', { method: 'POST', body: formData }).catch(function() {});
+        }
+    }
+
+    function closeDisableModal() {
+        disableModal.classList.remove('active');
+        showError(disableError, '');
+        if (disableCodeInput) disableCodeInput.value = '';
+    }
+
+    function startSetup() {
+        if (setupInFlight) return;
+        setupInFlight = true;
+        showError(setupError, '');
+        if (qrWrap) qrWrap.innerHTML = '<div style="padding: 40px; color: #6b7280;">Generating QR code...</div>';
+        if (setupKeyInput) setupKeyInput.value = '';
+        if (confirmCodeInput) confirmCodeInput.value = '';
+        openModal(setupModal);
+
+        const formData = new FormData();
+        formData.append('action', 'start_2fa_setup');
+
+        fetch('settings_actions.php', { method: 'POST', body: formData })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                setupInFlight = false;
+                if (!data.success) {
+                    showError(setupError, data.message || 'Could not start 2FA setup.');
+                    setStatusBadge(false);
+                    return;
+                }
+
+                if (qrWrap) {
+                    if (data.qr_data_uri) {
+                        qrWrap.innerHTML = '<img src="' + data.qr_data_uri + '" alt="Authenticator QR code">';
+                    } else if (data.qr_svg) {
+                        qrWrap.innerHTML = data.qr_svg;
+                    }
+                }
+                if (setupKeyInput) {
+                    setupKeyInput.value = data.secret_display || data.secret || '';
+                }
+                if (confirmCodeInput) {
+                    confirmCodeInput.focus();
+                }
+            })
+            .catch(function() {
+                setupInFlight = false;
+                showError(setupError, 'Failed to start 2FA setup. Please try again.');
+                setStatusBadge(false);
+            });
+    }
+
+    function confirmSetup() {
+        const code = (confirmCodeInput ? confirmCodeInput.value : '').trim();
+        if (!/^\d{6}$/.test(code)) {
+            showError(setupError, 'Enter the 6-digit code from your authenticator app.');
+            return;
+        }
+
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Verifying...';
+        showError(setupError, '');
+
+        const formData = new FormData();
+        formData.append('action', 'confirm_2fa_setup');
+        formData.append('code', code);
+
+        fetch('settings_actions.php', { method: 'POST', body: formData })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Enable 2FA';
+                if (!data.success) {
+                    showError(setupError, data.message || 'Invalid verification code.');
+                    if (confirmCodeInput) {
+                        confirmCodeInput.value = '';
+                        confirmCodeInput.focus();
+                    }
+                    return;
+                }
+                setStatusBadge(true);
+                closeSetupModal(false);
+                alert('Two-factor authentication is now enabled for your account.');
+            })
+            .catch(function() {
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Enable 2FA';
+                showError(setupError, 'Verification failed. Please try again.');
+            });
+    }
+
+    function confirmDisable() {
+        const code = (disableCodeInput ? disableCodeInput.value : '').trim();
+        if (!/^\d{6}$/.test(code)) {
+            showError(disableError, 'Enter the 6-digit code from your authenticator app.');
+            return;
+        }
+
+        disableConfirmBtn.disabled = true;
+        disableConfirmBtn.textContent = 'Disabling...';
+        showError(disableError, '');
+
+        const formData = new FormData();
+        formData.append('action', 'disable_2fa');
+        formData.append('code', code);
+
+        fetch('settings_actions.php', { method: 'POST', body: formData })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                disableConfirmBtn.disabled = false;
+                disableConfirmBtn.textContent = 'Disable 2FA';
+                if (!data.success) {
+                    showError(disableError, data.message || 'Could not disable 2FA.');
+                    if (disableCodeInput) {
+                        disableCodeInput.value = '';
+                        disableCodeInput.focus();
+                    }
+                    return;
+                }
+                setStatusBadge(false);
+                closeDisableModal();
+                alert('Two-factor authentication has been disabled.');
+            })
+            .catch(function() {
+                disableConfirmBtn.disabled = false;
+                disableConfirmBtn.textContent = 'Disable 2FA';
+                showError(disableError, 'Request failed. Please try again.');
+            });
+    }
+
+    toggle.addEventListener('change', function() {
+        if (toggle.checked) {
+            // Optimistic UI reverted until setup is confirmed.
+            toggle.checked = false;
+            startSetup();
+        } else {
+            toggle.checked = true;
+            if (disableCodeInput) disableCodeInput.value = '';
+            showError(disableError, '');
+            openModal(disableModal);
+            if (disableCodeInput) disableCodeInput.focus();
+        }
+    });
+
+    document.getElementById('twoFactorSetupCloseBtn').addEventListener('click', function() {
+        closeSetupModal(true);
+        setStatusBadge(twoFactorEnabled);
+    });
+    document.getElementById('twoFactorSetupCancelBtn').addEventListener('click', function() {
+        closeSetupModal(true);
+        setStatusBadge(twoFactorEnabled);
+    });
+    document.getElementById('twoFactorDisableCloseBtn').addEventListener('click', function() {
+        closeDisableModal();
+        setStatusBadge(twoFactorEnabled);
+    });
+    document.getElementById('twoFactorDisableCancelBtn').addEventListener('click', function() {
+        closeDisableModal();
+        setStatusBadge(twoFactorEnabled);
+    });
+
+    confirmBtn.addEventListener('click', confirmSetup);
+    disableConfirmBtn.addEventListener('click', confirmDisable);
+
+    document.getElementById('twoFactorCopyKeyBtn').addEventListener('click', function() {
+        const value = (setupKeyInput.value || '').replace(/\s+/g, '');
+        if (!value) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(value).then(function() {
+                const btn = document.getElementById('twoFactorCopyKeyBtn');
+                const original = btn.textContent;
+                btn.textContent = 'Copied';
+                setTimeout(function() { btn.textContent = original; }, 1500);
+            }).catch(function() {
+                setupKeyInput.select();
+                document.execCommand('copy');
+            });
+        } else {
+            setupKeyInput.select();
+            document.execCommand('copy');
+        }
+    });
+
+    if (confirmCodeInput) {
+        confirmCodeInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') confirmSetup();
+        });
+        confirmCodeInput.addEventListener('input', function() {
+            this.value = this.value.replace(/\D/g, '').slice(0, 6);
+        });
+    }
+    if (disableCodeInput) {
+        disableCodeInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') confirmDisable();
+        });
+        disableCodeInput.addEventListener('input', function() {
+            this.value = this.value.replace(/\D/g, '').slice(0, 6);
+        });
+    }
+
+    setupModal.addEventListener('click', function(e) {
+        if (e.target === setupModal) {
+            closeSetupModal(true);
+            setStatusBadge(twoFactorEnabled);
+        }
+    });
+    disableModal.addEventListener('click', function(e) {
+        if (e.target === disableModal) {
+            closeDisableModal();
+            setStatusBadge(twoFactorEnabled);
+        }
+    });
+})();
 
 document.querySelectorAll('.schedule-tab').forEach(tab => {
     tab.addEventListener('click', function() {
