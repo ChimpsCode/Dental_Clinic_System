@@ -220,6 +220,27 @@ function ensureInquiryReplySchema(PDO $pdo): void
     $ensured = true;
 }
 
+function ensureInquiryTypingSchema(PDO $pdo): void
+{
+    static $ensured = false;
+    if ($ensured) {
+        return;
+    }
+
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS `inquiry_typing_status` (
+            `inquiry_id` INT(11) NOT NULL,
+            `sender_type` ENUM('patient','staff') NOT NULL,
+            `is_typing` TINYINT(1) NOT NULL DEFAULT 0,
+            `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`inquiry_id`, `sender_type`),
+            KEY `idx_inquiry_typing_updated` (`updated_at`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+    ");
+
+    $ensured = true;
+}
+
 function fetchInquiryReplies(PDO $pdo, int $inquiryId): array
 {
     try {

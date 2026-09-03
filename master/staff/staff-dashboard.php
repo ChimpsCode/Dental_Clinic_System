@@ -1735,6 +1735,11 @@ function getStaffTeethDisplayText(teethString) {
 // ===== Dashboard Inquiry Panel =====
 let dashboardInquiries = [];
 let dashboardInquiryMap = {};
+let dashboardActiveInquiryId = 0;
+let dashboardConversationPollInFlight = false;
+let dashboardTypingState = 0;
+let dashboardTypingSentAt = 0;
+let dashboardTypingTimer = null;
 
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (character) => ({
@@ -1757,10 +1762,15 @@ function toggleInquiryPanel() {
     backdrop.classList.toggle('open', isOpen);
     if (isOpen && !dashboardInquiries.length) {
         fetchDashboardInquiries();
+    } else if (!isOpen) {
+        sendDashboardTypingState(0);
+        dashboardActiveInquiryId = 0;
     }
 }
 
 function showInquiryList() {
+    sendDashboardTypingState(0);
+    dashboardActiveInquiryId = 0;
     document.getElementById('inquiryPanelListView').style.display = 'flex';
     document.getElementById('inquiryPanelChatView').style.display = 'none';
 }
@@ -1788,14 +1798,20 @@ function renderDashboardInquiries() {
     document.getElementById('dashboardInquiryCount').textContent = dashboardInquiries.length;
     list.innerHTML = dashboardInquiries.map((inquiry) => {
         const fullName = [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown';
+        const hasReply = Number(inquiry.latest_reply_id || 0) > 0;
         const lastReply = inquiry.latest_reply_message || '';
+        const hasAttachment = !!inquiry.latest_reply_attachment;
         const lastSender = inquiry.latest_reply_sender_type || '';
-        const previewSource = lastReply ? (lastSender === 'staff' ? 'you: ' + lastReply : lastReply) : (inquiry.concern || inquiry.inquiry_message || 'No message');
+        const latestContent = lastReply || (hasAttachment ? 'Sent an attachment' : '');
+        const previewSource = hasReply
+            ? (lastSender === 'staff' ? 'you: ' + latestContent : latestContent)
+            : (inquiry.concern || inquiry.inquiry_message || 'No message');
         const preview = previewSource.slice(0, 80);
         const status = inquiry.status || 'Unread';
+        const isUnread = status === 'Unread';
         const initials = getInitials(fullName);
         return `
-            <div class="dashboard-inquiry-item">
+            <div class="dashboard-inquiry-item${isUnread ? ' is-unread' : ''}">
                 <div class="dashboard-inquiry-item-avatar" style="overflow:hidden;">${inquiry.patient_profile_picture ? '<img src="../../' + escapeHtml(inquiry.patient_profile_picture) + '" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">' : escapeHtml(initials)}</div>
                 <div class="dashboard-inquiry-item-body">
                     <div class="dashboard-inquiry-item-top">
@@ -1810,6 +1826,27 @@ function renderDashboardInquiries() {
     }).join('');
 }
 
+function updateDashboardInquiryFromReply(inquiryId, reply, status) {
+    const key = String(inquiryId);
+    const entry = dashboardInquiryMap[key];
+    if (!entry || !reply) return;
+
+    entry.latest_reply_id = Number(reply.id || entry.latest_reply_id || 0);
+    entry.latest_reply_message = reply.message || '';
+    entry.latest_reply_attachment = reply.attachment || null;
+    entry.latest_reply_sender_type = reply.sender_type || '';
+    entry.latest_reply_created_at = reply.created_at || new Date().toISOString();
+    if (status) entry.status = status;
+
+    const index = dashboardInquiries.findIndex((item) => String(item.id) === key);
+    if (index > 0) {
+        dashboardInquiries.splice(index, 1);
+        dashboardInquiries.unshift(entry);
+    }
+    renderDashboardInquiries();
+    updateDashboardInquiryBadge(dashboardInquiries.filter((item) => (item.status || 'Unread') === 'Unread').length);
+}
+
 function updateDashboardInquiryBadge(count) {
     const badge = document.getElementById('dashboardInquiryFabBadge');
     if (count > 0) {
@@ -1817,6 +1854,103 @@ function updateDashboardInquiryBadge(count) {
         badge.style.display = 'inline-flex';
     } else {
         badge.style.display = 'none';
+    }
+}
+
+function getDashboardLastReplyId() {
+    const ids = Array.from(document.querySelectorAll('#inquiryChatMessages [data-reply-id]'))
+        .map((element) => Number(element.dataset.replyId))
+        .filter((id) => Number.isFinite(id) && id > 0);
+    return ids.length ? Math.max(...ids) : 0;
+}
+
+function appendDashboardInquiryReply(reply) {
+    const container = document.getElementById('inquiryChatMessages');
+    const replyId = Number(reply.id || 0);
+    if (replyId > 0 && container.querySelector(`[data-reply-id="${replyId}"]`)) return;
+
+    const isPatient = reply.sender_type !== 'staff';
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble ' + (isPatient ? 'received' : 'sent');
+    if (!reply.message && reply.attachment) bubble.classList.add('attachment-only');
+    if (replyId > 0) bubble.dataset.replyId = String(replyId);
+
+    const label = isPatient ? (document.getElementById('inquiryChatName').textContent || 'Patient') : 'Staff';
+    const messageHtml = reply.message ? escapeHtml(reply.message).replace(/\n/g, '<br>') : '';
+    let attachmentHtml = '';
+    if (reply.attachment) {
+        const isImage = /\.(jpe?g|png|gif|webp)$/i.test(reply.attachment);
+        attachmentHtml = isImage
+            ? '<img src="../' + escapeHtml(reply.attachment) + '" class="chat-att-img" alt="Attachment" onclick="openLightbox(this.src)" style="cursor:pointer;">'
+            : '<a href="../' + escapeHtml(reply.attachment) + '" target="_blank" class="chat-att-file"><i class="fas fa-paperclip"></i> ' + escapeHtml(reply.attachment.split('/').pop()) + '</a>';
+    }
+    const timestamp = reply.created_at
+        ? new Date(String(reply.created_at).replace(' ', 'T')).toLocaleString()
+        : new Date().toLocaleString();
+    bubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:' + (isPatient ? '#64748b' : 'rgba(255,255,255,0.7)') + ';margin-bottom:3px;">' + escapeHtml(label) + '</div><div>' + messageHtml + attachmentHtml + '</div><div class="chat-meta">' + escapeHtml(timestamp) + '</div>';
+
+    const typingIndicator = document.getElementById('patientInquiryTypingIndicator');
+    container.insertBefore(bubble, typingIndicator || null);
+    container.scrollTop = container.scrollHeight;
+}
+
+function showDashboardPatientTyping(visible) {
+    const container = document.getElementById('inquiryChatMessages');
+    let indicator = document.getElementById('patientInquiryTypingIndicator');
+    if (!indicator && visible) {
+        indicator = document.createElement('div');
+        indicator.id = 'patientInquiryTypingIndicator';
+        indicator.className = 'inquiry-typing-indicator';
+        indicator.innerHTML = '<span class="inquiry-typing-dots" aria-label="Patient is typing"><span></span><span></span><span></span></span>';
+        container.appendChild(indicator);
+    }
+    if (indicator) {
+        indicator.style.display = visible ? 'flex' : 'none';
+        if (visible) container.scrollTop = container.scrollHeight;
+    }
+}
+
+async function sendDashboardTypingState(isTyping) {
+    if (!dashboardActiveInquiryId) return;
+    const now = Date.now();
+    if (dashboardTypingState === isTyping && (!isTyping || now - dashboardTypingSentAt < 2500)) return;
+    dashboardTypingState = isTyping;
+    dashboardTypingSentAt = now;
+    const formData = new FormData();
+    formData.append('action', 'set_typing');
+    formData.append('id', String(dashboardActiveInquiryId));
+    formData.append('is_typing', isTyping ? '1' : '0');
+    try {
+        await fetch('../shared/inquiry_actions.php', { method: 'POST', body: formData });
+    } catch (_error) {}
+}
+
+async function pollDashboardInquiryConversation() {
+    const inquiryId = dashboardActiveInquiryId;
+    if (!inquiryId || dashboardConversationPollInFlight || document.hidden) return;
+    dashboardConversationPollInFlight = true;
+    const formData = new FormData();
+    formData.append('action', 'conversation_updates');
+    formData.append('id', String(inquiryId));
+    formData.append('last_reply_id', String(getDashboardLastReplyId()));
+    try {
+        const response = await fetch('../shared/inquiry_actions.php', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (!response.ok || !data.success || inquiryId !== dashboardActiveInquiryId) return;
+        (data.replies || []).forEach(appendDashboardInquiryReply);
+        if (data.replies && data.replies.length) {
+            const latestReply = data.replies[data.replies.length - 1];
+            updateDashboardInquiryFromReply(
+                inquiryId,
+                latestReply,
+                latestReply.sender_type === 'staff' ? 'Replied' : 'Read'
+            );
+        }
+        showDashboardPatientTyping(!!data.other_is_typing);
+    } catch (_error) {
+        // Keep the current UI and retry on the next polling cycle.
+    } finally {
+        dashboardConversationPollInFlight = false;
     }
 }
 
@@ -1859,6 +1993,8 @@ async function openDashboardInquiryChat(id) {
                 const bubble = document.createElement('div');
                 const isNotStaff = reply.sender_type !== 'staff';
                 bubble.className = 'chat-bubble ' + (isNotStaff ? 'received' : 'sent');
+                if (!reply.message && reply.attachment) bubble.classList.add('attachment-only');
+                if (reply.id) bubble.dataset.replyId = String(reply.id);
                 const label = isNotStaff ? fullName : 'Staff';
                 const msgText = reply.message ? escapeHtml(reply.message).replace(/\n/g, '<br>') : '';
                 let attHtml = '';
@@ -1895,6 +2031,8 @@ async function openDashboardInquiryChat(id) {
 
     document.getElementById('inquiryPanelListView').style.display = 'none';
     document.getElementById('inquiryPanelChatView').style.display = 'flex';
+    dashboardActiveInquiryId = Number(inquiry.id);
+    dashboardTypingState = 0;
 
     if ((inquiry.status || 'Unread') === 'Unread') {
         inquiry.status = 'Read';
@@ -1904,6 +2042,7 @@ async function openDashboardInquiryChat(id) {
             body: 'action=mark_read&id=' + id
         });
         renderDashboardInquiries();
+        updateDashboardInquiryBadge(dashboardInquiries.filter((item) => (item.status || 'Unread') === 'Unread').length);
     }
 
     document.getElementById('inquiryChatReplyMsg').value = '';
@@ -1957,38 +2096,32 @@ document.getElementById('inquiryChatReplyForm').addEventListener('submit', async
         const now = new Date();
         const ts = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
 
-        const container = document.getElementById('inquiryChatMessages');
-        const bubble = document.createElement('div');
-        bubble.className = 'chat-bubble sent';
-        const attPath = data.attachment || null;
-        let contentHtml = '';
-        if (message) {
-            contentHtml += escapeDashboardHtml(message).replace(/\n/g, '<br>');
-        }
-        if (attPath) {
-            const isImg = /\.(jpe?g|png|gif|webp)$/i.test(attPath);
-            if (isImg) {
-                contentHtml += '<img src="../' + escapeDashboardHtml(attPath) + '" class="chat-att-img" alt="Attachment" onclick="openLightbox(this.src)" style="cursor:pointer;">';
-            } else {
-                contentHtml += '<a href="../' + escapeDashboardHtml(attPath) + '" target="_blank" class="chat-att-file"><i class="fas fa-paperclip"></i> ' + escapeDashboardHtml(attPath.split('/').pop()) + '</a>';
-            }
-        }
-        bubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.7);margin-bottom:3px;">Staff</div><div>' + contentHtml + '</div><div class="chat-meta">' + ts + '</div>';
-        container.appendChild(bubble);
-        container.scrollTop = container.scrollHeight;
+        appendDashboardInquiryReply({
+            id: data.reply_id,
+            sender_type: 'staff',
+            message,
+            attachment: data.attachment || null,
+            created_at: data.created_at || ts
+        });
 
         const entry = dashboardInquiryMap[String(id)];
         if (entry) {
-            entry.status = 'Replied';
             entry.notes = (entry.notes || '') + '\n[Staff replied on ' + ts + ']\n' + message;
         }
+        updateDashboardInquiryFromReply(id, {
+            id: data.reply_id,
+            sender_type: 'staff',
+            message,
+            attachment: data.attachment || null,
+            created_at: data.created_at || ts
+        }, 'Replied');
 
         document.getElementById('inquiryChatReplyMsg').value = '';
         document.getElementById('inquiryChatReplyMsg').style.height = 'auto';
         dashFileInput.value = '';
         clearDashReplyAttachment();
+        sendDashboardTypingState(0);
         btn.disabled = false;
-        renderDashboardInquiries();
     } catch (_err) {
         btn.disabled = false;
     }
@@ -1999,8 +2132,35 @@ if (inquiryChatTextarea) {
     inquiryChatTextarea.addEventListener('input', function () {
         this.style.height = 'auto';
         this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+        const hasText = this.value.trim().length > 0;
+        if (!hasText) {
+            clearTimeout(dashboardTypingTimer);
+            sendDashboardTypingState(0);
+            return;
+        }
+        sendDashboardTypingState(1);
+        clearTimeout(dashboardTypingTimer);
+        dashboardTypingTimer = setTimeout(() => sendDashboardTypingState(0), 3000);
+    });
+    inquiryChatTextarea.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+            event.preventDefault();
+            document.getElementById('inquiryChatReplyForm').requestSubmit();
+        }
+    });
+    inquiryChatTextarea.addEventListener('blur', function () {
+        clearTimeout(dashboardTypingTimer);
+        sendDashboardTypingState(0);
     });
 }
+
+setInterval(pollDashboardInquiryConversation, 2000);
+document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) pollDashboardInquiryConversation();
+});
+window.addEventListener('beforeunload', function () {
+    sendDashboardTypingState(0);
+});
 
 document.getElementById('dashReplyAttachFile').addEventListener('click', () => {
     const inp = document.getElementById('dashReplyFileInput');
@@ -2079,7 +2239,7 @@ setInterval(pollDashboardInquiryBadge, 5000);
 pollDashboardInquiryBadge();
 
 if (dashboardInquiryPollTimer) clearInterval(dashboardInquiryPollTimer);
-dashboardInquiryPollTimer = setInterval(pollDashboardInquiryList, 8000);
+dashboardInquiryPollTimer = setInterval(pollDashboardInquiryList, 3000);
 
 // Queue count auto-polling for dashboard
 var sdQueueCountHash = '';
@@ -2490,6 +2650,19 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
 .dashboard-inquiry-item:hover {
     background: #f8fafc;
 }
+.dashboard-inquiry-item.is-unread {
+    background: #eff6ff;
+    border-left: 4px solid #2563eb;
+    padding-left: 16px;
+}
+.dashboard-inquiry-item.is-unread:hover {
+    background: #dbeafe;
+}
+.dashboard-inquiry-item.is-unread .dashboard-inquiry-item-name,
+.dashboard-inquiry-item.is-unread .dashboard-inquiry-item-preview {
+    color: #0f172a;
+    font-weight: 700;
+}
 .dashboard-inquiry-item-avatar {
     width: 40px;
     height: 40px;
@@ -2663,6 +2836,50 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
 }
 .chat-bubble.sent .chat-meta {
     color: rgba(255,255,255,0.8);
+}
+.chat-bubble.sent.attachment-only {
+    padding: 0;
+    background: transparent;
+    color: #64748b;
+    border-radius: 8px;
+}
+.chat-bubble.sent.attachment-only > div:first-child {
+    color: #64748b !important;
+    margin-left: 2px;
+}
+.chat-bubble.sent.attachment-only .chat-meta {
+    color: #64748b;
+    margin-left: 2px;
+}
+.chat-bubble.sent.attachment-only .chat-att-img {
+    margin-top: 4px;
+    border: 1px solid #e5e7eb;
+}
+.inquiry-typing-indicator {
+    align-self: flex-start;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 10px;
+    color: #64748b;
+    font-size: 12px;
+}
+.inquiry-typing-dots {
+    display: inline-flex;
+    gap: 3px;
+}
+.inquiry-typing-dots span {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #94a3b8;
+    animation: inquiryTypingWave 1.1s infinite ease-in-out;
+}
+.inquiry-typing-dots span:nth-child(2) { animation-delay: .15s; }
+.inquiry-typing-dots span:nth-child(3) { animation-delay: .3s; }
+@keyframes inquiryTypingWave {
+    0%, 60%, 100% { transform: translateY(0); opacity: .45; }
+    30% { transform: translateY(-3px); opacity: 1; }
 }
 .chat-channel-info {
     padding: 10px 20px;

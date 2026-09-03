@@ -513,7 +513,9 @@ if ($action === 'get_inquiries') {
                ass.last_name AS assigned_last_name,
                ass.username AS assigned_username,
                up.profile_picture AS patient_profile_picture,
+               lr.id AS latest_reply_id,
                lr.message AS latest_reply_message,
+               lr.attachment AS latest_reply_attachment,
                lr.sender_type AS latest_reply_sender_type,
                lr.created_at AS latest_reply_created_at
         FROM inquiries i
@@ -526,7 +528,7 @@ if ($action === 'get_inquiries') {
             LIMIT 1
         )
         LEFT JOIN (
-            SELECT r1.inquiry_id, r1.message, r1.sender_type, r1.created_at
+            SELECT r1.id, r1.inquiry_id, r1.message, r1.attachment, r1.sender_type, r1.created_at
             FROM inquiry_replies r1
             INNER JOIN (
                 SELECT inquiry_id, MAX(id) AS max_id
@@ -559,6 +561,82 @@ if ($action === 'get_inquiries') {
 
 if ($method !== 'POST') {
     inquiryJson(['success' => false, 'message' => 'Invalid request method.']);
+}
+
+if ($action === 'conversation_updates' || $action === 'set_typing') {
+    $id = (int)($_POST['id'] ?? 0);
+    if ($id <= 0) {
+        inquiryJson(['success' => false, 'message' => 'Invalid inquiry.']);
+    }
+
+    $inquiry = fetchInquiryById($pdo, $id);
+    if (!$inquiry || (int)($inquiry['is_archived'] ?? 0) === 1) {
+        inquiryJson(['success' => false, 'message' => 'Inquiry not found.']);
+    }
+
+    if (inquiryCanPatient($role)) {
+        $patient = fetchCurrentPatient($pdo, (int)$_SESSION['user_id']);
+        if (!$patient || (int)$inquiry['patient_id'] !== (int)$patient['id']) {
+            inquiryJson(['success' => false, 'message' => 'Unauthorized.']);
+        }
+        $senderType = 'patient';
+        $otherSenderType = 'staff';
+    } elseif (inquiryCanManage($role)) {
+        $senderType = 'staff';
+        $otherSenderType = 'patient';
+    } else {
+        inquiryJson(['success' => false, 'message' => 'Unauthorized.']);
+    }
+
+    ensureInquiryReplySchema($pdo);
+    ensureInquiryTypingSchema($pdo);
+
+    if ($action === 'set_typing') {
+        $isTyping = (int)($_POST['is_typing'] ?? 0) === 1 ? 1 : 0;
+        $typingStmt = $pdo->prepare("
+            INSERT INTO inquiry_typing_status (inquiry_id, sender_type, is_typing, updated_at)
+            VALUES (?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE is_typing = VALUES(is_typing), updated_at = NOW()
+        ");
+        $typingStmt->execute([$id, $senderType, $isTyping]);
+        inquiryJson(['success' => true]);
+    }
+
+    $lastReplyId = max(0, (int)($_POST['last_reply_id'] ?? 0));
+    $replyStmt = $pdo->prepare("
+        SELECT id, message, sender_type, attachment, created_at
+        FROM inquiry_replies
+        WHERE inquiry_id = ? AND id > ?
+        ORDER BY id ASC
+    ");
+    $replyStmt->execute([$id, $lastReplyId]);
+    $newReplies = $replyStmt->fetchAll(PDO::FETCH_ASSOC);
+    if ($senderType === 'staff') {
+        foreach ($newReplies as $newReply) {
+            if (($newReply['sender_type'] ?? '') !== 'staff') {
+                updateInquiryRecord($pdo, $id, ['status' => 'Read']);
+                break;
+            }
+        }
+    }
+
+    $typingStmt = $pdo->prepare("
+        SELECT is_typing, updated_at
+        FROM inquiry_typing_status
+        WHERE inquiry_id = ? AND sender_type = ?
+        LIMIT 1
+    ");
+    $typingStmt->execute([$id, $otherSenderType]);
+    $typingRow = $typingStmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    $otherIsTyping = $typingRow
+        && (int)$typingRow['is_typing'] === 1
+        && (time() - strtotime((string)$typingRow['updated_at'])) <= 6;
+
+    inquiryJson([
+        'success' => true,
+        'replies' => $newReplies,
+        'other_is_typing' => (bool)$otherIsTyping,
+    ]);
 }
 
 if ($action === 'create') {
@@ -618,10 +696,19 @@ if ($action === 'create') {
             ");
             $replyStmt->execute([(int)$existingInquiry['id'], $concern]);
         }
+        // Capture this immediately. A subsequent UPDATE can reset lastInsertId()
+        // on some PDO/MySQL configurations, causing the client-side bubble to
+        // have ID 0 and bypass the normal duplicate-message guard.
+        $createdReplyId = (int)$pdo->lastInsertId();
 
         updateInquiryRecord($pdo, (int)$existingInquiry['id'], ['status' => 'Unread']);
 
-        inquiryJson(['success' => true, 'message' => 'Message sent successfully.']);
+        inquiryJson([
+            'success' => true,
+            'message' => 'Message sent successfully.',
+            'inquiry_id' => (int)$existingInquiry['id'],
+            'reply_id' => $createdReplyId,
+        ]);
     }
 
     [$firstName, $middleName, $lastName] = splitInquiryFullName($fullName);
@@ -676,7 +763,12 @@ if ($action === 'create') {
     ");
     $stmt->execute($values);
 
-    inquiryJson(['success' => true, 'message' => 'Inquiry submitted successfully.']);
+    inquiryJson([
+        'success' => true,
+        'message' => 'Inquiry submitted successfully.',
+        'inquiry_id' => (int)$pdo->lastInsertId(),
+        'reply_id' => null,
+    ]);
 }
 
 if (!inquiryCanManage($role)) {
@@ -1025,6 +1117,7 @@ if ($action === 'staff_reply') {
         ");
         $replyStmt->execute([$id, $replyMessage]);
     }
+    $createdReplyId = (int)$pdo->lastInsertId();
 
     if (($inquiry['source'] ?? '') === 'Patient Portal' && !empty($inquiry['patient_id'])) {
         $patientId = (int)$inquiry['patient_id'];
@@ -1133,7 +1226,13 @@ if ($action === 'staff_reply') {
         notifyPatientInquiryResponse($pdo, (int)$inquiry['patient_id'], $replyMessage ?: $fullName . ' inquiry', $staffName);
     }
 
-    inquiryJson(['success' => true, 'message' => 'Reply sent successfully.', 'attachment' => $attachment]);
+    inquiryJson([
+        'success' => true,
+        'message' => 'Reply sent successfully.',
+        'attachment' => $attachment,
+        'reply_id' => $createdReplyId,
+        'created_at' => date('Y-m-d H:i:s'),
+    ]);
 }
 
 inquiryJson(['success' => false, 'message' => 'Unknown action.']);
