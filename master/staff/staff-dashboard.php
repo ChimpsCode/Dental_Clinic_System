@@ -1798,14 +1798,20 @@ function renderDashboardInquiries() {
     document.getElementById('dashboardInquiryCount').textContent = dashboardInquiries.length;
     list.innerHTML = dashboardInquiries.map((inquiry) => {
         const fullName = [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown';
+        const hasReply = Number(inquiry.latest_reply_id || 0) > 0;
         const lastReply = inquiry.latest_reply_message || '';
+        const hasAttachment = !!inquiry.latest_reply_attachment;
         const lastSender = inquiry.latest_reply_sender_type || '';
-        const previewSource = lastReply ? (lastSender === 'staff' ? 'you: ' + lastReply : lastReply) : (inquiry.concern || inquiry.inquiry_message || 'No message');
+        const latestContent = lastReply || (hasAttachment ? 'Sent an attachment' : '');
+        const previewSource = hasReply
+            ? (lastSender === 'staff' ? 'you: ' + latestContent : latestContent)
+            : (inquiry.concern || inquiry.inquiry_message || 'No message');
         const preview = previewSource.slice(0, 80);
         const status = inquiry.status || 'Unread';
+        const isUnread = status === 'Unread';
         const initials = getInitials(fullName);
         return `
-            <div class="dashboard-inquiry-item">
+            <div class="dashboard-inquiry-item${isUnread ? ' is-unread' : ''}">
                 <div class="dashboard-inquiry-item-avatar" style="overflow:hidden;">${inquiry.patient_profile_picture ? '<img src="../../' + escapeHtml(inquiry.patient_profile_picture) + '" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">' : escapeHtml(initials)}</div>
                 <div class="dashboard-inquiry-item-body">
                     <div class="dashboard-inquiry-item-top">
@@ -1818,6 +1824,27 @@ function renderDashboardInquiries() {
             </div>
         `;
     }).join('');
+}
+
+function updateDashboardInquiryFromReply(inquiryId, reply, status) {
+    const key = String(inquiryId);
+    const entry = dashboardInquiryMap[key];
+    if (!entry || !reply) return;
+
+    entry.latest_reply_id = Number(reply.id || entry.latest_reply_id || 0);
+    entry.latest_reply_message = reply.message || '';
+    entry.latest_reply_attachment = reply.attachment || null;
+    entry.latest_reply_sender_type = reply.sender_type || '';
+    entry.latest_reply_created_at = reply.created_at || new Date().toISOString();
+    if (status) entry.status = status;
+
+    const index = dashboardInquiries.findIndex((item) => String(item.id) === key);
+    if (index > 0) {
+        dashboardInquiries.splice(index, 1);
+        dashboardInquiries.unshift(entry);
+    }
+    renderDashboardInquiries();
+    updateDashboardInquiryBadge(dashboardInquiries.filter((item) => (item.status || 'Unread') === 'Unread').length);
 }
 
 function updateDashboardInquiryBadge(count) {
@@ -1845,6 +1872,7 @@ function appendDashboardInquiryReply(reply) {
     const isPatient = reply.sender_type !== 'staff';
     const bubble = document.createElement('div');
     bubble.className = 'chat-bubble ' + (isPatient ? 'received' : 'sent');
+    if (!reply.message && reply.attachment) bubble.classList.add('attachment-only');
     if (replyId > 0) bubble.dataset.replyId = String(replyId);
 
     const label = isPatient ? (document.getElementById('inquiryChatName').textContent || 'Patient') : 'Staff';
@@ -1910,6 +1938,14 @@ async function pollDashboardInquiryConversation() {
         const data = await response.json();
         if (!response.ok || !data.success || inquiryId !== dashboardActiveInquiryId) return;
         (data.replies || []).forEach(appendDashboardInquiryReply);
+        if (data.replies && data.replies.length) {
+            const latestReply = data.replies[data.replies.length - 1];
+            updateDashboardInquiryFromReply(
+                inquiryId,
+                latestReply,
+                latestReply.sender_type === 'staff' ? 'Replied' : 'Read'
+            );
+        }
         showDashboardPatientTyping(!!data.other_is_typing);
     } catch (_error) {
         // Keep the current UI and retry on the next polling cycle.
@@ -1957,6 +1993,7 @@ async function openDashboardInquiryChat(id) {
                 const bubble = document.createElement('div');
                 const isNotStaff = reply.sender_type !== 'staff';
                 bubble.className = 'chat-bubble ' + (isNotStaff ? 'received' : 'sent');
+                if (!reply.message && reply.attachment) bubble.classList.add('attachment-only');
                 if (reply.id) bubble.dataset.replyId = String(reply.id);
                 const label = isNotStaff ? fullName : 'Staff';
                 const msgText = reply.message ? escapeHtml(reply.message).replace(/\n/g, '<br>') : '';
@@ -2005,6 +2042,7 @@ async function openDashboardInquiryChat(id) {
             body: 'action=mark_read&id=' + id
         });
         renderDashboardInquiries();
+        updateDashboardInquiryBadge(dashboardInquiries.filter((item) => (item.status || 'Unread') === 'Unread').length);
     }
 
     document.getElementById('inquiryChatReplyMsg').value = '';
@@ -2068,9 +2106,15 @@ document.getElementById('inquiryChatReplyForm').addEventListener('submit', async
 
         const entry = dashboardInquiryMap[String(id)];
         if (entry) {
-            entry.status = 'Replied';
             entry.notes = (entry.notes || '') + '\n[Staff replied on ' + ts + ']\n' + message;
         }
+        updateDashboardInquiryFromReply(id, {
+            id: data.reply_id,
+            sender_type: 'staff',
+            message,
+            attachment: data.attachment || null,
+            created_at: data.created_at || ts
+        }, 'Replied');
 
         document.getElementById('inquiryChatReplyMsg').value = '';
         document.getElementById('inquiryChatReplyMsg').style.height = 'auto';
@@ -2078,7 +2122,6 @@ document.getElementById('inquiryChatReplyForm').addEventListener('submit', async
         clearDashReplyAttachment();
         sendDashboardTypingState(0);
         btn.disabled = false;
-        renderDashboardInquiries();
     } catch (_err) {
         btn.disabled = false;
     }
@@ -2196,7 +2239,7 @@ setInterval(pollDashboardInquiryBadge, 5000);
 pollDashboardInquiryBadge();
 
 if (dashboardInquiryPollTimer) clearInterval(dashboardInquiryPollTimer);
-dashboardInquiryPollTimer = setInterval(pollDashboardInquiryList, 8000);
+dashboardInquiryPollTimer = setInterval(pollDashboardInquiryList, 3000);
 
 // Queue count auto-polling for dashboard
 var sdQueueCountHash = '';
@@ -2607,6 +2650,19 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
 .dashboard-inquiry-item:hover {
     background: #f8fafc;
 }
+.dashboard-inquiry-item.is-unread {
+    background: #eff6ff;
+    border-left: 4px solid #2563eb;
+    padding-left: 16px;
+}
+.dashboard-inquiry-item.is-unread:hover {
+    background: #dbeafe;
+}
+.dashboard-inquiry-item.is-unread .dashboard-inquiry-item-name,
+.dashboard-inquiry-item.is-unread .dashboard-inquiry-item-preview {
+    color: #0f172a;
+    font-weight: 700;
+}
 .dashboard-inquiry-item-avatar {
     width: 40px;
     height: 40px;
@@ -2780,6 +2836,24 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
 }
 .chat-bubble.sent .chat-meta {
     color: rgba(255,255,255,0.8);
+}
+.chat-bubble.sent.attachment-only {
+    padding: 0;
+    background: transparent;
+    color: #64748b;
+    border-radius: 8px;
+}
+.chat-bubble.sent.attachment-only > div:first-child {
+    color: #64748b !important;
+    margin-left: 2px;
+}
+.chat-bubble.sent.attachment-only .chat-meta {
+    color: #64748b;
+    margin-left: 2px;
+}
+.chat-bubble.sent.attachment-only .chat-att-img {
+    margin-top: 4px;
+    border: 1px solid #e5e7eb;
 }
 .inquiry-typing-indicator {
     align-self: flex-start;

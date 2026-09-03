@@ -513,7 +513,9 @@ if ($action === 'get_inquiries') {
                ass.last_name AS assigned_last_name,
                ass.username AS assigned_username,
                up.profile_picture AS patient_profile_picture,
+               lr.id AS latest_reply_id,
                lr.message AS latest_reply_message,
+               lr.attachment AS latest_reply_attachment,
                lr.sender_type AS latest_reply_sender_type,
                lr.created_at AS latest_reply_created_at
         FROM inquiries i
@@ -526,7 +528,7 @@ if ($action === 'get_inquiries') {
             LIMIT 1
         )
         LEFT JOIN (
-            SELECT r1.inquiry_id, r1.message, r1.sender_type, r1.created_at
+            SELECT r1.id, r1.inquiry_id, r1.message, r1.attachment, r1.sender_type, r1.created_at
             FROM inquiry_replies r1
             INNER JOIN (
                 SELECT inquiry_id, MAX(id) AS max_id
@@ -694,6 +696,10 @@ if ($action === 'create') {
             ");
             $replyStmt->execute([(int)$existingInquiry['id'], $concern]);
         }
+        // Capture this immediately. A subsequent UPDATE can reset lastInsertId()
+        // on some PDO/MySQL configurations, causing the client-side bubble to
+        // have ID 0 and bypass the normal duplicate-message guard.
+        $createdReplyId = (int)$pdo->lastInsertId();
 
         updateInquiryRecord($pdo, (int)$existingInquiry['id'], ['status' => 'Unread']);
 
@@ -701,7 +707,7 @@ if ($action === 'create') {
             'success' => true,
             'message' => 'Message sent successfully.',
             'inquiry_id' => (int)$existingInquiry['id'],
-            'reply_id' => (int)$pdo->lastInsertId(),
+            'reply_id' => $createdReplyId,
         ]);
     }
 

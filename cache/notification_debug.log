@@ -60,3 +60,5 @@
 2026-09-03 13:53:28 | createNotification OK: id=129 user_id=40 type=inquiry title=Inquiry Response
 2026-09-03 14:02:55 | createNotification OK: id=130 user_id=40 type=inquiry title=Inquiry Response
 2026-09-03 14:09:47 | createNotification OK: id=131 user_id=40 type=inquiry title=Inquiry Response
+2026-09-03 14:21:02 | createNotification OK: id=132 user_id=40 type=inquiry title=Inquiry Response
+2026-09-03 14:25:22 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
