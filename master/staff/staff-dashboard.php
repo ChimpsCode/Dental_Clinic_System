@@ -808,9 +808,9 @@ try {
             <div class="chat-modal-avatar" id="inquiryChatAvatar" style="overflow:hidden;">JD</div>
             <div class="chat-modal-user-info">
                 <div class="chat-modal-name" id="inquiryChatName"></div>
+                <div class="chat-modal-source" id="inquiryChatSource"></div>
                 <div class="chat-modal-email" id="inquiryChatContact"></div>
             </div>
-            <div class="chat-modal-source" id="inquiryChatSource"></div>
             <button type="button" class="chat-info-button" onclick="openInquiryInfoPanel()" aria-label="Conversation information" title="Conversation information">
                 <span aria-hidden="true">i</span>
             </button>
@@ -841,6 +841,17 @@ try {
         <div class="inquiry-info-profile">
             <div class="inquiry-info-avatar" id="inquiryInfoAvatar"></div>
             <div class="inquiry-info-name" id="inquiryInfoName"></div>
+        </div>
+        <div class="inquiry-more-info">
+            <h4>More info</h4>
+            <div class="inquiry-info-row">
+                <span>Email</span>
+                <strong id="inquiryInfoEmail">No email</strong>
+            </div>
+            <div class="inquiry-info-row">
+                <span>Phone</span>
+                <strong id="inquiryInfoPhone">No phone</strong>
+            </div>
         </div>
         <button type="button" class="inquiry-media-toggle" id="inquiryMediaToggle" onclick="toggleInquiryMedia()" aria-expanded="false">
             <span>Media &amp; Files</span>
@@ -1918,6 +1929,9 @@ async function openInquiryInfoPanel() {
     targetAvatar.innerHTML = sourceAvatar.innerHTML;
     if (!sourceAvatar.querySelector('img')) targetAvatar.textContent = sourceAvatar.textContent || 'P';
     document.getElementById('inquiryInfoName').textContent = document.getElementById('inquiryChatName').textContent;
+    const inquiry = dashboardInquiryMap[String(dashboardActiveInquiryId)] || {};
+    document.getElementById('inquiryInfoEmail').textContent = inquiry.email || 'No email';
+    document.getElementById('inquiryInfoPhone').textContent = inquiry.phone || inquiry.contact_info || 'No phone';
     renderInquiryMediaGallery();
     panel.classList.add('open');
     panel.setAttribute('aria-hidden', 'false');
@@ -2917,7 +2931,17 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
     margin-top: 2px;
 }
 .chat-modal-source {
-    display: none;
+    display: inline-flex;
+    align-items: center;
+    width: max-content;
+    max-width: 100%;
+    margin-top: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
 }
 .chat-modal-email {
     display: none;
@@ -2998,6 +3022,35 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
     font-size: 17px;
     font-weight: 700;
     text-align: center;
+}
+.inquiry-more-info {
+    padding: 18px 20px;
+    border-bottom: 1px solid #eef2f7;
+}
+.inquiry-more-info h4 {
+    margin: 0 0 14px;
+    color: #0f172a;
+    font-size: 15px;
+    font-weight: 800;
+}
+.inquiry-info-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 0;
+    color: #64748b;
+    font-size: 13px;
+}
+.inquiry-info-row + .inquiry-info-row {
+    border-top: 1px solid #f1f5f9;
+}
+.inquiry-info-row strong {
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: right;
+    word-break: break-word;
 }
 .inquiry-media-toggle {
     width: 100%;
