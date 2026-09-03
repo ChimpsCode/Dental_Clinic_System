@@ -215,8 +215,10 @@ try {
             $inquiryReplies = fetchInquiryReplies($pdo, $inquiryActiveId);
             foreach ($inquiryReplies as $reply) {
                 $inquiryMessages[] = [
+                    'id' => $reply['id'],
                     'type' => $reply['sender_type'] === 'staff' ? 'clinic' : 'patient',
                     'message' => $reply['message'],
+                    'attachment' => $reply['attachment'] ?? null,
                     'created_at' => $reply['created_at'],
                 ];
             }
@@ -1559,7 +1561,7 @@ $pageTitle = 'Patient Dashboard';
         });
     </script>
     <a href="#" class="floating-message-btn" data-inquiry-launcher aria-label="Open messages" title="Messages">
-        <i class="fas fa-message"></i>
+        <i class="fas fa-paper-plane"></i>
         <span class="unread-badge" id="inquiryUnreadBadge" style="display: none;">0</span>
     </a>
 
@@ -1567,14 +1569,18 @@ $pageTitle = 'Patient Dashboard';
 
     <div id="inquiryChatPanel" class="floating-chat-panel">
         <div class="floating-chat-header">
+            <button type="button" class="floating-chat-control chat-header-back" data-inquiry-close aria-label="Back">
+                <i class="fas fa-arrow-left"></i>
+            </button>
             <div class="floating-chat-title">
-                <img src="<?php echo htmlspecialchars($inquiryClinicAvatar); ?>" alt="" style="width:32px;height:32px;border-radius:50%;object-fit:cover;margin-right:8px;">
-                <span>Inquiry</span>
+                <span class="patient-chat-header-avatar">
+                    <img src="<?php echo htmlspecialchars($inquiryClinicAvatar); ?>" alt="<?php echo htmlspecialchars($inquiryClinicName); ?>">
+                </span>
+                <span><?php echo htmlspecialchars($inquiryClinicName); ?></span>
             </div>
-            <div class="floating-chat-actions">
-                <button type="button" class="floating-chat-control" data-inquiry-minimize aria-label="Minimize"><i class="fas fa-minus"></i></button>
-                <button type="button" class="floating-chat-control" data-inquiry-close aria-label="Close"><i class="fas fa-xmark"></i></button>
-            </div>
+            <button type="button" class="chat-info-button" id="patientChatInfoBtn" aria-label="Conversation information" title="Conversation information">
+                <span aria-hidden="true">i</span>
+            </button>
         </div>
         <div id="inquiryMessagesList" class="inquiry-messages-body">
             <?php if (empty($inquiryMessages)): ?>
@@ -1585,18 +1591,32 @@ $pageTitle = 'Patient Dashboard';
             <?php else: ?>
                 <?php foreach ($inquiryMessages as $msg): ?>
                 <?php $ts = date('h:i A', strtotime($msg['created_at'] ?? 'now')); ?>
+                <?php $att = $msg['attachment'] ?? null; ?>
+                <?php $isImage = $att && preg_match('/\.(jpe?g|png|gif|webp)$/i', $att); ?>
                 <?php if ($msg['type'] === 'clinic'): ?>
-                <div class="message-row left">
+                <div class="message-row left"<?php echo !empty($msg['id']) ? ' data-reply-id="' . (int)$msg['id'] . '"' : ''; ?>>
                     <img src="<?php echo htmlspecialchars($inquiryClinicAvatar); ?>" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
                     <div>
-                        <div class="bubble bubble-left"><?php echo nl2br(htmlspecialchars($msg['message'])); ?></div>
+                        <div class="bubble bubble-left">
+                            <?php echo nl2br(htmlspecialchars($msg['message'])); ?>
+                            <?php if ($att): ?>
+                                <?php if ($isImage): ?><img src="../<?php echo htmlspecialchars($att); ?>" class="inquiry-chat-image" alt="Attachment">
+                                <?php else: ?><a href="../<?php echo htmlspecialchars($att); ?>" target="_blank" class="inquiry-chat-file"><i class="fas fa-paperclip"></i> <?php echo htmlspecialchars(basename($att)); ?></a><?php endif; ?>
+                            <?php endif; ?>
+                        </div>
                         <div class="ts"><?php echo $ts; ?></div>
                     </div>
                 </div>
                 <?php else: ?>
-                <div class="message-row right">
+                <div class="message-row right"<?php echo !empty($msg['id']) ? ' data-reply-id="' . (int)$msg['id'] . '"' : ''; ?>>
                     <div>
-                        <div class="bubble bubble-right"><?php echo nl2br(htmlspecialchars($msg['message'] ?: 'No message provided')); ?></div>
+                        <div class="bubble bubble-right">
+                            <?php echo nl2br(htmlspecialchars($msg['message'])); ?>
+                            <?php if ($att): ?>
+                                <?php if ($isImage): ?><img src="../<?php echo htmlspecialchars($att); ?>" class="inquiry-chat-image" alt="Attachment">
+                                <?php else: ?><a href="../<?php echo htmlspecialchars($att); ?>" target="_blank" class="inquiry-chat-file"><i class="fas fa-paperclip"></i> <?php echo htmlspecialchars(basename($att)); ?></a><?php endif; ?>
+                            <?php endif; ?>
+                        </div>
                         <div class="ts" style="text-align:right;"><?php echo $ts; ?></div>
                     </div>
                 </div>
@@ -1607,13 +1627,50 @@ $pageTitle = 'Patient Dashboard';
         <form id="inquiryChatForm">
             <input type="hidden" name="action" value="create">
             <div class="conv-input">
-                <input id="inquiryChatInput" name="concern" class="conv-text" placeholder="Type a message..." required>
+                <button type="button" class="chat-input-icon" id="inquiryAttachFile" aria-label="Attach file"><i class="fas fa-paperclip"></i></button>
+                <button type="button" class="chat-input-icon" id="inquiryAttachImage" aria-label="Attach image"><i class="far fa-image"></i></button>
+                <input type="file" id="inquiryFileInput" hidden>
+                <input id="inquiryChatInput" name="concern" class="conv-text" placeholder="Type your message...">
                 <button type="submit" class="send-btn" aria-label="send"><i class="fas fa-paper-plane"></i></button>
             </div>
         </form>
+        <div class="patient-chat-info-panel" id="patientChatInfoPanel" aria-hidden="true">
+            <div class="patient-chat-info-header">
+                <button type="button" class="floating-chat-control chat-header-back" id="patientChatInfoBack" aria-label="Back to conversation">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <strong>Conversation info</strong>
+            </div>
+            <div class="patient-chat-info-profile">
+                <img src="<?php echo htmlspecialchars($inquiryClinicAvatar); ?>" alt="<?php echo htmlspecialchars($inquiryClinicName); ?>">
+                <div><?php echo htmlspecialchars($inquiryClinicName); ?></div>
+            </div>
+            <button type="button" class="patient-media-toggle" id="patientMediaToggle" aria-expanded="false">
+                <span>Media &amp; Files</span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="patient-media-content" id="patientMediaContent">
+                <div class="patient-media-gallery" id="patientMediaGallery"></div>
+            </div>
+        </div>
     </div>
 
     <style>
+        #inquiryChatPanel {
+            position: fixed !important;
+            top: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            left: auto !important;
+            width: 400px !important;
+            max-width: 100vw !important;
+            height: 100vh !important;
+            height: 100dvh !important;
+            border: none !important;
+            border-left: 1px solid #e5e7eb !important;
+            border-radius: 0 !important;
+            box-shadow: -8px 0 30px rgba(15, 23, 42, 0.16) !important;
+        }
         #inquiryChatPanel .inquiry-messages-body {
             flex: 1; overflow-y: auto; padding: 16px; background: #fff;
             display: flex; flex-direction: column; gap: 16px; min-height: 0;
@@ -1641,23 +1698,136 @@ $pageTitle = 'Patient Dashboard';
             font-size: 11px; color: #9ca3af; margin-top: 6px;
         }
         #inquiryChatPanel .conv-input {
-            display: flex; gap: 12px; align-items: center; padding: 12px 16px;
-            border-top: 1px solid #eef2f7; background: #fff;
+            display:flex; gap:6px; align-items:center; min-height:58px; margin:12px;
+            padding:6px; border:1px solid #2563eb; border-radius:999px; background:#fff;
+            box-shadow:0 0 0 3px rgba(37,99,235,.08);
         }
         #inquiryChatPanel .conv-text {
-            flex: 1; border: 1px solid #d1d5db; padding: 10px 16px; border-radius: 999px;
-            font: inherit; font-size: 14px; outline: none;
+            flex:1; min-width:0; height:44px; border:none; padding:0 8px; background:transparent;
+            font:inherit; font-size:14px; outline:none;
         }
         #inquiryChatPanel .conv-text:focus {
-            border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            border:none; box-shadow:none;
         }
         #inquiryChatPanel .send-btn {
-            background: #f3f4f6; border: none; color: #6b7280; padding: 10px; border-radius: 50%;
-            display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px;
+            width:46px; height:46px; flex:0 0 46px; padding:0; border:none; border-radius:50%;
+            display:inline-flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px;
+            color:#fff; background:linear-gradient(135deg,#2563eb,#1d4ed8);
+            box-shadow:0 4px 12px rgba(37,99,235,.25);
         }
-        #inquiryChatPanel .send-btn:hover { background: #e5e7eb; }
+        #inquiryChatPanel .send-btn:hover { transform:scale(1.04); }
+        #inquiryChatPanel .chat-input-icon {
+            width:42px; height:42px; flex:0 0 42px; display:inline-flex; align-items:center;
+            justify-content:center; padding:0; border:none; border-radius:50%; background:transparent;
+            color:#64748b; font-size:18px; cursor:pointer;
+        }
+        #inquiryChatPanel .chat-input-icon:hover { background:#e8eef7; color:#2563eb; }
+        #inquiryChatPanel .typing-message-row { align-items:center; gap:8px; }
+        #inquiryChatPanel .typing-message-row > img { width:34px!important; height:34px!important; flex:0 0 34px; border-radius:50%; object-fit:cover; }
+        #inquiryChatPanel .typing-bubble { display:flex; align-items:center; min-width:54px; min-height:38px; padding:10px 14px; border-radius:19px; border-bottom-left-radius:6px; background:#e2e8f0; }
+        #inquiryChatPanel .typing-dots { display:inline-flex; gap:4px; align-items:center; }
+        #inquiryChatPanel .typing-dots span { width:7px; height:7px; border-radius:50%; background:#64748b; animation:patientDashTyping 1.1s infinite ease-in-out; }
+        #inquiryChatPanel .typing-dots span:nth-child(2) { animation-delay:.15s; }
+        #inquiryChatPanel .typing-dots span:nth-child(3) { animation-delay:.3s; }
+        @keyframes patientDashTyping { 0%,60%,100% { transform:translateY(0); opacity:.45; } 30% { transform:translateY(-3px); opacity:1; } }
+        #inquiryChatPanel .inquiry-chat-image { display:block; max-width:220px; max-height:220px; margin-top:6px; border-radius:8px; object-fit:cover; }
+        #inquiryChatPanel .inquiry-chat-file { display:inline-flex; align-items:center; gap:6px; margin-top:6px; color:inherit; }
         #inquiryChatPanel.is-open { display: flex; flex-direction: column; }
-        #inquiryChatPanel .floating-chat-header { border-bottom: 1px solid #eef2f7; }
+        #inquiryChatPanel .floating-chat-header {
+            min-height:92px; height:auto; padding:18px 20px; border-bottom:1px solid #e5e7eb;
+            justify-content:flex-start; gap:14px; background:#fff;
+        }
+        #inquiryChatPanel .floating-chat-title {
+            flex:1; min-width:0; display:flex; align-items:center; gap:14px;
+            color:#0f172a; font-size:18px; font-weight:800;
+        }
+        #inquiryChatPanel .patient-chat-header-avatar {
+            width:56px; height:56px; flex:0 0 56px; display:inline-flex; align-items:center;
+            justify-content:center; overflow:hidden; border-radius:50%;
+            background:linear-gradient(135deg,#2563eb,#1d4ed8);
+            box-shadow:0 2px 8px rgba(37,99,235,.18);
+        }
+        #inquiryChatPanel .patient-chat-header-avatar img {
+            width:100%; height:100%; display:block; border-radius:50%; object-fit:contain;
+            padding:6px; background:#fff;
+        }
+        #inquiryChatPanel .floating-chat-title span {
+            overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+        }
+        #inquiryChatPanel .floating-chat-title .patient-chat-header-avatar {
+            overflow:hidden;
+        }
+        #inquiryChatPanel .chat-header-back {
+            width:48px; height:48px; flex:0 0 48px; background:#eff6ff; color:#2563eb;
+            font-size:18px;
+        }
+        #inquiryChatPanel .chat-info-button {
+            width:48px; height:48px; flex:0 0 48px; display:inline-flex; align-items:center;
+            justify-content:center; border:none; border-radius:50%; background:#eff6ff; color:#2563eb;
+            font:700 22px/1 Georgia, serif; cursor:pointer; transition:background .2s, transform .2s;
+        }
+        #inquiryChatPanel .chat-info-button:hover { background:#dbeafe; transform:scale(1.04); }
+        #inquiryChatPanel .patient-chat-info-panel {
+            position:absolute; inset:0; z-index:30; display:flex; flex-direction:column; overflow-y:auto;
+            background:#fff; transform:translateX(100%); visibility:hidden;
+            transition:transform .25s ease, visibility .25s;
+        }
+        #inquiryChatPanel .patient-chat-info-panel.open { transform:translateX(0); visibility:visible; }
+        #inquiryChatPanel .patient-chat-info-header {
+            min-height:72px; display:flex; align-items:center; gap:14px; padding:16px 20px;
+            border-bottom:1px solid #e5e7eb; color:#0f172a;
+        }
+        #inquiryChatPanel .patient-chat-info-profile {
+            display:flex; flex-direction:column; align-items:center; gap:12px; padding:28px 20px;
+            border-bottom:1px solid #eef2f7; color:#0f172a; font-size:17px; font-weight:700;
+        }
+        #inquiryChatPanel .patient-chat-info-profile img {
+            width:76px; height:76px; border-radius:50%; object-fit:cover;
+        }
+        #inquiryChatPanel .patient-media-toggle {
+            width:100%; min-height:58px; display:flex; align-items:center; justify-content:space-between;
+            padding:16px 20px; border:none; border-bottom:1px solid #eef2f7; background:#fff;
+            color:#0f172a; font:inherit; font-weight:700; cursor:pointer;
+        }
+        #inquiryChatPanel .patient-media-toggle:hover { background:#f8fafc; }
+        #inquiryChatPanel .patient-media-toggle.open i { transform:rotate(180deg); }
+        #inquiryChatPanel .patient-media-toggle i { transition:transform .2s; }
+        #inquiryChatPanel .patient-media-content { display:none; padding:12px; }
+        #inquiryChatPanel .patient-media-content.open { display:block; }
+        #inquiryChatPanel .patient-media-gallery {
+            display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px;
+        }
+        #inquiryChatPanel .patient-media-item {
+            aspect-ratio:1; overflow:hidden; padding:0; border:none; border-radius:8px;
+            background:#e2e8f0; cursor:pointer;
+        }
+        #inquiryChatPanel .patient-media-item img { width:100%; height:100%; display:block; object-fit:cover; }
+        #inquiryChatPanel .patient-media-empty {
+            grid-column:1 / -1; padding:36px 16px; color:#64748b; font-size:13px; text-align:center;
+        }
+        .patient-chat-lightbox {
+            position:fixed; inset:0; z-index:999999; display:none; align-items:center; justify-content:center;
+            background:rgba(0,0,0,.85); cursor:pointer;
+        }
+        .patient-chat-lightbox img { max-width:92vw; max-height:92vh; border-radius:10px; }
+        @media (max-width: 640px) {
+            #inquiryChatPanel {
+                width: 100vw !important;
+            }
+            #inquiryChatPanel .floating-chat-header {
+                min-height:84px; padding:16px 18px; gap:12px;
+            }
+            #inquiryChatPanel .floating-chat-title {
+                gap:12px; font-size:17px;
+            }
+            #inquiryChatPanel .patient-chat-header-avatar {
+                width:48px; height:48px; flex-basis:48px;
+            }
+            #inquiryChatPanel .chat-header-back,
+            #inquiryChatPanel .chat-info-button {
+                width:44px; height:44px; flex-basis:44px;
+            }
+        }
     </style>
 
     <script>
@@ -1670,11 +1840,27 @@ $pageTitle = 'Patient Dashboard';
             var messagesList = document.getElementById('inquiryMessagesList');
             var chatForm = document.getElementById('inquiryChatForm');
             var chatInput = document.getElementById('inquiryChatInput');
+            var fileInput = document.getElementById('inquiryFileInput');
+            var attachFileBtn = document.getElementById('inquiryAttachFile');
+            var attachImageBtn = document.getElementById('inquiryAttachImage');
             var activeInquiryId = <?php echo $inquiryActiveId ?: 'null'; ?>;
             var inquiryStatus = '<?php echo addslashes($inquiryStatus ?: ''); ?>';
             var lastMessageCount = <?php echo count($inquiryMessages); ?>;
+            var conversationMedia = <?php echo json_encode($inquiryMessages, JSON_UNESCAPED_SLASHES); ?>;
+            var typingState = 0;
+            var typingTimer = null;
+            var typingSentAt = 0;
+            var infoBtn = document.getElementById('patientChatInfoBtn');
+            var infoPanel = document.getElementById('patientChatInfoPanel');
+            var infoBack = document.getElementById('patientChatInfoBack');
+            var mediaToggle = document.getElementById('patientMediaToggle');
+            var mediaContent = document.getElementById('patientMediaContent');
+            var mediaGallery = document.getElementById('patientMediaGallery');
 
             function closeChat() {
+                clearTimeout(typingTimer);
+                sendTypingState(0);
+                closeInfoPanel();
                 overlay.classList.remove('is-open');
                 panel.classList.remove('is-open');
             }
@@ -1711,20 +1897,164 @@ $pageTitle = 'Patient Dashboard';
                 return d.innerHTML;
             }
 
-            function appendMessage(type, message, timestamp) {
+            function mergeConversationMedia(replies) {
+                var map = new Map();
+                conversationMedia.forEach(function(item) {
+                    var key = item.id ? 'id-' + item.id : [item.type, item.message, item.attachment, item.created_at].join('|');
+                    map.set(key, item);
+                });
+                (replies || []).forEach(function(reply) {
+                    var type = reply.sender_type === 'staff' ? 'clinic' : 'patient';
+                    var key = reply.id ? 'id-' + reply.id : [type, reply.message, reply.attachment, reply.created_at].join('|');
+                    map.set(key, {
+                        id: reply.id,
+                        type: type,
+                        message: reply.message || '',
+                        attachment: reply.attachment || '',
+                        created_at: reply.created_at || ''
+                    });
+                });
+                conversationMedia = Array.from(map.values());
+            }
+
+            function renderMediaGallery() {
+                var images = (conversationMedia || []).filter(function(item) {
+                    return item.attachment && /\.(jpe?g|png|gif|webp)$/i.test(item.attachment);
+                });
+                if (!images.length) {
+                    mediaGallery.innerHTML = '<div class="patient-media-empty">No photos have been shared in this conversation.</div>';
+                    return;
+                }
+                mediaGallery.innerHTML = images.map(function(item) {
+                    var src = '../' + item.attachment;
+                    return '<button type="button" class="patient-media-item" data-media-src="' + escapeHtml(src) + '">'
+                        + '<img src="' + escapeHtml(src) + '" alt="Shared image" loading="lazy">'
+                        + '</button>';
+                }).join('');
+                mediaGallery.querySelectorAll('[data-media-src]').forEach(function(button) {
+                    button.addEventListener('click', function() {
+                        openPatientChatLightbox(button.getAttribute('data-media-src'));
+                    });
+                });
+            }
+
+            function openPatientChatLightbox(src) {
+                var lightbox = document.getElementById('patientChatLightbox');
+                if (!lightbox) {
+                    lightbox = document.createElement('div');
+                    lightbox.id = 'patientChatLightbox';
+                    lightbox.className = 'patient-chat-lightbox';
+                    lightbox.innerHTML = '<img alt="Shared image">';
+                    lightbox.addEventListener('click', function() { lightbox.style.display = 'none'; });
+                    document.body.appendChild(lightbox);
+                }
+                lightbox.querySelector('img').src = src;
+                lightbox.style.display = 'flex';
+            }
+
+            async function openInfoPanel() {
+                if (!infoPanel) return;
+                renderMediaGallery();
+                infoPanel.classList.add('open');
+                infoPanel.setAttribute('aria-hidden', 'false');
+                if (!activeInquiryId) return;
+                try {
+                    var fd = new FormData();
+                    fd.append('action', 'get_conversation');
+                    fd.append('id', activeInquiryId);
+                    var resp = await fetch('../shared/inquiry_actions.php', { method: 'POST', body: fd });
+                    var data = await resp.json();
+                    if (resp.ok && data.success) {
+                        mergeConversationMedia(data.replies || []);
+                        renderMediaGallery();
+                    }
+                } catch (_) {}
+            }
+
+            function closeInfoPanel() {
+                if (!infoPanel) return;
+                infoPanel.classList.remove('open');
+                infoPanel.setAttribute('aria-hidden', 'true');
+            }
+
+            function toggleMediaPanel() {
+                if (!mediaContent || !mediaToggle) return;
+                var isOpen = mediaContent.classList.toggle('open');
+                mediaToggle.classList.toggle('open', isOpen);
+                mediaToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                if (isOpen) renderMediaGallery();
+            }
+
+            function appendMessage(type, message, timestamp, attachment, replyId) {
                 var avatar = '<?php echo addslashes($inquiryClinicAvatar); ?>';
                 var ts = timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 var div = document.createElement('div');
                 div.className = 'message-row ' + (type === 'clinic' ? 'left' : 'right');
+                if (replyId) {
+                    div.setAttribute('data-reply-id', String(replyId));
+                }
+                var attachmentHtml = '';
+                if (attachment) {
+                    var attachmentUrl = '../' + attachment;
+                    attachmentHtml = /\.(jpe?g|png|gif|webp)$/i.test(attachment)
+                        ? '<img src="' + escapeHtml(attachmentUrl) + '" class="inquiry-chat-image" alt="Attachment">'
+                        : '<a href="' + escapeHtml(attachmentUrl) + '" target="_blank" class="inquiry-chat-file"><i class="fas fa-paperclip"></i> ' + escapeHtml(attachment.split('/').pop()) + '</a>';
+                }
                 if (type === 'clinic') {
-                    div.innerHTML = '<img src="' + avatar + '" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;"><div><div class="bubble bubble-left">' + escapeHtml(message) + '</div><div class="ts">' + ts + '</div></div>';
+                    div.innerHTML = '<img src="' + avatar + '" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;"><div><div class="bubble bubble-left">' + escapeHtml(message) + attachmentHtml + '</div><div class="ts">' + ts + '</div></div>';
                 } else {
-                    div.innerHTML = '<div><div class="bubble bubble-right">' + escapeHtml(message) + '</div><div class="ts" style="text-align:right;">' + ts + '</div></div>';
+                    div.innerHTML = '<div><div class="bubble bubble-right">' + escapeHtml(message) + attachmentHtml + '</div><div class="ts" style="text-align:right;">' + ts + '</div></div>';
                 }
                 var emptyState = messagesList.querySelector('.inquiry-empty-state');
                 if (emptyState) emptyState.remove();
                 messagesList.appendChild(div);
                 scrollToBottom();
+            }
+
+            function getLastReplyId() {
+                var ids = Array.from(messagesList.querySelectorAll('[data-reply-id]'))
+                    .map(function(el) { return Number(el.getAttribute('data-reply-id')); })
+                    .filter(function(id) { return Number.isFinite(id) && id > 0; });
+                return ids.length ? Math.max.apply(null, ids) : 0;
+            }
+
+            function appendRealtimeReply(reply) {
+                var id = Number(reply.id || 0);
+                if (id && messagesList.querySelector('[data-reply-id="' + id + '"]')) return;
+                mergeConversationMedia([reply]);
+                appendMessage(reply.sender_type === 'staff' ? 'clinic' : 'patient', reply.message || '', reply.created_at ? new Date(reply.created_at.replace(' ', 'T')).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '', reply.attachment || '');
+                if (id && messagesList.lastElementChild) messagesList.lastElementChild.setAttribute('data-reply-id', String(id));
+                if (infoPanel && infoPanel.classList.contains('open')) renderMediaGallery();
+            }
+
+            function showStaffTyping(visible) {
+                var indicator = document.getElementById('patientDashboardStaffTyping');
+                if (!indicator && visible) {
+                    indicator = document.createElement('div');
+                    indicator.id = 'patientDashboardStaffTyping';
+                    indicator.className = 'message-row left typing-message-row';
+                    indicator.innerHTML = '<img src="<?php echo addslashes($inquiryClinicAvatar); ?>" alt="Staff"><div class="typing-bubble"><span class="typing-dots" aria-label="Staff is typing"><span></span><span></span><span></span></span></div>';
+                    messagesList.appendChild(indicator);
+                }
+                if (indicator) {
+                    indicator.style.display = visible ? 'flex' : 'none';
+                    if (visible) scrollToBottom();
+                }
+            }
+
+            async function sendTypingState(isTyping) {
+                if (!activeInquiryId) return;
+                var now = Date.now();
+                if (typingState === isTyping && (!isTyping || now - typingSentAt < 2500)) return;
+                typingState = isTyping;
+                typingSentAt = now;
+                var fd = new FormData();
+                fd.append('action', 'set_typing');
+                fd.append('id', activeInquiryId);
+                fd.append('is_typing', isTyping ? '1' : '0');
+                try {
+                    await fetch('../shared/inquiry_actions.php', { method: 'POST', body: fd });
+                } catch (_) {}
             }
 
             async function markInquiryRead() {
@@ -1737,20 +2067,51 @@ $pageTitle = 'Patient Dashboard';
             }
 
             if (chatForm) {
+                attachFileBtn.addEventListener('click', function() {
+                    fileInput.accept = '.pdf,.doc,.docx,.xls,.xlsx,.txt,image/*';
+                    fileInput.click();
+                });
+                attachImageBtn.addEventListener('click', function() {
+                    fileInput.accept = 'image/*';
+                    fileInput.click();
+                });
+                chatInput.addEventListener('input', function() {
+                    if (!chatInput.value.trim()) {
+                        clearTimeout(typingTimer);
+                        sendTypingState(0);
+                        return;
+                    }
+                    sendTypingState(1);
+                    clearTimeout(typingTimer);
+                    typingTimer = setTimeout(function() { sendTypingState(0); }, 3000);
+                });
+                chatInput.addEventListener('blur', function() {
+                    clearTimeout(typingTimer);
+                    sendTypingState(0);
+                });
                 chatForm.addEventListener('submit', async function (e) {
                     e.preventDefault();
                     var message = chatInput.value.trim();
-                    if (!message) return;
+                    var selectedFile = fileInput.files[0] || null;
+                    if (!message && !selectedFile) return;
                     chatInput.disabled = true;
                     var fd = new FormData();
                     fd.append('action', 'create');
                     fd.append('concern', message);
+                    if (selectedFile) fd.append('attachment', selectedFile);
                     try {
                         var resp = await fetch('../shared/inquiry_actions.php', { method: 'POST', body: fd });
                         var data = await resp.json();
                         if (data.success) {
                             chatInput.value = '';
-                            window.location.reload();
+                            fileInput.value = '';
+                            sendTypingState(0);
+                            if (data.inquiry_id) {
+                                activeInquiryId = Number(data.inquiry_id);
+                            }
+                            inquiryStatus = 'Unread';
+                            appendMessage('patient', message, new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), data.attachment || '', data.reply_id || null);
+                            updateUnreadBadge(0);
                         }
                     } catch (_) {}
                     chatInput.disabled = false;
@@ -1761,19 +2122,18 @@ $pageTitle = 'Patient Dashboard';
                 if (!activeInquiryId) return;
                 try {
                     var fd = new FormData();
-                    fd.append('action', 'get_conversation');
+                    fd.append('action', 'conversation_updates');
                     fd.append('id', activeInquiryId);
+                    fd.append('last_reply_id', String(getLastReplyId()));
                     var resp = await fetch('../shared/inquiry_actions.php', { method: 'POST', body: fd });
                     var data = await resp.json();
                     if (!data.success) return;
                     var replies = data.replies || [];
-                    var total = 1 + replies.length;
-                    if (total !== lastMessageCount) {
-                        window.location.reload();
-                        return;
+                    replies.forEach(appendRealtimeReply);
+                    if (replies.some(function(reply) { return reply.sender_type === 'staff'; })) {
+                        updateUnreadBadge(panel.classList.contains('is-open') ? 0 : 1);
                     }
-                    var badgeOn = data.inquiry && data.inquiry.status === 'Replied';
-                    updateUnreadBadge(badgeOn ? 1 : 0);
+                    showStaffTyping(!!data.other_is_typing);
                 } catch (_) {}
             }
 
@@ -1787,6 +2147,9 @@ $pageTitle = 'Patient Dashboard';
             var minimizeBtn = panel.querySelector('[data-inquiry-minimize]');
             if (closeBtn) closeBtn.addEventListener('click', closeChat);
             if (minimizeBtn) minimizeBtn.addEventListener('click', closeChat);
+            if (infoBtn) infoBtn.addEventListener('click', openInfoPanel);
+            if (infoBack) infoBack.addEventListener('click', closeInfoPanel);
+            if (mediaToggle) mediaToggle.addEventListener('click', toggleMediaPanel);
 
             if (activeInquiryId) {
                 setInterval(pollConversation, 3000);

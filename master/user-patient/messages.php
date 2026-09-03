@@ -449,6 +449,25 @@ if (!empty($patient_id) && isset($messageColumns['is_read'])) {
     }
 }
 
+$chatStaffAvatar = '../../assets/images/Logo.png';
+try {
+    $staffAvatarStmt = $pdo->query("
+        SELECT profile_picture
+        FROM users
+        WHERE LOWER(COALESCE(role, '')) IN ('staff', 'admin')
+          AND profile_picture IS NOT NULL
+          AND profile_picture != ''
+        ORDER BY CASE WHEN LOWER(role) = 'staff' THEN 0 ELSE 1 END, id ASC
+        LIMIT 1
+    ");
+    $staffAvatarPath = (string)$staffAvatarStmt->fetchColumn();
+    if ($staffAvatarPath !== '' && file_exists(dirname(__DIR__, 2) . '/' . $staffAvatarPath)) {
+        $chatStaffAvatar = '../../' . ltrim($staffAvatarPath, '/\\');
+    }
+} catch (Exception $e) {
+    // Keep the clinic logo fallback when no staff profile image is available.
+}
+
 $pageTitle = 'Messages';
 ?>
 <!DOCTYPE html>
@@ -557,20 +576,38 @@ $pageTitle = 'Messages';
         .chat-send-row .btn { min-width: 120px; }
         .chat-empty { text-align: center; color: #6b7280; padding: 40px 20px; }
         .typing-indicator {
-            display: inline-flex;
+            display: flex;
             align-items: center;
             gap: 8px;
-            font-size: 12px;
-            color: #6b7280;
             padding: 4px 8px;
             margin-top: 4px;
         }
+        .typing-avatar {
+            width: 34px;
+            height: 34px;
+            flex: 0 0 34px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid #dbe3ee;
+            background: #fff;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
+        }
+        .typing-bubble {
+            display: flex;
+            align-items: center;
+            min-width: 54px;
+            min-height: 38px;
+            padding: 10px 14px;
+            border-radius: 19px;
+            border-bottom-left-radius: 6px;
+            background: #e2e8f0;
+        }
         .typing-dots { display: inline-flex; gap: 4px; align-items: center; }
         .typing-dots span {
-            width: 6px;
-            height: 6px;
+            width: 7px;
+            height: 7px;
             border-radius: 50%;
-            background: #9ca3af;
+            background: #64748b;
             display: inline-block;
             animation: typingWave 1.1s infinite ease-in-out;
         }
@@ -678,6 +715,11 @@ $pageTitle = 'Messages';
                 window.setTimeout(scrollToBottom, 80);
             }
 
+            function isChatNearBottom() {
+                if (!chatHistory) return false;
+                return chatHistory.scrollHeight - chatHistory.scrollTop - chatHistory.clientHeight <= 120;
+            }
+
             const renderedMessageIds = new Set(
                 Array.from(document.querySelectorAll('[data-message-id]'))
                     .map((el) => Number(el.getAttribute('data-message-id')))
@@ -714,10 +756,11 @@ $pageTitle = 'Messages';
                 return Math.max(...renderedMessageIds);
             }
 
-            function appendMessage(msg) {
+            function appendMessage(msg, forceScroll = false) {
                 if (!chatHistory) return;
                 const messageId = Number(msg.id || 0);
                 if (messageId > 0 && renderedMessageIds.has(messageId)) return;
+                const shouldAutoScroll = forceScroll || isChatNearBottom();
                 const empty = document.querySelector('.chat-empty');
                 if (empty) empty.remove();
                 const isPatient = msg.sender_type === 'patient';
@@ -733,7 +776,7 @@ $pageTitle = 'Messages';
                     <div class="chat-meta">${escapeHtml(formatDate(msg.created_at))}</div>
                 `;
                 chatHistory.appendChild(bubble);
-                scrollToLatestMessage();
+                if (shouldAutoScroll) scrollToLatestMessage();
             }
 
             function appendSendResultMessages(msgs) {
@@ -743,28 +786,29 @@ $pageTitle = 'Messages';
                     if (isAutoReply) {
                         ensureTypingIndicator(true);
                         setTimeout(() => {
-                            appendMessage(msg);
+                            appendMessage(msg, true);
                             ensureTypingIndicator(false);
                         }, 1200);
                     } else {
-                        appendMessage(msg);
+                        appendMessage(msg, true);
                     }
                 });
             }
 
             function ensureTypingIndicator(visible) {
                 if (!chatHistory) return;
+                const shouldAutoScroll = isChatNearBottom();
                 let el = document.getElementById('staffTypingIndicator');
                 if (!el && visible) {
                     el = document.createElement('div');
                     el.id = 'staffTypingIndicator';
                     el.className = 'typing-indicator';
-                    el.innerHTML = '<span class="typing-dots" aria-label="Staff is typing" title="Staff is typing"><span></span><span></span><span></span></span>';
+                    el.innerHTML = '<img src="<?php echo htmlspecialchars($chatStaffAvatar, ENT_QUOTES); ?>" class="typing-avatar" alt="Staff"><span class="typing-bubble"><span class="typing-dots" aria-label="Staff is typing" title="Staff is typing"><span></span><span></span><span></span></span></span>';
                     chatHistory.appendChild(el);
                 }
                 if (el) {
-                    el.style.display = visible ? 'block' : 'none';
-                    if (visible) scrollToLatestMessage();
+                    el.style.display = visible ? 'flex' : 'none';
+                    if (visible && shouldAutoScroll) scrollToLatestMessage();
                 }
             }
 
@@ -1138,6 +1182,12 @@ $pageTitle = 'Messages';
                 }, 80);
             }
 
+            function isMessageViewNearBottom() {
+                const container = chatHistory || pageHistory;
+                if (!container) return false;
+                return container.scrollHeight - container.scrollTop - container.clientHeight <= 120;
+            }
+
             function removeEmptyStates() {
                 const chatEmpty = document.querySelector('.chat-empty');
                 if (chatEmpty) chatEmpty.remove();
@@ -1200,10 +1250,11 @@ $pageTitle = 'Messages';
                 return Math.max(...allIds);
             }
 
-            function appendEmbedMessage(msg) {
+            function appendEmbedMessage(msg, forceScroll = false) {
                 if (!chatHistory) return;
                 const messageId = Number(msg.id || 0);
                 if (messageId > 0 && embedRenderedIds.has(messageId)) return;
+                const shouldAutoScroll = forceScroll || isMessageViewNearBottom();
                 const bubble = document.createElement('div');
                 const isPatient = msg.sender_type === 'patient';
                 const isUnreadClinicMessage = !isPatient && Number(msg.is_read || 0) === 0;
@@ -1217,7 +1268,7 @@ $pageTitle = 'Messages';
                     <div class="chat-meta">${escapeHtml(formatDate(msg.created_at, true))}</div>
                 `;
                 chatHistory.appendChild(bubble);
-                scrollToLatestMessages();
+                if (shouldAutoScroll) scrollToLatestMessages();
             }
 
             function appendPageMessage(msg) {
@@ -1251,12 +1302,12 @@ $pageTitle = 'Messages';
                     if (isAutoReply) {
                         ensureTypingIndicator(true);
                         setTimeout(() => {
-                            appendEmbedMessage(msg);
+                            appendEmbedMessage(msg, true);
                             appendPageMessage(msg);
                             ensureTypingIndicator(false);
                         }, 1200);
                     } else {
-                        appendEmbedMessage(msg);
+                        appendEmbedMessage(msg, true);
                         appendPageMessage(msg);
                     }
                 });
@@ -1265,17 +1316,18 @@ $pageTitle = 'Messages';
             function ensureTypingIndicator(visible) {
                 const container = chatHistory || pageHistory;
                 if (!container) return;
+                const shouldAutoScroll = isMessageViewNearBottom();
                 let el = document.getElementById('staffTypingIndicator');
                 if (!el && visible) {
                     el = document.createElement('div');
                     el.id = 'staffTypingIndicator';
                     el.className = 'typing-indicator';
-                    el.innerHTML = '<span class="typing-dots" aria-label="Staff is typing" title="Staff is typing"><span></span><span></span><span></span></span>';
+                    el.innerHTML = '<img src="<?php echo htmlspecialchars($chatStaffAvatar, ENT_QUOTES); ?>" class="typing-avatar" alt="Staff"><span class="typing-bubble"><span class="typing-dots" aria-label="Staff is typing" title="Staff is typing"><span></span><span></span><span></span></span></span>';
                     container.appendChild(el);
                 }
                 if (el) {
-                    el.style.display = visible ? 'block' : 'none';
-                    if (visible) {
+                    el.style.display = visible ? 'flex' : 'none';
+                    if (visible && shouldAutoScroll) {
                         scrollToLatestMessages();
                     }
                 }

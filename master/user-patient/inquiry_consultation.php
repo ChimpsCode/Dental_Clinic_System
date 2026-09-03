@@ -284,19 +284,25 @@ $pageTitle = 'Inquiry / Consultation';
         .bubble-left { background:#f3f4f6; border:1px solid #e5e7eb; color:#1f2937; border-bottom-left-radius: 4px; }
         .bubble-right { background:#5b6ee6; color:#fff; border-bottom-right-radius: 4px; }
         .ts { font-size:11px; color:#9ca3af; margin-top:6px; }
-        .chat-typing-indicator { display:flex; align-items:center; gap:7px; color:#6b7280; font-size:12px; }
-        .chat-typing-dots { display:inline-flex; gap:3px; }
-        .chat-typing-dots span { width:5px; height:5px; border-radius:50%; background:#9ca3af; animation:inquiryTyping 1.1s infinite ease-in-out; }
+        .typing-message-row { align-items:center; gap:8px; }
+        .typing-message-row > img { width:34px !important; height:34px !important; flex:0 0 34px; border:1px solid #dbe3ee; background:#fff; box-shadow:0 2px 6px rgba(15,23,42,.12); }
+        .chat-typing-indicator { display:flex; align-items:center; min-width:54px; min-height:38px; padding:10px 14px; border-radius:19px; border-bottom-left-radius:6px; background:#e2e8f0; color:#64748b; }
+        .chat-typing-dots { display:inline-flex; align-items:center; gap:4px; }
+        .chat-typing-dots span { width:7px; height:7px; border-radius:50%; background:#64748b; animation:inquiryTyping 1.1s infinite ease-in-out; }
         .chat-typing-dots span:nth-child(2) { animation-delay:.15s; }
         .chat-typing-dots span:nth-child(3) { animation-delay:.3s; }
         @keyframes inquiryTyping { 0%,60%,100% { transform:translateY(0); opacity:.45; } 30% { transform:translateY(-3px); opacity:1; } }
         
-        .conv-input { display:flex; gap:12px; align-items:center; padding:16px 20px; border-top:1px solid #eef2f7; background:#fff; }
-        .icon-btn { background:transparent; border:none; color:#6b7280; font-size:18px; padding:8px; cursor:pointer; }
-        .conv-text { flex:1; border:1px solid #d1d5db; padding:12px 20px; border-radius:999px; font:inherit; outline: none; }
-        .conv-text:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-        .send-btn { background:#f3f4f6; border:none; color:#6b7280; padding:12px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition: color 0.2s, background 0.2s; }
-        .send-btn.has-text { color:#0070f3; background:#dbeaf1; }
+        #inquiryForm { padding:14px 20px 18px; border-top:1px solid #e5e7eb; background:#fff; }
+        .conv-input { display:flex; gap:6px; align-items:center; width:100%; min-height:58px; padding:6px; border:1px solid #dbe3ee; border-radius:999px; background:#f8fafc; transition:border-color .2s, box-shadow .2s, background .2s; }
+        .conv-input:focus-within { border-color:#2563eb; background:#fff; box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+        .icon-btn { width:42px; height:42px; flex:0 0 42px; display:inline-flex; align-items:center; justify-content:center; background:transparent; border:none; border-radius:50%; color:#64748b; font-size:18px; padding:0; cursor:pointer; transition:background .2s, color .2s; }
+        .icon-btn:hover { background:#e8eef7; color:#2563eb; }
+        .conv-text { flex:1; min-width:0; height:44px; border:none; padding:0 8px; background:transparent; font:inherit; font-size:14px; outline:none; }
+        .conv-text:focus { border:none; box-shadow:none; }
+        .send-btn { width:46px; height:46px; flex:0 0 46px; background:linear-gradient(135deg,#2563eb,#1d4ed8); border:none; color:#fff; padding:0; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 12px rgba(37,99,235,.25); transition:transform .15s, box-shadow .15s; }
+        .send-btn:hover { transform:scale(1.04); box-shadow:0 6px 16px rgba(37,99,235,.32); }
+        .send-btn.has-text { color:#fff; background:linear-gradient(135deg,#2563eb,#1d4ed8); }
 
         .attachment-preview { padding:8px 20px 0; background:#fff; }
         .attachment-preview-item { display:inline-flex; align-items:center; gap:8px; padding:6px 12px; background:#f0f4ff; border:1px solid #c7d2fe; border-radius:8px; font-size:13px; color:#3730a3; max-width:250px; }
@@ -429,6 +435,11 @@ $pageTitle = 'Inquiry / Consultation';
             .dashboard-header { padding: 12px 16px; height: 60px; }
             .dashboard-main { padding: 16px; }
             .user-details { display: none; }
+            #inquiryForm { padding:10px; }
+            .conv-input { gap:3px; min-height:54px; padding:5px; }
+            .conv-input .icon-btn { width:38px; height:38px; flex-basis:38px; }
+            .send-btn { width:42px; height:42px; flex-basis:42px; }
+            .conv-text { padding:0 5px; }
         }
         
         /* Hide the site-wide floating message launcher on the Inquiry page only */
@@ -440,7 +451,13 @@ $pageTitle = 'Inquiry / Consultation';
             window.addEventListener('DOMContentLoaded', () => {
                 const messagesList = document.getElementById('messagesList');
                 if (messagesList) {
-                    messagesList.scrollTop = messagesList.scrollHeight;
+                    const scroll = () => { messagesList.scrollTop = messagesList.scrollHeight; };
+                    scroll();
+                    requestAnimationFrame(scroll);
+                    setTimeout(scroll, 100);
+                    messagesList.querySelectorAll('img').forEach((image) => {
+                        if (!image.complete) image.addEventListener('load', scroll, { once: true });
+                    });
                 }
             });
         })();
@@ -589,7 +606,7 @@ $pageTitle = 'Inquiry / Consultation';
                             <button type="button" class="icon-btn" id="attachFileBtn" aria-label="attach"><i class="fas fa-paperclip"></i></button>
                             <button type="button" class="icon-btn" id="attachImageBtn" aria-label="image"><i class="fas fa-image"></i></button>
                             <input type="file" id="fileInput" style="display:none;" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,image/*">
-                            <input id="concern" name="concern" class="conv-text" placeholder="Type a message" />
+                            <input id="concern" name="concern" class="conv-text" placeholder="Type your message..." />
                             <button type="submit" class="send-btn" aria-label="send"><i class="fas fa-paper-plane"></i></button>
                         </div>
                     </form>
@@ -782,6 +799,23 @@ $pageTitle = 'Inquiry / Consultation';
             return renderedReplyIds.size ? Math.max(...renderedReplyIds) : 0;
         }
 
+        function isConversationNearBottom() {
+            return messagesList.scrollHeight - messagesList.scrollTop - messagesList.clientHeight <= 120;
+        }
+
+        function scrollConversationToBottom(force = false) {
+            if (!force && !isConversationNearBottom()) return;
+            const scroll = () => { messagesList.scrollTop = messagesList.scrollHeight; };
+            scroll();
+            requestAnimationFrame(scroll);
+            setTimeout(scroll, 100);
+            if (force) {
+                messagesList.querySelectorAll('img').forEach((image) => {
+                    if (!image.complete) image.addEventListener('load', scroll, { once: true });
+                });
+            }
+        }
+
         function formatMessageTime(value) {
             const date = new Date(String(value || '').replace(' ', 'T'));
             return Number.isNaN(date.getTime())
@@ -789,9 +823,10 @@ $pageTitle = 'Inquiry / Consultation';
                 : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
-        function appendConversationReply(reply, localAttachmentUrl = '') {
+        function appendConversationReply(reply, localAttachmentUrl = '', forceScroll = false) {
             const replyId = Number(reply.id || 0);
             if (replyId > 0 && renderedReplyIds.has(replyId)) return;
+            const shouldAutoScroll = forceScroll || isConversationNearBottom();
 
             const emptyGreeting = messagesList.querySelector('[data-empty-greeting]');
             if (emptyGreeting) emptyGreeting.remove();
@@ -823,21 +858,22 @@ $pageTitle = 'Inquiry / Consultation';
 
             const typing = document.getElementById('clinicTypingIndicator');
             messagesList.insertBefore(row, typing || null);
-            messagesList.scrollTop = messagesList.scrollHeight;
+            if (shouldAutoScroll) scrollConversationToBottom(true);
         }
 
         function showClinicTyping(visible) {
+            const shouldAutoScroll = isConversationNearBottom();
             let indicator = document.getElementById('clinicTypingIndicator');
             if (!indicator && visible) {
                 indicator = document.createElement('div');
                 indicator.id = 'clinicTypingIndicator';
-                indicator.className = 'message-row left';
-                indicator.innerHTML = `<img src="${escapeHtml(clinicAvatarUrl)}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;"><div class="chat-typing-indicator"><span class="chat-typing-dots" aria-label="Staff is typing"><span></span><span></span><span></span></span></div>`;
+                indicator.className = 'message-row left typing-message-row';
+                indicator.innerHTML = `<img src="${escapeHtml(clinicAvatarUrl)}" alt="Staff" style="border-radius:50%;object-fit:cover;"><div class="chat-typing-indicator"><span class="chat-typing-dots" aria-label="Staff is typing"><span></span><span></span><span></span></span></div>`;
                 messagesList.appendChild(indicator);
             }
             if (indicator) {
                 indicator.style.display = visible ? 'flex' : 'none';
-                if (visible) messagesList.scrollTop = messagesList.scrollHeight;
+                if (visible && shouldAutoScroll) scrollConversationToBottom(true);
             }
         }
 
@@ -911,7 +947,7 @@ $pageTitle = 'Inquiry / Consultation';
                     message,
                     attachment: selectedFile ? selectedFile.name : '',
                     created_at: new Date().toISOString()
-                }, localAttachmentUrl);
+                }, localAttachmentUrl, true);
                 form.reset();
                 clearAttachment();
                 sendTypingState(0);

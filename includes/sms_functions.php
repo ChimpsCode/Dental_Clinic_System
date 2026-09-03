@@ -1,6 +1,21 @@
 <?php
 
-require_once __DIR__ . '/../config/sms_credentials.php';
+$smsCredentialsFile = __DIR__ . '/../config/sms_credentials.php';
+if (is_file($smsCredentialsFile)) {
+    require_once $smsCredentialsFile;
+} else {
+    // SMS is optional. Keep appointment and registration workflows working
+    // when local credentials have not been configured.
+    if (!defined('TEXTBEE_API_KEY')) {
+        define('TEXTBEE_API_KEY', '');
+    }
+    if (!defined('TEXTBEE_DEVICE_ID')) {
+        define('TEXTBEE_DEVICE_ID', '');
+    }
+    if (!defined('SMS_TEST_RECIPIENTS')) {
+        define('SMS_TEST_RECIPIENTS', []);
+    }
+}
 
 function sendSMS($phone, $message, bool $nonBlocking = false) {
     $phone = formatPhoneNumber($phone);

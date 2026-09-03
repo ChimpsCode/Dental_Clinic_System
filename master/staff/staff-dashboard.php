@@ -811,6 +811,9 @@ try {
                 <div class="chat-modal-email" id="inquiryChatContact"></div>
             </div>
             <div class="chat-modal-source" id="inquiryChatSource"></div>
+            <button type="button" class="chat-info-button" onclick="openInquiryInfoPanel()" aria-label="Conversation information" title="Conversation information">
+                <span aria-hidden="true">i</span>
+            </button>
         </div>
         <div class="chat-modal-messages" id="inquiryChatMessages"></div>
         <div class="chat-channel-info" id="inquiryChatChannel"></div>
@@ -827,6 +830,25 @@ try {
                 </button>
             </div>
         </form>
+    </div>
+    <div class="inquiry-info-panel" id="inquiryInfoPanel" aria-hidden="true">
+        <div class="inquiry-info-header">
+            <button type="button" class="chat-modal-back" onclick="closeInquiryInfoPanel()" aria-label="Back to conversation">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+            </button>
+            <strong>Conversation info</strong>
+        </div>
+        <div class="inquiry-info-profile">
+            <div class="inquiry-info-avatar" id="inquiryInfoAvatar"></div>
+            <div class="inquiry-info-name" id="inquiryInfoName"></div>
+        </div>
+        <button type="button" class="inquiry-media-toggle" id="inquiryMediaToggle" onclick="toggleInquiryMedia()" aria-expanded="false">
+            <span>Media &amp; Files</span>
+            <svg class="inquiry-media-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="inquiry-media-content" id="inquiryMediaContent">
+            <div class="inquiry-media-gallery" id="inquiryMediaGallery"></div>
+        </div>
     </div>
 </div>
 
@@ -1740,6 +1762,7 @@ let dashboardConversationPollInFlight = false;
 let dashboardTypingState = 0;
 let dashboardTypingSentAt = 0;
 let dashboardTypingTimer = null;
+let dashboardConversationReplies = [];
 
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (character) => ({
@@ -1765,12 +1788,14 @@ function toggleInquiryPanel() {
     } else if (!isOpen) {
         sendDashboardTypingState(0);
         dashboardActiveInquiryId = 0;
+        closeInquiryInfoPanel();
     }
 }
 
 function showInquiryList() {
     sendDashboardTypingState(0);
     dashboardActiveInquiryId = 0;
+    closeInquiryInfoPanel();
     document.getElementById('inquiryPanelListView').style.display = 'flex';
     document.getElementById('inquiryPanelChatView').style.display = 'none';
 }
@@ -1857,6 +1882,74 @@ function updateDashboardInquiryBadge(count) {
     }
 }
 
+function mergeDashboardConversationReplies(replies) {
+    const replyMap = new Map(dashboardConversationReplies.map((reply) => [String(reply.id), reply]));
+    (replies || []).forEach((reply) => replyMap.set(String(reply.id), reply));
+    dashboardConversationReplies = Array.from(replyMap.values())
+        .sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
+}
+
+function renderInquiryMediaGallery() {
+    const gallery = document.getElementById('inquiryMediaGallery');
+    const images = dashboardConversationReplies.filter((reply) =>
+        reply.attachment && /\.(jpe?g|png|gif|webp)$/i.test(reply.attachment)
+    );
+    if (!images.length) {
+        gallery.innerHTML = '<div class="inquiry-media-empty">No photos have been shared in this conversation.</div>';
+        return;
+    }
+    gallery.innerHTML = images.map((reply) => {
+        const path = '../' + reply.attachment;
+        const sender = reply.sender_type === 'staff' ? 'Staff' : 'Patient';
+        return '<button type="button" class="inquiry-media-item" data-media-src="' + escapeHtml(path) + '" aria-label="View image sent by ' + sender + '">'
+            + '<img src="' + escapeHtml(path) + '" alt="Image sent by ' + sender + '" loading="lazy">'
+            + '</button>';
+    }).join('');
+    gallery.querySelectorAll('[data-media-src]').forEach((item) => {
+        item.addEventListener('click', () => openLightbox(item.dataset.mediaSrc));
+    });
+}
+
+async function openInquiryInfoPanel() {
+    if (!dashboardActiveInquiryId) return;
+    const panel = document.getElementById('inquiryInfoPanel');
+    const sourceAvatar = document.getElementById('inquiryChatAvatar');
+    const targetAvatar = document.getElementById('inquiryInfoAvatar');
+    targetAvatar.innerHTML = sourceAvatar.innerHTML;
+    if (!sourceAvatar.querySelector('img')) targetAvatar.textContent = sourceAvatar.textContent || 'P';
+    document.getElementById('inquiryInfoName').textContent = document.getElementById('inquiryChatName').textContent;
+    renderInquiryMediaGallery();
+    panel.classList.add('open');
+    panel.setAttribute('aria-hidden', 'false');
+
+    const formData = new FormData();
+    formData.append('action', 'get_conversation');
+    formData.append('id', String(dashboardActiveInquiryId));
+    try {
+        const response = await fetch('../shared/inquiry_actions.php', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (response.ok && data.success) {
+            mergeDashboardConversationReplies(data.replies || []);
+            renderInquiryMediaGallery();
+        }
+    } catch (_error) {}
+}
+
+function closeInquiryInfoPanel() {
+    const panel = document.getElementById('inquiryInfoPanel');
+    if (!panel) return;
+    panel.classList.remove('open');
+    panel.setAttribute('aria-hidden', 'true');
+}
+
+function toggleInquiryMedia() {
+    const toggle = document.getElementById('inquiryMediaToggle');
+    const content = document.getElementById('inquiryMediaContent');
+    const isOpen = content.classList.toggle('open');
+    toggle.classList.toggle('open', isOpen);
+    toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+}
+
 function getDashboardLastReplyId() {
     const ids = Array.from(document.querySelectorAll('#inquiryChatMessages [data-reply-id]'))
         .map((element) => Number(element.dataset.replyId))
@@ -1864,10 +1957,30 @@ function getDashboardLastReplyId() {
     return ids.length ? Math.max(...ids) : 0;
 }
 
+function isDashboardChatNearBottom() {
+    const container = document.getElementById('inquiryChatMessages');
+    return container.scrollHeight - container.scrollTop - container.clientHeight <= 120;
+}
+
+function scrollDashboardChatToBottom(force = false) {
+    const container = document.getElementById('inquiryChatMessages');
+    if (!force && !isDashboardChatNearBottom()) return;
+    const scroll = () => { container.scrollTop = container.scrollHeight; };
+    scroll();
+    requestAnimationFrame(scroll);
+    setTimeout(scroll, 100);
+    if (force) {
+        container.querySelectorAll('img').forEach((image) => {
+            if (!image.complete) image.addEventListener('load', scroll, { once: true });
+        });
+    }
+}
+
 function appendDashboardInquiryReply(reply) {
     const container = document.getElementById('inquiryChatMessages');
     const replyId = Number(reply.id || 0);
     if (replyId > 0 && container.querySelector(`[data-reply-id="${replyId}"]`)) return;
+    const shouldAutoScroll = isDashboardChatNearBottom();
 
     const isPatient = reply.sender_type !== 'staff';
     const bubble = document.createElement('div');
@@ -1891,22 +2004,35 @@ function appendDashboardInquiryReply(reply) {
 
     const typingIndicator = document.getElementById('patientInquiryTypingIndicator');
     container.insertBefore(bubble, typingIndicator || null);
-    container.scrollTop = container.scrollHeight;
+    if (shouldAutoScroll) scrollDashboardChatToBottom(true);
 }
 
 function showDashboardPatientTyping(visible) {
     const container = document.getElementById('inquiryChatMessages');
+    const shouldAutoScroll = isDashboardChatNearBottom();
     let indicator = document.getElementById('patientInquiryTypingIndicator');
     if (!indicator && visible) {
         indicator = document.createElement('div');
         indicator.id = 'patientInquiryTypingIndicator';
-        indicator.className = 'inquiry-typing-indicator';
-        indicator.innerHTML = '<span class="inquiry-typing-dots" aria-label="Patient is typing"><span></span><span></span><span></span></span>';
+        indicator.className = 'inquiry-typing-row';
+        const headerAvatar = document.getElementById('inquiryChatAvatar');
+        const typingAvatar = document.createElement('div');
+        typingAvatar.className = 'inquiry-typing-avatar';
+        if (headerAvatar.querySelector('img')) {
+            typingAvatar.innerHTML = headerAvatar.innerHTML;
+        } else {
+            typingAvatar.textContent = headerAvatar.textContent || 'P';
+        }
+        const typingBubble = document.createElement('div');
+        typingBubble.className = 'inquiry-typing-indicator';
+        typingBubble.innerHTML = '<span class="inquiry-typing-dots" aria-label="Patient is typing"><span></span><span></span><span></span></span>';
+        indicator.appendChild(typingAvatar);
+        indicator.appendChild(typingBubble);
         container.appendChild(indicator);
     }
     if (indicator) {
         indicator.style.display = visible ? 'flex' : 'none';
-        if (visible) container.scrollTop = container.scrollHeight;
+        if (visible && shouldAutoScroll) scrollDashboardChatToBottom(true);
     }
 }
 
@@ -1937,6 +2063,7 @@ async function pollDashboardInquiryConversation() {
         const response = await fetch('../shared/inquiry_actions.php', { method: 'POST', body: formData });
         const data = await response.json();
         if (!response.ok || !data.success || inquiryId !== dashboardActiveInquiryId) return;
+        mergeDashboardConversationReplies(data.replies || []);
         (data.replies || []).forEach(appendDashboardInquiryReply);
         if (data.replies && data.replies.length) {
             const latestReply = data.replies[data.replies.length - 1];
@@ -1957,6 +2084,8 @@ async function pollDashboardInquiryConversation() {
 async function openDashboardInquiryChat(id) {
     const inquiry = dashboardInquiryMap[String(id)];
     if (!inquiry) return;
+    closeInquiryInfoPanel();
+    dashboardConversationReplies = [];
 
     const fullName = [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown Patient';
     const contactParts = [inquiry.email, inquiry.phone || inquiry.contact_info].filter(Boolean);
@@ -1989,6 +2118,7 @@ async function openDashboardInquiryChat(id) {
         const response = await fetch('../shared/inquiry_actions.php', { method: 'POST', body: formData });
         const data = await response.json();
         if (data.success && data.replies) {
+            mergeDashboardConversationReplies(data.replies);
             data.replies.forEach((reply) => {
                 const bubble = document.createElement('div');
                 const isNotStaff = reply.sender_type !== 'staff';
@@ -2020,8 +2150,6 @@ async function openDashboardInquiryChat(id) {
         });
     }
 
-    container.scrollTop = container.scrollHeight;
-
     const channelInfo = document.getElementById('inquiryChatChannel');
     if ((inquiry.source || '') === 'Patient Portal' && inquiry.patient_id) {
         channelInfo.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Reply will appear in patient\'s account messages';
@@ -2033,6 +2161,7 @@ async function openDashboardInquiryChat(id) {
     document.getElementById('inquiryPanelChatView').style.display = 'flex';
     dashboardActiveInquiryId = Number(inquiry.id);
     dashboardTypingState = 0;
+    scrollDashboardChatToBottom(true);
 
     if ((inquiry.status || 'Unread') === 'Unread') {
         inquiry.status = 'Read';
@@ -2096,25 +2225,21 @@ document.getElementById('inquiryChatReplyForm').addEventListener('submit', async
         const now = new Date();
         const ts = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
 
-        appendDashboardInquiryReply({
+        const sentReply = {
             id: data.reply_id,
             sender_type: 'staff',
             message,
             attachment: data.attachment || null,
             created_at: data.created_at || ts
-        });
+        };
+        mergeDashboardConversationReplies([sentReply]);
+        appendDashboardInquiryReply(sentReply);
 
         const entry = dashboardInquiryMap[String(id)];
         if (entry) {
             entry.notes = (entry.notes || '') + '\n[Staff replied on ' + ts + ']\n' + message;
         }
-        updateDashboardInquiryFromReply(id, {
-            id: data.reply_id,
-            sender_type: 'staff',
-            message,
-            attachment: data.attachment || null,
-            created_at: data.created_at || ts
-        }, 'Replied');
+        updateDashboardInquiryFromReply(id, sentReply, 'Replied');
 
         document.getElementById('inquiryChatReplyMsg').value = '';
         document.getElementById('inquiryChatReplyMsg').style.height = 'auto';
@@ -2792,13 +2917,150 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
     margin-top: 2px;
 }
 .chat-modal-source {
-    font-size: 11px;
-    font-weight: 700;
-    padding: 5px 10px;
-    border-radius: 999px;
+    display: none;
+}
+.chat-modal-email {
+    display: none;
+}
+.chat-info-button {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 50%;
     background: #eff6ff;
-    color: #1d4ed8;
-    flex-shrink: 0;
+    color: #2563eb;
+    font: 700 18px/1 Georgia, serif;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+}
+.chat-info-button:hover {
+    background: #dbeafe;
+    transform: scale(1.04);
+}
+.inquiry-info-panel {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    background: #fff;
+    transform: translateX(100%);
+    visibility: hidden;
+    transition: transform 0.25s ease, visibility 0.25s;
+}
+.inquiry-info-panel.open {
+    transform: translateX(0);
+    visibility: visible;
+}
+.inquiry-info-header {
+    min-height: 72px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    color: #0f172a;
+}
+.inquiry-info-profile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 28px 20px;
+    border-bottom: 1px solid #eef2f7;
+}
+.inquiry-info-avatar {
+    width: 76px;
+    height: 76px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #fff;
+    font-size: 24px;
+    font-weight: 700;
+}
+.inquiry-info-avatar img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover;
+    border-radius: 50%;
+}
+.inquiry-info-name {
+    color: #0f172a;
+    font-size: 17px;
+    font-weight: 700;
+    text-align: center;
+}
+.inquiry-media-toggle {
+    width: 100%;
+    min-height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border: none;
+    border-bottom: 1px solid #eef2f7;
+    background: #fff;
+    color: #0f172a;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+.inquiry-media-toggle:hover {
+    background: #f8fafc;
+}
+.inquiry-media-chevron {
+    transition: transform 0.2s;
+}
+.inquiry-media-toggle.open .inquiry-media-chevron {
+    transform: rotate(180deg);
+}
+.inquiry-media-content {
+    display: none;
+    padding: 12px;
+}
+.inquiry-media-content.open {
+    display: block;
+}
+.inquiry-media-gallery {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+}
+.inquiry-media-item {
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    background: #e2e8f0;
+    cursor: pointer;
+}
+.inquiry-media-item img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    transition: transform 0.2s;
+}
+.inquiry-media-item:hover img {
+    transform: scale(1.05);
+}
+.inquiry-media-empty {
+    grid-column: 1 / -1;
+    padding: 36px 16px;
+    color: #64748b;
+    font-size: 13px;
+    text-align: center;
 }
 .chat-modal-messages {
     flex: 1;
@@ -2855,22 +3117,51 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
     margin-top: 4px;
     border: 1px solid #e5e7eb;
 }
-.inquiry-typing-indicator {
+.inquiry-typing-row {
     align-self: flex-start;
     display: flex;
     align-items: center;
-    gap: 7px;
-    padding: 7px 10px;
+    gap: 8px;
+}
+.inquiry-typing-avatar {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+}
+.inquiry-typing-avatar img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover;
+    border-radius: 50%;
+}
+.inquiry-typing-indicator {
+    display: flex;
+    align-items: center;
+    min-width: 52px;
+    min-height: 36px;
+    padding: 10px 14px;
+    border-radius: 18px;
+    border-bottom-left-radius: 6px;
+    background: #eef1f5;
     color: #64748b;
-    font-size: 12px;
 }
 .inquiry-typing-dots {
     display: inline-flex;
-    gap: 3px;
+    align-items: center;
+    gap: 4px;
 }
 .inquiry-typing-dots span {
-    width: 5px;
-    height: 5px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     background: #94a3b8;
     animation: inquiryTypingWave 1.1s infinite ease-in-out;
@@ -2899,31 +3190,43 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
 }
 .chat-send-row {
     display: flex;
-    gap: 10px;
-    align-items: flex-end;
+    gap: 6px;
+    align-items: center;
+    width: 100%;
+    min-height: 58px;
+    padding: 6px;
+    border: 1px solid #dbe3ee;
+    border-radius: 999px;
+    background: #f8fafc;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+.chat-send-row:focus-within {
+    border-color: #2563eb;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
 }
 .chat-send-row textarea {
     flex: 1;
-    border: 1px solid #d1d5db;
-    border-radius: 20px;
-    padding: 12px 16px;
+    min-width: 0;
+    border: none;
+    border-radius: 0;
+    padding: 12px 8px;
     font: inherit;
     font-size: 14px;
     resize: none;
-    min-height: 48px;
+    min-height: 44px;
     max-height: 120px;
     outline: none;
-    transition: border-color 0.2s;
-    background: #f9fafb;
+    background: transparent;
 }
 .chat-send-row textarea:focus {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
-    background: #fff;
+    border: none;
+    box-shadow: none;
+    background: transparent;
 }
 .chat-send-btn {
-    width: 48px;
-    height: 48px;
+    width: 46px;
+    height: 46px;
     border-radius: 50%;
     border: none;
     background: linear-gradient(135deg, #2563eb, #1d4ed8);
@@ -2946,11 +3249,11 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
     transform: none;
 }
 .chat-attach-btn {
-    width: 40px;
-    height: 40px;
+    width: 42px;
+    height: 42px;
     border-radius: 50%;
     border: none;
-    background: #f1f5f9;
+    background: transparent;
     color: #64748b;
     cursor: pointer;
     display: flex;
@@ -2960,7 +3263,7 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
     transition: background 0.2s, color 0.2s;
 }
 .chat-attach-btn:hover {
-    background: #e2e8f0;
+    background: #e8eef7;
     color: #2563eb;
 }
 .chat-attachment-preview {
@@ -3049,6 +3352,26 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
     }
     .dashboard-inquiry-panel {
         width: 100vw;
+    }
+    .chat-compose {
+        padding: 10px;
+    }
+    .chat-send-row {
+        gap: 3px;
+        min-height: 54px;
+        padding: 5px;
+    }
+    .chat-attach-btn {
+        width: 38px;
+        height: 38px;
+    }
+    .chat-send-btn {
+        width: 42px;
+        height: 42px;
+    }
+    .chat-send-row textarea {
+        padding-left: 5px;
+        padding-right: 5px;
     }
 }
 

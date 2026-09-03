@@ -131,6 +131,8 @@ $notifInitial = $notifUserId ? getNotifications($pdo, $notifUserId, 8) : [];
     if (!btn || !dropdown) return;
 
     const actionsUrl = '../shared/notification_actions.php';
+    let lastKnownCount = <?php echo (int)$notifCount; ?>;
+    let badgePollInFlight = false;
 
     btn.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -181,7 +183,9 @@ $notifInitial = $notifUserId ? getNotifications($pdo, $notifUserId, 8) : [];
         });
     });
 
-    function updateBadge() {
+    function updateBadge(force = false) {
+        if (badgePollInFlight || (!force && document.hidden)) return;
+        badgePollInFlight = true;
         fetch(actionsUrl, {
             method: 'POST',
             headers: {'Content-Type': 'application/x-www-form-urlencoded'},
@@ -189,15 +193,22 @@ $notifInitial = $notifUserId ? getNotifications($pdo, $notifUserId, 8) : [];
         }).then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.success) {
-                const c = data.count;
+                const c = Number(data.count || 0);
+                const countChanged = c !== lastKnownCount;
+                lastKnownCount = c;
                 if (c > 0) {
                     badge.textContent = c > 99 ? '99+' : String(c);
                     badge.hidden = false;
                 } else {
                     badge.hidden = true;
                 }
+                if (countChanged && dropdown.classList.contains('open')) {
+                    loadNotifications();
+                }
             }
-        }).catch(function(){});
+        }).catch(function(){}).finally(function() {
+            badgePollInFlight = false;
+        });
     }
 
     function loadNotifications() {
@@ -239,6 +250,13 @@ $notifInitial = $notifUserId ? getNotifications($pdo, $notifUserId, 8) : [];
         }).catch(function(){});
     }
 
-    setInterval(updateBadge, 30000);
+    updateBadge(true);
+    setInterval(updateBadge, 3000);
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            updateBadge(true);
+            if (dropdown.classList.contains('open')) loadNotifications();
+        }
+    });
 })();
 </script>

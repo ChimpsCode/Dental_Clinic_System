@@ -352,10 +352,6 @@ $pageTitle = 'Medical Records';
             });
         });
     </script>
-    <a href="messages.php" class="floating-message-btn" data-chat-launcher aria-label="Open messages" title="Messages">
-        <i class="fas fa-message"></i>
-        <span class="unread-badge" id="unreadBadge" style="display: none;">0</span>
-    </a>
     <script>
         (function () {
             const launcher = document.querySelector('[data-chat-launcher]');
