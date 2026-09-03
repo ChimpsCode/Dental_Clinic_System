@@ -561,6 +561,82 @@ if ($method !== 'POST') {
     inquiryJson(['success' => false, 'message' => 'Invalid request method.']);
 }
 
+if ($action === 'conversation_updates' || $action === 'set_typing') {
+    $id = (int)($_POST['id'] ?? 0);
+    if ($id <= 0) {
+        inquiryJson(['success' => false, 'message' => 'Invalid inquiry.']);
+    }
+
+    $inquiry = fetchInquiryById($pdo, $id);
+    if (!$inquiry || (int)($inquiry['is_archived'] ?? 0) === 1) {
+        inquiryJson(['success' => false, 'message' => 'Inquiry not found.']);
+    }
+
+    if (inquiryCanPatient($role)) {
+        $patient = fetchCurrentPatient($pdo, (int)$_SESSION['user_id']);
+        if (!$patient || (int)$inquiry['patient_id'] !== (int)$patient['id']) {
+            inquiryJson(['success' => false, 'message' => 'Unauthorized.']);
+        }
+        $senderType = 'patient';
+        $otherSenderType = 'staff';
+    } elseif (inquiryCanManage($role)) {
+        $senderType = 'staff';
+        $otherSenderType = 'patient';
+    } else {
+        inquiryJson(['success' => false, 'message' => 'Unauthorized.']);
+    }
+
+    ensureInquiryReplySchema($pdo);
+    ensureInquiryTypingSchema($pdo);
+
+    if ($action === 'set_typing') {
+        $isTyping = (int)($_POST['is_typing'] ?? 0) === 1 ? 1 : 0;
+        $typingStmt = $pdo->prepare("
+            INSERT INTO inquiry_typing_status (inquiry_id, sender_type, is_typing, updated_at)
+            VALUES (?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE is_typing = VALUES(is_typing), updated_at = NOW()
+        ");
+        $typingStmt->execute([$id, $senderType, $isTyping]);
+        inquiryJson(['success' => true]);
+    }
+
+    $lastReplyId = max(0, (int)($_POST['last_reply_id'] ?? 0));
+    $replyStmt = $pdo->prepare("
+        SELECT id, message, sender_type, attachment, created_at
+        FROM inquiry_replies
+        WHERE inquiry_id = ? AND id > ?
+        ORDER BY id ASC
+    ");
+    $replyStmt->execute([$id, $lastReplyId]);
+    $newReplies = $replyStmt->fetchAll(PDO::FETCH_ASSOC);
+    if ($senderType === 'staff') {
+        foreach ($newReplies as $newReply) {
+            if (($newReply['sender_type'] ?? '') !== 'staff') {
+                updateInquiryRecord($pdo, $id, ['status' => 'Read']);
+                break;
+            }
+        }
+    }
+
+    $typingStmt = $pdo->prepare("
+        SELECT is_typing, updated_at
+        FROM inquiry_typing_status
+        WHERE inquiry_id = ? AND sender_type = ?
+        LIMIT 1
+    ");
+    $typingStmt->execute([$id, $otherSenderType]);
+    $typingRow = $typingStmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    $otherIsTyping = $typingRow
+        && (int)$typingRow['is_typing'] === 1
+        && (time() - strtotime((string)$typingRow['updated_at'])) <= 6;
+
+    inquiryJson([
+        'success' => true,
+        'replies' => $newReplies,
+        'other_is_typing' => (bool)$otherIsTyping,
+    ]);
+}
+
 if ($action === 'create') {
     if (inquiryCanPatient($role)) {
         $patient = fetchCurrentPatient($pdo, (int)$_SESSION['user_id']);
@@ -621,7 +697,12 @@ if ($action === 'create') {
 
         updateInquiryRecord($pdo, (int)$existingInquiry['id'], ['status' => 'Unread']);
 
-        inquiryJson(['success' => true, 'message' => 'Message sent successfully.']);
+        inquiryJson([
+            'success' => true,
+            'message' => 'Message sent successfully.',
+            'inquiry_id' => (int)$existingInquiry['id'],
+            'reply_id' => (int)$pdo->lastInsertId(),
+        ]);
     }
 
     [$firstName, $middleName, $lastName] = splitInquiryFullName($fullName);
@@ -676,7 +757,12 @@ if ($action === 'create') {
     ");
     $stmt->execute($values);
 
-    inquiryJson(['success' => true, 'message' => 'Inquiry submitted successfully.']);
+    inquiryJson([
+        'success' => true,
+        'message' => 'Inquiry submitted successfully.',
+        'inquiry_id' => (int)$pdo->lastInsertId(),
+        'reply_id' => null,
+    ]);
 }
 
 if (!inquiryCanManage($role)) {
@@ -1025,6 +1111,7 @@ if ($action === 'staff_reply') {
         ");
         $replyStmt->execute([$id, $replyMessage]);
     }
+    $createdReplyId = (int)$pdo->lastInsertId();
 
     if (($inquiry['source'] ?? '') === 'Patient Portal' && !empty($inquiry['patient_id'])) {
         $patientId = (int)$inquiry['patient_id'];
@@ -1133,7 +1220,13 @@ if ($action === 'staff_reply') {
         notifyPatientInquiryResponse($pdo, (int)$inquiry['patient_id'], $replyMessage ?: $fullName . ' inquiry', $staffName);
     }
 
-    inquiryJson(['success' => true, 'message' => 'Reply sent successfully.', 'attachment' => $attachment]);
+    inquiryJson([
+        'success' => true,
+        'message' => 'Reply sent successfully.',
+        'attachment' => $attachment,
+        'reply_id' => $createdReplyId,
+        'created_at' => date('Y-m-d H:i:s'),
+    ]);
 }
 
 inquiryJson(['success' => false, 'message' => 'Unknown action.']);

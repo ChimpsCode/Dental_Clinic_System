@@ -203,6 +203,7 @@ if ($activeInquiry) {
     $replies = fetchInquiryReplies($pdo, (int)$activeInquiry['id']);
     foreach ($replies as $reply) {
         $messages[] = [
+            'id' => $reply['id'],
             'type' => $reply['sender_type'] === 'staff' ? 'clinic' : 'patient',
             'message' => $reply['message'],
             'attachment' => $reply['attachment'] ?? null,
@@ -283,6 +284,12 @@ $pageTitle = 'Inquiry / Consultation';
         .bubble-left { background:#f3f4f6; border:1px solid #e5e7eb; color:#1f2937; border-bottom-left-radius: 4px; }
         .bubble-right { background:#5b6ee6; color:#fff; border-bottom-right-radius: 4px; }
         .ts { font-size:11px; color:#9ca3af; margin-top:6px; }
+        .chat-typing-indicator { display:flex; align-items:center; gap:7px; color:#6b7280; font-size:12px; }
+        .chat-typing-dots { display:inline-flex; gap:3px; }
+        .chat-typing-dots span { width:5px; height:5px; border-radius:50%; background:#9ca3af; animation:inquiryTyping 1.1s infinite ease-in-out; }
+        .chat-typing-dots span:nth-child(2) { animation-delay:.15s; }
+        .chat-typing-dots span:nth-child(3) { animation-delay:.3s; }
+        @keyframes inquiryTyping { 0%,60%,100% { transform:translateY(0); opacity:.45; } 30% { transform:translateY(-3px); opacity:1; } }
         
         .conv-input { display:flex; gap:12px; align-items:center; padding:16px 20px; border-top:1px solid #eef2f7; background:#fff; }
         .icon-btn { background:transparent; border:none; color:#6b7280; font-size:18px; padding:8px; cursor:pointer; }
@@ -525,7 +532,7 @@ $pageTitle = 'Inquiry / Consultation';
 
                     <div id="messagesList" class="conv-body">
                         <?php if (empty($messages)): ?>
-                            <div class="message-row left">
+                            <div class="message-row left" data-empty-greeting>
                                 <img src="<?php echo htmlspecialchars($clinicAvatar); ?>" alt="<?php echo htmlspecialchars($clinicName); ?>" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
                                 <div>
                                     <div class="bubble bubble-left">Hello, How are you today?<br>would you like to book now?</div>
@@ -538,7 +545,7 @@ $pageTitle = 'Inquiry / Consultation';
                                 <?php $att = $msg['attachment'] ?? null; ?>
                                 <?php $isImage = $att && preg_match('/\.(jpe?g|png|gif|webp)$/i', $att); ?>
                                 <?php if ($msg['type'] === 'clinic'): ?>
-                                    <div class="message-row left">
+                                    <div class="message-row left"<?php echo !empty($msg['id']) ? ' data-reply-id="' . (int)$msg['id'] . '"' : ''; ?>>
                                         <img src="<?php echo htmlspecialchars($clinicAvatar); ?>" alt="<?php echo htmlspecialchars($clinicName); ?>" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
                                         <div>
                                             <div class="bubble bubble-left">
@@ -555,7 +562,7 @@ $pageTitle = 'Inquiry / Consultation';
                                         </div>
                                     </div>
                                 <?php else: ?>
-                                    <div class="message-row right">
+                                    <div class="message-row right"<?php echo !empty($msg['id']) ? ' data-reply-id="' . (int)$msg['id'] . '"' : ''; ?>>
                                         <div>
                                             <div class="bubble bubble-right">
                                                 <?php if ($msg['message']): ?><?php echo nl2br(htmlspecialchars($msg['message'])); ?><?php endif; ?>
@@ -683,9 +690,33 @@ $pageTitle = 'Inquiry / Consultation';
         const attachImageBtn = document.getElementById('attachImageBtn');
         const attachmentPreview = document.getElementById('attachmentPreview');
         let selectedFile = null;
+        let activeInquiryId = <?php echo (int)($activeInquiry['id'] ?? 0); ?>;
+        const clinicAvatarUrl = <?php echo json_encode($clinicAvatar); ?>;
+        const renderedReplyIds = new Set(
+            Array.from(messagesList.querySelectorAll('[data-reply-id]'))
+                .map((element) => Number(element.dataset.replyId))
+                .filter((id) => Number.isFinite(id) && id > 0)
+        );
+        let conversationPollInFlight = false;
+        let typingState = 0;
+        let lastTypingSentAt = 0;
+        let typingStopTimer = null;
 
         concernInput.addEventListener('input', () => {
             sendBtn.classList.toggle('has-text', concernInput.value.trim().length > 0 || selectedFile !== null);
+            const hasText = concernInput.value.trim().length > 0;
+            if (!hasText) {
+                clearTimeout(typingStopTimer);
+                sendTypingState(0);
+                return;
+            }
+            sendTypingState(1);
+            clearTimeout(typingStopTimer);
+            typingStopTimer = setTimeout(() => sendTypingState(0), 3000);
+        });
+        concernInput.addEventListener('blur', () => {
+            clearTimeout(typingStopTimer);
+            sendTypingState(0);
         });
 
         attachFileBtn.addEventListener('click', () => {
@@ -747,6 +778,104 @@ $pageTitle = 'Inquiry / Consultation';
             overlay.style.display = 'flex';
         }
 
+        function getLastReplyId() {
+            return renderedReplyIds.size ? Math.max(...renderedReplyIds) : 0;
+        }
+
+        function formatMessageTime(value) {
+            const date = new Date(String(value || '').replace(' ', 'T'));
+            return Number.isNaN(date.getTime())
+                ? ''
+                : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function appendConversationReply(reply, localAttachmentUrl = '') {
+            const replyId = Number(reply.id || 0);
+            if (replyId > 0 && renderedReplyIds.has(replyId)) return;
+
+            const emptyGreeting = messagesList.querySelector('[data-empty-greeting]');
+            if (emptyGreeting) emptyGreeting.remove();
+
+            const isClinic = reply.sender_type === 'staff';
+            const row = document.createElement('div');
+            row.className = `message-row ${isClinic ? 'left' : 'right'}`;
+            if (replyId > 0) {
+                row.dataset.replyId = String(replyId);
+                renderedReplyIds.add(replyId);
+            }
+
+            let attachmentHtml = '';
+            const attachment = reply.attachment || '';
+            const attachmentSrc = localAttachmentUrl || (attachment ? '../' + attachment : '');
+            if (attachmentSrc) {
+                const isImage = localAttachmentUrl
+                    ? selectedFile && selectedFile.type.startsWith('image/')
+                    : /\.(jpe?g|png|gif|webp)$/i.test(attachment);
+                attachmentHtml = isImage
+                    ? `<img src="${escapeHtml(attachmentSrc)}" class="chat-attachment-img" alt="Attachment" onclick="openLightbox(this.src)">`
+                    : `<a href="${escapeHtml(attachmentSrc)}" target="_blank" class="chat-attachment-file${isClinic ? ' file-received' : ''}"><i class="fas fa-paperclip"></i> ${escapeHtml(attachment.split('/').pop() || selectedFile?.name || 'Attachment')}</a>`;
+            }
+
+            const content = `<div class="bubble ${isClinic ? 'bubble-left' : 'bubble-right'}">${escapeHtml(reply.message || '').replace(/\n/g, '<br>')}${attachmentHtml}</div><div class="ts"${isClinic ? '' : ' style="text-align:right;"'}>${escapeHtml(formatMessageTime(reply.created_at))}</div>`;
+            row.innerHTML = isClinic
+                ? `<img src="${escapeHtml(clinicAvatarUrl)}" alt="Clinic" style="width:34px;height:34px;border-radius:50%;object-fit:cover;"><div>${content}</div>`
+                : `<div>${content}</div>`;
+
+            const typing = document.getElementById('clinicTypingIndicator');
+            messagesList.insertBefore(row, typing || null);
+            messagesList.scrollTop = messagesList.scrollHeight;
+        }
+
+        function showClinicTyping(visible) {
+            let indicator = document.getElementById('clinicTypingIndicator');
+            if (!indicator && visible) {
+                indicator = document.createElement('div');
+                indicator.id = 'clinicTypingIndicator';
+                indicator.className = 'message-row left';
+                indicator.innerHTML = `<img src="${escapeHtml(clinicAvatarUrl)}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;"><div class="chat-typing-indicator"><span class="chat-typing-dots" aria-label="Staff is typing"><span></span><span></span><span></span></span></div>`;
+                messagesList.appendChild(indicator);
+            }
+            if (indicator) {
+                indicator.style.display = visible ? 'flex' : 'none';
+                if (visible) messagesList.scrollTop = messagesList.scrollHeight;
+            }
+        }
+
+        async function sendTypingState(isTyping) {
+            if (!activeInquiryId) return;
+            const now = Date.now();
+            if (typingState === isTyping && (!isTyping || now - lastTypingSentAt < 2500)) return;
+            typingState = isTyping;
+            lastTypingSentAt = now;
+            const data = new FormData();
+            data.append('action', 'set_typing');
+            data.append('id', String(activeInquiryId));
+            data.append('is_typing', isTyping ? '1' : '0');
+            try {
+                await fetch('../shared/inquiry_actions.php', { method: 'POST', body: data });
+            } catch (_error) {}
+        }
+
+        async function pollConversation() {
+            if (!activeInquiryId || conversationPollInFlight || document.hidden) return;
+            conversationPollInFlight = true;
+            const data = new FormData();
+            data.append('action', 'conversation_updates');
+            data.append('id', String(activeInquiryId));
+            data.append('last_reply_id', String(getLastReplyId()));
+            try {
+                const response = await fetch('../shared/inquiry_actions.php', { method: 'POST', body: data });
+                const result = await response.json();
+                if (!response.ok || !result.success) return;
+                (result.replies || []).forEach((reply) => appendConversationReply(reply));
+                showClinicTyping(!!result.other_is_typing);
+            } catch (_error) {
+                // A later poll will retry without changing the current conversation.
+            } finally {
+                conversationPollInFlight = false;
+            }
+        }
+
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
             const message = concernInput.value.trim();
@@ -774,13 +903,28 @@ $pageTitle = 'Inquiry / Consultation';
                     return;
                 }
 
+                activeInquiryId = Number(data.inquiry_id || activeInquiryId);
+                const localAttachmentUrl = selectedFile ? URL.createObjectURL(selectedFile) : '';
+                appendConversationReply({
+                    id: data.reply_id || 0,
+                    sender_type: 'patient',
+                    message,
+                    attachment: selectedFile ? selectedFile.name : '',
+                    created_at: new Date().toISOString()
+                }, localAttachmentUrl);
                 form.reset();
                 clearAttachment();
-                window.location.reload();
+                sendTypingState(0);
             } catch (error) {
                 showFormAlert('error', 'Something went wrong while submitting your inquiry.');
             }
         });
+
+        setInterval(pollConversation, 2000);
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) pollConversation();
+        });
+        window.addEventListener('beforeunload', () => sendTypingState(0));
     </script>
     <a href="messages.php" class="floating-message-btn" data-chat-launcher aria-label="Open messages" title="Messages">
         <i class="fas fa-message"></i>
