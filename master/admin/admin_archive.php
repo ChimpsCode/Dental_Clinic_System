@@ -291,10 +291,12 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
     inset: 0;
     display: none;
     z-index: 9999;
+    pointer-events: none;
 }
 
 .archive-kebab-backdrop.show {
     display: block;
+    pointer-events: auto;
 }
 
 @keyframes fadeInKebab {
@@ -668,11 +670,12 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         <?php endif; ?>
     </div>
 
-    <!-- Archive meatball menu portal -->
+    <!-- Archive meatball menu portal (inside content-area so PJAX keeps them) -->
     <div id="archiveKebabDropdown" class="archive-kebab-dropdown"></div>
     <div id="archiveKebabBackdrop" class="archive-kebab-backdrop"></div>
+
 </div>
 
-<script src="../../assets/js/archive.js?v=2"></script>
+<script src="../../assets/js/archive.js?v=5"></script>
 
 <?php require_once __DIR__ . '/../../includes/admin_layout_end.php'; ?>

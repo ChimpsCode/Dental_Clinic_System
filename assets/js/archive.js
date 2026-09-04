@@ -55,60 +55,10 @@ document.addEventListener('DOMContentLoaded', function() {
  * Switch between tabs
  */
 function switchTab(tab) {
-    currentModule = tab;
-    
-    // Update tab buttons
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
-    
-    // Update tab contents
-    document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.remove('active');
-    });
-    document.getElementById(`${tab}-content`).classList.add('active');
-    
-    // Load data for active tab
-    if (tab === 'patients') {
-        loadArchivedPatients(currentPage.patients);
-    } else if (tab === 'users') {
-        loadArchivedUsers(currentPage.users);
-    } else if (tab === 'inquiries') {
-        loadArchivedInquiries(currentPage.inquiries);
+    if (window.ArchiveKebab) {
+        window.ArchiveKebab.close();
     }
-}
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    // Load initial data for patients tab
-    loadArchivedPatients(1);
-    
-    // Add enter key support for search
-    document.querySelectorAll('.search-input').forEach(input => {
-        input.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                const module = this.id.replace('-search', '');
-                if (module === 'patients') {
-                    loadArchivedPatients(1);
-                } else if (module === 'users') {
-                    loadArchivedUsers(1);
-                } else if (module === 'appointments') {
-                    loadArchivedAppointments(1);
-                } else if (module === 'inquiries') {
-                    loadArchivedInquiries(1);
-                }
-            }
-        });
-    });
-
-    initArchiveKebabMenu();
-});
-
-/**
- * Switch between tabs
- */
-function switchTab(tab) {
     currentModule = tab;
     
     // Update tab buttons
@@ -245,7 +195,7 @@ function renderUsersTable(records) {
                 <div style="font-size: 0.85rem; color: #374151;">${formatDate(user.archived_at)}</div>
             </td>
             <td style="text-align: center;">
-                <button class="archive-kebab-btn" type="button" data-module="users" data-id="${user.id}">
+                <button class="archive-kebab-btn" type="button" onclick="window.ArchiveKebab.toggle(event, this)" data-module="users" data-id="${user.id}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                         <circle cx="12" cy="5" r="2"></circle>
                         <circle cx="12" cy="12" r="2"></circle>
@@ -464,7 +414,7 @@ function renderPatientTable(records) {
                 </div>
             </td>
             <td style="text-align: center;">
-                <button class="archive-kebab-btn" type="button" data-module="patients" data-id="${patient.id}">
+                <button class="archive-kebab-btn" type="button" onclick="window.ArchiveKebab.toggle(event, this)" data-module="patients" data-id="${patient.id}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                         <circle cx="12" cy="5" r="2"></circle>
                         <circle cx="12" cy="12" r="2"></circle>
@@ -597,7 +547,7 @@ function renderAppointmentsTable(records) {
                 <div style="font-size: 0.85rem; color: #374151;">${formatDate(apt.deleted_at)}</div>
             </td>
             <td style="text-align: center;">
-                <button class="archive-kebab-btn" type="button" data-module="appointments" data-id="${apt.id}">
+                <button class="archive-kebab-btn" type="button" onclick="window.ArchiveKebab.toggle(event, this)" data-module="appointments" data-id="${apt.id}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                         <circle cx="12" cy="5" r="2"></circle>
                         <circle cx="12" cy="12" r="2"></circle>
@@ -804,7 +754,7 @@ function renderInquiriesTable(records) {
                 <div style="font-size: 0.85rem; color: #374151;">${formatDate(inquiry.deleted_at)}</div>
             </td>
             <td style="text-align: center;">
-                <button class="archive-kebab-btn" type="button" data-module="inquiries" data-id="${inquiry.id}">
+                <button class="archive-kebab-btn" type="button" onclick="window.ArchiveKebab.toggle(event, this)" data-module="inquiries" data-id="${inquiry.id}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                         <circle cx="12" cy="5" r="2"></circle>
                         <circle cx="12" cy="12" r="2"></circle>
@@ -1386,133 +1336,188 @@ function confirmRestore(module, id) {
 
 /**
  * Archive meatball menu
+ * Uses window-level handlers and inline onclick so PJAX/tab switches keep working.
  */
-let archiveKebabDropdown = null;
-let archiveKebabBackdrop = null;
-let activeArchiveKebabButton = null;
+window.ArchiveKebab = window.ArchiveKebab || { activeButton: null };
+
+Object.assign(window.ArchiveKebab, {
+    getDropdown() {
+        return document.getElementById('archiveKebabDropdown');
+    },
+
+    getBackdrop() {
+        return document.getElementById('archiveKebabBackdrop');
+    },
+
+    close() {
+        const dropdown = this.getDropdown();
+        const backdrop = this.getBackdrop();
+
+        if (dropdown) {
+            dropdown.classList.remove('show');
+            dropdown.innerHTML = '';
+        }
+        if (backdrop) {
+            backdrop.classList.remove('show');
+        }
+        if (this.activeButton) {
+            this.activeButton.classList.remove('active');
+            this.activeButton = null;
+        }
+    },
+
+    toggle(e, button) {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        if (!button) return;
+
+        if (this.activeButton === button) {
+            this.close();
+            return;
+        }
+
+        this.open(button);
+    },
+
+    open(button) {
+        const dropdown = this.getDropdown();
+        const backdrop = this.getBackdrop();
+        if (!dropdown || !backdrop || !button) return;
+
+        const module = button.dataset.module;
+        const id = button.dataset.id;
+        const getMarkup = this.getMarkup;
+        if (typeof getMarkup !== 'function') return;
+
+        dropdown.innerHTML = getMarkup(module, id);
+        this.position(button);
+
+        dropdown.classList.add('show');
+        backdrop.classList.add('show');
+        button.classList.add('active');
+        this.activeButton = button;
+    },
+
+    position(button) {
+        const dropdown = this.getDropdown();
+        if (!dropdown || !button) return;
+
+        const rect = button.getBoundingClientRect();
+        const dropdownWidth = 180;
+        const dropdownHeight = 140;
+        const padding = 12;
+
+        let left = rect.right + 6;
+        let top = rect.top;
+
+        if (left + dropdownWidth > window.innerWidth - padding) {
+            left = rect.left - dropdownWidth - 6;
+        }
+        if (left < padding) left = padding;
+
+        if (top + dropdownHeight > window.innerHeight - padding) {
+            top = rect.bottom - dropdownHeight;
+        }
+        if (top < padding) top = padding;
+
+        dropdown.style.left = `${left}px`;
+        dropdown.style.top = `${top}px`;
+    },
+
+    handleAction(e, action, module, id) {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        this.close();
+
+        if (module && id && typeof this.onAction === 'function') {
+            this.onAction(module, id, action);
+        }
+    }
+});
 
 function initArchiveKebabMenu() {
-    archiveKebabDropdown = document.getElementById('archiveKebabDropdown');
-    archiveKebabBackdrop = document.getElementById('archiveKebabBackdrop');
+    const dropdown = window.ArchiveKebab.getDropdown();
+    const backdrop = window.ArchiveKebab.getBackdrop();
 
-    if (!archiveKebabDropdown || !archiveKebabBackdrop) return;
+    // Remove legacy document click listener from older archive.js versions.
+    if (typeof window.ArchiveKebab.onDocumentClick === 'function') {
+        document.removeEventListener('click', window.ArchiveKebab.onDocumentClick);
+        window.ArchiveKebab.onDocumentClick = null;
+    }
 
-    document.addEventListener('click', handleArchiveKebabToggle);
-    archiveKebabDropdown.addEventListener('click', handleArchiveKebabAction);
-    archiveKebabBackdrop.addEventListener('click', closeArchiveKebabDropdown);
-    window.addEventListener('resize', closeArchiveKebabDropdown);
-    window.addEventListener('scroll', closeArchiveKebabDropdown, true);
-}
-
-function handleArchiveKebabToggle(e) {
-    const button = e.target.closest('.archive-kebab-btn');
-    const isKebabButton = Boolean(button);
-
-    if (!isKebabButton) {
-        if (!e.target.closest('.archive-kebab-dropdown')) {
-            closeArchiveKebabDropdown();
-        }
+    if (!dropdown || !backdrop) {
+        window.ArchiveKebab.close();
         return;
     }
 
-    e.preventDefault();
-    e.stopPropagation();
+    window.ArchiveKebab.getMarkup = getArchiveKebabMarkup;
+    window.ArchiveKebab.onAction = singleAction;
+    window.ArchiveKebab.close();
 
-    if (activeArchiveKebabButton === button) {
-        closeArchiveKebabDropdown();
-        return;
+    backdrop.onclick = function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.ArchiveKebab.close();
+    };
+
+    if (!window.ArchiveKebab._windowHooksBound) {
+        window.ArchiveKebab._windowHooksBound = true;
+
+        window.ArchiveKebab._onResize = function () {
+            window.ArchiveKebab.close();
+        };
+        window.ArchiveKebab._onScroll = function () {
+            window.ArchiveKebab.close();
+        };
+
+        window.addEventListener('resize', window.ArchiveKebab._onResize);
+        window.addEventListener('scroll', window.ArchiveKebab._onScroll, true);
+
+        document.addEventListener('pjax:loaded', function () {
+            if (document.getElementById('archiveKebabDropdown')) {
+                if (typeof window.initArchiveKebabMenu === 'function') {
+                    window.initArchiveKebabMenu();
+                }
+            } else {
+                window.ArchiveKebab.activeButton = null;
+            }
+        });
     }
-
-    openArchiveKebabDropdown(button);
 }
 
-function openArchiveKebabDropdown(button) {
-    if (!archiveKebabDropdown || !archiveKebabBackdrop) return;
-
-    const module = button.dataset.module;
-    const id = button.dataset.id;
-
-    archiveKebabDropdown.innerHTML = getArchiveKebabMarkup(module, id);
-    positionArchiveKebabDropdown(button);
-
-    archiveKebabDropdown.classList.add('show');
-    archiveKebabBackdrop.classList.add('show');
-    button.classList.add('active');
-    activeArchiveKebabButton = button;
-}
+window.initArchiveKebabMenu = initArchiveKebabMenu;
 
 function closeArchiveKebabDropdown() {
-    if (archiveKebabDropdown) {
-        archiveKebabDropdown.classList.remove('show');
-        archiveKebabDropdown.innerHTML = '';
-    }
-    if (archiveKebabBackdrop) {
-        archiveKebabBackdrop.classList.remove('show');
-    }
-    if (activeArchiveKebabButton) {
-        activeArchiveKebabButton.classList.remove('active');
-        activeArchiveKebabButton = null;
-    }
-}
-
-function positionArchiveKebabDropdown(button) {
-    const rect = button.getBoundingClientRect();
-    const dropdownWidth = 180;
-    const dropdownHeight = 140;
-    const padding = 12;
-
-    let left = rect.right + 6;
-    let top = rect.top;
-
-    if (left + dropdownWidth > window.innerWidth - padding) {
-        left = rect.left - dropdownWidth - 6;
-    }
-    if (left < padding) left = padding;
-
-    if (top + dropdownHeight > window.innerHeight - padding) {
-        top = rect.bottom - dropdownHeight;
-    }
-    if (top < padding) top = padding;
-
-    archiveKebabDropdown.style.left = `${left}px`;
-    archiveKebabDropdown.style.top = `${top}px`;
+    window.ArchiveKebab.close();
 }
 
 function getArchiveKebabMarkup(module, id) {
+    const safeModule = String(module).replace(/'/g, "\\'");
+    const safeId = String(id).replace(/'/g, "\\'");
     let extra = '';
     if (module === 'inquiries') {
         extra = `
-        <a href="#" data-action="view_conversation" data-module="${module}" data-id="${id}">
+        <a href="#" onclick="window.ArchiveKebab.handleAction(event, 'view_conversation', '${safeModule}', '${safeId}')">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             View Conversation
         </a>`;
     }
     return extra + `
-        <a href="#" data-action="restore" data-module="${module}" data-id="${id}">
+        <a href="#" onclick="window.ArchiveKebab.handleAction(event, 'restore', '${safeModule}', '${safeId}')">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
             Restore
         </a>
-        <a href="#" class="danger" data-action="delete_forever" data-module="${module}" data-id="${id}">
+        <a href="#" class="danger" onclick="window.ArchiveKebab.handleAction(event, 'delete_forever', '${safeModule}', '${safeId}')">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
             Delete Forever
         </a>
     `;
-}
-
-function handleArchiveKebabAction(e) {
-    const link = e.target.closest('a[data-action]');
-    if (!link) return;
-
-    e.preventDefault();
-    const action = link.dataset.action;
-    const module = link.dataset.module;
-    const id = link.dataset.id;
-
-    closeArchiveKebabDropdown();
-
-    if (!module || !id) return;
-
-    singleAction(module, id, action);
 }
 
 /**
@@ -1700,3 +1705,17 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// Expose handlers for inline onclick attributes (required for PJAX navigation).
+window.switchTab = switchTab;
+window.loadArchivedPatients = loadArchivedPatients;
+window.loadArchivedUsers = loadArchivedUsers;
+window.loadArchivedInquiries = loadArchivedInquiries;
+window.loadArchivedAppointments = loadArchivedAppointments;
+window.resetFilters = resetFilters;
+window.bulkAction = bulkAction;
+window.closeArchiveKebabDropdown = closeArchiveKebabDropdown;
+
+if (document.getElementById('archiveKebabDropdown')) {
+    initArchiveKebabMenu();
+}

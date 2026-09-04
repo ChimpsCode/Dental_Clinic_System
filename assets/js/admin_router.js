@@ -84,6 +84,9 @@
         clearTrackedTimers();
         document.body.classList.remove('modal-open');
         window.onclick = null;
+        if (window.ArchiveKebab && typeof window.ArchiveKebab.close === 'function') {
+            window.ArchiveKebab.close();
+        }
         removeTaggedAssets();
         removePageBodyNodes();
     }

@@ -93,3 +93,13 @@
 2026-09-03 16:28:53 | billing_actions mark_paid: notifyPatientPaymentRecorded OK for patient_id=70 amount=2000 method=Cash
 2026-09-03 16:28:57 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
 2026-09-03 17:03:38 | createNotification OK: id=145 user_id=40 type=inquiry title=Inquiry Response
+2026-09-03 23:52:16 | notifyPatientPaymentRecorded: user_id=45 patient_id=80 amount=800 method=cash treatment=Crowns (Jacket) balance=1200
+2026-09-03 23:52:16 | createNotification OK: id=286 user_id=45 type=payment title=Payment Recorded
+2026-09-03 23:52:16 | billing_actions: notifyPatientPaymentRecorded OK for patient_id=80 amount=800 method=cash
+2026-09-03 23:52:49 | notifyPatientPaymentRecorded: user_id=45 patient_id=80 amount=800 method=cash treatment=Crowns (Jacket) balance=400
+2026-09-03 23:52:49 | createNotification OK: id=287 user_id=45 type=payment title=Payment Recorded
+2026-09-03 23:52:49 | billing_actions: notifyPatientPaymentRecorded OK for patient_id=80 amount=800 method=cash
+2026-09-03 23:53:09 | notifyPatientPaymentRecorded: user_id=45 patient_id=80 amount=800 method=cash treatment=Crowns (Jacket) balance=0
+2026-09-03 23:53:09 | createNotification OK: id=288 user_id=45 type=payment title=Payment Recorded
+2026-09-03 23:53:09 | billing_actions: notifyPatientPaymentRecorded OK for patient_id=80 amount=800 method=cash
+2026-09-04 14:17:52 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
