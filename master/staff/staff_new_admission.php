@@ -459,7 +459,7 @@ elseif ($appointmentId) {
                         <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Personal Details</h3>
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div class="md:col-span-1">
-                                <label class="block text-sm font-medium text-slate-600 mb-1">First Name</label>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">First Name <span class="text-red-500">*</span></label>
                                 <input type="text" name="firstName" value="<?php echo htmlspecialchars($inquiryData['first_name'] ?? $patientFromAppointment['first_name'] ?? $appointmentData['first_name'] ?? ''); ?>" pattern="[\p{L}\s'\-]*" title="Use only letters, spaces, hyphens, and apostrophes" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Juan">
                             </div>
                             <div class="md:col-span-1">
@@ -467,7 +467,7 @@ elseif ($appointmentId) {
                                 <input type="text" name="middleName" value="<?php echo htmlspecialchars($inquiryData['middle_name'] ?? $patientFromAppointment['middle_name'] ?? $appointmentData['middle_name'] ?? ''); ?>" pattern="[\p{L}\s'\-]*" title="Use only letters, spaces, hyphens, and apostrophes" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="">
                             </div>
                             <div class="md:col-span-1">
-                                <label class="block text-sm font-medium text-slate-600 mb-1">Last Name</label>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Last Name <span class="text-red-500">*</span></label>
                                 <input type="text" name="lastName" value="<?php echo htmlspecialchars($inquiryData['last_name'] ?? $patientFromAppointment['last_name'] ?? $appointmentData['last_name'] ?? ''); ?>" pattern="[\p{L}\s'\-]*" title="Use only letters, spaces, hyphens, and apostrophes" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Dela Cruz">
                             </div>
                             <div class="md:col-span-1">
@@ -478,7 +478,7 @@ elseif ($appointmentId) {
 
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
                             <div class="md:col-span-1">
-                                <label class="block text-sm font-medium text-slate-600 mb-1">Birthdate</label>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Birthdate <span class="text-red-500">*</span></label>
                                 <input type="date" name="birthdate" value="<?php echo htmlspecialchars($patientFromAppointment['date_of_birth'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-slate-600">
                             </div>
                             <div class="md:col-span-1">
@@ -486,7 +486,7 @@ elseif ($appointmentId) {
                                 <input type="number" name="age" value="<?php echo htmlspecialchars($patientFromAppointment['age'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm bg-gray-50" placeholder="Auto" readonly>
                             </div>
                             <div class="md:col-span-1">
-                                <label class="block text-sm font-medium text-slate-600 mb-1">Gender</label>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Gender <span class="text-red-500">*</span></label>
                                 <div class="relative">
                                     <select name="gender" class="w-full px-3 py-2 border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-slate-600 bg-white">
                                         <option value="" disabled <?php echo empty($patientFromAppointment['gender']) ? 'selected' : ''; ?>>Select</option>
@@ -530,7 +530,7 @@ elseif ($appointmentId) {
 
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                             <div>
-                                <label class="block text-sm font-medium text-slate-600 mb-1">Mobile Number</label>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">Mobile Number <span class="text-red-500">*</span></label>
                                 <input type="tel" name="mobileNumber" value="<?php echo htmlspecialchars($inquiryData['contact_info'] ?? $patientFromAppointment['phone'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" inputmode="numeric" maxlength="11">
                                 <div class="text-xs text-red-500 mt-1 hidden" id="mobileError">Mobile number must be exactly 11 digits</div>
                             </div>
