@@ -180,10 +180,10 @@ $pageTitle = 'Medical Records';
 </head>
 <body>
     <aside class="sidebar">
-        <a href="../../index.php" class="sidebar-brand">
+        <div class="sidebar-brand">
             <img src="../../assets/images/Logo.png" alt="RF Dental Clinic">
             <span>RF Dental</span>
-        </a>
+        </div>
         <nav class="sidebar-menu">
             <a href="patient-dashboard.php" class="menu-item">
                 <i class="fas fa-home"></i>

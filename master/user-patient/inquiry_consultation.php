@@ -465,10 +465,10 @@ $pageTitle = 'Inquiry / Consultation';
 </head>
 <body>
     <aside class="sidebar">
-        <a href="../../index.php" class="sidebar-brand">
+        <div class="sidebar-brand">
             <img src="<?php echo htmlspecialchars($logoFull); ?>" alt="<?php echo htmlspecialchars($clinicName); ?>">
             <span><?php echo htmlspecialchars($clinicName); ?></span>
-        </a>
+        </div>
         <nav class="sidebar-menu">
             <a href="patient-dashboard.php" class="menu-item">
                 <i class="fas fa-home"></i>
