@@ -22,7 +22,7 @@ require_once '../../includes/inquiry_module_helper.php';
 ensureInquiryModuleSchema($pdo);
 
 $stmt = $pdo->prepare("
-    SELECT id, first_name, middle_name, last_name, email, concern, inquiry_message, status, created_at
+    SELECT id, first_name, middle_name, last_name, email, concern, inquiry_message, status, created_at, assigned_staff_id
     FROM inquiries
     WHERE reply_token = ? AND COALESCE(is_archived, 0) = 0
     LIMIT 1
@@ -61,7 +61,7 @@ $clinicName = $clinicSettings['clinic_name'] ?? 'RF Dental Clinic';
 $clinicEmail = $clinicSettings['clinic_email'] ?? '';
 $clinicPhone = $clinicSettings['clinic_phone'] ?? '';
 $logo = $clinicSettings['welcome_logo'] ?? '';
-$logoFull = $logo ? '../../' . $logo : '../../assets/images/Logo.png';
+$logoFull = $logo ? inquiryPublicAssetUrl($logo) : inquiryPublicAssetUrl('assets/images/Logo.png');
 
 $fullName = trim(implode(' ', array_filter([$inquiry['first_name'] ?? '', $inquiry['middle_name'] ?? '', $inquiry['last_name'] ?? '']))) ?: 'Guest';
 $originalMessage = $inquiry['concern'] ?? $inquiry['inquiry_message'] ?? '';
@@ -252,6 +252,61 @@ $createdAt = $inquiry['created_at'] ?? '';
         .footer a { color: #2563eb; text-decoration: none; }
         .empty-state { text-align: center; padding: 40px 20px; color: #64748b; }
         .empty-state p { font-size: 14px; margin-top: 8px; }
+        .inquiry-typing-row {
+            align-self: flex-start;
+            display: none;
+            align-items: center;
+            gap: 8px;
+        }
+        .inquiry-typing-avatar {
+            width: 32px;
+            height: 32px;
+            flex: 0 0 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .inquiry-typing-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+        .inquiry-typing-indicator {
+            display: flex;
+            align-items: center;
+            min-width: 52px;
+            min-height: 36px;
+            padding: 10px 14px;
+            border-radius: 18px;
+            border-bottom-left-radius: 6px;
+            background: #eef1f5;
+            color: #64748b;
+        }
+        .inquiry-typing-dots {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .inquiry-typing-dots span {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #94a3b8;
+            animation: inquiryTypingWave 1.1s infinite ease-in-out;
+        }
+        .inquiry-typing-dots span:nth-child(2) { animation-delay: .15s; }
+        .inquiry-typing-dots span:nth-child(3) { animation-delay: .3s; }
+        @keyframes inquiryTypingWave {
+            0%, 60%, 100% { transform: translateY(0); opacity: .45; }
+            30% { transform: translateY(-3px); opacity: 1; }
+        }
         @media (max-width: 600px) {
             .messages-container { max-height: 360px; padding: 16px; }
             .conversation-header { padding: 20px 16px 12px; }
@@ -298,6 +353,14 @@ $createdAt = $inquiry['created_at'] ?? '';
                         <?php endif; ?>
                     <?php endforeach; ?>
                 <?php endif; ?>
+                <div id="staffTypingIndicator" class="inquiry-typing-row" aria-live="polite">
+                    <div class="inquiry-typing-avatar">
+                        <img id="staffTypingAvatar" src="<?php echo htmlspecialchars($logoFull); ?>" alt="RF Dental Clinic">
+                    </div>
+                    <div class="inquiry-typing-indicator">
+                        <span class="inquiry-typing-dots" aria-label="Staff is typing" title="Staff is typing"><span></span><span></span><span></span></span>
+                    </div>
+                </div>
             </div>
 
             <div class="compose-area">
@@ -324,12 +387,25 @@ $createdAt = $inquiry['created_at'] ?? '';
     <script>
         const token = <?php echo json_encode($token); ?>;
         const apiUrl = <?php echo json_encode($apiUrl); ?>;
+        const clinicName = <?php echo json_encode($clinicName); ?>;
         const form = document.getElementById('replyForm');
         const input = document.getElementById('messageInput');
         const sendBtn = document.getElementById('sendBtn');
         const container = document.getElementById('messagesContainer');
         const spinner = document.getElementById('spinner');
         const statusText = document.getElementById('statusText');
+        const staffTyping = document.getElementById('staffTypingIndicator');
+        let lastReplyId = <?php
+            $lastId = 0;
+            foreach ($replies as $reply) {
+                $lastId = max($lastId, (int)($reply['id'] ?? 0));
+            }
+            echo (int)$lastId;
+        ?>;
+        let typingState = 0;
+        let typingSentAt = 0;
+        let typingTimer = null;
+        let pollInFlight = false;
 
         function escapeHtml(str) {
             return String(str ?? '').replace(/[&<>"']/g, function(c) {
@@ -345,12 +421,53 @@ $createdAt = $inquiry['created_at'] ?? '';
         function addBubble(message, type, timestamp) {
             const bubble = document.createElement('div');
             bubble.className = 'bubble ' + type;
-            const label = type === 'clinic' ? 'RF Dental Clinic' : 'You';
-            bubble.innerHTML = '<div class="bubble-label">' + label + '</div><div>' + escapeHtml(message).replace(/\n/g, '<br>') + '</div><div class="meta">' + formatDate(timestamp) + '</div>';
-            container.appendChild(bubble);
+            const label = type === 'clinic' ? clinicName : 'You';
+            bubble.innerHTML = '<div class="bubble-label">' + escapeHtml(label) + '</div><div>' + escapeHtml(message).replace(/\n/g, '<br>') + '</div><div class="meta">' + formatDate(timestamp) + '</div>';
+            container.insertBefore(bubble, staffTyping || null);
             container.scrollTop = container.scrollHeight;
             const sysMsg = container.querySelector('.bubble.system');
             if (sysMsg) sysMsg.remove();
+        }
+
+        function showStaffTyping(visible) {
+            if (!staffTyping) return;
+            staffTyping.style.display = visible ? 'flex' : 'none';
+            if (visible) container.scrollTop = container.scrollHeight;
+        }
+
+        function sendTypingState(isTyping) {
+            const now = Date.now();
+            if (typingState === isTyping && (!isTyping || now - typingSentAt < 2500)) return;
+            typingState = isTyping;
+            typingSentAt = now;
+            const fd = new FormData();
+            fd.append('token', token);
+            fd.append('action', 'set_typing');
+            fd.append('is_typing', isTyping ? '1' : '0');
+            fetch(apiUrl, { method: 'POST', body: fd }).catch(function(){});
+        }
+
+        async function pollConversation() {
+            if (pollInFlight || document.hidden) return;
+            pollInFlight = true;
+            const fd = new FormData();
+            fd.append('token', token);
+            fd.append('action', 'conversation_updates');
+            fd.append('last_reply_id', String(lastReplyId));
+            try {
+                const res = await fetch(apiUrl, { method: 'POST', body: fd });
+                const data = await res.json();
+                if (!data.success) return;
+                (data.replies || []).forEach(function(reply) {
+                    lastReplyId = Math.max(lastReplyId, parseInt(reply.id, 10) || 0);
+                    const type = reply.sender_type === 'staff' ? 'clinic' : 'guest';
+                    addBubble(reply.message || '', type, reply.created_at || '');
+                });
+                showStaffTyping(!!data.other_is_typing);
+            } catch (_err) {
+            } finally {
+                pollInFlight = false;
+            }
         }
 
         function setStatus(message, type) {
@@ -361,6 +478,18 @@ $createdAt = $inquiry['created_at'] ?? '';
         input.addEventListener('input', function() {
             this.style.height = 'auto';
             this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+            if (this.value.trim()) {
+                sendTypingState(1);
+                clearTimeout(typingTimer);
+                typingTimer = setTimeout(function() { sendTypingState(0); }, 1500);
+            } else {
+                clearTimeout(typingTimer);
+                sendTypingState(0);
+            }
+        });
+        input.addEventListener('blur', function() {
+            clearTimeout(typingTimer);
+            sendTypingState(0);
         });
 
         form.addEventListener('submit', async function(e) {
@@ -387,6 +516,7 @@ $createdAt = $inquiry['created_at'] ?? '';
                     return;
                 }
 
+                sendTypingState(0);
                 addBubble(message, 'guest', new Date().toISOString().replace('T', ' ').slice(0, 19));
                 input.value = '';
                 input.style.height = 'auto';
@@ -401,6 +531,11 @@ $createdAt = $inquiry['created_at'] ?? '';
         });
 
         container.scrollTop = container.scrollHeight;
+        setInterval(pollConversation, 2000);
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) pollConversation();
+        });
+        window.addEventListener('beforeunload', function() { sendTypingState(0); });
     </script>
 </body>
 </html>

@@ -232,13 +232,83 @@ function ensureInquiryTypingSchema(PDO $pdo): void
             `inquiry_id` INT(11) NOT NULL,
             `sender_type` ENUM('patient','staff') NOT NULL,
             `is_typing` TINYINT(1) NOT NULL DEFAULT 0,
+            `user_id` INT(11) DEFAULT NULL,
             `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (`inquiry_id`, `sender_type`),
             KEY `idx_inquiry_typing_updated` (`updated_at`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
     ");
 
+    if (!inquiryModuleColumnExists($pdo, 'inquiry_typing_status', 'user_id')) {
+        $pdo->exec("ALTER TABLE `inquiry_typing_status` ADD COLUMN `user_id` INT(11) DEFAULT NULL AFTER `is_typing`");
+    }
+
     $ensured = true;
+}
+
+function inquiryProjectWebBase(): string
+{
+    $script = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+    if (preg_match('#^(.*?)/master(?:/|$)#', $script, $m)) {
+        return rtrim($m[1], '/');
+    }
+    $docRoot = rtrim(str_replace('\\', '/', (string)($_SERVER['DOCUMENT_ROOT'] ?? '')), '/');
+    $projectRoot = str_replace('\\', '/', dirname(__DIR__));
+    if ($docRoot !== '' && strpos($projectRoot, $docRoot) === 0) {
+        return rtrim(substr($projectRoot, strlen($docRoot)), '/') ?: '';
+    }
+    return '';
+}
+
+function inquiryPublicAssetUrl(string $relativePath): string
+{
+    $relative = ltrim(str_replace('\\', '/', $relativePath), '/');
+    $webBase = inquiryProjectWebBase();
+    return ($webBase !== '' ? $webBase : '') . '/' . $relative;
+}
+
+function resolveStaffProfilePictureUrl(PDO $pdo, ?int $userId = null): string
+{
+    $projectRoot = dirname(__DIR__);
+    $candidates = [];
+
+    if ($userId && $userId > 0) {
+        try {
+            $stmt = $pdo->prepare("SELECT profile_picture FROM users WHERE id = ? LIMIT 1");
+            $stmt->execute([$userId]);
+            $path = (string)$stmt->fetchColumn();
+            if ($path !== '') {
+                $candidates[] = $path;
+            }
+        } catch (Exception $e) {
+        }
+    }
+
+    try {
+        $fallback = $pdo->query("
+            SELECT profile_picture
+            FROM users
+            WHERE LOWER(COALESCE(role, '')) IN ('staff', 'admin')
+              AND profile_picture IS NOT NULL
+              AND profile_picture != ''
+            ORDER BY CASE WHEN LOWER(role) = 'staff' THEN 0 ELSE 1 END, id ASC
+            LIMIT 1
+        ");
+        $path = $fallback ? (string)$fallback->fetchColumn() : '';
+        if ($path !== '') {
+            $candidates[] = $path;
+        }
+    } catch (Exception $e) {
+    }
+
+    foreach ($candidates as $path) {
+        $relative = ltrim(str_replace('\\', '/', $path), '/');
+        if ($relative !== '' && file_exists($projectRoot . '/' . $relative)) {
+            return inquiryPublicAssetUrl($relative);
+        }
+    }
+
+    return inquiryPublicAssetUrl('assets/images/Logo.png');
 }
 
 function fetchInquiryReplies(PDO $pdo, int $inquiryId): array

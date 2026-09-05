@@ -593,12 +593,16 @@ if ($action === 'conversation_updates' || $action === 'set_typing') {
 
     if ($action === 'set_typing') {
         $isTyping = (int)($_POST['is_typing'] ?? 0) === 1 ? 1 : 0;
+        $userId = (int)($_SESSION['user_id'] ?? 0);
         $typingStmt = $pdo->prepare("
-            INSERT INTO inquiry_typing_status (inquiry_id, sender_type, is_typing, updated_at)
-            VALUES (?, ?, ?, NOW())
-            ON DUPLICATE KEY UPDATE is_typing = VALUES(is_typing), updated_at = NOW()
+            INSERT INTO inquiry_typing_status (inquiry_id, sender_type, is_typing, user_id, updated_at)
+            VALUES (?, ?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE
+                is_typing = VALUES(is_typing),
+                user_id = VALUES(user_id),
+                updated_at = NOW()
         ");
-        $typingStmt->execute([$id, $senderType, $isTyping]);
+        $typingStmt->execute([$id, $senderType, $isTyping, $userId > 0 ? $userId : null]);
         inquiryJson(['success' => true]);
     }
 
@@ -621,7 +625,7 @@ if ($action === 'conversation_updates' || $action === 'set_typing') {
     }
 
     $typingStmt = $pdo->prepare("
-        SELECT is_typing, updated_at
+        SELECT is_typing, updated_at, user_id
         FROM inquiry_typing_status
         WHERE inquiry_id = ? AND sender_type = ?
         LIMIT 1
@@ -632,10 +636,16 @@ if ($action === 'conversation_updates' || $action === 'set_typing') {
         && (int)$typingRow['is_typing'] === 1
         && (time() - strtotime((string)$typingRow['updated_at'])) <= 6;
 
+    $staffAvatar = '';
+    if ($senderType === 'patient' && $otherIsTyping) {
+        $staffAvatar = resolveStaffProfilePictureUrl($pdo, (int)($typingRow['user_id'] ?? 0));
+    }
+
     inquiryJson([
         'success' => true,
         'replies' => $newReplies,
         'other_is_typing' => (bool)$otherIsTyping,
+        'staff_avatar' => $staffAvatar,
     ]);
 }
 
