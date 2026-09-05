@@ -1,2 +1,7 @@
 config/sms_credentials.php
 config/mailer_config.local.php
+
+# Local generated cache (schema stamps, debug logs) — do not share across machines
+/cache/*
+!/cache/.gitkeep
+

@@ -174,6 +174,19 @@ try {
 
     $pdo->commit();
 
+    // Notify staff/admin of new patient booking request
+    try {
+        require_once __DIR__ . '/../../includes/notification_functions.php';
+        $patStmt = $pdo->prepare("SELECT first_name, last_name FROM patients WHERE id = ? LIMIT 1");
+        $patStmt->execute([$patient_id]);
+        $pat = $patStmt->fetch(PDO::FETCH_ASSOC);
+        $patientDisplayName = $pat ? trim($pat['first_name'] . ' ' . $pat['last_name']) : 'Patient';
+        $formattedDateForNotif = date('F j, Y', strtotime($appointment_date));
+        notifyNewAppointment($pdo, $patientDisplayName, $formattedDateForNotif);
+    } catch (Exception $notifErr) {
+        // Silent fail - don't break booking
+    }
+
     $formattedDate = date('F j, Y', strtotime($appointment_date));
     $formattedTime = date('g:i A', strtotime($appointment_time));
 

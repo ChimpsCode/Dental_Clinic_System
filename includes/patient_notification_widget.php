@@ -49,7 +49,7 @@ $notifInitial = $notifUserId ? getNotifications($pdo, $notifUserId, 8) : [];
     .notif-list { overflow-y: auto; max-height: 370px; }
     .notif-item {
         display: flex; gap: 10px; padding: 12px 16px; border-bottom: 1px solid #f9fafb;
-        cursor: pointer; transition: background 0.12s; text-decoration: none; color: inherit;
+        cursor: default; transition: background 0.12s; text-decoration: none; color: inherit;
     }
     .notif-item:hover { background: #f9fafb; }
     .notif-item.unread { background: #eff6ff; }
@@ -98,7 +98,6 @@ $notifInitial = $notifUserId ? getNotifications($pdo, $notifUserId, 8) : [];
                     $iconMap = ['queue' => 'fa-layer-group', 'reminder' => 'fa-calendar-check', 'payment' => 'fa-credit-card', 'inquiry' => 'fa-comment-dots', 'appointment' => 'fa-calendar', 'cancellation' => 'fa-times-circle', 'patient' => 'fa-user-plus', 'system' => 'fa-info-circle'];
                     $icon = $iconMap[$n['type']] ?? 'fa-bell';
                     $unread = empty($n['is_read']) ? ' unread' : '';
-                    $href = !empty($n['action_url']) ? htmlspecialchars($n['action_url']) : '#';
                     $timeAgo = '';
                     $created = strtotime($n['created_at']);
                     $diff = time() - $created;
@@ -107,14 +106,14 @@ $notifInitial = $notifUserId ? getNotifications($pdo, $notifUserId, 8) : [];
                     elseif ($diff < 86400) $timeAgo = floor($diff / 3600) . 'h ago';
                     else $timeAgo = floor($diff / 86400) . 'd ago';
                     ?>
-                    <a class="notif-item<?php echo $unread; ?>" href="<?php echo $href; ?>" data-notif-id="<?php echo (int)$n['id']; ?>">
+                    <div class="notif-item<?php echo $unread; ?>" data-notif-id="<?php echo (int)$n['id']; ?>">
                         <div class="notif-icon <?php echo $typeClass; ?>"><i class="fas <?php echo $icon; ?>"></i></div>
                         <div class="notif-content">
                             <p class="notif-title"><?php echo htmlspecialchars($n['title']); ?></p>
                             <p class="notif-msg"><?php echo htmlspecialchars($n['message']); ?></p>
                             <div class="notif-time"><?php echo $timeAgo; ?></div>
                         </div>
-                    </a>
+                    </div>
                 <?php endforeach; ?>
             <?php endif; ?>
         </div>
@@ -152,22 +151,7 @@ $notifInitial = $notifUserId ? getNotifications($pdo, $notifUserId, 8) : [];
         const item = e.target.closest('.notif-item');
         if (!item) return;
         e.preventDefault();
-        const id = item.dataset.notifId;
-        if (item.classList.contains('unread')) {
-            fetch(actionsUrl, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: 'action=mark_read&id=' + id
-            }).then(function() {
-                item.classList.remove('unread');
-                updateBadge();
-            });
-        }
-        const href = item.getAttribute('href');
-        if (href && href !== '#') {
-            dropdown.classList.remove('open');
-            window.location.href = href;
-        }
+        // Intentionally not navigating: notification items are non-clickable.
     });
 
     markAllBtn.addEventListener('click', function() {
@@ -229,7 +213,6 @@ $notifInitial = $notifUserId ? getNotifications($pdo, $notifUserId, 8) : [];
                 var typeClass = n.type || 'system';
                 var icon = iconMap[n.type] || 'fa-bell';
                 var unread = n.is_read == 0 ? ' unread' : '';
-                var href = n.action_url || '#';
                 var d = new Date(n.created_at + 'Z');
                 var diff = (Date.now() - d.getTime()) / 1000;
                 var timeAgo = 'Just now';
@@ -241,11 +224,11 @@ $notifInitial = $notifUserId ? getNotifications($pdo, $notifUserId, 8) : [];
                 var title = escDiv.innerHTML;
                 escDiv.textContent = n.message;
                 var msg = escDiv.innerHTML;
-                return '<a class="notif-item' + unread + '" href="' + href + '" data-notif-id="' + n.id + '">'
+                return '<div class="notif-item' + unread + '" data-notif-id="' + n.id + '">'
                     + '<div class="notif-icon ' + typeClass + '"><i class="fas ' + icon + '"></i></div>'
                     + '<div class="notif-content"><p class="notif-title">' + title + '</p>'
                     + '<p class="notif-msg">' + msg + '</p>'
-                    + '<div class="notif-time">' + timeAgo + '</div></div></a>';
+                    + '<div class="notif-time">' + timeAgo + '</div></div></div>';
             }).join('');
         }).catch(function(){});
     }

@@ -10,167 +10,158 @@
 
     <script src="../../assets/js/dashboard.js"></script>
     <script>
-        // Notification dropdown toggle
-        (function() {
-            const notificationDropdown = document.getElementById('notificationDropdown');
-            if (notificationDropdown) {
-                const bellButton = notificationDropdown.querySelector('.notification-bell');
-                if (bellButton) {
-                    bellButton.addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        notificationDropdown.classList.toggle('active');
-                    });
-                }
-                
-                document.addEventListener('click', function(e) {
-                    if (!notificationDropdown.contains(e.target)) {
-                        notificationDropdown.classList.remove('active');
-                    }
-                });
-                
-                document.addEventListener('keydown', function(e) {
-                    if (e.key === 'Escape' && notificationDropdown.classList.contains('active')) {
-                        notificationDropdown.classList.remove('active');
-                    }
-                });
+        // ── Notification actions URL (works from any master/* subdirectory) ──
+        const _dentistNotifActionsUrl = (function() {
+            const parts = window.location.pathname.split('/');
+            const masterIdx = parts.lastIndexOf('master');
+            if (masterIdx >= 0) {
+                parts.splice(masterIdx + 1);
+                return parts.join('/') + '/shared/notification_actions.php';
             }
+            return 'notification_actions.php';
         })();
     </script>
-    <?php require __DIR__ . '/session_timeout_script.php'; ?>
     <script>
-        // Mark single notification as read
-        function markNotificationRead(notificationId, actionUrl, event) {
-            if (event) {
-                event.stopPropagation();
-            }
-            fetch('notification_actions.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'action=mark_read&id=' + notificationId
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const item = document.querySelector(`[data-notif-id="${notificationId}"]`);
-                    if (item) {
-                        item.classList.remove('unread');
-                        item.classList.add('read');
-                        item.setAttribute('data-is-read', '1');
-                        const kebabMenu = item.querySelector('.kebab-menu');
-                        if (kebabMenu) {
-                            const markReadBtn = kebabMenu.querySelector('button:not(.delete-btn)');
-                            if (markReadBtn) {
-                                markReadBtn.remove();
-                            }
-                        }
-                        updateNotificationCounts();
-                    }
-                    if (actionUrl && !event) {
-                        window.location.href = actionUrl;
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                if (actionUrl) {
-                    window.location.href = actionUrl;
-                }
-            });
+    (function() {
+        var btn        = document.getElementById('dentistNotifBellBtn');
+        var dropdown   = document.getElementById('dentistNotifDropdown');
+        var badge      = document.getElementById('dentistNotifBadge');
+        var list       = document.getElementById('dentistNotifList');
+        var markAllBtn = document.getElementById('dentistNotifMarkAllBtn');
+        if (!btn || !dropdown) return;
+
+        var actionsUrl    = _dentistNotifActionsUrl;
+        var lastCount     = parseInt((badge && badge.textContent) || '0', 10) || 0;
+        var cachedHtml    = '';
+        var fetchInFlight = false;
+        var pollInFlight  = false;
+
+        var iconMap = {queue:'fa-layer-group',reminder:'fa-calendar-check',payment:'fa-credit-card',
+            inquiry:'fa-comment-dots',appointment:'fa-calendar',cancellation:'fa-times-circle',
+            patient:'fa-user-plus',system:'fa-info-circle'};
+
+        function timeAgo(dateStr) {
+            var d    = new Date(dateStr + 'Z');
+            var diff = (Date.now() - d.getTime()) / 1000;
+            if (diff < 60)    return 'Just now';
+            if (diff < 3600)  return Math.floor(diff / 60)   + 'm ago';
+            if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+            return Math.floor(diff / 86400) + 'd ago';
+        }
+        function esc(s) {
+            var d = document.createElement('div');
+            d.textContent = String(s || '');
+            return d.innerHTML;
+        }
+        function renderList(notifs) {
+            if (!notifs.length)
+                return '<div class="notif-empty"><i class="fas fa-bell-slash"></i>No notifications yet</div>';
+            return notifs.map(function(n) {
+                return '<div class="notif-item' + (n.is_read == 0 ? ' unread' : '') + '" data-notif-id="' + n.id + '">'
+                     + '<div class="notif-icon ' + (n.type || 'system') + '"><i class="fas ' + (iconMap[n.type] || 'fa-bell') + '"></i></div>'
+                     + '<div class="notif-content"><p class="notif-title">' + esc(n.title) + '</p>'
+                     + '<p class="notif-msg">' + esc(n.message) + '</p>'
+                     + '<div class="notif-time">' + timeAgo(n.created_at) + '</div></div></div>';
+            }).join('');
+        }
+        function setBadge(c) {
+            lastCount = c;
+            if (c > 0) { badge.textContent = c > 99 ? '99+' : c; badge.hidden = false; }
+            else        { badge.hidden = true; }
         }
 
-        // Delete notification
-        function deleteNotification(notificationId, event) {
-            if (event) {
-                event.stopPropagation();
-            }
-            if (!confirm('Are you sure you want to delete this notification?')) {
-                return;
-            }
-            fetch('notification_actions.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'action=delete&id=' + notificationId
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const item = document.querySelector(`[data-notif-id="${notificationId}"]`);
-                    if (item) {
-                        item.remove();
-                    }
-                    updateNotificationCounts();
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-            });
+        function fetchList(callback) {
+            if (fetchInFlight) return;
+            fetchInFlight = true;
+            fetch(actionsUrl, { method:'POST',
+                headers:{'Content-Type':'application/x-www-form-urlencoded'},
+                body:'action=get_notifications'
+            }).then(function(r){ return r.json(); })
+            .then(function(data) {
+                if (!data.success) return;
+                var notifs = data.notifications || [];
+                cachedHtml = renderList(notifs);
+                var unread = notifs.filter(function(n){ return n.is_read == 0; }).length;
+                setBadge(unread);
+                if (callback) callback(cachedHtml);
+                else list.innerHTML = cachedHtml;
+            }).catch(function(){})
+            .finally(function(){ fetchInFlight = false; });
         }
 
-        // Toggle kebab menu
-        function toggleKebabMenu(event, btn) {
-            event.stopPropagation();
-            const menu = btn.nextElementSibling;
-            document.querySelectorAll('.kebab-menu.show').forEach(m => {
-                if (m !== menu) m.classList.remove('show');
-            });
-            menu.classList.toggle('show');
-        }
+        // Bell click: show cache instantly, refresh in background
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var opening = !dropdown.classList.contains('open');
+            dropdown.classList.toggle('open');
+            if (!opening) return;
 
-        // Close kebab menus when clicking outside
-        document.addEventListener('click', function() {
-            document.querySelectorAll('.kebab-menu.show').forEach(m => {
-                m.classList.remove('show');
+            if (cachedHtml) list.innerHTML = cachedHtml;
+            fetchList(function(html) { list.innerHTML = html; });
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!dropdown.contains(e.target) && !btn.contains(e.target))
+                dropdown.classList.remove('open');
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') dropdown.classList.remove('open');
+        });
+
+        list.addEventListener('click', function(e) {
+            var item = e.target.closest('.notif-item');
+            if (!item) return;
+            e.preventDefault();
+            // Intentionally not navigating: notification items are non-clickable.
+        });
+
+        markAllBtn.addEventListener('click', function() {
+            fetch(actionsUrl, { method:'POST',
+                headers:{'Content-Type':'application/x-www-form-urlencoded'},
+                body:'action=mark_all_read'
+            }).then(function() {
+                list.querySelectorAll('.notif-item.unread').forEach(function(el){ el.classList.remove('unread'); });
+                setBadge(0);
+                cachedHtml = list.innerHTML;
             });
         });
 
-        // Filter notifications by tab
-        function filterNotifications(tab, btn) {
-            document.querySelectorAll('.notification-tab').forEach(t => {
-                t.classList.remove('active');
-            });
-            btn.classList.add('active');
-
-            const items = document.querySelectorAll('.notification-item[data-notif-id]');
-            items.forEach(item => {
-                const isRead = item.getAttribute('data-is-read') === '1';
-                if (tab === 'all') {
-                    item.style.display = 'flex';
-                } else if (tab === 'unread') {
-                    item.style.display = isRead ? 'none' : 'flex';
+        function pollBadge() {
+            if (pollInFlight) return;
+            pollInFlight = true;
+            fetch(actionsUrl, { method:'POST',
+                headers:{'Content-Type':'application/x-www-form-urlencoded'},
+                body:'action=get_unread_count'
+            }).then(function(r){ return r.json(); })
+            .then(function(data) {
+                if (!data.success) return;
+                var c = Number(data.count || 0);
+                var prev = lastCount;
+                setBadge(c);
+                if (c !== prev) {
+                    if (c > prev && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+                        new Notification('RF Dental Clinic', {
+                            body: 'You have ' + c + ' new notification' + (c > 1 ? 's' : ''),
+                            icon: '/assets/images/Logo.png'
+                        });
+                    }
+                    fetchList(function(html) {
+                        cachedHtml = html;
+                        if (dropdown.classList.contains('open')) list.innerHTML = html;
+                    });
                 }
-            });
+            }).catch(function(){})
+            .finally(function(){ pollInFlight = false; });
         }
 
-        // Update notification counts
-        function updateNotificationCounts() {
-            const allItems = document.querySelectorAll('.notification-item[data-notif-id]');
-            const unreadItems = document.querySelectorAll('.notification-item[data-notif-id][data-is-read="0"]');
-            
-            const allTab = document.querySelector('.notification-tab[data-tab="all"] .tab-count');
-            const unreadTab = document.querySelector('.notification-tab[data-tab="unread"] .tab-count');
-            
-            if (allTab) allTab.textContent = allItems.length;
-            if (unreadTab) unreadTab.textContent = unreadItems.length;
-        }
+        if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
 
-        // Mark all notifications as read
-        function markAllNotificationsRead() {
-            fetch('notification_actions.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'action=mark_all_read'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                location.reload();
-            });
-        }
+        fetchList(null);
+        setInterval(pollBadge, 3000);
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) pollBadge();
+        });
+    })();
     </script>
     <script>
         // User Profile Dropdown toggle function
@@ -181,16 +172,12 @@
                 userProfile.classList.toggle('active');
             }
         }
-        
-        // Close dropdown when clicking outside
         document.addEventListener('click', function(e) {
             var userProfile = document.getElementById('userProfileDropdown');
             if (userProfile && !userProfile.contains(e.target)) {
                 userProfile.classList.remove('active');
             }
         });
-        
-        // Close dropdown on escape key
         document.addEventListener('keydown', function(e) {
             var userProfile = document.getElementById('userProfileDropdown');
             if (e.key === 'Escape' && userProfile && userProfile.classList.contains('active')) {
@@ -198,5 +185,6 @@
             }
         });
     </script>
+    <?php require __DIR__ . '/session_timeout_script.php'; ?>
 </body>
 </html>
