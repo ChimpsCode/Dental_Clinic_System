@@ -142,8 +142,10 @@ try {
                                 $emergencyName = $user['emergency_contact_name'] ?? $user['emergency_name'] ?? $user['ec_name'] ?? '';
                                 $emergencyPhone = $user['emergency_contact_phone'] ?? $user['emergency_phone'] ?? $user['ec_phone'] ?? '';
                                 $emergencyRelationship = $user['emergency_contact_relationship'] ?? $user['emergency_relationship'] ?? $user['ec_relationship'] ?? '';
+                                $rowRole = strtolower((string)($user['role_name'] ?? ''));
+                                if ($rowRole === 'user') $rowRole = 'patient';
                             ?>
-                            <tr>
+                            <tr data-role="<?php echo htmlspecialchars($rowRole); ?>">
                                 <td><?php echo $rowNum++; ?></td>
                                 <td><?php echo htmlspecialchars($username); ?></td>
                                 <td><?php echo htmlspecialchars($firstName); ?></td>
@@ -302,6 +304,106 @@ try {
 
 <script>
                 document.addEventListener('DOMContentLoaded', function() {
+                    var USERS_PER_PAGE = 10;
+                    var usersCurrentPage = 1;
+
+                    function getVisibleUserRows() {
+                        var search = (document.getElementById('userSearch')?.value || '').toLowerCase().trim();
+                        var role = (document.getElementById('roleFilter')?.value || '').toLowerCase();
+                        return Array.from(document.querySelectorAll('#usersTableBody tr')).filter(function(row) {
+                            var matchesSearch = !search || row.textContent.toLowerCase().includes(search);
+                            var rowRole = (row.getAttribute('data-role') || '').toLowerCase();
+                            if (rowRole === 'user') rowRole = 'patient';
+                            var matchesRole = !role || rowRole === role;
+                            return matchesSearch && matchesRole;
+                        });
+                    }
+
+                    function renderUsersPage() {
+                        var allRows = Array.from(document.querySelectorAll('#usersTableBody tr'));
+                        var visibleRows = getVisibleUserRows();
+                        var total = visibleRows.length;
+                        var totalPages = Math.max(1, Math.ceil(total / USERS_PER_PAGE));
+                        if (usersCurrentPage > totalPages) usersCurrentPage = totalPages;
+                        if (usersCurrentPage < 1) usersCurrentPage = 1;
+
+                        var start = (usersCurrentPage - 1) * USERS_PER_PAGE;
+                        var end = start + USERS_PER_PAGE;
+                        var pageRows = visibleRows.slice(start, end);
+
+                        allRows.forEach(function(row) { row.style.display = 'none'; });
+                        pageRows.forEach(function(row) { row.style.display = ''; });
+
+                        var info = document.getElementById('usersPaginationInfo');
+                        if (info) {
+                            if (total === 0) {
+                                info.textContent = 'Showing 0 of 0 users';
+                            } else {
+                                info.textContent = 'Showing ' + (start + 1) + '-' + (start + pageRows.length) + ' of ' + total + ' users';
+                            }
+                        }
+
+                        var buttons = document.getElementById('usersPaginationButtons');
+                        if (!buttons) return;
+                        buttons.innerHTML = '';
+
+                        var prev = document.createElement('button');
+                        prev.type = 'button';
+                        prev.className = 'pagination-btn';
+                        prev.textContent = 'Previous';
+                        prev.disabled = usersCurrentPage <= 1;
+                        prev.addEventListener('click', function() {
+                            if (usersCurrentPage > 1) {
+                                usersCurrentPage -= 1;
+                                renderUsersPage();
+                            }
+                        });
+                        buttons.appendChild(prev);
+
+                        for (var i = 1; i <= totalPages; i++) {
+                            (function(pageNum) {
+                                var btn = document.createElement('button');
+                                btn.type = 'button';
+                                btn.className = 'pagination-btn' + (pageNum === usersCurrentPage ? ' active' : '');
+                                btn.textContent = String(pageNum);
+                                btn.addEventListener('click', function() {
+                                    usersCurrentPage = pageNum;
+                                    renderUsersPage();
+                                });
+                                buttons.appendChild(btn);
+                            })(i);
+                        }
+
+                        var next = document.createElement('button');
+                        next.type = 'button';
+                        next.className = 'pagination-btn';
+                        next.textContent = 'Next';
+                        next.disabled = usersCurrentPage >= totalPages || total === 0;
+                        next.addEventListener('click', function() {
+                            if (usersCurrentPage < totalPages) {
+                                usersCurrentPage += 1;
+                                renderUsersPage();
+                            }
+                        });
+                        buttons.appendChild(next);
+                    }
+
+                    var searchInput = document.getElementById('userSearch');
+                    var roleFilter = document.getElementById('roleFilter');
+                    if (searchInput) {
+                        searchInput.addEventListener('input', function() {
+                            usersCurrentPage = 1;
+                            renderUsersPage();
+                        });
+                    }
+                    if (roleFilter) {
+                        roleFilter.addEventListener('change', function() {
+                            usersCurrentPage = 1;
+                            renderUsersPage();
+                        });
+                    }
+                    renderUsersPage();
+
                     function getTimeAgo(timestamp) {
                         if (!timestamp) return '';
                         
@@ -861,14 +963,8 @@ try {
 
                 <!-- Pagination -->
                 <div class="pagination">
-                    <span class="pagination-info">Showing 1-<?php echo $totalUsers; ?> of <?php echo $totalUsers; ?> users</span>
-                    <div class="pagination-buttons">
-                        <button class="pagination-btn" disabled>Previous</button>
-                        <button class="pagination-btn active">1</button>
-                        <button class="pagination-btn">2</button>
-                        <button class="pagination-btn">3</button>
-                        <button class="pagination-btn">Next</button>
-                    </div>
+                    <span class="pagination-info" id="usersPaginationInfo">Showing 0 of 0 users</span>
+                    <div class="pagination-buttons" id="usersPaginationButtons"></div>
                 </div>
             </div>
 

@@ -828,6 +828,16 @@ $assets = [
           });
         }
 
+        if (regOtpCode && regOtpVerifyBtn) {
+          regOtpCode.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            if (!regOtpVerifyBtn.disabled) {
+              regOtpVerifyBtn.click();
+            }
+          });
+        }
+
         // Resend handler
         if (regOtpResendBtn) {
           regOtpResendBtn.addEventListener('click', async function() {

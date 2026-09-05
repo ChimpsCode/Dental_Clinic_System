@@ -1208,7 +1208,7 @@ $assets = [
               </p>
               <div class="alert alert-error" id="regOtpError" style="display: none; color: #dc3545; font-size: 14px; margin-bottom: 12px; text-align: center;"></div>
               <div style="margin-bottom: 16px;">
-                <input type="text" id="regOtpCode" placeholder="Enter verification code" maxlength="6" inputmode="numeric" style="width:200px; text-align:center; letter-spacing:6px; font-size:20px; padding:10px; border:2px solid #2563eb; border-radius:8px; outline:none;">
+                <input type="text" id="regOtpCode" placeholder="Enter verification code" maxlength="6" inputmode="numeric" autocomplete="one-time-code" style="width:200px; text-align:center; letter-spacing:6px; font-size:20px; padding:10px; border:2px solid #2563eb; border-radius:8px; outline:none;">
               </div>
               <button type="button" class="btn btn-primary" id="regOtpVerifyBtn" style="width:100%;">
                 <span id="regOtpVerifyBtnText">Verify & Create Account</span>
@@ -1721,6 +1721,16 @@ $assets = [
               regOtpError.style.display = 'block';
               regOtpVerifyBtn.disabled = false;
               regOtpVerifyBtnText.textContent = 'Verify & Create Account';
+            }
+          });
+        }
+
+        if (regOtpCode && regOtpVerifyBtn) {
+          regOtpCode.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            if (!regOtpVerifyBtn.disabled) {
+              regOtpVerifyBtn.click();
             }
           });
         }
