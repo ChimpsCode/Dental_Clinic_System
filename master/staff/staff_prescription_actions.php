@@ -45,9 +45,9 @@ header('Content-Type: application/json');
 
 $response = ['success' => false, 'message' => 'Invalid action'];
 
-$current_role = $_SESSION['role'] ?? null;
+$current_role = strtolower((string) ($_SESSION['role'] ?? ''));
 
-if (!in_array($current_role, ['staff', 'dentist'])) {
+if (!in_array($current_role, ['staff', 'dentist'], true)) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
     exit;
 }

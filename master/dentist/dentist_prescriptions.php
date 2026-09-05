@@ -82,7 +82,7 @@ try {
     }
 } catch (Exception $e) {}
 ?>
-<link rel="stylesheet" href="../../assets/css/rx_pad.css">
+<link rel="stylesheet" href="../../assets/css/rx_pad.css?v=2">
 <style>
 
 

@@ -19,35 +19,6 @@
         return g;
     }
 
-<<<<<<< HEAD
-    function fillRxPad(p) {
-        var setText = function (id, value) {
-            var el = document.getElementById(id);
-            if (el) el.textContent = value || '';
-        };
-        setText('rxName', p.patient_name || '');
-        setText('rxAge', p.age ? String(p.age) : '');
-        setText('rxSex', patientSex(p));
-        setText('rxAddress', patientAddress(p));
-        setText('rxDate', p.issue_date || '');
-        setText('rxDoctor', p.doctor_name || '');
-        setText('rxFollowup', p.follow_up_date || '');
-
-        var meds = String(p.medications || '').split('\n').filter(function (m) { return m.trim(); });
-        var container = document.getElementById('rxMedicationsContainer');
-        if (container) {
-            container.innerHTML = meds.length
-                ? meds.map(function (m) { return '<div class="rx-med-item">' + escapeHtml(m.trim()) + '</div>'; }).join('')
-                : '<div class="rx-med-item">No medications prescribed</div>';
-        }
-        var notes = document.getElementById('rxInstructions');
-        if (notes) {
-            notes.textContent = p.instructions ? ('Instructions: ' + p.instructions) : '';
-        }
-    }
-
-    function printRxPad(p) {
-=======
     function setField(id, value) {
         var el = document.getElementById(id);
         if (!el) return;
@@ -83,27 +54,21 @@
                 el.setAttribute('value', value);
             }
         });
-        var html = clone.outerHTML;
-        return html.replace(/src="(\.\.\/)+assets\//g, function () {
+        return clone.outerHTML.replace(/src="(\.\.\/)+assets\//g, function () {
             return 'src="' + window.location.origin + window.location.pathname.replace(/\/master\/.*$/, '/') + 'assets/';
         });
     }
 
     function printRxPad(p) {
-        if (p && !document.getElementById('rxName')) {
+        if (p && document.getElementById('rxName') && !document.getElementById('rxName').value) {
             fillRxPad(p);
         }
->>>>>>> 6af0dfb (prescription typable  ✓)
         var printWindow = window.open('', '_blank');
         if (!printWindow) {
             window.alert('Please allow popups to print the prescription.');
             return;
         }
 
-<<<<<<< HEAD
-        var paper = document.getElementById('rxPaper');
-=======
->>>>>>> 6af0dfb (prescription typable  ✓)
         var cssLink = Array.prototype.map.call(document.querySelectorAll('link[rel="stylesheet"]'), function (link) {
             return link.href;
         }).filter(function (href) {
@@ -111,26 +76,13 @@
         })[0] || '../../assets/css/rx_pad.css';
 
         var fa = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
-<<<<<<< HEAD
-        fillRxPad(p);
-        var body = paper ? paper.outerHTML : '';
-        body = body.replace(/src="(\.\.\/)+assets\//g, function () {
-            return 'src="' + window.location.origin + window.location.pathname.replace(/\/master\/.*$/, '/') + 'assets/';
-        });
-
-=======
->>>>>>> 6af0dfb (prescription typable  ✓)
         printWindow.document.open();
         printWindow.document.write(
             '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Prescription</title>' +
             '<link rel="stylesheet" href="' + fa + '">' +
             '<link rel="stylesheet" href="' + cssLink + '">' +
             '<style>@page { margin: 0.4in; } body { margin: 0; }</style>' +
-<<<<<<< HEAD
-            '</head><body>' + body + '</body></html>'
-=======
             '</head><body>' + snapshotPadHtml() + '</body></html>'
->>>>>>> 6af0dfb (prescription typable  ✓)
         );
         printWindow.document.close();
         printWindow.focus();

@@ -11,6 +11,8 @@
     position: relative;
     min-height: 980px;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
 }
 
 .rx-paper .rx-head {
@@ -98,16 +100,6 @@
     flex: 1;
 }
 
-<<<<<<< HEAD
-.rx-paper .rx-underline {
-    flex: 1;
-    min-width: 48px;
-    border-bottom: 1px solid var(--rx-ink);
-    min-height: 18px;
-    font-weight: 600;
-    padding: 0 4px;
-    line-height: 1.2;
-=======
 .rx-paper .rx-underline,
 .rx-paper .rx-input {
     flex: 1;
@@ -133,7 +125,6 @@
 .rx-paper label {
     font-weight: 700;
     margin: 0;
->>>>>>> 6af0dfb (prescription typable  ✓)
 }
 
 .rx-paper .rx-age { width: 70px; flex: 0 0 70px; }
@@ -141,60 +132,73 @@
 .rx-paper .rx-date { width: 150px; flex: 0 0 150px; }
 
 .rx-paper .rx-body {
-    display: flex;
-    gap: 16px;
-    min-height: 520px;
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 420px;
     margin-top: 8px;
 }
 
 .rx-paper .rx-symbol {
+    position: absolute;
+    top: 4px;
+    left: 0;
     font-family: Georgia, 'Times New Roman', serif;
     font-size: 64px;
     font-weight: 700;
     line-height: 0.85;
-    padding-top: 8px;
     color: var(--rx-ink);
+    pointer-events: none;
 }
 
 .rx-paper .rx-meds {
-    flex: 1;
-    padding-top: 10px;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 223px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 48px 0;
 }
 
-<<<<<<< HEAD
-.rx-paper .rx-med-item {
-=======
 .rx-paper .rx-med-item,
 .rx-paper .rx-textarea {
->>>>>>> 6af0dfb (prescription typable  ✓)
     font-size: 14px;
     font-weight: 600;
     line-height: 1.55;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
 }
 
-<<<<<<< HEAD
-=======
 .rx-paper .rx-textarea {
-    width: 100%;
-    min-height: 280px;
-    resize: vertical;
+    display: block;
+    width: 88%;
+    max-width: 560px;
+    min-height: 0;
+    height: auto;
+    resize: none;
+    overflow: hidden;
     border: none;
     background: transparent;
     color: var(--rx-ink);
     font: inherit;
     font-weight: 600;
     outline: none;
-    padding: 4px 0;
+    padding: 2px 8px;
+    text-align: center;
+}
+
+.rx-paper .rx-textarea::placeholder {
+    text-align: center;
+    color: #94a3b8;
 }
 
 .rx-paper .rx-notes-input {
-    min-height: 72px;
-    margin-top: 8px;
+    min-height: 0;
+    margin-top: 20px;
     font-size: 13px;
 }
 
->>>>>>> 6af0dfb (prescription typable  ✓)
 .rx-paper .rx-notes {
     font-size: 13px;
     font-weight: 600;
@@ -206,7 +210,8 @@
     justify-content: space-between;
     align-items: flex-end;
     gap: 24px;
-    margin-top: 36px;
+    margin-top: 20px;
+    flex-shrink: 0;
 }
 
 .rx-paper .rx-follow {
@@ -215,7 +220,8 @@
     min-width: 220px;
 }
 
-.rx-paper .rx-follow .rx-underline {
+.rx-paper .rx-follow .rx-underline,
+.rx-paper .rx-follow .rx-input {
     margin-top: 18px;
     display: block;
     width: 210px;
@@ -226,13 +232,6 @@
     min-width: 230px;
 }
 
-<<<<<<< HEAD
-.rx-paper .rx-sign-line {
-    border-bottom: 1px solid var(--rx-ink);
-    min-height: 28px;
-    margin-bottom: 4px;
-    font-weight: 700;
-=======
 .rx-paper .rx-sign-line,
 .rx-paper .rx-sign-input {
     border: none;
@@ -245,7 +244,6 @@
     text-align: center;
     color: var(--rx-ink);
     outline: none;
->>>>>>> 6af0dfb (prescription typable  ✓)
 }
 
 .rx-paper .rx-sign-caption {
@@ -263,7 +261,8 @@
     margin-bottom: 6px;
 }
 
-.rx-paper .rx-lic .rx-underline {
+.rx-paper .rx-lic .rx-underline,
+.rx-paper .rx-lic .rx-input {
     min-width: 110px;
 }
 
@@ -277,13 +276,10 @@
         min-height: auto;
         padding: 0;
     }
-<<<<<<< HEAD
-=======
     .rx-paper .rx-input,
     .rx-paper .rx-textarea {
         border: none;
         border-bottom: 1px solid var(--rx-ink);
         box-shadow: none;
     }
->>>>>>> 6af0dfb (prescription typable  ✓)
 }

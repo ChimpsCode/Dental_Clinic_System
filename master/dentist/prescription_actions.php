@@ -57,7 +57,7 @@ $current_username = $_SESSION['username'] ?? null;
 $current_role = $_SESSION['role'] ?? null;
 
 // Allow only dentists for prescription operations
-if ($current_role !== 'dentist') {
+if (strtolower((string) $current_role) !== 'dentist') {
     echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
     exit;
 }
