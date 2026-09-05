@@ -61,8 +61,13 @@ try {
     $emergencyContactRelationship = trim($_POST['emergency_contact_relationship'] ?? '');
     
     // Senior / PWD discount IDs (RA 9994 / RA 10754)
-    $seniorCitizenId = trim($_POST['senior_citizen_id'] ?? '') ?: null;
-    $pwdId = trim($_POST['pwd_id'] ?? '') ?: null;
+    require_once __DIR__ . '/../../includes/discount_helper.php';
+    ensureDiscountSchema($pdo);
+    list($seniorIdType, $seniorCitizenId) = normalizeSeniorIdFields(
+        $_POST['senior_id_type'] ?? '',
+        $_POST['senior_citizen_id'] ?? ''
+    );
+    $pwdId = normalizePwdIdField(!empty($_POST['is_pwd']), $_POST['pwd_id'] ?? '');
     
     // Insurance
     $dentalInsurance = trim($_POST['dentalInsurance'] ?? '');
@@ -108,10 +113,13 @@ try {
             'emergency_contact_relationship' => $emergencyContactRelationship,
         ];
         
-        if (!is_null($seniorCitizenId) && in_array('senior_citizen_id', $availableColumns)) {
+        if (in_array('senior_citizen_id', $availableColumns)) {
             $updateMap['senior_citizen_id'] = $seniorCitizenId;
         }
-        if (!is_null($pwdId) && in_array('pwd_id', $availableColumns)) {
+        if (in_array('senior_id_type', $availableColumns)) {
+            $updateMap['senior_id_type'] = $seniorIdType;
+        }
+        if (in_array('pwd_id', $availableColumns)) {
             $updateMap['pwd_id'] = $pwdId;
         }
         
@@ -154,10 +162,13 @@ try {
             'emergency_contact_relationship' => $emergencyContactRelationship,
         ];
         
-        if (!is_null($seniorCitizenId)) {
+        if (in_array('senior_citizen_id', $availableColumns)) {
             $fieldMap['senior_citizen_id'] = $seniorCitizenId;
         }
-        if (!is_null($pwdId)) {
+        if (in_array('senior_id_type', $availableColumns)) {
+            $fieldMap['senior_id_type'] = $seniorIdType;
+        }
+        if (in_array('pwd_id', $availableColumns)) {
             $fieldMap['pwd_id'] = $pwdId;
         }
         

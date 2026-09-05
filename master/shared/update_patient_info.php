@@ -25,8 +25,15 @@ $phone = $_POST['phone'] ?? '';
 $email = $_POST['email'] ?? '';
 $date_of_birth = $_POST['date_of_birth'] ?? null;
 $gender = $_POST['gender'] ?? '';
-$senior_citizen_id = trim($_POST['senior_citizen_id'] ?? '') ?: null;
-$pwd_id = trim($_POST['pwd_id'] ?? '') ?: null;
+
+require_once __DIR__ . '/../../includes/discount_helper.php';
+ensureDiscountSchema($pdo);
+
+list($senior_id_type, $senior_citizen_id) = normalizeSeniorIdFields(
+    $_POST['senior_id_type'] ?? '',
+    $_POST['senior_citizen_id'] ?? ''
+);
+$pwd_id = normalizePwdIdField(!empty($_POST['is_pwd']), $_POST['pwd_id'] ?? '');
 
 if (!$patient_id) {
     echo json_encode(['success' => false, 'message' => 'Patient ID required']);
@@ -37,9 +44,6 @@ if (empty($first_name) || empty($last_name)) {
     echo json_encode(['success' => false, 'message' => 'First name and last name are required']);
     exit;
 }
-
-require_once __DIR__ . '/../../includes/discount_helper.php';
-ensureDiscountSchema($pdo);
 
 try {
     // Get original patient data first
@@ -64,6 +68,7 @@ try {
             date_of_birth = ?,
             gender = ?,
             senior_citizen_id = ?,
+            senior_id_type = ?,
             pwd_id = ?,
             updated_at = NOW()
         WHERE id = ?
@@ -79,6 +84,7 @@ try {
         $date_of_birth,
         $gender,
         $senior_citizen_id,
+        $senior_id_type,
         $pwd_id,
         $patient_id
     ]);
@@ -94,6 +100,7 @@ try {
         $newPatient['date_of_birth'] = $date_of_birth;
         $newPatient['gender'] = $gender;
         $newPatient['senior_citizen_id'] = $senior_citizen_id;
+        $newPatient['senior_id_type'] = $senior_id_type;
         $newPatient['pwd_id'] = $pwd_id;
         logRecordChange($pdo, $_SESSION['user_id'], $_SESSION['username'] ?? 'unknown', 'admin', 'update', 'patients', 'patients', (int)$patient_id, 'patient record #' . $patient_id, $oldPatient, $newPatient);
 

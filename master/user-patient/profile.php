@@ -28,6 +28,8 @@ $messageType = '';
 
 require_once '../../config/database.php';
 require_once '../../includes/audit_helper.php';
+require_once '../../includes/discount_helper.php';
+ensureDiscountSchema($pdo);
 require_once '../../includes/patient_session_helper.php';
 require_once '../../includes/patient_user_sync_helper.php';
 $patientSessionSettings = getPatientSessionSettings($pdo, (int)$user_id);
@@ -132,6 +134,15 @@ try {
         } catch (Exception $e) {
             $patientAge = null;
         }
+    }
+
+    $seniorProfileValue = 'Not provided';
+    if (!empty($patient['senior_citizen_id'])) {
+        $typeLabel = seniorIdTypeLabel($patient['senior_id_type'] ?? '');
+        if ($typeLabel === '' && !empty($patient['senior_citizen_id'])) {
+            $typeLabel = 'OSCA ID';
+        }
+        $seniorProfileValue = trim($typeLabel . ' · ' . $patient['senior_citizen_id']);
     }
 
     $personalInfoCooldownUntil = null;
@@ -579,8 +590,8 @@ $pageTitle = 'My Profile';
                             <input type="text" class="form-input" value="<?php echo $patientAge !== null ? htmlspecialchars((string)$patientAge) : 'Not provided'; ?>" readonly>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Senior Citizen (OSCA) ID No. <span style="color:#6b7280;font-weight:400;">(Optional)</span></label>
-                            <input type="text" class="form-input" value="<?php echo htmlspecialchars($patient['senior_citizen_id'] ?? ''); ?>" placeholder="Not provided" readonly style="background-color:#f9fafb;">
+                            <label class="form-label">Senior government ID</label>
+                            <input type="text" class="form-input" value="<?php echo htmlspecialchars($seniorProfileValue ?? 'Not provided'); ?>" placeholder="Not provided" readonly style="background-color:#f9fafb;">
                         </div>
                         <div class="form-group">
                             <label class="form-label">PWD ID No. <span style="color:#6b7280;font-weight:400;">(Optional)</span></label>

@@ -1,5 +1,6 @@
 <?php
 require_once '../../config/database.php';
+require_once __DIR__ . '/../../includes/discount_helper.php';
 
 $settingsStmt = $pdo->query("SELECT setting_key, setting_value FROM settings");
 $clinicSettings = [];
@@ -1068,7 +1069,7 @@ $assets = [
               <h4 class="form-section-title">Patient Information</h4>
               <div class="form-row">
                 <div class="form-group">
-                  <label for="reg-first-name-display">First Name</label>
+                  <label for="reg-first-name-display">First Name <span style="color:#dc2626">*</span></label>
                   <input type="text" id="reg-first-name-display" placeholder="First Name" required />
                 </div>
                 <div class="form-group">
@@ -1076,17 +1077,17 @@ $assets = [
                   <input type="text" id="reg-middle-name-display" placeholder="Middle Name" />
                 </div>
                 <div class="form-group">
-                  <label for="reg-last-name-display">Last Name</label>
+                  <label for="reg-last-name-display">Last Name <span style="color:#dc2626">*</span></label>
                   <input type="text" id="reg-last-name-display" placeholder="Last Name" required />
                 </div>
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label for="reg-phone">Phone Number</label>
+                  <label for="reg-phone">Phone Number <span style="color:#dc2626">*</span></label>
                   <input type="tel" id="reg-phone" name="phone" required placeholder="09123456789" maxlength="11" inputmode="numeric" pattern="[0-9]*" autocomplete="tel" />
                 </div>
                 <div class="form-group">
-                  <label for="reg-gender">Gender</label>
+                  <label for="reg-gender">Gender <span style="color:#dc2626">*</span></label>
                   <select id="reg-gender" name="gender" required>
                     <option value="">Select Gender</option>
                     <option value="male">Male</option>
@@ -1097,7 +1098,7 @@ $assets = [
               <div class="form-row">
                 <div class="form-group">
                   <label for="reg-dob">Date of Birth</label>
-                  <input type="date" id="reg-dob" name="date_of_birth" onchange="var d=new Date(this.value);var a=new Date().getFullYear()-d.getFullYear();if(new Date().getMonth()<d.getMonth()||(new Date().getMonth()==d.getMonth()&&new Date().getDate()<d.getDate()))a--;document.getElementById('reg-age').value=a>0&&a<120?a:'';var h=document.getElementById('reg-senior-hint');if(h)h.style.display=(a>=60)?'block':'none'" />
+                  <input type="date" id="reg-dob" name="date_of_birth" data-discount-dob="1" onchange="var d=new Date(this.value);var a=new Date().getFullYear()-d.getFullYear();if(new Date().getMonth()<d.getMonth()||(new Date().getMonth()==d.getMonth()&&new Date().getDate()<d.getDate()))a--;document.getElementById('reg-age').value=a>0&&a<120?a:'';if(window.DiscountIdFields)window.DiscountIdFields.sync(document)" />
                 </div>
                 <div class="form-group">
                   <label for="reg-age">Age</label>
@@ -1110,16 +1111,16 @@ $assets = [
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label for="reg-emergency-name">Emergency Contact Name</label>
+                  <label for="reg-emergency-name">Emergency Contact Name <span style="color:#dc2626">*</span></label>
                   <input type="text" id="reg-emergency-name" name="emergency_contact_name" placeholder="Full name" required />
                 </div>
                 <div class="form-group">
-                  <label for="reg-emergency-phone">Emergency Contact Number</label>
+                  <label for="reg-emergency-phone">Emergency Contact Number <span style="color:#dc2626">*</span></label>
                   <input type="tel" id="reg-emergency-phone" name="emergency_contact_phone" placeholder="09123456789" maxlength="11" required inputmode="numeric" pattern="[0-9]*" autocomplete="tel" />
                 </div>
               </div>
               <div class="form-group">
-                <label for="reg-emergency-relationship">Relationship</label>
+                <label for="reg-emergency-relationship">Relationship <span style="color:#dc2626">*</span></label>
                 <select id="reg-emergency-relationship" name="emergency_contact_relationship" required>
                   <option value="" disabled selected>Select relationship</option>
                   <option value="Parent">Parent</option>
@@ -1133,16 +1134,25 @@ $assets = [
                   <option value="Other">Other</option>
                 </select>
               </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="reg-senior-id">Senior Citizen (OSCA) ID No. <span style="color:#6b7280;font-weight:400;">(Optional)</span></label>
-                  <input type="text" id="reg-senior-id" name="senior_citizen_id" placeholder="e.g., OSCA-0123-4567" maxlength="30" />
-                  <div id="reg-senior-hint" style="display:none;font-size:12px;color:#16a34a;margin-top:4px;">Age 60+ — qualifies as senior even without an ID</div>
-                </div>
-                <div class="form-group">
-                  <label for="reg-pwd-id">PWD ID No. <span style="color:#6b7280;font-weight:400;">(Optional)</span></label>
-                  <input type="text" id="reg-pwd-id" name="pwd_id" placeholder="e.g., PWD-CDO-2024-00123" maxlength="30" />
-                </div>
+              <div class="form-group" data-senior-id-fields style="display:none;">
+                <label for="reg-senior-id-type">Senior government ID <span style="color:#dc2626">*</span></label>
+                <select id="reg-senior-id-type" name="senior_id_type">
+                  <?php echo seniorIdTypeOptionsHtml(); ?>
+                </select>
+                <label for="reg-senior-id" style="margin-top:8px;display:block;">ID number <span style="color:#dc2626">*</span></label>
+                <input type="text" id="reg-senior-id" name="senior_citizen_id" placeholder="Enter ID number" maxlength="30" />
+                <div style="font-size:12px;color:#6b7280;margin-top:4px;">Age 60+ still needs a government ID number for the official 20% senior discount (RA 9994).</div>
+              </div>
+              <div class="form-group">
+                <label style="display:flex;align-items:center;gap:8px;font-weight:600;">
+                  <input type="checkbox" name="is_pwd" value="1" data-pwd-toggle="1" />
+                  Person with Disability (PWD)
+                </label>
+              </div>
+              <div class="form-group" data-pwd-id-fields style="display:none;">
+                <label for="reg-pwd-id">PWD ID No. <span style="color:#dc2626">*</span></label>
+                <input type="text" id="reg-pwd-id" name="pwd_id" placeholder="e.g., PWD-CDO-2024-00123" maxlength="30" />
+                <div style="font-size:12px;color:#6b7280;margin-top:4px;">The official PWD ID number is required for the 20% PWD discount (RA 10754).</div>
               </div>
             </div>
             
@@ -1150,12 +1160,12 @@ $assets = [
             <div class="form-section">
               <h4 class="form-section-title">Account Information</h4>
               <div class="form-group">
-                <label for="reg-email">Email (Username)</label>
+                <label for="reg-email">Email (Username) <span style="color:#dc2626">*</span></label>
                 <input type="email" id="reg-email" name="email" required placeholder="your@email.com" />
                 <div id="reg-email-status" style="display:none; margin-top:6px; font-size:13px; color:#dc3545;"></div>
               </div>
               <div class="form-group">
-                <label for="reg-password">Create Password</label>
+                <label for="reg-password">Create Password <span style="color:#dc2626">*</span></label>
                 <div class="password-input-group" style="margin-bottom:0;">
                   <input type="password" id="reg-password" name="password" required minlength="8" placeholder="Password " style="padding-right:40px;" />
                   <button type="button" class="toggle-password" id="regTogglePassword" aria-label="Toggle password visibility" style="display: none; right: 10px;">
@@ -1171,7 +1181,7 @@ $assets = [
                 </div>
               </div>
               <div class="form-group">
-                <label for="reg-confirm-password">Confirm Password</label>
+                <label for="reg-confirm-password">Confirm Password <span style="color:#dc2626">*</span></label>
                 <div class="password-input-group" style="margin-bottom:0;">
                   <input type="password" id="reg-confirm-password" name="confirm_password" required placeholder="Re-enter password" style="padding-right:40px;" />
                   <button type="button" class="toggle-password" id="regToggleConfirmPassword" aria-label="Toggle confirm password visibility" style="display: none; right: 10px;">
@@ -2591,5 +2601,6 @@ $assets = [
       </div>
     </div>
 
+    <script src="../../assets/js/discount_id_fields.js"></script>
   </body>
 </html>

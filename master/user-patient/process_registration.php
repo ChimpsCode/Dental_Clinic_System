@@ -3,6 +3,7 @@ ini_set('display_errors', '0');
 error_reporting(E_ALL);
 require_once __DIR__ . '/../../includes/session_bootstrap.php';header('Content-Type: application/json');
 require_once '../../config/database.php';
+require_once __DIR__ . '/../../includes/discount_helper.php';
 
 function respond(bool $success, string $message, array $extra = [], int $status = 200): void {
     http_response_code($status);
@@ -72,7 +73,9 @@ if ($action === 'verify_otp') {
         $emergencyContactPhone = trim($_POST['emergency_contact_phone'] ?? '');
         $emergencyContactRelationship = trim($_POST['emergency_contact_relationship'] ?? '');
         $seniorCitizenId = trim($_POST['senior_citizen_id'] ?? '');
-        $pwdId = trim($_POST['pwd_id'] ?? '');
+        $seniorIdType = trim($_POST['senior_id_type'] ?? '');
+        $pwdId = normalizePwdIdField(!empty($_POST['is_pwd']), $_POST['pwd_id'] ?? '');
+        list($seniorIdType, $seniorCitizenId) = normalizeSeniorIdFields($seniorIdType, $seniorCitizenId);
         $password = (string)($_POST['password'] ?? '');
 
         if ($firstName !== '' && $lastName !== '' && $email !== '' && $phone !== '' && $password !== '') {
@@ -89,6 +92,7 @@ if ($action === 'verify_otp') {
                 'emergency_contact_phone' => $emergencyContactPhone,
                 'emergency_contact_relationship' => $emergencyContactRelationship,
                 'senior_citizen_id' => $seniorCitizenId,
+                'senior_id_type' => $seniorIdType,
                 'pwd_id' => $pwdId,
                 'password' => $password,
             ];
@@ -131,6 +135,7 @@ if ($action === 'verify_otp') {
 
     try {
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+        ensureDiscountSchema($pdo);
 
         $pdo->beginTransaction();
 
@@ -199,6 +204,10 @@ if ($action === 'verify_otp') {
         if (tableHasColumn($pdo, 'patients', 'senior_citizen_id')) {
             $patientInsertColumns[] = 'senior_citizen_id';
             $patientInsertValues[] = ($regData['senior_citizen_id'] ?? '') !== '' ? $regData['senior_citizen_id'] : null;
+        }
+        if (tableHasColumn($pdo, 'patients', 'senior_id_type')) {
+            $patientInsertColumns[] = 'senior_id_type';
+            $patientInsertValues[] = ($regData['senior_id_type'] ?? '') !== '' ? $regData['senior_id_type'] : null;
         }
         if (tableHasColumn($pdo, 'patients', 'pwd_id')) {
             $patientInsertColumns[] = 'pwd_id';
@@ -325,7 +334,9 @@ try {
     $emergency_contact_phone = trim($_POST['emergency_contact_phone'] ?? '');
     $emergency_contact_relationship = trim($_POST['emergency_contact_relationship'] ?? '');
     $senior_citizen_id = trim($_POST['senior_citizen_id'] ?? '');
-    $pwd_id = trim($_POST['pwd_id'] ?? '');
+    $senior_id_type = trim($_POST['senior_id_type'] ?? '');
+    list($senior_id_type, $senior_citizen_id) = normalizeSeniorIdFields($senior_id_type, $senior_citizen_id);
+    $pwd_id = normalizePwdIdField(!empty($_POST['is_pwd']), $_POST['pwd_id'] ?? '');
 
     $otpCode = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
     $_SESSION['reg_otp'] = $otpCode;
@@ -343,6 +354,7 @@ try {
         'emergency_contact_phone' => $emergency_contact_phone,
         'emergency_contact_relationship' => $emergency_contact_relationship,
         'senior_citizen_id' => $senior_citizen_id,
+        'senior_id_type' => $senior_id_type,
         'pwd_id' => $pwd_id,
         'password' => $password,
     ];

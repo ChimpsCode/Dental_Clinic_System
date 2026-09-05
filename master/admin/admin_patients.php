@@ -5,8 +5,11 @@
 
 $pageTitle = 'Patient Records';
 
+require_once __DIR__ . '/../../includes/discount_helper.php';
+
 try {
     require_once __DIR__ . '/../../config/database.php';
+    ensureDiscountSchema($pdo);
     
     // Fetch ALL non-archived patients (no server-side pagination — client-side handles it)
     $stmt = $pdo->prepare("
@@ -174,7 +177,9 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 <div id="pagination" class="pagination"></div>
             </div>
 
+<script src="../../assets/js/discount_id_fields.js"></script>
 <script>
+var SENIOR_ID_TYPES = <?php echo json_encode(seniorIdTypes()); ?>;
 var allPatients = <?php echo json_encode($patients); ?>;
 var currentPage = 1;
 var perPage = 7;
@@ -182,6 +187,24 @@ var filteredPatients = allPatients.slice(0);
 
 var statusLabels = {'waiting':'Waiting','in_procedure':'In Procedure','on_hold':'On Hold','completed':'Completed','cancelled':'Cancelled','pending_payment':'Pending Payment','Scheduled':'Scheduled','In Queue':'In Queue','Pending Payment':'Pending Payment'};
 var statusColors = {'waiting':'#fef3c7:#92400e','in_procedure':'#dbeafe:#1e40af','on_hold':'#fed7aa:#9a3412','completed':'#d1fae5:#065f46','cancelled':'#fee2e2:#dc2626','pending_payment':'#fed7aa:#c2410c','Scheduled':'#dbeafe:#1d4ed8','In Queue':'#fef3c7:#92400e','Pending Payment':'#fed7aa:#c2410c'};
+
+function formatSeniorIdDisplay(p) {
+    const n = (p && p.senior_citizen_id) ? String(p.senior_citizen_id) : '';
+    if (!n) return 'N/A';
+    const types = window.SENIOR_ID_TYPES || {};
+    const t = types[p.senior_id_type] || p.senior_id_type || '';
+    return t ? (t + ' · ' + n) : n;
+}
+
+function seniorIdTypeOptionsHtml(selected) {
+    const types = window.SENIOR_ID_TYPES || {};
+    let html = '<option value="">Select ID type</option>';
+    Object.keys(types).forEach(function (key) {
+        const sel = selected === key ? ' selected' : '';
+        html += '<option value="' + key + '"' + sel + '>' + types[key] + '</option>';
+    });
+    return html;
+}
 
 // Portal Pattern: Move modals to body level
 (function() {
@@ -723,8 +746,8 @@ function viewPatientDetails(patientId) {
                     <div class="patient-info-value">${p.gender || 'N/A'}</div>
                 </div>
                 <div class="patient-info-item">
-                    <div class="patient-info-label">Senior Citizen (OSCA) ID</div>
-                    <div class="patient-info-value">${p.senior_citizen_id || 'N/A'}</div>
+                    <div class="patient-info-label">Senior government ID</div>
+                    <div class="patient-info-value">${formatSeniorIdDisplay(p)}</div>
                 </div>
                 <div class="patient-info-item">
                     <div class="patient-info-label">PWD ID</div>
@@ -1172,7 +1195,7 @@ function editPatientInfo(patientId) {
                     
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                         <div>
-                            <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">First Name *</label>
+                            <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">First Name <span style="color:#dc2626">*</span></label>
                             <input type="text" name="first_name" value="${patient.first_name || ''}" required
                                 style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
                         </div>
@@ -1185,7 +1208,7 @@ function editPatientInfo(patientId) {
                     
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                         <div>
-                            <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Last Name *</label>
+                            <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Last Name <span style="color:#dc2626">*</span></label>
                             <input type="text" name="last_name" value="${patient.last_name || ''}" required
                                 style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
                         </div>
@@ -1222,7 +1245,7 @@ function editPatientInfo(patientId) {
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                         <div>
                             <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Date of Birth</label>
-                            <input type="date" name="date_of_birth" value="${patient.date_of_birth || ''}"
+                            <input type="date" name="date_of_birth" data-discount-dob="1" value="${patient.date_of_birth || ''}"
                                 style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
                         </div>
                         <div>
@@ -1235,19 +1258,27 @@ function editPatientInfo(patientId) {
                         </div>
                     </div>
                     
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
-                        <div>
-                            <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Senior Citizen (OSCA) ID No.</label>
-                            <input type="text" name="senior_citizen_id" value="${patient.senior_citizen_id || ''}" placeholder="e.g., OSCA-0123-4567"
-                                style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
-                            ${patient.senior_citizen_id || (patient.date_of_birth && (() => { const a = Math.floor((Date.now() - new Date(patient.date_of_birth)) / 31557600000); return a >= 60 ? `<span style="font-size:11px;color:#16a34a;font-weight:600;">Age ${a} — qualifies as senior even without ID</span>` : ''; })()) ? '<span style="font-size:11px;color:#16a34a;">20% discount eligible (RA 9994)</span>' : ''}
-                        </div>
-                        <div>
-                            <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">PWD ID No.</label>
-                            <input type="text" name="pwd_id" value="${patient.pwd_id || ''}" placeholder="e.g., PWD-CDO-2024-00123"
-                                style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
-                            ${patient.pwd_id ? '<span style="font-size:11px;color:#16a34a;">20% discount eligible (RA 10754)</span>' : ''}
-                        </div>
+                    <div data-senior-id-fields style="display:none; margin-top: 12px;">
+                        <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Senior government ID <span style="color:#dc2626">*</span></label>
+                        <select name="senior_id_type" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box; margin-bottom: 8px;">
+                            ${seniorIdTypeOptionsHtml(patient.senior_id_type || (patient.senior_citizen_id ? 'osca' : ''))}
+                        </select>
+                        <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">ID number <span style="color:#dc2626">*</span></label>
+                        <input type="text" name="senior_citizen_id" value="${patient.senior_citizen_id || ''}" placeholder="ID number"
+                            style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
+                        <span style="font-size:11px;color:#6b7280;">Age 60+ still needs a government ID number for the official 20% senior discount (RA 9994).</span>
+                    </div>
+                    <div style="margin-top: 12px;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #374151; font-weight: 600;">
+                            <input type="checkbox" name="is_pwd" value="1" data-pwd-toggle="1" ${patient.pwd_id ? 'checked' : ''}>
+                            Person with Disability (PWD)
+                        </label>
+                    </div>
+                    <div data-pwd-id-fields style="display:none; margin-top: 8px;">
+                        <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">PWD ID No. <span style="color:#dc2626">*</span></label>
+                        <input type="text" name="pwd_id" value="${patient.pwd_id || ''}" placeholder="Official PWD ID number"
+                            style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
+                        <span style="font-size:11px;color:#6b7280;">The official PWD ID number is required for the 20% PWD discount (RA 10754).</span>
                     </div>
                 </div>
                 
@@ -1274,6 +1305,10 @@ function editPatientInfo(patientId) {
         e.preventDefault();
         savePatientChanges();
     });
+
+    if (window.DiscountIdFields) {
+        window.DiscountIdFields.init(document.getElementById('edit-patient-form'));
+    }
 }
 
 function closeEditPatientModal() {

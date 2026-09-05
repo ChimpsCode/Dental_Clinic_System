@@ -23,9 +23,12 @@ if (!isset($_SESSION['role']) || !in_array($_SESSION['role'], $allowedRoles)) {
     exit();
 }
 
+require_once __DIR__ . '/../../includes/discount_helper.php';
+
 // Fetch services from database for the services selection
 try {
     require_once '../../config/database.php';
+    ensureDiscountSchema($pdo);
     $logoS = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'welcome_logo'")->fetchColumn();
     $dynamicLogo = $logoS ? '../../' . $logoS : '../../assets/images/Logo.png';
     $stmt = $pdo->query("
@@ -118,12 +121,13 @@ if (isset($_GET['first_name']) || isset($_GET['last_name'])) {
 elseif ($appointmentId) {
     try {
         require_once '../../config/database.php';
+        ensureDiscountSchema($pdo);
         
         $stmt = $pdo->prepare("SELECT a.*, 
                             p.first_name, p.middle_name, p.last_name, p.suffix,
                             p.phone as patient_phone, p.date_of_birth, p.gender,
                             p.street_address as address, p.city, p.province, p.zip_code,
-                            p.email, p.senior_citizen_id, p.pwd_id,
+                            p.email, p.senior_citizen_id, p.senior_id_type, p.pwd_id,
                             s.name as service_name
                             FROM appointments a 
                             LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
@@ -151,6 +155,7 @@ elseif ($appointmentId) {
                     'zip_code' => $appointmentData['zip_code'] ?? '',
                     'email' => $appointmentData['email'] ?? '',
                     'senior_citizen_id' => $appointmentData['senior_citizen_id'] ?? '',
+                    'senior_id_type' => $appointmentData['senior_id_type'] ?? '',
                     'pwd_id' => $appointmentData['pwd_id'] ?? ''
                 ];
             }
@@ -479,7 +484,7 @@ elseif ($appointmentId) {
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Birthdate <span class="text-red-500">*</span></label>
-                                <input type="date" name="birthdate" value="<?php echo htmlspecialchars($patientFromAppointment['date_of_birth'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-slate-600">
+                                <input type="date" name="birthdate" data-discount-dob="1" value="<?php echo htmlspecialchars($patientFromAppointment['date_of_birth'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-slate-600">
                             </div>
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Age <span class="text-xs text-slate-400">(auto-calculated)</span></label>
@@ -576,15 +581,34 @@ elseif ($appointmentId) {
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                            <div>
-                                <label class="block text-sm font-medium text-slate-600 mb-1">Senior Citizen (OSCA) ID No. <span class="text-slate-400 font-normal">(Optional)</span></label>
-                                <input type="text" name="senior_citizen_id" value="<?php echo htmlspecialchars($patientFromAppointment['senior_citizen_id'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="For 20% Senior discount (RA 9994)">
+                        <div class="mt-4" data-senior-id-fields style="display:none;">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-600 mb-1">Senior government ID <span class="text-red-500">*</span></label>
+                                    <div class="relative">
+                                        <select name="senior_id_type" class="w-full h-10 px-3 py-2 border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-slate-600 bg-white box-border">
+                                            <?php echo seniorIdTypeOptionsHtml($patientFromAppointment['senior_id_type'] ?? ''); ?>
+                                        </select>
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-600 mb-1">ID number <span class="text-red-500">*</span></label>
+                                    <input type="text" name="senior_citizen_id" value="<?php echo htmlspecialchars($patientFromAppointment['senior_citizen_id'] ?? ''); ?>" class="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm box-border" placeholder="ID number" maxlength="30">
+                                </div>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-600 mb-1">PWD ID No. <span class="text-slate-400 font-normal">(Optional)</span></label>
-                                <input type="text" name="pwd_id" value="<?php echo htmlspecialchars($patientFromAppointment['pwd_id'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="For 20% PWD discount (RA 10754)">
-                            </div>
+                            <p class="text-xs text-slate-500 mt-1">Age 60+ still needs a government ID number for the official 20% senior discount (RA 9994).</p>
+                        </div>
+                        <div class="mt-4">
+                            <label class="inline-flex items-center gap-2 text-sm font-medium text-slate-600">
+                                <input type="checkbox" name="is_pwd" value="1" data-pwd-toggle="1" <?php echo !empty($patientFromAppointment['pwd_id']) ? 'checked' : ''; ?>>
+                                Person with Disability (PWD)
+                            </label>
+                        </div>
+                        <div class="mt-2" data-pwd-id-fields style="display:none;">
+                            <label class="block text-sm font-medium text-slate-600 mb-1">PWD ID No. <span class="text-red-500">*</span></label>
+                            <input type="text" name="pwd_id" value="<?php echo htmlspecialchars($patientFromAppointment['pwd_id'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Official PWD ID number" maxlength="30">
+                            <p class="text-xs text-slate-500 mt-1">The official PWD ID number is required for the 20% PWD discount (RA 10754).</p>
                         </div>
                     </section>
 
@@ -1717,6 +1741,7 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
             if (birthdateInput) {
                 birthdateInput.addEventListener('change', function() {
                     handleBirthdateChange();
+                    if (window.DiscountIdFields) window.DiscountIdFields.sync(document);
                 });
             }
         });
@@ -1882,6 +1907,7 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
         </div>
     </div>
 
+    <script src="../../assets/js/discount_id_fields.js"></script>
 </body>
 </html>
 ```

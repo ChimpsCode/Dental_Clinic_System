@@ -895,7 +895,7 @@ try {
                 
                 if ($apply) {
                     if (!$disc['eligible']) {
-                        $response['message'] = 'Patient is not eligible for Senior/PWD discount';
+                        $response['message'] = $disc['ineligible_reason'] ?: 'Patient is not eligible for Senior/PWD discount';
                         break;
                     }
                     if (($bill['discount_type'] ?? 'none') !== 'none') {

@@ -3,7 +3,11 @@
 
 ALTER TABLE `patients`
     ADD COLUMN `senior_citizen_id` VARCHAR(30) DEFAULT NULL AFTER `date_of_birth`,
-    ADD COLUMN `pwd_id` VARCHAR(30) DEFAULT NULL AFTER `senior_citizen_id`;
+    ADD COLUMN `senior_id_type` VARCHAR(40) DEFAULT NULL AFTER `senior_citizen_id`,
+    ADD COLUMN `pwd_id` VARCHAR(30) DEFAULT NULL AFTER `senior_id_type`;
+
+-- Existing installs that already have senior_citizen_id / pwd_id:
+-- ALTER TABLE `patients` ADD COLUMN `senior_id_type` VARCHAR(40) DEFAULT NULL AFTER `senior_citizen_id`;
 
 ALTER TABLE `billing`
     ADD COLUMN `subtotal_amount` DECIMAL(10,2) DEFAULT NULL AFTER `total_amount`,
