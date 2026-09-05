@@ -20,6 +20,9 @@ if (!$colCheck->fetch()) {
 try {
     $pdo->exec("ALTER TABLE users ADD COLUMN two_factor_enabled TINYINT(1) DEFAULT 0");
 } catch (Exception $e) {}
+try {
+    $pdo->exec("ALTER TABLE users ADD COLUMN two_factor_secret VARCHAR(255) DEFAULT NULL");
+} catch (Exception $e) {}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_profile') {
     $first_name = trim($_POST['first_name'] ?? '');
@@ -38,12 +41,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_security') {
-    $twoFactorEnabled = ($_POST['two_factor_enabled'] ?? '0') === '1' ? 1 : 0;
-    $stmt = $pdo->prepare("UPDATE users SET two_factor_enabled = ? WHERE id = ?");
-    $stmt->execute([$twoFactorEnabled, $userId]);
-
     $sessionTimeout = (int)($_POST['session_timeout'] ?? 30);
-    if (in_array($sessionTimeout, [15, 30, 60, 120])) {
+    if (in_array($sessionTimeout, [15, 30, 60, 120], true)) {
         $stmt2 = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
         $stmt2->execute(['session_timeout', (string)$sessionTimeout]);
     }
@@ -66,6 +65,7 @@ try {
 $stmt = $pdo->prepare("SELECT first_name, middle_name, last_name, email, phone, profile_picture, gender, date_of_birth, created_at, two_factor_enabled FROM users WHERE id = ?");
 $stmt->execute([$userId]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+$staffTwoFactorEnabled = (int)($user['two_factor_enabled'] ?? 0) === 1;
 ?>
 <style>
 .section { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 24px; }
@@ -105,6 +105,9 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 .toggle-switch .toggle-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
 .toggle-switch input:checked + .toggle-slider { background-color: #005daa !important; }
 .toggle-switch input:checked + .toggle-slider:before { transform: translateX(22px); }
+.twofa-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; margin-top: 6px; }
+.twofa-status.on { background: #d1fae5; color: #065f46; }
+.twofa-status.off { background: #f3f4f6; color: #6b7280; }
 
 @media (max-width: 768px) {
     .form-grid { grid-template-columns: 1fr; }
@@ -231,10 +234,13 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
             <div class="toggle-setting" style="display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid #f3f4f6; margin-bottom:16px;">
                 <div>
                     <span style="font-weight:600; color:#374151;">Two-Factor Authentication</span>
-                    <p style="font-size:13px; color:#6b7280; margin:4px 0 0;">Add extra security to your account</p>
+                    <p style="font-size:13px; color:#6b7280; margin:4px 0 0;">Protect your account with Google Authenticator (or any TOTP app)</p>
+                    <span class="twofa-status <?php echo $staffTwoFactorEnabled ? 'on' : 'off'; ?>" id="twoFactorStatusBadge">
+                        <?php echo $staffTwoFactorEnabled ? 'Enabled' : 'Disabled'; ?>
+                    </span>
                 </div>
                 <label class="toggle-switch" style="position:relative; display:inline-block; width:46px; height:24px; flex-shrink:0;">
-                    <input type="checkbox" name="two_factor_enabled" value="1" <?php echo ($user['two_factor_enabled'] ?? 0) ? 'checked' : ''; ?>>
+                    <input type="checkbox" id="twoFactorAuth" <?php echo $staffTwoFactorEnabled ? 'checked' : ''; ?>>
                     <span class="toggle-slider"></span>
                 </label>
             </div>
@@ -261,7 +267,18 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
     </div>
 </div>
 
+<?php require_once __DIR__ . '/../../includes/partials/two_factor_modals.php'; ?>
+
 <?php require_once __DIR__ . '/../../includes/staff_layout_end.php'; ?>
+<script src="../../assets/js/two_factor_setup.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initTwoFactorSetup({
+        endpoint: '../shared/two_factor_actions.php',
+        initiallyEnabled: <?php echo $staffTwoFactorEnabled ? 'true' : 'false'; ?>
+    });
+});
+</script>
 <script>
 (function() {
     const fileInput = document.getElementById('fileInput');

@@ -7,8 +7,7 @@ require_once __DIR__ . '/../../includes/session_bootstrap.php';header('Content-T
 
 require_once '../../config/database.php';
 require_once '../../includes/audit_helper.php';
-require_once '../../lib/security/totp_lib.php';
-require_once '../../lib/security/qrcode_lib.php';
+require_once '../../includes/two_factor_actions_lib.php';
 
 // This endpoint only backs the admin settings screen, so refuse anything else.
 if (empty($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
@@ -259,145 +258,27 @@ if ($action === 'save_security_settings') {
  */
 function fetchAdminTwoFactorState(PDO $pdo, int $userId): array
 {
-    $stmt = $pdo->prepare("SELECT two_factor_enabled, two_factor_secret FROM users WHERE id = ? LIMIT 1");
-    $stmt->execute([$userId]);
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$row) {
-        return ['enabled' => false, 'secret' => null];
-    }
-    return [
-        'enabled' => (int)($row['two_factor_enabled'] ?? 0) === 1,
-        'secret' => $row['two_factor_secret'] ?? null,
-    ];
+    return fetchUserTwoFactorState($pdo, $userId);
 }
 
-if ($action === 'get_2fa_status') {
-    $state = fetchAdminTwoFactorState($pdo, (int)$auditUserId);
-    echo json_encode([
-        'success' => true,
-        'enabled' => $state['enabled'],
-        'has_secret' => totpIsValidSecret($state['secret']),
-    ]);
-    exit;
-}
-
-if ($action === 'start_2fa_setup') {
-    $state = fetchAdminTwoFactorState($pdo, (int)$auditUserId);
-    if ($state['enabled']) {
-        echo json_encode(['success' => false, 'message' => 'Two-factor authentication is already enabled.']);
-        exit;
-    }
-
-    $secret = totpGenerateSecret();
-    $_SESSION['pending_2fa_secret'] = $secret;
-    $_SESSION['pending_2fa_started_at'] = time();
-
-    $accountName = trim((string)($_SESSION['email'] ?? ''));
-    if ($accountName === '') {
-        $accountName = (string)($_SESSION['username'] ?? 'admin');
-    }
-
-    $issuer = 'RF Dental Clinic';
-    try {
-        $issuerStmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'clinic_name' LIMIT 1");
-        $issuerStmt->execute();
-        $clinicName = trim((string)$issuerStmt->fetchColumn());
-        if ($clinicName !== '') {
-            $issuer = $clinicName;
+$twoFactorActions = ['get_2fa_status', 'start_2fa_setup', 'confirm_2fa_setup', 'cancel_2fa_setup', 'disable_2fa'];
+if (in_array($action, $twoFactorActions, true)) {
+    $auditCallback = function (string $event) use ($pdo, $auditUserId, $auditUsername, $auditRole): void {
+        if ($event === 'enable') {
+            auditedUpsertSetting($pdo, 'two_factor_auth', '1', 'Enabled two-factor authentication', $auditUserId, $auditUsername, $auditRole);
+            logAudit($pdo, (int)$auditUserId, $auditUsername, $auditRole, 'update', 'users', 'Enabled authenticator-based two-factor authentication');
+            return;
         }
-    } catch (Throwable $e) {
-        // Fall back to the hardcoded issuer above.
-    }
 
-    $otpauthUri = totpProvisioningUri($secret, $accountName, $issuer);
+        auditedUpsertSetting($pdo, 'two_factor_auth', '0', 'Disabled two-factor authentication', $auditUserId, $auditUsername, $auditRole);
+        logAudit($pdo, (int)$auditUserId, $auditUsername, $auditRole, 'update', 'users', 'Disabled authenticator-based two-factor authentication');
+    };
 
-    try {
-        $qrSvg = qrCodeSvg($otpauthUri, 'M', 6, 4);
-        $qrDataUri = 'data:image/svg+xml;base64,' . base64_encode($qrSvg);
-    } catch (QrCodeException $e) {
-        unset($_SESSION['pending_2fa_secret'], $_SESSION['pending_2fa_started_at']);
-        echo json_encode(['success' => false, 'message' => 'Could not generate QR code. Please try again.']);
-        exit;
-    }
-
-    echo json_encode([
-        'success' => true,
-        'secret' => $secret,
-        'secret_display' => totpFormatSecretForDisplay($secret),
-        'otpauth_uri' => $otpauthUri,
-        'qr_svg' => $qrSvg,
-        'qr_data_uri' => $qrDataUri,
-        'account' => $accountName,
-        'issuer' => $issuer,
+    $result = handleTwoFactorAction($pdo, $action, (int)$auditUserId, $auditUsername, $auditRole, [
+        'sync_global_setting' => true,
+        'audit_callback' => $auditCallback,
     ]);
-    exit;
-}
-
-if ($action === 'confirm_2fa_setup') {
-    $code = trim((string)($_POST['code'] ?? ''));
-    $pendingSecret = (string)($_SESSION['pending_2fa_secret'] ?? '');
-    $startedAt = (int)($_SESSION['pending_2fa_started_at'] ?? 0);
-
-    if ($pendingSecret === '' || $startedAt === 0) {
-        echo json_encode(['success' => false, 'message' => 'No setup in progress. Please start again.']);
-        exit;
-    }
-
-    // Give the admin 15 minutes to scan the QR and enter a code.
-    if ((time() - $startedAt) > 900) {
-        unset($_SESSION['pending_2fa_secret'], $_SESSION['pending_2fa_started_at']);
-        echo json_encode(['success' => false, 'message' => 'Setup expired. Please start again.']);
-        exit;
-    }
-
-    if (!totpVerify($pendingSecret, $code, 1)) {
-        echo json_encode(['success' => false, 'message' => 'Invalid verification code. Please try again.']);
-        exit;
-    }
-
-    $stmt = $pdo->prepare("UPDATE users SET two_factor_enabled = 1, two_factor_secret = ? WHERE id = ? LIMIT 1");
-    $stmt->execute([$pendingSecret, (int)$auditUserId]);
-
-    // Keep the legacy settings flag in sync so existing UI reads still work.
-    auditedUpsertSetting($pdo, 'two_factor_auth', '1', 'Enabled two-factor authentication', $auditUserId, $auditUsername, $auditRole);
-    logAudit($pdo, (int)$auditUserId, $auditUsername, $auditRole, 'update', 'users', 'Enabled authenticator-based two-factor authentication');
-
-    unset($_SESSION['pending_2fa_secret'], $_SESSION['pending_2fa_started_at']);
-
-    echo json_encode(['success' => true, 'message' => 'Two-factor authentication enabled.']);
-    exit;
-}
-
-if ($action === 'cancel_2fa_setup') {
-    unset($_SESSION['pending_2fa_secret'], $_SESSION['pending_2fa_started_at']);
-    echo json_encode(['success' => true]);
-    exit;
-}
-
-if ($action === 'disable_2fa') {
-    $state = fetchAdminTwoFactorState($pdo, (int)$auditUserId);
-    if (!$state['enabled']) {
-        echo json_encode(['success' => true, 'message' => 'Two-factor authentication is already disabled.']);
-        exit;
-    }
-
-    // Require a current authenticator code so an unlocked browser session alone
-    // cannot silently disable 2FA.
-    $code = trim((string)($_POST['code'] ?? ''));
-    if (!totpIsValidSecret($state['secret']) || !totpVerify((string)$state['secret'], $code, 1)) {
-        echo json_encode(['success' => false, 'message' => 'Enter a valid authenticator code to disable 2FA.']);
-        exit;
-    }
-
-    $stmt = $pdo->prepare("UPDATE users SET two_factor_enabled = 0, two_factor_secret = NULL WHERE id = ? LIMIT 1");
-    $stmt->execute([(int)$auditUserId]);
-
-    auditedUpsertSetting($pdo, 'two_factor_auth', '0', 'Disabled two-factor authentication', $auditUserId, $auditUsername, $auditRole);
-    logAudit($pdo, (int)$auditUserId, $auditUsername, $auditRole, 'update', 'users', 'Disabled authenticator-based two-factor authentication');
-
-    unset($_SESSION['pending_2fa_secret'], $_SESSION['pending_2fa_started_at']);
-
-    echo json_encode(['success' => true, 'message' => 'Two-factor authentication disabled.']);
+    echo json_encode($result);
     exit;
 }
 
