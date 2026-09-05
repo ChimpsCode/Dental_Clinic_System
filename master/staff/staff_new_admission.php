@@ -11,7 +11,7 @@ require_once __DIR__ . '/../../includes/session_bootstrap.php';
 // Strict role validation - only staff and admin can access
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
-    header('Location: ../../login.php');
+    header('Location: ../welcome-page/login.php');
     exit();
 }
 

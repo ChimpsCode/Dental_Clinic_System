@@ -335,14 +335,14 @@ $assets = [
           <a href="#faq" class="nav-link">FAQ</a>
           <a href="#contact" class="nav-link">Contact Us</a>
           <div class="nav-actions">
-            <a class="btn btn-outline" href="login.php#register">Sign Up</a>
-            <a class="btn btn-primary" id="headerLoginBtn" href="login.php">Login</a>
+            <a class="btn btn-outline" href="login.php?form=1#register">Sign Up</a>
+            <a class="btn btn-primary" id="headerLoginBtn" href="login.php?form=1">Login</a>
           </div>
         </nav>
 
         <div class="header-actions">
-          <a class="btn btn-outline" href="login.php#register">Sign Up</a>
-          <a class="btn btn-primary" id="headerLoginBtn" href="login.php">Login</a>
+          <a class="btn btn-outline" href="login.php?form=1#register">Sign Up</a>
+          <a class="btn btn-primary" id="headerLoginBtn" href="login.php?form=1">Login</a>
         </div>
       </div>
     </header>
@@ -366,7 +366,7 @@ $assets = [
 
             <div class="hero-ctas">
               <a class="btn btn-primary btn-lg" href="#services">Explore Services</a>
-              <a class="btn btn-outline btn-lg" href="login.php#register">Sign Up</a>
+              <a class="btn btn-outline btn-lg" href="login.php?form=1#register">Sign Up</a>
             </div>
 
             <div class="appointment-card" aria-label="Book an appointment">

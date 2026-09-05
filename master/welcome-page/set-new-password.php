@@ -236,7 +236,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <button type="submit">Update Password</button>
 
                     <div class="back-link-wrapper">
-                        <a href="login.php">Back to Login</a>
+                        <a href="login.php?form=1">Back to Login</a>
                     </div>
                 </form>
             </div>

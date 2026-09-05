@@ -1,6 +1,18 @@
 <?php
 require_once __DIR__ . '/../../includes/session_bootstrap.php';
 
+$isLoginPost = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
+$explicitLogin = isset($_GET['form']) || isset($_GET['expired']) || isset($_GET['deleted']);
+$inAuthFlow = !empty($_SESSION['2fa_user_id'])
+    || !empty($_SESSION['2fa_user_data'])
+    || !empty($_SESSION['reset_user_id'])
+    || !empty($_SESSION['reset_code_verified']);
+
+if (!$isLoginPost && !$explicitLogin && !$inAuthFlow) {
+    header('Location: home.php');
+    exit();
+}
+
 require_once '../../config/database.php';
 
 // Load clinic settings
