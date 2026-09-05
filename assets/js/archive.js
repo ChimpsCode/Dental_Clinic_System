@@ -8,6 +8,9 @@
  * @date 2026-02-04
  */
 
+(function () {
+'use strict';
+
 // Current state
 let currentModule = 'patients';
 let currentPage = {
@@ -1715,7 +1718,18 @@ window.loadArchivedAppointments = loadArchivedAppointments;
 window.resetFilters = resetFilters;
 window.bulkAction = bulkAction;
 window.closeArchiveKebabDropdown = closeArchiveKebabDropdown;
+window.closeRestoreModal = closeRestoreModal;
+window.confirmBulkRestore = confirmBulkRestore;
+window.confirmRestoreById = confirmRestoreById;
+window.confirmRestore = confirmRestore;
+window.closeVerifyPasswordModal = closeVerifyPasswordModal;
+window.submitVerifyPassword = submitVerifyPassword;
+window.closeInquiryConvModal = closeInquiryConvModal;
+window.toggleSelectAll = toggleSelectAll;
+window.updateSelection = updateSelection;
 
 if (document.getElementById('archiveKebabDropdown')) {
     initArchiveKebabMenu();
 }
+
+})();

@@ -181,7 +181,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 <script>
 var SENIOR_ID_TYPES = <?php echo json_encode(seniorIdTypes()); ?>;
 var allPatients = <?php echo json_encode($patients); ?>;
-var currentPage = 1;
+var patientListPage = 1;
 var perPage = 7;
 var filteredPatients = allPatients.slice(0);
 
@@ -278,7 +278,7 @@ setInterval(function() {
 }, 8000);
 
 function applyFilters(keepPage) {
-    if (!keepPage) currentPage = 1;
+    if (!keepPage) patientListPage = 1;
     const query = document.getElementById('searchInput').value.trim().toLowerCase();
     const statusVal = document.getElementById('statusFilter').value;
 
@@ -303,8 +303,8 @@ function renderTable() {
     const tbody = document.getElementById('patientsTableBody');
     const total = filteredPatients.length;
     const totalPages = Math.max(1, Math.ceil(total / perPage));
-    if (currentPage > totalPages) currentPage = totalPages;
-    const start = (currentPage - 1) * perPage;
+    if (patientListPage > totalPages) patientListPage = totalPages;
+    const start = (patientListPage - 1) * perPage;
     const end = Math.min(start + perPage, total);
     const pageData = filteredPatients.slice(start, end);
 
@@ -350,18 +350,18 @@ function renderPagination(total, totalPages) {
     const el = document.getElementById('pagination');
     if (total === 0) { el.innerHTML = ''; return; }
 
-    const showingStart = (currentPage - 1) * perPage + 1;
-    const showingEnd = Math.min(currentPage * perPage, total);
+    const showingStart = (patientListPage - 1) * perPage + 1;
+    const showingEnd = Math.min(patientListPage * perPage, total);
 
     let html = '<span class="pagination-info">Showing ' + showingStart + '-' + showingEnd + ' of ' + total + ' patients</span><div class="pagination-buttons">';
 
-    if (currentPage > 1) {
-        html += '<a href="javascript:void(0)" onclick="changePage(' + (currentPage - 1) + ')" class="pagination-btn">Previous</a>';
+    if (patientListPage > 1) {
+        html += '<a href="javascript:void(0)" onclick="changePage(' + (patientListPage - 1) + ')" class="pagination-btn">Previous</a>';
     } else {
         html += '<button class="pagination-btn" disabled>Previous</button>';
     }
 
-    let startP = Math.max(1, currentPage - 2);
+    let startP = Math.max(1, patientListPage - 2);
     let endP = Math.min(totalPages, startP + 4);
     if (endP - startP + 1 < 5) startP = Math.max(1, endP - 4);
 
@@ -371,7 +371,7 @@ function renderPagination(total, totalPages) {
     }
 
     for (let i = startP; i <= endP; i++) {
-        if (i === currentPage) {
+        if (i === patientListPage) {
             html += '<button class="pagination-btn active">' + i + '</button>';
         } else {
             html += '<a href="javascript:void(0)" onclick="changePage(' + i + ')" class="pagination-btn">' + i + '</a>';
@@ -383,8 +383,8 @@ function renderPagination(total, totalPages) {
         html += '<a href="javascript:void(0)" onclick="changePage(' + totalPages + ')" class="pagination-btn">' + totalPages + '</a>';
     }
 
-    if (currentPage < totalPages) {
-        html += '<a href="javascript:void(0)" onclick="changePage(' + (currentPage + 1) + ')" class="pagination-btn">Next</a>';
+    if (patientListPage < totalPages) {
+        html += '<a href="javascript:void(0)" onclick="changePage(' + (patientListPage + 1) + ')" class="pagination-btn">Next</a>';
     } else {
         html += '<button class="pagination-btn" disabled>Next</button>';
     }
@@ -394,7 +394,7 @@ function renderPagination(total, totalPages) {
 }
 
 function changePage(page) {
-    currentPage = page;
+    patientListPage = page;
     renderTable();
 }
 

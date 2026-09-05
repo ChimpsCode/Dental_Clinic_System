@@ -17,32 +17,30 @@
         style.textContent = [
             '#stoOverlay{position:fixed;inset:0;z-index:2147483000;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}',
             '#stoOverlay.is-open{display:flex;}',
-            '#stoOverlay .sto-card{width:100%;max-width:420px;background:#fff;border-radius:16px;padding:28px 24px 22px;box-shadow:0 24px 60px rgba(15,23,42,.28);text-align:center;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:#0f172a;}',
-            '#stoOverlay .sto-icon{width:56px;height:56px;margin:0 auto 14px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#eff6ff;color:#2563eb;}',
-            '#stoOverlay .sto-icon.is-logout{background:#fef2f2;color:#dc2626;}',
-            '#stoOverlay .sto-title{margin:0 0 8px;font-size:1.25rem;font-weight:700;letter-spacing:-.02em;}',
-            '#stoOverlay .sto-body{margin:0 0 18px;font-size:.95rem;line-height:1.55;color:#475569;}',
-            '#stoOverlay .sto-count{font-variant-numeric:tabular-nums;font-weight:700;color:#1d4ed8;font-size:1.05em;}',
-            '#stoOverlay .sto-actions{display:flex;flex-direction:column;gap:10px;}',
-            '#stoOverlay .sto-btn{appearance:none;border:0;border-radius:10px;padding:12px 16px;font-size:.95rem;font-weight:600;cursor:pointer;transition:background .15s ease,transform .1s ease;}',
+            '#stoOverlay .sto-card{width:100%;max-width:440px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:22px 22px 18px;box-shadow:0 18px 48px rgba(15,23,42,.28);text-align:left;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:#111827;}',
+            '#stoOverlay .sto-header{display:flex;align-items:flex-start;gap:14px;}',
+            '#stoOverlay .sto-icon{flex:0 0 auto;width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:#f59e0b;}',
+            '#stoOverlay .sto-icon.is-logout{color:#dc2626;}',
+            '#stoOverlay .sto-copy{min-width:0;flex:1;}',
+            '#stoOverlay .sto-title{margin:2px 0 6px;font-size:1.05rem;font-weight:600;line-height:1.35;color:#111827;}',
+            '#stoOverlay .sto-body{margin:0;font-size:.95rem;line-height:1.5;color:#4b5563;}',
+            '#stoOverlay .sto-body[hidden]{display:none;}',
+            '#stoOverlay .sto-count{font-variant-numeric:tabular-nums;font-weight:600;color:#111827;}',
+            '#stoOverlay .sto-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;margin-top:22px;}',
+            '#stoOverlay .sto-btn{appearance:none;border-radius:8px;padding:8px 16px;font-size:.9rem;font-weight:600;cursor:pointer;transition:background .15s ease,border-color .15s ease,transform .1s ease;}',
             '#stoOverlay .sto-btn:active{transform:scale(.98);}',
-            '#stoOverlay .sto-btn-primary{background:#2563eb;color:#fff;}',
-            '#stoOverlay .sto-btn-primary:hover{background:#1d4ed8;}',
-            '#stoOverlay .sto-btn-ghost{background:transparent;color:#64748b;}',
-            '#stoOverlay .sto-btn-ghost:hover{background:#f8fafc;color:#334155;}',
-            '#stoOverlay .sto-spinner{width:28px;height:28px;margin:4px auto 12px;border:3px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:stoSpin .7s linear infinite;}',
-            '@keyframes stoSpin{to{transform:rotate(360deg);}}',
-            '@media (min-width:480px){#stoOverlay .sto-actions{flex-direction:row-reverse;}#stoOverlay .sto-btn{flex:1;}}'
+            '#stoOverlay .sto-btn-primary{background:#2563eb;border:1px solid #2563eb;color:#fff;}',
+            '#stoOverlay .sto-btn-primary:hover{background:#1d4ed8;border-color:#1d4ed8;}',
+            '#stoOverlay .sto-btn-ghost{background:#fff;border:1px solid #d1d5db;color:#111827;}',
+            '#stoOverlay .sto-btn-ghost:hover{background:#f9fafb;border-color:#9ca3af;}',
+            '#stoOverlay .sto-spinner{width:22px;height:22px;margin:10px 0 0;border:3px solid #e5e7eb;border-top-color:#2563eb;border-radius:50%;animation:stoSpin .7s linear infinite;}',
+            '@keyframes stoSpin{to{transform:rotate(360deg);}}'
         ].join('');
         document.head.appendChild(style);
     }
 
-    function clockIcon() {
-        return '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>';
-    }
-
-    function lockIcon() {
-        return '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
+    function warningIcon() {
+        return '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3.1c.58 0 1.1.31 1.38.82l8.16 14.4c.28.5.28 1.12 0 1.62A1.58 1.58 0 0 1 20.16 21H3.84a1.58 1.58 0 0 1-1.38-2.06l8.16-14.4A1.58 1.58 0 0 1 12 3.1z"/><rect x="11.1" y="8.5" width="1.8" height="6.1" rx=".9" fill="#fff"/><circle cx="12" cy="17.15" r="1.1" fill="#fff"/></svg>';
     }
 
     function formatSeconds(total) {
@@ -59,13 +57,18 @@
         overlay.setAttribute('aria-labelledby', 'stoTitle');
         overlay.innerHTML =
             '<div class="sto-card">' +
-                '<div class="sto-icon" id="stoIcon">' + clockIcon() + '</div>' +
-                '<div class="sto-spinner" id="stoSpinner" hidden></div>' +
-                '<h2 class="sto-title" id="stoTitle">Are you still there?</h2>' +
-                '<p class="sto-body" id="stoBody"></p>' +
+                '<div class="sto-header">' +
+                    '<div class="sto-icon" id="stoIcon">' + warningIcon() + '</div>' +
+                    '<div class="sto-copy">' +
+                        '<h2 class="sto-title" id="stoTitle">Your session is about to expire.</h2>' +
+                        '<p class="sto-body" id="stoBody"></p>' +
+                        '<div class="sto-spinner" id="stoSpinner" hidden></div>' +
+                    '</div>' +
+                '</div>' +
                 '<div class="sto-actions" id="stoActions">' +
-                    '<button type="button" class="sto-btn sto-btn-primary" id="stoStay">Stay logged in</button>' +
-                    '<button type="button" class="sto-btn sto-btn-ghost" id="stoLogout">Log out now</button>' +
+                    '<button type="button" class="sto-btn sto-btn-ghost" id="stoLogout">Log Out</button>' +
+                    '<button type="button" class="sto-btn sto-btn-primary" id="stoStay">Continue Session</button>' +
+                    '<button type="button" class="sto-btn sto-btn-primary" id="stoOk" hidden>OK</button>' +
                 '</div>' +
             '</div>';
         document.body.appendChild(overlay);
@@ -98,6 +101,7 @@
         var actionsEl = overlay.querySelector('#stoActions');
         var stayBtn = overlay.querySelector('#stoStay');
         var logoutBtn = overlay.querySelector('#stoLogout');
+        var okBtn = overlay.querySelector('#stoOk');
 
         var lastActivity = Date.now();
         var idleTimer = null;
@@ -105,6 +109,7 @@
         var watchdogTimer = null;
         var warningShown = false;
         var loggingOut = false;
+        var sessionAlreadyExpired = false;
         var lastPingAt = 0;
         var loginUrl = options.loginUrl || '../../master/welcome-page/login.php?expired=1';
 
@@ -115,31 +120,39 @@
         }
 
         function setWarningCopy(secondsLeft) {
-            titleEl.textContent = 'Are you still there?';
-            bodyEl.innerHTML = 'You have been inactive. For your security, this account will be logged out in <span class="sto-count" id="stoCount" aria-live="assertive">' + formatSeconds(secondsLeft) + '</span>.';
+            titleEl.textContent = 'Your session is about to expire.';
+            bodyEl.hidden = false;
+            bodyEl.innerHTML = 'You will be logged out in <span class="sto-count" id="stoCount" aria-live="assertive">' + formatSeconds(secondsLeft) + '</span>.';
             iconEl.classList.remove('is-logout');
-            iconEl.innerHTML = clockIcon();
+            iconEl.innerHTML = warningIcon();
             iconEl.hidden = false;
             spinnerEl.hidden = true;
             actionsEl.hidden = false;
+            stayBtn.hidden = false;
+            logoutBtn.hidden = false;
+            okBtn.hidden = true;
         }
 
-        function setLogoutCopy() {
-            titleEl.textContent = 'Logging you out';
-            bodyEl.textContent = 'Your session ended due to inactivity. Taking you to the login page…';
-            iconEl.classList.add('is-logout');
-            iconEl.innerHTML = lockIcon();
-            iconEl.hidden = true;
-            spinnerEl.hidden = false;
-            actionsEl.hidden = true;
+        function setTimedOutCopy() {
+            titleEl.textContent = 'Session time out';
+            bodyEl.textContent = '';
+            bodyEl.hidden = true;
+            iconEl.classList.remove('is-logout');
+            iconEl.innerHTML = warningIcon();
+            iconEl.hidden = false;
+            spinnerEl.hidden = true;
+            actionsEl.hidden = false;
+            stayBtn.hidden = true;
+            logoutBtn.hidden = true;
+            okBtn.hidden = false;
         }
 
-        function openOverlay() {
+        function openOverlay(focusEl) {
             if (!overlay.isConnected) {
                 document.body.appendChild(overlay);
             }
             overlay.classList.add('is-open');
-            try { stayBtn.focus(); } catch (e) {}
+            try { (focusEl || stayBtn).focus(); } catch (e) {}
         }
 
         function closeOverlay() {
@@ -169,16 +182,18 @@
             return logoutAfterMs - (Date.now() - lastActivity);
         }
 
+        function goToLogin(alreadyExpired) {
+            global.location.href = alreadyExpired ? loginUrl : logoutUrl;
+        }
+
         function beginLogout(alreadyExpired) {
             if (loggingOut) return;
             loggingOut = true;
             warningShown = true;
+            sessionAlreadyExpired = !!alreadyExpired;
             clearTimers();
-            setLogoutCopy();
-            openOverlay();
-            setTimeout(function () {
-                global.location.href = alreadyExpired ? loginUrl : logoutUrl;
-            }, 1400);
+            setTimedOutCopy();
+            openOverlay(okBtn);
         }
 
         function showWarning() {
@@ -256,7 +271,17 @@
         logoutBtn.addEventListener('click', function (e) {
             e.preventDefault();
             e.stopPropagation();
-            beginLogout(false);
+            if (loggingOut) return;
+            loggingOut = true;
+            warningShown = true;
+            clearTimers();
+            goToLogin(false);
+        });
+
+        okBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            goToLogin(sessionAlreadyExpired);
         });
 
         ['click', 'mousemove', 'keydown', 'scroll', 'touchstart'].forEach(function (evt) {

@@ -676,6 +676,6 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
 </div>
 
-<script src="../../assets/js/archive.js?v=5"></script>
+<script src="../../assets/js/archive.js?v=7"></script>
 
 <?php require_once __DIR__ . '/../../includes/admin_layout_end.php'; ?>
