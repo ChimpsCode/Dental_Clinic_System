@@ -462,20 +462,26 @@ elseif ($appointmentId) {
                     <!-- Section 1: Personal Details -->
                     <section>
                         <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Personal Details</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div class="md:col-span-1">
+                        <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                            <div class="md:col-span-3">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">First Name <span class="text-red-500">*</span></label>
                                 <input type="text" name="firstName" value="<?php echo htmlspecialchars($inquiryData['first_name'] ?? $patientFromAppointment['first_name'] ?? $appointmentData['first_name'] ?? ''); ?>" pattern="[\p{L}\s'\-]*" title="Use only letters, spaces, hyphens, and apostrophes" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Juan">
                             </div>
-                            <div class="md:col-span-1">
+                            <div class="md:col-span-4">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Middle Name</label>
-                                <input type="text" name="middleName" value="<?php echo htmlspecialchars($inquiryData['middle_name'] ?? $patientFromAppointment['middle_name'] ?? $appointmentData['middle_name'] ?? ''); ?>" pattern="[\p{L}\s'\-]*" title="Use only letters, spaces, hyphens, and apostrophes" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="">
+                                <div class="flex items-center gap-2">
+                                    <input type="text" name="middleName" id="middleNameInput" value="<?php echo htmlspecialchars($inquiryData['middle_name'] ?? $patientFromAppointment['middle_name'] ?? $appointmentData['middle_name'] ?? ''); ?>" pattern="[\p{L}\s'\-]*" title="Use only letters, spaces, hyphens, and apostrophes" class="min-w-0 flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="">
+                                    <label class="flex items-center gap-1.5 shrink-0 text-xs text-slate-600 whitespace-nowrap cursor-pointer select-none">
+                                        <input type="checkbox" name="no_middle_name" id="noMiddleName" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" onchange="toggleNoMiddleName()">
+                                        No middle name
+                                    </label>
+                                </div>
                             </div>
-                            <div class="md:col-span-1">
+                            <div class="md:col-span-3">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Last Name <span class="text-red-500">*</span></label>
                                 <input type="text" name="lastName" value="<?php echo htmlspecialchars($inquiryData['last_name'] ?? $patientFromAppointment['last_name'] ?? $appointmentData['last_name'] ?? ''); ?>" pattern="[\p{L}\s'\-]*" title="Use only letters, spaces, hyphens, and apostrophes" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Dela Cruz">
                             </div>
-                            <div class="md:col-span-1">
+                            <div class="md:col-span-2">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Suffix</label>
                                 <input type="text" name="suffix" value="<?php echo htmlspecialchars($patientFromAppointment['suffix'] ?? $appointmentData['suffix'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Jr.">
                             </div>
@@ -1153,10 +1159,15 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
             const mobile = document.querySelector('input[name="mobileNumber"]').value.trim();
             const validationMessage = document.getElementById('patientInfoValidation');
 
+            const noMiddleName = document.getElementById('noMiddleName');
+            const middleNameValue = (noMiddleName && noMiddleName.checked)
+                ? ''
+                : document.querySelector('input[name="middleName"]').value.trim();
+
             const allowlist = /^[\p{L}\s'-]*$/u;
             const allowlistedFields = [
                 ['First Name', firstName],
-                ['Middle Name', document.querySelector('input[name="middleName"]').value.trim()],
+                ['Middle Name', middleNameValue],
                 ['Last Name', lastName],
                 ['Home Address', document.querySelector('input[name="address"]').value.trim()],
                 ['City', document.querySelector('input[name="city"]').value.trim()],
@@ -1735,6 +1746,22 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
             }
         }
 
+        function toggleNoMiddleName() {
+            const checkbox = document.getElementById('noMiddleName');
+            const input = document.getElementById('middleNameInput');
+            if (!checkbox || !input) return;
+
+            if (checkbox.checked) {
+                input.value = '';
+                input.disabled = true;
+                input.classList.add('bg-gray-50', 'cursor-not-allowed');
+            } else {
+                input.disabled = false;
+                input.classList.remove('bg-gray-50', 'cursor-not-allowed');
+                input.focus();
+            }
+        }
+
         // Listen for birthdate change to auto-calculate age
         document.addEventListener('DOMContentLoaded', function() {
             const birthdateInput = document.querySelector('input[name="birthdate"]');
@@ -1748,7 +1775,19 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
 
         function handleSubmit() {
     const form = document.getElementById('admissionForm');
+    const noMiddleName = document.getElementById('noMiddleName');
+    const middleNameInput = document.getElementById('middleNameInput');
+    if (noMiddleName && noMiddleName.checked && middleNameInput) {
+        middleNameInput.disabled = false;
+        middleNameInput.value = '';
+    }
     const formData = new FormData(form);
+    if (noMiddleName && noMiddleName.checked) {
+        formData.set('middleName', '');
+        if (middleNameInput) {
+            middleNameInput.disabled = true;
+        }
+    }
     
     // This grabs the appointment_id from the browser URL (?appointment_id=XX)
     const urlParams = new URLSearchParams(window.location.search);
