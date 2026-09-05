@@ -1623,6 +1623,12 @@ $pageTitle = 'Patient Dashboard';
                 <?php endif; ?>
                 <?php endforeach; ?>
             <?php endif; ?>
+            <div id="patientDashboardStaffTyping" class="message-row left typing-message-row" style="display:none;" aria-hidden="true">
+                <img src="<?php echo htmlspecialchars($inquiryClinicAvatar); ?>" alt="">
+                <div class="typing-bubble">
+                    <span class="typing-dots" aria-label="Staff is typing"><span></span><span></span><span></span></span>
+                </div>
+            </div>
         </div>
         <form id="inquiryChatForm">
             <input type="hidden" name="action" value="create">
@@ -1722,8 +1728,8 @@ $pageTitle = 'Patient Dashboard';
             color:#64748b; font-size:18px; cursor:pointer;
         }
         #inquiryChatPanel .chat-input-icon:hover { background:#e8eef7; color:#2563eb; }
-        #inquiryChatPanel .typing-message-row { align-items:center; gap:8px; }
-        #inquiryChatPanel .typing-message-row > img { width:34px!important; height:34px!important; flex:0 0 34px; border-radius:50%; object-fit:cover; }
+        #inquiryChatPanel .typing-message-row { align-items:flex-end; gap:8px; }
+        #inquiryChatPanel .typing-message-row > img { width:34px!important; height:34px!important; flex:0 0 34px; border-radius:50%; object-fit:cover; border:1px solid #dbe3ee; background:#fff; }
         #inquiryChatPanel .typing-bubble { display:flex; align-items:center; min-width:54px; min-height:38px; padding:10px 14px; border-radius:19px; border-bottom-left-radius:6px; background:#e2e8f0; }
         #inquiryChatPanel .typing-dots { display:inline-flex; gap:4px; align-items:center; }
         #inquiryChatPanel .typing-dots span { width:7px; height:7px; border-radius:50%; background:#64748b; animation:patientDashTyping 1.1s infinite ease-in-out; }
@@ -1850,6 +1856,7 @@ $pageTitle = 'Patient Dashboard';
             var typingState = 0;
             var typingTimer = null;
             var typingSentAt = 0;
+            var conversationPollTimer = null;
             var infoBtn = document.getElementById('patientChatInfoBtn');
             var infoPanel = document.getElementById('patientChatInfoPanel');
             var infoBack = document.getElementById('patientChatInfoBack');
@@ -2007,7 +2014,12 @@ $pageTitle = 'Patient Dashboard';
                 }
                 var emptyState = messagesList.querySelector('.inquiry-empty-state');
                 if (emptyState) emptyState.remove();
-                messagesList.appendChild(div);
+                var typingRow = document.getElementById('patientDashboardStaffTyping');
+                if (typingRow) {
+                    messagesList.insertBefore(div, typingRow);
+                } else {
+                    messagesList.appendChild(div);
+                }
                 scrollToBottom();
             }
 
@@ -2029,16 +2041,12 @@ $pageTitle = 'Patient Dashboard';
 
             function showStaffTyping(visible) {
                 var indicator = document.getElementById('patientDashboardStaffTyping');
-                if (!indicator && visible) {
-                    indicator = document.createElement('div');
-                    indicator.id = 'patientDashboardStaffTyping';
-                    indicator.className = 'message-row left typing-message-row';
-                    indicator.innerHTML = '<img src="<?php echo addslashes($inquiryClinicAvatar); ?>" alt="Staff"><div class="typing-bubble"><span class="typing-dots" aria-label="Staff is typing"><span></span><span></span><span></span></span></div>';
+                if (!indicator) return;
+                indicator.style.display = visible ? 'flex' : 'none';
+                indicator.setAttribute('aria-hidden', visible ? 'false' : 'true');
+                if (visible) {
                     messagesList.appendChild(indicator);
-                }
-                if (indicator) {
-                    indicator.style.display = visible ? 'flex' : 'none';
-                    if (visible) scrollToBottom();
+                    scrollToBottom();
                 }
             }
 
@@ -2108,6 +2116,7 @@ $pageTitle = 'Patient Dashboard';
                             sendTypingState(0);
                             if (data.inquiry_id) {
                                 activeInquiryId = Number(data.inquiry_id);
+                                startConversationPolling();
                             }
                             inquiryStatus = 'Unread';
                             appendMessage('patient', message, new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), data.attachment || '', data.reply_id || null);
@@ -2151,9 +2160,13 @@ $pageTitle = 'Patient Dashboard';
             if (infoBack) infoBack.addEventListener('click', closeInfoPanel);
             if (mediaToggle) mediaToggle.addEventListener('click', toggleMediaPanel);
 
-            if (activeInquiryId) {
-                setInterval(pollConversation, 3000);
+            function startConversationPolling() {
+                if (conversationPollTimer || !activeInquiryId) return;
+                pollConversation();
+                conversationPollTimer = setInterval(pollConversation, 2000);
             }
+
+            startConversationPolling();
         })();
     </script>
     <?php

@@ -1784,15 +1784,15 @@ try {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert(data.message || 'Appointment approved');
                     refreshAppointmentsAjax();
+                    showAppointmentNoticeModal(data.message || 'Appointment approved', { title: 'Appointment approved' });
                 } else {
-                    alert(data.message || 'Error approving appointment');
+                    showAppointmentNoticeModal(data.message || 'Error approving appointment', { error: true, title: 'Could not approve' });
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Something went wrong. Please try again.');
+                showAppointmentNoticeModal('Something went wrong. Please try again.', { error: true });
             });
         });
     }
@@ -1807,15 +1807,15 @@ try {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert(data.message || 'Appointment request declined');
                     refreshAppointmentsAjax();
+                    showAppointmentNoticeModal(data.message || 'Appointment request declined', { title: 'Appointment declined' });
                 } else {
-                    alert(data.message || 'Error declining appointment');
+                    showAppointmentNoticeModal(data.message || 'Error declining appointment', { error: true, title: 'Could not decline' });
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Something went wrong. Please try again.');
+                showAppointmentNoticeModal('Something went wrong. Please try again.', { error: true });
             });
         });
     }
