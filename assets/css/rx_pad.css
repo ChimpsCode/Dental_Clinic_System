@@ -98,6 +98,7 @@
     flex: 1;
 }
 
+<<<<<<< HEAD
 .rx-paper .rx-underline {
     flex: 1;
     min-width: 48px;
@@ -106,6 +107,33 @@
     font-weight: 600;
     padding: 0 4px;
     line-height: 1.2;
+=======
+.rx-paper .rx-underline,
+.rx-paper .rx-input {
+    flex: 1;
+    min-width: 48px;
+    border: none;
+    border-bottom: 1px solid var(--rx-ink);
+    border-radius: 0;
+    background: transparent;
+    min-height: 22px;
+    font: inherit;
+    font-weight: 600;
+    color: var(--rx-ink);
+    padding: 0 4px 2px;
+    line-height: 1.2;
+    outline: none;
+}
+
+.rx-paper .rx-input:focus {
+    border-bottom-color: #2563eb;
+    box-shadow: none;
+}
+
+.rx-paper label {
+    font-weight: 700;
+    margin: 0;
+>>>>>>> 6af0dfb (prescription typable  ✓)
 }
 
 .rx-paper .rx-age { width: 70px; flex: 0 0 70px; }
@@ -133,13 +161,40 @@
     padding-top: 10px;
 }
 
+<<<<<<< HEAD
 .rx-paper .rx-med-item {
+=======
+.rx-paper .rx-med-item,
+.rx-paper .rx-textarea {
+>>>>>>> 6af0dfb (prescription typable  ✓)
     font-size: 14px;
     font-weight: 600;
     line-height: 1.55;
     margin-bottom: 10px;
 }
 
+<<<<<<< HEAD
+=======
+.rx-paper .rx-textarea {
+    width: 100%;
+    min-height: 280px;
+    resize: vertical;
+    border: none;
+    background: transparent;
+    color: var(--rx-ink);
+    font: inherit;
+    font-weight: 600;
+    outline: none;
+    padding: 4px 0;
+}
+
+.rx-paper .rx-notes-input {
+    min-height: 72px;
+    margin-top: 8px;
+    font-size: 13px;
+}
+
+>>>>>>> 6af0dfb (prescription typable  ✓)
 .rx-paper .rx-notes {
     font-size: 13px;
     font-weight: 600;
@@ -171,11 +226,26 @@
     min-width: 230px;
 }
 
+<<<<<<< HEAD
 .rx-paper .rx-sign-line {
     border-bottom: 1px solid var(--rx-ink);
     min-height: 28px;
     margin-bottom: 4px;
     font-weight: 700;
+=======
+.rx-paper .rx-sign-line,
+.rx-paper .rx-sign-input {
+    border: none;
+    border-bottom: 1px solid var(--rx-ink);
+    background: transparent;
+    min-height: 28px;
+    margin-bottom: 4px;
+    font-weight: 700;
+    width: 100%;
+    text-align: center;
+    color: var(--rx-ink);
+    outline: none;
+>>>>>>> 6af0dfb (prescription typable  ✓)
 }
 
 .rx-paper .rx-sign-caption {
@@ -207,4 +277,13 @@
         min-height: auto;
         padding: 0;
     }
+<<<<<<< HEAD
+=======
+    .rx-paper .rx-input,
+    .rx-paper .rx-textarea {
+        border: none;
+        border-bottom: 1px solid var(--rx-ink);
+        box-shadow: none;
+    }
+>>>>>>> 6af0dfb (prescription typable  ✓)
 }
