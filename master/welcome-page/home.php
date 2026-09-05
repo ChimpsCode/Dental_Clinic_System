@@ -842,18 +842,25 @@ $assets = [
         }
 
         function showContactSuccess(msg, link) {
-          successToast.innerHTML = msg + '<br><button id="copyLinkBtn" style="margin-top:12px;background:rgba(255,255,255,0.2);border:2px solid rgba(255,255,255,0.4);color:#fff;padding:8px 20px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;">Copy Link</button>';
+          if (successToastTimer) {
+            clearTimeout(successToastTimer);
+            successToastTimer = null;
+          }
+          successToast.innerHTML = msg + '<br><button id="copyLinkBtn" type="button" style="margin-top:12px;background:rgba(255,255,255,0.2);border:2px solid rgba(255,255,255,0.4);color:#fff;padding:8px 20px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;">Copy Link</button>';
           successToast.classList.add('show');
+          successToast.style.display = 'block';
           successToast.style.cursor = 'default';
           var btn = document.getElementById('copyLinkBtn');
           if (btn) {
             btn._link = link;
-            btn.onclick = function() {
+            btn.onclick = function(e) {
+              e.preventDefault();
+              e.stopPropagation();
               copyConversationLink(this._link);
+              successToast.classList.remove('show');
+              successToast.style.display = 'none';
             };
           }
-          if (successToastTimer) clearTimeout(successToastTimer);
-          successToastTimer = setTimeout(function() { successToast.classList.remove('show'); }, 4000);
         }
 
         function copyConversationLink(link) {
@@ -2514,7 +2521,7 @@ $assets = [
         left: 50%;
         transform: translateX(-50%);
         z-index: 12000;
-        background: #2e7d32;
+        background: linear-gradient(135deg, #0059a3, #005daa);
         color: #fff;
         padding: 16px 24px;
         border-radius: 12px;
@@ -2524,7 +2531,7 @@ $assets = [
         text-align: center;
         animation: toastFadeIn 0.3s ease;
       }
-      .booking-success-toast.show { display: block; }
+      .booking-success-toast.show { display: block !important; }
       @keyframes toastFadeIn {
         from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
         to { opacity: 1; transform: translateX(-50%) translateY(0); }
