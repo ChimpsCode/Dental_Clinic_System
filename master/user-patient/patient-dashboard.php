@@ -142,6 +142,7 @@ try {
     $queueStatusText = 'No active queue today';
     $queueNumberText = 'None';
     $billingSummaryText = 'No balance';
+    $billingDueText = '';
     $recentActivity = [];
 
     $hasInquiries = (bool)$pdo->query("SHOW TABLES LIKE 'inquiries'")->fetch(PDO::FETCH_ASSOC);
@@ -234,6 +235,7 @@ try {
     $queueNumberText = $dashboardStatus['queue_number'];
     $queueStatusText = $dashboardStatus['queue_status'];
     $billingSummaryText = $dashboardStatus['billing_summary'];
+    $billingDueText = $dashboardStatus['billing_due'] ?? '';
 
     if (count($recentActivity) < 4) {
         foreach ($appointments as $apt) {
@@ -259,6 +261,7 @@ try {
     $queueStatusText = 'No active queue today';
     $queueNumberText = 'None';
     $billingSummaryText = 'No balance';
+    $billingDueText = '';
     $recentActivity = [];
     $inquiryActiveId = null;
     $inquiryMessages = [];
@@ -599,6 +602,13 @@ $pageTitle = 'Patient Dashboard';
             font-weight: 700;
             color: #1a1a2e;
             margin-bottom: 6px;
+        }
+
+        .summary-card-due {
+            font-size: 13px;
+            font-weight: 600;
+            color: #ea580c;
+            margin: -2px 0 8px;
         }
 
         .summary-card-subtext {
@@ -1086,6 +1096,10 @@ $pageTitle = 'Patient Dashboard';
                 font-size: 1.35rem;
             }
 
+            .summary-card-due {
+                font-size: 11px;
+            }
+
             .summary-card-subtext {
                 font-size: 11px;
             }
@@ -1253,6 +1267,7 @@ $pageTitle = 'Patient Dashboard';
                         <div class="summary-card-icon"><i class="fas fa-credit-card"></i></div>
                     </div>
                     <div class="summary-card-value" id="billingSummaryValue"><?php echo htmlspecialchars($billingSummaryText); ?></div>
+                    <div class="summary-card-due" id="billingDueValue"<?php echo $billingDueText === '' ? ' hidden' : ''; ?>><?php echo htmlspecialchars($billingDueText); ?></div>
                     <div class="summary-card-subtext">Latest balance overview from your billing records.</div>
                 </article>
             </section>
@@ -2126,6 +2141,7 @@ $pageTitle = 'Patient Dashboard';
             var queueNumberEl = document.getElementById('queueNumberValue');
             var queueStatusEl = document.getElementById('queueStatusSubtext');
             var billingEl = document.getElementById('billingSummaryValue');
+            var billingDueEl = document.getElementById('billingDueValue');
             if (!queueNumberEl || !queueStatusEl) return;
 
             function applyDashboardStatus(data) {
@@ -2138,6 +2154,10 @@ $pageTitle = 'Patient Dashboard';
                 }
                 if (billingEl && typeof data.billing_summary === 'string') {
                     billingEl.textContent = data.billing_summary;
+                }
+                if (billingDueEl && typeof data.billing_due === 'string') {
+                    billingDueEl.textContent = data.billing_due;
+                    billingDueEl.hidden = data.billing_due === '';
                 }
             }
 

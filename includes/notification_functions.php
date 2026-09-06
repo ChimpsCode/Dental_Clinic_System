@@ -599,6 +599,25 @@ function notifyPatientPaymentRecorded(PDO $pdo, int $patientId, float $amount, s
     return true;
 }
 
+/**
+ * Notify patient when staff sets or changes a billing due date.
+ */
+function notifyPatientDueDateSet(PDO $pdo, int $patientId, int $billingId, string $dueDate, float $balance): bool
+{
+    $userId = getUserIdForPatient($pdo, $patientId);
+    if (!$userId) {
+        notifLog("notifyPatientDueDateSet: no user_id for patient_id={$patientId}");
+        return false;
+    }
+    $invoice = 'INV-' . str_pad((string)$billingId, 4, '0', STR_PAD_LEFT);
+    $dueLabel = date('M j, Y', strtotime($dueDate));
+    $title = 'Payment due';
+    $message = "{$invoice} has a payment of ₱" . number_format($balance, 2) . " due by {$dueLabel}. Please settle your balance at the clinic.";
+    notifLog("notifyPatientDueDateSet: user_id={$userId} patient_id={$patientId} billing_id={$billingId} due={$dueDate} balance={$balance}");
+    createNotification($pdo, $userId, 'payment', $title, $message, 'billing.php');
+    return true;
+}
+
 function checkAndNotifyOverduePayments(PDO $pdo): void
 {
     try {

@@ -112,10 +112,21 @@ try {
     $totalPaid = 0;
     $totalPending = 0;
     $totalAmount = 0;
+    $nearestDueDate = null;
+    $nearestDueBalance = 0;
     foreach ($billings as $b) {
         $totalAmount += floatval($b['total_amount'] ?? 0);
         $totalPaid += floatval($b['paid_amount'] ?? 0);
-        $totalPending += floatval($b['balance'] ?? 0);
+        $balanceVal = floatval($b['balance'] ?? 0);
+        $totalPending += $balanceVal;
+        $statusLower = strtolower((string)($b['payment_status'] ?? 'unpaid'));
+        $dueVal = $b['due_date'] ?? '';
+        if ($balanceVal > 0 && $statusLower !== 'paid' && !empty($dueVal)) {
+            if ($nearestDueDate === null || $dueVal < $nearestDueDate) {
+                $nearestDueDate = $dueVal;
+                $nearestDueBalance = $balanceVal;
+            }
+        }
     }
     
 } catch (Exception $e) {
@@ -125,6 +136,8 @@ try {
     $totalPaid = 0;
     $totalPending = 0;
     $totalAmount = 0;
+    $nearestDueDate = null;
+    $nearestDueBalance = 0;
 }
 
 $pageTitle = 'Billing';
@@ -191,6 +204,12 @@ $pageTitle = 'Billing';
         .empty-state i { font-size: 48px; margin-bottom: 16px; color: #d1d5db; }
         .empty-state h3 { font-size: 18px; color: #374151; margin-bottom: 8px; }
         .amount { font-weight: 600; color: #1a1a2e; }
+        .due-banner { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 20px; padding: 14px 16px; border-radius: 10px; background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; font-size: 14px; line-height: 1.5; }
+        .due-banner i { margin-top: 2px; }
+        .due-date-overdue { color: #dc2626; font-weight: 600; }
+        .due-date-today { color: #d97706; font-weight: 600; }
+        .due-date-upcoming { color: #374151; font-weight: 500; }
+        .due-date-empty { color: #9ca3af; }
         @media (max-width: 768px) {
             .sidebar { width: 60px; padding: 24px 0; }
             .sidebar-brand span, .menu-item span { display: none; }
@@ -315,12 +334,19 @@ $pageTitle = 'Billing';
 
             <div class="section">
                 <h2 class="section-title">Billing History</h2>
+                <?php if (!empty($nearestDueDate) && $nearestDueBalance > 0): ?>
+                    <div class="due-banner">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span>You have ₱<?php echo number_format($nearestDueBalance, 2); ?> due by <?php echo date('M j, Y', strtotime($nearestDueDate)); ?>. Please settle your balance at the clinic.</span>
+                    </div>
+                <?php endif; ?>
                 <?php if (!empty($billings)): ?>
                     <table class="invoice-table">
                         <thead>
                             <tr>
                                 <th>Invoice #</th>
                                 <th>Date</th>
+                                <th>Due Date</th>
                                 <th>Treatment</th>
                                 <th>Amount</th>
                                 <th>Paid</th>
@@ -339,10 +365,26 @@ $pageTitle = 'Billing';
                                     $hasDiscount = !empty($b['discount_amount']) && floatval($b['discount_amount']) > 0;
                                     $subtotal = floatval($b['subtotal_amount'] ?? 0);
                                     $totalAmt = floatval($b['total_amount'] ?? 0);
+                                    $rowPaid = strtolower((string)($b['payment_status'] ?? '')) === 'paid' || floatval($b['balance'] ?? 0) <= 0;
+                                    $dueRaw = $b['due_date'] ?? '';
+                                    $dueHtml = '<span class="due-date-empty">—</span>';
+                                    if (!$rowPaid && !empty($dueRaw)) {
+                                        $dueTs = strtotime($dueRaw);
+                                        $todayTs = strtotime(date('Y-m-d'));
+                                        $dueLabel = date('M j, Y', $dueTs);
+                                        if ($dueTs < $todayTs) {
+                                            $dueHtml = '<span class="due-date-overdue">' . htmlspecialchars($dueLabel) . ' (Overdue)</span>';
+                                        } elseif ($dueTs === $todayTs) {
+                                            $dueHtml = '<span class="due-date-today">' . htmlspecialchars($dueLabel) . ' (Due today)</span>';
+                                        } else {
+                                            $dueHtml = '<span class="due-date-upcoming">' . htmlspecialchars($dueLabel) . '</span>';
+                                        }
+                                    }
                                 ?>
                                 <tr>
                                     <td class="invoice-id"><?php echo htmlspecialchars($b['invoice_number']); ?></td>
                                     <td><?php echo date('M j, Y', strtotime($b['billing_date'])); ?></td>
+                                    <td><?php echo $dueHtml; ?></td>
                                     <td>
                                         <?php echo htmlspecialchars($treatmentDisplay); ?>
                                         <?php if ($hasDiscount): ?>

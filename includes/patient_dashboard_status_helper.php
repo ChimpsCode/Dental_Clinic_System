@@ -89,6 +89,33 @@ function getPatientOutstandingBalance(PDO $pdo, $patientId): float
     }
 }
 
+function getPatientNextDueDateLabel(PDO $pdo, $patientId): string
+{
+    if (empty($patientId)) {
+        return '';
+    }
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT MIN(due_date) AS next_due
+            FROM billing
+            WHERE patient_id = ?
+              AND due_date IS NOT NULL
+              AND due_date != ''
+              AND COALESCE(balance, 0) > 0
+              AND LOWER(COALESCE(payment_status, 'unpaid')) != 'paid'
+        ");
+        $stmt->execute([$patientId]);
+        $nextDue = $stmt->fetchColumn();
+        if ($nextDue) {
+            return 'due ' . date('M j', strtotime($nextDue));
+        }
+    } catch (Exception $e) {
+        return '';
+    }
+    return '';
+}
+
 function getPatientBillingSummaryText(PDO $pdo, $patientId): string
 {
     $outstanding = getPatientOutstandingBalance($pdo, $patientId);
@@ -105,5 +132,6 @@ function getPatientDashboardStatusPayload(PDO $pdo, $patientId): array
         'queue_number' => $queue['queue_number'],
         'queue_status' => $queue['queue_status'],
         'billing_summary' => getPatientBillingSummaryText($pdo, $patientId),
+        'billing_due' => getPatientNextDueDateLabel($pdo, $patientId),
     ];
 }

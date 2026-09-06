@@ -155,3 +155,12 @@
 2026-09-06 15:50:59 | billing_actions: notifyPatientPaymentRecorded OK for patient_id=107 amount=200 method=cash
 2026-09-06 15:51:57 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
 2026-09-06 15:52:23 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
+2026-09-06 16:31:26 | notifyPatientDueDateSet: user_id=58 patient_id=107 billing_id=78 due=2026-09-07 balance=600
+2026-09-06 16:31:27 | createNotification OK: id=304 user_id=58 type=payment title=Payment due
+2026-09-06 16:32:02 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
+2026-09-06 16:32:20 | notifyPatientDueDateSet: user_id=58 patient_id=107 billing_id=78 due=2026-09-06 balance=600
+2026-09-06 16:32:20 | createNotification OK: id=305 user_id=58 type=payment title=Payment due
+2026-09-06 16:32:23 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
+2026-09-06 16:35:28 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-09-06 16:37:07 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
+2026-09-06 16:40:26 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'

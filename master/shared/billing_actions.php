@@ -183,7 +183,7 @@ try {
                 exit;
             }
 
-            $stmt = $pdo->prepare("SELECT patient_id FROM billing WHERE id = ?");
+            $stmt = $pdo->prepare("SELECT patient_id, due_date, balance FROM billing WHERE id = ?");
             $stmt->execute([$billing_id]);
             $billing = $stmt->fetch();
 
@@ -194,11 +194,23 @@ try {
             }
 
             $patient_name = getPatientName($pdo, $billing['patient_id']);
+            $previousDue = !empty($billing['due_date']) ? date('Y-m-d', strtotime($billing['due_date'])) : '';
+            $newDue = date('Y-m-d', strtotime($due_date));
 
             $stmt = $pdo->prepare("UPDATE billing SET due_date = ?, updated_at = NOW() WHERE id = ?");
             $stmt->execute([$due_date, $billing_id]);
 
             logAudit($pdo, $current_user_id, $current_username, $current_role, 'update', 'billing', 'Set due date to ' . $due_date . ' for patient: ' . $patient_name . ' (INV-' . str_pad($billing_id, 3, '0', STR_PAD_LEFT) . ')', $billing_id, 'billing', null, $due_date);
+
+            if ($previousDue !== $newDue) {
+                notifyPatientDueDateSet(
+                    $pdo,
+                    (int)$billing['patient_id'],
+                    (int)$billing_id,
+                    $newDue,
+                    (float)($billing['balance'] ?? 0)
+                );
+            }
 
             $response['success'] = true;
             $response['message'] = 'Due date set successfully';
