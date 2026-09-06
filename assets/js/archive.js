@@ -1661,7 +1661,7 @@ function showSuccess(message) {
     setTimeout(() => {
         toast.style.animation = 'slideOut 0.3s ease';
         setTimeout(() => toast.remove(), 300);
-    }, 3000);
+    }, 2000);
 }
 
 /**
@@ -1688,7 +1688,7 @@ function showError(message) {
     setTimeout(() => {
         toast.style.animation = 'slideOut 0.3s ease';
         setTimeout(() => toast.remove(), 300);
-    }, 5000);
+    }, 2000);
 }
 
 // Add CSS animations
