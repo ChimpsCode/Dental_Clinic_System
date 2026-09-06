@@ -330,7 +330,7 @@ if (
 
                 <div class="form-links" style="margin-top: 16px; justify-content: center;">
                     <span>Remembered your password? </span>
-                    <a href="login.php" class="link">Back to login</a>
+                    <a href="login.php?form=1" class="link">Back to login</a>
                 </div>
             </div>
         </div>

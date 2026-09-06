@@ -973,7 +973,7 @@ $pageTitle = 'Messages';
     </html>
     <?php exit; endif; ?>
 
-    <aside class="sidebar">
+    <aside class="sidebar" id="patientSidebar">
         <div class="sidebar-brand">
             <img src="../../assets/images/Logo.png" alt="RF Dental Clinic">
             <span>RF Dental</span>
@@ -1014,12 +1014,16 @@ $pageTitle = 'Messages';
             </a>
         </nav>
     </aside>
+    <?php include '../../includes/patient_sidebar_overlay.php'; ?>
 
     <div class="main-wrapper">
         <header class="dashboard-header">
             <div class="header-left">
+                <?php include '../../includes/patient_menu_toggle.php'; ?>
+                <div>
                 <h1 style="font-size: 20px; font-weight: 700; color: #1a1a2e; margin: 0;">Messages</h1>
                 <p style="font-size: 13px; color: #6b7280; margin: 4px 0 0 0;">Send messages to the clinic and view your correspondence</p>
+                </div>
             </div>
             <div class="header-right">
                 <?php include '../../includes/patient_notification_widget.php'; ?>

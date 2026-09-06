@@ -77,7 +77,7 @@ try {
                 SELECT * FROM notifications 
                 WHERE user_id = ? 
                 ORDER BY created_at DESC 
-                LIMIT 5
+                LIMIT 20
             ");
             $notifStmt->execute([$userId]);
             $notifications = $notifStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -177,6 +177,7 @@ function isActivePage($page) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($pageTitle); ?> - RF Dental Clinic Admin</title>
     <link rel="icon" type="image/png" href="<?php echo htmlspecialchars($dynamicLogo); ?>">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../assets/css/dashboard.css">
     <link rel="stylesheet" href="../../assets/css/admin.css">
     <link rel="stylesheet" href="../../assets/css/appointments.css">
@@ -265,6 +266,65 @@ function isActivePage($page) {
         .dashboard-inquiry-fab-badge:not([hidden]) {
             display: inline-flex;
         }
+
+        .notif-wrapper { position: relative; }
+        .notif-bell-btn {
+            position: relative; background: none; border: none; cursor: pointer;
+            font-size: 20px; color: #6b7280; padding: 6px; border-radius: 8px;
+            transition: background 0.15s, color 0.15s;
+        }
+        .notif-bell-btn:hover { background: #f3f4f6; color: #1f2937; }
+        .notif-badge {
+            position: absolute; top: 0; right: 0; min-width: 18px; height: 18px;
+            background: #ef4444; color: #fff; font-size: 10px; font-weight: 700;
+            border-radius: 999px; display: inline-flex; align-items: center;
+            justify-content: center; padding: 0 4px; line-height: 1;
+            pointer-events: none; transform: translate(40%, -30%);
+        }
+        .notif-badge[hidden] { display: none; }
+        .notif-dropdown {
+            display: none; position: absolute; top: calc(100% + 8px); right: 0;
+            width: 370px; max-height: 440px; background: #fff; border: 1px solid #e5e7eb;
+            border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.12); z-index: 99998;
+            overflow: hidden; flex-direction: column;
+        }
+        .notif-dropdown.open { display: flex; }
+        .notif-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 16px; border-bottom: 1px solid #f3f4f6;
+        }
+        .notif-header h4 { margin: 0; font-size: 15px; font-weight: 700; color: #1f2937; }
+        .notif-mark-all {
+            background: none; border: none; color: #2563eb; font-size: 12px;
+            font-weight: 600; cursor: pointer; padding: 0;
+        }
+        .notif-mark-all:hover { text-decoration: underline; }
+        .notif-list { overflow-y: auto; max-height: 370px; }
+        .notif-item {
+            display: flex; gap: 10px; padding: 12px 16px; border-bottom: 1px solid #f9fafb;
+            cursor: pointer; transition: background 0.12s; text-decoration: none; color: inherit;
+        }
+        .notif-item:hover { background: #f9fafb; }
+        .notif-item.unread { background: #eff6ff; }
+        .notif-item.unread:hover { background: #dbeafe; }
+        .notif-icon {
+            width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center; font-size: 14px; color: #fff;
+        }
+        .notif-icon.queue        { background: #f59e0b; }
+        .notif-icon.reminder     { background: #8b5cf6; }
+        .notif-icon.payment      { background: #ef4444; }
+        .notif-icon.inquiry      { background: #3b82f6; }
+        .notif-icon.appointment  { background: #10b981; }
+        .notif-icon.system       { background: #6b7280; }
+        .notif-icon.cancellation { background: #dc2626; }
+        .notif-icon.patient      { background: #06b6d4; }
+        .notif-content { flex: 1; min-width: 0; }
+        .notif-title { font-size: 13px; font-weight: 600; color: #1f2937; margin: 0; }
+        .notif-msg   { font-size: 12px; color: #6b7280; margin: 2px 0 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .notif-time  { font-size: 11px; color: #9ca3af; margin-top: 3px; }
+        .notif-empty { text-align: center; padding: 32px 16px; color: #9ca3af; font-size: 13px; }
+        .notif-empty i { display: block; font-size: 28px; margin-bottom: 8px; color: #d1d5db; }
     </style>
 </head>
 <body data-user-id="<?php echo (int)($_SESSION['user_id'] ?? 0); ?>">
@@ -558,117 +618,53 @@ function isActivePage($page) {
             </div>
             
             <div class="header-right">
-                <div class="header-notifications" id="notificationDropdown">
-                    <button class="notification-bell" type="button" aria-label="Notifications">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                            <path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 1 0-12 0v5L4 18v1h16v-1z"/>
-                        </svg>
-                        <?php if ($notificationTotal > 0): ?>
-                            <span class="notification-badge"><?php echo $notificationTotal; ?></span>
-                        <?php endif; ?>
+                <div class="notif-wrapper" id="adminNotifWrapper">
+                    <button type="button" class="notif-bell-btn" id="adminNotifBellBtn" aria-label="Notifications">
+                        <i class="fas fa-bell"></i>
+                        <span class="notif-badge" id="adminNotifBadge" <?php if ($notificationTotal === 0) echo 'hidden'; ?>>
+                            <?php echo $notificationTotal > 99 ? '99+' : $notificationTotal; ?>
+                        </span>
                     </button>
-                    <div class="notification-dropdown">
-                        <div class="notification-header">
-                            <span>Notifications</span>
-                            <span class="notification-count"><?php echo $notificationTotal; ?></span>
+                    <div class="notif-dropdown" id="adminNotifDropdown">
+                        <div class="notif-header">
+                            <h4>Notifications</h4>
+                            <button type="button" class="notif-mark-all" id="adminNotifMarkAllBtn">Mark all read</button>
                         </div>
-                        <div class="notification-tabs">
-                            <button class="notification-tab active" data-tab="all" onclick="filterNotifications('all', this)">
-                                All<span class="tab-count"><?php echo count($notifications); ?></span>
-                            </button>
-                            <button class="notification-tab" data-tab="unread" onclick="filterNotifications('unread', this)">
-                                Unread<span class="tab-count"><?php echo $notificationTotal; ?></span>
-                            </button>
-                        </div>
-                        <div class="notification-list" id="notificationList">
-                            <?php if (!empty($notifications)): ?>
-                                <?php foreach ($notifications as $notif): ?>
-                                    <div class="notification-item <?php echo $notif['is_read'] ? 'read' : 'unread'; ?>" data-notif-id="<?php echo $notif['id']; ?>" data-is-read="<?php echo $notif['is_read']; ?>">
-                                        <div class="notification-icon">
-                                            <?php 
-                                            $icons = [
-                                                'appointment' => '📅',
-                                                'payment' => '💰',
-                                                'inquiry' => '💬',
-                                                'patient' => '👤',
-                                                'reminder' => '⏰',
-                                                'queue' => '📋',
-                                                'cancellation' => '❌',
-                                                'system' => '⚙️'
-                                            ];
-                                            echo $icons[$notif['type']] ?? '🔔';
-                                            ?>
-                                        </div>
-                                        <div class="notification-content">
-                                            <div class="notification-meta">
-                                                <strong><?php echo htmlspecialchars($notif['title']); ?></strong>
-                                                <div class="notification-kebab">
-                                                    <button class="kebab-btn" onclick="toggleKebabMenu(event, this)">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                                            <circle cx="12" cy="5" r="2"/>
-                                                            <circle cx="12" cy="12" r="2"/>
-                                                            <circle cx="12" cy="19" r="2"/>
-                                                        </svg>
-                                                    </button>
-                                                    <div class="kebab-menu">
-                                                        <?php if (!$notif['is_read']): ?>
-                                                            <button onclick="markNotificationRead(<?php echo $notif['id']; ?>, '<?php echo $notif['action_url'] ?? ''; ?>', event)">
-                                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                                                                Mark as read
-                                                            </button>
-                                                        <?php endif; ?>
-                                                        <button class="delete-btn" onclick="deleteNotification(<?php echo $notif['id']; ?>, event)">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-                                                            Delete
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <p><?php echo htmlspecialchars($notif['message']); ?></p>
-                                            <small><?php echo date('M j, g:i A', strtotime($notif['created_at'])); ?></small>
-                                        </div>
-                                    </div>
-                                <?php endforeach; ?>
+                        <div class="notif-list" id="adminNotifList">
+                            <?php if (empty($notifications)): ?>
+                                <div class="notif-empty"><i class="fas fa-bell-slash"></i>No notifications yet</div>
                             <?php else: ?>
-                                <!-- Show upcoming appointments as notifications -->
-                                <?php if (!empty($upcomingAppointments)): ?>
-                                    <div class="notification-item" style="background: #eff6ff; border-left: 3px solid #3b82f6;">
-                                        <div class="notification-icon" style="background: #3b82f6;">📅</div>
-                                        <div class="notification-text">
-                                            <strong style="color: #1e40af;">Upcoming Appointments</strong>
-                                            <small style="display: block; color: #6b7280;">Today & Tomorrow</small>
-                                        </div>
+                                <?php foreach ($notifications as $n):
+                                    $typeClass = htmlspecialchars($n['type'] ?? 'system');
+                                    $iconMap = ['queue'=>'fa-layer-group','reminder'=>'fa-calendar-check','payment'=>'fa-credit-card','inquiry'=>'fa-comment-dots','appointment'=>'fa-calendar','cancellation'=>'fa-times-circle','patient'=>'fa-user-plus','system'=>'fa-info-circle'];
+                                    $icon = $iconMap[$n['type']] ?? 'fa-bell';
+                                    $unread = empty($n['is_read']) ? ' unread' : '';
+                                    $diff = time() - strtotime($n['created_at']);
+                                    if ($diff < 60) $timeAgo = 'Just now';
+                                    elseif ($diff < 3600) $timeAgo = floor($diff/60).'m ago';
+                                    elseif ($diff < 86400) $timeAgo = floor($diff/3600).'h ago';
+                                    else $timeAgo = floor($diff/86400).'d ago';
+                                    $notifType = strtolower((string)($n['type'] ?? 'system'));
+                                    $notifHref = match ($notifType) {
+                                        'appointment', 'reminder', 'cancellation' => 'admin_appointments.php',
+                                        'patient' => 'admin_patients.php',
+                                        'queue' => 'admin_queue.php',
+                                        'inquiry' => 'admin_dashboard.php',
+                                        'payment' => 'admin_payment.php',
+                                        default => 'admin_dashboard.php',
+                                    };
+                                ?>
+                                <a class="notif-item<?php echo $unread; ?>" href="<?php echo htmlspecialchars($notifHref); ?>" data-notif-id="<?php echo (int)$n['id']; ?>" data-notif-type="<?php echo htmlspecialchars($notifType); ?>">
+                                    <div class="notif-icon <?php echo $typeClass; ?>"><i class="fas <?php echo $icon; ?>"></i></div>
+                                    <div class="notif-content">
+                                        <p class="notif-title"><?php echo htmlspecialchars($n['title']); ?></p>
+                                        <p class="notif-msg"><?php echo htmlspecialchars($n['message']); ?></p>
+                                        <div class="notif-time"><?php echo $timeAgo; ?></div>
                                     </div>
-                                    <?php foreach ($upcomingAppointments as $apt): 
-                                        $isToday = date('Y-m-d', strtotime($apt['appointment_date'])) === date('Y-m-d');
-                                        $dayLabel = $isToday ? 'Today' : 'Tomorrow';
-                                    ?>
-                                    <div class="notification-item" onclick="window.location.href='admin_appointments.php'">
-                                        <div class="notification-icon">🕐</div>
-                                        <div class="notification-text">
-                                            <strong><?php echo htmlspecialchars($apt['patient_name'] ?? 'Patient'); ?></strong>
-                                            <small style="display: block;"><?php echo htmlspecialchars($apt['service_name'] ?? 'Appointment'); ?></small>
-                                            <small style="color: #3b82f6; display: block;">
-                                                <?php echo $dayLabel; ?> at <?php echo date('g:i A', strtotime($apt['appointment_time'])); ?>
-                                            </small>
-                                        </div>
-                                    </div>
-                                    <?php endforeach; ?>
-                                <?php else: ?>
-                                    <div class="notification-item">
-                                        <div class="notification-icon">📅</div>
-                                        <div class="notification-text">No upcoming appointments</div>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if ($pendingPaymentsCount > 0): ?>
-                                <div class="notification-item">
-                                    <div class="notification-icon">⚠️</div>
-                                    <div class="notification-text"><?php echo $pendingPaymentsCount; ?> pending payments require attention</div>
-                                </div>
-                                <?php endif; ?>
+                                </a>
+                                <?php endforeach; ?>
                             <?php endif; ?>
                         </div>
-                        <button class="see-all-btn" type="button" onclick="markAllNotificationsRead()">Mark all as read</button>
                     </div>
                 </div>
                 <div class="header-user-summary">

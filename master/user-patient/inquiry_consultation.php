@@ -266,27 +266,22 @@ $pageTitle = 'Inquiry / Consultation';
             background: #fff; 
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
-        .conv-header { display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid #eef2f7; }
+        .conv-header { display:flex; align-items:center; gap:14px; padding:18px 20px; border-bottom:1px solid #e5e7eb; background:#fafbff; }
         .conv-avatar-placeholder { width:44px; height:44px; border-radius:50%; background:#d1d5db; }
-        .conv-meta { flex:1; }
-        .conv-name { font-size: 1.1rem; font-weight:800; color:#005daa; }
+        .conv-meta { flex:1; min-width:0; }
+        .conv-name { font-size: 15px; font-weight:700; color:#0f172a; }
         .conv-status { font-size:12px; color:#6b7280; margin-top:2px; }
-        .conv-body { flex:1; padding:20px; overflow-y:auto; background:#fff; display:flex; flex-direction:column; gap:16px; }
-        
-        .message-row { display:flex; gap:12px; align-items:flex-end; }
-        .message-row.left { justify-content:flex-start; }
-        .message-row.right { justify-content:flex-end; }
-        .avatar.small { width:34px; height:34px; border-radius:50%; background:#d1d5db; }
-        
-        .conv-body .message-row > div:last-child { max-width:75%; }
-        
-        .bubble { padding:14px 16px; border-radius:12px; max-width:100%; width:fit-content; font-size:14px; line-height:1.5; word-wrap:break-word; }
-        .bubble-left { background:#f3f4f6; border:1px solid #e5e7eb; color:#1f2937; border-bottom-left-radius: 4px; }
-        .bubble-right { background:#5b6ee6; color:#fff; border-bottom-right-radius: 4px; }
-        .ts { font-size:11px; color:#9ca3af; margin-top:6px; }
-        .typing-message-row { align-items:center; gap:8px; }
-        .typing-message-row > img { width:34px !important; height:34px !important; flex:0 0 34px; border:1px solid #dbe3ee; background:#fff; box-shadow:0 2px 6px rgba(15,23,42,.12); }
-        .chat-typing-indicator { display:flex; align-items:center; min-width:54px; min-height:38px; padding:10px 14px; border-radius:19px; border-bottom-left-radius:6px; background:#e2e8f0; color:#64748b; }
+        .conv-body { flex:1; padding:18px 20px; overflow-y:auto; background:#fcfdff; display:flex; flex-direction:column; gap:10px; }
+        .chat-bubble { max-width:88%; padding:12px 16px; border-radius:18px; line-height:1.55; font-size:14px; word-break:break-word; }
+        .chat-bubble.received { align-self:flex-start; background:#f0f2f5; color:#111827; border-bottom-left-radius:6px; }
+        .chat-bubble.sent { align-self:flex-end; background:linear-gradient(135deg,#2563eb,#1d4ed8); color:#fff; border-bottom-right-radius:6px; }
+        .chat-label { font-size:11px; font-weight:600; margin-bottom:3px; }
+        .chat-bubble.received .chat-label { color:#64748b; }
+        .chat-bubble.sent .chat-label { color:rgba(255,255,255,.7); }
+        .chat-meta { font-size:11px; opacity:.65; margin-top:6px; }
+        .chat-bubble.sent .chat-meta { color:rgba(255,255,255,.8); }
+        .typing-message-row { max-width:88px; padding:10px 14px; }
+        .chat-typing-indicator { display:flex; align-items:center; min-height:18px; color:#64748b; }
         .chat-typing-dots { display:inline-flex; align-items:center; gap:4px; }
         .chat-typing-dots span { width:7px; height:7px; border-radius:50%; background:#64748b; animation:inquiryTyping 1.1s infinite ease-in-out; }
         .chat-typing-dots span:nth-child(2) { animation-delay:.15s; }
@@ -294,8 +289,13 @@ $pageTitle = 'Inquiry / Consultation';
         @keyframes inquiryTyping { 0%,60%,100% { transform:translateY(0); opacity:.45; } 30% { transform:translateY(-3px); opacity:1; } }
         
         #inquiryForm { padding:14px 20px 18px; border-top:1px solid #e5e7eb; background:#fff; }
-        .conv-input { display:flex; gap:6px; align-items:center; width:100%; min-height:58px; padding:6px; border:1px solid #dbe3ee; border-radius:999px; background:#f8fafc; transition:border-color .2s, box-shadow .2s, background .2s; }
-        .conv-input:focus-within { border-color:#2563eb; background:#fff; box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+        .chat-send-row { display:flex; gap:10px; align-items:flex-end; }
+        .chat-send-row textarea { flex:1; border:1px solid #d1d5db; border-radius:20px; padding:12px 16px; font:inherit; font-size:14px; resize:none; min-height:48px; max-height:120px; outline:none; background:#f9fafb; }
+        .chat-send-row textarea:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.1); background:#fff; }
+        .chat-attach-btn { width:40px; height:40px; border-radius:50%; border:none; background:#f1f5f9; color:#64748b; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .chat-attach-btn:hover { background:#e2e8f0; color:#2563eb; }
+        .send-btn, .chat-send-btn { width:48px; height:48px; border-radius:50%; border:none; background:linear-gradient(135deg,#2563eb,#1d4ed8); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 4px 12px rgba(37,99,235,.25); }
+        .conv-input { display:flex; gap:10px; align-items:flex-end; width:100%; }
         .icon-btn { width:42px; height:42px; flex:0 0 42px; display:inline-flex; align-items:center; justify-content:center; background:transparent; border:none; border-radius:50%; color:#64748b; font-size:18px; padding:0; cursor:pointer; transition:background .2s, color .2s; }
         .icon-btn:hover { background:#e8eef7; color:#2563eb; }
         .conv-text { flex:1; min-width:0; height:44px; border:none; padding:0 8px; background:transparent; font:inherit; font-size:14px; outline:none; }
@@ -430,9 +430,8 @@ $pageTitle = 'Inquiry / Consultation';
             .conversation-panel { height: 600px; }
         }
         @media (max-width: 768px) {
-            .sidebar { width: 60px; }
-            .main-wrapper { margin-left: 60px; }
-            .dashboard-header { padding: 12px 16px; height: 60px; }
+            .main-wrapper { margin-left: 0; }
+            .dashboard-header { padding: 12px 16px; height: auto; }
             .dashboard-main { padding: 16px; }
             .user-details { display: none; }
             #inquiryForm { padding:10px; }
@@ -464,7 +463,7 @@ $pageTitle = 'Inquiry / Consultation';
     </script>
 </head>
 <body>
-    <aside class="sidebar">
+    <aside class="sidebar" id="patientSidebar">
         <div class="sidebar-brand">
             <img src="<?php echo htmlspecialchars($logoFull); ?>" alt="<?php echo htmlspecialchars($clinicName); ?>">
             <span><?php echo htmlspecialchars($clinicName); ?></span>
@@ -496,12 +495,16 @@ $pageTitle = 'Inquiry / Consultation';
             </a>
         </nav>
     </aside>
+    <?php include '../../includes/patient_sidebar_overlay.php'; ?>
 
     <div class="main-wrapper">
         <header class="dashboard-header">
             <div class="header-left">
+                <?php include '../../includes/patient_menu_toggle.php'; ?>
+                <div>
                 <h1 style="font-size: 20px; font-weight: 700; color: #1a1a2e; margin: 0;">Inquiry / Consultation</h1>
                 <p style="font-size: 13px; color: #6b7280; margin: 4px 0 0;">Send a consultation request and track your inquiry status.</p>
+                </div>
             </div>
             <div class="header-right">
                 <?php include '../../includes/patient_notification_widget.php'; ?>
@@ -549,52 +552,31 @@ $pageTitle = 'Inquiry / Consultation';
 
                     <div id="messagesList" class="conv-body">
                         <?php if (empty($messages)): ?>
-                            <div class="message-row left" data-empty-greeting>
-                                <img src="<?php echo htmlspecialchars($clinicAvatar); ?>" alt="<?php echo htmlspecialchars($clinicName); ?>" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
-                                <div>
-                                    <div class="bubble bubble-left">Hello, How are you today?<br>would you like to book now?</div>
-                                    <div class="ts">11:00 AM</div>
-                                </div>
+                            <div class="chat-bubble received" data-empty-greeting>
+                                <div class="chat-label"><?php echo htmlspecialchars($clinicName); ?></div>
+                                <div>Hello, How are you today?<br>would you like to book now?</div>
+                                <div class="chat-meta">11:00 AM</div>
                             </div>
                         <?php else: ?>
                             <?php foreach ($messages as $msg): ?>
                                 <?php $ts = date('h:i A', strtotime($msg['created_at'] ?? 'now')); ?>
                                 <?php $att = $msg['attachment'] ?? null; ?>
                                 <?php $isImage = $att && preg_match('/\.(jpe?g|png|gif|webp)$/i', $att); ?>
-                                <?php if ($msg['type'] === 'clinic'): ?>
-                                    <div class="message-row left"<?php echo !empty($msg['id']) ? ' data-reply-id="' . (int)$msg['id'] . '"' : ''; ?>>
-                                        <img src="<?php echo htmlspecialchars($clinicAvatar); ?>" alt="<?php echo htmlspecialchars($clinicName); ?>" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
-                                        <div>
-                                            <div class="bubble bubble-left">
-                                                <?php if ($msg['message']): ?><?php echo nl2br(htmlspecialchars($msg['message'])); ?><?php endif; ?>
-                                                <?php if ($att): ?>
-                                                    <?php if ($isImage): ?>
-                                                        <img src="../<?php echo htmlspecialchars($att); ?>" class="chat-attachment-img" alt="Attachment" onclick="openLightbox(this.src)" style="cursor:pointer;">
-                                                    <?php else: ?>
-                                                        <a href="../<?php echo htmlspecialchars($att); ?>" target="_blank" class="chat-attachment-file file-received"><i class="fas fa-paperclip"></i> <?php echo htmlspecialchars(basename($att)); ?></a>
-                                                    <?php endif; ?>
-                                                <?php endif; ?>
-                                            </div>
-                                            <div class="ts"><?php echo $ts; ?></div>
-                                        </div>
+                                <?php $isClinic = $msg['type'] === 'clinic'; ?>
+                                <div class="chat-bubble <?php echo $isClinic ? 'received' : 'sent'; ?>"<?php echo !empty($msg['id']) ? ' data-reply-id="' . (int)$msg['id'] . '"' : ''; ?>>
+                                    <div class="chat-label"><?php echo $isClinic ? htmlspecialchars($clinicName) : 'You'; ?></div>
+                                    <div>
+                                        <?php if ($msg['message']): ?><?php echo nl2br(htmlspecialchars($msg['message'])); ?><?php endif; ?>
+                                        <?php if ($att): ?>
+                                            <?php if ($isImage): ?>
+                                                <img src="../<?php echo htmlspecialchars($att); ?>" class="chat-attachment-img" alt="Attachment" onclick="openLightbox(this.src)" style="cursor:pointer;">
+                                            <?php else: ?>
+                                                <a href="../<?php echo htmlspecialchars($att); ?>" target="_blank" class="chat-attachment-file<?php echo $isClinic ? ' file-received' : ''; ?>"><i class="fas fa-paperclip"></i> <?php echo htmlspecialchars(basename($att)); ?></a>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
                                     </div>
-                                <?php else: ?>
-                                    <div class="message-row right"<?php echo !empty($msg['id']) ? ' data-reply-id="' . (int)$msg['id'] . '"' : ''; ?>>
-                                        <div>
-                                            <div class="bubble bubble-right">
-                                                <?php if ($msg['message']): ?><?php echo nl2br(htmlspecialchars($msg['message'])); ?><?php endif; ?>
-                                                <?php if ($att): ?>
-                                                    <?php if ($isImage): ?>
-                                                        <img src="../<?php echo htmlspecialchars($att); ?>" class="chat-attachment-img" alt="Attachment" onclick="openLightbox(this.src)" style="cursor:pointer;">
-                                                    <?php else: ?>
-                                                        <a href="../<?php echo htmlspecialchars($att); ?>" target="_blank" class="chat-attachment-file"><i class="fas fa-paperclip"></i> <?php echo htmlspecialchars(basename($att)); ?></a>
-                                                    <?php endif; ?>
-                                                <?php endif; ?>
-                                            </div>
-                                            <div class="ts" style="text-align: right;"><?php echo $ts; ?></div>
-                                        </div>
-                                    </div>
-                                <?php endif; ?>
+                                    <div class="chat-meta"><?php echo $ts; ?></div>
+                                </div>
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </div>
@@ -602,12 +584,18 @@ $pageTitle = 'Inquiry / Consultation';
                     <form id="inquiryForm">
                         <input type="hidden" name="action" value="create">
                         <div id="attachmentPreview" class="attachment-preview" style="display:none;"></div>
-                        <div class="conv-input">
-                            <button type="button" class="icon-btn" id="attachFileBtn" aria-label="attach"><i class="fas fa-paperclip"></i></button>
-                            <button type="button" class="icon-btn" id="attachImageBtn" aria-label="image"><i class="fas fa-image"></i></button>
+                        <div class="chat-send-row">
+                            <button type="button" class="chat-attach-btn" id="attachFileBtn" aria-label="attach" title="Attach file">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                            </button>
+                            <button type="button" class="chat-attach-btn" id="attachImageBtn" aria-label="image" title="Attach image">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                            </button>
                             <input type="file" id="fileInput" style="display:none;" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,image/*">
-                            <input id="concern" name="concern" class="conv-text" placeholder="Type your message..." />
-                            <button type="submit" class="send-btn" aria-label="send"><i class="fas fa-paper-plane"></i></button>
+                            <textarea id="concern" name="concern" placeholder="Type your message..." rows="1"></textarea>
+                            <button type="submit" class="chat-send-btn" aria-label="send">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4Z"/></svg>
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -701,7 +689,7 @@ $pageTitle = 'Inquiry / Consultation';
         const formAlert = document.getElementById('formAlert');
         const messagesList = document.getElementById('messagesList');
         const concernInput = document.getElementById('concern');
-        const sendBtn = document.querySelector('.send-btn');
+        const sendBtn = document.querySelector('.chat-send-btn, .send-btn');
         const fileInput = document.getElementById('fileInput');
         const attachFileBtn = document.getElementById('attachFileBtn');
         const attachImageBtn = document.getElementById('attachImageBtn');
@@ -709,6 +697,7 @@ $pageTitle = 'Inquiry / Consultation';
         let selectedFile = null;
         let activeInquiryId = <?php echo (int)($activeInquiry['id'] ?? 0); ?>;
         const clinicAvatarUrl = <?php echo json_encode($clinicAvatar); ?>;
+        const clinicNameLabel = <?php echo json_encode($clinicName); ?>;
         const renderedReplyIds = new Set(
             Array.from(messagesList.querySelectorAll('[data-reply-id]'))
                 .map((element) => Number(element.dataset.replyId))
@@ -719,7 +708,15 @@ $pageTitle = 'Inquiry / Consultation';
         let lastTypingSentAt = 0;
         let typingStopTimer = null;
 
+        concernInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+                event.preventDefault();
+                form.requestSubmit();
+            }
+        });
         concernInput.addEventListener('input', () => {
+            concernInput.style.height = 'auto';
+            concernInput.style.height = Math.min(concernInput.scrollHeight, 120) + 'px';
             sendBtn.classList.toggle('has-text', concernInput.value.trim().length > 0 || selectedFile !== null);
             const hasText = concernInput.value.trim().length > 0;
             if (!hasText) {
@@ -833,7 +830,7 @@ $pageTitle = 'Inquiry / Consultation';
 
             const isClinic = reply.sender_type === 'staff';
             const row = document.createElement('div');
-            row.className = `message-row ${isClinic ? 'left' : 'right'}`;
+            row.className = `chat-bubble ${isClinic ? 'received' : 'sent'}`;
             if (replyId > 0) {
                 row.dataset.replyId = String(replyId);
                 renderedReplyIds.add(replyId);
@@ -851,10 +848,7 @@ $pageTitle = 'Inquiry / Consultation';
                     : `<a href="${escapeHtml(attachmentSrc)}" target="_blank" class="chat-attachment-file${isClinic ? ' file-received' : ''}"><i class="fas fa-paperclip"></i> ${escapeHtml(attachment.split('/').pop() || selectedFile?.name || 'Attachment')}</a>`;
             }
 
-            const content = `<div class="bubble ${isClinic ? 'bubble-left' : 'bubble-right'}">${escapeHtml(reply.message || '').replace(/\n/g, '<br>')}${attachmentHtml}</div><div class="ts"${isClinic ? '' : ' style="text-align:right;"'}>${escapeHtml(formatMessageTime(reply.created_at))}</div>`;
-            row.innerHTML = isClinic
-                ? `<img src="${escapeHtml(clinicAvatarUrl)}" alt="Clinic" style="width:34px;height:34px;border-radius:50%;object-fit:cover;"><div>${content}</div>`
-                : `<div>${content}</div>`;
+            row.innerHTML = `<div class="chat-label">${escapeHtml(isClinic ? clinicNameLabel : 'You')}</div><div>${escapeHtml(reply.message || '').replace(/\n/g, '<br>')}${attachmentHtml}</div><div class="chat-meta">${escapeHtml(formatMessageTime(reply.created_at))}</div>`;
 
             const typing = document.getElementById('clinicTypingIndicator');
             messagesList.insertBefore(row, typing || null);
@@ -867,12 +861,12 @@ $pageTitle = 'Inquiry / Consultation';
             if (!indicator && visible) {
                 indicator = document.createElement('div');
                 indicator.id = 'clinicTypingIndicator';
-                indicator.className = 'message-row left typing-message-row';
-                indicator.innerHTML = `<img src="${escapeHtml(clinicAvatarUrl)}" alt="Staff" style="border-radius:50%;object-fit:cover;"><div class="chat-typing-indicator"><span class="chat-typing-dots" aria-label="Staff is typing"><span></span><span></span><span></span></span></div>`;
+                indicator.className = 'chat-bubble received typing-message-row';
+                indicator.innerHTML = `<div class="chat-typing-indicator"><span class="chat-typing-dots" aria-label="Staff is typing"><span></span><span></span><span></span></span></div>`;
                 messagesList.appendChild(indicator);
             }
             if (indicator) {
-                indicator.style.display = visible ? 'flex' : 'none';
+                indicator.style.display = visible ? 'block' : 'none';
                 if (visible && shouldAutoScroll) scrollConversationToBottom(true);
             }
         }

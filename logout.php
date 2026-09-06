@@ -51,9 +51,9 @@ if (!headers_sent()) {
     setcookie(session_name(), '', time() - 3600, '/');
 }
 
-$redirect = 'master/welcome-page/login.php';
+$redirect = 'master/welcome-page/home.php';
 if ($isInactivity) {
-    $redirect .= '?expired=1';
+    $redirect = 'master/welcome-page/login.php?expired=1';
 }
 header('Location: ' . $redirect);
 exit();

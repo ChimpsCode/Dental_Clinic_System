@@ -132,8 +132,40 @@
         if (modal) modal.style.display = 'none';
     }
 
+    window.showAppointmentNoticeModal = function (message, options) {
+        options = options || {};
+        var isError = !!options.error;
+        var modal = document.getElementById('appointmentNoticeModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'appointmentNoticeModal';
+            modal.className = 'modal-overlay';
+            modal.dataset.preserveOpen = '1';
+            modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100001;align-items:center;justify-content:center;';
+            modal.innerHTML = '<div style="background:#fff;border-radius:12px;padding:24px;width:90%;max-width:440px;box-shadow:0 20px 50px rgba(0,0,0,.2);position:relative;z-index:100002;">' +
+                '<h2 id="appointmentNoticeTitle" style="margin:0 0 10px;font-size:1.2rem;font-weight:700;"></h2>' +
+                '<p id="appointmentNoticeMessage" style="margin:0 0 20px;color:#374151;line-height:1.5;white-space:pre-line;"></p>' +
+                '<div style="display:flex;justify-content:flex-end;"><button type="button" id="appointmentNoticeClose" style="padding:10px 20px;color:#fff;border:0;border-radius:8px;cursor:pointer;font-weight:600;">OK</button></div></div>';
+            document.body.appendChild(modal);
+            modal.querySelector('#appointmentNoticeClose').addEventListener('click', function () { modal.style.display = 'none'; });
+            modal.addEventListener('click', function (event) {
+                if (event.target === modal) modal.style.display = 'none';
+            });
+        }
+        var title = options.title || (isError ? 'Something went wrong' : 'Appointment update');
+        document.getElementById('appointmentNoticeTitle').textContent = title;
+        document.getElementById('appointmentNoticeTitle').style.color = isError ? '#b91c1c' : '#166534';
+        document.getElementById('appointmentNoticeMessage').textContent = message || '';
+        document.getElementById('appointmentNoticeClose').style.background = isError ? '#dc2626' : '#2563eb';
+        modal.style.display = 'flex';
+    };
+
     document.addEventListener('keydown', function (event) {
-        if (event.key === 'Escape') closeAppointmentDecisionModal();
+        if (event.key === 'Escape') {
+            closeAppointmentDecisionModal();
+            var notice = document.getElementById('appointmentNoticeModal');
+            if (notice) notice.style.display = 'none';
+        }
     });
 
     window.refreshAppointmentsAjax = function () {

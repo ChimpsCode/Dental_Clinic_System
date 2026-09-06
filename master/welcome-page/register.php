@@ -4,7 +4,7 @@ require_once __DIR__ . '/../../includes/session_bootstrap.php';require_once '../
 // Registration is admin-only (role = 'admin')
 $isAdmin = (isset($_SESSION['role']) && $_SESSION['role'] === 'admin');
 if (!$isAdmin) {
-    header('Location: login.php');
+    header('Location: home.php');
     exit();
 }
 
@@ -489,7 +489,7 @@ $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
                 <?php endif; ?>
 
                 <p style="margin-top: 20px;">
-                    <a href="login.php" style="color: #0d5bd7; text-decoration: none;">Already have an account? Login</a>
+                    <a href="login.php?form=1" style="color: #0d5bd7; text-decoration: none;">Already have an account? Login</a>
                 </p>
             </div>
         </div>

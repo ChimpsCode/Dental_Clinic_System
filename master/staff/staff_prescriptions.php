@@ -90,6 +90,7 @@ try {
 } catch (Exception $e) {}
 ?>
 
+<link rel="stylesheet" href="../../assets/css/rx_pad.css?v=2">
 <style>
 .page-header {
     margin-bottom: 24px;
@@ -765,6 +766,20 @@ try {
     </div>
 </div>
 
+<div id="rxNoticeModal" class="modal-overlay" style="display:none;z-index:1000000!important;" onclick="if(event.target===this)closeRxNotice()">
+    <div class="modal" style="max-width:420px;" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h2>Prescription</h2>
+            <button class="modal-close" onclick="closeRxNotice()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p id="rxNoticeMessage" style="margin:0;color:#334155;line-height:1.5;"></p>
+        </div>
+        <div class="modal-footer" style="display:flex;justify-content:flex-end;border-top:1px solid #e2e8f0;padding-top:16px;">
+            <button type="button" onclick="closeRxNotice()" style="padding:10px 16px;border:1px solid #e2e8f0;background:#2563eb;color:#fff;border-radius:6px;cursor:pointer;font-weight:600;">OK</button>
+        </div>
+    </div>
+</div>
 
 <script>
 let currentRxPrescriptionId = null;
@@ -779,6 +794,15 @@ function closeRxModal() {
     document.getElementById('rxViewModal').style.display = 'none';
 }
 
+function closeRxNotice() {
+    document.getElementById('rxNoticeModal').style.display = 'none';
+}
+
+function showRxNotice(message) {
+    document.getElementById('rxNoticeMessage').textContent = message;
+    document.getElementById('rxNoticeModal').style.display = 'flex';
+}
+
 function viewPrescription(prescriptionId) {
     currentRxPrescriptionId = prescriptionId;
     fetch('staff_prescription_actions.php', {
@@ -789,6 +813,11 @@ function viewPrescription(prescriptionId) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
         if (data.success) {
+            if (typeof fillRxPad !== 'function') {
+                showRxNotice('Prescription pad failed to load. Please refresh the page.');
+                return;
+            }
+            fillRxPad(data.prescription);
             var p = data.prescription;
             document.getElementById('rxPatient').textContent = p.patient_name + (p.age ? ' (' + p.age + ')' : '');
             document.getElementById('rxDate').textContent = p.issue_date || '';
@@ -806,17 +835,17 @@ function viewPrescription(prescriptionId) {
             document.getElementById('rxInstructions').textContent = p.instructions || 'None';
             document.getElementById('rxViewModal').style.display = 'flex';
         } else {
-            alert('Failed to load prescription: ' + (data.message || 'Unknown error'));
+            showRxNotice('Failed to load prescription: ' + (data.message || 'Unknown error'));
         }
     })
-    .catch(function(err) {
-        alert('An error occurred while loading the prescription.');
+    .catch(function() {
+        showRxNotice('An error occurred while loading the prescription.');
     });
 }
 
 function staffPrintPrescription(prescriptionId) {
     if (!prescriptionId) {
-        alert('Please select a prescription to print.');
+        showRxNotice('Please select a prescription to print.');
         return;
     }
 
@@ -828,9 +857,14 @@ function staffPrintPrescription(prescriptionId) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
         if (!data.success) {
-            alert('Failed to load prescription: ' + (data.message || 'Unknown error'));
+            showRxNotice('Failed to load prescription: ' + (data.message || 'Unknown error'));
             return;
         }
+        if (typeof printRxPad !== 'function') {
+            showRxNotice('Prescription pad failed to load. Please refresh the page.');
+            return;
+        }
+        printRxPad(data.prescription);
 
         var p = data.prescription;
         var printWindow = window.open('', '_blank');
@@ -889,8 +923,8 @@ function staffPrintPrescription(prescriptionId) {
         printWindow.focus();
         printWindow.print();
     })
-    .catch(function(err) {
-        alert('An error occurred while loading the prescription.');
+    .catch(function() {
+        showRxNotice('An error occurred while loading the prescription.');
     });
 }
 
@@ -937,6 +971,10 @@ document.addEventListener('DOMContentLoaded', function() {
     var modal = document.getElementById('rxViewModal');
     if (modal) {
         document.body.appendChild(modal);
+    }
+    var notice = document.getElementById('rxNoticeModal');
+    if (notice) {
+        document.body.appendChild(notice);
     }
 });
 </script>

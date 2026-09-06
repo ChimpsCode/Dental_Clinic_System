@@ -14,27 +14,31 @@ $period = in_array($period, ['week', 'month', 'quarter', 'year'], true) ? $perio
 $today = new DateTime('today');
 $startDate = clone $today;
 $endDate = clone $today;
+$occurEndDate = clone $today;
 
 switch ($period) {
     case 'week':
         $startDate = (clone $today)->modify('-6 days');
+        $occurEndDate = (clone $today)->modify('+6 days');
         break;
     case 'quarter':
-        $month = (int)$today->format('n');
-        $quarterStartMonth = (int)(floor(($month - 1) / 3) * 3) + 1;
-        $startDate = new DateTime($today->format('Y') . '-' . str_pad((string)$quarterStartMonth, 2, '0', STR_PAD_LEFT) . '-01');
+        $startDate = (clone $today)->modify('-3 months');
+        $occurEndDate = (clone $today)->modify('+3 months');
         break;
     case 'year':
-        $startDate = new DateTime($today->format('Y') . '-01-01');
+        $startDate = (clone $today)->modify('-12 months');
+        $occurEndDate = (clone $today)->modify('+12 months');
         break;
     case 'month':
     default:
-        $startDate = new DateTime($today->format('Y-m-01'));
+        $startDate = (clone $today)->modify('-29 days');
+        $occurEndDate = (clone $today)->modify('+29 days');
         break;
 }
 
 $startStr = $startDate->format('Y-m-d');
 $endStr = $endDate->format('Y-m-d');
+$occurEndStr = $occurEndDate->format('Y-m-d');
 
 $totalPatients = 0;
 $appointmentsCount = 0;
@@ -55,6 +59,9 @@ $topDentistName = 'Dentist';
 $topDentistCount = 0;
 $topStaffName = 'Staff';
 $topStaffCount = 0;
+$appointmentTypeSlices = [];
+$appointmentTypeGradient = '#e5e7eb';
+$appointmentTypeTotal = 0;
 $periodStats = [
     'today' => ['inquiries' => 0, 'appointments' => 0],
     'week' => ['inquiries' => 0, 'appointments' => 0],
@@ -272,6 +279,63 @@ try {
         $topStaffName = trim($topStaff['full_name'] ?: '') ?: 'Staff';
         $topStaffCount = (int)$topStaff['total'];
     }
+
+    $stmt = $pdo->prepare("
+        SELECT COALESCE(NULLIF(TRIM(s.name), ''), 'Unspecified') AS service_name, COUNT(*) AS total
+        FROM appointments a
+        LEFT JOIN services s ON s.id = a.service_id
+        WHERE (
+                a.appointment_date BETWEEN ? AND ?
+                OR DATE(a.created_at) BETWEEN ? AND ?
+            )
+          AND COALESCE(a.is_archived, 0) = 0
+          AND LOWER(COALESCE(a.status, '')) <> 'cancelled'
+        GROUP BY service_name
+        ORDER BY total DESC
+    ");
+    $stmt->execute([$startStr, $occurEndStr, $startStr, $endStr]);
+    $appointmentTypeRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $pieColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
+    $topTypes = array_slice($appointmentTypeRows, 0, 3);
+    $otherCount = 0;
+    foreach (array_slice($appointmentTypeRows, 3) as $otherRow) {
+        $otherCount += (int)($otherRow['total'] ?? 0);
+    }
+
+    foreach ($topTypes as $index => $typeRow) {
+        $count = (int)($typeRow['total'] ?? 0);
+        if ($count <= 0) {
+            continue;
+        }
+        $appointmentTypeSlices[] = [
+            'label' => (string)($typeRow['service_name'] ?? 'Unspecified'),
+            'count' => $count,
+            'color' => $pieColors[$index] ?? $pieColors[0],
+        ];
+        $appointmentTypeTotal += $count;
+    }
+    if ($otherCount > 0) {
+        $appointmentTypeSlices[] = [
+            'label' => 'Other',
+            'count' => $otherCount,
+            'color' => $pieColors[3],
+        ];
+        $appointmentTypeTotal += $otherCount;
+    }
+
+    if ($appointmentTypeTotal > 0) {
+        $cursorDeg = 0.0;
+        $gradientParts = [];
+        foreach ($appointmentTypeSlices as $slice) {
+            $spanDeg = ($slice['count'] / $appointmentTypeTotal) * 360;
+            $fromDeg = $cursorDeg;
+            $toDeg = $cursorDeg + $spanDeg;
+            $gradientParts[] = $slice['color'] . ' ' . round($fromDeg, 2) . 'deg ' . round($toDeg, 2) . 'deg';
+            $cursorDeg = $toDeg;
+        }
+        $appointmentTypeGradient = 'conic-gradient(' . implode(', ', $gradientParts) . ')';
+    }
 } catch (Exception $e) {
     // Keep defaults on error
 }
@@ -281,10 +345,10 @@ try {
                 <div class="page-header">
                     <h2>Analytics Dashboard</h2>
                     <select class="filter-select" id="analyticsPeriod">
-                        <option value="week" <?php echo $period === 'week' ? 'selected' : ''; ?>>This Week</option>
-                        <option value="month" <?php echo $period === 'month' ? 'selected' : ''; ?>>This Month</option>
-                        <option value="quarter" <?php echo $period === 'quarter' ? 'selected' : ''; ?>>This Quarter</option>
-                        <option value="year" <?php echo $period === 'year' ? 'selected' : ''; ?>>This Year</option>
+                        <option value="week" <?php echo $period === 'week' ? 'selected' : ''; ?>>Last 7 days</option>
+                        <option value="month" <?php echo $period === 'month' ? 'selected' : ''; ?>>Last 30 days</option>
+                        <option value="quarter" <?php echo $period === 'quarter' ? 'selected' : ''; ?>>Last 3 months</option>
+                        <option value="year" <?php echo $period === 'year' ? 'selected' : ''; ?>>Last 12 months</option>
                     </select>
                 </div>
 
@@ -379,17 +443,20 @@ try {
                     <div class="chart-card">
                         <h3 class="chart-title">Appointments by Type</h3>
                         <div class="chart-placeholder">
-                            <div class="pie-chart">
-                                <div class="pie-segment" style="--percentage: 35; --color: #3b82f6;"></div>
-                                <div class="pie-segment" style="--percentage: 25; --color: #10b981;"></div>
-                                <div class="pie-segment" style="--percentage: 20; --color: #f59e0b;"></div>
-                                <div class="pie-segment" style="--percentage: 20; --color: #ef4444;"></div>
-                            </div>
+                            <div class="pie-chart" style="background: <?php echo htmlspecialchars($appointmentTypeGradient, ENT_QUOTES, 'UTF-8'); ?>;"></div>
                             <div class="chart-legend">
-                                <span class="legend-item"><span class="legend-color" style="background: #3b82f6;"></span> Root Canal</span>
-                                <span class="legend-item"><span class="legend-color" style="background: #10b981;"></span> Cleaning</span>
-                                <span class="legend-item"><span class="legend-color" style="background: #f59e0b;"></span> Extraction</span>
-                                <span class="legend-item"><span class="legend-color" style="background: #ef4444;"></span> Other</span>
+                                <?php if ($appointmentTypeTotal > 0): ?>
+                                    <?php foreach ($appointmentTypeSlices as $slice): ?>
+                                        <?php $pct = (int)round(($slice['count'] / $appointmentTypeTotal) * 100); ?>
+                                        <span class="legend-item">
+                                            <span class="legend-color" style="background: <?php echo htmlspecialchars($slice['color'], ENT_QUOTES, 'UTF-8'); ?>;"></span>
+                                            <?php echo htmlspecialchars($slice['label']); ?>
+                                            (<?php echo number_format($slice['count']); ?> · <?php echo $pct; ?>%)
+                                        </span>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <span class="legend-item">No appointments in this period</span>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>

@@ -1,0 +1,285 @@
+.rx-paper {
+    --rx-ink: #0b3d6e;
+    --rx-line: #7eb6e6;
+    --rx-soft: #d7ebf8;
+    max-width: 780px;
+    margin: 0 auto;
+    background: #fff;
+    color: var(--rx-ink);
+    padding: 28px 32px 22px;
+    font-family: Arial, Helvetica, sans-serif;
+    position: relative;
+    min-height: 980px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+.rx-paper .rx-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding-bottom: 10px;
+}
+
+.rx-paper .rx-logo {
+    width: 78px;
+    height: 78px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.rx-paper .rx-head-text {
+    flex: 1;
+    text-align: center;
+    padding-top: 2px;
+}
+
+.rx-paper .rx-clinic-name {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1.1;
+    margin: 0 0 4px;
+}
+
+.rx-paper .rx-doctors {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    margin: 0 0 10px;
+}
+
+.rx-paper .rx-meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 18px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.rx-paper .rx-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.rx-paper .rx-meta-item i {
+    width: 14px;
+    color: var(--rx-ink);
+    text-align: center;
+}
+
+.rx-paper .rx-double-rule {
+    border: 0;
+    height: 5px;
+    margin: 10px 0 16px;
+    background: linear-gradient(to bottom, var(--rx-line) 0 2px, transparent 2px 3px, var(--rx-line) 3px 5px);
+}
+
+.rx-paper .rx-field-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.rx-paper .rx-field {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    min-width: 0;
+}
+
+.rx-paper .rx-field.grow {
+    flex: 1;
+}
+
+.rx-paper .rx-underline,
+.rx-paper .rx-input {
+    flex: 1;
+    min-width: 48px;
+    border: none;
+    border-bottom: 1px solid var(--rx-ink);
+    border-radius: 0;
+    background: transparent;
+    min-height: 22px;
+    font: inherit;
+    font-weight: 600;
+    color: var(--rx-ink);
+    padding: 0 4px 2px;
+    line-height: 1.2;
+    outline: none;
+}
+
+.rx-paper .rx-input:focus {
+    border-bottom-color: #2563eb;
+    box-shadow: none;
+}
+
+.rx-paper label {
+    font-weight: 700;
+    margin: 0;
+}
+
+.rx-paper .rx-age { width: 70px; flex: 0 0 70px; }
+.rx-paper .rx-sex { width: 70px; flex: 0 0 70px; }
+.rx-paper .rx-date { width: 150px; flex: 0 0 150px; }
+
+.rx-paper .rx-body {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 420px;
+    margin-top: 8px;
+}
+
+.rx-paper .rx-symbol {
+    position: absolute;
+    top: 4px;
+    left: 0;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 64px;
+    font-weight: 700;
+    line-height: 0.85;
+    color: var(--rx-ink);
+    pointer-events: none;
+}
+
+.rx-paper .rx-meds {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 223px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 48px 0;
+}
+
+.rx-paper .rx-med-item,
+.rx-paper .rx-textarea {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.55;
+    margin-bottom: 6px;
+}
+
+.rx-paper .rx-textarea {
+    display: block;
+    width: 88%;
+    max-width: 560px;
+    min-height: 0;
+    height: auto;
+    resize: none;
+    overflow: hidden;
+    border: none;
+    background: transparent;
+    color: var(--rx-ink);
+    font: inherit;
+    font-weight: 600;
+    outline: none;
+    padding: 2px 8px;
+    text-align: center;
+}
+
+.rx-paper .rx-textarea::placeholder {
+    text-align: center;
+    color: #94a3b8;
+}
+
+.rx-paper .rx-notes-input {
+    min-height: 0;
+    margin-top: 20px;
+    font-size: 13px;
+}
+
+.rx-paper .rx-notes {
+    font-size: 13px;
+    font-weight: 600;
+    margin-top: 8px;
+}
+
+.rx-paper .rx-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 24px;
+    margin-top: 20px;
+    flex-shrink: 0;
+}
+
+.rx-paper .rx-follow {
+    font-size: 14px;
+    font-weight: 700;
+    min-width: 220px;
+}
+
+.rx-paper .rx-follow .rx-underline,
+.rx-paper .rx-follow .rx-input {
+    margin-top: 18px;
+    display: block;
+    width: 210px;
+}
+
+.rx-paper .rx-sign {
+    text-align: center;
+    min-width: 230px;
+}
+
+.rx-paper .rx-sign-line,
+.rx-paper .rx-sign-input {
+    border: none;
+    border-bottom: 1px solid var(--rx-ink);
+    background: transparent;
+    min-height: 28px;
+    margin-bottom: 4px;
+    font-weight: 700;
+    width: 100%;
+    text-align: center;
+    color: var(--rx-ink);
+    outline: none;
+}
+
+.rx-paper .rx-sign-caption {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.rx-paper .rx-lic {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.rx-paper .rx-lic .rx-underline,
+.rx-paper .rx-lic .rx-input {
+    min-width: 110px;
+}
+
+.modal-rx {
+    max-width: 860px !important;
+}
+
+@media print {
+    .rx-paper {
+        max-width: none;
+        min-height: auto;
+        padding: 0;
+    }
+    .rx-paper .rx-input,
+    .rx-paper .rx-textarea {
+        border: none;
+        border-bottom: 1px solid var(--rx-ink);
+        box-shadow: none;
+    }
+}

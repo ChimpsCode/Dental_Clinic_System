@@ -53,15 +53,35 @@
             d.textContent = String(s || '');
             return d.innerHTML;
         }
+        function destForType(type) {
+            switch (String(type || 'system').toLowerCase()) {
+                case 'appointment':
+                case 'reminder':
+                case 'cancellation':
+                    return 'staff_appointments.php';
+                case 'patient':
+                    return 'staff_patient_records.php';
+                case 'queue':
+                    return 'staff_queue.php';
+                case 'inquiry':
+                    return 'staff_inquiries.php';
+                case 'payment':
+                    return 'staff_payment.php';
+                default:
+                    return 'staff-dashboard.php';
+            }
+        }
         function renderList(notifs) {
             if (!notifs.length)
                 return '<div class="notif-empty"><i class="fas fa-bell-slash"></i>No notifications yet</div>';
             return notifs.map(function(n) {
-                return '<div class="notif-item' + (n.is_read == 0 ? ' unread' : '') + '" data-notif-id="' + n.id + '">'
-                     + '<div class="notif-icon ' + (n.type || 'system') + '"><i class="fas ' + (iconMap[n.type] || 'fa-bell') + '"></i></div>'
+                var type = n.type || 'system';
+                var href = destForType(type);
+                return '<a class="notif-item' + (n.is_read == 0 ? ' unread' : '') + '" href="' + href + '" data-notif-id="' + n.id + '" data-notif-type="' + esc(type) + '">'
+                     + '<div class="notif-icon ' + type + '"><i class="fas ' + (iconMap[n.type] || 'fa-bell') + '"></i></div>'
                      + '<div class="notif-content"><p class="notif-title">' + esc(n.title) + '</p>'
                      + '<p class="notif-msg">' + esc(n.message) + '</p>'
-                     + '<div class="notif-time">' + timeAgo(n.created_at) + '</div></div></div>';
+                     + '<div class="notif-time">' + timeAgo(n.created_at) + '</div></div></a>';
             }).join('');
         }
         function setBadge(c) {
@@ -118,7 +138,20 @@
             var item = e.target.closest('.notif-item');
             if (!item) return;
             e.preventDefault();
-            // Intentionally not navigating: notification items are non-clickable.
+            var id = item.getAttribute('data-notif-id');
+            var href = item.getAttribute('href') || destForType(item.getAttribute('data-notif-type'));
+            if (item.classList.contains('unread') && id) {
+                item.classList.remove('unread');
+                fetch(actionsUrl, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: 'action=mark_read&id=' + encodeURIComponent(id)
+                }).catch(function(){});
+            }
+            if (href && href !== '#') {
+                dropdown.classList.remove('open');
+                window.location.href = href;
+            }
         });
 
         // ── Mark all read ─────────────────────────────────────────────────

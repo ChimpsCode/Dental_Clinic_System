@@ -313,13 +313,13 @@ $assets = [
           <a href="home.php#faq" class="nav-link">FAQ</a>
           <a href="home.php#contact" class="nav-link">Contact Us</a>
           <div class="nav-actions">
-            <a class="btn btn-outline" href="login.php#register">Sign Up</a>
-            <a class="btn btn-primary" href="login.php">Login</a>
+            <a class="btn btn-outline" href="login.php?form=1#register">Sign Up</a>
+            <a class="btn btn-primary" href="login.php?form=1">Login</a>
           </div>
         </nav>
         <div class="header-actions">
-          <a class="btn btn-outline" href="login.php#register">Sign Up</a>
-          <a class="btn btn-primary" href="login.php">Login</a>
+          <a class="btn btn-outline" href="login.php?form=1#register">Sign Up</a>
+          <a class="btn btn-primary" href="login.php?form=1">Login</a>
         </div>
       </div>
     </header>
@@ -655,7 +655,7 @@ $assets = [
         });
 
         document.getElementById('existingPatientChoice').addEventListener('click', function() {
-          window.location.href = 'login.php';
+          window.location.href = 'login.php?form=1';
         });
 
         regModalClose.addEventListener('click', function() {
@@ -824,6 +824,16 @@ $assets = [
               regOtpError.style.display = 'block';
               regOtpVerifyBtn.disabled = false;
               regOtpVerifyBtnText.textContent = 'Verify & Create Account';
+            }
+          });
+        }
+
+        if (regOtpCode && regOtpVerifyBtn) {
+          regOtpCode.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            if (!regOtpVerifyBtn.disabled) {
+              regOtpVerifyBtn.click();
             }
           });
         }

@@ -57,7 +57,7 @@ $current_username = $_SESSION['username'] ?? null;
 $current_role = $_SESSION['role'] ?? null;
 
 // Allow only dentists for prescription operations
-if ($current_role !== 'dentist') {
+if (strtolower((string) $current_role) !== 'dentist') {
     echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
     exit;
 }
@@ -255,6 +255,7 @@ try {
                 SELECT pr.*, 
                        CONCAT(p.first_name, ' ', p.last_name) as patient_name,
                        TIMESTAMPDIFF(YEAR, p.date_of_birth, CURDATE()) as age, p.phone,
+                       p.gender, p.street_address, p.city, p.province,
                        CONCAT(u.first_name, ' ', u.last_name) as doctor_name
                 FROM prescriptions pr
                 LEFT JOIN patients p ON pr.patient_id = p.id
