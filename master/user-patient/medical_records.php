@@ -109,11 +109,13 @@ try {
     try {
         $hasUsersPatientId = false;
         foreach ($pdo->query('SHOW COLUMNS FROM users') as $col) {
-            if (strtolower((string)$col[0]) === 'patient_id') { $hasUsersPatientId = true; break; }
+            $field = strtolower((string)($col['Field'] ?? $col[0] ?? ''));
+            if ($field === 'patient_id') { $hasUsersPatientId = true; break; }
         }
         $hasPatientsUserId = false;
         foreach ($pdo->query('SHOW COLUMNS FROM patients') as $col) {
-            if (strtolower((string)$col[0]) === 'user_id') { $hasPatientsUserId = true; break; }
+            $field = strtolower((string)($col['Field'] ?? $col[0] ?? ''));
+            if ($field === 'user_id') { $hasPatientsUserId = true; break; }
         }
         if ($hasUsersPatientId || !$hasPatientsUserId) {
             $patientJoinClause = 'LEFT JOIN users u ON u.patient_id = p.id';
