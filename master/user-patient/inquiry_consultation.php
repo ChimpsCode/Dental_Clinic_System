@@ -229,10 +229,11 @@ $pageTitle = 'Inquiry / Consultation';
     <link rel="stylesheet" href="../../assets/css/patient_portal.css">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Inter', system-ui, sans-serif; background: #f5f7fa; min-height: 100vh; display: flex; }
-        .sidebar { width: 220px; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; }
-        .main-wrapper { flex: 1; margin-left: 220px; min-height: 100vh; display: flex; flex-direction: column; }
-        .dashboard-header { background: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 50; height: 70px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        html, body { height: 100%; height: 100dvh; overflow: hidden; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: #f5f7fa; display: flex; }
+        .sidebar { width: 220px; position: fixed; top: 0; left: 0; height: 100vh; height: 100dvh; overflow-y: auto; }
+        .main-wrapper { flex: 1; margin-left: 220px; height: 100dvh; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+        .dashboard-header { background: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; flex-shrink: 0; z-index: 50; height: 70px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .header-right { display: flex; align-items: center; gap: 16px; }
         .user-profile { position: relative; display: flex; align-items: center; gap: 12px; }
         .user-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #005daa, #0571ca); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; }
@@ -243,7 +244,7 @@ $pageTitle = 'Inquiry / Consultation';
         .dropdown-item { display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: #374151; text-decoration: none; }
         .dropdown-item.logout { border-top: 1px solid #e5e7eb; color: #dc2626; }
         
-        .dashboard-main { flex: 1; padding: 24px 32px 40px; width: 100%; max-width: 1500px; margin: 0 auto; }
+        .dashboard-main { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; padding: 24px 32px 16px; width: 100%; max-width: 1500px; margin: 0 auto; }
         
         /* Updated Grid Layout */
         .top-layout {
@@ -251,8 +252,9 @@ $pageTitle = 'Inquiry / Consultation';
             grid-template-columns: 1fr 360px;
             gap: 24px;
             align-items: stretch;
-            height: calc(100vh - 120px);
-            min-height: 600px;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
         }
 
         /* Conversation panel styling (Left Side) */
@@ -260,18 +262,20 @@ $pageTitle = 'Inquiry / Consultation';
             display: flex; 
             flex-direction: column; 
             height: 100%; 
+            min-height: 0;
+            max-height: 100%;
             border-radius: 12px; 
             overflow: hidden; 
             border: 1px solid #cecece; /* Blue border to match mockup selection if desired, or #e6eef8 */
             background: #fff; 
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
-        .conv-header { display:flex; align-items:center; gap:14px; padding:18px 20px; border-bottom:1px solid #e5e7eb; background:#fafbff; }
+        .conv-header { display:flex; align-items:center; gap:14px; padding:18px 20px; border-bottom:1px solid #e5e7eb; background:#fafbff; flex-shrink:0; }
         .conv-avatar-placeholder { width:44px; height:44px; border-radius:50%; background:#d1d5db; }
         .conv-meta { flex:1; min-width:0; }
         .conv-name { font-size: 15px; font-weight:700; color:#0f172a; }
         .conv-status { font-size:12px; color:#6b7280; margin-top:2px; }
-        .conv-body { flex:1; padding:18px 20px; overflow-y:auto; background:#fcfdff; display:flex; flex-direction:column; gap:10px; }
+        .conv-body { flex:1; min-height:0; padding:18px 20px; overflow-y:auto; overscroll-behavior:contain; background:#fcfdff; display:flex; flex-direction:column; gap:10px; }
         .chat-bubble { max-width:88%; padding:12px 16px; border-radius:18px; line-height:1.55; font-size:14px; word-break:break-word; }
         .chat-bubble.received { align-self:flex-start; background:#f0f2f5; color:#111827; border-bottom-left-radius:6px; }
         .chat-bubble.sent { align-self:flex-end; background:linear-gradient(135deg,#2563eb,#1d4ed8); color:#fff; border-bottom-right-radius:6px; }
@@ -288,7 +292,7 @@ $pageTitle = 'Inquiry / Consultation';
         .chat-typing-dots span:nth-child(3) { animation-delay:.3s; }
         @keyframes inquiryTyping { 0%,60%,100% { transform:translateY(0); opacity:.45; } 30% { transform:translateY(-3px); opacity:1; } }
         
-        #inquiryForm { padding:14px 20px 18px; border-top:1px solid #e5e7eb; background:#fff; }
+        #inquiryForm { padding:14px 20px calc(18px + env(safe-area-inset-bottom, 0px)); border-top:1px solid #e5e7eb; background:#fff; flex-shrink:0; }
         .chat-send-row { display:flex; gap:10px; align-items:flex-end; }
         .chat-send-row textarea { flex:1; border:1px solid #d1d5db; border-radius:20px; padding:12px 16px; font:inherit; font-size:14px; resize:none; min-height:48px; max-height:120px; outline:none; background:#f9fafb; }
         .chat-send-row textarea:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.1); background:#fff; }
@@ -423,7 +427,7 @@ $pageTitle = 'Inquiry / Consultation';
             font-weight: 600;
         }
 
-        .alert { display: none; padding: 14px 16px; border-radius: 14px; margin-bottom: 16px; font-size: 14px; font-weight: 600; }
+        .alert { display: none; padding: 14px 16px; border-radius: 14px; margin-bottom: 16px; font-size: 14px; font-weight: 600; flex-shrink: 0; }
         .alert.show { display: block; }
         .alert.success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
         .alert.error { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
@@ -431,24 +435,17 @@ $pageTitle = 'Inquiry / Consultation';
         body.clinic-profile-open { overflow: hidden; }
 
         @media (max-width: 1180px) {
-            .main-wrapper { min-height: 100dvh; }
             .dashboard-main {
-                flex: 1;
-                min-height: 0;
-                display: flex;
-                flex-direction: column;
-                padding: 12px 16px 16px;
+                padding: 12px 16px 12px;
                 max-width: none;
             }
             .top-layout {
                 grid-template-columns: 1fr;
-                flex: 1;
-                min-height: 0;
-                height: auto;
+                display: flex;
+                flex-direction: column;
                 gap: 0;
             }
-            .conversation-panel { height: 100%; min-height: 0; }
-            .conv-body { min-height: 0; }
+            .conversation-panel { flex: 1; height: auto; width: 100%; min-height: 0; }
             .clinic-info-btn { display: inline-flex; }
             .clinic-profile-backdrop {
                 display: none;
@@ -485,10 +482,10 @@ $pageTitle = 'Inquiry / Consultation';
         @media (max-width: 768px) {
             .main-wrapper { margin-left: 0; }
             .dashboard-header { padding: 12px 16px; height: auto; }
-            .dashboard-main { padding: 8px 8px 12px; }
+            .dashboard-main { padding: 8px; }
             .conversation-panel { border-radius: 10px; }
             .user-details { display: none; }
-            #inquiryForm { padding:10px; }
+            #inquiryForm { padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px)); }
             .conv-input { gap:3px; min-height:54px; padding:5px; }
             .conv-input .icon-btn { width:38px; height:38px; flex-basis:38px; }
             .send-btn { width:42px; height:42px; flex-basis:42px; }

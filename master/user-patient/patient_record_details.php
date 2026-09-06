@@ -12,13 +12,47 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-$role = $_SESSION['role'] ?? '';
-if (!in_array($role, ['dentist', 'staff', 'admin'])) {
+$role = strtolower((string)($_SESSION['role'] ?? ''));
+$staffRoles = ['dentist', 'staff', 'admin'];
+$isPatientUser = ($role === 'user');
+
+if (!in_array($role, $staffRoles, true) && !$isPatientUser) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit();
 }
 
-$patientId = $_GET['id'] ?? null;
+$patientId = (int)($_GET['id'] ?? 0);
+
+if ($isPatientUser) {
+    $sessionPatientId = (int)($_SESSION['patient_id'] ?? 0);
+    $sessionUserId = (int)($_SESSION['user_id'] ?? 0);
+
+    if ($sessionPatientId <= 0 && $sessionUserId > 0) {
+        try {
+            require_once '../../config/database.php';
+            $ownStmt = $pdo->prepare('SELECT id FROM patients WHERE user_id = ? LIMIT 1');
+            $ownStmt->execute([$sessionUserId]);
+            $sessionPatientId = (int)$ownStmt->fetchColumn();
+            if ($sessionPatientId > 0) {
+                $_SESSION['patient_id'] = $sessionPatientId;
+            }
+        } catch (Exception $e) {
+            $sessionPatientId = 0;
+        }
+    }
+
+    if ($sessionPatientId <= 0) {
+        echo json_encode(['success' => false, 'message' => 'Patient record not found']);
+        exit();
+    }
+
+    if ($patientId > 0 && $patientId !== $sessionPatientId) {
+        echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+        exit();
+    }
+
+    $patientId = $sessionPatientId;
+}
 
 if (!$patientId) {
     echo json_encode(['success' => false, 'message' => 'No patient ID provided']);
@@ -462,6 +496,58 @@ try {
         $intakeDentalHistory = null;
     }
 
+    $treatmentPlans = [];
+    try {
+        $stmt = $pdo->prepare("
+            SELECT tp.*, tp.plan_name as treatment_name, tp.overall_status as status,
+                   s.name as service_name
+            FROM treatment_plans tp
+            LEFT JOIN services s ON (tp.plan_name REGEXP '^[0-9]+$' AND s.id = tp.plan_name)
+            WHERE tp.patient_id = ?
+            ORDER BY tp.created_at DESC
+        ");
+        $stmt->execute([$patientId]);
+        $treatmentPlans = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($treatmentPlans as &$plan) {
+            if (!empty($plan['service_name'])) {
+                $plan['treatment_name'] = $plan['service_name'];
+            }
+            $plan['status'] = strtolower(str_replace('-', '_', (string)($plan['status'] ?? '')));
+        }
+        unset($plan);
+    } catch (Exception $e) {
+        $treatmentPlans = [];
+    }
+
+    $xraysByConsultation = [];
+    try {
+        $consultIds = [];
+        foreach ($consultationHistory as $chRow) {
+            if (!empty($chRow['id'])) {
+                $consultIds[] = (int)$chRow['id'];
+            }
+        }
+        if ($consultIds) {
+            $placeholders = implode(',', array_fill(0, count($consultIds), '?'));
+            $stmt = $pdo->prepare("
+                SELECT id, consultation_id, file_path, original_filename, mime_type, file_size, created_at
+                FROM patient_xrays
+                WHERE consultation_id IN ($placeholders)
+                ORDER BY created_at DESC, id DESC
+            ");
+            $stmt->execute($consultIds);
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $xray) {
+                $cid = (int)$xray['consultation_id'];
+                if (!isset($xraysByConsultation[$cid])) {
+                    $xraysByConsultation[$cid] = [];
+                }
+                $xraysByConsultation[$cid][] = $xray;
+            }
+        }
+    } catch (Exception $e) {
+        $xraysByConsultation = [];
+    }
+
     echo json_encode([
         'success' => true,
         'patient' => $patient,
@@ -469,13 +555,15 @@ try {
         'medical_history' => $medicalHistory,
         'dental_history' => $dentalHistory,
         'intake_dental_history' => $intakeDentalHistory,
-        'queue_item' => $queueItem,
-        'billing' => $billing,
-        'all_billings' => $allBillings,
-        'payments' => $payments,
+        'queue_item' => $isPatientUser ? null : $queueItem,
+        'billing' => $isPatientUser ? null : $billing,
+        'all_billings' => $isPatientUser ? [] : $allBillings,
+        'payments' => $isPatientUser ? [] : $payments,
         'odontogram_sessions' => $consultationHistory,
         'consultation_history' => $consultationHistory,
-        'prescriptions' => $prescriptions
+        'prescriptions' => $prescriptions,
+        'treatment_plans' => $treatmentPlans,
+        'xrays' => $xraysByConsultation
     ]);
     
 } catch (Exception $e) {
