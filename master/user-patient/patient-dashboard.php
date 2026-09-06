@@ -1142,7 +1142,7 @@ $pageTitle = 'Patient Dashboard';
             }
         }
     </style>
-    <link rel="stylesheet" href="../../assets/css/patient_portal.css?v=5">
+    <link rel="stylesheet" href="../../assets/css/patient_portal.css?v=6">
 </head>
 <body>
     <!-- Sidebar -->

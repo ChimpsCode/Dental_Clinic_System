@@ -52,6 +52,13 @@ body {
 .sidebar-brand span {
     font-size: 1.125rem !important;
     font-weight: 700 !important;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+    background: linear-gradient(90deg, #1e4db7, #2eb8b0) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    color: transparent !important;
 }
 
 .sidebar-menu {
