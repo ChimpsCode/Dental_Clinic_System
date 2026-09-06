@@ -3073,5 +3073,12 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
 .summary-cards .summary-info h3 { color: #27427e; }
 .summary-cards .summary-info p { color: #5b6ea3; }
 
+@media (max-width: 1200px) {
+    .summary-cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 12px;
+    }
+}
+
 </style>
 <?php require_once '../../includes/staff_layout_end.php'; ?>

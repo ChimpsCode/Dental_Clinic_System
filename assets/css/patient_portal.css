@@ -427,6 +427,12 @@ body {
         min-height: 70px;
         padding: 14px 16px !important;
     }
+
+    .summary-cards {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 12px !important;
+    }
 }
 
 @media (max-width: 768px) {
@@ -447,5 +453,28 @@ body {
 
     .user-details {
         display: none;
+    }
+
+    .summary-cards {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+    }
+
+    .summary-card {
+        padding: 14px !important;
+        min-width: 0;
+    }
+
+    .summary-card-title {
+        font-size: 10px !important;
+    }
+
+    .summary-card-value {
+        font-size: 1.35rem !important;
+    }
+
+    .summary-card-subtext {
+        font-size: 11px !important;
     }
 }

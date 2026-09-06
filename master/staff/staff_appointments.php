@@ -281,19 +281,16 @@ try {
 
 @media (max-width: 1200px) {
     .summary-cards {
-        grid-template-columns: repeat(3, 1fr) !important;
+        grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+        gap: 12px !important;
     }
-}
 
-@media (max-width: 768px) {
-    .summary-cards {
-        grid-template-columns: repeat(2, 1fr) !important;
+    .summary-cards .summary-card:nth-child(-n+3) {
+        grid-column: span 2;
     }
-}
 
-@media (max-width: 480px) {
-    .summary-cards {
-        grid-template-columns: 1fr !important;
+    .summary-cards .summary-card:nth-child(n+4) {
+        grid-column: span 3;
     }
 }
 

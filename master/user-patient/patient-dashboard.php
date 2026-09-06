@@ -1046,6 +1046,11 @@ $pageTitle = 'Patient Dashboard';
                 padding: 16px;
             }
 
+            .summary-cards {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px;
+            }
+
             .card {
                 padding: 16px;
             }
@@ -1097,8 +1102,25 @@ $pageTitle = 'Patient Dashboard';
             }
 
             .summary-cards {
-                grid-template-columns: 1fr;
-                gap: 16px;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 10px;
+            }
+
+            .summary-card {
+                padding: 14px;
+            }
+
+            .summary-card-title {
+                font-size: 10px;
+                letter-spacing: 0.03em;
+            }
+
+            .summary-card-value {
+                font-size: 1.35rem;
+            }
+
+            .summary-card-subtext {
+                font-size: 11px;
             }
 
             .dashboard-header {
@@ -1120,7 +1142,7 @@ $pageTitle = 'Patient Dashboard';
             }
         }
     </style>
-    <link rel="stylesheet" href="../../assets/css/patient_portal.css">
+    <link rel="stylesheet" href="../../assets/css/patient_portal.css?v=5">
 </head>
 <body>
     <!-- Sidebar -->

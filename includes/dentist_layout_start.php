@@ -160,6 +160,7 @@ try {
     <link rel="stylesheet" href="../../assets/css/dentist_dashboard.css">
     <link rel="stylesheet" href="../../assets/css/appointments.css">
     <link rel="stylesheet" href="../../assets/css/mini_calendar.css">
+    <link rel="stylesheet" href="../../assets/css/mobile_count_cards.css">
     <link rel="preload" as="image" href="../../assets/icons/waiting.png">
     <link rel="preload" as="image" href="../../assets/icons/in-procedure.png">
     <link rel="preload" as="image" href="../../assets/icons/check.png">

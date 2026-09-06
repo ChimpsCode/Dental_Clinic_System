@@ -1,0 +1,41 @@
+/* Mobile count cards: 4 cards = 2x2, 5 cards = 3 on top + 2 wider below */
+@media (max-width: 1200px) {
+    .summary-cards:not(:has(> :nth-child(5))) {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 12px !important;
+    }
+
+    .summary-cards:has(> :nth-child(5)),
+    .summary-widgets {
+        display: grid !important;
+        grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+        gap: 12px !important;
+    }
+
+    .summary-cards:has(> :nth-child(5)) > :nth-child(-n+3),
+    .summary-widget:nth-child(-n+3) {
+        grid-column: span 2;
+    }
+
+    .summary-cards:has(> :nth-child(5)) > :nth-child(n+4),
+    .summary-widget:nth-child(n+4) {
+        grid-column: span 3;
+    }
+
+    .summary-card,
+    .summary-widget {
+        min-width: 0;
+    }
+
+    .summary-info h3,
+    .summary-widget-info h3 {
+        font-size: 1.4rem;
+    }
+
+    .summary-info p,
+    .summary-widget-info p {
+        font-size: 0.78rem;
+        white-space: normal;
+    }
+}

@@ -160,6 +160,7 @@ try {
     <link rel="stylesheet" href="../../assets/css/staff_dashboard.css">
     <link rel="stylesheet" href="../../assets/css/appointments.css">
     <link rel="stylesheet" href="../../assets/css/mini_calendar.css">
+    <link rel="stylesheet" href="../../assets/css/mobile_count_cards.css">
     <style>
         /* Inquiry panel base state. Must stay in <head>: the full panel styles
            live at the bottom of the dashboard page, so without this the panel

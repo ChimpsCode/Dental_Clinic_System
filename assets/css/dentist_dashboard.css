@@ -1619,11 +1619,12 @@ header.top-header {
     }
 
     .two-column { grid-template-columns: 1fr; }
-    .appt-stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .summary-cards,
+    .appt-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 768px) {
     .summary-cards,
-    .appt-stats-grid { grid-template-columns: 1fr; }
+    .appt-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
     .header-user-summary {
         display: none;

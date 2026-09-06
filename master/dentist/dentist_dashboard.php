@@ -2209,6 +2209,13 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('dcCalPrev'))
     background-image: url('../../assets/icons/pause.png');
 }
 
+@media (max-width: 1200px) {
+    .summary-cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 12px;
+    }
+}
+
 </style>
 
 <?php require_once '../../includes/dentist_layout_end.php'; ?>

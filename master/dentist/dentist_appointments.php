@@ -127,7 +127,25 @@ usort($sections['inqueue'], function ($a, $b) use ($queuePanelOrder) {
 <!-- Add extra CSS for status badges -->
 <style>
 .summary-cards {
+    display: grid;
     grid-template-columns: repeat(5, 1fr);
+    gap: 15px;
+    margin-bottom: 24px;
+}
+
+@media (max-width: 1200px) {
+    .summary-cards {
+        grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+        gap: 12px !important;
+    }
+
+    .summary-cards .summary-card:nth-child(-n+3) {
+        grid-column: span 2;
+    }
+
+    .summary-cards .summary-card:nth-child(n+4) {
+        grid-column: span 3;
+    }
 }
 .status-badge {
     display: inline-block;
@@ -281,7 +299,7 @@ usort($sections['inqueue'], function ($a, $b) use ($queuePanelOrder) {
 </style>
 
 <!-- Appointment Stats -->
-<div class="summary-cards" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 24px;">
+<div class="summary-cards">
     <div class="summary-card card-total">
         <div class="summary-icon">
             <img src="../../assets/icons/calendar.png" alt="Total Appointments">

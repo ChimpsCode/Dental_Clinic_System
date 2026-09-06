@@ -420,6 +420,21 @@ try {
     margin-bottom: 24px;
 }
 
+@media (max-width: 1200px) {
+    .summary-widgets {
+        grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+        gap: 12px;
+    }
+
+    .summary-widget:nth-child(-n+3) {
+        grid-column: span 2;
+    }
+
+    .summary-widget:nth-child(n+4) {
+        grid-column: span 3;
+    }
+}
+
 .summary-widget {
     background: #ffffff;
     border-radius: 12px;
