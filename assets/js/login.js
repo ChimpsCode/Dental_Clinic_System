@@ -21,6 +21,10 @@
     const twoFactorVerifyBtnText = document.getElementById('twoFactorVerifyBtnText');
     const twoFactorError = document.getElementById('twoFactorError');
     const backToLoginFrom2faLink = document.getElementById('backToLoginFrom2faLink');
+    const twoFactorSubtitle = document.getElementById('twoFactorSubtitle');
+    const twoFactorHelpText = document.getElementById('twoFactorHelpText');
+    let loginFlowState = 'password';
+    let toastHideTimer = null;
 
     console.log('=== PAGE LOADED ===');
     console.log('Login form:', loginForm);
@@ -213,6 +217,7 @@
     }
 
     function showLogin() {
+        loginFlowState = 'password';
         if (registrationContainer) registrationContainer.style.display = 'none';
         if (forgotContainer) forgotContainer.style.display = 'none';
         if (twoFactorContainer) twoFactorContainer.style.display = 'none';
@@ -241,24 +246,50 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
+    function hideTwoFactorPromptOnSuccess() {
+        if (twoFactorSubtitle) twoFactorSubtitle.style.display = 'none';
+        if (twoFactorHelpText) {
+            twoFactorHelpText.style.display = 'none';
+            if (twoFactorHelpText.parentElement) twoFactorHelpText.parentElement.style.display = 'none';
+        }
+        if (twoFactorForm) twoFactorForm.style.display = 'none';
+        if (twoFactorCode) twoFactorCode.style.display = 'none';
+        if (twoFactorVerifyBtn) twoFactorVerifyBtn.style.display = 'none';
+        if (twoFactorError) twoFactorError.style.display = 'none';
+    }
+
     function showTwoFactor(method) {
+        loginFlowState = 'awaiting2fa';
         if (loginContainer) loginContainer.style.display = 'none';
         if (registrationContainer) registrationContainer.style.display = 'none';
         if (forgotContainer) forgotContainer.style.display = 'none';
         if (twoFactorContainer) twoFactorContainer.style.display = 'block';
         document.title = 'Two-Factor Auth - RF Dental Clinic';
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        if (twoFactorCode) { twoFactorCode.value = ''; twoFactorCode.focus(); }
+        if (twoFactorForm) twoFactorForm.style.display = '';
+        if (twoFactorVerifyBtn) {
+            twoFactorVerifyBtn.style.display = '';
+            twoFactorVerifyBtn.disabled = false;
+        }
+        if (twoFactorVerifyBtnText) twoFactorVerifyBtnText.textContent = 'Verify Code';
+        if (twoFactorCode) {
+            twoFactorCode.style.display = '';
+            twoFactorCode.value = '';
+            twoFactorCode.focus();
+        }
         if (twoFactorError) twoFactorError.style.display = 'none';
+        if (twoFactorSubtitle) twoFactorSubtitle.style.display = '';
+        if (twoFactorHelpText) {
+            twoFactorHelpText.style.display = '';
+            if (twoFactorHelpText.parentElement) twoFactorHelpText.parentElement.style.display = '';
+        }
 
-        const subtitle = document.getElementById('twoFactorSubtitle');
-        const helpText = document.getElementById('twoFactorHelpText');
         if (method === 'email') {
-            if (subtitle) subtitle.textContent = 'Enter the 6-digit code sent to your email.';
-            if (helpText) helpText.textContent = "Didn't receive the code? ";
+            if (twoFactorSubtitle) twoFactorSubtitle.textContent = 'Enter the 6-digit code sent to your email.';
+            if (twoFactorHelpText) twoFactorHelpText.textContent = "Didn't receive the code? ";
         } else {
-            if (subtitle) subtitle.textContent = 'Enter the 6-digit code from your authenticator app.';
-            if (helpText) helpText.textContent = 'Open Google Authenticator to get your code. ';
+            if (twoFactorSubtitle) twoFactorSubtitle.textContent = 'Enter the 6-digit code from your authenticator app.';
+            if (twoFactorHelpText) twoFactorHelpText.textContent = 'Open Google Authenticator to get your code. ';
         }
     }
 
@@ -882,9 +913,12 @@
         // Show toast
         toast.classList.add('show');
         
-        // Auto-hide after 5 seconds
-        setTimeout(() => {
+        if (toastHideTimer) {
+            clearTimeout(toastHideTimer);
+        }
+        toastHideTimer = setTimeout(() => {
             closeToast();
+            toastHideTimer = null;
         }, 1000);
     }
 
@@ -1066,13 +1100,16 @@
                 if (data.success === true) {
                     if (data.two_factor_required === true) {
                         console.log('=== 2FA REQUIRED ===');
-                        showToast('Info', data.message || 'Enter your verification code', 'success');
+                        if (loginFlowState === 'verified') {
+                            return;
+                        }
                         showTwoFactor(data.two_factor_method || 'totp');
                         return;
                     }
 
                     console.log('=== LOGIN SUCCESSFUL ===');
                     console.log('Showing toast...');
+                    loginFlowState = 'verified';
                     
                     // Show success toast
                     showToast('Success', 'Login successful!', 'success');
@@ -1164,6 +1201,8 @@
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
+                    loginFlowState = 'verified';
+                    hideTwoFactorPromptOnSuccess();
                     showToast('Success', 'Login successful!', 'success');
                     const targetRedirect = data.redirect
                         ? new URL(data.redirect, window.location.href).toString()
