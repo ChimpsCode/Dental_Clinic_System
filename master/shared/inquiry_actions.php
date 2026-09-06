@@ -22,6 +22,10 @@ $action = $_REQUEST['action'] ?? '';
 
 function inquiryJson(array $payload): void
 {
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    header('Content-Type: application/json');
     echo json_encode($payload);
     exit();
 }
@@ -783,6 +787,158 @@ if ($action === 'create') {
 
 if (!inquiryCanManage($role)) {
     inquiryJson(['success' => false, 'message' => 'Unauthorized.']);
+}
+
+if ($action === 'open_from_appointment') {
+    try {
+        $appointmentId = (int)($_POST['appointment_id'] ?? 0);
+        if ($appointmentId <= 0) {
+            inquiryJson(['success' => false, 'message' => 'Invalid appointment.']);
+        }
+
+        $userIdSelect = inquiryColumnExists($pdo, 'patients', 'user_id') ? 'p.user_id' : 'NULL AS user_id';
+        $inquiryIdSelect = inquiryColumnExists($pdo, 'appointments', 'inquiry_id') ? 'a.inquiry_id' : 'NULL AS inquiry_id';
+        $apptStmt = $pdo->prepare("
+            SELECT a.id, a.patient_id, a.appointment_date, a.appointment_time, a.notes,
+                   COALESCE(s.name, 'Appointment') AS service_name,
+                   p.first_name, p.middle_name, p.last_name, p.phone, p.email,
+                   {$userIdSelect}, {$inquiryIdSelect}
+            FROM appointments a
+            LEFT JOIN services s ON s.id = a.service_id
+            LEFT JOIN patients p ON p.id = CAST(a.patient_id AS UNSIGNED)
+            WHERE a.id = ?
+            LIMIT 1
+        ");
+        $apptStmt->execute([$appointmentId]);
+        $appt = $apptStmt->fetch(PDO::FETCH_ASSOC);
+        if (!$appt) {
+            inquiryJson(['success' => false, 'message' => 'Appointment not found.']);
+        }
+
+        $patientId = (int)($appt['patient_id'] ?? 0);
+        if ($patientId <= 0) {
+            inquiryJson(['success' => false, 'message' => 'This appointment is not linked to a patient record.']);
+        }
+
+        $notes = trim((string)($appt['notes'] ?? ''));
+        $serviceName = trim((string)($appt['service_name'] ?? 'Appointment'));
+        $dateLabel = !empty($appt['appointment_date']) ? date('M j, Y', strtotime((string)$appt['appointment_date'])) : '';
+        $timeLabel = '';
+        if (!empty($appt['appointment_time'])) {
+            $timeLabel = date('g:i A', strtotime((string)$appt['appointment_time']));
+        }
+        $when = trim($dateLabel . ($timeLabel !== '' ? ' at ' . $timeLabel : ''));
+        $draft = 'Regarding your appointment' . ($when !== '' ? ' on ' . $when : '') . ' (' . $serviceName . '):';
+        if ($notes !== '') {
+            $draft .= "\n\n\"" . $notes . "\"\n\n";
+        } else {
+            $draft .= "\n\n";
+        }
+
+        $linkedInquiryId = (int)($appt['inquiry_id'] ?? 0);
+        if ($linkedInquiryId > 0) {
+            inquiryJson([
+                'success' => true,
+                'inquiry_id' => $linkedInquiryId,
+                'draft' => $draft,
+            ]);
+        }
+
+        $existingStmt = $pdo->prepare("
+            SELECT id FROM inquiries
+            WHERE patient_id = ?
+              AND COALESCE(is_archived, 0) = 0
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+        ");
+        $existingStmt->execute([$patientId]);
+        $existingId = (int)$existingStmt->fetchColumn();
+        if ($existingId > 0) {
+            inquiryJson([
+                'success' => true,
+                'inquiry_id' => $existingId,
+                'draft' => $draft,
+            ]);
+        }
+
+        $fullName = trim(implode(' ', array_filter([
+            $appt['first_name'] ?? '',
+            $appt['middle_name'] ?? '',
+            $appt['last_name'] ?? '',
+        ])));
+        if ($fullName === '') {
+            $fullName = 'Patient';
+        }
+        [$firstName, $middleName, $lastName] = splitInquiryFullName($fullName);
+        $phone = trim((string)($appt['phone'] ?? ''));
+        $email = trim((string)($appt['email'] ?? ''));
+        $hasPortal = !empty($appt['user_id']);
+        if (!$hasPortal && $email !== '') {
+            $userLookup = $pdo->prepare("SELECT id FROM users WHERE email = ? AND COALESCE(is_archived, 0) = 0 LIMIT 1");
+            $userLookup->execute([$email]);
+            $hasPortal = (int)$userLookup->fetchColumn() > 0;
+        }
+        $source = getCompatibleInquirySource($pdo, $hasPortal ? 'Patient Portal' : 'Website');
+        $compatibleStatus = getCompatibleInquiryStatus($pdo, 'Unread');
+        $concern = $notes !== '' ? $notes : ('Question about ' . $serviceName . ($when !== '' ? ' on ' . $when : ''));
+
+        $insertData = [
+            'patient_id' => $patientId,
+            'phone' => $phone,
+            'email' => $email,
+            'concern' => $concern,
+            'status' => $compatibleStatus,
+            'assigned_staff_id' => (int)$_SESSION['user_id'],
+            'notes' => null,
+            'source' => $source,
+            'first_name' => $firstName,
+            'middle_name' => $middleName,
+            'last_name' => $lastName,
+            'contact_info' => $phone,
+            'inquiry_message' => $concern,
+        ];
+
+        $columns = [];
+        $placeholders = [];
+        $values = [];
+        foreach ($insertData as $column => $value) {
+            if (inquiryColumnExists($pdo, 'inquiries', $column)) {
+                $columns[] = $column;
+                $placeholders[] = '?';
+                $values[] = $value;
+            }
+        }
+
+        if (inquiryColumnExists($pdo, 'inquiries', 'status_id')) {
+            $statusLookup = $pdo->prepare("SELECT id FROM inquiry_statuses WHERE status_name = ? LIMIT 1");
+            $statusLookup->execute([$compatibleStatus]);
+            $statusId = $statusLookup->fetchColumn();
+            if ($statusId !== false) {
+                $columns[] = 'status_id';
+                $placeholders[] = '?';
+                $values[] = (int)$statusId;
+            }
+        }
+
+        if (inquiryColumnExists($pdo, 'inquiries', 'created_at')) {
+            $columns[] = 'created_at';
+            $placeholders[] = 'NOW()';
+        }
+
+        $stmt = $pdo->prepare("
+            INSERT INTO inquiries (" . implode(', ', $columns) . ")
+            VALUES (" . implode(', ', $placeholders) . ")
+        ");
+        $stmt->execute($values);
+
+        inquiryJson([
+            'success' => true,
+            'inquiry_id' => (int)$pdo->lastInsertId(),
+            'draft' => $draft,
+        ]);
+    } catch (Throwable $e) {
+        inquiryJson(['success' => false, 'message' => 'Unable to open patient messages.']);
+    }
 }
 
 $id = (int)($_POST['id'] ?? 0);

@@ -508,7 +508,8 @@ try {
     <div class="modal" style="width: 500px;">
         <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Appointment Details</h2>
         <div id="viewAppointmentContent"></div>
-        <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px;">
+        <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px; flex-wrap: wrap;">
+            <button type="button" id="messagePatientFromNotesBtn" onclick="messagePatientFromNotes()" class="btn-primary" style="display:none; background:#0369a1;">Message patient</button>
             <button onclick="closeViewAppointmentModal()" class="btn-primary">Close</button>
             <button onclick="editAppointmentFromView()" class="btn-primary">Edit</button>
         </div>
@@ -1692,7 +1693,65 @@ try {
         `;
         
         document.getElementById('viewAppointmentModal').dataset.appointmentId = id;
+        document.getElementById('viewAppointmentModal').dataset.patientId = appt.patient_id || '';
+        const msgBtn = document.getElementById('messagePatientFromNotesBtn');
+        if (msgBtn) {
+            msgBtn.style.display = (appt.notes && String(appt.notes).trim()) ? 'inline-flex' : 'none';
+        }
         document.getElementById('viewAppointmentModal').style.display = 'flex';
+    }
+
+    function messagePatientFromNotes() {
+        const modal = document.getElementById('viewAppointmentModal');
+        const appointmentId = modal ? modal.dataset.appointmentId : '';
+        const patientId = modal ? modal.dataset.patientId : '';
+        if (!appointmentId) return;
+        if (!patientId) {
+            alert('This appointment is not linked to a patient record, so it cannot open Messages.');
+            return;
+        }
+
+        const btn = document.getElementById('messagePatientFromNotesBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Opening...';
+        }
+
+        const body = new URLSearchParams();
+        body.set('action', 'open_from_appointment');
+        body.set('appointment_id', appointmentId);
+
+        fetch('../shared/inquiry_actions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString()
+        })
+        .then(function(r) { return r.text(); })
+        .then(function(text) {
+            var data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                throw new Error('Unable to open patient messages.');
+            }
+            return data;
+        })
+        .then(function(data) {
+            if (!data.success || !data.inquiry_id) {
+                throw new Error(data.message || 'Unable to open patient messages.');
+            }
+            try {
+                sessionStorage.setItem('inquiryDraft', data.draft || '');
+            } catch (e) {}
+            window.location.href = 'staff_inquiries.php?open=' + encodeURIComponent(data.inquiry_id);
+        })
+        .catch(function(err) {
+            alert(err.message || 'Unable to open patient messages.');
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Message patient';
+            }
+        });
     }
 
     function editAppointmentFromView() {

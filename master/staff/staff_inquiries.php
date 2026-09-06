@@ -539,6 +539,63 @@ require_once '../../includes/staff_layout_start.php';
     border-top: 1px solid #e5e7eb;
     background: #fff;
 }
+.reply-quote-bar {
+    display: none;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    background: #f3f4f6;
+    border-radius: 10px;
+    border-left: 4px solid #2563eb;
+}
+.reply-quote-bar.visible {
+    display: flex;
+}
+.reply-quote-bar-body {
+    flex: 1;
+    min-width: 0;
+}
+.reply-quote-bar-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #2563eb;
+    margin-bottom: 4px;
+}
+.reply-quote-bar-text {
+    font-size: 13px;
+    color: #374151;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.reply-quote-bar-close {
+    border: none;
+    background: transparent;
+    color: #6b7280;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 0 2px;
+}
+.inq-quote {
+    font-size: 12px;
+    line-height: 1.4;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    border-left: 3px solid rgba(255, 255, 255, 0.75);
+    background: rgba(255, 255, 255, 0.16);
+    color: rgba(255, 255, 255, 0.95);
+}
+.chat-bubble.received .inq-quote {
+    background: #e5e7eb;
+    border-left-color: #2563eb;
+    color: #374151;
+}
 .chat-send-row {
     display: flex;
     gap: 10px;
@@ -887,6 +944,13 @@ require_once '../../includes/staff_layout_start.php';
         <div class="chat-channel-info" id="replyChannelInfo"></div>
         <form id="replyForm" class="chat-compose">
             <input type="hidden" id="reply_inquiry_id">
+            <div id="replyQuoteBar" class="reply-quote-bar" hidden>
+                <div class="reply-quote-bar-body">
+                    <div class="reply-quote-bar-label">Replying to appointment notes</div>
+                    <div class="reply-quote-bar-text" id="replyQuoteText"></div>
+                </div>
+                <button type="button" class="reply-quote-bar-close" id="replyQuoteClose" aria-label="Dismiss quote">&times;</button>
+            </div>
             <div id="replyAttachmentPreview" class="chat-attachment-preview" style="display:none;"></div>
             <div class="chat-send-row">
                 <button type="button" class="chat-attach-btn" id="replyAttachFile" title="Attach file"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
@@ -905,6 +969,7 @@ require_once '../../includes/staff_layout_start.php';
 
 <div class="toast" id="toast"></div>
 
+<script src="../../assets/js/inquiry_quote.js"></script>
 <script>
 let inquiries = <?php echo json_encode($inquiries); ?>;
 let inquiryMap = Object.fromEntries(inquiries.map((item) => [String(item.id), item]));
@@ -1201,6 +1266,27 @@ function showToast(message, isError = false) {
     setTimeout(() => toast.classList.remove('show'), 2800);
 }
 
+function showReplyQuote(text) {
+    const bar = document.getElementById('replyQuoteBar');
+    const quote = document.getElementById('replyQuoteText');
+    if (!bar || !quote) return;
+    quote.textContent = text;
+    bar.hidden = false;
+    bar.classList.add('visible');
+}
+
+function hideReplyQuote() {
+    const bar = document.getElementById('replyQuoteBar');
+    const quote = document.getElementById('replyQuoteText');
+    if (quote) quote.textContent = '';
+    if (bar) {
+        bar.hidden = true;
+        bar.classList.remove('visible');
+    }
+}
+
+document.getElementById('replyQuoteClose')?.addEventListener('click', hideReplyQuote);
+
 let inquiryKebabDropdown = null;
 let inquiryKebabBackdrop = null;
 let inquiryActiveButton = null;
@@ -1216,6 +1302,7 @@ function openModal(id) {
 function closeModal(id) {
     const el = document.getElementById(id);
     if (el) el.classList.remove('active');
+    if (id === 'replyModal') hideReplyQuote();
 }
 
 function closeActionMenu() {
@@ -1411,7 +1498,9 @@ function addChatBubble(text, type, timestamp, label, attachment) {
     const labelHtml = label ? '<div style="font-size:11px;font-weight:600;color:' + (type === 'received' ? '#64748b' : 'rgba(255,255,255,0.7)') + ';margin-bottom:3px;">' + escapeHtml(label) + '</div>' : '';
     let contentHtml = '';
     if (text) {
-        contentHtml += escapeHtml(text).replace(/\n/g, '<br>');
+        contentHtml += (typeof inquiryQuotedMessageHtml === 'function')
+            ? inquiryQuotedMessageHtml(text)
+            : escapeHtml(text).replace(/\n/g, '<br>');
     }
         if (attachment) {
         const isImg = /\.(jpe?g|png|gif|webp)$/i.test(attachment);
@@ -1456,6 +1545,7 @@ async function openReplyModal(id) {
     const msgInput = document.getElementById('reply_message');
     msgInput.value = '';
     msgInput.style.height = 'auto';
+    hideReplyQuote();
 
     const fullName = [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown Patient';
     document.getElementById('replyFromName').textContent = fullName;
@@ -1490,7 +1580,9 @@ async function openReplyModal(id) {
                     bubble.className = 'chat-bubble sent';
                 }
                 const label = reply.sender_type !== 'staff' ? (fullName) : 'Staff';
-                const msgText = reply.message ? escapeHtml(reply.message).replace(/\n/g, '<br>') : '';
+                const msgText = reply.message
+                    ? ((typeof inquiryQuotedMessageHtml === 'function') ? inquiryQuotedMessageHtml(reply.message) : escapeHtml(reply.message).replace(/\n/g, '<br>'))
+                    : '';
                 let attHtml = '';
                 if (reply.attachment) {
                     const isImg = /\.(jpe?g|png|gif|webp)$/i.test(reply.attachment);
@@ -1542,10 +1634,18 @@ async function openReplyModal(id) {
 document.getElementById('replyForm').addEventListener('submit', async (event) => {
     event.preventDefault();
     const id = document.getElementById('reply_inquiry_id').value;
-    const message = document.getElementById('reply_message').value.trim();
+    const typedMessage = document.getElementById('reply_message').value.trim();
+    const quoteBar = document.getElementById('replyQuoteBar');
+    const quoteText = document.getElementById('replyQuoteText');
+    const quote = (quoteBar && quoteBar.classList.contains('visible') && quoteText)
+        ? quoteText.textContent.trim()
+        : '';
+    const message = (typeof wrapInquiryQuotedMessage === 'function' && quote)
+        ? wrapInquiryQuotedMessage(quote, typedMessage)
+        : typedMessage;
     const replyFileInput = document.getElementById('replyFileInput');
     const selectedFile = replyFileInput.files[0] || null;
-    if (!id || (!message && !selectedFile)) {
+    if (!id || (!typedMessage && !selectedFile)) {
         showToast('Reply message or attachment is required.', true);
         return;
     }
@@ -1590,6 +1690,7 @@ document.getElementById('replyForm').addEventListener('submit', async (event) =>
         }
         textarea.value = '';
         textarea.style.height = 'auto';
+        hideReplyQuote();
         replyFileInput.value = '';
         clearReplyAttachment();
         btn.disabled = false;
@@ -1606,6 +1707,12 @@ const replyTextarea = document.getElementById('reply_message');
 replyTextarea.addEventListener('input', function () {
     this.style.height = 'auto';
     this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+replyTextarea.addEventListener('keydown', function (event) {
+    if (event.key !== 'Enter' || event.shiftKey) return;
+    event.preventDefault();
+    const form = document.getElementById('replyForm');
+    if (form) form.requestSubmit();
 });
 
 document.getElementById('replyAttachFile').addEventListener('click', () => {
@@ -1654,6 +1761,24 @@ dateFilter.addEventListener('change', () => {
 });
 
 renderTable();
+
+(function openInquiryFromAppointment() {
+    const params = new URLSearchParams(window.location.search);
+    const openId = params.get('open');
+    if (!openId) return;
+    const draft = sessionStorage.getItem('inquiryDraft') || '';
+    try { sessionStorage.removeItem('inquiryDraft'); } catch (e) {}
+    openReplyModal(openId).then(function() {
+        if (draft) showReplyQuote(draft);
+        const ta = document.getElementById('reply_message');
+        if (ta) {
+            ta.value = '';
+            ta.focus();
+        }
+    }).catch(function() {
+        showToast('Unable to open that conversation.', true);
+    });
+})();
 
 async function pollInquiries() {
     try {

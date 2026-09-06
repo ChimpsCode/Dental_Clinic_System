@@ -284,6 +284,8 @@ $pageTitle = 'Inquiry / Consultation';
         .chat-bubble.sent .chat-label { color:rgba(255,255,255,.7); }
         .chat-meta { font-size:11px; opacity:.65; margin-top:6px; }
         .chat-bubble.sent .chat-meta { color:rgba(255,255,255,.8); }
+        .inq-quote { font-size:12px; line-height:1.4; padding:8px 10px; margin-bottom:8px; border-radius:8px; border-left:3px solid #2563eb; background:#e5e7eb; color:#374151; }
+        .chat-bubble.sent .inq-quote { background:rgba(255,255,255,.16); border-left-color:rgba(255,255,255,.75); color:rgba(255,255,255,.95); }
         .typing-message-row { max-width:88px; padding:10px 14px; }
         .chat-typing-indicator { display:flex; align-items:center; min-height:18px; color:#64748b; }
         .chat-typing-dots { display:inline-flex; align-items:center; gap:4px; }
@@ -620,7 +622,7 @@ $pageTitle = 'Inquiry / Consultation';
                                 <div class="chat-bubble <?php echo $isClinic ? 'received' : 'sent'; ?>"<?php echo !empty($msg['id']) ? ' data-reply-id="' . (int)$msg['id'] . '"' : ''; ?>>
                                     <div class="chat-label"><?php echo $isClinic ? htmlspecialchars($clinicName) : 'You'; ?></div>
                                     <div>
-                                        <?php if ($msg['message']): ?><?php echo nl2br(htmlspecialchars($msg['message'])); ?><?php endif; ?>
+                                        <?php if ($msg['message']): ?><?php echo renderInquiryQuotedMessageHtml((string)$msg['message']); ?><?php endif; ?>
                                         <?php if ($att): ?>
                                             <?php if ($isImage): ?>
                                                 <img src="../<?php echo htmlspecialchars($att); ?>" class="chat-attachment-img" alt="Attachment" onclick="openLightbox(this.src)" style="cursor:pointer;">
@@ -742,6 +744,7 @@ $pageTitle = 'Inquiry / Consultation';
         </main>
     </div>
 
+    <script src="../../assets/js/inquiry_quote.js"></script>
     <script>
         const form = document.getElementById('inquiryForm');
         const formAlert = document.getElementById('formAlert');
@@ -940,7 +943,10 @@ $pageTitle = 'Inquiry / Consultation';
                     : `<a href="${escapeHtml(attachmentSrc)}" target="_blank" class="chat-attachment-file${isClinic ? ' file-received' : ''}"><i class="fas fa-paperclip"></i> ${escapeHtml(attachment.split('/').pop() || selectedFile?.name || 'Attachment')}</a>`;
             }
 
-            row.innerHTML = `<div class="chat-label">${escapeHtml(isClinic ? clinicNameLabel : 'You')}</div><div>${escapeHtml(reply.message || '').replace(/\n/g, '<br>')}${attachmentHtml}</div><div class="chat-meta">${escapeHtml(formatMessageTime(reply.created_at))}</div>`;
+            const messageHtml = (typeof inquiryQuotedMessageHtml === 'function')
+                ? inquiryQuotedMessageHtml(reply.message || '')
+                : escapeHtml(reply.message || '').replace(/\n/g, '<br>');
+            row.innerHTML = `<div class="chat-label">${escapeHtml(isClinic ? clinicNameLabel : 'You')}</div><div>${messageHtml}${attachmentHtml}</div><div class="chat-meta">${escapeHtml(formatMessageTime(reply.created_at))}</div>`;
 
             const typing = document.getElementById('clinicTypingIndicator');
             messagesList.insertBefore(row, typing || null);

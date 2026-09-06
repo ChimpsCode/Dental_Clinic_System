@@ -466,3 +466,28 @@ function buildPatientFullName(array $patient): string
         $patient['last_name'] ?? '',
     ])));
 }
+
+function parseInquiryQuotedMessage(string $text): array
+{
+    if (preg_match('/^\[\[QUOTE\]\]\s*(.*?)\s*\[\[\/QUOTE\]\]\s*(.*)$/s', $text, $matches)) {
+        return [
+            'quote' => trim((string)$matches[1]),
+            'message' => (string)$matches[2],
+        ];
+    }
+
+    return ['quote' => '', 'message' => $text];
+}
+
+function renderInquiryQuotedMessageHtml(string $text): string
+{
+    $parsed = parseInquiryQuotedMessage($text);
+    $html = '';
+    if ($parsed['quote'] !== '') {
+        $html .= '<div class="inq-quote">' . nl2br(htmlspecialchars($parsed['quote'], ENT_QUOTES, 'UTF-8')) . '</div>';
+    }
+    if ($parsed['message'] !== '') {
+        $html .= nl2br(htmlspecialchars($parsed['message'], ENT_QUOTES, 'UTF-8'));
+    }
+    return $html;
+}

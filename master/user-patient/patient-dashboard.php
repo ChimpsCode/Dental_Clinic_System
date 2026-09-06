@@ -1566,7 +1566,7 @@ $pageTitle = 'Patient Dashboard';
                     <img src="<?php echo htmlspecialchars($inquiryClinicAvatar); ?>" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
                     <div>
                         <div class="bubble bubble-left">
-                            <?php echo nl2br(htmlspecialchars($msg['message'])); ?>
+                            <?php echo renderInquiryQuotedMessageHtml((string)($msg['message'] ?? '')); ?>
                             <?php if ($att): ?>
                                 <?php if ($isImage): ?><img src="../<?php echo htmlspecialchars($att); ?>" class="inquiry-chat-image" alt="Attachment">
                                 <?php else: ?><a href="../<?php echo htmlspecialchars($att); ?>" target="_blank" class="inquiry-chat-file"><i class="fas fa-paperclip"></i> <?php echo htmlspecialchars(basename($att)); ?></a><?php endif; ?>
@@ -1579,7 +1579,7 @@ $pageTitle = 'Patient Dashboard';
                 <div class="message-row right"<?php echo !empty($msg['id']) ? ' data-reply-id="' . (int)$msg['id'] . '"' : ''; ?>>
                     <div>
                         <div class="bubble bubble-right">
-                            <?php echo nl2br(htmlspecialchars($msg['message'])); ?>
+                            <?php echo renderInquiryQuotedMessageHtml((string)($msg['message'] ?? '')); ?>
                             <?php if ($att): ?>
                                 <?php if ($isImage): ?><img src="../<?php echo htmlspecialchars($att); ?>" class="inquiry-chat-image" alt="Attachment">
                                 <?php else: ?><a href="../<?php echo htmlspecialchars($att); ?>" target="_blank" class="inquiry-chat-file"><i class="fas fa-paperclip"></i> <?php echo htmlspecialchars(basename($att)); ?></a><?php endif; ?>
@@ -1802,8 +1802,24 @@ $pageTitle = 'Patient Dashboard';
                 width:44px; height:44px; flex-basis:44px;
             }
         }
+        #inquiryChatPanel .inq-quote {
+            font-size: 12px;
+            line-height: 1.4;
+            padding: 8px 10px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            border-left: 3px solid #2563eb;
+            background: #e5e7eb;
+            color: #374151;
+        }
+        #inquiryChatPanel .bubble-right .inq-quote {
+            background: rgba(255,255,255,.16);
+            border-left-color: rgba(255,255,255,.75);
+            color: rgba(255,255,255,.95);
+        }
     </style>
 
+    <script src="../../assets/js/inquiry_quote.js"></script>
     <script>
         (function () {
             var launcher = document.querySelector('[data-inquiry-launcher]');
@@ -1976,9 +1992,15 @@ $pageTitle = 'Patient Dashboard';
                         : '<a href="' + escapeHtml(attachmentUrl) + '" target="_blank" class="inquiry-chat-file"><i class="fas fa-paperclip"></i> ' + escapeHtml(attachment.split('/').pop()) + '</a>';
                 }
                 if (type === 'clinic') {
-                    div.innerHTML = '<img src="' + avatar + '" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;"><div><div class="bubble bubble-left">' + escapeHtml(message) + attachmentHtml + '</div><div class="ts">' + ts + '</div></div>';
+                    var messageHtml = (typeof inquiryQuotedMessageHtml === 'function')
+                        ? inquiryQuotedMessageHtml(message)
+                        : escapeHtml(message).replace(/\n/g, '<br>');
+                    div.innerHTML = '<img src="' + avatar + '" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;"><div><div class="bubble bubble-left">' + messageHtml + attachmentHtml + '</div><div class="ts">' + ts + '</div></div>';
                 } else {
-                    div.innerHTML = '<div><div class="bubble bubble-right">' + escapeHtml(message) + attachmentHtml + '</div><div class="ts" style="text-align:right;">' + ts + '</div></div>';
+                    var patientMessageHtml = (typeof inquiryQuotedMessageHtml === 'function')
+                        ? inquiryQuotedMessageHtml(message)
+                        : escapeHtml(message).replace(/\n/g, '<br>');
+                    div.innerHTML = '<div><div class="bubble bubble-right">' + patientMessageHtml + attachmentHtml + '</div><div class="ts" style="text-align:right;">' + ts + '</div></div>';
                 }
                 var emptyState = messagesList.querySelector('.inquiry-empty-state');
                 if (emptyState) emptyState.remove();

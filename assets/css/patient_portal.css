@@ -372,6 +372,24 @@ body {
     color: #111827;
 }
 
+.inq-quote {
+    font-size: 12px;
+    line-height: 1.4;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    border-left: 3px solid #2563eb;
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.chat-bubble.sent .inq-quote,
+.bubble-right .inq-quote {
+    background: rgba(255, 255, 255, 0.16);
+    border-left-color: rgba(255, 255, 255, 0.75);
+    color: rgba(255, 255, 255, 0.95);
+}
+
 .floating-chat-frame {
     width: 100%;
     height: auto;
