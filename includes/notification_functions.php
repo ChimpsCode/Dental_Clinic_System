@@ -488,6 +488,43 @@ function notifyPatientFollowUpReminder(PDO $pdo, int $patientId, string $appoint
 }
 
 /**
+ * Notify patient that consultation is complete, with current pending balance.
+ */
+function notifyPatientConsultationComplete(PDO $pdo, int $patientId, ?float $balance = null): bool
+{
+    $userId = getUserIdForPatient($pdo, $patientId);
+    if (!$userId) {
+        notifLog("notifyPatientConsultationComplete: no user_id for patient_id={$patientId}");
+        return false;
+    }
+
+    if ($balance === null) {
+        if (function_exists('getPatientOutstandingBalance')) {
+            $balance = getPatientOutstandingBalance($pdo, $patientId);
+        } else {
+            try {
+                $stmt = $pdo->prepare("
+                    SELECT SUM(GREATEST(COALESCE(balance, 0), COALESCE(total_amount, 0) - COALESCE(paid_amount, 0))) AS outstanding
+                    FROM billing
+                    WHERE patient_id = ?
+                ");
+                $stmt->execute([$patientId]);
+                $balance = (float)($stmt->fetchColumn() ?: 0);
+            } catch (Exception $e) {
+                $balance = 0.0;
+            }
+        }
+    }
+
+    $balance = (float)$balance;
+    $title = 'Consultation complete';
+    $message = 'Your consultation is complete. Pending balance: ₱' . number_format($balance, 2);
+    createNotification($pdo, $userId, 'payment', $title, $message, 'billing.php');
+    notifLog("notifyPatientConsultationComplete OK: user_id={$userId} patient_id={$patientId} balance={$balance}");
+    return true;
+}
+
+/**
  * Notify patient of a pending payment.
  */
 function notifyPatientPaymentReminder(PDO $pdo, int $patientId, float $amount, string $treatmentType): void

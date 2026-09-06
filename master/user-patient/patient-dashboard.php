@@ -39,6 +39,7 @@ $patient_id = $_SESSION['patient_id'] ?? null;
 // Get patient details from database
 require_once '../../config/database.php';
 require_once '../../includes/patient_session_helper.php';
+require_once '../../includes/patient_dashboard_status_helper.php';
 $patientSessionSettings = getPatientSessionSettings($pdo, (int)($_SESSION['user_id'] ?? 0));
 require_once '../../includes/inquiry_module_helper.php';
 ensureInquiryModuleSchema($pdo);
@@ -229,44 +230,10 @@ try {
         }
     }
 
-    $hasQueue = (bool)$pdo->query("SHOW TABLES LIKE 'queue'")->fetch(PDO::FETCH_ASSOC);
-    if ($hasQueue) {
-        $stmt = $pdo->prepare("
-            SELECT q.*
-            FROM queue q
-            WHERE q.patient_id = ?
-              AND DATE(q.created_at) = CURDATE()
-              AND COALESCE(q.is_archived, 0) = 0
-            ORDER BY q.created_at DESC, q.id DESC
-            LIMIT 1
-        ");
-        $stmt->execute([$patient_id]);
-        $queueItem = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($queueItem) {
-            $queueNumber = $queueItem['queue_number'] ?? null;
-            if (!$queueNumber) {
-                $queueNumber = $queueItem['id'];
-            }
-            $queueNumberText = '#' . str_pad((string)$queueNumber, 2, '0', STR_PAD_LEFT);
-            $queueStatusText = !empty($queueItem['treatment_type'])
-                ? 'In queue for ' . $queueItem['treatment_type']
-                : 'Checked in today';
-        }
-    }
-
-    $hasBilling = (bool)$pdo->query("SHOW TABLES LIKE 'billing'")->fetch(PDO::FETCH_ASSOC);
-    if ($hasBilling) {
-        $stmt = $pdo->prepare("
-            SELECT SUM(GREATEST(COALESCE(balance, 0), COALESCE(total_amount, 0) - COALESCE(paid_amount, 0))) AS outstanding
-            FROM billing
-            WHERE patient_id = ?
-        ");
-        $stmt->execute([$patient_id]);
-        $outstanding = (float)($stmt->fetchColumn() ?: 0);
-        if ($outstanding > 0) {
-            $billingSummaryText = 'PHP ' . number_format($outstanding, 2);
-        }
-    }
+    $dashboardStatus = getPatientDashboardStatusPayload($pdo, $patient_id);
+    $queueNumberText = $dashboardStatus['queue_number'];
+    $queueStatusText = $dashboardStatus['queue_status'];
+    $billingSummaryText = $dashboardStatus['billing_summary'];
 
     if (count($recentActivity) < 4) {
         foreach ($appointments as $apt) {
@@ -1276,8 +1243,8 @@ $pageTitle = 'Patient Dashboard';
                         <div class="summary-card-title">Queue Status</div>
                         <div class="summary-card-icon"><i class="fas fa-ticket-alt"></i></div>
                     </div>
-                    <div class="summary-card-value"><?php echo htmlspecialchars($queueNumberText); ?></div>
-                    <div class="summary-card-subtext"><?php echo htmlspecialchars($queueStatusText); ?></div>
+                    <div class="summary-card-value" id="queueNumberValue"><?php echo htmlspecialchars($queueNumberText); ?></div>
+                    <div class="summary-card-subtext" id="queueStatusSubtext"><?php echo htmlspecialchars($queueStatusText); ?></div>
                 </article>
 
                 <article class="summary-card">
@@ -1285,7 +1252,7 @@ $pageTitle = 'Patient Dashboard';
                         <div class="summary-card-title">Billing Summary</div>
                         <div class="summary-card-icon"><i class="fas fa-credit-card"></i></div>
                     </div>
-                    <div class="summary-card-value"><?php echo htmlspecialchars($billingSummaryText); ?></div>
+                    <div class="summary-card-value" id="billingSummaryValue"><?php echo htmlspecialchars($billingSummaryText); ?></div>
                     <div class="summary-card-subtext">Latest balance overview from your billing records.</div>
                 </article>
             </section>
@@ -2153,6 +2120,43 @@ $pageTitle = 'Patient Dashboard';
             }
 
             startConversationPolling();
+        })();
+
+        (function () {
+            var queueNumberEl = document.getElementById('queueNumberValue');
+            var queueStatusEl = document.getElementById('queueStatusSubtext');
+            var billingEl = document.getElementById('billingSummaryValue');
+            if (!queueNumberEl || !queueStatusEl) return;
+
+            function applyDashboardStatus(data) {
+                if (!data || !data.success) return;
+                if (typeof data.queue_number === 'string') {
+                    queueNumberEl.textContent = data.queue_number;
+                }
+                if (typeof data.queue_status === 'string') {
+                    queueStatusEl.textContent = data.queue_status;
+                }
+                if (billingEl && typeof data.billing_summary === 'string') {
+                    billingEl.textContent = data.billing_summary;
+                }
+            }
+
+            async function pollDashboardStatus() {
+                if (document.visibilityState !== 'visible') return;
+                try {
+                    var resp = await fetch('dashboard_status.php', { credentials: 'same-origin' });
+                    var data = await resp.json();
+                    applyDashboardStatus(data);
+                } catch (_) {}
+            }
+
+            pollDashboardStatus();
+            setInterval(pollDashboardStatus, 8000);
+            document.addEventListener('visibilitychange', function () {
+                if (document.visibilityState === 'visible') {
+                    pollDashboardStatus();
+                }
+            });
         })();
     </script>
     <?php

@@ -223,11 +223,9 @@ try {
             logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Completed procedure for: ' . $patientName, $queueId, 'queue', 'in_procedure', 'pending_payment');
 
             if (!empty($patientId)) {
-                $queueNum = $queueItem['queue_number'] ?? $queueId;
-                notifyPatientQueueUpdate($pdo, (int)$patientId, (string)$queueNum, 'pending_payment');
-                if ($estimatedAmount > 0) {
-                    notifyPatientPaymentReminder($pdo, (int)$patientId, $estimatedAmount, $treatmentType);
-                }
+                require_once __DIR__ . '/../../includes/patient_dashboard_status_helper.php';
+                $outstanding = getPatientOutstandingBalance($pdo, (int)$patientId);
+                notifyPatientConsultationComplete($pdo, (int)$patientId, $outstanding);
             }
 
             echo json_encode([

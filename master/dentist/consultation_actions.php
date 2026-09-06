@@ -163,6 +163,9 @@ function syncConsultationPrescriptionToPrescriptionTable(PDO $pdo, int $consultI
 try {
     require_once '../../config/database.php';
     require_once '../../includes/billing_helper.php';
+    require_once '../../includes/notification_functions.php';
+    require_once '../../includes/patient_dashboard_status_helper.php';
+    ensureNotificationSchema($pdo);
 
     // Ensure medical_history table has all required columns
     static $mhSchemaReady = false;
@@ -738,6 +741,9 @@ try {
                 $balance = $billingInfo['balance'];
                 $paymentStatus = $billingInfo['payment_status'];
                 $billingId = $billingInfo['billing_id'];
+
+                $outstanding = getPatientOutstandingBalance($pdo, (int)$cons['patient_id']);
+                notifyPatientConsultationComplete($pdo, (int)$cons['patient_id'], $outstanding);
 
                 ob_clean();
                 echo json_encode([

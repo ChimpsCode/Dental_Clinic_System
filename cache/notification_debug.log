@@ -148,3 +148,10 @@
 2026-09-06 15:07:13 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
 2026-09-06 15:07:34 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
 2026-09-06 15:08:07 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
+2026-09-06 15:43:06 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
+2026-09-06 15:49:42 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
+2026-09-06 15:50:59 | notifyPatientPaymentRecorded: user_id=58 patient_id=107 amount=200 method=cash treatment=Teeth Cleaning balance=600
+2026-09-06 15:50:59 | createNotification OK: id=303 user_id=58 type=payment title=Payment Recorded
+2026-09-06 15:50:59 | billing_actions: notifyPatientPaymentRecorded OK for patient_id=107 amount=200 method=cash
+2026-09-06 15:51:57 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
+2026-09-06 15:52:23 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
