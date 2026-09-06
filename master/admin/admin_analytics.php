@@ -279,21 +279,39 @@ try {
         $topStaffName = trim($topStaff['full_name'] ?: '') ?: 'Staff';
         $topStaffCount = (int)$topStaff['total'];
     }
+} catch (Exception $e) {
+    // Keep defaults on error
+}
 
+try {
+    $serviceNameExpr = "COALESCE(NULLIF(TRIM(s.name), ''), 'Unspecified')";
     $stmt = $pdo->prepare("
-        SELECT COALESCE(NULLIF(TRIM(s.name), ''), 'Unspecified') AS service_name, COUNT(*) AS total
+        SELECT {$serviceNameExpr} AS service_name, COUNT(*) AS total
         FROM appointments a
         LEFT JOIN services s ON s.id = a.service_id
-        WHERE (
+        WHERE COALESCE(a.is_archived, 0) = 0
+          AND LOWER(COALESCE(a.status, '')) <> 'cancelled'
+          AND (
                 a.appointment_date BETWEEN ? AND ?
                 OR DATE(a.created_at) BETWEEN ? AND ?
+                OR DATE(a.check_in_time) BETWEEN ? AND ?
+                OR EXISTS (
+                    SELECT 1
+                    FROM queue q
+                    WHERE q.appointment_id = a.id
+                      AND COALESCE(q.is_archived, 0) = 0
+                      AND COALESCE(q.queue_date, DATE(q.created_at)) BETWEEN ? AND ?
+                )
             )
-          AND COALESCE(a.is_archived, 0) = 0
-          AND LOWER(COALESCE(a.status, '')) <> 'cancelled'
-        GROUP BY service_name
+        GROUP BY {$serviceNameExpr}
         ORDER BY total DESC
     ");
-    $stmt->execute([$startStr, $occurEndStr, $startStr, $endStr]);
+    $stmt->execute([
+        $startStr, $occurEndStr,
+        $startStr, $endStr,
+        $startStr, $endStr,
+        $startStr, $endStr,
+    ]);
     $appointmentTypeRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $pieColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
@@ -337,7 +355,9 @@ try {
         $appointmentTypeGradient = 'conic-gradient(' . implode(', ', $gradientParts) . ')';
     }
 } catch (Exception $e) {
-    // Keep defaults on error
+    $appointmentTypeSlices = [];
+    $appointmentTypeGradient = '#e5e7eb';
+    $appointmentTypeTotal = 0;
 }
 ?>
             <div class="content-main">

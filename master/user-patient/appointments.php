@@ -322,7 +322,7 @@ $pageTitle = 'My Appointments';
     <aside class="sidebar" id="patientSidebar">
         <div class="sidebar-brand">
             <img src="../../assets/images/Logo.png" alt="RF Dental Clinic">
-            <span>RF Dental</span>
+            <span>RF Dental Clinic</span>
         </div>
         <nav class="sidebar-menu">
             <a href="patient-dashboard.php" class="menu-item">
