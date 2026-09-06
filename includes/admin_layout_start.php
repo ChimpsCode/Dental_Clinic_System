@@ -145,22 +145,15 @@ $pageTitle = $pageTitle ?? 'Admin Dashboard';
 // Pjax fragment mode detection
 $__pjax = isset($_GET['__pjax']) && $_GET['__pjax'] === '1';
 
-// Server disk usage for the sidebar storage widget
-$__diskUsedGb = null;
-$__diskTotalGb = null;
-$__diskUsedPct = 0;
-if (function_exists('disk_total_space') && function_exists('disk_free_space')) {
-    $__diskTotal = @disk_total_space(dirname(__DIR__));
-    $__diskFree = @disk_free_space(dirname(__DIR__));
-    if ($__diskTotal !== false && $__diskFree !== false && $__diskTotal > 0) {
-        $__diskUsed = $__diskTotal - $__diskFree;
-        $__diskUsedGb = round($__diskUsed / (1024 * 1024 * 1024), 1);
-        $__diskTotalGb = round($__diskTotal / (1024 * 1024 * 1024), 1);
-        $__diskUsedPct = round($__diskUsed / $__diskTotal * 100);
-        if ($__diskUsedPct < 1 && $__diskUsed > 0) {
-            $__diskUsedPct = 1;
-        }
-    }
+// Hosting storage usage for the sidebar storage widget
+require_once __DIR__ . '/storage_usage_helper.php';
+$__storage = getStorageUsage($pdo ?? null);
+$__storageUsedPct = $__storage === null ? 0 : (int)$__storage['used_pct'];
+$__storageBarClass = '';
+if ($__storageUsedPct >= 90) {
+    $__storageBarClass = ' is-danger';
+} elseif ($__storageUsedPct >= 75) {
+    $__storageBarClass = ' is-warning';
 }
 
 // Helper function to check if current page matches
@@ -590,13 +583,13 @@ function isActivePage($page) {
         <div class="sidebar-storage">
             <div class="sidebar-storage-head">
                 <span class="sidebar-storage-title">Storage</span>
-                <span class="sidebar-storage-pct"><?php echo $__diskUsedGb === null ? '—' : $__diskUsedPct . '% used'; ?></span>
+                <span class="sidebar-storage-pct"><?php echo $__storage === null ? '—' : $__storageUsedPct . '% used'; ?></span>
             </div>
             <div class="sidebar-storage-bar">
-                <div class="sidebar-storage-bar-fill" style="width: <?php echo $__diskUsedPct; ?>%;"></div>
+                <div class="sidebar-storage-bar-fill<?php echo $__storageBarClass; ?>" style="width: <?php echo $__storageUsedPct; ?>%;"></div>
             </div>
-            <div class="sidebar-storage-meta">
-                <?php echo $__diskUsedGb === null ? 'Unavailable' : $__diskUsedGb . ' GB used of ' . $__diskTotalGb . ' GB'; ?>
+            <div class="sidebar-storage-meta"<?php echo $__storage === null ? '' : ' title="' . htmlspecialchars('Files: ' . formatStorageSize($__storage['files_bytes']) . ' · Database: ' . formatStorageSize($__storage['db_bytes'])) . '"'; ?>>
+                <?php echo $__storage === null ? 'Unavailable' : htmlspecialchars(formatStorageSize($__storage['total_bytes']) . ' used of ' . formatStorageSize($__storage['quota_bytes'])); ?>
             </div>
         </div>
     </aside>

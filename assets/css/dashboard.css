@@ -276,6 +276,14 @@ body {
     transition: width 0.3s ease;
 }
 
+.sidebar-storage-bar-fill.is-warning {
+    background: linear-gradient(90deg, #d97706 0%, #fbbf24 100%);
+}
+
+.sidebar-storage-bar-fill.is-danger {
+    background: linear-gradient(90deg, #dc2626 0%, #f87171 100%);
+}
+
 .sidebar-storage-meta {
     font-size: 12px;
     color: #64748b;
