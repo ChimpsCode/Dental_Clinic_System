@@ -1029,13 +1029,8 @@ $pageTitle = 'Patient Dashboard';
         }
 
         @media (max-width: 768px) {
-            .sidebar {
-                width: 180px;
-                padding: 24px 0;
-            }
-
             .main-wrapper {
-                margin-left: 180px;
+                margin-left: 0;
             }
 
             .dashboard-header {
@@ -1078,41 +1073,8 @@ $pageTitle = 'Patient Dashboard';
         }
 
         @media (max-width: 640px) {
-            .sidebar {
-                width: 60px;
-                padding: 16px 0;
-            }
-
             .main-wrapper {
-                margin-left: 60px;
-            }
-
-            .sidebar-brand span {
-                display: none;
-            }
-
-            .sidebar-brand {
-                justify-content: center;
-                padding: 0;
-                margin-bottom: 24px;
-            }
-
-            .sidebar-brand img {
-                height: 28px;
-            }
-
-            .menu-item {
-                padding: 12px;
-                justify-content: center;
-                gap: 0;
-            }
-
-            .menu-item span {
-                display: none;
-            }
-
-            .menu-item i {
-                width: auto;
+                margin-left: 0;
             }
 
             .calendar-grid {
@@ -1162,7 +1124,7 @@ $pageTitle = 'Patient Dashboard';
 </head>
 <body>
     <!-- Sidebar -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="patientSidebar">
         <div class="sidebar-brand">
             <img src="../../assets/images/Logo.png" alt="RF Dental Clinic">
             <span>RF Dental</span>
@@ -1195,12 +1157,14 @@ $pageTitle = 'Patient Dashboard';
             </a>
         </nav>
     </aside>
+    <?php include '../../includes/patient_sidebar_overlay.php'; ?>
 
     <!-- Main Wrapper -->
     <div class="main-wrapper">
         <!-- Header -->
         <header class="dashboard-header">
             <div class="header-left">
+                <?php include '../../includes/patient_menu_toggle.php'; ?>
                 <div style="font-family: sans-serif;">
   <h1 style="font-size: 20px; font-weight: 700; color: #1a1a2e; margin: 0;">
     Dashboard

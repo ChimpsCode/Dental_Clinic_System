@@ -152,3 +152,5 @@
 2026-09-05 14:30:19 | createNotification OK: id=233 user_id=40 type=appointment title=Appointment Approved
 2026-09-05 14:30:19 | createNotification OK: id=234 user_id=40 type=reminder title=Follow-up Reminder
 2026-09-05 15:31:51 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-09-06 07:07:14 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-09-06 07:31:17 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
