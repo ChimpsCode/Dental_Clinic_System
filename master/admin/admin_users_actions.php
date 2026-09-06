@@ -380,6 +380,65 @@ try {
         exit;
     }
 
+    if ($action === 'reset_2fa') {
+        $id = (int)($_POST['id'] ?? 0);
+        if ($id <= 0) {
+            jsonError('Invalid user ID.');
+        }
+
+        $beforeStmt = $pdo->prepare("SELECT id, username, role, two_factor_enabled, two_factor_secret FROM users WHERE id = ? LIMIT 1");
+        $beforeStmt->execute([$id]);
+        $oldUser = $beforeStmt->fetch(PDO::FETCH_ASSOC);
+        if (!$oldUser) {
+            jsonError('User not found.', 404);
+        }
+
+        $role = strtolower(trim((string)($oldUser['role'] ?? '')));
+        if (!in_array($role, ['admin', 'staff', 'dentist'], true)) {
+            jsonError('Two-factor authentication can only be reset for admin, staff, and dentist accounts.');
+        }
+
+        if ((int)($oldUser['two_factor_enabled'] ?? 0) !== 1) {
+            jsonError('This user does not have two-factor authentication enabled.');
+        }
+
+        $stmt = $pdo->prepare("UPDATE users SET two_factor_enabled = 0, two_factor_secret = NULL WHERE id = ?");
+        $stmt->execute([$id]);
+
+        if ($role === 'admin') {
+            auditedUpsertSetting(
+                $pdo,
+                'two_factor_auth',
+                '0',
+                'Admin 2FA reset by administrator for user #' . $id,
+                $_SESSION['user_id'],
+                $_SESSION['username'] ?? 'unknown',
+                'admin'
+            );
+        }
+
+        $newUser = $oldUser;
+        $newUser['two_factor_enabled'] = 0;
+        $newUser['two_factor_secret'] = null;
+        $username = $oldUser['username'] ?? 'unknown';
+        logRecordChange(
+            $pdo,
+            $_SESSION['user_id'],
+            $_SESSION['username'] ?? 'unknown',
+            'admin',
+            'reset_2fa',
+            'users',
+            'users',
+            $id,
+            '2FA reset for user #' . $id . ' (' . $username . ')',
+            $oldUser,
+            $newUser
+        );
+
+        echo json_encode(['success' => true, 'message' => 'Two-factor authentication has been reset for this user.']);
+        exit;
+    }
+
     if ($action === 'toggle_status') {
         $id = (int)($_POST['id'] ?? 0);
         $status = trim($_POST['status'] ?? '');

@@ -36,7 +36,7 @@ try {
     $desired = [
         'id','username','first_name','middle_name','last_name','email',
         'phone','address','emergency_contact_name','emergency_contact_phone','emergency_contact_relationship',
-        'profile_picture','status','is_archived','role','gender','date_of_birth','last_active','last_logout','is_logged_in'
+        'profile_picture','status','is_archived','role','gender','date_of_birth','last_active','last_logout','is_logged_in','two_factor_enabled'
     ];
 
     $selectParts = [];
@@ -182,6 +182,7 @@ try {
                                         data-user-last="<?php echo htmlspecialchars($user['last_name'] ?? ''); ?>"
                                         data-user-email="<?php echo htmlspecialchars($user['email'] ?? ''); ?>"
                                         data-user-role="<?php echo htmlspecialchars($user['role_name'] ?? ''); ?>"
+                                        data-user-two-factor="<?php echo (int)($user['two_factor_enabled'] ?? 0); ?>"
                                         data-user-gender="<?php echo htmlspecialchars($user['gender'] ?? ''); ?>"
                                         data-user-dob="<?php echo htmlspecialchars($user['date_of_birth'] ?? ''); ?>"
                                         data-user-phone="<?php echo htmlspecialchars($user['phone'] ?? ''); ?>"
@@ -203,6 +204,21 @@ try {
                             <?php endforeach; ?>
                         </tbody>
                     </table>
+                </div>
+
+                <div id="reset2faModal" class="modal-overlay">
+                    <div class="modal">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <h2 style="margin: 0; font-size: 1.25rem; font-weight: 600; color: #111827;">Reset Two-Factor Authentication</h2>
+                            <button type="button" onclick="closeReset2faModal()" aria-label="Close" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280; line-height: 1;">&times;</button>
+                        </div>
+                        <p class="reset2fa-message">Reset two-factor authentication for this user? They will be able to log in without an authenticator code and must set up 2FA again from their profile.</p>
+                        <input type="hidden" id="reset2faUserId" value="">
+                        <div class="reset2fa-actions">
+                            <button type="button" class="btn-reset2fa-cancel" onclick="closeReset2faModal()">Cancel</button>
+                            <button type="button" class="btn-reset2fa-danger" id="reset2faConfirmBtn" onclick="confirmResetUser2FA()">Reset 2FA</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="userKebabDropdown" class="user-kebab-dropdown"></div>
@@ -294,6 +310,62 @@ try {
                         display: block;
                     }
 
+                    #reset2faModal.modal-overlay {
+                        z-index: 100001;
+                    }
+
+                    #reset2faModal .modal {
+                        z-index: 100002;
+                        max-width: 460px;
+                        text-align: left;
+                    }
+
+                    #reset2faModal .reset2fa-message {
+                        margin: 0 0 24px;
+                        color: #4b5563;
+                        font-size: 15px;
+                        line-height: 1.6;
+                    }
+
+                    #reset2faModal .reset2fa-actions {
+                        display: flex;
+                        justify-content: flex-end;
+                        gap: 12px;
+                    }
+
+                    #reset2faModal .btn-reset2fa-danger {
+                        padding: 10px 20px;
+                        background: #dc2626;
+                        color: #fff;
+                        border: none;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-weight: 500;
+                    }
+
+                    #reset2faModal .btn-reset2fa-danger:hover {
+                        background: #b91c1c;
+                    }
+
+                    #reset2faModal .btn-reset2fa-danger:disabled {
+                        opacity: 0.6;
+                        cursor: not-allowed;
+                    }
+
+                    #reset2faModal .btn-reset2fa-cancel {
+                        padding: 10px 20px;
+                        background: #fff;
+                        color: #374151;
+                        border: 1px solid #d1d5db;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-weight: 500;
+                    }
+
+                    #reset2faModal .btn-reset2fa-cancel:hover {
+                        background: #f9fafb;
+                    }
+
                     @keyframes fadeInKebab {
                         from { opacity: 0; transform: translateY(-4px); }
                         to { opacity: 1; transform: translateY(0); }
@@ -356,7 +428,18 @@ try {
                     const kebabBackdrop = document.getElementById('userKebabBackdrop');
                     let activeKebabBtn = null;
 
-                    function getUserMenuItems(userId, status) {
+                    function getUserMenuItems(userId, status, role, twoFactor) {
+                        const roleLower = (role || '').toLowerCase();
+                        const canReset2fa = ['admin', 'staff', 'dentist'].includes(roleLower) && parseInt(twoFactor, 10) === 1;
+                        const reset2faItem = canReset2fa ? `
+                            <a href="javascript:void(0)" onclick="closeKebabDropdown(); resetUser2FA(${userId})">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                </svg>
+                                Reset 2FA
+                            </a>
+                        ` : '';
                         return `
                             <a href="javascript:void(0)" onclick="viewUserDetails(${userId})">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -372,6 +455,7 @@ try {
                                 </svg>
                                 Edit
                             </a>
+                            ${reset2faItem}
                             <a href="javascript:void(0)" class="danger" onclick="deleteUser(${userId})">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="3 6 5 6 21 6"/>
@@ -389,7 +473,7 @@ try {
                         const viewportHeight = window.innerHeight;
                         const padding = 15;
                         const dropdownWidth = 170;
-                        const dropdownHeight = 220;
+                        const dropdownHeight = 260;
                         
                         let left = rect.right + 5;
                         let top = rect.top;
@@ -413,8 +497,10 @@ try {
                     function openKebabDropdown(button) {
                         const userId = button.dataset.userId;
                         const status = button.dataset.userStatus;
+                        const role = button.dataset.userRole;
+                        const twoFactor = button.dataset.userTwoFactor;
                         
-                        kebabDropdown.innerHTML = getUserMenuItems(userId, status);
+                        kebabDropdown.innerHTML = getUserMenuItems(userId, status, role, twoFactor);
                         positionKebabDropdown(button);
                         
                         kebabDropdown.classList.add('show');
@@ -432,6 +518,7 @@ try {
                             activeKebabBtn = null;
                         }
                     }
+                    window.closeKebabDropdown = closeKebabDropdown;
 
                     // Kebab button click handler
                     document.addEventListener('click', function(e) {

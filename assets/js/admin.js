@@ -474,10 +474,83 @@ function saveUser() {
         showToast(data.message || 'User saved successfully!', 'success');
         closeUserModal();
         // For simplicity, reload the page so the table shows the latest data
-        setTimeout(() => window.location.reload(), 500);
+        setTimeout(() => window.location.reload(), 2000);
     })
     .catch(() => {
         showToast('Failed to save user.', 'error');
+    });
+}
+
+function resetUser2FA(userId) {
+    if (!userId) return;
+
+    const userIdInput = document.getElementById('reset2faUserId');
+    if (!userIdInput) return;
+
+    userIdInput.value = userId;
+
+    const confirmBtn = document.getElementById('reset2faConfirmBtn');
+    if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Reset 2FA';
+    }
+
+    openModal('reset2faModal');
+}
+
+function closeReset2faModal() {
+    const userIdInput = document.getElementById('reset2faUserId');
+    const confirmBtn = document.getElementById('reset2faConfirmBtn');
+
+    closeModal('reset2faModal');
+
+    if (userIdInput) {
+        userIdInput.value = '';
+    }
+    if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Reset 2FA';
+    }
+}
+
+function confirmResetUser2FA() {
+    const userId = document.getElementById('reset2faUserId')?.value;
+    if (!userId) return;
+
+    const confirmBtn = document.getElementById('reset2faConfirmBtn');
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Resetting...';
+    }
+
+    const formData = new FormData();
+    formData.append('action', 'reset_2fa');
+    formData.append('id', userId);
+
+    fetch('admin_users_actions.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (!data.success) {
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Reset 2FA';
+            }
+            showToast(data.message || 'Failed to reset 2FA.', 'error');
+            return;
+        }
+        closeReset2faModal();
+        showToast(data.message || 'Two-factor authentication has been reset.', 'success');
+        setTimeout(() => window.location.reload(), 2000);
+    })
+    .catch(() => {
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'Reset 2FA';
+        }
+        showToast('Failed to reset 2FA.', 'error');
     });
 }
 
@@ -500,7 +573,7 @@ function deleteUser(userId) {
             return;
         }
         showToast(data.message || 'User archived successfully!', 'success');
-        setTimeout(() => window.location.reload(), 500);
+        setTimeout(() => window.location.reload(), 2000);
     })
     .catch(() => {
         showToast('Failed to delete user.', 'error');
@@ -529,7 +602,7 @@ function toggleUserStatus(userId, currentStatus) {
             return;
         }
         showToast(data.message || 'Status updated.', 'success');
-        setTimeout(() => window.location.reload(), 500);
+        setTimeout(() => window.location.reload(), 2000);
     })
     .catch(() => {
         showToast('Failed to update status.', 'error');
@@ -709,11 +782,11 @@ function showToast(message, type = 'info') {
     
     document.body.appendChild(toast);
     
-    // Remove after 3 seconds
+    // Remove after 2 seconds
     setTimeout(() => {
         toast.style.animation = 'fadeOut 0.3s ease';
         setTimeout(() => toast.remove(), 300);
-    }, 3000);
+    }, 2000);
 }
 
 /**
