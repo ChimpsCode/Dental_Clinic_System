@@ -298,6 +298,9 @@ $pageTitle = 'Inquiry / Consultation';
         .conv-input { display:flex; gap:10px; align-items:flex-end; width:100%; }
         .icon-btn { width:42px; height:42px; flex:0 0 42px; display:inline-flex; align-items:center; justify-content:center; background:transparent; border:none; border-radius:50%; color:#64748b; font-size:18px; padding:0; cursor:pointer; transition:background .2s, color .2s; }
         .icon-btn:hover { background:#e8eef7; color:#2563eb; }
+        .clinic-info-btn { display: none; }
+        .clinic-profile-close { display: none; }
+        .clinic-profile-backdrop { display: none; }
         .conv-text { flex:1; min-width:0; height:44px; border:none; padding:0 8px; background:transparent; font:inherit; font-size:14px; outline:none; }
         .conv-text:focus { border:none; box-shadow:none; }
         .send-btn { width:46px; height:46px; flex:0 0 46px; background:linear-gradient(135deg,#2563eb,#1d4ed8); border:none; color:#fff; padding:0; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 12px rgba(37,99,235,.25); transition:transform .15s, box-shadow .15s; }
@@ -425,20 +428,72 @@ $pageTitle = 'Inquiry / Consultation';
         .alert.success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
         .alert.error { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
 
+        body.clinic-profile-open { overflow: hidden; }
+
         @media (max-width: 1180px) {
-            .top-layout { grid-template-columns: 1fr; height: auto; min-height: auto; }
-            .conversation-panel { height: 600px; }
+            .main-wrapper { min-height: 100dvh; }
+            .dashboard-main {
+                flex: 1;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+                padding: 12px 16px 16px;
+                max-width: none;
+            }
+            .top-layout {
+                grid-template-columns: 1fr;
+                flex: 1;
+                min-height: 0;
+                height: auto;
+                gap: 0;
+            }
+            .conversation-panel { height: 100%; min-height: 0; }
+            .conv-body { min-height: 0; }
+            .clinic-info-btn { display: inline-flex; }
+            .clinic-profile-backdrop {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(15, 23, 42, 0.45);
+                z-index: 240;
+            }
+            .clinic-profile-backdrop.is-open { display: block; }
+            .clinic-profile-card {
+                position: fixed;
+                top: 0;
+                right: 0;
+                bottom: 0;
+                width: min(100%, 380px);
+                height: 100%;
+                max-height: 100dvh;
+                border-radius: 0;
+                z-index: 250;
+                transform: translateX(100%);
+                transition: transform 0.25s ease;
+                box-shadow: -8px 0 24px rgba(15, 23, 42, 0.18);
+            }
+            .clinic-profile-card.is-open { transform: translateX(0); }
+            .clinic-profile-header { position: relative; padding-top: 8px; }
+            .clinic-profile-close {
+                display: inline-flex;
+                position: absolute;
+                top: 8px;
+                right: 4px;
+                z-index: 1;
+            }
         }
         @media (max-width: 768px) {
             .main-wrapper { margin-left: 0; }
             .dashboard-header { padding: 12px 16px; height: auto; }
-            .dashboard-main { padding: 16px; }
+            .dashboard-main { padding: 8px 8px 12px; }
+            .conversation-panel { border-radius: 10px; }
             .user-details { display: none; }
             #inquiryForm { padding:10px; }
             .conv-input { gap:3px; min-height:54px; padding:5px; }
             .conv-input .icon-btn { width:38px; height:38px; flex-basis:38px; }
             .send-btn { width:42px; height:42px; flex-basis:42px; }
             .conv-text { padding:0 5px; }
+            .clinic-profile-card { width: 100%; }
         }
         
         /* Hide the site-wide floating message launcher on the Inquiry page only */
@@ -547,7 +602,9 @@ $pageTitle = 'Inquiry / Consultation';
                         <div class="conv-meta">
                             <div class="conv-name"><?php echo htmlspecialchars($clinicName); ?></div>
                         </div>
-                        <div><button class="icon-btn" aria-label="options"><i class="fas fa-ellipsis-v"></i></button></div>
+                        <button type="button" class="icon-btn clinic-info-btn" id="clinicInfoBtn" aria-label="Clinic information" aria-expanded="false" aria-controls="clinicProfileCard">
+                            <i class="fas fa-info-circle"></i>
+                        </button>
                     </div>
 
                     <div id="messagesList" class="conv-body">
@@ -600,8 +657,11 @@ $pageTitle = 'Inquiry / Consultation';
                     </form>
                 </div>
 
-                <aside class="clinic-profile-card">
+                <aside class="clinic-profile-card" id="clinicProfileCard">
                     <div class="clinic-profile-header">
+                        <button type="button" class="icon-btn clinic-profile-close" id="clinicProfileClose" aria-label="Close clinic information">
+                            <i class="fas fa-times"></i>
+                        </button>
                         <img src="<?php echo htmlspecialchars($clinicAvatar); ?>" alt="<?php echo htmlspecialchars($clinicName); ?>" style="width:100px;height:100px;border-radius:50%;object-fit:cover;margin:0 auto 16px;display:block;">
                         <h2 class="clinic-name-large"><?php echo htmlspecialchars($clinicName); ?></h2>
                         <div class="clinic-status-badge"><span class="status-dot"></span> Online</div>
@@ -681,6 +741,7 @@ $pageTitle = 'Inquiry / Consultation';
                     </div>
                 </aside>
             </div>
+            <div class="clinic-profile-backdrop" id="clinicProfileBackdrop"></div>
         </main>
     </div>
 
@@ -694,6 +755,40 @@ $pageTitle = 'Inquiry / Consultation';
         const attachFileBtn = document.getElementById('attachFileBtn');
         const attachImageBtn = document.getElementById('attachImageBtn');
         const attachmentPreview = document.getElementById('attachmentPreview');
+        const clinicInfoBtn = document.getElementById('clinicInfoBtn');
+        const clinicProfileCard = document.getElementById('clinicProfileCard');
+        const clinicProfileBackdrop = document.getElementById('clinicProfileBackdrop');
+        const clinicProfileClose = document.getElementById('clinicProfileClose');
+        const PROFILE_BREAKPOINT = 1180;
+
+        function setClinicProfileOpen(open) {
+            if (!clinicProfileCard) return;
+            clinicProfileCard.classList.toggle('is-open', open);
+            if (clinicProfileBackdrop) {
+                clinicProfileBackdrop.classList.toggle('is-open', open);
+            }
+            document.body.classList.toggle('clinic-profile-open', open);
+            if (clinicInfoBtn) clinicInfoBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+
+        function closeClinicProfile() {
+            setClinicProfileOpen(false);
+        }
+
+        if (clinicInfoBtn) {
+            clinicInfoBtn.addEventListener('click', () => {
+                setClinicProfileOpen(!clinicProfileCard.classList.contains('is-open'));
+            });
+        }
+        if (clinicProfileClose) clinicProfileClose.addEventListener('click', closeClinicProfile);
+        if (clinicProfileBackdrop) clinicProfileBackdrop.addEventListener('click', closeClinicProfile);
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') closeClinicProfile();
+        });
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > PROFILE_BREAKPOINT) closeClinicProfile();
+        });
+
         let selectedFile = null;
         let activeInquiryId = <?php echo (int)($activeInquiry['id'] ?? 0); ?>;
         const clinicAvatarUrl = <?php echo json_encode($clinicAvatar); ?>;
