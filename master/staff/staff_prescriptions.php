@@ -715,49 +715,7 @@ try {
             <button class="modal-close" onclick="closeRxModal()">&times;</button>
         </div>
         <div class="modal-body">
-            <div class="rx-paper" id="rxPaper">
-                <div class="rx-header">
-                    <div class="rx-symbol">&#8478;</div>
-                    <div class="rx-clinic-name" id="rxClinicName"><?php echo htmlspecialchars($clinicName); ?></div>
-                    <div class="rx-clinic-details" id="rxClinicDetails"><?php echo htmlspecialchars(trim($clinicAddress . ' · ' . $clinicPhone, ' ·')); ?></div>
-                </div>
-
-                <div class="rx-info-row">
-                    <span class="rx-info-label">Patient:</span>
-                    <span class="rx-info-value" id="rxPatient"></span>
-                </div>
-                <div class="rx-info-row">
-                    <span class="rx-info-label">Date:</span>
-                    <span class="rx-info-value" id="rxDate"></span>
-                </div>
-                <div class="rx-info-row">
-                    <span class="rx-info-label">Diagnosis:</span>
-                    <span class="rx-info-value" id="rxDiagnosis"></span>
-                </div>
-
-                <hr class="rx-divider">
-
-                <div class="rx-medications" id="rxMedicationsContainer"></div>
-
-                <div class="rx-instructions-box" id="rxInstructionsBox">
-                    <strong>Instructions:</strong> <span id="rxInstructions"></span>
-                </div>
-
-                <div class="rx-footer">
-                    <div class="rx-info-row">
-                        <span class="rx-info-label">Prescriber:</span>
-                        <span class="rx-info-value" id="rxDoctor"></span>
-                    </div>
-                    <div class="rx-signature-row">
-                        <span class="rx-info-label">Signature:</span>
-                        <span class="rx-signature-line"></span>
-                    </div>
-                </div>
-
-                <div class="rx-bottom-bar">
-                    <span id="rxBottomText"><?php echo htmlspecialchars($clinicName); ?> &middot; <?php echo htmlspecialchars(trim($clinicAddress . ' · ' . $clinicPhone, ' ·')); ?></span>
-                </div>
-            </div>
+            <?php require __DIR__ . '/../../includes/rx_pad_paper.php'; ?>
         </div>
         <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:12px;border-top:1px solid #e2e8f0;padding-top:20px;">
             <button type="button" class="btn-cancel" onclick="closeRxModal()" style="padding:10px 16px;border:1px solid #e2e8f0;background:white;border-radius:6px;cursor:pointer;color:#334155;">Close</button>
@@ -781,6 +739,7 @@ try {
     </div>
 </div>
 
+<script src="../../assets/js/rx_pad.js"></script>
 <script>
 let currentRxPrescriptionId = null;
 
@@ -818,21 +777,6 @@ function viewPrescription(prescriptionId) {
                 return;
             }
             fillRxPad(data.prescription);
-            var p = data.prescription;
-            document.getElementById('rxPatient').textContent = p.patient_name + (p.age ? ' (' + p.age + ')' : '');
-            document.getElementById('rxDate').textContent = p.issue_date || '';
-            document.getElementById('rxDoctor').textContent = p.doctor_name || '';
-            document.getElementById('rxDiagnosis').textContent = p.diagnosis || '';
-
-            var meds = (p.medications || '').split('\n').filter(function(m) { return m.trim(); });
-            var container = document.getElementById('rxMedicationsContainer');
-            if (meds.length === 0) {
-                container.innerHTML = '<div class="rx-med-item" style="padding-left:0;">No medications prescribed</div>';
-            } else {
-                container.innerHTML = meds.map(function(m) { return '<div class="rx-med-item">' + escapeHtml(m.trim()) + '</div>'; }).join('');
-            }
-
-            document.getElementById('rxInstructions').textContent = p.instructions || 'None';
             document.getElementById('rxViewModal').style.display = 'flex';
         } else {
             showRxNotice('Failed to load prescription: ' + (data.message || 'Unknown error'));
@@ -865,63 +809,6 @@ function staffPrintPrescription(prescriptionId) {
             return;
         }
         printRxPad(data.prescription);
-
-        var p = data.prescription;
-        var printWindow = window.open('', '_blank');
-        if (!printWindow) {
-            alert('Please allow popups to print the prescription.');
-            return;
-        }
-
-        var meds = (p.medications || '').split('\n').filter(function(m) { return m.trim(); });
-        var medItems = meds.length > 0
-            ? meds.map(function(m) { return '<div style="font-family:\'Courier New\',monospace;font-size:14px;padding:4px 0 4px 24px;position:relative;line-height:1.5;">&#8478; ' + escapeHtml(m.trim()) + '</div>'; }).join('')
-            : '<div style="padding-left:0;">No medications prescribed</div>';
-
-        var clinicName = document.getElementById('rxClinicName').textContent;
-        var clinicDetails = document.getElementById('rxClinicDetails').textContent;
-
-        var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Prescription #' + p.id + '</title>' +
-            '<style>' +
-            '@page { margin: 0.5in; }' +
-            'body { font-family: Georgia, "Times New Roman", serif; margin: 0; padding: 0; color: #111827; }' +
-            '.rx-paper { max-width: 680px; margin: 0 auto; border: 2px solid #1e293b; padding: 36px 32px 28px; position: relative; }' +
-            '.rx-header { text-align: center; border-bottom: 2px solid #1e293b; padding-bottom: 14px; margin-bottom: 22px; }' +
-            '.rx-symbol { font-size: 52px; font-weight: 700; color: #1e293b; text-align: center; letter-spacing: -4px; margin-bottom: 6px; line-height: 1; }' +
-            '.rx-clinic-name { font-size: 18px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.06em; }' +
-            '.rx-clinic-details { font-size: 11px; color: #64748b; margin-top: 4px; }' +
-            '.rx-divider { border: none; border-top: 1px dashed #94a3b8; margin: 16px 0; }' +
-            '.rx-info-row { display: flex; margin-bottom: 10px; font-size: 14px; }' +
-            '.rx-info-label { width: 100px; font-weight: 600; color: #475569; flex-shrink: 0; }' +
-            '.rx-info-value { flex: 1; color: #0f172a; }' +
-            '.rx-instructions-box { margin: 12px 0; padding: 12px 16px; background: #f8fafc; border-left: 3px solid #94a3b8; font-size: 13px; color: #475569; }' +
-            '.rx-footer { margin-top: 28px; border-top: 2px solid #e2e8f0; padding-top: 18px; }' +
-            '.rx-signature-row { margin-top: 20px; display: flex; align-items: center; }' +
-            '.rx-signature-line { display: inline-block; width: 260px; border-bottom: 1px solid #0f172a; margin-left: 12px; }' +
-            '.rx-bottom-bar { text-align: center; font-size: 10px; color: #94a3b8; margin-top: 22px; padding-top: 10px; border-top: 1px solid #e2e8f0; }' +
-            '@media print { .rx-paper { border: none; padding: 0; } .rx-paper .rx-header { border-bottom-color: #000; } .rx-paper .rx-divider { border-top-color: #000; } .rx-paper .rx-footer { border-top-color: #000; } .rx-paper .rx-bottom-bar { border-top-color: #000; } }' +
-            '</style></head><body>' +
-            '<div class="rx-paper">' +
-            '<div class="rx-header"><div class="rx-symbol">&#8478;</div><div class="rx-clinic-name">' + escapeHtml(clinicName) + '</div><div class="rx-clinic-details">' + escapeHtml(clinicDetails) + '</div></div>' +
-            '<div class="rx-info-row"><span class="rx-info-label">Patient:</span><span class="rx-info-value">' + escapeHtml(p.patient_name) + (p.age ? ' (' + p.age + ')' : '') + '</span></div>' +
-            '<div class="rx-info-row"><span class="rx-info-label">Date:</span><span class="rx-info-value">' + (p.issue_date || '') + '</span></div>' +
-            '<div class="rx-info-row"><span class="rx-info-label">Diagnosis:</span><span class="rx-info-value">' + escapeHtml(p.diagnosis || '') + '</span></div>' +
-            '<hr class="rx-divider">' +
-            '<div>' + medItems + '</div>' +
-            '<div class="rx-instructions-box"><strong>Instructions:</strong> ' + escapeHtml(p.instructions || 'None') + '</div>' +
-            '<div class="rx-footer">' +
-            '<div class="rx-info-row"><span class="rx-info-label">Prescriber:</span><span class="rx-info-value">' + escapeHtml(p.doctor_name || '') + '</span></div>' +
-            '<div class="rx-signature-row"><span class="rx-info-label">Signature:</span><span class="rx-signature-line"></span></div>' +
-            '</div>' +
-            '<div class="rx-bottom-bar">' + escapeHtml(clinicName) + ' &middot; ' + escapeHtml(clinicDetails) + '</div>' +
-            '</div>' +
-            '</body></html>';
-
-        printWindow.document.open();
-        printWindow.document.write(html);
-        printWindow.document.close();
-        printWindow.focus();
-        printWindow.print();
     })
     .catch(function() {
         showRxNotice('An error occurred while loading the prescription.');
