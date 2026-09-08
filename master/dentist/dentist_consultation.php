@@ -2654,6 +2654,39 @@ $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doc
     </div>
 </div>
 
+<!-- Treatment Plan Saved Modal -->
+<div class="cc-overlay" id="treatmentPlanSavedModal" onclick="if(event.target===this)closeTreatmentPlanSavedModal()">
+    <div class="cc-modal" onclick="event.stopPropagation()">
+        <div class="cc-bg-orb cc-bg-orb-a"></div>
+        <div class="cc-bg-orb cc-bg-orb-b"></div>
+        <div class="cc-banner">
+            <div class="cc-icon-wrap">
+                <span class="cc-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M9.2 16.2 5.5 12.5l-1.4 1.4 5.1 5.1L20 8.2l-1.4-1.4z"></path>
+                    </svg>
+                </span>
+            </div>
+            <div>
+                <div class="cc-kicker">Treatment Plan</div>
+                <h2 id="tpSavedModalTitle" style="font-size:1.55rem;font-weight:700;margin:6px 0 0;">Treatment Plan Created</h2>
+            </div>
+            <button onclick="closeTreatmentPlanSavedModal()" class="cc-close">&times;</button>
+        </div>
+        <div class="cc-body">
+            <p class="cc-text" id="tpSavedModalMessage">Treatment plan created.</p>
+            <div id="tpSavedApptList" style="display:none;margin-top:4px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;"></div>
+            <div class="cc-note" id="tpSavedApptNote" style="margin-top:14px;display:none;">
+                <span class="cc-note-dot"></span>
+                You can view these appointments from the Appointments page.
+            </div>
+        </div>
+        <div class="cc-actions">
+            <button type="button" onclick="closeTreatmentPlanSavedModal()" class="cc-btn-confirm">OK</button>
+        </div>
+    </div>
+</div>
+
 <div class="signature-modal-overlay" id="consentSignatureModal" onclick="if(event.target === this) closeConsentSignatureModal()">
     <div class="signature-modal" onclick="event.stopPropagation()">
         <h3 id="consentSignatureModalTitle">Draw Signature</h3>
@@ -3816,6 +3849,62 @@ function closeConsentSavedModal() {
     if (modal) modal.classList.remove('active');
 }
 
+function tpFormatApptDate(dateStr) {
+    if (!dateStr) return '';
+    var parts = dateStr.split('-');
+    var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    return d.toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function showTreatmentPlanSavedModal(message, sessions) {
+    var modal = document.getElementById('treatmentPlanSavedModal');
+    if (!modal) return;
+
+    var titleEl = document.getElementById('tpSavedModalTitle');
+    var messageEl = document.getElementById('tpSavedModalMessage');
+    var listEl = document.getElementById('tpSavedApptList');
+    var noteEl = document.getElementById('tpSavedApptNote');
+
+    var isUpdate = (message || '').toLowerCase().indexOf('updated') !== -1;
+    if (titleEl) titleEl.textContent = isUpdate ? 'Treatment Plan Updated' : 'Treatment Plan Created';
+    if (messageEl) messageEl.textContent = message || (isUpdate ? 'Treatment plan updated.' : 'Treatment plan created.');
+
+    if (listEl) {
+        var items = sessions || [];
+        if (items.length > 0) {
+            var html = '';
+            items.forEach(function(session, idx) {
+                var dateLabel = tpFormatApptDate(session.date);
+                var timeLabel = session.time ? tpFormatTime12h(session.time) : '';
+                var when = [dateLabel, timeLabel].filter(Boolean).join(' @ ');
+                html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;' + (idx < items.length - 1 ? 'margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #e2e8f0;' : '') + '">';
+                html += '<div>';
+                html += '<div style="font-size:0.78rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px;">Session ' + (idx + 1) + '</div>';
+                html += '<div style="font-size:0.95rem;font-weight:600;color:#1e293b;">' + escapeHtml(when) + '</div>';
+                if (session.treatment) {
+                    html += '<div style="font-size:0.8rem;color:#059669;margin-top:2px;">' + escapeHtml(session.treatment) + '</div>';
+                }
+                html += '</div></div>';
+            });
+            listEl.innerHTML = html;
+            listEl.style.display = 'block';
+            if (noteEl) noteEl.style.display = 'flex';
+        } else {
+            listEl.innerHTML = '';
+            listEl.style.display = 'none';
+            if (noteEl) noteEl.style.display = 'none';
+        }
+    }
+
+    document.body.appendChild(modal);
+    modal.classList.add('active');
+}
+
+function closeTreatmentPlanSavedModal() {
+    var modal = document.getElementById('treatmentPlanSavedModal');
+    if (modal) modal.classList.remove('active');
+}
+
 function printConsentForm() {
     document.body.classList.add('print-panel-consent');
     document.body.classList.remove('print-panel-prescription');
@@ -4694,15 +4783,30 @@ function saveConsultTreatmentPlan(e) {
     for (var i = 1; i <= totalSessions; i++) {
         var dateInput = document.querySelector('#tpSessionRowsContainer [name="session_date_' + i + '"]');
         var timeInput = document.getElementById('tpSessionTime_' + i);
-        if (dateInput && dateInput.value && timeInput && timeInput.value) {
-            var treatmentSelect = document.querySelector('#tpSessionRowsContainer [name="session_treatment_' + i + '"]');
-            var treatmentOther = document.querySelector('#tpSessionRowsContainer [name="session_treatment_other_' + i + '"]');
-            var treatment = treatmentSelect ? treatmentSelect.value : '';
-            var treatmentOtherVal = treatmentOther ? treatmentOther.value : '';
-            if (!treatment && !treatmentOtherVal) {
-                alert('Session ' + i + ' has a date/time but no treatment selected. Please choose a treatment for every scheduled session.');
-                return;
-            }
+        var treatmentSelect = document.querySelector('#tpSessionRowsContainer [name="session_treatment_' + i + '"]');
+        var treatmentOther = document.querySelector('#tpSessionRowsContainer [name="session_treatment_other_' + i + '"]');
+        var treatment = treatmentSelect ? treatmentSelect.value : '';
+        var treatmentOtherVal = treatmentOther ? treatmentOther.value.trim() : '';
+        var treatmentName = treatment === '__other__' ? treatmentOtherVal : treatment;
+
+        if (!treatmentName) {
+            alert('Please choose a treatment for Session ' + i + '.');
+            return;
+        }
+        if (!dateInput || !dateInput.value) {
+            alert('Please select a date for Session ' + i + '.');
+            return;
+        }
+        if (!timeInput || !timeInput.value) {
+            alert('Please select a time for Session ' + i + '.');
+            return;
+        }
+
+        formData.set('session_date_' + i, dateInput.value);
+        formData.set('session_time_' + i, timeInput.value);
+        formData.set('session_treatment_' + i, treatment);
+        if (treatment === '__other__') {
+            formData.set('session_treatment_other_' + i, treatmentOtherVal);
         }
     }
 
@@ -4723,10 +4827,12 @@ function saveConsultTreatmentPlan(e) {
     .then(function(response) { return response.json(); })
     .then(function(data) {
         if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Treatment Plan'; }
-        alert(data.message);
         if (data.success) {
+            showTreatmentPlanSavedModal(data.message, (data.sessions && data.sessions.length) ? data.sessions : (data.appointments || []));
             resetConsultTpForm();
             loadConsultTreatmentPlans();
+        } else {
+            alert(data.message);
         }
     })
     .catch(function(error) {

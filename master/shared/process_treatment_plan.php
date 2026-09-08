@@ -176,6 +176,7 @@ try {
         }
 
         $createdApptIds = [];
+        $createdAppointments = [];
         foreach ($appointmentsToCreate as $a) {
             $conflictCheck = $pdo->prepare("
                 SELECT a.id, a.reference_code, p.first_name, p.last_name 
@@ -190,10 +191,7 @@ try {
             $conflict = $conflictCheck->fetch(PDO::FETCH_ASSOC);
 
             if ($conflict) {
-                if ($a['is_first']) {
-                    throw new Exception("Time slot conflict! There is already an appointment ($conflict[reference_code]) for $conflict[first_name] $conflict[last_name] at this time.");
-                }
-                continue;
+                throw new Exception("Time slot conflict! There is already an appointment ($conflict[reference_code]) for $conflict[first_name] $conflict[last_name] at this time.");
             }
 
             $refCode = 'APT' . strtoupper(substr(md5(uniqid() . $a['date'] . $a['time']), 0, 6));
@@ -217,6 +215,11 @@ try {
 
             $apptId = $pdo->lastInsertId();
             $createdApptIds[] = $apptId;
+            $createdAppointments[] = [
+                'date' => $a['date'],
+                'time' => $a['time'],
+                'treatment' => $a['treatment'] ?? $plan_name
+            ];
 
             if ($a['is_first']) {
                 try {
@@ -229,9 +232,9 @@ try {
             }
         }
 
-        if (!empty($appointmentsToCreate)) {
-            $count = count($createdApptIds);
-            $message = "Treatment plan created. {$count} appointment(s) scheduled.";
+        if (!empty($sessionsData)) {
+            $count = count($sessionsData);
+            $message = "Treatment plan created. {$count} session(s) scheduled.";
         }
     }
 
@@ -252,7 +255,9 @@ try {
         'success' => true, 
         'message' => $message,
         'plan_id' => $planId ?? $plan_id,
-        'appointment_id' => $apptId ?? null
+        'appointment_id' => $apptId ?? null,
+        'appointments' => $createdAppointments ?? [],
+        'sessions' => $sessionsData ?: []
     ]);
 
 } catch (Exception $e) {

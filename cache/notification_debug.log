@@ -182,3 +182,4 @@
 2026-09-07 14:08:03 | getUserIdForPatient: no user found for patient_id=112
 2026-09-07 14:08:03 | notifyPatientConsultationComplete: no user_id for patient_id=112
 2026-09-07 14:08:03 | notifyStaffConsultationComplete OK: patient=Carl Dela Cruz amount=700 treatment=Teeth Cleaning
+2026-09-08 11:43:46 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
