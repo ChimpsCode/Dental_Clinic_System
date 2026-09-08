@@ -500,21 +500,16 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
         echo json_encode(['success' => false, 'message' => 'Please fill in all fields']);
         exit();
     }
-    
-    // Skip captcha check if skip_captcha flag is set (used by welcome-back flow where patient identity is already verified)
-    $skipCaptcha = isset($_POST['skip_captcha']) && $_POST['skip_captcha'] === '1';
-    
-    if (!$skipCaptcha) {
-        if (empty($captcha)) {
-            echo json_encode(['success' => false, 'message' => 'Please enter the captcha code']);
-            exit();
-        }
-        
-        if (!validateCaptcha($captcha)) {
-            refreshCaptcha();
-            echo json_encode(['success' => false, 'message' => 'Invalid or expired captcha code']);
-            exit();
-        }
+
+    if (empty($captcha)) {
+        echo json_encode(['success' => false, 'message' => 'Please enter the captcha code']);
+        exit();
+    }
+
+    if (!validateCaptcha($captcha)) {
+        refreshCaptcha();
+        echo json_encode(['success' => false, 'message' => 'Invalid or expired captcha code']);
+        exit();
     }
     
     try {
