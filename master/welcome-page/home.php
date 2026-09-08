@@ -139,7 +139,7 @@ $assets = [
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,700;1,400&family=Inria+Sans:wght@400;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="../../assets/css/home-styles.css?v=12" />
+    <link rel="stylesheet" href="../../assets/css/home-styles.css?v=14" />
     <link rel="stylesheet" href="../../assets/css/home-integration.css" />
     <link rel="stylesheet" href="../../assets/css/chatbot-components.css" />
     <script src="../../assets/js/home-integration.js" defer></script>
@@ -716,30 +716,103 @@ $assets = [
     <?php include __DIR__ . '/../../includes/chatbot_widget.php'; ?>
 
     <script>
-      // Mobile navigation toggle
+      // Mobile navigation toggle + smooth section scrolling
       (() => {
         const navToggle = document.querySelector('.nav-toggle');
         const nav = document.querySelector('.nav');
         const overlay = document.querySelector('.nav-overlay');
-        
+
+        const toggleNav = (shouldOpen) => {
+          if (!navToggle || !nav) return;
+          const isOpen = shouldOpen ?? !nav.classList.contains('open');
+          nav.classList.toggle('open', isOpen);
+          navToggle.classList.toggle('open', isOpen);
+          overlay?.classList.toggle('open', isOpen);
+          navToggle.setAttribute('aria-expanded', isOpen);
+          document.body.style.overflow = isOpen ? 'hidden' : '';
+        };
+
         if (navToggle && nav) {
-          const toggleNav = (shouldOpen) => {
-            const isOpen = shouldOpen ?? !nav.classList.contains('open');
-            nav.classList.toggle('open', isOpen);
-            navToggle.classList.toggle('open', isOpen);
-            overlay?.classList.toggle('open', isOpen);
-            navToggle.setAttribute('aria-expanded', isOpen);
-            document.body.style.overflow = isOpen ? 'hidden' : '';
-          };
-          
           navToggle.addEventListener('click', () => toggleNav());
           overlay?.addEventListener('click', () => toggleNav(false));
-          
-          // Close nav when clicking a link
-          nav.querySelectorAll('.nav-link').forEach(link => {
-            link.addEventListener('click', () => toggleNav(false));
-          });
         }
+
+        function currentScroll() {
+          return window.pageYOffset
+            || document.documentElement.scrollTop
+            || document.body.scrollTop
+            || 0;
+        }
+
+        function applyPageScroll(y) {
+          window.scrollTo(0, y);
+          document.documentElement.scrollTop = y;
+          document.body.scrollTop = y;
+          if (document.scrollingElement) document.scrollingElement.scrollTop = y;
+        }
+
+        function smoothScrollTo(top) {
+          const start = currentScroll();
+          const distance = top - start;
+          if (Math.abs(distance) < 2) return;
+          const duration = 700;
+          const t0 = performance.now();
+
+          function step(now) {
+            const p = Math.min(1, (now - t0) / duration);
+            const eased = 1 - Math.pow(1 - p, 3);
+            applyPageScroll(start + distance * eased);
+            if (p < 1) requestAnimationFrame(step);
+          }
+          requestAnimationFrame(step);
+        }
+
+        if (!nav) return;
+
+        let scrolling = false;
+
+        function onNavActivate(e) {
+          const link = e.target.closest('a.nav-link');
+          if (!link || !nav.contains(link)) return;
+
+          const href = link.getAttribute('href') || '';
+          if (!href.startsWith('#')) return;
+
+          const id = href.slice(1);
+          const target = document.getElementById(id);
+          if (!target && id !== 'top' && id !== 'home') return;
+
+          e.preventDefault();
+          e.stopPropagation();
+          if (scrolling) return;
+          scrolling = true;
+          window.setTimeout(() => { scrolling = false; }, 750);
+
+          toggleNav(false);
+          document.body.style.overflow = '';
+          document.documentElement.style.overflowX = 'visible';
+          document.body.style.overflowX = 'visible';
+
+          nav.querySelectorAll('.nav-link').forEach((item) => item.classList.remove('active'));
+          link.classList.add('active');
+
+          if (window.history && window.history.pushState) {
+            window.history.pushState(null, '', href);
+          }
+
+          if (id === 'top' || id === 'home') {
+            smoothScrollTo(0);
+            return;
+          }
+
+          const header = document.querySelector('.site-header');
+          const offset = header ? header.getBoundingClientRect().height + 14 : 64;
+          const top = Math.max(0, target.getBoundingClientRect().top + currentScroll() - offset);
+          smoothScrollTo(top);
+        }
+
+        nav.addEventListener('click', onNavActivate, true);
+        nav.addEventListener('touchend', onNavActivate, { capture: true, passive: false });
       })();
 
       (() => {
@@ -782,18 +855,29 @@ $assets = [
         const MAX_SCALE = 1.08;
         let ticking = false;
 
+        function pageScrollY() {
+          return Math.max(
+            window.pageYOffset || 0,
+            document.documentElement.scrollTop || 0,
+            document.body.scrollTop || 0
+          );
+        }
+
         function updateZoom() {
           ticking = false;
           const range = space.offsetHeight || 1;
-          const progress = Math.min(1, Math.max(0, window.scrollY / range));
+          const progress = Math.min(1, Math.max(0, pageScrollY() / range));
           heroInner.style.transform = 'scale(' + (1 + (MAX_SCALE - 1) * progress) + ')';
         }
 
-        window.addEventListener('scroll', () => {
+        function onScroll() {
           if (ticking) return;
           ticking = true;
           requestAnimationFrame(updateZoom);
-        }, { passive: true });
+        }
+
+        window.addEventListener('scroll', onScroll, { passive: true });
+        document.addEventListener('scroll', onScroll, { capture: true, passive: true });
 
         updateZoom();
       })();
@@ -1974,13 +2058,35 @@ $assets = [
           });
         }
         
-        // Add click event to nav links
+        function applyPageScroll(y) {
+          window.scrollTo(0, y);
+          document.documentElement.scrollTop = y;
+          document.body.scrollTop = y;
+          if (document.scrollingElement) document.scrollingElement.scrollTop = y;
+        }
+
+        function smoothScrollTo(top) {
+          const scroller = document.scrollingElement || document.documentElement;
+          const start = scroller.scrollTop || window.pageYOffset || document.body.scrollTop || 0;
+          const distance = top - start;
+          const duration = 520;
+          const t0 = performance.now();
+
+          function step(now) {
+            const p = Math.min(1, (now - t0) / duration);
+            const eased = 1 - Math.pow(1 - p, 3);
+            applyPageScroll(start + distance * eased);
+            if (p < 1) requestAnimationFrame(step);
+          }
+          requestAnimationFrame(step);
+        }
+
         navLinks.forEach(link => {
-          link.addEventListener('click', function(e) {
+          link.addEventListener('click', function() {
             navLinks.forEach(l => l.classList.remove('active'));
             this.classList.add('active');
           });
-});
+        });
         
         // Global function to calculate age
         window.handleBirthdateChange = function() {
