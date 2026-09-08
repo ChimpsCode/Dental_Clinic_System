@@ -902,7 +902,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RF Dental Clinic - Login</title>
     <link rel="icon" type="image/png" href="<?php echo htmlspecialchars($loginLogo); ?>">
-    <link rel="stylesheet" href="../../assets/css/login-new.css">
+    <link rel="stylesheet" href="../../assets/css/login-new.css?v=5">
     <style>
         #registrationContainer {
             position: relative;
@@ -1261,7 +1261,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
                         </div>
 
                         <div class="input-group">
-                            <input type="tel" id="reg_phone" name="phone" placeholder="Phone Number" required autocomplete="tel">
+                            <input type="tel" id="reg_phone" name="phone" placeholder="Phone Number" required maxlength="11" inputmode="numeric" pattern="[0-9]*" autocomplete="tel">
                         </div>
 
                         <div style="display: flex; gap: 12px; width: 100%;">
@@ -1331,12 +1331,52 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
 
                         <div class="registration-password-box" id="regPasswordStrengthBox">
                             <div class="registration-password-title">Password Requirements:</div>
-                            <ul style="margin:0; padding-left:18px;">
-                                <li>At least 8 characters</li>
-                                <li>At least one uppercase letter</li>
-                                <li>At least one lowercase letter</li>
-                                <li>At least one number</li>
-                                <li>At least one symbol</li>
+                            <ul class="pwd-req-list">
+                                <li class="pwd-req" data-rule="length">
+                                    <span class="pwd-check" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24">
+                                            <circle class="pwd-check-bg" cx="12" cy="12" r="10"></circle>
+                                            <path class="pwd-check-mark" d="M7.5 12.4l3.1 3.1 5.9-6.2"></path>
+                                        </svg>
+                                    </span>
+                                    <span>At least 8 characters</span>
+                                </li>
+                                <li class="pwd-req" data-rule="upper">
+                                    <span class="pwd-check" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24">
+                                            <circle class="pwd-check-bg" cx="12" cy="12" r="10"></circle>
+                                            <path class="pwd-check-mark" d="M7.5 12.4l3.1 3.1 5.9-6.2"></path>
+                                        </svg>
+                                    </span>
+                                    <span>At least one uppercase letter</span>
+                                </li>
+                                <li class="pwd-req" data-rule="lower">
+                                    <span class="pwd-check" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24">
+                                            <circle class="pwd-check-bg" cx="12" cy="12" r="10"></circle>
+                                            <path class="pwd-check-mark" d="M7.5 12.4l3.1 3.1 5.9-6.2"></path>
+                                        </svg>
+                                    </span>
+                                    <span>At least one lowercase letter</span>
+                                </li>
+                                <li class="pwd-req" data-rule="number">
+                                    <span class="pwd-check" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24">
+                                            <circle class="pwd-check-bg" cx="12" cy="12" r="10"></circle>
+                                            <path class="pwd-check-mark" d="M7.5 12.4l3.1 3.1 5.9-6.2"></path>
+                                        </svg>
+                                    </span>
+                                    <span>At least one number</span>
+                                </li>
+                                <li class="pwd-req" data-rule="symbol">
+                                    <span class="pwd-check" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24">
+                                            <circle class="pwd-check-bg" cx="12" cy="12" r="10"></circle>
+                                            <path class="pwd-check-mark" d="M7.5 12.4l3.1 3.1 5.9-6.2"></path>
+                                        </svg>
+                                    </span>
+                                    <span>At least one symbol</span>
+                                </li>
                             </ul>
                         </div>
 
@@ -1352,6 +1392,17 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
                                     <line x1="1" y1="1" x2="23" y2="23"></line>
                                 </svg>
                             </button>
+                        </div>
+
+                        <div class="pwd-match-hint is-idle" id="regPasswordMatchHint">
+                            <span class="pwd-check" aria-hidden="true">
+                                <svg viewBox="0 0 24 24">
+                                    <circle class="pwd-check-bg" cx="12" cy="12" r="10"></circle>
+                                    <path class="pwd-check-mark" d="M7.5 12.4l3.1 3.1 5.9-6.2"></path>
+                                    <path class="pwd-check-x" d="M9 9l6 6M15 9l-6 6"></path>
+                                </svg>
+                            </span>
+                            <span class="pwd-match-text">Re-enter password to confirm</span>
                         </div>
 
                         <div class="form-links" style="margin-bottom: 20px;">
@@ -1413,7 +1464,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
         <div class="toast-loading-line"></div>
     </div>
     
-    <script src="../../assets/js/login.js"></script>
+    <script src="../../assets/js/login.js?v=3"></script>
     
     <?php if ($showDeletedMsg): ?>
     <script>

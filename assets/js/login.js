@@ -408,14 +408,59 @@
             && /[^A-Za-z0-9]/.test(password);
     }
 
-    function getPasswordStrengthState(password) {
-        const hasLength = password.length >= 8;
-        const hasUpper = /[A-Z]/.test(password);
-        const hasLower = /[a-z]/.test(password);
-        const hasNumber = /[0-9]/.test(password);
-        const hasSymbol = /[^A-Za-z0-9]/.test(password);
+    function getPasswordRuleFlags(password) {
+        return {
+            length: password.length >= 8,
+            upper: /[A-Z]/.test(password),
+            lower: /[a-z]/.test(password),
+            number: /[0-9]/.test(password),
+            symbol: /[^A-Za-z0-9]/.test(password)
+        };
+    }
 
-        const matchedRules = [hasLength, hasUpper, hasLower, hasNumber, hasSymbol].filter(Boolean).length;
+    function updatePasswordRequirementChecks(password) {
+        const flags = getPasswordRuleFlags(password || '');
+        document.querySelectorAll('#regPasswordStrengthBox [data-rule]').forEach(function(item) {
+            const rule = item.getAttribute('data-rule');
+            const met = !!flags[rule];
+            if (item.classList.contains('is-met') === met) return;
+            item.classList.toggle('is-met', met);
+        });
+    }
+
+    function updateConfirmPasswordMatch() {
+        const hint = document.getElementById('regPasswordMatchHint');
+        const text = hint ? hint.querySelector('.pwd-match-text') : null;
+        const password = registerPasswordInput ? registerPasswordInput.value : '';
+        const confirm = registerConfirmPasswordInput ? registerConfirmPasswordInput.value : '';
+
+        if (!hint || !text || !registerConfirmPasswordInput) return;
+
+        hint.classList.remove('is-met', 'is-mismatch', 'is-idle');
+
+        if (!confirm) {
+            hint.classList.add('is-idle');
+            text.textContent = 'Re-enter password to confirm';
+            registerConfirmPasswordInput.dataset.match = 'empty';
+            return;
+        }
+
+        if (password && password === confirm) {
+            hint.classList.add('is-met');
+            text.textContent = 'Passwords match';
+            registerConfirmPasswordInput.dataset.match = 'match';
+            return;
+        }
+
+        hint.classList.add('is-mismatch');
+        text.textContent = 'Passwords do not match';
+        registerConfirmPasswordInput.dataset.match = 'mismatch';
+    }
+
+    function getPasswordStrengthState(password) {
+        const flags = getPasswordRuleFlags(password);
+        const hasLength = flags.length;
+        const matchedRules = [flags.length, flags.upper, flags.lower, flags.number, flags.symbol].filter(Boolean).length;
 
         if (!password) {
             return {
@@ -459,6 +504,8 @@
             const value = input.value || '';
             const state = getPasswordStrengthState(value);
             input.dataset.strength = state.strength;
+            updatePasswordRequirementChecks(value);
+            updateConfirmPasswordMatch();
         };
 
         input.addEventListener('input', update);
@@ -470,6 +517,12 @@
     setupPasswordStrengthMeter(
         registerPasswordInput
     );
+
+    if (registerConfirmPasswordInput) {
+        registerConfirmPasswordInput.addEventListener('input', updateConfirmPasswordMatch);
+        registerConfirmPasswordInput.addEventListener('blur', updateConfirmPasswordMatch);
+        updateConfirmPasswordMatch();
+    }
 
     function bindDigitsOnlyField(field) {
         if (!field) return;
@@ -502,6 +555,7 @@
         sanitize();
     }
 
+    bindDigitsOnlyField(document.getElementById('reg_phone'));
     bindDigitsOnlyField(document.getElementById('reg-phone'));
     bindDigitsOnlyField(document.getElementById('reg_emergency_phone'));
     bindDigitsOnlyField(document.getElementById('reg-emergency-phone'));

@@ -853,7 +853,7 @@ $assets = [
         echo json_encode($chatServices);
       ?>;
     </script>
-    <script src="../../assets/js/chatbot.js"></script>
+    <script src="../../assets/js/chatbot.js?v=3"></script>
 
     <script>
       (() => {
@@ -1208,6 +1208,56 @@ $assets = [
                   </button>
                 </div>
               </div>
+              <div id="passwordRequirementsBox" class="registration-password-box">
+                <div class="registration-password-title">Password Requirements:</div>
+                <ul class="pwd-req-list">
+                  <li class="pwd-req" data-rule="length">
+                    <span class="pwd-check" aria-hidden="true">
+                      <svg viewBox="0 0 24 24">
+                        <circle class="pwd-check-bg" cx="12" cy="12" r="10"></circle>
+                        <path class="pwd-check-mark" d="M7.5 12.4l3.1 3.1 5.9-6.2"></path>
+                      </svg>
+                    </span>
+                    <span>At least 8 characters</span>
+                  </li>
+                  <li class="pwd-req" data-rule="upper">
+                    <span class="pwd-check" aria-hidden="true">
+                      <svg viewBox="0 0 24 24">
+                        <circle class="pwd-check-bg" cx="12" cy="12" r="10"></circle>
+                        <path class="pwd-check-mark" d="M7.5 12.4l3.1 3.1 5.9-6.2"></path>
+                      </svg>
+                    </span>
+                    <span>At least one uppercase letter</span>
+                  </li>
+                  <li class="pwd-req" data-rule="lower">
+                    <span class="pwd-check" aria-hidden="true">
+                      <svg viewBox="0 0 24 24">
+                        <circle class="pwd-check-bg" cx="12" cy="12" r="10"></circle>
+                        <path class="pwd-check-mark" d="M7.5 12.4l3.1 3.1 5.9-6.2"></path>
+                      </svg>
+                    </span>
+                    <span>At least one lowercase letter</span>
+                  </li>
+                  <li class="pwd-req" data-rule="number">
+                    <span class="pwd-check" aria-hidden="true">
+                      <svg viewBox="0 0 24 24">
+                        <circle class="pwd-check-bg" cx="12" cy="12" r="10"></circle>
+                        <path class="pwd-check-mark" d="M7.5 12.4l3.1 3.1 5.9-6.2"></path>
+                      </svg>
+                    </span>
+                    <span>At least one number</span>
+                  </li>
+                  <li class="pwd-req" data-rule="symbol">
+                    <span class="pwd-check" aria-hidden="true">
+                      <svg viewBox="0 0 24 24">
+                        <circle class="pwd-check-bg" cx="12" cy="12" r="10"></circle>
+                        <path class="pwd-check-mark" d="M7.5 12.4l3.1 3.1 5.9-6.2"></path>
+                      </svg>
+                    </span>
+                    <span>At least one symbol</span>
+                  </li>
+                </ul>
+              </div>
               <div class="form-group">
                 <label for="reg-confirm-password">Confirm Password <span style="color:#dc2626">*</span></label>
                 <div class="password-input-group" style="margin-bottom:0;">
@@ -1223,16 +1273,16 @@ $assets = [
                     </svg>
                   </button>
                 </div>
-              </div>
-              <div id="passwordRequirementsBox" style="margin-top:10px; background:rgba(15,23,42,0.04); border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px; color:#0f172a; font-size:13px; line-height:1.55;">
-                <div style="font-weight:700; margin-bottom:6px;">Password Requirements:</div>
-                <ul style="margin:0; padding-left:18px;">
-                  <li>At least 8 characters</li>
-                  <li>At least one uppercase letter</li>
-                  <li>At least one lowercase letter</li>
-                  <li>At least one number</li>
-                  <li>At least one symbol</li>
-                </ul>
+                <div class="pwd-match-hint is-idle" id="regPasswordMatchHint">
+                  <span class="pwd-check" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                      <circle class="pwd-check-bg" cx="12" cy="12" r="10"></circle>
+                      <path class="pwd-check-mark" d="M7.5 12.4l3.1 3.1 5.9-6.2"></path>
+                      <path class="pwd-check-x" d="M9 9l6 6M15 9l-6 6"></path>
+                    </svg>
+                  </span>
+                  <span class="pwd-match-text">Re-enter password to confirm</span>
+                </div>
               </div>
             </div>
             
@@ -1386,13 +1436,58 @@ $assets = [
         bindDigitsOnlyField(regPhoneInput);
         bindDigitsOnlyField(regEmergencyPhoneInput);
 
+        function getPasswordRuleFlags(password) {
+          return {
+            length: password.length >= 8,
+            upper: /[A-Z]/.test(password),
+            lower: /[a-z]/.test(password),
+            number: /[0-9]/.test(password),
+            symbol: /[^A-Za-z0-9]/.test(password)
+          };
+        }
+
+        function updatePasswordRequirementChecks(password) {
+          const flags = getPasswordRuleFlags(password || '');
+          document.querySelectorAll('#passwordRequirementsBox [data-rule]').forEach(function(item) {
+            const met = !!flags[item.getAttribute('data-rule')];
+            if (item.classList.contains('is-met') === met) return;
+            item.classList.toggle('is-met', met);
+          });
+        }
+
+        function updateConfirmPasswordMatch() {
+          const hint = document.getElementById('regPasswordMatchHint');
+          const text = hint ? hint.querySelector('.pwd-match-text') : null;
+          const password = regPasswordInput ? regPasswordInput.value : '';
+          const confirm = regConfirmPasswordInput ? regConfirmPasswordInput.value : '';
+
+          if (!hint || !text || !regConfirmPasswordInput) return;
+
+          hint.classList.remove('is-met', 'is-mismatch', 'is-idle');
+
+          if (!confirm) {
+            hint.classList.add('is-idle');
+            text.textContent = 'Re-enter password to confirm';
+            regConfirmPasswordInput.dataset.match = 'empty';
+            return;
+          }
+
+          if (password && password === confirm) {
+            hint.classList.add('is-met');
+            text.textContent = 'Passwords match';
+            regConfirmPasswordInput.dataset.match = 'match';
+            return;
+          }
+
+          hint.classList.add('is-mismatch');
+          text.textContent = 'Passwords do not match';
+          regConfirmPasswordInput.dataset.match = 'mismatch';
+        }
+
         function getPasswordStrengthState(password) {
-          const hasLength = password.length >= 8;
-          const hasUpper = /[A-Z]/.test(password);
-          const hasLower = /[a-z]/.test(password);
-          const hasNumber = /[0-9]/.test(password);
-          const hasSymbol = /[^A-Za-z0-9]/.test(password);
-          const matchedRules = [hasLength, hasUpper, hasLower, hasNumber, hasSymbol].filter(Boolean).length;
+          const flags = getPasswordRuleFlags(password);
+          const hasLength = flags.length;
+          const matchedRules = [flags.length, flags.upper, flags.lower, flags.number, flags.symbol].filter(Boolean).length;
 
           if (!password) {
             return {
@@ -1436,6 +1531,8 @@ $assets = [
             const value = input.value || '';
             const state = getPasswordStrengthState(value);
             input.dataset.strength = state.strength;
+            updatePasswordRequirementChecks(value);
+            updateConfirmPasswordMatch();
           };
 
           input.addEventListener('input', update);
@@ -1447,6 +1544,12 @@ $assets = [
         window.updateRegistrationPasswordStrength = setupPasswordStrengthMeter(
           regPasswordInput
         );
+
+        if (regConfirmPasswordInput) {
+          regConfirmPasswordInput.addEventListener('input', updateConfirmPasswordMatch);
+          regConfirmPasswordInput.addEventListener('blur', updateConfirmPasswordMatch);
+          updateConfirmPasswordMatch();
+        }
 
         // Step 1 is handled by the IIFE above (choice modal → booking modal with registration)
 
@@ -2178,6 +2281,145 @@ $assets = [
       #reg-password[data-strength="strong"] {
         border-color: #16a34a !important;
         box-shadow: none !important;
+      }
+
+      #reg-confirm-password[data-match="match"] {
+        border-color: #16a34a !important;
+        box-shadow: none !important;
+      }
+
+      #reg-confirm-password[data-match="mismatch"] {
+        border-color: #ef4444 !important;
+        box-shadow: none !important;
+      }
+
+      .registration-password-box {
+        margin: 10px 0 14px;
+        background: rgba(15, 23, 42, 0.04);
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 12px 14px;
+        color: #0f172a;
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .registration-password-title {
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+
+      .pwd-req-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+      }
+
+      .pwd-req,
+      .pwd-match-hint {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #64748b;
+        font-size: 13px;
+        transition: color 0.2s ease;
+      }
+
+      .pwd-check {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        display: inline-flex;
+      }
+
+      .pwd-check svg {
+        width: 20px;
+        height: 20px;
+        overflow: visible;
+      }
+
+      .pwd-check-bg {
+        fill: #fff;
+        stroke: #cbd5e1;
+        stroke-width: 1.75;
+        transition: fill 0.22s ease, stroke 0.22s ease;
+      }
+
+      .pwd-check-mark {
+        fill: none;
+        stroke: #fff;
+        stroke-width: 2.3;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-dasharray: 20;
+        stroke-dashoffset: 20;
+        transition: stroke-dashoffset 0.32s ease 0.08s;
+      }
+
+      .pwd-check-x {
+        fill: none;
+        stroke: #ef4444;
+        stroke-width: 2.1;
+        stroke-linecap: round;
+        opacity: 0;
+        transform-origin: 12px 12px;
+        transform: scale(0.6);
+        transition: opacity 0.18s ease, transform 0.18s ease;
+      }
+
+      .pwd-req.is-met,
+      .pwd-match-hint.is-met {
+        color: #15803d;
+        font-weight: 600;
+      }
+
+      .pwd-req.is-met .pwd-check-bg,
+      .pwd-match-hint.is-met .pwd-check-bg {
+        fill: #22c55e;
+        stroke: #16a34a;
+      }
+
+      .pwd-req.is-met .pwd-check-mark,
+      .pwd-match-hint.is-met .pwd-check-mark {
+        stroke-dashoffset: 0;
+      }
+
+      .pwd-req.is-met .pwd-check,
+      .pwd-match-hint.is-met .pwd-check {
+        animation: pwdCheckPop 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+
+      .pwd-match-hint {
+        margin: 8px 0 0;
+        min-height: 22px;
+      }
+
+      .pwd-match-hint.is-idle {
+        color: #94a3b8;
+      }
+
+      .pwd-match-hint.is-mismatch {
+        color: #dc2626;
+        font-weight: 600;
+      }
+
+      .pwd-match-hint.is-mismatch .pwd-check-bg {
+        fill: #fef2f2;
+        stroke: #ef4444;
+      }
+
+      .pwd-match-hint.is-mismatch .pwd-check-x {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      @keyframes pwdCheckPop {
+        0% { transform: scale(0.72); }
+        55% { transform: scale(1.18); }
+        100% { transform: scale(1); }
       }
 
       .btn-block {

@@ -168,10 +168,50 @@
     btn.type = 'button';
     btn.className = 'chat-inquire-btn';
     btn.textContent = 'Contact Us';
-    btn.addEventListener('click', function() {
-      closeChat();
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (document.activeElement && document.activeElement.blur) {
+        document.activeElement.blur();
+      }
+      widget.hidden = true;
+      fab.setAttribute('aria-expanded', 'false');
+
       var contact = document.getElementById('contact');
-      if (contact) contact.scrollIntoView({ behavior: 'smooth' });
+      if (!contact) return;
+
+      document.documentElement.style.overflowX = 'visible';
+      document.body.style.overflow = '';
+      document.body.style.overflowX = 'visible';
+
+      function applyScroll(y) {
+        window.scrollTo(0, y);
+        document.documentElement.scrollTop = y;
+        document.body.scrollTop = y;
+        if (document.scrollingElement) document.scrollingElement.scrollTop = y;
+      }
+
+      function scrollToContact() {
+        var header = document.querySelector('.site-header');
+        var offset = header ? header.offsetHeight : 64;
+        var scroller = document.scrollingElement || document.documentElement;
+        var current = scroller.scrollTop || window.pageYOffset || document.body.scrollTop || 0;
+        var top = Math.max(0, contact.getBoundingClientRect().top + current - offset);
+        var start = current;
+        var distance = top - start;
+        var duration = 450;
+        var t0 = performance.now();
+
+        function step(now) {
+          var p = Math.min(1, (now - t0) / duration);
+          var eased = 1 - Math.pow(1 - p, 3);
+          applyScroll(start + distance * eased);
+          if (p < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+      }
+
+      window.setTimeout(scrollToContact, 80);
     });
     card.appendChild(btn);
 
