@@ -2,6 +2,7 @@
 header('Content-Type: application/json');
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../config/api_keys.php';
+require_once __DIR__ . '/../../includes/input_sanitize.php';
 
 // Check if it's a POST request
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -11,12 +12,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 // Get the user's message
 $data = json_decode(file_get_contents('php://input'), true);
-$userMessage = $data['message'] ?? '';
-
-if (empty($userMessage)) {
-    echo json_encode(['error' => 'Message is empty']);
+$messageResult = sanitize_message($data['message'] ?? '', true, 500, 'Message');
+if (!$messageResult['ok']) {
+    echo json_encode(['error' => $messageResult['error']]);
     exit;
 }
+$userMessage = $messageResult['value'];
 
 if (!defined('GEMINI_API_KEY') || trim(GEMINI_API_KEY) === '') {
     echo json_encode(['response' => "I'm ready to help, but the Gemini API key hasn't been set up yet. Please ask the administrator to paste the API key into config/api_keys.php!"]);

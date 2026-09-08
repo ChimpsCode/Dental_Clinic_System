@@ -1,9 +1,11 @@
 <?php
 ini_set('display_errors', '0');
 error_reporting(E_ALL);
-require_once __DIR__ . '/../../includes/session_bootstrap.php';header('Content-Type: application/json');
+require_once __DIR__ . '/../../includes/session_bootstrap.php';
+header('Content-Type: application/json');
 require_once '../../config/database.php';
 require_once __DIR__ . '/../../includes/discount_helper.php';
+require_once __DIR__ . '/../../includes/input_sanitize.php';
 
 function respond(bool $success, string $message, array $extra = [], int $status = 200): void {
     http_response_code($status);
@@ -50,7 +52,12 @@ function isStrongPassword(string $password): bool {
 $action = trim($_POST['action'] ?? 'register');
 
 if ($action === 'verify_otp') {
-    $enteredOtp = trim($_POST['otp'] ?? '');
+    $otpResult = sanitize_digit_code($_POST['otp'] ?? '', 6, 'Verification code');
+    if (!$otpResult['ok']) {
+        echo json_encode(['success' => false, 'message' => $otpResult['error']]);
+        exit();
+    }
+    $enteredOtp = $otpResult['value'];
     $storedOtp = $_SESSION['reg_otp'] ?? '';
     $expires = $_SESSION['reg_otp_expires'] ?? 0;
     $regData = $_SESSION['reg_data'] ?? null;
@@ -61,41 +68,16 @@ if ($action === 'verify_otp') {
     }
 
     if (!$regData) {
-        $firstName = trim($_POST['first_name'] ?? '');
-        $middleName = trim($_POST['middle_name'] ?? '');
-        $lastName = trim($_POST['last_name'] ?? '');
-        $email = trim($_POST['email'] ?? '');
-        $phone = trim($_POST['phone'] ?? '');
-        $gender = trim($_POST['gender'] ?? '');
-        $dateOfBirth = trim($_POST['date_of_birth'] ?? '');
-        $address = trim($_POST['address'] ?? '');
-        $emergencyContactName = trim($_POST['emergency_contact_name'] ?? '');
-        $emergencyContactPhone = trim($_POST['emergency_contact_phone'] ?? '');
-        $emergencyContactRelationship = trim($_POST['emergency_contact_relationship'] ?? '');
-        $seniorCitizenId = trim($_POST['senior_citizen_id'] ?? '');
-        $seniorIdType = trim($_POST['senior_id_type'] ?? '');
-        $pwdId = normalizePwdIdField(!empty($_POST['is_pwd']), $_POST['pwd_id'] ?? '');
-        list($seniorIdType, $seniorCitizenId) = normalizeSeniorIdFields($seniorIdType, $seniorCitizenId);
+        $fallback = sanitize_patient_registration_input($_POST, ['require_dob' => false]);
         $password = (string)($_POST['password'] ?? '');
-
-        if ($firstName !== '' && $lastName !== '' && $email !== '' && $phone !== '' && $password !== '') {
-            $regData = [
-                'first_name' => $firstName,
-                'middle_name' => $middleName,
-                'last_name' => $lastName,
-                'email' => $email,
-                'phone' => $phone,
-                'gender' => $gender,
-                'date_of_birth' => $dateOfBirth,
-                'address' => $address,
-                'emergency_contact_name' => $emergencyContactName,
-                'emergency_contact_phone' => $emergencyContactPhone,
-                'emergency_contact_relationship' => $emergencyContactRelationship,
-                'senior_citizen_id' => $seniorCitizenId,
-                'senior_id_type' => $seniorIdType,
-                'pwd_id' => $pwdId,
-                'password' => $password,
-            ];
+        if ($fallback['ok'] && $password !== '') {
+            $regData = $fallback['data'];
+            $regData['pwd_id'] = normalizePwdIdField(!empty($_POST['is_pwd']), $fallback['data']['pwd_id']);
+            list($regData['senior_id_type'], $regData['senior_citizen_id']) = normalizeSeniorIdFields(
+                $fallback['data']['senior_id_type'],
+                $fallback['data']['senior_citizen_id']
+            );
+            $regData['password'] = $password;
         }
     }
 
@@ -272,41 +254,21 @@ try {
         throw new Exception('Invalid request method');
     }
 
-    $first_name = trim($_POST['first_name'] ?? '');
-    $middle_name = trim($_POST['middle_name'] ?? '');
-    $last_name = trim($_POST['last_name'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    $phone = trim($_POST['phone'] ?? '');
-    $gender = trim($_POST['gender'] ?? '');
-    $age = trim($_POST['age'] ?? '');
-    $date_of_birth = trim($_POST['date_of_birth'] ?? '');
-    $address = trim($_POST['address'] ?? '');
+    $fields = sanitize_patient_registration_input($_POST, ['require_dob' => false]);
+    if (!$fields['ok']) {
+        throw new Exception($fields['error']);
+    }
+
+    $first_name = $fields['data']['first_name'];
+    $middle_name = $fields['data']['middle_name'];
+    $last_name = $fields['data']['last_name'];
+    $email = $fields['data']['email'];
+    $phone = $fields['data']['phone'];
+    $gender = $fields['data']['gender'];
+    $date_of_birth = $fields['data']['date_of_birth'];
+    $address = $fields['data']['address'];
     $password = $_POST['password'] ?? '';
     $confirm_password = $_POST['confirm_password'] ?? '';
-
-    if (empty($first_name)) {
-        throw new Exception('First name is required');
-    }
-
-    if (empty($last_name)) {
-        throw new Exception('Last name is required');
-    }
-
-    if (empty($email)) {
-        throw new Exception('Email is required');
-    }
-
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        throw new Exception('Invalid email address');
-    }
-
-    if (empty($phone)) {
-        throw new Exception('Phone number is required');
-    }
-
-    if (empty($gender)) {
-        throw new Exception('Gender is required');
-    }
 
     if (empty($password)) {
         throw new Exception('Password is required');
@@ -330,13 +292,13 @@ try {
         throw new Exception('Email already registered. Please login instead.');
     }
 
-    $emergency_contact_name = trim($_POST['emergency_contact_name'] ?? '');
-    $emergency_contact_phone = trim($_POST['emergency_contact_phone'] ?? '');
-    $emergency_contact_relationship = trim($_POST['emergency_contact_relationship'] ?? '');
-    $senior_citizen_id = trim($_POST['senior_citizen_id'] ?? '');
-    $senior_id_type = trim($_POST['senior_id_type'] ?? '');
+    $emergency_contact_name = $fields['data']['emergency_contact_name'];
+    $emergency_contact_phone = $fields['data']['emergency_contact_phone'];
+    $emergency_contact_relationship = $fields['data']['emergency_contact_relationship'];
+    $senior_citizen_id = $fields['data']['senior_citizen_id'];
+    $senior_id_type = $fields['data']['senior_id_type'];
     list($senior_id_type, $senior_citizen_id) = normalizeSeniorIdFields($senior_id_type, $senior_citizen_id);
-    $pwd_id = normalizePwdIdField(!empty($_POST['is_pwd']), $_POST['pwd_id'] ?? '');
+    $pwd_id = normalizePwdIdField(!empty($_POST['is_pwd']), $fields['data']['pwd_id']);
 
     $otpCode = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
     $_SESSION['reg_otp'] = $otpCode;

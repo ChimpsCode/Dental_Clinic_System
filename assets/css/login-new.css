@@ -594,9 +594,117 @@ body {
     margin-bottom: 6px;
 }
 
-.registration-password-box ul {
+.pwd-req-list {
+    list-style: none;
     margin: 0;
-    padding-left: 18px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.pwd-req,
+.pwd-match-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #64748b;
+    font-size: 13px;
+    transition: color 0.2s ease;
+}
+
+.pwd-check {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    display: inline-flex;
+}
+
+.pwd-check svg {
+    width: 20px;
+    height: 20px;
+    overflow: visible;
+}
+
+.pwd-check-bg {
+    fill: #fff;
+    stroke: #cbd5e1;
+    stroke-width: 1.75;
+    transition: fill 0.22s ease, stroke 0.22s ease;
+}
+
+.pwd-check-mark {
+    fill: none;
+    stroke: #fff;
+    stroke-width: 2.3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 20;
+    stroke-dashoffset: 20;
+    transition: stroke-dashoffset 0.32s ease 0.08s;
+}
+
+.pwd-check-x {
+    fill: none;
+    stroke: #ef4444;
+    stroke-width: 2.1;
+    stroke-linecap: round;
+    opacity: 0;
+    transform-origin: 12px 12px;
+    transform: scale(0.6);
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.pwd-req.is-met,
+.pwd-match-hint.is-met {
+    color: #15803d;
+    font-weight: 600;
+}
+
+.pwd-req.is-met .pwd-check-bg,
+.pwd-match-hint.is-met .pwd-check-bg {
+    fill: #22c55e;
+    stroke: #16a34a;
+}
+
+.pwd-req.is-met .pwd-check-mark,
+.pwd-match-hint.is-met .pwd-check-mark {
+    stroke-dashoffset: 0;
+}
+
+.pwd-req.is-met .pwd-check,
+.pwd-match-hint.is-met .pwd-check {
+    animation: pwdCheckPop 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.pwd-match-hint {
+    margin: 2px 0 14px;
+    min-height: 22px;
+}
+
+.pwd-match-hint.is-idle {
+    color: #94a3b8;
+}
+
+.pwd-match-hint.is-mismatch {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.pwd-match-hint.is-mismatch .pwd-check-bg {
+    fill: #fef2f2;
+    stroke: #ef4444;
+}
+
+.pwd-match-hint.is-mismatch .pwd-check-x {
+    opacity: 1;
+    transform: scale(1);
+}
+
+@keyframes pwdCheckPop {
+    0% { transform: scale(0.72); }
+    55% { transform: scale(1.18); }
+    100% { transform: scale(1); }
 }
 
 #reg_password,
@@ -620,6 +728,16 @@ body {
 
 #reg_password[data-strength="strong"] {
     border-color: #16a34a !important;
+    box-shadow: none !important;
+}
+
+#reg_confirm_password[data-match="match"] {
+    border-color: #16a34a !important;
+    box-shadow: none !important;
+}
+
+#reg_confirm_password[data-match="mismatch"] {
+    border-color: #ef4444 !important;
     box-shadow: none !important;
 }
 

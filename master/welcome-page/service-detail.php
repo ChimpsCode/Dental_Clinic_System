@@ -504,7 +504,7 @@ $assets = [
               <div class="form-row">
                 <div class="form-group">
                   <label for="reg-phone">Phone Number</label>
-                  <input type="tel" id="reg-phone" name="phone" required placeholder="09123456789" maxlength="11" />
+                  <input type="tel" id="reg-phone" name="phone" required placeholder="09123456789" maxlength="11" inputmode="numeric" pattern="[0-9]*" autocomplete="tel" />
                 </div>
                 <div class="form-group">
                   <label for="reg-gender">Gender</label>
@@ -904,6 +904,33 @@ $assets = [
             lastNameHidden.value = val;
           });
         }
+
+        function bindDigitsOnlyField(field) {
+          if (!field) return;
+          const sanitize = function() {
+            const digitsOnly = field.value.replace(/\D+/g, '');
+            if (field.value !== digitsOnly) {
+              field.value = digitsOnly;
+            }
+          };
+          field.addEventListener('keydown', function(e) {
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            const allowedKeys = [
+              'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+              'ArrowLeft', 'ArrowRight', 'Home', 'End'
+            ];
+            if (allowedKeys.includes(e.key)) return;
+            if (/^[0-9]$/.test(e.key)) return;
+            e.preventDefault();
+          });
+          field.addEventListener('input', sanitize);
+          field.addEventListener('paste', function() {
+            setTimeout(sanitize, 0);
+          });
+          field.addEventListener('blur', sanitize);
+          sanitize();
+        }
+        bindDigitsOnlyField(document.getElementById('reg-phone'));
 
         var emailInput = document.getElementById('reg-email');
         var emailHidden = document.getElementById('reg-email-hidden');
