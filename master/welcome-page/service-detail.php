@@ -1,5 +1,6 @@
 <?php
 require_once '../../config/database.php';
+require_once __DIR__ . '/../../includes/discount_helper.php';
 
 $serviceId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 if ($serviceId <= 0) {
@@ -281,6 +282,57 @@ $assets = [
       .modal-form select { background: white; cursor: pointer; }
       .modal-form .form-group label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px; }
 
+      #reg-password[data-strength="weak"] { border-color: #ef4444 !important; }
+      #reg-password[data-strength="medium"] { border-color: #f59e0b !important; }
+      #reg-password[data-strength="strong"] { border-color: #16a34a !important; }
+      #reg-confirm-password[data-match="match"] { border-color: #16a34a !important; }
+      #reg-confirm-password[data-match="mismatch"] { border-color: #ef4444 !important; }
+
+      .registration-password-box {
+        margin: 10px 0 14px;
+        background: rgba(15, 23, 42, 0.04);
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 12px 14px;
+        color: #0f172a;
+        font-size: 13px;
+        line-height: 1.55;
+      }
+      .registration-password-title { font-weight: 700; margin-bottom: 8px; }
+      .pwd-req-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+      .pwd-req, .pwd-match-hint {
+        display: flex; align-items: center; gap: 8px; color: #64748b; font-size: 13px;
+        transition: color 0.2s ease;
+      }
+      .pwd-check { width: 20px; height: 20px; flex-shrink: 0; display: inline-flex; }
+      .pwd-check svg { width: 20px; height: 20px; overflow: visible; }
+      .pwd-check-bg { fill: #fff; stroke: #cbd5e1; stroke-width: 1.75; transition: fill 0.22s ease, stroke 0.22s ease; }
+      .pwd-check-mark {
+        fill: none; stroke: #fff; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round;
+        stroke-dasharray: 20; stroke-dashoffset: 20; transition: stroke-dashoffset 0.32s ease 0.08s;
+      }
+      .pwd-check-x {
+        fill: none; stroke: #ef4444; stroke-width: 2.1; stroke-linecap: round; opacity: 0;
+        transform-origin: 12px 12px; transform: scale(0.6);
+        transition: opacity 0.18s ease, transform 0.18s ease;
+      }
+      .pwd-req.is-met, .pwd-match-hint.is-met { color: #15803d; font-weight: 600; }
+      .pwd-req.is-met .pwd-check-bg, .pwd-match-hint.is-met .pwd-check-bg { fill: #22c55e; stroke: #16a34a; }
+      .pwd-req.is-met .pwd-check-mark, .pwd-match-hint.is-met .pwd-check-mark { stroke-dashoffset: 0; }
+      .pwd-req.is-met .pwd-check, .pwd-match-hint.is-met .pwd-check {
+        animation: pwdCheckPop 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      .pwd-match-hint { margin: 8px 0 0; min-height: 22px; }
+      .pwd-match-hint.is-idle { color: #94a3b8; }
+      .pwd-match-hint.is-mismatch { color: #dc2626; font-weight: 600; }
+      .pwd-match-hint.is-mismatch .pwd-check-bg { fill: #fef2f2; stroke: #ef4444; }
+      .pwd-match-hint.is-mismatch .pwd-check-x { opacity: 1; transform: scale(1); }
+      @keyframes pwdCheckPop {
+        0% { transform: scale(0.72); }
+        55% { transform: scale(1.18); }
+        100% { transform: scale(1); }
+      }
+
       @media (max-width: 560px) {
         .modal-content { width: 95%; max-width: 95%; max-height: 85vh; }
         .modal-body { padding: 16px; }
@@ -479,7 +531,9 @@ $assets = [
         </div>
         <div class="modal-body">
           <p class="modal-intro">Almost done! Complete your information and create a password to secure your account.</p>
-          <form id="registrationForm" class="modal-form">
+          <form id="registrationForm" class="modal-form" autocomplete="off">
+            <input type="text" tabindex="-1" aria-hidden="true" autocomplete="username" style="position:absolute;left:-9999px;height:0;width:0;opacity:0;" value="">
+            <input type="password" tabindex="-1" aria-hidden="true" autocomplete="current-password" style="position:absolute;left:-9999px;height:0;width:0;opacity:0;" value="">
             <input type="hidden" id="reg-first-name" name="first_name" />
             <input type="hidden" id="reg-middle-name" name="middle_name" />
             <input type="hidden" id="reg-last-name" name="last_name" />
@@ -503,11 +557,11 @@ $assets = [
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label for="reg-phone">Phone Number</label>
+                  <label for="reg-phone">Phone Number <span style="color:#dc2626">*</span></label>
                   <input type="tel" id="reg-phone" name="phone" required placeholder="09123456789" maxlength="11" inputmode="numeric" pattern="[0-9]*" autocomplete="tel" />
                 </div>
                 <div class="form-group">
-                  <label for="reg-gender">Gender</label>
+                  <label for="reg-gender">Gender <span style="color:#dc2626">*</span></label>
                   <select id="reg-gender" name="gender" required>
                     <option value="">Select Gender</option>
                     <option value="male">Male</option>
@@ -518,7 +572,7 @@ $assets = [
               <div class="form-row">
                 <div class="form-group">
                   <label for="reg-dob">Date of Birth</label>
-                  <input type="date" id="reg-dob" name="date_of_birth" onchange="var d=new Date(this.value);var a=new Date().getFullYear()-d.getFullYear();if(new Date().getMonth()<d.getMonth()||(new Date().getMonth()==d.getMonth()&&new Date().getDate()<d.getDate()))a--;document.getElementById('reg-age').value=a>0&&a<120?a:''" />
+                  <input type="date" id="reg-dob" name="date_of_birth" data-discount-dob="1" onchange="var d=new Date(this.value);var a=new Date().getFullYear()-d.getFullYear();if(new Date().getMonth()<d.getMonth()||(new Date().getMonth()==d.getMonth()&&new Date().getDate()<d.getDate()))a--;document.getElementById('reg-age').value=a>0&&a<120?a:'';if(window.DiscountIdFields)window.DiscountIdFields.sync(document)" />
                 </div>
                 <div class="form-group">
                   <label for="reg-age">Age</label>
@@ -529,22 +583,96 @@ $assets = [
                 <label for="reg-address">Address (Optional)</label>
                 <input type="text" id="reg-address" name="address" placeholder="Your complete address" />
               </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="reg-emergency-name">Emergency Contact Name <span style="color:#dc2626">*</span></label>
+                  <input type="text" id="reg-emergency-name" name="emergency_contact_name" placeholder="Full name" required />
+                </div>
+                <div class="form-group">
+                  <label for="reg-emergency-phone">Emergency Contact Number <span style="color:#dc2626">*</span></label>
+                  <input type="tel" id="reg-emergency-phone" name="emergency_contact_phone" placeholder="09123456789" maxlength="11" required inputmode="numeric" pattern="[0-9]*" autocomplete="tel" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="reg-emergency-relationship">Relationship <span style="color:#dc2626">*</span></label>
+                <select id="reg-emergency-relationship" name="emergency_contact_relationship" required>
+                  <option value="" disabled selected>Select relationship</option>
+                  <option value="Parent">Parent</option>
+                  <option value="Spouse">Spouse</option>
+                  <option value="Child">Child</option>
+                  <option value="Sibling">Sibling</option>
+                  <option value="Grandparent">Grandparent</option>
+                  <option value="Relative">Relative</option>
+                  <option value="Guardian">Guardian</option>
+                  <option value="Friend">Friend</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div class="form-group" data-senior-id-fields style="display:none;">
+                <label for="reg-senior-id-type">Senior government ID <span style="color:#dc2626">*</span></label>
+                <select id="reg-senior-id-type" name="senior_id_type">
+                  <?php echo seniorIdTypeOptionsHtml(); ?>
+                </select>
+                <label for="reg-senior-id" style="margin-top:8px;display:block;">ID number <span style="color:#dc2626">*</span></label>
+                <input type="text" id="reg-senior-id" name="senior_citizen_id" placeholder="Enter ID number" maxlength="30" />
+                <div style="font-size:12px;color:#6b7280;margin-top:4px;">Age 60+ still needs a government ID number for the official 20% senior discount (RA 9994).</div>
+              </div>
+              <div class="form-group">
+                <label style="display:flex;align-items:center;gap:8px;font-weight:600;">
+                  <input type="checkbox" name="is_pwd" value="1" data-pwd-toggle="1" />
+                  Person with Disability (PWD)
+                </label>
+              </div>
+              <div class="form-group" data-pwd-id-fields style="display:none;">
+                <label for="reg-pwd-id">PWD ID No. <span style="color:#dc2626">*</span></label>
+                <input type="text" id="reg-pwd-id" name="pwd_id" placeholder="e.g., PWD-CDO-2024-00123" maxlength="30" />
+                <div style="font-size:12px;color:#6b7280;margin-top:4px;">The official PWD ID number is required for the 20% PWD discount (RA 10754).</div>
+              </div>
             </div>
 
             <div class="form-section">
               <h4 class="form-section-title">Account Information</h4>
               <div class="form-group">
                 <label for="reg-email">Email (Username)</label>
-                <input type="email" id="reg-email" name="email" required placeholder="your@email.com" />
+                <input type="email" id="reg-email" name="email" required placeholder="your@email.com" autocomplete="off" />
                 <div id="reg-email-status" style="display:none; margin-top:6px; font-size:13px; color:#dc3545;"></div>
               </div>
               <div class="form-group">
                 <label for="reg-password">Create Password</label>
-                <input type="password" id="reg-password" name="password" required minlength="8" placeholder="Password" />
+                <input type="password" id="reg-password" name="password" required minlength="8" placeholder="Password" autocomplete="new-password" readonly />
+              </div>
+              <div id="passwordRequirementsBox" class="registration-password-box">
+                <div class="registration-password-title">Password Requirements:</div>
+                <ul class="pwd-req-list">
+                  <li class="pwd-req" data-rule="length">
+                    <span class="pwd-check" aria-hidden="true"><svg viewBox="0 0 24 24"><circle class="pwd-check-bg" cx="12" cy="12" r="10"></circle><path class="pwd-check-mark" d="M7.5 12.4l3.1 3.1 5.9-6.2"></path></svg></span>
+                    <span>At least 8 characters</span>
+                  </li>
+                  <li class="pwd-req" data-rule="upper">
+                    <span class="pwd-check" aria-hidden="true"><svg viewBox="0 0 24 24"><circle class="pwd-check-bg" cx="12" cy="12" r="10"></circle><path class="pwd-check-mark" d="M7.5 12.4l3.1 3.1 5.9-6.2"></path></svg></span>
+                    <span>At least one uppercase letter</span>
+                  </li>
+                  <li class="pwd-req" data-rule="lower">
+                    <span class="pwd-check" aria-hidden="true"><svg viewBox="0 0 24 24"><circle class="pwd-check-bg" cx="12" cy="12" r="10"></circle><path class="pwd-check-mark" d="M7.5 12.4l3.1 3.1 5.9-6.2"></path></svg></span>
+                    <span>At least one lowercase letter</span>
+                  </li>
+                  <li class="pwd-req" data-rule="number">
+                    <span class="pwd-check" aria-hidden="true"><svg viewBox="0 0 24 24"><circle class="pwd-check-bg" cx="12" cy="12" r="10"></circle><path class="pwd-check-mark" d="M7.5 12.4l3.1 3.1 5.9-6.2"></path></svg></span>
+                    <span>At least one number</span>
+                  </li>
+                  <li class="pwd-req" data-rule="symbol">
+                    <span class="pwd-check" aria-hidden="true"><svg viewBox="0 0 24 24"><circle class="pwd-check-bg" cx="12" cy="12" r="10"></circle><path class="pwd-check-mark" d="M7.5 12.4l3.1 3.1 5.9-6.2"></path></svg></span>
+                    <span>At least one symbol</span>
+                  </li>
+                </ul>
               </div>
               <div class="form-group">
                 <label for="reg-confirm-password">Confirm Password</label>
-                <input type="password" id="reg-confirm-password" name="confirm_password" required placeholder="Re-enter password" />
+                <input type="password" id="reg-confirm-password" name="confirm_password" required placeholder="Re-enter password" autocomplete="new-password" readonly />
+                <div class="pwd-match-hint is-idle" id="regPasswordMatchHint">
+                  <span class="pwd-check" aria-hidden="true"><svg viewBox="0 0 24 24"><circle class="pwd-check-bg" cx="12" cy="12" r="10"></circle><path class="pwd-check-mark" d="M7.5 12.4l3.1 3.1 5.9-6.2"></path><path class="pwd-check-x" d="M9 9l6 6M15 9l-6 6"></path></svg></span>
+                  <span class="pwd-match-text">Re-enter password to confirm</span>
+                </div>
               </div>
             </div>
 
@@ -651,7 +779,9 @@ $assets = [
         document.getElementById('newPatientChoice').addEventListener('click', function() {
           closeModal(choiceModal);
           openModal(registrationModal);
-          document.getElementById('reg-email').focus();
+          clearRegistrationAutofill();
+          const firstNameField = document.getElementById('reg-first-name-display');
+          if (firstNameField) firstNameField.focus();
         });
 
         document.getElementById('existingPatientChoice').addEventListener('click', function() {
@@ -743,8 +873,17 @@ $assets = [
           if (!phone) { alert('Please enter your phone number'); return; }
           if (!gender) { alert('Please select your gender'); return; }
           if (!email) { alert('Please enter your email address'); return; }
+          const emergencyName = (document.getElementById('reg-emergency-name')?.value || '').trim();
+          const emergencyPhone = (document.getElementById('reg-emergency-phone')?.value || '').trim();
+          const emergencyRelationship = document.getElementById('reg-emergency-relationship')?.value || '';
+          if (!emergencyName) { alert('Please enter the emergency contact name'); return; }
+          if (!emergencyPhone) { alert('Please enter the emergency contact number'); return; }
+          if (!emergencyRelationship) { alert('Please select the emergency contact relationship'); return; }
           if (password !== confirmPassword) { alert('Passwords do not match'); return; }
-          if (password.length < 8) { alert('Password must be at least 8 characters'); return; }
+          if (!(password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /[0-9]/.test(password) && /[^A-Za-z0-9]/.test(password))) {
+            alert('Password must be at least 8 characters and include uppercase, lowercase, number, and symbol');
+            return;
+          }
 
           const submitBtn = regForm.querySelector('button[type="submit"]');
           const originalText = submitBtn.textContent;
@@ -931,6 +1070,106 @@ $assets = [
           sanitize();
         }
         bindDigitsOnlyField(document.getElementById('reg-phone'));
+        bindDigitsOnlyField(document.getElementById('reg-emergency-phone'));
+
+        function clearRegistrationAutofill() {
+          ['reg-email', 'reg-password', 'reg-confirm-password'].forEach(function(id) {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+          });
+          const pwd = document.getElementById('reg-password');
+          if (pwd) pwd.dispatchEvent(new Event('input'));
+          [50, 300, 800].forEach(function(delay) {
+            setTimeout(function() {
+              ['reg-email', 'reg-password', 'reg-confirm-password'].forEach(function(id) {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+              });
+              if (pwd) pwd.dispatchEvent(new Event('input'));
+            }, delay);
+          });
+        }
+
+        ['reg-password', 'reg-confirm-password'].forEach(function(id) {
+          const el = document.getElementById(id);
+          if (!el) return;
+          el.addEventListener('focus', function() {
+            el.removeAttribute('readonly');
+          });
+        });
+
+        const regPasswordInput = document.getElementById('reg-password');
+        const regConfirmPasswordInput = document.getElementById('reg-confirm-password');
+
+        function getPasswordRuleFlags(password) {
+          return {
+            length: password.length >= 8,
+            upper: /[A-Z]/.test(password),
+            lower: /[a-z]/.test(password),
+            number: /[0-9]/.test(password),
+            symbol: /[^A-Za-z0-9]/.test(password)
+          };
+        }
+
+        function updatePasswordRequirementChecks(password) {
+          const flags = getPasswordRuleFlags(password || '');
+          document.querySelectorAll('#passwordRequirementsBox [data-rule]').forEach(function(item) {
+            const met = !!flags[item.getAttribute('data-rule')];
+            if (item.classList.contains('is-met') === met) return;
+            item.classList.toggle('is-met', met);
+          });
+        }
+
+        function updateConfirmPasswordMatch() {
+          const hint = document.getElementById('regPasswordMatchHint');
+          const text = hint ? hint.querySelector('.pwd-match-text') : null;
+          const password = regPasswordInput ? regPasswordInput.value : '';
+          const confirm = regConfirmPasswordInput ? regConfirmPasswordInput.value : '';
+          if (!hint || !text || !regConfirmPasswordInput) return;
+
+          hint.classList.remove('is-met', 'is-mismatch', 'is-idle');
+          if (!confirm) {
+            hint.classList.add('is-idle');
+            text.textContent = 'Re-enter password to confirm';
+            regConfirmPasswordInput.dataset.match = 'empty';
+            return;
+          }
+          if (password && password === confirm) {
+            hint.classList.add('is-met');
+            text.textContent = 'Passwords match';
+            regConfirmPasswordInput.dataset.match = 'match';
+            return;
+          }
+          hint.classList.add('is-mismatch');
+          text.textContent = 'Passwords do not match';
+          regConfirmPasswordInput.dataset.match = 'mismatch';
+        }
+
+        function getPasswordStrengthState(password) {
+          const flags = getPasswordRuleFlags(password);
+          const matchedRules = [flags.length, flags.upper, flags.lower, flags.number, flags.symbol].filter(Boolean).length;
+          if (!password) return 'empty';
+          if (!flags.length || matchedRules <= 2) return 'weak';
+          if (matchedRules === 3) return 'medium';
+          return 'strong';
+        }
+
+        if (regPasswordInput) {
+          const updatePasswordUi = function() {
+            const value = regPasswordInput.value || '';
+            regPasswordInput.dataset.strength = getPasswordStrengthState(value);
+            updatePasswordRequirementChecks(value);
+            updateConfirmPasswordMatch();
+          };
+          regPasswordInput.addEventListener('input', updatePasswordUi);
+          regPasswordInput.addEventListener('blur', updatePasswordUi);
+          updatePasswordUi();
+        }
+        if (regConfirmPasswordInput) {
+          regConfirmPasswordInput.addEventListener('input', updateConfirmPasswordMatch);
+          regConfirmPasswordInput.addEventListener('blur', updateConfirmPasswordMatch);
+          updateConfirmPasswordMatch();
+        }
 
         var emailInput = document.getElementById('reg-email');
         var emailHidden = document.getElementById('reg-email-hidden');
@@ -941,5 +1180,6 @@ $assets = [
         }
       });
     </script>
+    <script src="../../assets/js/discount_id_fields.js"></script>
   </body>
 </html>

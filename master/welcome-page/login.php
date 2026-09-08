@@ -1240,7 +1240,9 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
                 <div class="alert alert-error" id="registerError" style="display: none;"></div>
                 <div class="alert alert-success" id="registerSuccess" style="display: none;"></div>
                 
-                <form id="registerForm" method="POST">
+                <form id="registerForm" method="POST" autocomplete="off">
+                    <input type="text" tabindex="-1" aria-hidden="true" autocomplete="username" style="position:absolute;left:-9999px;height:0;width:0;opacity:0;" value="">
+                    <input type="password" tabindex="-1" aria-hidden="true" autocomplete="current-password" style="position:absolute;left:-9999px;height:0;width:0;opacity:0;" value="">
                     <div id="regStep1" class="registration-form-section">
                         <div style="display: flex; gap: 12px; width: 100%;">
                             <div class="input-group" style="flex:1;">
@@ -1307,11 +1309,11 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
 
                     <div id="regStep2" class="registration-form-section registration-form-section-last" style="display: none;">
                         <div class="input-group">
-                            <input type="email" id="reg_email" name="email" placeholder="Email Address" required autocomplete="email">
+                            <input type="email" id="reg_email" name="email" placeholder="Email Address" required autocomplete="off">
                         </div>
 
                         <div class="input-group">
-                            <input type="password" id="reg_password" name="password" placeholder="Password" required autocomplete="new-password">
+                            <input type="password" id="reg_password" name="password" placeholder="Password" required autocomplete="new-password" readonly>
                             <button type="button" class="toggle-password" id="toggleRegPassword" aria-label="Toggle password visibility" style="display: none;">
                                 <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -1376,7 +1378,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
                         </div>
 
                         <div class="input-group">
-                            <input type="password" id="reg_confirm_password" name="confirm_password" placeholder="Confirm Password" required autocomplete="new-password">
+                            <input type="password" id="reg_confirm_password" name="confirm_password" placeholder="Confirm Password" required autocomplete="new-password" readonly>
                             <button type="button" class="toggle-password" id="toggleRegConfirmPassword" aria-label="Toggle confirm password visibility" style="display: none;">
                                 <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -1459,7 +1461,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
         <div class="toast-loading-line"></div>
     </div>
     
-    <script src="../../assets/js/login.js?v=3"></script>
+    <script src="../../assets/js/login.js?v=4"></script>
     
     <?php if ($showDeletedMsg): ?>
     <script>

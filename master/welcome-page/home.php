@@ -973,15 +973,18 @@ $assets = [
                     var pw = document.getElementById('welcome-back-password'); if (pw) pw.focus();
                 } else {
                   document.getElementById('registrationModal').style.display = 'flex';
+                  if (typeof window.clearRegistrationAutofill === 'function') window.clearRegistrationAutofill();
                 }
                 document.body.style.overflow = 'hidden';
               })
               .catch(function() {
                 document.getElementById('registrationModal').style.display = 'flex';
+                if (typeof window.clearRegistrationAutofill === 'function') window.clearRegistrationAutofill();
                 document.body.style.overflow = 'hidden';
               });
             } else {
               document.getElementById('registrationModal').style.display = 'flex';
+              if (typeof window.clearRegistrationAutofill === 'function') window.clearRegistrationAutofill();
               document.body.style.overflow = 'hidden';
             }
           });
@@ -1085,7 +1088,9 @@ $assets = [
         </div>
         <div class="modal-body">
           <p class="modal-intro">Almost done! Complete your information and create a password to secure your account.</p>
-          <form id="registrationForm" class="modal-form">
+          <form id="registrationForm" class="modal-form" autocomplete="off">
+            <input type="text" tabindex="-1" aria-hidden="true" autocomplete="username" style="position:absolute;left:-9999px;height:0;width:0;opacity:0;" value="">
+            <input type="password" tabindex="-1" aria-hidden="true" autocomplete="current-password" style="position:absolute;left:-9999px;height:0;width:0;opacity:0;" value="">
             <!-- Hidden fields from initial form -->
             <input type="hidden" id="reg-first-name" name="first_name" />
             <input type="hidden" id="reg-middle-name" name="middle_name" />
@@ -1189,13 +1194,13 @@ $assets = [
               <h4 class="form-section-title">Account Information</h4>
               <div class="form-group">
                 <label for="reg-email">Email (Username) <span style="color:#dc2626">*</span></label>
-                <input type="email" id="reg-email" name="email" required placeholder="your@email.com" />
+                <input type="email" id="reg-email" name="email" required placeholder="your@email.com" autocomplete="off" />
                 <div id="reg-email-status" style="display:none; margin-top:6px; font-size:13px; color:#dc3545;"></div>
               </div>
               <div class="form-group">
                 <label for="reg-password">Create Password <span style="color:#dc2626">*</span></label>
                 <div class="password-input-group" style="margin-bottom:0;">
-                  <input type="password" id="reg-password" name="password" required minlength="8" placeholder="Password " style="padding-right:40px;" />
+                  <input type="password" id="reg-password" name="password" required minlength="8" placeholder="Password " style="padding-right:40px;" autocomplete="new-password" readonly />
                   <button type="button" class="toggle-password" id="regTogglePassword" aria-label="Toggle password visibility" style="display: none; right: 10px;">
                     <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -1261,7 +1266,7 @@ $assets = [
               <div class="form-group">
                 <label for="reg-confirm-password">Confirm Password <span style="color:#dc2626">*</span></label>
                 <div class="password-input-group" style="margin-bottom:0;">
-                  <input type="password" id="reg-confirm-password" name="confirm_password" required placeholder="Re-enter password" style="padding-right:40px;" />
+                  <input type="password" id="reg-confirm-password" name="confirm_password" required placeholder="Re-enter password" style="padding-right:40px;" autocomplete="new-password" readonly />
                   <button type="button" class="toggle-password" id="regToggleConfirmPassword" aria-label="Toggle confirm password visibility" style="display: none; right: 10px;">
                     <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -1435,6 +1440,34 @@ $assets = [
 
         bindDigitsOnlyField(regPhoneInput);
         bindDigitsOnlyField(regEmergencyPhoneInput);
+
+        function clearRegistrationAutofill() {
+          const pwd = document.getElementById('reg-password');
+          const confirm = document.getElementById('reg-confirm-password');
+          if (pwd) pwd.value = '';
+          if (confirm) confirm.value = '';
+          if (typeof window.updateRegistrationPasswordStrength === 'function') {
+            window.updateRegistrationPasswordStrength();
+          }
+          [50, 300, 800].forEach(function(delay) {
+            setTimeout(function() {
+              if (pwd) pwd.value = '';
+              if (confirm) confirm.value = '';
+              if (typeof window.updateRegistrationPasswordStrength === 'function') {
+                window.updateRegistrationPasswordStrength();
+              }
+            }, delay);
+          });
+        }
+        window.clearRegistrationAutofill = clearRegistrationAutofill;
+
+        ['reg-password', 'reg-confirm-password'].forEach(function(id) {
+          const el = document.getElementById(id);
+          if (!el) return;
+          el.addEventListener('focus', function() {
+            el.removeAttribute('readonly');
+          });
+        });
 
         function getPasswordRuleFlags(password) {
           return {

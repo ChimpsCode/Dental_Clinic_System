@@ -172,6 +172,29 @@
     const registerSuccess = document.getElementById('registerSuccess');
     const registerPasswordInput = document.getElementById('reg_password');
     const registerConfirmPasswordInput = document.getElementById('reg_confirm_password');
+
+    function clearRegisterAutofill() {
+        const email = document.getElementById('reg_email');
+        [email, registerPasswordInput, registerConfirmPasswordInput].forEach(function(el) {
+            if (el) el.value = '';
+        });
+        if (registerPasswordInput) registerPasswordInput.dispatchEvent(new Event('input'));
+        [50, 300, 800].forEach(function(delay) {
+            setTimeout(function() {
+                [email, registerPasswordInput, registerConfirmPasswordInput].forEach(function(el) {
+                    if (el) el.value = '';
+                });
+                if (registerPasswordInput) registerPasswordInput.dispatchEvent(new Event('input'));
+            }, delay);
+        });
+    }
+
+    [registerPasswordInput, registerConfirmPasswordInput].forEach(function(el) {
+        if (!el) return;
+        el.addEventListener('focus', function() {
+            el.removeAttribute('readonly');
+        });
+    });
     const toggleRegisterPassword = document.getElementById('toggleRegPassword');
     const toggleRegisterConfirmPassword = document.getElementById('toggleRegConfirmPassword');
     const forgotError = document.getElementById('forgotError');
@@ -209,6 +232,7 @@
         if (forgotContainer) forgotContainer.style.display = 'none';
         if (registrationContainer) registrationContainer.style.display = 'block';
         showRegistrationStep(1);
+        clearRegisterAutofill();
         document.title = 'Sign Up - RF Dental Clinic';
         if (window.location.hash !== '#register') {
             history.replaceState(null, '', '#register');
