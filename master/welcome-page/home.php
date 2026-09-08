@@ -853,7 +853,7 @@ $assets = [
         echo json_encode($chatServices);
       ?>;
     </script>
-    <script src="../../assets/js/chatbot.js"></script>
+    <script src="../../assets/js/chatbot.js?v=3"></script>
 
     <script>
       (() => {
