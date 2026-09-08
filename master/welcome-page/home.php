@@ -756,14 +756,23 @@ $assets = [
           const start = currentScroll();
           const distance = top - start;
           if (Math.abs(distance) < 2) return;
-          const duration = 700;
+
+          const root = document.documentElement;
+          const previousBehavior = root.style.scrollBehavior;
+          root.style.scrollBehavior = 'auto';
+
+          const duration = 450;
           const t0 = performance.now();
 
           function step(now) {
             const p = Math.min(1, (now - t0) / duration);
-            const eased = 1 - Math.pow(1 - p, 3);
+            const eased = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
             applyPageScroll(start + distance * eased);
-            if (p < 1) requestAnimationFrame(step);
+            if (p < 1) {
+              requestAnimationFrame(step);
+            } else {
+              root.style.scrollBehavior = previousBehavior;
+            }
           }
           requestAnimationFrame(step);
         }
@@ -787,7 +796,7 @@ $assets = [
           e.stopPropagation();
           if (scrolling) return;
           scrolling = true;
-          window.setTimeout(() => { scrolling = false; }, 750);
+          window.setTimeout(() => { scrolling = false; }, 480);
 
           toggleNav(false);
           document.body.style.overflow = '';
