@@ -136,9 +136,22 @@ img{max-width:100%;display:block}
 
 /* Hero */
 .hero{
-  position:relative;
-  min-height:100vh;
+  position:sticky;
+  top:85px; /* sit below the fixed header */
+  z-index:0;
+  min-height:calc(100vh - 85px);
   overflow:hidden;
+}
+@media (prefers-reduced-motion: reduce){
+  .hero{position:relative; top:auto;}
+  .hero-scroll-space{display:none;}
+}
+.hero-scroll-space{
+  height:42vh;
+  min-height:220px;
+  pointer-events:none;
+  position:relative;
+  z-index:1;
 }
 .hero-bg{
   position:absolute; inset:0;
@@ -159,6 +172,8 @@ img{max-width:100%;display:block}
   gap:34px;
   padding:108px 0 56px;
   align-items:start;
+  transform-origin:center center;
+  will-change:transform;
 }
 .hero-copy{
   position: relative;
@@ -277,7 +292,12 @@ img{max-width:100%;display:block}
 .hero-badge-small{font-weight:700; font-size:13px}
 
 /* Sections */
-.section{padding:64px 0}
+.section{
+  position:relative;
+  z-index:2;
+  padding:64px 0;
+  background:var(--bg);
+}
 /* Anchor jump offset for fixed header (prevents headings being hidden) */
 main [id]:not(#home){scroll-margin-top:85px}
 #home{scroll-margin-top:0}
@@ -306,7 +326,7 @@ main [id]:not(#home){scroll-margin-top:85px}
   grid-template-columns: 1fr 1fr;
   gap:44px;
   align-items:start;
-  margin-top: -28px;
+  margin-top:0;
 }
 .about-photo{position:relative}
 .about-photo img{
@@ -696,6 +716,8 @@ details[open] .faq-chevron{transform:rotate(225deg)}
 
 /* Footer */
 .footer{
+  position:relative;
+  z-index:2;
   background:var(--dark);
   color:#fff;
   padding:42px 0;
