@@ -1,0 +1,12 @@
+---
+description: Never change anything the user did not explicitly ask for
+alwaysApply: true
+---
+
+# Only change what was asked
+
+- Do **not** change, restyle, refactor, "improve", undo, or touch any file, UI, or behavior unless the user **explicitly** asked for that exact change in this message.
+- Do **one thing only**: the requested fix. No nearby files. No matching other pages "for consistency." No extra polish.
+- If something already works and the user accepted it, **leave it**. Do not revert or redesign it later while fixing something else.
+- Do not restyle the inquiry typing indicator (clinic/patient avatar + gray `#e2e8f0` bubble + 3 dots) unless the user asks.
+- If unsure whether to touch it, **do not touch it**. Ask first.

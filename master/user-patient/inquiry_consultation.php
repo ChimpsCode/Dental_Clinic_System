@@ -287,13 +287,55 @@ $pageTitle = 'Inquiry / Consultation';
         .chat-bubble.sent .chat-meta { color:rgba(255,255,255,.8); }
         .inq-quote { font-size:12px; line-height:1.4; padding:8px 10px; margin-bottom:8px; border-radius:8px; border-left:3px solid #2563eb; background:#e5e7eb; color:#374151; }
         .chat-bubble.sent .inq-quote { background:rgba(255,255,255,.16); border-left-color:rgba(255,255,255,.75); color:rgba(255,255,255,.95); }
-        .typing-message-row { max-width:88px; padding:10px 14px; }
-        .chat-typing-indicator { display:flex; align-items:center; min-height:18px; color:#64748b; }
-        .chat-typing-dots { display:inline-flex; align-items:center; gap:4px; }
-        .chat-typing-dots span { width:7px; height:7px; border-radius:50%; background:#64748b; animation:inquiryTyping 1.1s infinite ease-in-out; }
-        .chat-typing-dots span:nth-child(2) { animation-delay:.15s; }
-        .chat-typing-dots span:nth-child(3) { animation-delay:.3s; }
-        @keyframes inquiryTyping { 0%,60%,100% { transform:translateY(0); opacity:.45; } 30% { transform:translateY(-3px); opacity:1; } }
+        .inquiry-typing-row {
+            align-self: flex-start;
+            display: none;
+            align-items: flex-end;
+            gap: 8px;
+        }
+        .inquiry-typing-avatar {
+            width: 34px;
+            height: 34px;
+            flex: 0 0 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            border: 1px solid #dbe3ee;
+        }
+        .inquiry-typing-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+            background: #fff;
+        }
+        .inquiry-typing-bubble {
+            display: flex;
+            align-items: center;
+            min-width: 54px;
+            min-height: 38px;
+            padding: 10px 14px;
+            border-radius: 19px;
+            border-bottom-left-radius: 6px;
+            background: #e2e8f0;
+        }
+        .inquiry-typing-dots { display: inline-flex; align-items: center; gap: 4px; }
+        .inquiry-typing-dots span {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #64748b;
+            animation: inquiryTyping 1.1s infinite ease-in-out;
+        }
+        .inquiry-typing-dots span:nth-child(2) { animation-delay: .15s; }
+        .inquiry-typing-dots span:nth-child(3) { animation-delay: .3s; }
+        @keyframes inquiryTyping { 0%,60%,100% { transform: translateY(0); opacity: .45; } 30% { transform: translateY(-3px); opacity: 1; } }
         
         #inquiryForm { padding:14px 20px calc(18px + env(safe-area-inset-bottom, 0px)); border-top:1px solid #e5e7eb; background:#fff; flex-shrink:0; }
         .chat-send-row { display:flex; gap:10px; align-items:flex-end; }
@@ -637,6 +679,14 @@ $pageTitle = 'Inquiry / Consultation';
                                 </div>
                             <?php endforeach; ?>
                         <?php endif; ?>
+                        <div id="clinicTypingIndicator" class="inquiry-typing-row" style="display:none;" aria-hidden="true">
+                            <div class="inquiry-typing-avatar">
+                                <img src="<?php echo htmlspecialchars($clinicAvatar); ?>" alt="">
+                            </div>
+                            <div class="inquiry-typing-bubble">
+                                <span class="inquiry-typing-dots" aria-label="Staff is typing"><span></span><span></span><span></span></span>
+                            </div>
+                        </div>
                     </div>
 
                     <form id="inquiryForm">
@@ -961,12 +1011,13 @@ $pageTitle = 'Inquiry / Consultation';
             if (!indicator && visible) {
                 indicator = document.createElement('div');
                 indicator.id = 'clinicTypingIndicator';
-                indicator.className = 'chat-bubble received typing-message-row';
-                indicator.innerHTML = `<div class="chat-typing-indicator"><span class="chat-typing-dots" aria-label="Staff is typing"><span></span><span></span><span></span></span></div>`;
+                indicator.className = 'inquiry-typing-row';
+                indicator.innerHTML = '<div class="inquiry-typing-avatar"><img src="' + escapeHtml(clinicAvatarUrl) + '" alt=""></div><div class="inquiry-typing-bubble"><span class="inquiry-typing-dots" aria-label="Staff is typing"><span></span><span></span><span></span></span></div>';
                 messagesList.appendChild(indicator);
             }
             if (indicator) {
-                indicator.style.display = visible ? 'block' : 'none';
+                indicator.style.display = visible ? 'flex' : 'none';
+                indicator.setAttribute('aria-hidden', visible ? 'false' : 'true');
                 if (visible && shouldAutoScroll) scrollConversationToBottom(true);
             }
         }

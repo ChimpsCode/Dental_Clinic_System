@@ -203,3 +203,7 @@
 2026-09-08 18:06:32 | notifyPatientConsultationComplete OK: user_id=41 patient_id=71 balance=2000
 2026-09-08 18:06:32 | notifyStaffConsultationComplete OK: patient=Devs Nams Cas amount=2000 treatment=Consultation
 >>>>>>> Stashed changes
+2026-09-08 18:38:41 | createNotification OK: id=267 user_id=41 type=appointment title=Appointment Approved
+2026-09-08 18:38:41 | createNotification OK: id=268 user_id=41 type=reminder title=Follow-up Reminder
+2026-09-08 18:38:51 | createNotification OK: id=273 user_id=41 type=appointment title=Appointment Approved
+2026-09-08 18:38:51 | createNotification OK: id=274 user_id=41 type=reminder title=Follow-up Reminder
