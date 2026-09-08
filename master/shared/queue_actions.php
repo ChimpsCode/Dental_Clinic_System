@@ -269,18 +269,25 @@ try {
             break;
             
         case 'cancel':
-            // Get old status for audit
-            $stmt = $pdo->prepare("SELECT q.status FROM queue q WHERE q.id = ?");
+            $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name FROM queue q LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED) WHERE q.id = ?");
             $stmt->execute([$queueId]);
-            $oldStatusName = $stmt->fetchColumn() ?: 'waiting';
+            $queueItem = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$queueItem) {
+                echo json_encode(['success' => false, 'message' => 'Queue item not found']);
+                break;
+            }
+
+            $oldStatusName = $queueItem['status'] ?? 'waiting';
             
             $stmt = $pdo->prepare("UPDATE queue SET status = 'cancelled' WHERE id = ?");
             $stmt->execute([$queueId]);
+
+            try {
+                voidUnpaidBillingForQueue($pdo, $queueItem);
+            } catch (Exception $billingErr) {
+                // Queue cancel still succeeds if billing void fails
+            }
             
-            // Get patient name for audit
-            $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name FROM queue q LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED) WHERE q.id = ?");
-            $stmt->execute([$queueId]);
-            $queueItem = $stmt->fetch();
             $patientName = buildFullName($queueItem);
             
             logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Patient cancelled: ' . $patientName, $queueId, 'queue', $oldStatusName, 'cancelled');
@@ -316,6 +323,12 @@ try {
             $stmt->execute([$queueId]);
             $queueItem = $stmt->fetch();
             $patientName = buildFullName($queueItem);
+
+            try {
+                restoreVoidedBillingForQueue($pdo, $queueItem);
+            } catch (Exception $billingErr) {
+                // Requeue still succeeds if billing restore fails
+            }
             
             logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Patient re-queued: ' . $patientName, $queueId, 'queue', $oldStatusName, 'waiting');
 

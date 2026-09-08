@@ -14,7 +14,6 @@ if (!$isLoginPost && !$explicitLogin && !$inAuthFlow) {
 }
 
 require_once '../../config/database.php';
-require_once '../../includes/input_sanitize.php';
 
 // Load clinic settings
 $settingsStmt = $pdo->query("SELECT setting_key, setting_value FROM settings");
@@ -224,12 +223,11 @@ if (
         $action = $_POST['action'];
 
         if ($action === 'send_code') {
-            $emailResult = sanitize_email($_POST['email'] ?? '', true);
-            if (!$emailResult['ok']) {
-                echo json_encode(['success' => false, 'message' => $emailResult['error']]);
+            $email = trim($_POST['email'] ?? '');
+            if ($email === '') {
+                echo json_encode(['success' => false, 'message' => 'Please enter your email address.']);
                 exit();
             }
-            $email = $emailResult['value'];
 
             $stmt = $pdo->prepare("SELECT id, username FROM users WHERE email = ? AND is_archived = 0 LIMIT 1");
             $stmt->execute([$email]);
@@ -292,12 +290,7 @@ if (
         }
 
         if ($action === 'verify_code') {
-            $codeResult = sanitize_digit_code($_POST['code'] ?? '', 6, 'Verification code');
-            if (!$codeResult['ok']) {
-                echo json_encode(['success' => false, 'message' => $codeResult['error']]);
-                exit();
-            }
-            $code = $codeResult['value'];
+            $code = trim($_POST['code'] ?? '');
             $sessionCode = (string)($_SESSION['reset_code'] ?? '');
             $sentAt = (int)($_SESSION['reset_code_sent_at'] ?? 0);
             if ($sessionCode === '' || $sentAt === 0 || (time() - $sentAt) > 180) {
@@ -373,12 +366,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     header('Content-Type: application/json; charset=utf-8');
     require_once __DIR__ . '/../../lib/security/totp_lib.php';
 
-    $codeResult = sanitize_digit_code($_POST['code'] ?? '', 6, 'Verification code');
-    if (!$codeResult['ok']) {
-        echo json_encode(['success' => false, 'message' => $codeResult['error']]);
-        exit();
-    }
-    $code = $codeResult['value'];
+    $code = trim($_POST['code'] ?? '');
     $userId = (int)($_SESSION['2fa_user_id'] ?? 0);
     $method = (string)($_SESSION['2fa_method'] ?? 'email');
     $user = $_SESSION['2fa_user_data'] ?? null;
@@ -504,12 +492,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
     // Set JSON header
     header('Content-Type: application/json; charset=utf-8');
     
-    $usernameResult = sanitize_login_identifier($_POST['username'] ?? '');
-    if (!$usernameResult['ok']) {
-        echo json_encode(['success' => false, 'message' => $usernameResult['error']]);
-        exit();
-    }
-    $username = $usernameResult['value'];
+    $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
     $captcha = $_POST['captcha'] ?? '';
     
@@ -772,14 +755,11 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
 
 // Regular form submission (for non-JS fallback)
 if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
-    $usernameResult = sanitize_login_identifier($_POST['username'] ?? '');
-    $username = $usernameResult['ok'] ? $usernameResult['value'] : '';
+    $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
     $captcha = $_POST['captcha'] ?? '';
     
-    if (!$usernameResult['ok']) {
-        $error = $usernameResult['error'];
-    } elseif (empty($username) || empty($password)) {
+    if (empty($username) || empty($password)) {
         $error = 'Please fill in all fields';
     } elseif (empty($captcha)) {
         $error = 'Please enter the captcha code';
@@ -923,7 +903,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
     <title>RF Dental Clinic - Login</title>
     <link rel="icon" type="image/png" href="<?php echo htmlspecialchars($loginLogo); ?>">
     <link rel="stylesheet" href="../../assets/css/login-new.css?v=5">
-    <script src="../../assets/js/form-sanitize.js?v=2"></script>
+    <link rel="stylesheet" href="../../assets/css/login-new.css?v=4">
     <style>
         #registrationContainer {
             position: relative;
@@ -1069,9 +1049,9 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
                 
                 <div class="alert alert-error" id="errorMessage" style="display: none;"></div>
                 
-                <form id="loginForm" method="POST" novalidate>
+                <form id="loginForm" method="POST">
                     <div class="input-group">
-                        <input type="text" id="username" name="username" placeholder="Username" required autocomplete="username" maxlength="254">
+                        <input type="text" id="username" name="username" placeholder="Username" required autocomplete="username">
                     </div>
                     
                     <div class="input-group">
@@ -1202,13 +1182,13 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
                 <div class="alert alert-error" id="forgotError" style="display: none;"></div>
                 <div class="alert alert-success" id="forgotSuccess" style="display: none;"></div>
 
-                <form id="forgotInlineForm" onsubmit="return false;" novalidate>
+                <form id="forgotInlineForm" onsubmit="return false;">
                     <div id="fpStep1" class="step-pane">
                         <p class="login-subtitle" style="text-align:center; margin-bottom: 16px;">
                             Enter your email and we will send a 6-digit code.
                         </p>
                         <div class="input-group">
-                            <input type="email" id="fp_email" placeholder="Enter your email" required autocomplete="email" maxlength="254">
+                            <input type="email" id="fp_email" placeholder="Enter your email" required autocomplete="email">
                         </div>
                         <button type="button" class="login-btn" id="fpSendBtn">
                             <span id="fpSendBtnText">Send Code</span>
@@ -1266,23 +1246,23 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
                 <div class="alert alert-error" id="registerError" style="display: none;"></div>
                 <div class="alert alert-success" id="registerSuccess" style="display: none;"></div>
                 
-                <form id="registerForm" method="POST" novalidate>
+                <form id="registerForm" method="POST">
                     <div id="regStep1" class="registration-form-section">
                         <div style="display: flex; gap: 12px; width: 100%;">
                             <div class="input-group" style="flex:1;">
-                                <input type="text" id="reg_first_name" name="first_name" placeholder="First Name" required autocomplete="given-name" maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only">
+                                <input type="text" id="reg_first_name" name="first_name" placeholder="First Name" required autocomplete="given-name">
                             </div>
                             <div class="input-group" style="flex:1;">
-                                <input type="text" id="reg_middle_name" name="middle_name" placeholder="Middle Name (optional)" autocomplete="additional-name" maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only">
+                                <input type="text" id="reg_middle_name" name="middle_name" placeholder="Middle Name (optional)" autocomplete="additional-name">
                             </div>
                         </div>
 
                         <div class="input-group">
-                            <input type="text" id="reg_last_name" name="last_name" placeholder="Last Name" required autocomplete="family-name" maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only">
+                            <input type="text" id="reg_last_name" name="last_name" placeholder="Last Name" required autocomplete="family-name">
                         </div>
 
                         <div class="input-group">
-                            <input type="tel" id="reg_phone" name="phone" placeholder="Phone Number" required autocomplete="tel" maxlength="11" inputmode="numeric" pattern="09[0-9]{9}" title="11-digit mobile number starting with 09">
+                            <input type="tel" id="reg_phone" name="phone" placeholder="Phone Number" required maxlength="11" inputmode="numeric" pattern="[0-9]*" autocomplete="tel">
                         </div>
 
                         <div style="display: flex; gap: 12px; width: 100%;">
@@ -1299,16 +1279,16 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
                         </div>
 
                         <div class="input-group">
-                            <input type="text" id="reg_address" name="address" placeholder="Address (optional)" maxlength="255">
+                            <input type="text" id="reg_address" name="address" placeholder="Address (optional)">
                         </div>
 
                         <div class="input-group">
-                            <input type="text" id="reg_emergency_name" name="emergency_contact_name" placeholder="Emergency Contact Name" required maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only">
+                            <input type="text" id="reg_emergency_name" name="emergency_contact_name" placeholder="Emergency Contact Name" required>
                         </div>
 
                         <div style="display: flex; gap: 12px; width: 100%;">
                             <div class="input-group" style="flex:1;">
-                                <input type="tel" id="reg_emergency_phone" name="emergency_contact_phone" placeholder="Emergency Contact Number" required maxlength="11" inputmode="numeric" pattern="09[0-9]{9}" title="11-digit mobile number starting with 09" autocomplete="tel">
+                                <input type="tel" id="reg_emergency_phone" name="emergency_contact_phone" placeholder="Emergency Contact Number" required maxlength="11" inputmode="numeric" pattern="[0-9]*" autocomplete="tel">
                             </div>
                             <div class="input-group" style="flex:1;">
                                 <select id="reg_emergency_relationship" name="emergency_contact_relationship" required>
@@ -1333,7 +1313,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
 
                     <div id="regStep2" class="registration-form-section registration-form-section-last" style="display: none;">
                         <div class="input-group">
-                            <input type="email" id="reg_email" name="email" placeholder="Email Address" required autocomplete="email" maxlength="254">
+                            <input type="email" id="reg_email" name="email" placeholder="Email Address" required autocomplete="email">
                         </div>
 
                         <div class="input-group">

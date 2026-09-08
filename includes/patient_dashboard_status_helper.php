@@ -81,6 +81,7 @@ function getPatientOutstandingBalance(PDO $pdo, $patientId): float
             SELECT SUM(GREATEST(COALESCE(balance, 0), COALESCE(total_amount, 0) - COALESCE(paid_amount, 0))) AS outstanding
             FROM billing
             WHERE patient_id = ?
+              AND LOWER(COALESCE(payment_status, 'unpaid')) NOT IN ('paid', 'cancelled')
         ");
         $stmt->execute([$patientId]);
         return (float)($stmt->fetchColumn() ?: 0);
@@ -103,7 +104,7 @@ function getPatientNextDueDateLabel(PDO $pdo, $patientId): string
               AND due_date IS NOT NULL
               AND due_date != ''
               AND COALESCE(balance, 0) > 0
-              AND LOWER(COALESCE(payment_status, 'unpaid')) != 'paid'
+              AND LOWER(COALESCE(payment_status, 'unpaid')) NOT IN ('paid', 'cancelled')
         ");
         $stmt->execute([$patientId]);
         $nextDue = $stmt->fetchColumn();

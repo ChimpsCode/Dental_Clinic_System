@@ -102,8 +102,9 @@ try {
     $pendingPayments = (float)($pdo->query("
         SELECT COALESCE(SUM(balance), 0)
         FROM billing
-        WHERE payment_status IN ('pending', 'unpaid', 'partial')
-           OR (balance IS NOT NULL AND balance > 0)
+        WHERE (payment_status IN ('pending', 'unpaid', 'partial')
+           OR (balance IS NOT NULL AND balance > 0))
+          AND LOWER(COALESCE(payment_status, '')) != 'cancelled'
     ")->fetchColumn() ?? 0);
 
     $todaysPatients = (int)($pdo->query("
