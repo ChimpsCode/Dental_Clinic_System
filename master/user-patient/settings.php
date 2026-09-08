@@ -314,7 +314,7 @@ $pageTitle = 'Account Settings';
             <span>RF Dental Clinic</span>
         </div>
         <nav class="sidebar-menu">
-            <a href="patient-dashboard.php" class="menu-item">
+            <a href="patient-dashboard.php" clasgs="menu-item">
                 <i class="fas fa-home"></i>
                 <span>Dashboard</span>
             </a>
@@ -352,6 +352,7 @@ $pageTitle = 'Account Settings';
                 </div>
             </div>
             <div class="header-right">
+                <?php include '../../includes/patient_tour_widget.php'; ?>
                 <?php include '../../includes/patient_notification_widget.php'; ?>
                 <div class="user-profile">
                     <div class="user-avatar">

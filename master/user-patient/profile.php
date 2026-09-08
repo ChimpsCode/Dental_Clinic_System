@@ -417,8 +417,8 @@ $pageTitle = 'My Profile';
     <link rel="stylesheet" href="../../assets/css/patient_portal.css">
 </head>
 <body>
-    <aside class="sidebar" id="patientSidebar">
-        <div class="sidebar-brand">
+    <aside class="sidebar">
+        <a href="../../index.php" class="sidebar-brand">
             <img src="../../assets/images/Logo.png" alt="RF Dental Clinic">
             <span>RF Dental</span>
         </div>
@@ -461,6 +461,7 @@ $pageTitle = 'My Profile';
                 </div>
             </div>
             <div class="header-right">
+                <?php include '../../includes/patient_tour_widget.php'; ?>
                 <?php include '../../includes/patient_notification_widget.php'; ?>
                 <div class="user-profile">
                     <div class="user-avatar">

@@ -766,6 +766,7 @@ $pageTitle = 'Medical Records';
                 </div>
             </div>
             <div class="header-right">
+                <?php include '../../includes/patient_tour_widget.php'; ?>
                 <?php include '../../includes/patient_notification_widget.php'; ?>
                 <div class="user-profile">
                     <div class="user-avatar">

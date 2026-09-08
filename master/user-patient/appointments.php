@@ -319,11 +319,11 @@ $pageTitle = 'My Appointments';
     <link rel="stylesheet" href="../../assets/css/patient_portal.css">
 </head>
 <body>
-    <aside class="sidebar" id="patientSidebar">
-        <div class="sidebar-brand">
+    <aside class="sidebar">
+        <a href="../../index.php" class="sidebar-brand">
             <img src="../../assets/images/Logo.png" alt="RF Dental Clinic">
-            <span>RF Dental Clinic</span>
-        </div>
+            <span>RF Dental</span>
+        </a>
         <nav class="sidebar-menu">
             <a href="patient-dashboard.php" class="menu-item">
                 <i class="fas fa-home"></i>
@@ -363,6 +363,7 @@ $pageTitle = 'My Appointments';
                 </div>
             </div>
             <div class="header-right">
+                <?php include '../../includes/patient_tour_widget.php'; ?>
                 <?php include '../../includes/patient_notification_widget.php'; ?>
                 <div class="user-profile">
                     <div class="user-avatar">
