@@ -109,6 +109,7 @@ $assets = [
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,700;1,400&family=Inria+Sans:wght@400;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="../../assets/css/home-styles.css" />
+    <script src="../../assets/js/form-sanitize.js?v=2"></script>
     <style>
       body { opacity: 0; animation: homeFadeIn 0.45s ease-out forwards; }
       @keyframes homeFadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -550,7 +551,7 @@ $assets = [
         </div>
         <div class="modal-body">
           <p class="modal-intro">Almost done! Complete your information and create a password to secure your account.</p>
-          <form id="registrationForm" class="modal-form" autocomplete="off">
+          <form id="registrationForm" class="modal-form" autocomplete="off" novalidate>
             <input type="text" tabindex="-1" aria-hidden="true" autocomplete="username" style="position:absolute;left:-9999px;height:0;width:0;opacity:0;" value="">
             <input type="password" tabindex="-1" aria-hidden="true" autocomplete="current-password" style="position:absolute;left:-9999px;height:0;width:0;opacity:0;" value="">
             <input type="hidden" id="reg-first-name" name="first_name" />
@@ -563,21 +564,21 @@ $assets = [
               <div class="form-row">
                 <div class="form-group">
                   <label for="reg-first-name-display">First Name</label>
-                  <input type="text" id="reg-first-name-display" placeholder="First Name" required />
+                  <input type="text" id="reg-first-name-display" placeholder="First Name" required maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only" autocomplete="given-name" />
                 </div>
                 <div class="form-group">
                   <label for="reg-middle-name-display">Middle Name</label>
-                  <input type="text" id="reg-middle-name-display" placeholder="Middle Name" />
+                  <input type="text" id="reg-middle-name-display" placeholder="Middle Name" maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only" autocomplete="additional-name" />
                 </div>
                 <div class="form-group">
                   <label for="reg-last-name-display">Last Name</label>
-                  <input type="text" id="reg-last-name-display" placeholder="Last Name" required />
+                  <input type="text" id="reg-last-name-display" placeholder="Last Name" required maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only" autocomplete="family-name" />
                 </div>
               </div>
               <div class="form-row">
                 <div class="form-group">
                   <label for="reg-phone">Phone Number <span style="color:#dc2626">*</span></label>
-                  <input type="tel" id="reg-phone" name="phone" required placeholder="09123456789" maxlength="11" inputmode="numeric" pattern="[0-9]*" autocomplete="tel" />
+                  <input type="tel" id="reg-phone" name="phone" required placeholder="09123456789" maxlength="11" inputmode="numeric" pattern="09[0-9]{9}" title="11-digit mobile number starting with 09" autocomplete="tel" />
                 </div>
                 <div class="form-group">
                   <label for="reg-gender">Gender <span style="color:#dc2626">*</span></label>
@@ -600,16 +601,16 @@ $assets = [
               </div>
               <div class="form-group">
                 <label for="reg-address">Address (Optional)</label>
-                <input type="text" id="reg-address" name="address" placeholder="Your complete address" />
+                <input type="text" id="reg-address" name="address" placeholder="Your complete address" maxlength="255" />
               </div>
               <div class="form-row">
                 <div class="form-group">
                   <label for="reg-emergency-name">Emergency Contact Name <span style="color:#dc2626">*</span></label>
-                  <input type="text" id="reg-emergency-name" name="emergency_contact_name" placeholder="Full name" required />
+                  <input type="text" id="reg-emergency-name" name="emergency_contact_name" placeholder="Full name" required maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only" />
                 </div>
                 <div class="form-group">
                   <label for="reg-emergency-phone">Emergency Contact Number <span style="color:#dc2626">*</span></label>
-                  <input type="tel" id="reg-emergency-phone" name="emergency_contact_phone" placeholder="09123456789" maxlength="11" required inputmode="numeric" pattern="[0-9]*" autocomplete="tel" />
+                  <input type="tel" id="reg-emergency-phone" name="emergency_contact_phone" placeholder="09123456789" maxlength="11" required inputmode="numeric" pattern="09[0-9]{9}" title="11-digit mobile number starting with 09" autocomplete="tel" />
                 </div>
               </div>
               <div class="form-group">
@@ -653,7 +654,7 @@ $assets = [
               <h4 class="form-section-title">Account Information</h4>
               <div class="form-group">
                 <label for="reg-email">Email (Username)</label>
-                <input type="email" id="reg-email" name="email" required placeholder="your@email.com" autocomplete="off" />
+                <input type="email" id="reg-email" name="email" required placeholder="your@email.com" autocomplete="off" maxlength="254" />
                 <div id="reg-email-status" style="display:none; margin-top:6px; font-size:13px; color:#dc3545;"></div>
               </div>
               <div class="form-group">
@@ -907,18 +908,45 @@ $assets = [
         regForm.addEventListener('submit', async function(e) {
           e.preventDefault();
 
+          const firstDisplay = document.getElementById('reg-first-name-display');
+          const middleDisplay = document.getElementById('reg-middle-name-display');
+          const lastDisplay = document.getElementById('reg-last-name-display');
+          if (firstDisplay && document.getElementById('reg-first-name')) {
+            document.getElementById('reg-first-name').value = firstDisplay.value.trim();
+          }
+          if (middleDisplay && document.getElementById('reg-middle-name')) {
+            document.getElementById('reg-middle-name').value = middleDisplay.value.trim();
+          }
+          if (lastDisplay && document.getElementById('reg-last-name')) {
+            document.getElementById('reg-last-name').value = lastDisplay.value.trim();
+          }
+
           const password = document.getElementById('reg-password').value;
           const confirmPassword = document.getElementById('reg-confirm-password').value;
           const phone = document.getElementById('reg-phone').value;
           const gender = document.getElementById('reg-gender').value;
           const email = document.getElementById('reg-email').value;
+          const emergencyName = (document.getElementById('reg-emergency-name')?.value || '').trim();
+          const emergencyPhone = (document.getElementById('reg-emergency-phone')?.value || '').trim();
+          const emergencyRelationship = document.getElementById('reg-emergency-relationship')?.value || '';
+          const addressVal = document.getElementById('reg-address') ? document.getElementById('reg-address').value : '';
+
+          if (window.FormSanitize && !window.FormSanitize.alertIfInvalid([
+            window.FormSanitize.name(firstDisplay ? firstDisplay.value : '', true, 'First name'),
+            window.FormSanitize.name(middleDisplay ? middleDisplay.value : '', false, 'Middle name'),
+            window.FormSanitize.name(lastDisplay ? lastDisplay.value : '', true, 'Last name'),
+            window.FormSanitize.phone(phone, true),
+            window.FormSanitize.email(email, true),
+            window.FormSanitize.address(addressVal, false),
+            window.FormSanitize.name(emergencyName, true, 'Emergency contact name'),
+            window.FormSanitize.phone(emergencyPhone, true)
+          ])) {
+            return;
+          }
 
           if (!phone) { alert('Please enter your phone number'); return; }
           if (!gender) { alert('Please select your gender'); return; }
           if (!email) { alert('Please enter your email address'); return; }
-          const emergencyName = (document.getElementById('reg-emergency-name')?.value || '').trim();
-          const emergencyPhone = (document.getElementById('reg-emergency-phone')?.value || '').trim();
-          const emergencyRelationship = document.getElementById('reg-emergency-relationship')?.value || '';
           if (!emergencyName) { alert('Please enter the emergency contact name'); return; }
           if (!emergencyPhone) { alert('Please enter the emergency contact number'); return; }
           if (!emergencyRelationship) { alert('Please select the emergency contact relationship'); return; }
