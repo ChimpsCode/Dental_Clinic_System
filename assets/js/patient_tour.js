@@ -6,6 +6,8 @@
     var autoStartTimer = null;
     var sidebarSnapTimer = null;
     var sidebarStepReady = false;
+    var introLottie = null;
+    var introBound = false;
 
     function hasCompleted() {
         try {
@@ -206,6 +208,102 @@
         sidebarStepReady = true;
     }
 
+    function getIntroModal() {
+        return document.getElementById('patientTourIntroModal');
+    }
+
+    function loadIntroLottie() {
+        if (introLottie) {
+            introLottie.play();
+            return;
+        }
+        var container = document.getElementById('patientTourIntroLottie');
+        var url = cfg.animationUrl;
+        if (!container || !url || typeof window.lottie === 'undefined') {
+            return;
+        }
+        introLottie = window.lottie.loadAnimation({
+            container: container,
+            renderer: 'svg',
+            loop: true,
+            autoplay: true,
+            path: url
+        });
+    }
+
+    function showIntroModal() {
+        var modal = getIntroModal();
+        if (!modal) {
+            startTour();
+            return;
+        }
+        if (autoStartTimer) {
+            window.clearTimeout(autoStartTimer);
+            autoStartTimer = null;
+        }
+        clearTourQuery();
+        modal.hidden = false;
+        document.body.style.overflow = 'hidden';
+        loadIntroLottie();
+        var nextBtn = document.getElementById('patientTourIntroNext');
+        if (nextBtn) {
+            nextBtn.focus();
+        }
+    }
+
+    function hideIntroModal() {
+        var modal = getIntroModal();
+        if (modal) {
+            modal.hidden = true;
+        }
+        document.body.style.overflow = '';
+        if (introLottie && typeof introLottie.pause === 'function') {
+            introLottie.pause();
+        }
+    }
+
+    function skipIntroModal() {
+        hideIntroModal();
+        markCompleted();
+    }
+
+    function continueFromIntro() {
+        hideIntroModal();
+        startTour();
+    }
+
+    function bindIntroModal() {
+        if (introBound) {
+            return;
+        }
+        var modal = getIntroModal();
+        var skipBtn = document.getElementById('patientTourIntroSkip');
+        var nextBtn = document.getElementById('patientTourIntroNext');
+        if (!modal) {
+            return;
+        }
+        introBound = true;
+        if (modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
+        }
+        if (skipBtn) {
+            skipBtn.addEventListener('click', skipIntroModal);
+        }
+        if (nextBtn) {
+            nextBtn.addEventListener('click', continueFromIntro);
+        }
+        modal.addEventListener('click', function (event) {
+            if (event.target === modal) {
+                skipIntroModal();
+            }
+        });
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && modal && !modal.hidden) {
+                skipIntroModal();
+            }
+        });
+    }
+
     function clearTourQuery() {
         if (!cfg.forceStart || !window.history || !window.history.replaceState) {
             return;
@@ -334,7 +432,7 @@
             window.location.href = cfg.dashboardUrl || 'patient-dashboard.php?tour=1';
             return;
         }
-        startTour();
+        showIntroModal();
     }
 
     function bindHelp() {
@@ -350,16 +448,17 @@
             return;
         }
         if (cfg.forceStart) {
-            startTour();
+            showIntroModal();
             return;
         }
         if (cfg.autoStart && !hasCompleted()) {
-            startTour();
+            showIntroModal();
         }
     }
 
     function init() {
         bindHelp();
+        bindIntroModal();
         autoStartTimer = window.setTimeout(maybeAutoStart, 500);
     }
 

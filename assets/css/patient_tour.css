@@ -178,3 +178,132 @@ svg.driver-overlay {
         max-width: min(300px, calc(100vw - 32px));
     }
 }
+
+.patient-tour-intro-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 300000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(15, 23, 42, 0.55);
+}
+
+.patient-tour-intro-overlay[hidden] {
+    display: none !important;
+}
+
+.patient-tour-intro-card {
+    width: min(720px, 100%);
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.22);
+    overflow: hidden;
+    font-family: sans-serif;
+}
+
+.patient-tour-intro-body {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 24px 24px 8px;
+}
+
+.patient-tour-intro-lottie {
+    flex: 0 0 44%;
+    width: 44%;
+    min-height: 220px;
+    max-height: 280px;
+}
+
+.patient-tour-intro-lottie svg {
+    width: 100%;
+    height: 100%;
+}
+
+.patient-tour-intro-copy {
+    flex: 1 1 56%;
+    padding: 8px 12px 8px 8px;
+}
+
+.patient-tour-intro-copy h2 {
+    margin: 0 0 10px;
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a1a2e;
+    line-height: 1.3;
+}
+
+.patient-tour-intro-copy p {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.55;
+    color: #6b7280;
+}
+
+.patient-tour-intro-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 24px 20px;
+}
+
+.patient-tour-intro-skip {
+    background: none;
+    border: none;
+    color: #6b7280;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 8px 8px;
+}
+
+.patient-tour-intro-skip:hover,
+.patient-tour-intro-skip:focus-visible {
+    color: #111827;
+    text-decoration: underline;
+    outline: none;
+}
+
+.patient-tour-intro-next {
+    background: #2563eb;
+    color: #ffffff;
+    border: 1px solid #2563eb;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 20px;
+    cursor: pointer;
+}
+
+.patient-tour-intro-next:hover,
+.patient-tour-intro-next:focus-visible {
+    background: #1d4ed8;
+    outline: none;
+}
+
+@media (max-width: 700px) {
+    .patient-tour-intro-body {
+        flex-direction: column;
+        text-align: center;
+        padding: 20px 20px 4px;
+    }
+
+    .patient-tour-intro-lottie {
+        flex: none;
+        width: 100%;
+        max-width: 280px;
+        min-height: 180px;
+    }
+
+    .patient-tour-intro-copy {
+        padding: 0 4px 8px;
+    }
+
+    .patient-tour-intro-footer {
+        justify-content: space-between;
+        padding: 12px 20px 20px;
+    }
+}
