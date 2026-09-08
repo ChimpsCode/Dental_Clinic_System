@@ -988,8 +988,8 @@ details[open] .faq-chevron{transform:rotate(225deg)}
   .hero-copy{overflow:visible;width:100%;max-width:100%;padding:0}
   .hero-title{font-size:28px;line-height:1.2;word-wrap:break-word;max-width:100%;width:100%}
   .hero-subtitle{font-size:14px;max-width:100%;width:100%}
-  .hero-ctas{width:100%;max-width:100%;display:flex;flex-direction:column;gap:10px;padding:0}
-  .hero-ctas .btn{width:100%;max-width:100%;flex:1;white-space:nowrap}
+  .hero-ctas{width:100%;max-width:100%;display:flex;flex-direction:row;gap:10px;padding:0}
+  .hero-ctas .btn{width:auto;max-width:none;flex:1;white-space:nowrap;padding:12px 8px}
   .appointment-card{width:100%;max-width:100%;margin:0;padding:12px;overflow:hidden}
   .appointment-title{font-size:16px;width:100%}
   .appointment-form{width:100%;max-width:100%;display:flex;flex-direction:column;gap:8px}
@@ -1007,7 +1007,7 @@ details[open] .faq-chevron{transform:rotate(225deg)}
   .hero-badge{top:50px;right:20px;padding:8px 10px;min-width:80px}
   .hero-badge-big{font-size:16px}
   .hero-badge-small{font-size:11px}
-  .about-photo img{width:100%;height:auto;max-height:350px}
+  .about-photo img{width:100%;height:auto;max-height:none;aspect-ratio:1 / 1;object-fit:cover}
   .about-badge{right:10px;bottom:-10px;width:90px;padding:8px 10px}
   .about-badge-top{font-size:18px}
   .about-badge-bottom{font-size:10px}
@@ -1061,15 +1061,19 @@ details[open] .faq-chevron{transform:rotate(225deg)}
 }
 
 @media (max-width: 560px){
+  body{padding-top:10px}
   .brand-text{font-size:14px}
   .brand-mark{width:28px;height:32px}
   .header-inner{height:64px}
   .header-actions .btn{padding:7px 10px;font-size:12px}
-  .hero-inner{padding-top:80px}
-  .appointment-card{padding:12px}
+  .hero{top:50px; min-height:calc(100dvh - 50px); overflow:visible}
+  .hero-inner{padding-top:20px; padding-bottom:24px}
+  .hero-title{margin-bottom:8px}
+  .hero-subtitle{margin-bottom:10px}
+  .hero-ctas{flex-direction:row;gap:10px;width:100%;max-width:100%;overflow:visible;margin-bottom:16px}
+  .appointment-card{padding:12px; margin-top:8px}
   .appointment-title{font-size:16px}
-  .hero-ctas{flex-direction:column;gap:12px;width:100%;max-width:100%;overflow:visible}
-  .hero-ctas .btn{width:100%;box-sizing:border-box}
+  .hero-ctas .btn{width:auto;flex:1;box-sizing:border-box;padding:12px 8px}
   .appointment-form{grid-template-columns: 1fr; gap:8px}
   .appointment-form input{height:48px;font-size:15px;padding:0 12px;box-sizing:border-box}
   .appointment-form button{height:48px;font-size:15px}
