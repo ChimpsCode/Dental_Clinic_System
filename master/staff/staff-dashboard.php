@@ -1183,6 +1183,10 @@ function closeCallModal() {
 }
 
 function showDashboardMessage(message, title = 'Notice') {
+    if (window.showAppNotice) {
+        window.showAppNotice(title, message);
+        return;
+    }
     document.getElementById('dashboardMessageTitle').textContent = title;
     document.getElementById('dashboardMessageText').textContent = message;
     document.getElementById('dashboardMessageModal').style.display = 'flex';

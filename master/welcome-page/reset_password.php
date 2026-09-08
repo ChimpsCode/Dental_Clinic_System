@@ -225,6 +225,7 @@ if (
             background: #2563eb;
         }
     </style>
+    <?php require __DIR__ . '/../../includes/app_notice_modal_script.php'; ?>
 </head>
 <body>
 

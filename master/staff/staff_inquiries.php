@@ -1435,7 +1435,15 @@ function handleInquiryMenuClick(event, action, id) {
 }
 
 async function archiveInquiry(id) {
+    if (window.appAsk) {
+        window.appAsk('Move this inquiry to archive?', function() { archiveInquiryDo(id); }, { title: 'Please Confirm' });
+        return;
+    }
     if (!confirm('Move this inquiry to archive?')) return;
+    archiveInquiryDo(id);
+}
+
+async function archiveInquiryDo(id) {
     const data = await postAction({ action: 'archive', id });
     if (!data.success) {
         showToast(data.message || 'Unable to archive inquiry.', true);

@@ -720,6 +720,7 @@ $pageTitle = 'Medical Records';
         }
     </style>
     <link rel="stylesheet" href="../../assets/css/patient_portal.css">
+    <?php require __DIR__ . '/../../includes/app_notice_modal_script.php'; ?>
 </head>
 <body>
     <aside class="sidebar" id="patientSidebar">

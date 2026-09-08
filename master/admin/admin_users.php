@@ -1034,8 +1034,7 @@ try {
 // Toggle User Status
                     window.toggleUserStatus = function(userId, newStatus) {
                         closeKebabDropdown();
-                        if (!confirm(`Are you sure you want to ${newStatus === 'active' ? 'activate' : 'deactivate'} this user?`)) return;
-                        
+                        window.appAsk('Are you sure you want to ' + (newStatus === 'active' ? 'activate' : 'deactivate') + ' this user?', function() {
                         fetch('admin_users_actions.php', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1052,6 +1051,7 @@ try {
                         .catch(() => {
                             alert('Error updating user status');
                         });
+                        }, { title: 'Please Confirm' });
                     };
                 });
                 </script>

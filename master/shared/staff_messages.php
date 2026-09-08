@@ -729,6 +729,7 @@ try {
             }
         }
     </style>
+    <?php require __DIR__ . '/../../includes/app_notice_modal_script.php'; ?>
 </head>
 <body>
     <a href="staff_messages.php" class="fab-wrap text-decoration-none" aria-label="Open staff messages">

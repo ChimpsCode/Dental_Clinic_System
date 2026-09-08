@@ -798,10 +798,10 @@ function editService(id) {
 }
 
 function deleteService(id) {
-    if (confirm('Are you sure you want to delete this service?')) {
+    window.appAsk('Are you sure you want to delete this service?', function() {
         document.getElementById('deleteId').value = id;
         document.getElementById('deleteForm').submit();
-    }
+    }, { title: 'Please Confirm', kind: 'error', confirmText: 'Delete' });
 }
 
 function showToast(message, type) {

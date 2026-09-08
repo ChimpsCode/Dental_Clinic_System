@@ -206,6 +206,14 @@ function seniorIdTypeOptionsHtml(selected) {
     return html;
 }
 
+function escapeEditInfoHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
 // Portal Pattern: Move modals to body level
 (function() {
     var modals = ['adminPatientModal', 'recordPaymentModal', 'paymentHistoryModal', 'setDueDateModal', 'appointmentModal'];
@@ -583,6 +591,10 @@ if (window.__adminPatientsKebabClickHandler) {
 }
 
 function handleAdminPatientsKebabDocumentClick(e) {
+    if (e.target.closest('.patient-kebab-dropdown-portal')) {
+        return;
+    }
+
     const button = e.target.closest('.patient-kebab-btn');
     if (button) {
         e.preventDefault();
@@ -1168,42 +1180,43 @@ function confirmSetDueDate() {
 // Edit Patient Info - Modal
 function editPatientInfo(patientId) {
     const patient = allPatients.find(p => p.id == patientId);
-    if (!patient) return;
-    
-    const fullName = `${patient.first_name || ''} ${patient.middle_name || ''} ${patient.last_name || ''} ${patient.suffix || ''}`.trim();
-    
-    // Remove existing modal
+    if (!patient) {
+        showPatientNoticeModal('Patient Not Found', 'Patient record not found.', 'error');
+        return;
+    }
+
     const existingModal = document.getElementById('edit-patient-modal');
     if (existingModal) existingModal.remove();
-    
+
+    const genderVal = String(patient.gender || '').toLowerCase();
+    const dobVal = String(patient.date_of_birth || '').slice(0, 10);
     const overlay = document.createElement('div');
     overlay.id = 'edit-patient-modal';
     overlay.className = 'modal-overlay active';
-    
+
     overlay.innerHTML = `
         <div class="modal" style="max-width: 550px; max-height: 90vh; overflow-y: auto;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #e5e7eb; padding-bottom: 16px;">
                 <h3 style="margin: 0; color: #111827; font-size: 18px;">✏️ Edit Patient Information</h3>
-                <button onclick="closeEditPatientModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280;">&times;</button>
+                <button type="button" onclick="closeEditPatientModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280;">&times;</button>
             </div>
             
             <form id="edit-patient-form">
-                <input type="hidden" name="patient_id" value="${patient.id}">
+                <input type="hidden" name="patient_id" value="${escapeEditInfoHtml(patient.id)}">
                 
                 <!-- Name Section -->
                 <div style="margin-bottom: 20px;">
                     <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 14px; font-weight: 600;">Personal Information</h4>
-                    ${personalInfoUpdate ? `<div style="font-size:12px;color:#6b7280;margin:-4px 0 12px;">Patient updated: ${new Date(personalInfoUpdate.updated_at).toLocaleString()}${personalInfoUpdate.changed_fields && personalInfoUpdate.changed_fields.length ? ' · Changed: ' + personalInfoUpdate.changed_fields.join(', ') : ''}</div>` : ''}
                     
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                         <div>
                             <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">First Name <span style="color:#dc2626">*</span></label>
-                            <input type="text" name="first_name" value="${patient.first_name || ''}" required
+                            <input type="text" name="first_name" value="${escapeEditInfoHtml(patient.first_name)}" required
                                 style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
                         </div>
                         <div>
                             <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Middle Name</label>
-                            <input type="text" name="middle_name" value="${patient.middle_name || ''}"
+                            <input type="text" name="middle_name" value="${escapeEditInfoHtml(patient.middle_name)}"
                                 style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
                         </div>
                     </div>
@@ -1211,12 +1224,12 @@ function editPatientInfo(patientId) {
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                         <div>
                             <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Last Name <span style="color:#dc2626">*</span></label>
-                            <input type="text" name="last_name" value="${patient.last_name || ''}" required
+                            <input type="text" name="last_name" value="${escapeEditInfoHtml(patient.last_name)}" required
                                 style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
                         </div>
                         <div>
                             <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Suffix</label>
-                            <input type="text" name="suffix" value="${patient.suffix || ''}" placeholder="Jr., Sr., III, etc."
+                            <input type="text" name="suffix" value="${escapeEditInfoHtml(patient.suffix)}" placeholder="Jr., Sr., III, etc."
                                 style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
                         </div>
                     </div>
@@ -1229,12 +1242,12 @@ function editPatientInfo(patientId) {
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                         <div>
                             <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Phone</label>
-                            <input type="text" name="phone" value="${patient.phone || ''}" placeholder="09XXXXXXXXX"
+                            <input type="text" name="phone" value="${escapeEditInfoHtml(patient.phone)}" placeholder="09XXXXXXXXX"
                                 style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
                         </div>
                         <div>
                             <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Email</label>
-                            <input type="email" name="email" value="${patient.email || ''}" placeholder="email@example.com"
+                            <input type="email" name="email" value="${escapeEditInfoHtml(patient.email)}" placeholder="email@example.com"
                                 style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
                         </div>
                     </div>
@@ -1247,15 +1260,15 @@ function editPatientInfo(patientId) {
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                         <div>
                             <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Date of Birth</label>
-                            <input type="date" name="date_of_birth" data-discount-dob="1" value="${patient.date_of_birth || ''}"
+                            <input type="date" name="date_of_birth" data-discount-dob="1" value="${escapeEditInfoHtml(dobVal)}"
                                 style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
                         </div>
                         <div>
                             <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Gender</label>
                             <select name="gender" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
                                 <option value="">-- Select --</option>
-                                <option value="Male" ${patient.gender === 'Male' ? 'selected' : ''}>Male</option>
-                                <option value="Female" ${patient.gender === 'Female' ? 'selected' : ''}>Female</option>
+                                <option value="Male" ${genderVal === 'male' ? 'selected' : ''}>Male</option>
+                                <option value="Female" ${genderVal === 'female' ? 'selected' : ''}>Female</option>
                             </select>
                         </div>
                     </div>
@@ -1266,7 +1279,7 @@ function editPatientInfo(patientId) {
                             ${seniorIdTypeOptionsHtml(patient.senior_id_type || (patient.senior_citizen_id ? 'osca' : ''))}
                         </select>
                         <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">ID number <span style="color:#dc2626">*</span></label>
-                        <input type="text" name="senior_citizen_id" value="${patient.senior_citizen_id || ''}" placeholder="ID number"
+                        <input type="text" name="senior_citizen_id" value="${escapeEditInfoHtml(patient.senior_citizen_id)}" placeholder="ID number"
                             style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
                         <span style="font-size:11px;color:#6b7280;">Age 60+ still needs a government ID number for the official 20% senior discount (RA 9994).</span>
                     </div>
@@ -1278,7 +1291,7 @@ function editPatientInfo(patientId) {
                     </div>
                     <div data-pwd-id-fields style="display:none; margin-top: 8px;">
                         <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">PWD ID No. <span style="color:#dc2626">*</span></label>
-                        <input type="text" name="pwd_id" value="${patient.pwd_id || ''}" placeholder="Official PWD ID number"
+                        <input type="text" name="pwd_id" value="${escapeEditInfoHtml(patient.pwd_id)}" placeholder="Official PWD ID number"
                             style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
                         <span style="font-size:11px;color:#6b7280;">The official PWD ID number is required for the 20% PWD discount (RA 10754).</span>
                     </div>
@@ -1313,33 +1326,94 @@ function editPatientInfo(patientId) {
     }
 }
 
+window.editPatientInfo = editPatientInfo;
+
 function closeEditPatientModal() {
     const modal = document.getElementById('edit-patient-modal');
     if (modal) modal.remove();
-    document.body.classList.remove('modal-open');
+    if (!document.getElementById('patient-notice-modal')) {
+        document.body.classList.remove('modal-open');
+    }
+}
+
+function closePatientNoticeModal() {
+    const modal = document.getElementById('patient-notice-modal');
+    const afterClose = window.__patientNoticeAfterClose;
+    window.__patientNoticeAfterClose = null;
+    if (modal) modal.remove();
+    if (!document.getElementById('edit-patient-modal')) {
+        document.body.classList.remove('modal-open');
+    }
+    if (typeof afterClose === 'function') afterClose();
+}
+
+window.closePatientNoticeModal = closePatientNoticeModal;
+
+function showPatientNoticeModal(title, message, type, onOk) {
+    if (window.showAppNotice) {
+        window.showAppNotice(title, message, type === 'error' ? 'error' : 'success', onOk);
+        return;
+    }
+    const existing = document.getElementById('patient-notice-modal');
+    if (existing) existing.remove();
+
+    const isSuccess = type !== 'error';
+    window.__patientNoticeAfterClose = typeof onOk === 'function' ? onOk : null;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'patient-notice-modal';
+    overlay.className = 'modal-overlay active';
+    overlay.style.zIndex = '100050';
+    overlay.style.background = 'rgba(15, 23, 42, 0.45)';
+    overlay.innerHTML = `
+        <div class="modal" style="max-width: 420px; text-align: center; padding: 28px 24px 24px;">
+            <div style="width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; background: ${isSuccess ? '#d1fae5' : '#fee2e2'}; color: ${isSuccess ? '#059669' : '#dc2626'}; font-size: 28px; font-weight: 700;">
+                ${isSuccess ? '✓' : '!'}
+            </div>
+            <h3 id="patientNoticeTitle" style="margin: 0 0 8px; color: ${isSuccess ? '#065f46' : '#991b1b'}; font-size: 18px;"></h3>
+            <p id="patientNoticeMessage" style="margin: 0 0 22px; color: #4b5563; font-size: 14px; line-height: 1.5;"></p>
+            <button type="button" onclick="closePatientNoticeModal()"
+                style="min-width: 120px; padding: 10px 20px; background: ${isSuccess ? '#0ea5e9' : '#dc2626'}; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
+                OK
+            </button>
+        </div>
+    `;
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) closePatientNoticeModal();
+    });
+    document.body.appendChild(overlay);
+    document.body.classList.add('modal-open');
+    const titleEl = document.getElementById('patientNoticeTitle');
+    const messageEl = document.getElementById('patientNoticeMessage');
+    if (titleEl) titleEl.textContent = title;
+    if (messageEl) messageEl.textContent = message;
 }
 
 function savePatientChanges() {
     const form = document.getElementById('edit-patient-form');
     const formData = new FormData(form);
     
-    fetch('../../master/shared/update_patient_info.php', {
+    fetch('../shared/update_patient_info.php', {
         method: 'POST',
         body: formData
     })
     .then(res => res.json())
     .then(data => {
         if (data.success) {
-            alert('Patient information updated successfully!');
             closeEditPatientModal();
-            location.reload();
+            showPatientNoticeModal(
+                'Patient Updated',
+                'Patient information updated successfully.',
+                'success',
+                function() { location.reload(); }
+            );
         } else {
-            alert('Error: ' + data.message);
+            showPatientNoticeModal('Unable to Save', data.message || 'Failed to save changes', 'error');
         }
     })
     .catch(err => {
         console.error(err);
-        alert('Failed to save changes');
+        showPatientNoticeModal('Unable to Save', 'Failed to save changes. Please try again.', 'error');
     });
 }
 

@@ -258,12 +258,12 @@ if (($patient['status_text'] ?? '') === 'in_procedure') {
         
         <?php if ($nextPatient): ?>
         <!-- NEXT PATIENT CARD -->
-        <div class="section-card" style="border: 2px solid #22c55e; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);">
+        <div class="section-card" style="border: 2px solid #7dd3fc; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h2 class="section-title" style="margin: 0; color: #15803d;">
+                <h2 class="section-title" style="margin: 0; color: #0c4a6e;">
                     <span style="font-size: 1.5rem;">🎯</span> NEXT PATIENT
                 </h2>
-                <span style="background: #22c55e; color: white; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 0.9rem;">
+                <span style="background: #0ea5e9; color: white; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 0.9rem;">
                     UP NOW
                 </span>
             </div>
@@ -290,7 +290,7 @@ if (($patient['status_text'] ?? '') === 'in_procedure') {
                         </div>
                     </div>
                     <div style="text-align: right;">
-                        <div style="font-size: 2rem; font-weight: 700; color: #22c55e;">#<?php echo $nextPatient['queue_number'] ?? '1'; ?></div>
+                        <div style="font-size: 2rem; font-weight: 700; color: #0284c7;">#<?php echo $nextPatient['queue_number'] ?? '1'; ?></div>
                         <div style="font-size: 0.85rem; color: #6b7280;">in queue</div>
                     </div>
                 </div>
@@ -309,7 +309,7 @@ if (($patient['status_text'] ?? '') === 'in_procedure') {
                 </div>
                 
                 <div style="display: flex; gap: 12px;">
-                    <button onclick="viewPatientDetails(<?php echo $nextPatient['patient_id']; ?>)" class="action-btn" style="background: #6b7280; color: white; flex: 1; padding: 12px; font-size: 1rem; border: none; border-radius: 8px; cursor: pointer;">
+                    <button onclick="viewPatientDetails(<?php echo $nextPatient['patient_id']; ?>)" class="action-btn" style="background: #f3f4f6; color: #374151; flex: 1; padding: 12px; font-size: 1rem; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; justify-content: center;">
                         <span style="margin-right: 6px;">👁</span> View Details
                     </button>
                     <?php if ($inProcedurePatient): ?>
@@ -317,7 +317,7 @@ if (($patient['status_text'] ?? '') === 'in_procedure') {
                             <span style="margin-right: 6px;">🔒</span> WAITING - COMPLETE CURRENT FIRST
                         </button>
                     <?php else: ?>
-                        <button onclick="openStartProcedureModal(<?php echo $nextPatient['id']; ?>, '<?php echo htmlspecialchars(addslashes(trim(($nextPatient['first_name'] ?? '') . ' ' . ($nextPatient['last_name'] ?? '')))); ?>', '<?php echo htmlspecialchars(addslashes($nextPatient['treatment_type'] ?? 'General Checkup')); ?>')" class="action-btn" style="background: #22c55e; color: white; flex: 2; padding: 12px; font-size: 1.1rem; font-weight: 600; border: none; border-radius: 8px; cursor: pointer;">
+                        <button onclick="openStartProcedureModal(<?php echo $nextPatient['id']; ?>, '<?php echo htmlspecialchars(addslashes(trim(($nextPatient['first_name'] ?? '') . ' ' . ($nextPatient['last_name'] ?? '')))); ?>', '<?php echo htmlspecialchars(addslashes($nextPatient['treatment_type'] ?? 'General Checkup')); ?>')" class="action-btn" style="background: #0ea5e9; color: white; flex: 2; padding: 12px; font-size: 1.1rem; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;">
                             <span style="margin-right: 6px;">▶</span> START PROCEDURE
                         </button>
                     <?php endif; ?>
@@ -772,8 +772,7 @@ function recordPayment(patientId, queueId) {
         alert('Please enter a valid payment amount.');
         return;
     }
-    if (!confirm('Record payment of ₱' + amount.toLocaleString('en-PH', {minimumFractionDigits: 2}) + ' via ' + method + '?')) return;
-    
+    window.appAsk('Record payment of ₱' + amount.toLocaleString('en-PH', {minimumFractionDigits: 2}) + ' via ' + method + '?', function() {
     fetch('../shared/billing_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -799,6 +798,7 @@ function recordPayment(patientId, queueId) {
         console.error('Error:', error);
         alert('Failed to record payment');
     });
+    }, { title: 'Please Confirm' });
 }
 
 function markAsPaidComplete(patientId, queueId) {
@@ -808,8 +808,7 @@ function markAsPaidComplete(patientId, queueId) {
     const remaining = Math.max(0, currentTotalAmount - paidAmount);
     const amount = remaining > 0 ? remaining : currentTotalAmount;
     if (amount <= 0) { alert('This bill is already fully paid.'); return; }
-    if (!confirm('Mark as paid for ₱' + amount.toLocaleString('en-PH', {minimumFractionDigits: 2}) + '?')) return;
-    
+    window.appAsk('Mark as paid for ₱' + amount.toLocaleString('en-PH', {minimumFractionDigits: 2}) + '?', function() {
     fetch('../shared/billing_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -834,6 +833,7 @@ function markAsPaidComplete(patientId, queueId) {
         console.error('Error:', error);
         alert('Failed to mark as paid');
     });
+    }, { title: 'Please Confirm' });
 }
 
 // View patient details
@@ -1547,10 +1547,10 @@ function buildNextPatientHTML(p, inProc) {
     var qid = p.id;
     var patientName = escapeHtml((p.first_name || '') + ' ' + (p.last_name || ''));
 
-    return '<div class="section-card" style="border:2px solid #22c55e;background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);">' +
+    return '<div class="section-card" style="border:2px solid #7dd3fc;background:linear-gradient(135deg,#f0f9ff 0%,#e0f2fe 100%);">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">' +
-        '<h2 class="section-title" style="margin:0;color:#15803d;"><span style="font-size:1.5rem;">🎯</span> NEXT PATIENT</h2>' +
-        '<span style="background:#22c55e;color:white;padding:6px 16px;border-radius:20px;font-weight:700;font-size:0.9rem;">UP NOW</span>' +
+        '<h2 class="section-title" style="margin:0;color:#0c4a6e;"><span style="font-size:1.5rem;">🎯</span> NEXT PATIENT</h2>' +
+        '<span style="background:#0ea5e9;color:white;padding:6px 16px;border-radius:20px;font-weight:700;font-size:0.9rem;">UP NOW</span>' +
         '</div>' +
         '<div style="background:white;border-radius:12px;padding:24px;box-shadow:0 4px 15px rgba(0,0,0,0.08);">' +
         '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;">' +
@@ -1559,7 +1559,7 @@ function buildNextPatientHTML(p, inProc) {
         '<span style="background:#dbeafe;color:#1e40af;padding:4px 12px;border-radius:16px;font-size:0.85rem;font-weight:600;">' + gender + '</span>' +
         '<span style="color:#6b7280;font-size:0.9rem;">' + age + ' years old</span>' +
         '</div></div>' +
-        '<div style="text-align:right;"><div style="font-size:2rem;font-weight:700;color:#22c55e;">#' + (p.queue_number || '1') + '</div><div style="font-size:0.85rem;color:#6b7280;">in queue</div></div>' +
+        '<div style="text-align:right;"><div style="font-size:2rem;font-weight:700;color:#0284c7;">#' + (p.queue_number || '1') + '</div><div style="font-size:0.85rem;color:#6b7280;">in queue</div></div>' +
         '</div>' +
         '<div style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:20px;">' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">' +
@@ -1567,10 +1567,10 @@ function buildNextPatientHTML(p, inProc) {
         '<div><div style="font-size:0.75rem;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Queued At</div><div style="font-weight:600;color:#111827;">' + queuedAt + '</div></div>' +
         '</div></div>' +
         '<div style="display:flex;gap:12px;">' +
-        '<button onclick="viewPatientDetails(' + pid + ')" class="action-btn" style="background:#6b7280;color:white;flex:1;padding:12px;font-size:1rem;border:none;border-radius:8px;cursor:pointer;"><span style="margin-right:6px;">👁</span> View Details</button>' +
+        '<button onclick="viewPatientDetails(' + pid + ')" class="action-btn" style="background:#f3f4f6;color:#374151;flex:1;padding:12px;font-size:1rem;border:1px solid #d1d5db;border-radius:8px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;justify-content:center;"><span style="margin-right:6px;">👁</span> View Details</button>' +
         (inProc
             ? '<button disabled class="action-btn" style="background:#9ca3af;color:white;flex:2;padding:12px;font-size:1.1rem;font-weight:600;cursor:not-allowed;opacity:0.6;" title="Complete current procedure first"><span style="margin-right:6px;">🔒</span> WAITING - COMPLETE CURRENT FIRST</button>'
-            : '<button onclick="openStartProcedureModal(' + qid + ',\'' + patientName.replace(/'/g, "\\'") + '\',\'' + treatment.replace(/'/g, "\\'") + '\')" class="action-btn" style="background:#22c55e;color:white;flex:2;padding:12px;font-size:1.1rem;font-weight:600;border:none;border-radius:8px;cursor:pointer;"><span style="margin-right:6px;">▶</span> START PROCEDURE</button>'
+            : '<button onclick="openStartProcedureModal(' + qid + ',\'' + patientName.replace(/'/g, "\\'") + '\',\'' + treatment.replace(/'/g, "\\'") + '\')" class="action-btn" style="background:#0ea5e9;color:white;flex:2;padding:12px;font-size:1.1rem;font-weight:600;border:none;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;"><span style="margin-right:6px;">▶</span> START PROCEDURE</button>'
         ) +
         '</div></div></div>';
 }

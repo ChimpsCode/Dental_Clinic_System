@@ -441,6 +441,7 @@ try {
             }
         }
     </style>
+    <?php require __DIR__ . '/../../includes/app_notice_modal_script.php'; ?>
 </head>
 <body>
     <div class="page-wrapper">

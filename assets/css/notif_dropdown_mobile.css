@@ -1,0 +1,46 @@
+@media (max-width: 1024px) {
+    .notif-dropdown,
+    .notification-dropdown {
+        position: fixed !important;
+        top: 70px !important;
+        right: 10px !important;
+        left: auto !important;
+        width: min(300px, calc(100vw - 20px)) !important;
+        min-width: 0 !important;
+        max-width: calc(100vw - 20px) !important;
+        max-height: min(380px, calc(100vh - 90px)) !important;
+        z-index: 99999 !important;
+    }
+
+    .notif-list,
+    .notification-list {
+        max-height: min(300px, calc(100vh - 150px)) !important;
+    }
+
+    .notif-header {
+        padding: 10px 12px !important;
+    }
+
+    .notif-header h4 {
+        font-size: 13px !important;
+    }
+
+    .notif-item {
+        padding: 8px 12px !important;
+        gap: 8px !important;
+    }
+
+    .notif-icon {
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 12px !important;
+    }
+
+    .notif-title {
+        font-size: 12px !important;
+    }
+
+    .notif-msg {
+        font-size: 11px !important;
+    }
+}

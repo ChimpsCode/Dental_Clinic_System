@@ -3584,7 +3584,7 @@ function uploadXrays(inputEl) {
 
 function deleteXrayFile(id) {
     if (isPastView) return;
-    if (!confirm('Delete this x-ray image?')) return;
+    window.appAsk('Delete this x-ray image?', function() {
     var fd = new FormData();
     fd.append('action', 'delete');
     fd.append('id', id);
@@ -3594,6 +3594,7 @@ function deleteXrayFile(id) {
         if (d.success) populateXrays();
         else alert(d.message || 'Delete failed');
     });
+    }, { title: 'Please Confirm', kind: 'error', confirmText: 'Delete' });
 }
 
 // ===================== PRESCRIPTION =====================

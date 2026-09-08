@@ -1124,6 +1124,7 @@ $pageTitle = 'Patient Dashboard';
         }
     </style>
     <link rel="stylesheet" href="../../assets/css/patient_portal.css?v=6">
+    <?php require __DIR__ . '/../../includes/app_notice_modal_script.php'; ?>
 </head>
 <body>
     <!-- Sidebar -->

@@ -1525,7 +1525,7 @@ header.top-header {
 
 .btn-primary {
     background-color: #0d92f7; color: white; border: none; padding: 10px 20px;
-    border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px;
+    border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; text-align: center; gap: 8px;
     transition: background 0.2s;
 }
 .btn-primary:hover { background-color: #0b6cf3; }

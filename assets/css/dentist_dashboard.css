@@ -1317,7 +1317,7 @@ header.top-header {
 
 .btn-primary {
     background-color: #2563eb; color: white; border: none; padding: 10px 20px;
-    border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px;
+    border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; text-align: center; gap: 8px;
     transition: background 0.2s;
 }
 .btn-primary:hover { background-color: #1d4ed8; }
@@ -1385,7 +1385,6 @@ header.top-header {
     position: relative;
     z-index: 1000000;
     margin: auto;
-    padding-top: 0 !important;
 }
 
 .modal.modal-prescription {

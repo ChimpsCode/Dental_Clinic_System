@@ -482,6 +482,7 @@ $pageTitle = 'Messages';
     <?php if (!$isEmbed): ?>
     <link rel="stylesheet" href="../../assets/css/patient_portal.css">
     <?php endif; ?>
+    <?php require __DIR__ . '/../../includes/app_notice_modal_script.php'; ?>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', system-ui, sans-serif; background: <?php echo $isEmbed ? '#ffffff' : '#f5f7fa'; ?>; min-height: 100vh; display: <?php echo $isEmbed ? 'block' : 'flex'; ?>; }

@@ -993,6 +993,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
             background: #2563eb;
         }
     </style>
+    <?php require __DIR__ . '/../../includes/app_notice_modal_script.php'; ?>
 </head>
 <body>
     <!-- Back Button -->

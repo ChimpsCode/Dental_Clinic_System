@@ -313,6 +313,7 @@ $assets = [
         margin-top: 12px;
       }
     </style>
+    <?php require __DIR__ . '/../../includes/app_notice_modal_script.php'; ?>
   </head>
   <body>
     <div id="top" aria-hidden="true"></div>
