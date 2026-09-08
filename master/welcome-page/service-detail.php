@@ -327,11 +327,30 @@ $assets = [
       .pwd-match-hint.is-mismatch { color: #dc2626; font-weight: 600; }
       .pwd-match-hint.is-mismatch .pwd-check-bg { fill: #fef2f2; stroke: #ef4444; }
       .pwd-match-hint.is-mismatch .pwd-check-x { opacity: 1; transform: scale(1); }
-      @keyframes pwdCheckPop {
-        0% { transform: scale(0.72); }
-        55% { transform: scale(1.18); }
-        100% { transform: scale(1); }
+      .password-input-group {
+        position: relative;
+        margin-bottom: 0;
       }
+      .password-input-group input {
+        padding-right: 42px;
+      }
+      .modal-form .toggle-password {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 4px;
+        color: #999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 2;
+      }
+      .modal-form .toggle-password:hover { color: #0059a3; }
+      .modal-form .eye-icon { width: 20px; height: 20px; }
 
       @media (max-width: 560px) {
         .modal-content { width: 95%; max-width: 95%; max-height: 85vh; }
@@ -639,7 +658,19 @@ $assets = [
               </div>
               <div class="form-group">
                 <label for="reg-password">Create Password</label>
-                <input type="password" id="reg-password" name="password" required minlength="8" placeholder="Password" autocomplete="new-password" readonly />
+                <div class="password-input-group">
+                  <input type="password" id="reg-password" name="password" required minlength="8" placeholder="Password" autocomplete="new-password" readonly />
+                  <button type="button" class="toggle-password" id="regTogglePassword" aria-label="Toggle password visibility">
+                    <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    <svg class="eye-icon eye-closed" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                      <line x1="1" y1="1" x2="23" y2="23"></line>
+                    </svg>
+                  </button>
+                </div>
               </div>
               <div id="passwordRequirementsBox" class="registration-password-box">
                 <div class="registration-password-title">Password Requirements:</div>
@@ -668,7 +699,19 @@ $assets = [
               </div>
               <div class="form-group">
                 <label for="reg-confirm-password">Confirm Password</label>
-                <input type="password" id="reg-confirm-password" name="confirm_password" required placeholder="Re-enter password" autocomplete="new-password" readonly />
+                <div class="password-input-group">
+                  <input type="password" id="reg-confirm-password" name="confirm_password" required placeholder="Re-enter password" autocomplete="new-password" readonly />
+                  <button type="button" class="toggle-password" id="regToggleConfirmPassword" aria-label="Toggle confirm password visibility">
+                    <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    <svg class="eye-icon eye-closed" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                      <line x1="1" y1="1" x2="23" y2="23"></line>
+                    </svg>
+                  </button>
+                </div>
                 <div class="pwd-match-hint is-idle" id="regPasswordMatchHint">
                   <span class="pwd-check" aria-hidden="true"><svg viewBox="0 0 24 24"><circle class="pwd-check-bg" cx="12" cy="12" r="10"></circle><path class="pwd-check-mark" d="M7.5 12.4l3.1 3.1 5.9-6.2"></path><path class="pwd-check-x" d="M9 9l6 6M15 9l-6 6"></path></svg></span>
                   <span class="pwd-match-text">Re-enter password to confirm</span>
@@ -1170,6 +1213,32 @@ $assets = [
           regConfirmPasswordInput.addEventListener('blur', updateConfirmPasswordMatch);
           updateConfirmPasswordMatch();
         }
+
+        function setupPasswordToggle(input, toggle) {
+          if (!input || !toggle) return;
+          function updateToggleVisibility() {
+            toggle.style.display = input.value.length > 0 ? 'flex' : 'none';
+          }
+          input.addEventListener('input', updateToggleVisibility);
+          input.addEventListener('paste', updateToggleVisibility);
+          input.addEventListener('keyup', updateToggleVisibility);
+          updateToggleVisibility();
+          toggle.addEventListener('click', function() {
+            const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+            input.setAttribute('type', type);
+            const eyeOpen = toggle.querySelector('.eye-open');
+            const eyeClosed = toggle.querySelector('.eye-closed');
+            if (type === 'password') {
+              if (eyeOpen) eyeOpen.style.display = 'block';
+              if (eyeClosed) eyeClosed.style.display = 'none';
+            } else {
+              if (eyeOpen) eyeOpen.style.display = 'none';
+              if (eyeClosed) eyeClosed.style.display = 'block';
+            }
+          });
+        }
+        setupPasswordToggle(regPasswordInput, document.getElementById('regTogglePassword'));
+        setupPasswordToggle(regConfirmPasswordInput, document.getElementById('regToggleConfirmPassword'));
 
         var emailInput = document.getElementById('reg-email');
         var emailHidden = document.getElementById('reg-email-hidden');
