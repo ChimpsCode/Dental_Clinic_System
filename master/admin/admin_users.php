@@ -526,8 +526,8 @@ try {
                     setInterval(updateStatuses, 30000);
 
                     // Kebab Menu Functionality
-                    const kebabDropdown = document.getElementById('userKebabDropdown');
-                    const kebabBackdrop = document.getElementById('userKebabBackdrop');
+                    var kebabDropdown = document.getElementById('userKebabDropdown');
+                    var kebabBackdrop = document.getElementById('userKebabBackdrop');
                     let activeKebabBtn = null;
 
                     function getUserMenuItems(userId, status, role, twoFactor) {
@@ -597,6 +597,9 @@ try {
                     }
 
                     function openKebabDropdown(button) {
+                        kebabDropdown = document.getElementById('userKebabDropdown');
+                        kebabBackdrop = document.getElementById('userKebabBackdrop');
+                        if (!kebabDropdown || !kebabBackdrop) return;
                         const userId = button.dataset.userId;
                         const status = button.dataset.userStatus;
                         const role = button.dataset.userRole;
@@ -622,14 +625,17 @@ try {
                     }
                     window.closeKebabDropdown = closeKebabDropdown;
 
-                    // Kebab button click handler
-                    document.addEventListener('click', function(e) {
+                    if (window.__adminUsersKebabClickHandler) {
+                        document.removeEventListener('click', window.__adminUsersKebabClickHandler, true);
+                        document.removeEventListener('click', window.__adminUsersKebabClickHandler, false);
+                    }
+                    function handleAdminUsersKebabDocumentClick(e) {
                         const button = e.target.closest('.user-kebab-btn');
                         if (button) {
                             e.preventDefault();
                             e.stopPropagation();
                             
-                            if (activeKebabBtn === button && kebabDropdown.classList.contains('show')) {
+                            if (activeKebabBtn === button && kebabDropdown && kebabDropdown.classList.contains('show')) {
                                 closeKebabDropdown();
                             } else {
                                 if (activeKebabBtn) closeKebabDropdown();
@@ -641,7 +647,9 @@ try {
                         if (!e.target.closest('.user-kebab-dropdown')) {
                             closeKebabDropdown();
                         }
-                    });
+                    }
+                    window.__adminUsersKebabClickHandler = handleAdminUsersKebabDocumentClick;
+                    document.addEventListener('click', window.__adminUsersKebabClickHandler, true);
 
                     // ESC key to close
                     document.addEventListener('keydown', function(e) {

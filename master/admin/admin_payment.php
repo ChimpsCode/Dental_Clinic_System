@@ -680,7 +680,11 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 }
 
                 function openPaymentKebabDropdown(button) {
-                    if (!paymentKebabDropdown) createPaymentKebabDropdown();
+                    if (!paymentKebabDropdown || !paymentKebabDropdown.isConnected) {
+                        paymentKebabDropdown = null;
+                        paymentKebabBackdrop = null;
+                        createPaymentKebabDropdown();
+                    }
                     paymentKebabDropdown.innerHTML = getPaymentMenuItems(button);
                     positionPaymentKebabDropdown(button);
                     paymentKebabDropdown.classList.add('show');
@@ -732,7 +736,11 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     .catch(() => alert('Request failed. Please try again.'));
                 }
 
-                document.addEventListener('click', function(e) {
+                if (window.__adminPaymentKebabClickHandler) {
+                    document.removeEventListener('click', window.__adminPaymentKebabClickHandler, true);
+                    document.removeEventListener('click', window.__adminPaymentKebabClickHandler, false);
+                }
+                function handleAdminPaymentKebabDocumentClick(e) {
                     var button = e.target.closest('.queue-kebab-btn');
                     if (button) {
                         e.preventDefault();
@@ -744,7 +752,9 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                             openPaymentKebabDropdown(button);
                         }
                     }
-                });
+                }
+                window.__adminPaymentKebabClickHandler = handleAdminPaymentKebabDocumentClick;
+                document.addEventListener('click', window.__adminPaymentKebabClickHandler, true);
 
                 // View Payment Details
                 function viewPayment(invoiceId) {

@@ -496,7 +496,9 @@ function positionPatientKebabDropdown(button) {
 }
 
 function openPatientKebabDropdown(button) {
-    if (!patientKebabDropdown) {
+    if (!patientKebabDropdown || !patientKebabDropdown.isConnected) {
+        patientKebabDropdown = null;
+        patientKebabBackdrop = null;
         createPatientKebabDropdown();
     }
 

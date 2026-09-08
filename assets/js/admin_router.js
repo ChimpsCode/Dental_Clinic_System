@@ -80,13 +80,60 @@
         }
     }
 
+    function disposeAdminKebabState() {
+        var handlerKeys = [
+            '__adminQueueKebabClickHandler',
+            '__adminPatientsKebabClickHandler',
+            '__adminApptKebabClickHandler',
+            '__adminPaymentKebabClickHandler',
+            '__adminUsersKebabClickHandler',
+            '__adminServicesKebabClickHandler'
+        ];
+        var i, fn, el, nodes, btns;
+        for (i = 0; i < handlerKeys.length; i++) {
+            fn = window[handlerKeys[i]];
+            if (typeof fn === 'function') {
+                document.removeEventListener('click', fn, true);
+                document.removeEventListener('click', fn, false);
+            }
+            window[handlerKeys[i]] = null;
+        }
+
+        if (window.ArchiveKebab && typeof window.ArchiveKebab.close === 'function') {
+            try { window.ArchiveKebab.close(); } catch (e) {}
+        }
+
+        nodes = document.querySelectorAll(
+            '.queue-kebab-backdrop, .queue-kebab-dropdown-portal, ' +
+            '.patient-kebab-backdrop, .patient-kebab-dropdown-portal, ' +
+            '.appt-kebab-backdrop, .appt-kebab-dropdown-portal, ' +
+            '.user-kebab-backdrop, .user-kebab-dropdown, ' +
+            '.service-kebab-backdrop, .service-kebab-dropdown, ' +
+            '.archive-kebab-backdrop, .archive-kebab-dropdown, ' +
+            '.pay-kebab-backdrop, .pay-kebab-dropdown-portal'
+        );
+        for (i = 0; i < nodes.length; i++) {
+            el = nodes[i];
+            el.classList.remove('show');
+            if (el.parentNode === document.body) {
+                el.parentNode.removeChild(el);
+            }
+        }
+
+        btns = document.querySelectorAll(
+            '.queue-kebab-btn.active, .patient-kebab-btn.active, .appt-kebab-btn.active, ' +
+            '.user-kebab-btn.active, .service-kebab-btn.active, .archive-kebab-btn.active, .pay-kebab-btn.active'
+        );
+        for (i = 0; i < btns.length; i++) {
+            btns[i].classList.remove('active');
+        }
+    }
+
     function cleanupPageState() {
         clearTrackedTimers();
         document.body.classList.remove('modal-open');
         window.onclick = null;
-        if (window.ArchiveKebab && typeof window.ArchiveKebab.close === 'function') {
-            window.ArchiveKebab.close();
-        }
+        disposeAdminKebabState();
         removeTaggedAssets();
         removePageBodyNodes();
     }

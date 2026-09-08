@@ -12,7 +12,7 @@ if ($__pjax) {
 
     <script src="../../assets/js/dashboard.js"></script>
     <script src="../../assets/js/admin.js"></script>
-    <script src="../../assets/js/admin_router.js"></script>
+    <script src="../../assets/js/admin_router.js?v=2"></script>
     <?php if (isset($pageScript)) { echo $pageScript; } ?>
     <?php require __DIR__ . '/session_timeout_script.php'; ?>
     <script>

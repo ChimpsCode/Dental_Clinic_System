@@ -885,7 +885,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
 <script>
     var appointments = <?php echo json_encode($allAppointments); ?>;
-    const unavailableDates = <?php echo json_encode($unavailableDates); ?>;
+    var unavailableDates = <?php echo json_encode($unavailableDates); ?>;
     
     let adminCalYear, adminCalMonth;
 
@@ -1465,9 +1465,9 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
     }
 
     // Appointment Kebab Menu Functions - Portal Based
-    let apptKebabDropdown = null;
-    let apptKebabBackdrop = null;
-    let apptActiveButton = null;
+    var apptKebabDropdown = null;
+    var apptKebabBackdrop = null;
+    var apptActiveButton = null;
 
     function createApptKebabDropdown() {
         apptKebabDropdown = document.createElement('div');
@@ -1550,7 +1550,9 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
     }
 
     function openApptKebabDropdown(button) {
-        if (!apptKebabDropdown) {
+        if (!apptKebabDropdown || !apptKebabDropdown.isConnected) {
+            apptKebabDropdown = null;
+            apptKebabBackdrop = null;
             createApptKebabDropdown();
         }
 
@@ -1612,23 +1614,30 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         }
     }
 
-    // Click handler for kebab buttons
-    document.addEventListener('click', function(e) {
+    // Click handler for kebab buttons. Replace the previous handler when PJAX revisits.
+    if (window.__adminApptKebabClickHandler) {
+        document.removeEventListener('click', window.__adminApptKebabClickHandler, true);
+        document.removeEventListener('click', window.__adminApptKebabClickHandler, false);
+    }
+    function handleAdminApptKebabDocumentClick(e) {
         const button = e.target.closest('.appt-kebab-btn');
         if (button) {
             e.preventDefault();
             e.stopPropagation();
-            
             if (apptActiveButton === button) {
                 closeApptKebabDropdown();
             } else {
                 closeApptKebabDropdown();
                 openApptKebabDropdown(button);
             }
-        } else if (!e.target.closest('.appt-kebab-dropdown-portal')) {
+            return;
+        }
+        if (!e.target.closest('.appt-kebab-dropdown-portal')) {
             closeApptKebabDropdown();
         }
-    });
+    }
+    window.__adminApptKebabClickHandler = handleAdminApptKebabDocumentClick;
+    document.addEventListener('click', window.__adminApptKebabClickHandler, true);
 
     function editAppointment(id) {
         const appt = appointments.find(a => a.id == id);

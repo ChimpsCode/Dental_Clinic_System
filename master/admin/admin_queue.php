@@ -1254,9 +1254,9 @@ div.main-content {
 
 <script>
 // Queue Kebab Menu - Portal Based (same as patient-records)
-let queueKebabDropdown = null;
-let queueKebabBackdrop = null;
-let queueActiveButton = null;
+var queueKebabDropdown = null;
+var queueKebabBackdrop = null;
+var queueActiveButton = null;
 
 function createQueueKebabDropdown() {
     queueKebabDropdown = document.createElement('div');
@@ -1428,7 +1428,9 @@ function positionQueueKebabDropdown(button) {
 }
 
 function openQueueKebabDropdown(button) {
-    if (!queueKebabDropdown) {
+    if (!queueKebabDropdown || !queueKebabDropdown.isConnected) {
+        queueKebabDropdown = null;
+        queueKebabBackdrop = null;
         createQueueKebabDropdown();
     }
 

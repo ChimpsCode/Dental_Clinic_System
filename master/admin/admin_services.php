@@ -817,9 +817,9 @@ function showToast(message, type) {
 /**
  * Service kebab (meatball) menu
  */
-let serviceKebabDropdown = null;
-let serviceKebabBackdrop = null;
-let activeServiceKebabButton = null;
+var serviceKebabDropdown = null;
+var serviceKebabBackdrop = null;
+var activeServiceKebabButton = null;
 
 function initServiceKebabMenu() {
     serviceKebabDropdown = document.getElementById('serviceKebabDropdown');
@@ -827,11 +827,14 @@ function initServiceKebabMenu() {
 
     if (!serviceKebabDropdown || !serviceKebabBackdrop) return;
 
-    document.addEventListener('click', handleServiceKebabToggle);
+    if (window.__adminServicesKebabClickHandler) {
+        document.removeEventListener('click', window.__adminServicesKebabClickHandler, true);
+        document.removeEventListener('click', window.__adminServicesKebabClickHandler, false);
+    }
+    window.__adminServicesKebabClickHandler = handleServiceKebabToggle;
+    document.addEventListener('click', window.__adminServicesKebabClickHandler, true);
     serviceKebabDropdown.addEventListener('click', handleServiceKebabAction);
     serviceKebabBackdrop.addEventListener('click', closeServiceKebabDropdown);
-    window.addEventListener('resize', closeServiceKebabDropdown);
-    window.addEventListener('scroll', closeServiceKebabDropdown, true);
 }
 
 function handleServiceKebabToggle(e) {
