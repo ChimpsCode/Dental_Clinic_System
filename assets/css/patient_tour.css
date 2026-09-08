@@ -215,6 +215,8 @@ svg.driver-overlay {
     width: 44%;
     min-height: 220px;
     max-height: 280px;
+    background: #9ccae9;
+    border-radius: 12px;
 }
 
 .patient-tour-intro-lottie svg {
