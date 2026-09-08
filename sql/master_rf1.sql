@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS `billing` (
   `total_amount` decimal(10,2) NOT NULL,
   `paid_amount` decimal(10,2) DEFAULT 0.00,
   `balance` decimal(10,2) NOT NULL,
-  `payment_status` ENUM('Paid', 'Partial', 'Unpaid', 'Overdue') DEFAULT 'Unpaid',
+  `payment_status` ENUM('Paid', 'Partial', 'Unpaid', 'Overdue', 'Cancelled') DEFAULT 'Unpaid',
   `billing_date` date NOT NULL,
   `due_date` date DEFAULT NULL,
   `printed_at` datetime DEFAULT NULL,

@@ -19,7 +19,7 @@ try {
     $statusFilter = isset($_GET['status']) ? trim($_GET['status']) : '';
     $dateFilter = isset($_GET['date']) ? trim($_GET['date']) : 'all';
 
-    $whereClause = "WHERE 1=1";
+    $whereClause = "WHERE LOWER(COALESCE(b.payment_status, 'unpaid')) != 'cancelled'";
     $params = [];
 
     if ($searchQuery !== '') {

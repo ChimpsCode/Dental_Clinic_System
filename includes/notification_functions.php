@@ -507,6 +507,7 @@ function notifyPatientConsultationComplete(PDO $pdo, int $patientId, ?float $bal
                     SELECT SUM(GREATEST(COALESCE(balance, 0), COALESCE(total_amount, 0) - COALESCE(paid_amount, 0))) AS outstanding
                     FROM billing
                     WHERE patient_id = ?
+                      AND LOWER(COALESCE(payment_status, 'unpaid')) NOT IN ('paid', 'cancelled')
                 ");
                 $stmt->execute([$patientId]);
                 $balance = (float)($stmt->fetchColumn() ?: 0);
@@ -664,7 +665,7 @@ function checkAndNotifyOverduePayments(PDO $pdo): void
             WHERE b.balance > 0
               AND b.due_date IS NOT NULL
               AND b.due_date < CURDATE()
-              AND b.payment_status != 'Paid'
+              AND b.payment_status NOT IN ('Paid', 'Cancelled')
               AND COALESCE(b.is_archived, 0) = 0
         ");
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);

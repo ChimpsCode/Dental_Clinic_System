@@ -27,7 +27,7 @@ try {
     $dateFilter = isset($_GET['date']) ? trim($_GET['date']) : 'all';
     $currentPage = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 
-    $whereClause = "WHERE 1=1";
+    $whereClause = "WHERE LOWER(COALESCE(b.payment_status, 'unpaid')) != 'cancelled'";
     $params = [];
 
     if ($searchQuery !== '') {

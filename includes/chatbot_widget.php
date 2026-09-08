@@ -37,6 +37,7 @@
       name="message"
       placeholder="Type your question… (e.g., price for braces, clinic hours)"
       aria-label="Chat message"
+      maxlength="500"
       required
     />
     <button class="btn btn-primary" type="submit">Send</button>

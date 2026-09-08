@@ -325,6 +325,14 @@
     e.preventDefault();
     var text = input.value.trim();
     if (!text) return;
+    if (window.FormSanitize && window.FormSanitize.containsHtml(text)) {
+      addMsg('bot', 'Please enter a valid message.');
+      return;
+    }
+    if (text.length > 500) {
+      addMsg('bot', 'Message is too long.');
+      return;
+    }
     addMsg('user', text);
     input.value = '';
     processChat(text);

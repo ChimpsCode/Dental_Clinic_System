@@ -500,16 +500,21 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
         echo json_encode(['success' => false, 'message' => 'Please fill in all fields']);
         exit();
     }
-
-    if (empty($captcha)) {
-        echo json_encode(['success' => false, 'message' => 'Please enter the captcha code']);
-        exit();
-    }
-
-    if (!validateCaptcha($captcha)) {
-        refreshCaptcha();
-        echo json_encode(['success' => false, 'message' => 'Invalid or expired captcha code']);
-        exit();
+    
+    // Skip captcha check if skip_captcha flag is set (used by welcome-back flow where patient identity is already verified)
+    $skipCaptcha = isset($_POST['skip_captcha']) && $_POST['skip_captcha'] === '1';
+    
+    if (!$skipCaptcha) {
+        if (empty($captcha)) {
+            echo json_encode(['success' => false, 'message' => 'Please enter the captcha code']);
+            exit();
+        }
+        
+        if (!validateCaptcha($captcha)) {
+            refreshCaptcha();
+            echo json_encode(['success' => false, 'message' => 'Invalid or expired captcha code']);
+            exit();
+        }
     }
     
     try {
@@ -898,6 +903,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
     <title>RF Dental Clinic - Login</title>
     <link rel="icon" type="image/png" href="<?php echo htmlspecialchars($loginLogo); ?>">
     <link rel="stylesheet" href="../../assets/css/login-new.css?v=5">
+    <link rel="stylesheet" href="../../assets/css/login-new.css?v=4">
     <style>
         #registrationContainer {
             position: relative;

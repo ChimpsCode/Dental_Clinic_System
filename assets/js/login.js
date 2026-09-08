@@ -1,4 +1,4 @@
-﻿document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function() {
     // Initialize Carousel
     initializeCarousel();
     
@@ -600,6 +600,24 @@
                 return;
             }
 
+            const middleName = document.getElementById('reg_middle_name')?.value.trim() || '';
+            const addressVal = document.getElementById('reg_address')?.value.trim() || '';
+            if (window.FormSanitize) {
+                const bad = window.FormSanitize.firstError([
+                    window.FormSanitize.name(firstName, true, 'First name'),
+                    window.FormSanitize.name(middleName, false, 'Middle name'),
+                    window.FormSanitize.name(lastName, true, 'Last name'),
+                    window.FormSanitize.phone(phone, true),
+                    window.FormSanitize.address(addressVal, false),
+                    window.FormSanitize.name(emergencyName, true, 'Emergency contact name'),
+                    window.FormSanitize.phone(emergencyPhone, true)
+                ]);
+                if (bad) {
+                    showToast('Error', bad.error, 'error');
+                    return;
+                }
+            }
+
             showRegistrationStep(2);
             const emailField = document.getElementById('reg_email');
             if (emailField) emailField.focus();
@@ -625,6 +643,30 @@
             if (!email) {
                 showToast('Error', 'Please enter your email address.', 'error');
                 return;
+            }
+
+            if (window.FormSanitize) {
+                const firstName = document.getElementById('reg_first_name')?.value || '';
+                const middleName = document.getElementById('reg_middle_name')?.value || '';
+                const lastName = document.getElementById('reg_last_name')?.value || '';
+                const phone = document.getElementById('reg_phone')?.value || '';
+                const addressVal = document.getElementById('reg_address')?.value || '';
+                const emergencyName = document.getElementById('reg_emergency_name')?.value || '';
+                const emergencyPhone = document.getElementById('reg_emergency_phone')?.value || '';
+                const bad = window.FormSanitize.firstError([
+                    window.FormSanitize.name(firstName, true, 'First name'),
+                    window.FormSanitize.name(middleName, false, 'Middle name'),
+                    window.FormSanitize.name(lastName, true, 'Last name'),
+                    window.FormSanitize.phone(phone, true),
+                    window.FormSanitize.email(email, true),
+                    window.FormSanitize.address(addressVal, false),
+                    window.FormSanitize.name(emergencyName, true, 'Emergency contact name'),
+                    window.FormSanitize.phone(emergencyPhone, true)
+                ]);
+                if (bad) {
+                    showToast('Error', bad.error, 'error');
+                    return;
+                }
             }
 
             if (pwd !== confirmPwd) {
@@ -854,6 +896,13 @@
             if (!email) {
                 showForgotError('Please enter your email address.');
                 return;
+            }
+            if (window.FormSanitize) {
+                const emailCheck = window.FormSanitize.email(email, true);
+                if (!emailCheck.ok) {
+                    showForgotError(emailCheck.error);
+                    return;
+                }
             }
             clearForgotMessages();
             fpSendBtn.disabled = true;
@@ -1094,6 +1143,15 @@
                 showToast('Error', 'Please enter your username', 'error');
                 if (usernameInput) usernameInput.focus();
                 return false;
+            }
+
+            if (window.FormSanitize) {
+                const ident = window.FormSanitize.loginIdentifier(username);
+                if (!ident.ok) {
+                    showToast('Error', ident.error, 'error');
+                    if (usernameInput) usernameInput.focus();
+                    return false;
+                }
             }
 
             if (!password) {

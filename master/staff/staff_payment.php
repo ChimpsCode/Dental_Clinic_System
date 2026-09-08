@@ -38,7 +38,8 @@ try {
     $dateFilter = isset($_GET['date']) ? trim($_GET['date']) : 'all';
     
     // Billing-based listing so staff can see all billed patients, not only active queue rows.
-    $whereClause = "WHERE 1=1";
+    // Voided/cancelled bills from queue cancel are hidden.
+    $whereClause = "WHERE LOWER(COALESCE(b.payment_status, 'unpaid')) != 'cancelled'";
     $params = [];
     
     // Apply search filter
@@ -114,6 +115,7 @@ try {
                 CASE
                     WHEN b.payment_status = 'Paid' THEN 'paid'
                     WHEN b.payment_status = 'Partial' THEN 'partial'
+                    WHEN b.payment_status = 'Cancelled' THEN 'cancelled'
                     ELSE 'unpaid'
                 END AS effective_payment_status,
                 b.billing_date,
@@ -156,7 +158,7 @@ try {
             (SELECT COALESCE(SUM(b.total_amount), 0)
              FROM billing b
              WHERE DATE(b.billing_date) = CURDATE()
-               AND b.payment_status != 'Paid') AS pending_today,
+               AND b.payment_status NOT IN ('Paid', 'Cancelled')) AS pending_today,
                
             (SELECT COUNT(*)
              FROM billing b
@@ -166,7 +168,7 @@ try {
             (SELECT COUNT(*)
              FROM billing b
              WHERE DATE(b.billing_date) = CURDATE()
-               AND b.payment_status != 'Paid') AS unpaid_today
+               AND b.payment_status NOT IN ('Paid', 'Cancelled')) AS unpaid_today
     ";
     $statsStmt = $conn->query($statsSql);
     $stats = $statsStmt ? $statsStmt->fetch(PDO::FETCH_ASSOC) : [
@@ -374,6 +376,8 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                             echo '<span class="status-badge queue-pending-payment">Pending Payment</span>';
                                         } elseif ($qs === 'in_procedure' || $qs === 'in procedure') {
                                             echo '<span class="status-badge queue-in-procedure">In Procedure</span>';
+                                        } elseif ($qs === 'cancelled' || $qs === 'canceled') {
+                                            echo '<span class="status-badge queue-cancelled">Cancelled</span>';
                                         } else {
                                             echo '<span class="status-badge queue-waiting">Waiting</span>';
                                         }
@@ -852,6 +856,11 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                 .status-badge.queue-waiting {
                     background: #f3f4f6;
                     color: #6b7280;
+                }
+
+                .status-badge.queue-cancelled {
+                    background: #fee2e2;
+                    color: #dc2626;
                 }
 
                 /* Payment Kebab Menu Styles - Portal Based */

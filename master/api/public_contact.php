@@ -2,21 +2,36 @@
 header('Content-Type: application/json');
 require_once '../../config/database.php';
 require_once '../../includes/inquiry_module_helper.php';
+require_once '../../includes/input_sanitize.php';
 
 ensureInquiryModuleSchema($pdo);
 
-$firstName = trim($_POST['first_name'] ?? '');
-$middleName = trim($_POST['middle_name'] ?? '');
-$lastName = trim($_POST['last_name'] ?? '');
-$email = trim($_POST['email'] ?? '');
-$phone = trim($_POST['phone'] ?? '');
-$message = trim($_POST['message'] ?? '');
+$first = sanitize_name($_POST['first_name'] ?? '', true, 80, 'First name');
+$middle = sanitize_name($_POST['middle_name'] ?? '', false, 80, 'Middle name');
+$last = sanitize_name($_POST['last_name'] ?? '', true, 80, 'Last name');
+$emailResult = sanitize_email($_POST['email'] ?? '', true);
+$phoneResult = sanitize_phone($_POST['phone'] ?? '', true);
+$messageResult = sanitize_message($_POST['message'] ?? '', true, 2000, 'Message');
+
+foreach ([$first, $middle, $last, $emailResult, $phoneResult, $messageResult] as $field) {
+    if (!$field['ok']) {
+        echo json_encode(['success' => false, 'message' => $field['error']]);
+        exit;
+    }
+}
+
+$firstName = $first['value'];
+$middleName = $middle['value'];
+$lastName = $last['value'];
+$email = $emailResult['value'];
+$phone = $phoneResult['value'];
+$message = $messageResult['value'];
 $serviceId = isset($_POST['service_id']) ? (int)$_POST['service_id'] : null;
 $preferredDate = trim($_POST['preferred_date'] ?? '');
 $preferredTime = trim($_POST['preferred_time'] ?? '');
 
-if (!$firstName || !$lastName || !$email || !$phone || !$message) {
-    echo json_encode(['success' => false, 'message' => 'All required fields must be filled out.']);
+if (contains_html($preferredDate) || contains_html($preferredTime)) {
+    echo json_encode(['success' => false, 'message' => 'This field contains invalid characters.']);
     exit;
 }
 

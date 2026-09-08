@@ -1,7 +1,9 @@
 <?php
 ini_set('display_errors', '0');
 error_reporting(E_ALL);
-require_once __DIR__ . '/../../includes/session_bootstrap.php';header('Content-Type: application/json; charset=utf-8');
+require_once __DIR__ . '/../../includes/session_bootstrap.php';
+header('Content-Type: application/json; charset=utf-8');
+require_once __DIR__ . '/../../includes/input_sanitize.php';
 
 function respond(bool $success, string $message, array $extra = [], int $status = 200): void {
     http_response_code($status);
@@ -56,7 +58,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $action = trim($_POST['action'] ?? 'register');
 
 if ($action === 'verify_otp') {
-    $enteredOtp = trim($_POST['otp'] ?? '');
+    $otpResult = sanitize_digit_code($_POST['otp'] ?? '', 6, 'Verification code');
+    if (!$otpResult['ok']) {
+        respond(false, $otpResult['error']);
+    }
+    $enteredOtp = $otpResult['value'];
     $storedOtp = $_SESSION['reg_otp'] ?? '';
     $expires = $_SESSION['reg_otp_expires'] ?? 0;
     $regData = $_SESSION['reg_data'] ?? null;
@@ -66,34 +72,11 @@ if ($action === 'verify_otp') {
     }
 
     if (!$regData) {
-        $firstName = trim($_POST['first_name'] ?? '');
-        $middleName = trim($_POST['middle_name'] ?? '');
-        $lastName = trim($_POST['last_name'] ?? '');
-        $email = trim($_POST['email'] ?? '');
-        $phone = trim($_POST['phone'] ?? '');
-        $gender = trim($_POST['gender'] ?? '');
-        $dateOfBirth = trim($_POST['date_of_birth'] ?? '');
-        $address = trim($_POST['address'] ?? '');
-        $emergencyContactName = trim($_POST['emergency_contact_name'] ?? '');
-        $emergencyContactPhone = trim($_POST['emergency_contact_phone'] ?? '');
-        $emergencyContactRelationship = trim($_POST['emergency_contact_relationship'] ?? '');
+        $fallback = sanitize_patient_registration_input($_POST, ['require_dob' => true]);
         $password = (string)($_POST['password'] ?? '');
-
-        if ($firstName !== '' && $lastName !== '' && $email !== '' && $phone !== '' && $gender !== '' && $dateOfBirth !== '' && $password !== '') {
-            $regData = [
-                'first_name' => $firstName,
-                'middle_name' => $middleName,
-                'last_name' => $lastName,
-                'email' => $email,
-                'phone' => $phone,
-                'gender' => $gender,
-                'date_of_birth' => $dateOfBirth,
-                'address' => $address,
-                'emergency_contact_name' => $emergencyContactName,
-                'emergency_contact_phone' => $emergencyContactPhone,
-                'emergency_contact_relationship' => $emergencyContactRelationship,
-                'password' => $password,
-            ];
+        if ($fallback['ok'] && $password !== '') {
+            $regData = $fallback['data'];
+            $regData['password'] = $password;
         }
     }
 
@@ -279,23 +262,24 @@ if ($action === 'verify_otp') {
     }
 }
 
-$firstName = trim($_POST['first_name'] ?? '');
-$middleName = trim($_POST['middle_name'] ?? '');
-$lastName = trim($_POST['last_name'] ?? '');
-$email = trim($_POST['email'] ?? '');
-$phone = trim($_POST['phone'] ?? '');
-$gender = trim($_POST['gender'] ?? '');
-$dateOfBirth = trim($_POST['date_of_birth'] ?? '');
-$address = trim($_POST['address'] ?? '');
+$fields = sanitize_patient_registration_input($_POST, ['require_dob' => true]);
+if (!$fields['ok']) {
+    respond(false, $fields['error']);
+}
+
+$firstName = $fields['data']['first_name'];
+$middleName = $fields['data']['middle_name'];
+$lastName = $fields['data']['last_name'];
+$email = $fields['data']['email'];
+$phone = $fields['data']['phone'];
+$gender = $fields['data']['gender'];
+$dateOfBirth = $fields['data']['date_of_birth'];
+$address = $fields['data']['address'];
 $password = (string)($_POST['password'] ?? '');
 $confirmPassword = (string)($_POST['confirm_password'] ?? '');
 
-if ($firstName === '' || $lastName === '' || $email === '' || $phone === '' || $gender === '' || $dateOfBirth === '' || $password === '' || $confirmPassword === '') {
+if ($password === '' || $confirmPassword === '') {
     respond(false, 'Please fill in all required fields.');
-}
-
-if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    respond(false, 'Please enter a valid email address.');
 }
 
 if ($password !== $confirmPassword) {
@@ -328,9 +312,9 @@ try {
         respond(true, 'Verification code sent to your email.', ['step' => 'otp']);
     }
 
-    $emergencyContactName = trim($_POST['emergency_contact_name'] ?? '');
-    $emergencyContactPhone = trim($_POST['emergency_contact_phone'] ?? '');
-    $emergencyContactRelationship = trim($_POST['emergency_contact_relationship'] ?? '');
+    $emergencyContactName = $fields['data']['emergency_contact_name'];
+    $emergencyContactPhone = $fields['data']['emergency_contact_phone'];
+    $emergencyContactRelationship = $fields['data']['emergency_contact_relationship'];
 
     $otpCode = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
     $_SESSION['reg_otp'] = $otpCode;

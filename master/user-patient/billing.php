@@ -95,6 +95,7 @@ try {
         FROM billing b
         LEFT JOIN queue q ON CAST(q.patient_id AS UNSIGNED) = b.patient_id AND DATE(q.created_at) = DATE(b.billing_date)
         WHERE b.patient_id = ?
+          AND LOWER(COALESCE(b.payment_status, 'unpaid')) != 'cancelled'
         ORDER BY b.billing_date DESC, b.id DESC
     ");
     $stmt->execute([$patient_id]);
@@ -115,11 +116,14 @@ try {
     $nearestDueDate = null;
     $nearestDueBalance = 0;
     foreach ($billings as $b) {
+        $statusLower = strtolower((string)($b['payment_status'] ?? 'unpaid'));
+        if ($statusLower === 'cancelled') {
+            continue;
+        }
         $totalAmount += floatval($b['total_amount'] ?? 0);
         $totalPaid += floatval($b['paid_amount'] ?? 0);
         $balanceVal = floatval($b['balance'] ?? 0);
         $totalPending += $balanceVal;
-        $statusLower = strtolower((string)($b['payment_status'] ?? 'unpaid'));
         $dueVal = $b['due_date'] ?? '';
         if ($balanceVal > 0 && $statusLower !== 'paid' && !empty($dueVal)) {
             if ($nearestDueDate === null || $dueVal < $nearestDueDate) {

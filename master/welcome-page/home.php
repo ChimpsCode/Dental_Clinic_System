@@ -139,10 +139,11 @@ $assets = [
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,700;1,400&family=Inria+Sans:wght@400;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="../../assets/css/home-styles.css?v=12" />
+    <link rel="stylesheet" href="../../assets/css/home-styles.css?v=14" />
     <link rel="stylesheet" href="../../assets/css/home-integration.css" />
     <link rel="stylesheet" href="../../assets/css/chatbot-components.css" />
     <script src="../../assets/js/home-integration.js" defer></script>
+    <script src="../../assets/js/form-sanitize.js?v=2"></script>
     <style>
       @keyframes homeFadeIn {
         from { opacity: 0; }
@@ -372,22 +373,22 @@ $assets = [
 
             <div class="appointment-card" aria-label="Book an appointment">
               <div class="appointment-title">Book an Appointment Today</div>
-              <form class="appointment-form" action="#" method="post">
+              <form class="appointment-form" action="#" method="post" novalidate>
                 <label class="field">
                   <span class="sr-only">First Name</span>
-                  <input name="first_name" type="text" placeholder="First Name" required />
+                  <input name="first_name" type="text" placeholder="First Name" required maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only" autocomplete="given-name" />
                 </label>
                 <label class="field">
                   <span class="sr-only">Middle Name</span>
-                  <input name="middle_name" type="text" placeholder="Middle Name" />
+                  <input name="middle_name" type="text" placeholder="Middle Name" maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only" autocomplete="additional-name" />
                 </label>
                 <label class="field">
                   <span class="sr-only">Last Name</span>
-                  <input name="last_name" type="text" placeholder="Last Name" required />
+                  <input name="last_name" type="text" placeholder="Last Name" required maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only" autocomplete="family-name" />
                 </label>
                 <label class="field">
                   <span class="sr-only">Email Address</span>
-                  <input name="email" type="email" placeholder="Email Address" required />
+                  <input name="email" type="email" placeholder="Email Address" required maxlength="254" autocomplete="email" />
                 </label>
                 <button class="btn btn-primary" type="submit">Book Now</button>
               </form>
@@ -611,39 +612,39 @@ $assets = [
               <div class="form-logo" aria-hidden="true">
                 <img src="<?php echo htmlspecialchars($logoFull); ?>" alt="" />
               </div>
-              <form class="contact-form" action="#" method="post">
+              <form class="contact-form" action="#" method="post" novalidate>
                 <div class="form-row">
                   <label class="form-field">
                     <span class="form-label">First Name</span>
-                    <input type="text" name="first_name" placeholder="Juan" />
+                    <input type="text" name="first_name" placeholder="Juan" required maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only" autocomplete="given-name" />
                   </label>
                 </div>
                 <div class="form-row">
                   <label class="form-field">
                     <span class="form-label">Middle Name</span>
-                    <input type="text" name="middle_name" placeholder="Realina" />
+                    <input type="text" name="middle_name" placeholder="Realina" maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only" autocomplete="additional-name" />
                   </label>
                 </div>
                 <div class="form-row">
                   <label class="form-field">
                     <span class="form-label">Last Name</span>
-                    <input type="text" name="last_name" placeholder="Dela Cruz" />
+                    <input type="text" name="last_name" placeholder="Dela Cruz" required maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only" autocomplete="family-name" />
                   </label>
                 </div>
                 <div class="form-row form-row-split">
                   <label class="form-field">
                     <span class="form-label">Email</span>
-                    <input type="email" name="email" placeholder="example@gmail.com" />
+                    <input type="email" name="email" placeholder="example@gmail.com" required maxlength="254" autocomplete="email" />
                   </label>
                   <label class="form-field">
                     <span class="form-label">Phone Number</span>
-                    <input type="tel" name="phone" placeholder="09123456789" />
+                    <input type="tel" name="phone" placeholder="09123456789" required maxlength="11" inputmode="numeric" pattern="09[0-9]{9}" title="11-digit mobile number starting with 09" autocomplete="tel" />
                   </label>
                 </div>
                 <div class="form-row">
                   <label class="form-field">
                     <span class="form-label">Message</span>
-                    <textarea name="message" rows="4" placeholder="Your message..."></textarea>
+                    <textarea name="message" rows="4" placeholder="Your message..." required maxlength="2000"></textarea>
                   </label>
                 </div>
                 <div class="form-actions">
@@ -716,30 +717,103 @@ $assets = [
     <?php include __DIR__ . '/../../includes/chatbot_widget.php'; ?>
 
     <script>
-      // Mobile navigation toggle
+      // Mobile navigation toggle + smooth section scrolling
       (() => {
         const navToggle = document.querySelector('.nav-toggle');
         const nav = document.querySelector('.nav');
         const overlay = document.querySelector('.nav-overlay');
-        
+
+        const toggleNav = (shouldOpen) => {
+          if (!navToggle || !nav) return;
+          const isOpen = shouldOpen ?? !nav.classList.contains('open');
+          nav.classList.toggle('open', isOpen);
+          navToggle.classList.toggle('open', isOpen);
+          overlay?.classList.toggle('open', isOpen);
+          navToggle.setAttribute('aria-expanded', isOpen);
+          document.body.style.overflow = isOpen ? 'hidden' : '';
+        };
+
         if (navToggle && nav) {
-          const toggleNav = (shouldOpen) => {
-            const isOpen = shouldOpen ?? !nav.classList.contains('open');
-            nav.classList.toggle('open', isOpen);
-            navToggle.classList.toggle('open', isOpen);
-            overlay?.classList.toggle('open', isOpen);
-            navToggle.setAttribute('aria-expanded', isOpen);
-            document.body.style.overflow = isOpen ? 'hidden' : '';
-          };
-          
           navToggle.addEventListener('click', () => toggleNav());
           overlay?.addEventListener('click', () => toggleNav(false));
-          
-          // Close nav when clicking a link
-          nav.querySelectorAll('.nav-link').forEach(link => {
-            link.addEventListener('click', () => toggleNav(false));
-          });
         }
+
+        function currentScroll() {
+          return window.pageYOffset
+            || document.documentElement.scrollTop
+            || document.body.scrollTop
+            || 0;
+        }
+
+        function applyPageScroll(y) {
+          window.scrollTo(0, y);
+          document.documentElement.scrollTop = y;
+          document.body.scrollTop = y;
+          if (document.scrollingElement) document.scrollingElement.scrollTop = y;
+        }
+
+        function smoothScrollTo(top) {
+          const start = currentScroll();
+          const distance = top - start;
+          if (Math.abs(distance) < 2) return;
+          const duration = 700;
+          const t0 = performance.now();
+
+          function step(now) {
+            const p = Math.min(1, (now - t0) / duration);
+            const eased = 1 - Math.pow(1 - p, 3);
+            applyPageScroll(start + distance * eased);
+            if (p < 1) requestAnimationFrame(step);
+          }
+          requestAnimationFrame(step);
+        }
+
+        if (!nav) return;
+
+        let scrolling = false;
+
+        function onNavActivate(e) {
+          const link = e.target.closest('a.nav-link');
+          if (!link || !nav.contains(link)) return;
+
+          const href = link.getAttribute('href') || '';
+          if (!href.startsWith('#')) return;
+
+          const id = href.slice(1);
+          const target = document.getElementById(id);
+          if (!target && id !== 'top' && id !== 'home') return;
+
+          e.preventDefault();
+          e.stopPropagation();
+          if (scrolling) return;
+          scrolling = true;
+          window.setTimeout(() => { scrolling = false; }, 750);
+
+          toggleNav(false);
+          document.body.style.overflow = '';
+          document.documentElement.style.overflowX = 'visible';
+          document.body.style.overflowX = 'visible';
+
+          nav.querySelectorAll('.nav-link').forEach((item) => item.classList.remove('active'));
+          link.classList.add('active');
+
+          if (window.history && window.history.pushState) {
+            window.history.pushState(null, '', href);
+          }
+
+          if (id === 'top' || id === 'home') {
+            smoothScrollTo(0);
+            return;
+          }
+
+          const header = document.querySelector('.site-header');
+          const offset = header ? header.getBoundingClientRect().height + 14 : 64;
+          const top = Math.max(0, target.getBoundingClientRect().top + currentScroll() - offset);
+          smoothScrollTo(top);
+        }
+
+        nav.addEventListener('click', onNavActivate, true);
+        nav.addEventListener('touchend', onNavActivate, { capture: true, passive: false });
       })();
 
       (() => {
@@ -782,18 +856,29 @@ $assets = [
         const MAX_SCALE = 1.08;
         let ticking = false;
 
+        function pageScrollY() {
+          return Math.max(
+            window.pageYOffset || 0,
+            document.documentElement.scrollTop || 0,
+            document.body.scrollTop || 0
+          );
+        }
+
         function updateZoom() {
           ticking = false;
           const range = space.offsetHeight || 1;
-          const progress = Math.min(1, Math.max(0, window.scrollY / range));
+          const progress = Math.min(1, Math.max(0, pageScrollY() / range));
           heroInner.style.transform = 'scale(' + (1 + (MAX_SCALE - 1) * progress) + ')';
         }
 
-        window.addEventListener('scroll', () => {
+        function onScroll() {
           if (ticking) return;
           ticking = true;
           requestAnimationFrame(updateZoom);
-        }, { passive: true });
+        }
+
+        window.addEventListener('scroll', onScroll, { passive: true });
+        document.addEventListener('scroll', onScroll, { capture: true, passive: true });
 
         updateZoom();
       })();
@@ -853,7 +938,7 @@ $assets = [
         echo json_encode($chatServices);
       ?>;
     </script>
-    <script src="../../assets/js/chatbot.js?v=3"></script>
+    <script src="../../assets/js/chatbot.js?v=5"></script>
 
     <script>
       (() => {
@@ -920,11 +1005,23 @@ $assets = [
         if (heroForm) {
           heroForm.addEventListener('submit', function(e) {
             e.preventDefault();
+            const firstVal = this.querySelector('[name="first_name"]').value;
+            const middleVal = this.querySelector('[name="middle_name"]').value;
+            const lastVal = this.querySelector('[name="last_name"]').value;
+            const emailVal = this.querySelector('[name="email"]').value;
+            if (window.FormSanitize && !window.FormSanitize.alertIfInvalid([
+              window.FormSanitize.name(firstVal, true, 'First name'),
+              window.FormSanitize.name(middleVal, false, 'Middle name'),
+              window.FormSanitize.name(lastVal, true, 'Last name'),
+              window.FormSanitize.email(emailVal, true)
+            ])) {
+              return;
+            }
             bookingData = {
-              first: this.querySelector('[name="first_name"]').value.trim(),
-              middle: this.querySelector('[name="middle_name"]').value.trim(),
-              last: this.querySelector('[name="last_name"]').value.trim(),
-              email: this.querySelector('[name="email"]').value.trim()
+              first: firstVal.trim(),
+              middle: middleVal.trim(),
+              last: lastVal.trim(),
+              email: emailVal.trim()
             };
             const cap = function(s) { return s ? s.replace(/\b\w/g, function(l) { return l.toUpperCase(); }) : ''; };
             document.getElementById('reg-first-name').value = cap(bookingData.first || '');
@@ -955,6 +1052,10 @@ $assets = [
               .then(function(r) { return r.json(); })
               .then(function(data) {
                 console.log('check_user_exists response for', bookingData.email, data);
+                if (data.error) {
+                  alert(data.error);
+                  return;
+                }
                 if (data.exists) {
                   if (data.is_archived) {
                     alert('This email was previously used and is no longer active. Please contact the clinic to restore your account.');
@@ -1012,6 +1113,17 @@ $assets = [
             const email = this.querySelector('[name="email"]').value.trim();
             const phone = this.querySelector('[name="phone"]').value.trim();
             const message = this.querySelector('[name="message"]').value.trim();
+
+            if (window.FormSanitize && !window.FormSanitize.alertIfInvalid([
+              window.FormSanitize.name(first, true, 'First name'),
+              window.FormSanitize.name(middle, false, 'Middle name'),
+              window.FormSanitize.name(last, true, 'Last name'),
+              window.FormSanitize.email(email, true),
+              window.FormSanitize.phone(phone, true),
+              window.FormSanitize.message(message, true, 2000, 'Message')
+            ])) {
+              return;
+            }
 
             if (!first || !last || !email || !phone || !message) {
               alert('Please fill in all required fields.');
@@ -1088,9 +1200,13 @@ $assets = [
         </div>
         <div class="modal-body">
           <p class="modal-intro">Almost done! Complete your information and create a password to secure your account.</p>
+<<<<<<< HEAD
           <form id="registrationForm" class="modal-form" autocomplete="off">
             <input type="text" tabindex="-1" aria-hidden="true" autocomplete="username" style="position:absolute;left:-9999px;height:0;width:0;opacity:0;" value="">
             <input type="password" tabindex="-1" aria-hidden="true" autocomplete="current-password" style="position:absolute;left:-9999px;height:0;width:0;opacity:0;" value="">
+=======
+          <form id="registrationForm" class="modal-form" novalidate>
+>>>>>>> 8bd137f3dc545e9faa476ca516d5777207633364
             <!-- Hidden fields from initial form -->
             <input type="hidden" id="reg-first-name" name="first_name" />
             <input type="hidden" id="reg-middle-name" name="middle_name" />
@@ -1103,21 +1219,21 @@ $assets = [
               <div class="form-row">
                 <div class="form-group">
                   <label for="reg-first-name-display">First Name <span style="color:#dc2626">*</span></label>
-                  <input type="text" id="reg-first-name-display" placeholder="First Name" required />
+                  <input type="text" id="reg-first-name-display" placeholder="First Name" required maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only" autocomplete="given-name" />
                 </div>
                 <div class="form-group">
                   <label for="reg-middle-name-display">Middle Name</label>
-                  <input type="text" id="reg-middle-name-display" placeholder="Middle Name" />
+                  <input type="text" id="reg-middle-name-display" placeholder="Middle Name" maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only" autocomplete="additional-name" />
                 </div>
                 <div class="form-group">
                   <label for="reg-last-name-display">Last Name <span style="color:#dc2626">*</span></label>
-                  <input type="text" id="reg-last-name-display" placeholder="Last Name" required />
+                  <input type="text" id="reg-last-name-display" placeholder="Last Name" required maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only" autocomplete="family-name" />
                 </div>
               </div>
               <div class="form-row">
                 <div class="form-group">
                   <label for="reg-phone">Phone Number <span style="color:#dc2626">*</span></label>
-                  <input type="tel" id="reg-phone" name="phone" required placeholder="09123456789" maxlength="11" inputmode="numeric" pattern="[0-9]*" autocomplete="tel" />
+                  <input type="tel" id="reg-phone" name="phone" required placeholder="09123456789" maxlength="11" inputmode="numeric" pattern="09[0-9]{9}" title="11-digit mobile number starting with 09" autocomplete="tel" />
                 </div>
                 <div class="form-group">
                   <label for="reg-gender">Gender <span style="color:#dc2626">*</span></label>
@@ -1140,16 +1256,16 @@ $assets = [
               </div>
               <div class="form-group">
                 <label for="reg-address">Address (Optional)</label>
-                <input type="text" id="reg-address" name="address" placeholder="Your complete address" />
+                <input type="text" id="reg-address" name="address" placeholder="Your complete address" maxlength="255" />
               </div>
               <div class="form-row">
                 <div class="form-group">
                   <label for="reg-emergency-name">Emergency Contact Name <span style="color:#dc2626">*</span></label>
-                  <input type="text" id="reg-emergency-name" name="emergency_contact_name" placeholder="Full name" required />
+                  <input type="text" id="reg-emergency-name" name="emergency_contact_name" placeholder="Full name" required maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only" />
                 </div>
                 <div class="form-group">
                   <label for="reg-emergency-phone">Emergency Contact Number <span style="color:#dc2626">*</span></label>
-                  <input type="tel" id="reg-emergency-phone" name="emergency_contact_phone" placeholder="09123456789" maxlength="11" required inputmode="numeric" pattern="[0-9]*" autocomplete="tel" />
+                  <input type="tel" id="reg-emergency-phone" name="emergency_contact_phone" placeholder="09123456789" maxlength="11" required inputmode="numeric" pattern="09[0-9]{9}" title="11-digit mobile number starting with 09" autocomplete="tel" />
                 </div>
               </div>
               <div class="form-group">
@@ -1194,7 +1310,11 @@ $assets = [
               <h4 class="form-section-title">Account Information</h4>
               <div class="form-group">
                 <label for="reg-email">Email (Username) <span style="color:#dc2626">*</span></label>
+<<<<<<< HEAD
                 <input type="email" id="reg-email" name="email" required placeholder="your@email.com" autocomplete="off" />
+=======
+                <input type="email" id="reg-email" name="email" required placeholder="your@email.com" maxlength="254" autocomplete="email" />
+>>>>>>> 8bd137f3dc545e9faa476ca516d5777207633364
                 <div id="reg-email-status" style="display:none; margin-top:6px; font-size:13px; color:#dc3545;"></div>
               </div>
               <div class="form-group">
@@ -1349,7 +1469,7 @@ $assets = [
         <p class="welcome-back-message" id="welcomeBackMessage">
           An account for <strong id="welcomeBackUserEmail">patient@email.com</strong> was found. Please enter your password to continue your booking.
         </p>
-        <form id="welcomeBackForm" class="welcome-back-form">
+        <form id="welcomeBackForm" class="welcome-back-form" novalidate>
           <div class="password-input-group">
             <input 
               type="password" 
@@ -1744,11 +1864,40 @@ $assets = [
           registrationForm.addEventListener('submit', async function(e) {
             e.preventDefault();
 
+            const firstDisplay = document.getElementById('reg-first-name-display');
+            const middleDisplay = document.getElementById('reg-middle-name-display');
+            const lastDisplay = document.getElementById('reg-last-name-display');
+            if (firstDisplay && document.getElementById('reg-first-name')) {
+              document.getElementById('reg-first-name').value = firstDisplay.value.trim();
+            }
+            if (middleDisplay && document.getElementById('reg-middle-name')) {
+              document.getElementById('reg-middle-name').value = middleDisplay.value.trim();
+            }
+            if (lastDisplay && document.getElementById('reg-last-name')) {
+              document.getElementById('reg-last-name').value = lastDisplay.value.trim();
+            }
+
             const password = document.getElementById('reg-password').value;
             const confirmPassword = document.getElementById('reg-confirm-password').value;
             const phone = document.getElementById('reg-phone').value;
             const gender = document.getElementById('reg-gender').value;
             const email = document.getElementById('reg-email').value;
+            const emergencyName = document.getElementById('reg-emergency-name') ? document.getElementById('reg-emergency-name').value : '';
+            const emergencyPhone = document.getElementById('reg-emergency-phone') ? document.getElementById('reg-emergency-phone').value : '';
+            const addressVal = document.getElementById('reg-address') ? document.getElementById('reg-address').value : '';
+
+            if (window.FormSanitize && !window.FormSanitize.alertIfInvalid([
+              window.FormSanitize.name(firstDisplay ? firstDisplay.value : '', true, 'First name'),
+              window.FormSanitize.name(middleDisplay ? middleDisplay.value : '', false, 'Middle name'),
+              window.FormSanitize.name(lastDisplay ? lastDisplay.value : '', true, 'Last name'),
+              window.FormSanitize.phone(phone, true),
+              window.FormSanitize.email(email, true),
+              window.FormSanitize.address(addressVal, false),
+              window.FormSanitize.name(emergencyName, true, 'Emergency contact name'),
+              window.FormSanitize.phone(emergencyPhone, true)
+            ])) {
+              return;
+            }
 
             if (regSubmitBtn && regSubmitBtn.disabled && regEmailStatus && regEmailStatus.textContent) {
               alert(regEmailStatus.textContent);
@@ -1973,6 +2122,12 @@ $assets = [
             
             const password = document.getElementById('welcome-back-password').value;
             const email = document.getElementById('welcome-back-email').value;
+
+            if (window.FormSanitize && !window.FormSanitize.alertIfInvalid([
+              window.FormSanitize.email(email, true)
+            ])) {
+              return;
+            }
             
             if (!password || password.length < 8) {
               alert('Password must be at least 8 characters');
@@ -2110,13 +2265,35 @@ $assets = [
           });
         }
         
-        // Add click event to nav links
+        function applyPageScroll(y) {
+          window.scrollTo(0, y);
+          document.documentElement.scrollTop = y;
+          document.body.scrollTop = y;
+          if (document.scrollingElement) document.scrollingElement.scrollTop = y;
+        }
+
+        function smoothScrollTo(top) {
+          const scroller = document.scrollingElement || document.documentElement;
+          const start = scroller.scrollTop || window.pageYOffset || document.body.scrollTop || 0;
+          const distance = top - start;
+          const duration = 520;
+          const t0 = performance.now();
+
+          function step(now) {
+            const p = Math.min(1, (now - t0) / duration);
+            const eased = 1 - Math.pow(1 - p, 3);
+            applyPageScroll(start + distance * eased);
+            if (p < 1) requestAnimationFrame(step);
+          }
+          requestAnimationFrame(step);
+        }
+
         navLinks.forEach(link => {
-          link.addEventListener('click', function(e) {
+          link.addEventListener('click', function() {
             navLinks.forEach(l => l.classList.remove('active'));
             this.classList.add('active');
           });
-});
+        });
         
         // Global function to calculate age
         window.handleBirthdateChange = function() {

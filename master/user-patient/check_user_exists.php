@@ -1,20 +1,28 @@
 <?php
 header('Content-Type: application/json');
-require_once __DIR__ . '/../../includes/session_bootstrap.php';require_once '../../config/database.php';
+require_once __DIR__ . '/../../includes/session_bootstrap.php';
+require_once '../../config/database.php';
+require_once __DIR__ . '/../../includes/input_sanitize.php';
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('Invalid request method');
     }
 
-    $email = trim($_POST['email'] ?? '');
+    $emailResult = sanitize_email($_POST['email'] ?? '', false);
+    if (!$emailResult['ok']) {
+        echo json_encode(['exists' => false, 'error' => $emailResult['error']]);
+        exit;
+    }
+
+    $email = $emailResult['value'];
 
     if ($email === '') {
         echo json_encode(['exists' => false]);
         exit;
     }
 
-    $emailLower = strtolower($email);
+    $emailLower = $email;
 
     $stmt = $pdo->prepare(
            "SELECT id, email, username, is_archived FROM users

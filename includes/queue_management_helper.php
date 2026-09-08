@@ -171,6 +171,16 @@ function archiveStaleQueueEntries(PDO $pdo, string $today = ''): int
         $today = date('Y-m-d');
     }
 
+    $select = $pdo->prepare("
+        SELECT *
+        FROM queue
+        WHERE status IN ('waiting', 'in_procedure', 'on_hold')
+          AND COALESCE(queue_date, DATE(created_at)) < ?
+          AND COALESCE(is_archived, 0) = 0
+    ");
+    $select->execute([$today]);
+    $staleEntries = $select->fetchAll(PDO::FETCH_ASSOC);
+
     $stmt = $pdo->prepare("
         UPDATE queue
         SET status = 'cancelled',
@@ -181,7 +191,20 @@ function archiveStaleQueueEntries(PDO $pdo, string $today = ''): int
           AND COALESCE(is_archived, 0) = 0
     ");
     $stmt->execute([$today]);
-    return $stmt->rowCount();
+    $count = $stmt->rowCount();
+
+    if (!empty($staleEntries)) {
+        require_once __DIR__ . '/billing_helper.php';
+        foreach ($staleEntries as $queueItem) {
+            try {
+                voidUnpaidBillingForQueue($pdo, $queueItem);
+            } catch (Exception $e) {
+                // Archive still succeeds if billing void fails
+            }
+        }
+    }
+
+    return $count;
 }
 
 function getNextDailyQueueNumber(PDO $pdo, string $queueDate): int

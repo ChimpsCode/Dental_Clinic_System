@@ -73,8 +73,9 @@ try {
         $pendingPaymentsCount = (int)($pdo->query("
             SELECT COUNT(*)
             FROM billing
-            WHERE payment_status IN ('pending', 'unpaid', 'partial')
-               OR (balance IS NOT NULL AND balance > 0)
+            WHERE (payment_status IN ('pending', 'unpaid', 'partial')
+               OR (balance IS NOT NULL AND balance > 0))
+              AND LOWER(COALESCE(payment_status, '')) != 'cancelled'
         ")->fetchColumn() ?? 0);
         
         // Get upcoming appointments for today and tomorrow
