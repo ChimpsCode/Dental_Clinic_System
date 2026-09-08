@@ -525,6 +525,35 @@ function notifyPatientConsultationComplete(PDO $pdo, int $patientId, ?float $bal
 }
 
 /**
+ * Notify staff that a consultation is complete and a bill may need settling.
+ */
+function notifyStaffConsultationComplete(PDO $pdo, string $patientName, float $amount, string $treatmentType = 'consultation'): void
+{
+    $patientName = trim($patientName);
+    if ($patientName === '') {
+        $patientName = 'A patient';
+    }
+
+    $treatmentLabel = trim($treatmentType);
+    $amount = (float)$amount;
+
+    if ($amount > 0) {
+        $title = 'Bill ready to settle';
+        if ($treatmentLabel !== '' && strtolower($treatmentLabel) !== 'consultation') {
+            $message = "{$patientName} is done with consultation ({$treatmentLabel}). Outstanding balance: ₱" . number_format($amount, 2);
+        } else {
+            $message = "{$patientName} is done with consultation. Outstanding balance: ₱" . number_format($amount, 2);
+        }
+    } else {
+        $title = 'Consultation complete';
+        $message = "{$patientName} consultation complete. No outstanding balance.";
+    }
+
+    notifyStaff($pdo, 'payment', $title, $message, 'staff_payment.php');
+    notifLog("notifyStaffConsultationComplete OK: patient={$patientName} amount={$amount} treatment={$treatmentLabel}");
+}
+
+/**
  * Notify patient of a pending payment.
  */
 function notifyPatientPaymentReminder(PDO $pdo, int $patientId, float $amount, string $treatmentType): void

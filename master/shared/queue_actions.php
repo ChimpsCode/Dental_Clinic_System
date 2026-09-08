@@ -226,6 +226,7 @@ try {
                 require_once __DIR__ . '/../../includes/patient_dashboard_status_helper.php';
                 $outstanding = getPatientOutstandingBalance($pdo, (int)$patientId);
                 notifyPatientConsultationComplete($pdo, (int)$patientId, $outstanding);
+                notifyStaffConsultationComplete($pdo, $patientName, $outstanding, (string)$treatmentType);
             }
 
             echo json_encode([

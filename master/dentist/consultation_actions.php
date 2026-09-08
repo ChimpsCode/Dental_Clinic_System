@@ -686,8 +686,14 @@ try {
             $stmt = $pdo->prepare("UPDATE consultations SET status = 'completed' WHERE id = ?");
             $stmt->execute([$consultId]);
 
-            // Get queue_id
-            $stmt = $pdo->prepare("SELECT queue_id, patient_id FROM consultations WHERE id = ?");
+            // Get queue_id and patient name
+            $stmt = $pdo->prepare("
+                SELECT c.queue_id, c.patient_id,
+                       p.first_name, p.middle_name, p.last_name, p.suffix
+                FROM consultations c
+                LEFT JOIN patients p ON p.id = c.patient_id
+                WHERE c.id = ?
+            ");
             $stmt->execute([$consultId]);
             $cons = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -744,6 +750,14 @@ try {
 
                 $outstanding = getPatientOutstandingBalance($pdo, (int)$cons['patient_id']);
                 notifyPatientConsultationComplete($pdo, (int)$cons['patient_id'], $outstanding);
+
+                $patientName = trim(implode(' ', array_filter([
+                    $cons['first_name'] ?? '',
+                    $cons['middle_name'] ?? '',
+                    $cons['last_name'] ?? '',
+                    $cons['suffix'] ?? '',
+                ])));
+                notifyStaffConsultationComplete($pdo, $patientName, $outstanding, (string)$treatmentType);
 
                 ob_clean();
                 echo json_encode([
