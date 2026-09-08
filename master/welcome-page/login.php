@@ -922,15 +922,8 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RF Dental Clinic - Login</title>
     <link rel="icon" type="image/png" href="<?php echo htmlspecialchars($loginLogo); ?>">
-<<<<<<< HEAD
-    <link rel="stylesheet" href="../../assets/css/login-new.css?v=4">
-<<<<<<< Updated upstream
-=======
     <link rel="stylesheet" href="../../assets/css/login-new.css?v=5">
->>>>>>> 7200aa4be57970dbbd9281f23bed23a2289ef5db
-=======
     <script src="../../assets/js/form-sanitize.js?v=2"></script>
->>>>>>> Stashed changes
     <style>
         #registrationContainer {
             position: relative;
@@ -1289,11 +1282,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
                         </div>
 
                         <div class="input-group">
-<<<<<<< Updated upstream
-                            <input type="tel" id="reg_phone" name="phone" placeholder="Phone Number" required maxlength="11" inputmode="numeric" pattern="[0-9]*" autocomplete="tel">
-=======
                             <input type="tel" id="reg_phone" name="phone" placeholder="Phone Number" required autocomplete="tel" maxlength="11" inputmode="numeric" pattern="09[0-9]{9}" title="11-digit mobile number starting with 09">
->>>>>>> Stashed changes
                         </div>
 
                         <div style="display: flex; gap: 12px; width: 100%;">
