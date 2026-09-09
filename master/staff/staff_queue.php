@@ -1680,11 +1680,20 @@ function viewPatientQueue(patientId) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                const p = data.patient;
-                const m = data.medical_history || {};
-                const d = data.dental_history || {};
-                const q = data.queue_item || {};
-                const fullName = `${p.first_name || ''} ${p.middle_name || ''} ${p.last_name || ''} ${p.suffix || ''}`.trim() || 'Unknown';
+                const escObj = function(obj) {
+                    const src = obj || {};
+                    const out = {};
+                    Object.keys(src).forEach(function(k) {
+                        out[k] = typeof src[k] === 'string' ? escapeHtml(src[k]) : src[k];
+                    });
+                    return out;
+                };
+                const pRaw = data.patient || {};
+                const p = escObj(pRaw);
+                const m = escObj(data.medical_history);
+                const d = escObj(data.dental_history);
+                const q = escObj(data.queue_item);
+                const fullName = `${pRaw.first_name || ''} ${pRaw.middle_name || ''} ${pRaw.last_name || ''} ${pRaw.suffix || ''}`.trim() || 'Unknown';
                 const conditions = m.medical_conditions || 'None';
                 const allergies = m.allergies || 'None';
                 const medications = m.current_medications || 'None';

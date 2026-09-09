@@ -1,7 +1,8 @@
 <?php
 header('Content-Type: application/json');
 
-require_once __DIR__ . '/../../includes/session_bootstrap.php';require_once '../../config/database.php';
+require_once __DIR__ . '/../../includes/session_bootstrap.php';
+require_once '../../config/database.php';
 require_once '../../includes/appointment_approval_helper.php';
 
 try {
@@ -9,16 +10,16 @@ try {
         throw new Exception('Invalid request method');
     }
 
-    $patient_id = $_POST['patient_id'] ?? null;
-    $patient_phone = $_POST['patient_phone'] ?? '';
+    $sessionRole = strtolower((string)($_SESSION['role'] ?? $_SESSION['user_role'] ?? ''));
+    $patient_id = (int)($_SESSION['patient_id'] ?? 0);
+    if (empty($_SESSION['user_id']) || $patient_id <= 0 || !in_array($sessionRole, ['user', 'patient'], true)) {
+        throw new Exception('Unauthorized access');
+    }
+
     $appointment_date = $_POST['appointment_date'] ?? '';
     $appointment_time = $_POST['appointment_time'] ?? '';
     $treatment = $_POST['treatment'] ?? 'General Checkup';
     $notes = trim($_POST['notes'] ?? '');
-
-    if (empty($patient_id)) {
-        throw new Exception('Patient ID is required');
-    }
 
     if (empty($appointment_date)) {
         throw new Exception('Appointment date is required');

@@ -19,7 +19,8 @@
  *     with a fresh expiry (sliding cookie), so users are never dropped
  *     mid-work just because N minutes passed since LOGIN. The configured
  *     timeout (settings -> session_timeout, in minutes) now behaves as a
- *     true inactivity window, enforced server-side below.
+ *     true inactivity window for staff/admin/dentist. Patients use their
+ *     own Settings toggle instead (off = no idle logout).
  *
  * If the session was already expired-on-entry, $GLOBALS['APP_SESSION_EXPIRED']
  * is set to true and the session is reset; page wrappers use that flag to
@@ -67,8 +68,9 @@ if (is_dir($saveDir) && is_writable($saveDir)) {
 }
 
 // ---- 3. Lifetime + GC hardening ----
-ini_set('session.gc_maxlifetime', (string)(86400)); // physical cleanup well beyond logical expiry
-ini_set('session.cookie_lifetime', (string)$lifetimeSeconds);
+// Physical cookie/GC stay long; logical idle expiry is applied after we know the user.
+ini_set('session.gc_maxlifetime', (string)(86400));
+ini_set('session.cookie_lifetime', '0');
 ini_set('session.use_strict_mode', '1');
 
 $secureCookie = (
@@ -78,7 +80,7 @@ $secureCookie = (
 );
 
 session_set_cookie_params([
-    'lifetime' => $lifetimeSeconds,
+    'lifetime' => 0,
     'path' => '/',
     'domain' => '',
     'secure' => $secureCookie,
@@ -99,26 +101,56 @@ if (!headers_sent()) {
 // ---- 5. Sliding inactivity window (server-side) ----
 $GLOBALS['APP_SESSION_EXPIRED'] = false;
 $now = time();
-if (isset($_SESSION['session_expires_at']) && $now > (int)$_SESSION['session_expires_at']) {
-    $GLOBALS['APP_SESSION_EXPIRED'] = true;
-    $_SESSION = [];
-    session_destroy();
-    session_start(); // fresh anonymous session so pages/AJAX can safely write $_SESSION
+$inactivityEnabled = true;
+
+if (($_SESSION['role'] ?? '') === 'user' && !empty($_SESSION['user_id'])) {
+    try {
+        require_once $appRoot . '/includes/patient_session_helper.php';
+        if (isset($pdo) && $pdo instanceof PDO) {
+            $patientSto = getPatientSessionSettings($pdo, (int)$_SESSION['user_id']);
+            if (empty($patientSto['enabled'])) {
+                $inactivityEnabled = false;
+            } else {
+                $timeoutMinutes = max(1, (int)$patientSto['timeout_minutes']);
+                $lifetimeSeconds = max(60, $timeoutMinutes * 60);
+                $__sessionTimeoutSeconds = $lifetimeSeconds;
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('session_bootstrap: could not read patient session settings. ' . $e->getMessage());
+    }
+}
+
+if ($inactivityEnabled) {
+    // Use last_activity so a leftover clinic-timeout stamp cannot expire a
+    // patient who opted into a longer (or different) personal window.
+    $lastActivity = (int)($_SESSION['last_activity'] ?? 0);
+    if ($lastActivity > 0 && $now > ($lastActivity + $lifetimeSeconds)) {
+        $GLOBALS['APP_SESSION_EXPIRED'] = true;
+        $_SESSION = [];
+        session_destroy();
+        session_start(); // fresh anonymous session so pages/AJAX can safely write $_SESSION
+        $inactivityEnabled = true; // anonymous follow-up cookie uses clinic timeout
+    } else {
+        $_SESSION['last_activity'] = $now;
+        $_SESSION['session_expires_at'] = $now + $lifetimeSeconds;
+    }
 } else {
     $_SESSION['last_activity'] = $now;
-    $_SESSION['session_expires_at'] = $now + $lifetimeSeconds;
+    unset($_SESSION['session_expires_at']);
 }
 
 // ---- 6. Sliding cookie (client-side) ----
 // Re-send with a fresh expiry on EVERY request so the browser never drops the
-// cookie while the user is active. Without this the cookie died exactly
-// N minutes after LOGIN regardless of activity.
+// cookie while the user is active. Patients who turned timeout off get a
+// session cookie (until Logout or closing the browser).
 if (!headers_sent() && session_id() !== '') {
-    setcookie(session_name(), session_id(), [
-        'expires' => $now + $lifetimeSeconds,
+    $cookieOptions = [
         'path' => '/',
         'secure' => $secureCookie,
         'httponly' => true,
         'samesite' => 'Lax',
-    ]);
+    ];
+    $cookieOptions['expires'] = $inactivityEnabled ? ($now + $lifetimeSeconds) : 0;
+    setcookie(session_name(), session_id(), $cookieOptions);
 }

@@ -88,19 +88,6 @@ function verifyAndUpgradePassword($pdo, array $user, string $inputPassword): boo
         return true;
     }
 
-    // Legacy compatibility: allow plaintext passwords from old dumps once,
-    // then immediately upgrade to a secure hash.
-    if (hash_equals($storedPassword, $inputPassword)) {
-        try {
-            $newHash = password_hash($inputPassword, PASSWORD_DEFAULT);
-            $upd = $pdo->prepare("UPDATE users SET password = ? WHERE id = ? LIMIT 1");
-            $upd->execute([$newHash, (int)$user['id']]);
-        } catch (Exception $e) {
-            // Ignore upgrade failure; login can still proceed.
-        }
-        return true;
-    }
-
     return false;
 }
 
@@ -501,20 +488,15 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
         exit();
     }
     
-    // Skip captcha check if skip_captcha flag is set (used by welcome-back flow where patient identity is already verified)
-    $skipCaptcha = isset($_POST['skip_captcha']) && $_POST['skip_captcha'] === '1';
-    
-    if (!$skipCaptcha) {
-        if (empty($captcha)) {
-            echo json_encode(['success' => false, 'message' => 'Please enter the captcha code']);
-            exit();
-        }
-        
-        if (!validateCaptcha($captcha)) {
-            refreshCaptcha();
-            echo json_encode(['success' => false, 'message' => 'Invalid or expired captcha code']);
-            exit();
-        }
+    if (empty($captcha)) {
+        echo json_encode(['success' => false, 'message' => 'Please enter the captcha code']);
+        exit();
+    }
+
+    if (!validateCaptcha($captcha)) {
+        refreshCaptcha();
+        echo json_encode(['success' => false, 'message' => 'Invalid or expired captcha code']);
+        exit();
     }
     
     try {

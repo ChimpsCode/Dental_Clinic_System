@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../includes/require_admin.php';
 /**
  * Clear All Transactional Data
  * Simple script to reset all transactions to zero

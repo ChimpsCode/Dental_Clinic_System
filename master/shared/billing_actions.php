@@ -17,59 +17,13 @@ $response = ['success' => false, 'message' => 'Invalid action'];
 // Get current user info from session with fallback
 $current_user_id = $_SESSION['user_id'] ?? null;
 $current_username = $_SESSION['username'] ?? null;
-$current_role = $_SESSION['role'] ?? null;
+$current_role = strtolower((string)($_SESSION['role'] ?? ''));
 
-// Skip authentication check for get_details - it's just viewing
-$skipAuth = true;
-
-// Get action from GET or POST
-$action = '';
-if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $action = $_GET['action'] ?? '';
-} else {
-    $input = json_decode(file_get_contents('php://input'), true);
-    $action = $input['action'] ?? '';
-}
-
-// Allow viewing details without full login
-if ($action === 'get_details') {
-    $skipAuth = false;
-}
-
-// Allow both admin and staff - also check for dentist
 $allowed_roles = ['admin', 'staff', 'dentist'];
-if ($skipAuth && !in_array($current_role, $allowed_roles)) {
-    // Try to get user_id from POST if session is not available
-    $input = json_decode(file_get_contents('php://input'), true);
-    $posted_user_id = $input['user_id'] ?? null;
-    if (!$current_user_id && !$posted_user_id) {
-        // Check for admin bypass in POST
-        if (!empty($input['username']) && !empty($input['password'])) {
-            // Try direct database login for admin
-            $directUser = $input['username'];
-            $directPass = $input['password'];
-            
-            try {
-                $stmt = $pdo->prepare("SELECT id, username, first_name, last_name, role FROM users WHERE username = ? AND password = ?");
-                $stmt->execute([$directUser, $directPass]);
-                $user = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if ($user) {
-                    // Set session variables for this request
-                    $current_user_id = $user['id'];
-                    $current_username = $user['username'];
-                    $current_role = $user['role'];
-                }
-            } catch (Exception $e) {
-                error_log("Direct login attempt failed: " . $e->getMessage());
-            }
-        }
-        
-        if (!$current_user_id && !$posted_user_id) {
-            echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
-            exit;
-        }
-    }
+if (empty($current_user_id) || !in_array($current_role, $allowed_roles, true)) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
+    exit;
 }
 
 // Get action from GET or POST

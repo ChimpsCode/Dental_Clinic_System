@@ -12,13 +12,15 @@
  * @date 2026-02-04
  */
 
-require_once __DIR__ . '/../../includes/session_bootstrap.php';header('Content-Type: application/json');
+require_once __DIR__ . '/../../includes/session_bootstrap.php';
+header('Content-Type: application/json');
 
-// Allow any request for now - archive is always accessible
-// if (!isset($_SESSION['user_id'])) {
-//     echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
-//     exit;
-// }
+$archiveRole = strtolower((string)($_SESSION['role'] ?? ''));
+if (empty($_SESSION['user_id']) || !in_array($archiveRole, ['admin', 'staff'], true)) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
+    exit;
+}
 
 require_once '../../config/database.php';
 require_once __DIR__ . '/../../includes/patient_user_sync_helper.php';

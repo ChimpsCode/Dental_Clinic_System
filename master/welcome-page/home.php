@@ -1495,7 +1495,7 @@ $assets = [
           </div>
           <div class="captcha-container">
             <div class="captcha-wrapper">
-              <div id="captchaDisplay" class="captcha-display"></div>
+              <img src="../../lib/security/captcha_image.php" alt="Captcha" id="welcomeBackCaptchaImage" class="captcha-img" width="150" height="50">
               <button type="button" class="captcha-refresh" id="refreshCaptchaBtn" aria-label="Refresh CAPTCHA">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
@@ -2151,17 +2151,10 @@ $assets = [
               return;
             }
 
-            if (typeof currentCaptchaCode !== 'undefined' && captchaVal.toUpperCase() !== currentCaptchaCode.toUpperCase()) {
-              if (captchaError) { captchaError.textContent = 'Incorrect CAPTCHA code. Please try again.'; captchaError.style.display = 'block'; }
-              try { refreshCaptcha(); } catch (e) { /* ignore */ }
-              submitBtn.disabled = false;
-              submitBtn.textContent = originalText;
-              return;
-            }
-
             const loginFormData = new FormData();
             loginFormData.append('username', email);
             loginFormData.append('password', password);
+            loginFormData.append('captcha', captchaVal);
             
             try {
               const response = await fetch('./login.php', {
@@ -2202,52 +2195,36 @@ $assets = [
           });
         }
 
-        // CAPTCHA functionality (JavaScript-based)
-        const captchaDisplay = document.getElementById('captchaDisplay');
+        // Server-backed CAPTCHA (session image; login.php validates)
+        const captchaImage = document.getElementById('welcomeBackCaptchaImage');
         const captchaInput = document.getElementById('captcha-code');
         const captchaError = document.getElementById('captchaError');
         const refreshCaptchaBtn = document.getElementById('refreshCaptchaBtn');
-        
-        let currentCaptchaCode = '';
-        
+
         function generateCaptcha() {
-          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-          let code = '';
-          for (let i = 0; i < 6; i++) {
-            code += chars.charAt(Math.floor(Math.random() * chars.length));
-          }
-          currentCaptchaCode = code;
-          if (captchaDisplay) {
-            captchaDisplay.textContent = code;
+          if (captchaImage) {
+            captchaImage.src = '../../lib/security/captcha_image.php?force=1&t=' + Date.now();
           }
           if (captchaInput) {
             captchaInput.value = '';
-            captchaInput.focus();
+          }
+          if (captchaError) {
+            captchaError.style.display = 'none';
           }
         }
-        
+
         function refreshCaptcha() {
           generateCaptcha();
         }
-        
-        if (captchaDisplay) {
-          generateCaptcha();
-        }
-        
+
         if (refreshCaptchaBtn) {
           refreshCaptchaBtn.addEventListener('click', function() {
             refreshCaptcha();
           });
         }
-        
-        if (captchaDisplay) {
-          captchaDisplay.addEventListener('click', function() {
-            refreshCaptcha();
-          });
-        }
-        
-        if (captchaCanvas) {
-          captchaCanvas.addEventListener('click', function() {
+
+        if (captchaImage) {
+          captchaImage.addEventListener('click', function() {
             refreshCaptcha();
           });
         }
@@ -2861,6 +2838,15 @@ $assets = [
           rgba(0,0,0,0.03) 2px,
           rgba(0,0,0,0.03) 4px
         );
+      }
+
+      .captcha-img {
+        height: 50px;
+        width: 150px;
+        border-radius: 6px;
+        cursor: pointer;
+        background: #ebebeb;
+        display: block;
       }
 
       .captcha-refresh {

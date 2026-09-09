@@ -17,6 +17,7 @@ if (!$userId) {
 
 try {
     require_once __DIR__ . '/../../config/database.php';
+    require_once __DIR__ . '/../../includes/safe_image_upload.php';
 
     $colCheck = $pdo->prepare("SHOW COLUMNS FROM users LIKE 'profile_picture'");
     $colCheck->execute();
@@ -30,19 +31,12 @@ try {
         }
 
         $file = $_FILES['profile_picture'];
-        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        $maxSize = 2 * 1024 * 1024;
-
-        if (!in_array($file['type'], $allowedTypes)) {
-            throw new Exception('Only JPG, PNG, GIF, and WebP images are allowed.');
+        $check = validate_safe_image_upload($file, 2 * 1024 * 1024);
+        if (!$check['ok']) {
+            throw new Exception($check['error']);
         }
 
-        if ($file['size'] > $maxSize) {
-            throw new Exception('File size must be under 2MB.');
-        }
-
-        $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-        $filename = $userId . '_' . time() . '.' . $ext;
+        $filename = $userId . '_' . time() . '.' . $check['ext'];
         $uploadDir = __DIR__ . '/../../assets/images/profiles/';
 
         if (!is_dir($uploadDir)) {

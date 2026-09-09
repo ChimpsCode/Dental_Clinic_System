@@ -29,9 +29,8 @@ if ($method === 'GET') {
 if ($method === 'POST') {
     $rawBody = file_get_contents('php://input');
     $signature = $_SERVER['HTTP_X_HUB_SIGNATURE_256'] ?? '';
-    $isDebug = isset($_GET['debug']);
 
-    if (!$isDebug && !verifyFBWebhookSignature($rawBody, $signature)) {
+    if (!verifyFBWebhookSignature($rawBody, $signature)) {
         http_response_code(403);
         echo 'Invalid signature';
         exit;

@@ -1,8 +1,17 @@
 <?php
-require_once __DIR__ . '/../../includes/session_bootstrap.php';header('Content-Type: application/json');
+require_once __DIR__ . '/../../includes/session_bootstrap.php';
+header('Content-Type: application/json');
+
+$welcomeRole = strtolower((string)($_SESSION['role'] ?? ''));
+if (empty($_SESSION['user_id']) || $welcomeRole !== 'admin') {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
+    exit;
+}
 
 require_once '../../config/database.php';
 require_once '../../includes/audit_helper.php';
+require_once __DIR__ . '/../../includes/safe_image_upload.php';
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
@@ -19,12 +28,14 @@ function upsertSetting($pdo, $key, $value) {
 }
 
 function handleImageUpload($pdo, $file, $section) {
-    $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (!in_array($file['type'], $allowedTypes)) {
-        return ['success' => false, 'message' => 'Invalid file type. Allowed: JPG, PNG, GIF, WebP'];
+    $check = validate_safe_image_upload($file, 5 * 1024 * 1024);
+    if (!$check['ok']) {
+        return ['success' => false, 'message' => $check['error'] === 'File size is invalid or too large.' ? 'File too large. Maximum 5MB.' : $check['error']];
     }
-    if ($file['size'] > 5 * 1024 * 1024) {
-        return ['success' => false, 'message' => 'File too large. Maximum 5MB.'];
+
+    $section = preg_replace('/[^a-zA-Z0-9_-]/', '', (string)$section);
+    if ($section === '') {
+        $section = 'general';
     }
 
     $uploadDir = __DIR__ . '/../../assets/images/content/';
@@ -32,8 +43,7 @@ function handleImageUpload($pdo, $file, $section) {
         mkdir($uploadDir, 0755, true);
     }
 
-    $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-    $fileName = $section . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+    $fileName = $section . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.' . $check['ext'];
     $filePath = $uploadDir . $fileName;
     $relativePath = 'assets/images/content/' . $fileName;
 
@@ -44,9 +54,9 @@ function handleImageUpload($pdo, $file, $section) {
     $stmt = $pdo->prepare("INSERT INTO content_images (file_name, original_name, file_path, file_type, file_size, section, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?)");
     $stmt->execute([
         $fileName,
-        $file['name'],
+        basename((string)($file['name'] ?? $fileName)),
         $relativePath,
-        $file['type'],
+        $check['mime'],
         $file['size'],
         $section,
         $_SESSION['user_id'] ?? null

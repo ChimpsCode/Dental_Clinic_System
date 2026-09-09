@@ -1320,27 +1320,36 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         });
     });
 
+    function escapeHtml(str) {
+        if (str == null || str === '') return '';
+        const d = document.createElement('div');
+        d.textContent = String(str);
+        return d.innerHTML;
+    }
+
     function viewAppointment(id) {
         const appt = appointments.find(a => a.id == id);
         if (!appt) return;
         
-        const firstName = appt.first_name || '';
-        const middleName = appt.middle_name || '';
-        const lastName = appt.last_name || '';
+        const eh = function(v) { return escapeHtml(v == null ? '' : String(v)); };
+        const firstName = eh(appt.first_name);
+        const middleName = eh(appt.middle_name);
+        const lastName = eh(appt.last_name);
         const displayName = [firstName, middleName, lastName].filter(n => n).join(' ') || 'Unknown';
         
         const timeStr = appt.appointment_time ? new Date('1970-01-01 ' + appt.appointment_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'N/A';
+        const statusLabel = appt.status ? appt.status.charAt(0).toUpperCase() + appt.status.slice(1) : 'Pending';
         
         document.getElementById('viewAppointmentContent').innerHTML = `
             <div style="display: flex; flex-direction: column; gap: 16px;">
                 <div><span style="color: #6b7280;">Patient:</span> <span style="font-weight: 600; margin-left: 8px;">${displayName}</span></div>
-                <div><span style="color: #6b7280;">Phone:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.phone || 'N/A'}</span></div>
+                <div><span style="color: #6b7280;">Phone:</span> <span style="font-weight: 500; margin-left: 8px;">${eh(appt.phone || 'N/A')}</span></div>
                 <div><span style="color: #6b7280;">Date:</span> <span style="font-weight: 500; margin-left: 8px;">${new Date(appt.appointment_date).toLocaleDateString()}</span></div>
                 <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${timeStr}</span></div>
-                <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.service_name || appt.treatment || 'General'}</span></div>
-                <div><span style="color: #6b7280;">Dentist:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.dentist_name || 'Unassigned'}</span></div>
-                <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${appt.status === 'Completed' ? '#dcfce7' : appt.status === 'Cancelled' ? '#fee2e2' : (appt.status || '').toLowerCase() === 'arrived' ? '#ccfbf1' : '#e0f2fe'}; color: ${appt.status === 'Completed' ? '#15803d' : appt.status === 'Cancelled' ? '#dc2626' : (appt.status || '').toLowerCase() === 'arrived' ? '#0f766e' : '#0369a1'};">${appt.status ? appt.status.charAt(0).toUpperCase() + appt.status.slice(1) : 'Pending'}</span></div>
-                ${appt.notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${appt.notes}</p></div>` : ''}
+                <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${eh(appt.service_name || appt.treatment || 'General')}</span></div>
+                <div><span style="color: #6b7280;">Dentist:</span> <span style="font-weight: 500; margin-left: 8px;">${eh(appt.dentist_name || 'Unassigned')}</span></div>
+                <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${appt.status === 'Completed' ? '#dcfce7' : appt.status === 'Cancelled' ? '#fee2e2' : (appt.status || '').toLowerCase() === 'arrived' ? '#ccfbf1' : '#e0f2fe'}; color: ${appt.status === 'Completed' ? '#15803d' : appt.status === 'Cancelled' ? '#dc2626' : (appt.status || '').toLowerCase() === 'arrived' ? '#0f766e' : '#0369a1'};">${eh(statusLabel)}</span></div>
+                ${appt.notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${eh(appt.notes)}</p></div>` : ''}
             </div>
         `;
         

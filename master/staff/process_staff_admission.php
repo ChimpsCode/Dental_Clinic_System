@@ -22,6 +22,7 @@ if (!in_array($role, ['staff', 'dentist', 'admin'])) {
 
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/queue_management_helper.php';
+require_once __DIR__ . '/../../includes/input_sanitize.php';
 
 header('Content-Type: application/json');
 
@@ -35,10 +36,29 @@ try {
     $pdo->beginTransaction();
     
     // Personal Details
-    $firstName = trim($_POST['firstName'] ?? '');
-    $middleName = trim($_POST['middleName'] ?? '');
-    $lastName = trim($_POST['lastName'] ?? '');
+    $firstSan = sanitize_name($_POST['firstName'] ?? '', true, 80, 'First name');
+    $middleSan = sanitize_name($_POST['middleName'] ?? '', false, 80, 'Middle name');
+    $lastSan = sanitize_name($_POST['lastName'] ?? '', true, 80, 'Last name');
+    if (!$firstSan['ok']) {
+        throw new Exception($firstSan['error']);
+    }
+    if (!$middleSan['ok']) {
+        throw new Exception($middleSan['error']);
+    }
+    if (!$lastSan['ok']) {
+        throw new Exception($lastSan['error']);
+    }
+    $firstName = $firstSan['value'];
+    $middleName = $middleSan['value'];
+    $lastName = $lastSan['value'];
     $suffix = trim($_POST['suffix'] ?? '');
+    if ($suffix !== '' && contains_html($suffix)) {
+        throw new Exception('Suffix contains invalid characters.');
+    }
+    $emergencyNameSan = sanitize_name($_POST['emergency_contact_name'] ?? '', false, 80, 'Emergency contact name');
+    if (!$emergencyNameSan['ok']) {
+        throw new Exception($emergencyNameSan['error']);
+    }
     $fullName = trim($firstName . ' ' . $middleName . ' ' . $lastName . ' ' . $suffix);
     $fullName = preg_replace('/\s+/', ' ', $fullName);
     $fullName = trim($fullName);
@@ -56,7 +76,7 @@ try {
     $phone = trim($_POST['mobileNumber'] ?? '');
     $email = trim($_POST['email'] ?? '');
     // Emergency Contact
-    $emergencyContactName = trim($_POST['emergency_contact_name'] ?? '');
+    $emergencyContactName = $emergencyNameSan['value'];
     $emergencyContactPhone = trim($_POST['emergency_contact_phone'] ?? '');
     $emergencyContactRelationship = trim($_POST['emergency_contact_relationship'] ?? '');
     

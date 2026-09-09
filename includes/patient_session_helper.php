@@ -2,14 +2,14 @@
 
 function getPatientSessionSettings(PDO $pdo, int $userId): array {
     $defaults = [
-        'enabled' => true,
+        'enabled' => false,
         'timeout_minutes' => 60
     ];
 
     try {
         $pdo->exec("CREATE TABLE IF NOT EXISTS user_session_settings (
             user_id INT NOT NULL PRIMARY KEY,
-            enabled TINYINT(1) NOT NULL DEFAULT 1,
+            enabled TINYINT(1) NOT NULL DEFAULT 0,
             timeout_minutes INT NOT NULL DEFAULT 60,
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
@@ -35,7 +35,7 @@ function savePatientSessionSettings(PDO $pdo, int $userId, bool $enabled, int $t
     $timeoutMinutes = max(1, min(1440, $timeoutMinutes));
     $pdo->exec("CREATE TABLE IF NOT EXISTS user_session_settings (
         user_id INT NOT NULL PRIMARY KEY,
-        enabled TINYINT(1) NOT NULL DEFAULT 1,
+        enabled TINYINT(1) NOT NULL DEFAULT 0,
         timeout_minutes INT NOT NULL DEFAULT 60,
         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");

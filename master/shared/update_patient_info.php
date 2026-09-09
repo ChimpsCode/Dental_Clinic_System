@@ -17,11 +17,27 @@ if (($_SESSION['role'] ?? '') !== 'admin') {
 require_once '../../config/database.php';
 require_once '../../includes/audit_helper.php';
 require_once '../../includes/patient_user_sync_helper.php';
+require_once __DIR__ . '/../../includes/input_sanitize.php';
 
 $patient_id = $_POST['patient_id'] ?? null;
-$first_name = $_POST['first_name'] ?? '';
-$middle_name = $_POST['middle_name'] ?? '';
-$last_name = $_POST['last_name'] ?? '';
+$firstSan = sanitize_name($_POST['first_name'] ?? '', true, 80, 'First name');
+$middleSan = sanitize_name($_POST['middle_name'] ?? '', false, 80, 'Middle name');
+$lastSan = sanitize_name($_POST['last_name'] ?? '', true, 80, 'Last name');
+if (!$firstSan['ok']) {
+    echo json_encode(['success' => false, 'message' => $firstSan['error']]);
+    exit;
+}
+if (!$middleSan['ok']) {
+    echo json_encode(['success' => false, 'message' => $middleSan['error']]);
+    exit;
+}
+if (!$lastSan['ok']) {
+    echo json_encode(['success' => false, 'message' => $lastSan['error']]);
+    exit;
+}
+$first_name = $firstSan['value'];
+$middle_name = $middleSan['value'];
+$last_name = $lastSan['value'];
 $suffix = $_POST['suffix'] ?? '';
 $phone = $_POST['phone'] ?? '';
 $email = $_POST['email'] ?? '';

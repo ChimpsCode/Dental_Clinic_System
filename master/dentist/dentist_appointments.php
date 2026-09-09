@@ -1037,6 +1037,13 @@ document.addEventListener('keydown', function(e) {
 });
 
 // View Appointment function
+function escapeHtml(str) {
+    if (str == null || str === '') return '';
+    const d = document.createElement('div');
+    d.textContent = String(str);
+    return d.innerHTML;
+}
+
 function viewAppointment(id) {
     const appointment = appointments.find(a => a.id == id);
     if (!appointment) return;
@@ -1045,19 +1052,20 @@ function viewAppointment(id) {
     const dateStr = appointmentDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     const timeStr = appointmentDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     
+    const eh = function(v) { return escapeHtml(v == null ? '' : String(v)); };
     document.getElementById('viewAppointmentContent').innerHTML = `
         <div style="display: flex; flex-direction: column; gap: 16px;">
             <div><span style="color: #6b7280;">Patient:</span> 
-                <span style="font-weight: 600; margin-left: 8px;">${appointment.first_name || ''}</span>
-                ${appointment.middle_name ? `<span style="color: #6b7280; margin-left: 4px;">${appointment.middle_name}</span>` : ''}
-                <span style="font-weight: 600; margin-left: 4px;">${appointment.last_name || ''}</span>
+                <span style="font-weight: 600; margin-left: 8px;">${eh(appointment.first_name)}</span>
+                ${appointment.middle_name ? `<span style="color: #6b7280; margin-left: 4px;">${eh(appointment.middle_name)}</span>` : ''}
+                <span style="font-weight: 600; margin-left: 4px;">${eh(appointment.last_name)}</span>
             </div>
-            <div><span style="color: #6b7280;">Phone:</span> <span style="font-weight: 500; margin-left: 8px;">${appointment.phone || 'N/A'}</span></div>
+            <div><span style="color: #6b7280;">Phone:</span> <span style="font-weight: 500; margin-left: 8px;">${eh(appointment.phone || 'N/A')}</span></div>
             <div><span style="color: #6b7280;">Date:</span> <span style="font-weight: 500; margin-left: 8px;">${dateStr}</span></div>
             <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${timeStr}</span></div>
-            <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${appointment.service_name || appointment.treatment || 'Consultation'}</span></div>
-            <div><span style="color: #6b7280;">Status:</span> <span class="status-badge ${getStatusBadgeClass(appointment.status)}" style="margin-left: 8px;">${appointment.status || 'Pending'}</span></div>
-            ${appointment.notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${appointment.notes}</p></div>` : ''}
+            <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${eh(appointment.service_name || appointment.treatment || 'Consultation')}</span></div>
+            <div><span style="color: #6b7280;">Status:</span> <span class="status-badge ${getStatusBadgeClass(appointment.status)}" style="margin-left: 8px;">${eh(appointment.status || 'Pending')}</span></div>
+            ${appointment.notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${eh(appointment.notes)}</p></div>` : ''}
         </div>
     `;
     
@@ -1442,20 +1450,21 @@ function viewAppointmentDetails(id) {
             </div>
         `;
         
+        const eh = function(v) { return escapeHtml(v == null ? '' : String(v)); };
         document.getElementById('viewAppointmentContent').innerHTML = `
             <div style="display: flex; flex-direction: column; gap: 16px;">
                 <div><span style="color: #6b7280;">Patient:</span> 
-                    <span style="font-weight: 600; margin-left: 8px;">${firstName}</span>
-                    ${middleName && middleName !== '-' ? `<span style="color: #6b7280; margin-left: 4px;">${middleName}</span>` : ''}
-                    <span style="font-weight: 600; margin-left: 4px;">${lastName}</span>
+                    <span style="font-weight: 600; margin-left: 8px;">${eh(firstName)}</span>
+                    ${middleName && middleName !== '-' ? `<span style="color: #6b7280; margin-left: 4px;">${eh(middleName)}</span>` : ''}
+                    <span style="font-weight: 600; margin-left: 4px;">${eh(lastName)}</span>
                 </div>
-                <div><span style="color: #6b7280;">Phone:</span> <span style="font-weight: 500; margin-left: 8px;">${phone}</span></div>
+                <div><span style="color: #6b7280;">Phone:</span> <span style="font-weight: 500; margin-left: 8px;">${eh(phone)}</span></div>
                 <div><span style="color: #6b7280;">Date:</span> <span style="font-weight: 500; margin-left: 8px;">${dateStr}</span></div>
                 <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${timeStr}</span></div>
-                <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${treatment}</span></div>
+                <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${eh(treatment)}</span></div>
                 ${editSection}
-                <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${statusBg}; color: ${statusColor}; padding: 4px 12px; border-radius: 9999px; font-size: 0.875rem;">${status}</span></div>
-                ${notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${notes}</p></div>` : '<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0; color: #9ca3af;">No notes</p></div>'}
+                <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${statusBg}; color: ${statusColor}; padding: 4px 12px; border-radius: 9999px; font-size: 0.875rem;">${eh(status)}</span></div>
+                ${notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${eh(notes)}</p></div>` : '<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0; color: #9ca3af;">No notes</p></div>'}
             </div>
         `;
         

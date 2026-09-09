@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../includes/require_admin.php';
 /**
  * Run Database Migration
  * This script adds lookup tables and missing columns

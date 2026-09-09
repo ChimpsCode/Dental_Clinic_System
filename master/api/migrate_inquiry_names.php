@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../includes/require_admin.php';
 // Migration script to update inquiries table with separate name fields
 
 try {

@@ -315,7 +315,7 @@ $pageTitle = 'Account Settings';
             <span>RF Dental Clinic</span>
         </div>
         <nav class="sidebar-menu">
-            <a href="patient-dashboard.php" clasgs="menu-item">
+            <a href="patient-dashboard.php" class="menu-item">
                 <i class="fas fa-home"></i>
                 <span>Dashboard</span>
             </a>
