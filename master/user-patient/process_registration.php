@@ -233,7 +233,7 @@ if ($action === 'verify_otp') {
         echo json_encode([
             'success' => true,
             'message' => 'Registration successful!',
-            'redirect' => '../user-patient/patient-dashboard.php'
+            'redirect' => '../user-patient/patient-dashboard.php?tour=1'
         ]);
 
     } catch (\Throwable $e) {

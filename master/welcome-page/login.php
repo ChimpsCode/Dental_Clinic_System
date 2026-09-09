@@ -478,7 +478,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     if ($role === 'admin') $redirect = '../admin/admin_dashboard.php';
     elseif ($role === 'staff') $redirect = '../staff/staff-dashboard.php';
     elseif ($role === 'dentist') $redirect = '../dentist/dentist_dashboard.php';
-    elseif ($role === 'user') $redirect = '../user-patient/patient-dashboard.php';
+    elseif ($role === 'user') $redirect = '../user-patient/patient-dashboard.php' . ((!empty($_SESSION['is_new_patient']) || !empty($_SESSION['first_login']) || !empty($_SESSION['new_registration'])) ? '?tour=1' : '');
     else $redirect = '../../dashboard.php';
 
     echo json_encode(['success' => true, 'message' => 'Logged in successfully', 'redirect' => $redirect, 'role' => $role]);
@@ -710,7 +710,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             } elseif ($role === 'dentist') {
                 $redirect = '../dentist/dentist_dashboard.php';
             } elseif ($role === 'user') {
-                $redirect = '../user-patient/patient-dashboard.php';
+                $redirect = '../user-patient/patient-dashboard.php' . ((!empty($_SESSION['is_new_patient']) || !empty($_SESSION['first_login']) || !empty($_SESSION['new_registration'])) ? '?tour=1' : '');
             } else {
                 $redirect = '../../dashboard.php';
             }
@@ -860,7 +860,7 @@ if ($role === 'dentist') {
                 } elseif ($role === 'dentist') {
                     $redirect = '../dentist/dentist_dashboard.php';
                 } elseif ($role === 'user') {
-                    $redirect = '../user-patient/patient-dashboard.php';
+                    $redirect = '../user-patient/patient-dashboard.php' . ((!empty($_SESSION['is_new_patient']) || !empty($_SESSION['first_login']) || !empty($_SESSION['new_registration'])) ? '?tour=1' : '');
                 } else {
                     $redirect = '../../dashboard.php';
                 }

@@ -1210,13 +1210,9 @@ $assets = [
         </div>
         <div class="modal-body">
           <p class="modal-intro">Almost done! Complete your information and create a password to secure your account.</p>
-<<<<<<< HEAD
-          <form id="registrationForm" class="modal-form" autocomplete="off">
+          <form id="registrationForm" class="modal-form" autocomplete="off" novalidate>
             <input type="text" tabindex="-1" aria-hidden="true" autocomplete="username" style="position:absolute;left:-9999px;height:0;width:0;opacity:0;" value="">
             <input type="password" tabindex="-1" aria-hidden="true" autocomplete="current-password" style="position:absolute;left:-9999px;height:0;width:0;opacity:0;" value="">
-=======
-          <form id="registrationForm" class="modal-form" novalidate>
->>>>>>> 8bd137f3dc545e9faa476ca516d5777207633364
             <!-- Hidden fields from initial form -->
             <input type="hidden" id="reg-first-name" name="first_name" />
             <input type="hidden" id="reg-middle-name" name="middle_name" />
@@ -1320,11 +1316,7 @@ $assets = [
               <h4 class="form-section-title">Account Information</h4>
               <div class="form-group">
                 <label for="reg-email">Email (Username) <span style="color:#dc2626">*</span></label>
-<<<<<<< HEAD
-                <input type="email" id="reg-email" name="email" required placeholder="your@email.com" autocomplete="off" />
-=======
-                <input type="email" id="reg-email" name="email" required placeholder="your@email.com" maxlength="254" autocomplete="email" />
->>>>>>> 8bd137f3dc545e9faa476ca516d5777207633364
+                <input type="email" id="reg-email" name="email" required placeholder="your@email.com" maxlength="254" autocomplete="off" />
                 <div id="reg-email-status" style="display:none; margin-top:6px; font-size:13px; color:#dc3545;"></div>
               </div>
               <div class="form-group">
@@ -1960,7 +1952,7 @@ $assets = [
                   registrationModal.style.display = 'none';
                   successModal.style.display = 'flex';
                   setTimeout(() => {
-                    window.location.href = '../user-patient/patient-dashboard.php';
+                    window.location.href = '../user-patient/patient-dashboard.php?tour=1';
                   }, 2000);
                 }
               } else {
@@ -2040,7 +2032,7 @@ $assets = [
                 registrationModal.style.display = 'none';
                 successModal.style.display = 'flex';
                 setTimeout(() => {
-                  window.location.href = result.redirect || '../user-patient/patient-dashboard.php';
+                  window.location.href = result.redirect || '../user-patient/patient-dashboard.php?tour=1';
                 }, 2000);
               } else {
                 regOtpError.textContent = result.message || 'Verification failed.';
@@ -2191,7 +2183,7 @@ $assets = [
                 } else if (result.role === 'dentist') {
                   window.location.href = '../dentist/dentist_dashboard.php';
                 } else if (result.role === 'user') {
-                  window.location.href = '../user-patient/patient-dashboard.php';
+                  window.location.href = result.redirect || '../user-patient/patient-dashboard.php';
                 } else {
                   window.location.href = '../dashboard.php';
                 }

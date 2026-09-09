@@ -304,6 +304,33 @@
         });
     }
 
+    function advanceTourWithEnter(event) {
+        if (event.key !== 'Enter' || event.repeat || event.ctrlKey || event.metaKey || event.altKey) {
+            return;
+        }
+        var modal = getIntroModal();
+        if (modal && !modal.hidden) {
+            event.preventDefault();
+            event.stopPropagation();
+            continueFromIntro();
+            return;
+        }
+        if (!driverObj) {
+            return;
+        }
+        var popover = getTourPopover();
+        if (!popover) {
+            return;
+        }
+        var nextBtn = popover.querySelector('.driver-popover-next-btn');
+        if (!nextBtn || nextBtn.disabled) {
+            return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        nextBtn.click();
+    }
+
     function clearTourQuery() {
         if (!cfg.forceStart || !window.history || !window.history.replaceState) {
             return;
@@ -459,7 +486,12 @@
     function init() {
         bindHelp();
         bindIntroModal();
-        autoStartTimer = window.setTimeout(maybeAutoStart, 500);
+        document.addEventListener('keydown', advanceTourWithEnter, true);
+        if (cfg.forceStart || cfg.autoStart) {
+            maybeAutoStart();
+        } else {
+            autoStartTimer = window.setTimeout(maybeAutoStart, 500);
+        }
     }
 
     if (document.readyState === 'loading') {
