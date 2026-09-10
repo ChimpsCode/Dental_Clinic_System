@@ -1482,10 +1482,10 @@ body.modal-open {
 
 .header-user-role {
     font-size: 10.5px;
-    color: #0f766e;
+    color: #ffffff;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    background: #ecfeff;
+    background: #d35c44;
     border: 1px solid #a5f3fc;
     padding: 2px 7px;
     border-radius: 999px;

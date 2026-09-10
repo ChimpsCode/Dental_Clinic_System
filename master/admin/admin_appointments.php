@@ -181,7 +181,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 
 
                 <!-- Stats Cards -->
-                <div class="summary-cards" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 24px;">
+                <div class="summary-cards" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px;">
                     <div class="summary-card card-total">
                         <div class="summary-icon">
                             <img src="../../assets/icons/calendar.png" alt="Total Appointments">
@@ -323,7 +323,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 .calendar-view.active { display: block; }
                 .list-view { display: block; }
                 .list-view.hidden { display: none; }
-                .admin-cal { background: white; border-radius: 12px; padding: 24px; }
+                .admin-cal { background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; border: 0.2px solid #d1d5db; }
                 .admin-cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
                 .admin-cal-title { font-size: 20px; font-weight: 700; color: #1a1a2e; }
                 .admin-cal-nav { display: flex; gap: 8px; }
