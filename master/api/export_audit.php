@@ -3,8 +3,9 @@
  * Export Audit Logs - Export audit trail data to CSV or Excel format
  */
 
-require_once __DIR__ . '/config/database.php';
-require_once __DIR__ . '/includes/audit_helper.php';
+require_once __DIR__ . '/../../includes/require_admin.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/audit_helper.php';
 
 // Get parameters
 $format = $_GET['format'] ?? 'csv';

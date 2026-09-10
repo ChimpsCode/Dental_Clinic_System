@@ -28,6 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 try {
     require_once '../../config/database.php';
     require_once '../../includes/appointment_approval_helper.php';
+    require_once __DIR__ . '/../../includes/input_sanitize.php';
     
     // Check if dentist_id column exists
     $checkCol = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'dentist_id'");
@@ -42,21 +43,30 @@ try {
             exit();
         }
         
-        // Get form data
-        $first_name = trim($_POST['first_name'] ?? '');
-        $middle_name = trim($_POST['middle_name'] ?? '');
-        $last_name = trim($_POST['last_name'] ?? '');
-        $phone = trim($_POST['phone'] ?? '');
-        $email = trim($_POST['email'] ?? '');
+        $firstSan = sanitize_name($_POST['first_name'] ?? '', true, 80, 'First name');
+        $middleSan = sanitize_name($_POST['middle_name'] ?? '', false, 80, 'Middle name');
+        $lastSan = sanitize_name($_POST['last_name'] ?? '', true, 80, 'Last name');
+        $phoneSan = sanitize_phone($_POST['phone'] ?? '', true);
+        $emailSan = sanitize_email($_POST['email'] ?? '', false);
+        foreach ([$firstSan, $middleSan, $lastSan, $phoneSan, $emailSan] as $field) {
+            if (!$field['ok']) {
+                echo json_encode(['success' => false, 'message' => $field['error']]);
+                exit();
+            }
+        }
+        $first_name = $firstSan['value'];
+        $middle_name = $middleSan['value'];
+        $last_name = $lastSan['value'];
+        $phone = $phoneSan['value'];
+        $email = $emailSan['value'];
         $appointment_date = $_POST['appointment_date'] ?? '';
         $appointment_time = $_POST['appointment_time'] ?? '';
         $treatment = $_POST['treatment'] ?? '';
         $notes = trim($_POST['notes'] ?? '');
         $status = trim($_POST['status'] ?? '');
         $service_id = isset($_POST['service_id']) && $_POST['service_id'] !== '' ? (int)$_POST['service_id'] : null;
-        
-        // Validate required fields
-        if (empty($first_name) || empty($last_name) || empty($phone) || empty($appointment_date) || empty($appointment_time)) {
+
+        if (empty($appointment_date) || empty($appointment_time)) {
             echo json_encode(['success' => false, 'message' => 'Please fill in all required fields']);
             exit();
         }
@@ -201,20 +211,28 @@ try {
         exit();
     }
     
-    // CREATE NEW APPOINTMENT (existing code)
-    // Get form data
-    $first_name = trim($_POST['first_name'] ?? '');
-    $middle_name = trim($_POST['middle_name'] ?? '');
-    $last_name = trim($_POST['last_name'] ?? '');
-    $phone = trim($_POST['phone'] ?? '');
-    $email = trim($_POST['email'] ?? '');
+    $firstSan = sanitize_name($_POST['first_name'] ?? '', true, 80, 'First name');
+    $middleSan = sanitize_name($_POST['middle_name'] ?? '', false, 80, 'Middle name');
+    $lastSan = sanitize_name($_POST['last_name'] ?? '', true, 80, 'Last name');
+    $phoneSan = sanitize_phone($_POST['phone'] ?? '', true);
+    $emailSan = sanitize_email($_POST['email'] ?? '', false);
+    foreach ([$firstSan, $middleSan, $lastSan, $phoneSan, $emailSan] as $field) {
+        if (!$field['ok']) {
+            echo json_encode(['success' => false, 'message' => $field['error']]);
+            exit();
+        }
+    }
+    $first_name = $firstSan['value'];
+    $middle_name = $middleSan['value'];
+    $last_name = $lastSan['value'];
+    $phone = $phoneSan['value'];
+    $email = $emailSan['value'];
     $appointment_date = $_POST['appointment_date'] ?? '';
     $appointment_time = $_POST['appointment_time'] ?? '';
     $treatment = $_POST['treatment'] ?? 'Consultation';
     $notes = trim($_POST['notes'] ?? '');
-    
-    // Validate required fields
-    if (empty($first_name) || empty($last_name) || empty($phone) || empty($appointment_date) || empty($appointment_time)) {
+
+    if (empty($appointment_date) || empty($appointment_time)) {
         echo json_encode(['success' => false, 'message' => 'Please fill in all required fields']);
         exit();
     }

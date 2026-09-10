@@ -3,10 +3,16 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../config/api_keys.php';
 require_once __DIR__ . '/../../includes/input_sanitize.php';
+require_once __DIR__ . '/../../includes/rate_limit.php';
 
-// Check if it's a POST request
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['error' => 'Method not allowed']);
+    exit;
+}
+
+if (!rate_limit_allow('ai_chat', 20, 300)) {
+    http_response_code(429);
+    echo json_encode(['error' => 'Too many messages. Please wait a moment and try again.']);
     exit;
 }
 

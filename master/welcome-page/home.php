@@ -970,7 +970,10 @@ $assets = [
             clearTimeout(successToastTimer);
             successToastTimer = null;
           }
-          successToast.innerHTML = msg + '<br><button id="copyLinkBtn" type="button" style="margin-top:12px;background:rgba(255,255,255,0.2);border:2px solid rgba(255,255,255,0.4);color:#fff;padding:8px 20px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;">Copy Link</button>';
+          successToast.innerHTML = msg;
+          if (link) {
+            successToast.innerHTML = msg + '<br><button id="copyLinkBtn" type="button" style="margin-top:12px;background:rgba(255,255,255,0.2);border:2px solid rgba(255,255,255,0.4);color:#fff;padding:8px 20px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;">Copy Link</button>';
+          }
           successToast.classList.add('show');
           successToast.style.display = 'block';
           successToast.style.cursor = 'default';
@@ -1158,12 +1161,7 @@ $assets = [
 
               if (data.success) {
                 this.reset();
-                var baseUrl = window.location.protocol + '//' + window.location.host;
-                var pathParts = window.location.pathname.replace(/\/+$/, '').split('/');
-                pathParts.pop(); pathParts.pop(); pathParts.pop();
-                var projectBase = pathParts.join('/');
-                var link = baseUrl + projectBase + '/inquiry/' + (data.token || '');
-                showContactSuccess('Your message has been sent! We will reply to you via email.', link);
+                showContactSuccess('Your message has been sent! We will reply to you via email.');
               } else {
                 alert(data.message || 'Failed to send. Please try again.');
               }

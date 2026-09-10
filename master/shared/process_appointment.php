@@ -23,19 +23,33 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/appointment_approval_helper.php';
+require_once __DIR__ . '/../../includes/input_sanitize.php';
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('Invalid request method');
     }
 
-    $first_name = trim($_POST['first_name'] ?? '');
-    $middle_name = trim($_POST['middle_name'] ?? '');
-    $last_name = trim($_POST['last_name'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    $phone = trim($_POST['phone'] ?? '');
     $patient_id = isset($_POST['patient_id']) && $_POST['patient_id'] !== '' ? (int)$_POST['patient_id'] : null;
     $appointment_id = isset($_POST['appointment_id']) && $_POST['appointment_id'] !== '' ? (int)$_POST['appointment_id'] : null;
+    $namesRequired = !$patient_id && !$appointment_id;
+
+    $firstSan = sanitize_name($_POST['first_name'] ?? '', $namesRequired, 80, 'First name');
+    $middleSan = sanitize_name($_POST['middle_name'] ?? '', false, 80, 'Middle name');
+    $lastSan = sanitize_name($_POST['last_name'] ?? '', $namesRequired, 80, 'Last name');
+    $emailSan = sanitize_email($_POST['email'] ?? '', false);
+    $phoneSan = sanitize_phone($_POST['phone'] ?? '', false);
+    foreach ([$firstSan, $middleSan, $lastSan, $emailSan, $phoneSan] as $field) {
+        if (!$field['ok']) {
+            throw new Exception($field['error']);
+        }
+    }
+
+    $first_name = $firstSan['value'];
+    $middle_name = $middleSan['value'];
+    $last_name = $lastSan['value'];
+    $email = $emailSan['value'];
+    $phone = $phoneSan['value'];
     $appointment_date = $_POST['appointment_date'] ?? '';
     $appointment_time = $_POST['appointment_time'] ?? '';
     $treatment = $_POST['treatment'] ?? 'General Checkup';

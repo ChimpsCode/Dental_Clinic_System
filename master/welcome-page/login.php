@@ -498,6 +498,14 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
         echo json_encode(['success' => false, 'message' => 'Invalid or expired captcha code']);
         exit();
     }
+
+    require_once '../../includes/audit_helper.php';
+    $lockStatus = getLoginLockStatus($pdo, $username);
+    if ($lockStatus['locked']) {
+        refreshCaptcha();
+        echo json_encode(['success' => false, 'message' => $lockStatus['message']]);
+        exit();
+    }
     
     try {
         require_once '../../config/database.php';
@@ -749,6 +757,12 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
         refreshCaptcha();
         $error = 'Invalid or expired captcha code';
     } else {
+        require_once '../../includes/audit_helper.php';
+        $lockStatus = getLoginLockStatus($pdo, $username);
+        if ($lockStatus['locked']) {
+            refreshCaptcha();
+            $error = $lockStatus['message'];
+        } else {
         try {
             require_once '../../config/database.php';
             
@@ -863,13 +877,18 @@ if ($role === 'dentist') {
                 header('Location: ' . $redirect);
                 exit();
             } else {
-                // Skip duplicate failed login logging - already logged at line 410
+                if ($user) {
+                    logFailedLogin($pdo, $username, 'invalid_password');
+                } else {
+                    logFailedLogin($pdo, $username, 'user_not_found');
+                }
                 $error = 'Wrong username or password. Please try again.';
             }
         } catch (PDOException $e) {
             $error = 'Database connection error. Please check your database settings.';
         } catch (Exception $e) {
             $error = 'Login failed. Please try again.';
+        }
         }
     }
 }

@@ -1,5 +1,6 @@
 <?php
-require_once 'config/database.php';
+require_once __DIR__ . '/../../includes/require_admin.php';
+require_once __DIR__ . '/../../config/database.php';
 
 try {
     // Check if procedure_notes column exists in queue table

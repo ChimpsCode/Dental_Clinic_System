@@ -339,6 +339,59 @@ function generateReplyToken(): string
     return bin2hex(random_bytes(32));
 }
 
+function sendInquiryConversationLinkEmail(string $email, string $firstName, string $conversationLink): bool
+{
+    $mailerConfig = dirname(__DIR__) . '/config/mailer_config.php';
+    $phpMailerBase = dirname(__DIR__) . '/PHPMailer/src';
+    if (!file_exists($mailerConfig) || !file_exists($phpMailerBase . '/PHPMailer.php')) {
+        error_log('sendInquiryConversationLinkEmail: mailer not configured');
+        return false;
+    }
+
+    require_once $mailerConfig;
+    require_once $phpMailerBase . '/Exception.php';
+    require_once $phpMailerBase . '/PHPMailer.php';
+    require_once $phpMailerBase . '/SMTP.php';
+
+    try {
+        $mailer = new \PHPMailer\PHPMailer\PHPMailer(true);
+        $mailer->isSMTP();
+        $mailer->Host = trim((string)SMTP_HOST);
+        $mailer->SMTPAuth = true;
+        $mailer->Username = trim((string)SMTP_USER);
+        $mailer->Password = preg_replace('/\s+/', '', (string)SMTP_PASS);
+        $mailer->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        $mailer->Port = SMTP_PORT;
+        $mailer->CharSet = 'UTF-8';
+        $mailer->SMTPOptions = [
+            'ssl' => [
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'allow_self_signed' => true,
+            ],
+        ];
+        $mailer->setFrom(MAIL_FROM, MAIL_FROM_NAME);
+        $mailer->addAddress($email, $firstName);
+        $mailer->isHTML(true);
+        $mailer->Subject = 'We received your message - RF Dental Clinic';
+        $safeName = htmlspecialchars($firstName);
+        $safeLink = htmlspecialchars($conversationLink);
+        $mailer->Body = '<p>Hi ' . $safeName . ',</p>'
+            . '<p>Thank you for contacting RF Dental Clinic. We received your message and will reply by email.</p>'
+            . '<table border="0" cellpadding="0" cellspacing="0" style="margin:24px 0;">'
+            . '<tr><td align="center" style="background:#2563eb;border-radius:12px;padding:14px 28px;">'
+            . '<a href="' . $safeLink . '" style="color:#fff;text-decoration:none;font-size:15px;font-weight:700;display:inline-block;">Open conversation &rarr;</a>'
+            . '</td></tr></table>'
+            . '<p style="color:#64748b;font-size:13px;">If you did not send this inquiry, you can ignore this email.</p>';
+        $mailer->AltBody = "Hi {$firstName},\n\nThank you for contacting RF Dental Clinic. Open your conversation here: {$conversationLink}\n";
+        $mailer->send();
+        return true;
+    } catch (\Throwable $e) {
+        error_log('sendInquiryConversationLinkEmail: ' . $e->getMessage());
+        return false;
+    }
+}
+
 function inquiryColumnExists(PDO $pdo, string $table, string $column): bool
 {
     static $cache = [];

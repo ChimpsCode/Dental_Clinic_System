@@ -1,6 +1,7 @@
 <?php
 $pageTitle = 'My Profile';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/input_sanitize.php';
 require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
 $uploadError = $_SESSION['upload_error'] ?? null;
@@ -17,19 +18,36 @@ if (!$colCheck->fetch()) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_profile') {
-    $first_name = trim($_POST['first_name'] ?? '');
-    $middle_name = trim($_POST['middle_name'] ?? '');
-    $last_name = trim($_POST['last_name'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    $phone = trim($_POST['phone'] ?? '');
-    $date_of_birth = $_POST['date_of_birth'] ?? null;
-    $gender = $_POST['gender'] ?? '';
+    $firstSan = sanitize_name($_POST['first_name'] ?? '', true, 80, 'First name');
+    $middleSan = sanitize_name($_POST['middle_name'] ?? '', false, 80, 'Middle name');
+    $lastSan = sanitize_name($_POST['last_name'] ?? '', true, 80, 'Last name');
+    $emailSan = sanitize_email($_POST['email'] ?? '', true);
+    $phoneSan = sanitize_phone($_POST['phone'] ?? '', false);
+    $fieldError = null;
+    foreach ([$firstSan, $middleSan, $lastSan, $emailSan, $phoneSan] as $field) {
+        if (!$field['ok']) {
+            $fieldError = $field['error'];
+            break;
+        }
+    }
+    if ($fieldError) {
+        $message = $fieldError;
+        $messageType = 'error';
+    } else {
+        $first_name = $firstSan['value'];
+        $middle_name = $middleSan['value'];
+        $last_name = $lastSan['value'];
+        $email = $emailSan['value'];
+        $phone = $phoneSan['value'];
+        $date_of_birth = $_POST['date_of_birth'] ?? null;
+        $gender = $_POST['gender'] ?? '';
 
-    $stmt = $pdo->prepare("UPDATE users SET first_name = ?, middle_name = ?, last_name = ?, email = ?, phone = ?, date_of_birth = ?, gender = ? WHERE id = ?");
-    $stmt->execute([$first_name, $middle_name, $last_name, $email, $phone, $date_of_birth ?: null, $gender ?: null, $userId]);
+        $stmt = $pdo->prepare("UPDATE users SET first_name = ?, middle_name = ?, last_name = ?, email = ?, phone = ?, date_of_birth = ?, gender = ? WHERE id = ?");
+        $stmt->execute([$first_name, $middle_name, $last_name, $email, $phone, $date_of_birth ?: null, $gender ?: null, $userId]);
 
-    $message = 'Profile updated successfully!';
-    $messageType = 'success';
+        $message = 'Profile updated successfully!';
+        $messageType = 'success';
+    }
 }
 
 $stmt = $pdo->prepare("SELECT first_name, middle_name, last_name, email, phone, profile_picture, gender, date_of_birth, created_at FROM users WHERE id = ?");

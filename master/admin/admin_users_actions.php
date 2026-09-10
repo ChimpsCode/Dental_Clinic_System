@@ -9,6 +9,7 @@ require_once __DIR__ . '/../../includes/session_bootstrap.php';header('Content-T
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/patient_user_sync_helper.php';
 require_once __DIR__ . '/../../includes/audit_helper.php';
+require_once __DIR__ . '/../../includes/input_sanitize.php';
 
 // Basic auth check – must be logged in admin
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? null) !== 'admin') {
@@ -54,8 +55,29 @@ function savePatientContactDetails(PDO $pdo, int $userId, array $input): void {
     foreach ($map as $postKey => $col) {
         if (!pusync_tableColumn($pdo, 'patients', $col)) continue;
         if (!array_key_exists($postKey, $input)) continue;
+        $raw = trim((string)$input[$postKey]);
+        if ($raw === '') {
+            $set[] = "`$col` = ?";
+            $vals[] = null;
+            continue;
+        }
+        if ($postKey === 'emergency_contact_name') {
+            $san = sanitize_name($raw, false, 80, 'Emergency contact name');
+            if (!$san['ok']) {
+                jsonError($san['error']);
+            }
+            $raw = $san['value'];
+        } elseif ($postKey === 'emergency_contact_phone') {
+            $san = sanitize_phone($raw, false);
+            if (!$san['ok']) {
+                jsonError($san['error']);
+            }
+            $raw = $san['value'];
+        } elseif (contains_html($raw)) {
+            jsonError('This field contains invalid characters.');
+        }
         $set[] = "`$col` = ?";
-        $vals[] = trim((string)$input[$postKey]) !== '' ? trim((string)$input[$postKey]) : null;
+        $vals[] = $raw;
     }
     if (!$set) return;
     $vals[] = $patientId;
@@ -102,10 +124,19 @@ try {
     if ($action === 'create' || $action === 'update') {
         $id       = (int)($_POST['id'] ?? 0);
         $username = trim($_POST['username'] ?? '');
-        $firstName  = trim($_POST['firstName'] ?? '');
-        $middleName = trim($_POST['middleName'] ?? '');
-        $lastName   = trim($_POST['lastName'] ?? '');
-        $email    = trim($_POST['email'] ?? '');
+        $firstSan = sanitize_name($_POST['firstName'] ?? '', true, 80, 'First name');
+        $middleSan = sanitize_name($_POST['middleName'] ?? '', false, 80, 'Middle name');
+        $lastSan = sanitize_name($_POST['lastName'] ?? '', true, 80, 'Last name');
+        $emailSan = sanitize_email($_POST['email'] ?? '', true);
+        foreach ([$firstSan, $middleSan, $lastSan, $emailSan] as $field) {
+            if (!$field['ok']) {
+                jsonError($field['error']);
+            }
+        }
+        $firstName  = $firstSan['value'];
+        $middleName = $middleSan['value'];
+        $lastName   = $lastSan['value'];
+        $email    = $emailSan['value'];
         $phoneNumber = trim($_POST['phoneNumber'] ?? '');
         $gender   = trim($_POST['gender'] ?? '');
         $dateOfBirth = trim($_POST['dateOfBirth'] ?? '');

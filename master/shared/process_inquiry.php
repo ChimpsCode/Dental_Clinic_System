@@ -25,35 +25,53 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
     try {
     require_once '../../config/database.php';
-    
-    // Debug: Log received data (remove in production)
-    error_log("Received POST data: " . print_r($_POST, true));
-    
-    // Check if using new separate fields or old combined name field
+    require_once __DIR__ . '/../../includes/input_sanitize.php';
+
     $first_name = trim($_POST['first_name'] ?? '');
     $middle_name = trim($_POST['middle_name'] ?? '');
     $last_name = trim($_POST['last_name'] ?? '');
     $name = trim($_POST['name'] ?? '');
-    
-    error_log("First name: '$first_name', Last name: '$last_name', Name: '$name'");
-    
-    // If name is provided but not split into parts, try to split it
+
     if (!empty($name) && (empty($first_name) || empty($last_name))) {
         $parts = explode(' ', trim($name), 3);
         $first_name = $parts[0] ?? '';
         $middle_name = $parts[1] ?? '';
         $last_name = $parts[2] ?? '';
-        error_log("Split name - First: '$first_name', Middle: '$middle_name', Last: '$last_name'");
     }
-    
+
+    $firstSan = sanitize_name($first_name, true, 80, 'First name');
+    $middleSan = sanitize_name($middle_name, false, 80, 'Middle name');
+    $lastSan = sanitize_name($last_name, true, 80, 'Last name');
+    $messageSan = sanitize_message($_POST['inquiry_message'] ?? '', false, 2000, 'Message');
+    foreach ([$firstSan, $middleSan, $lastSan, $messageSan] as $field) {
+        if (!$field['ok']) {
+            echo json_encode(['success' => false, 'message' => $field['error']]);
+            exit();
+        }
+    }
+
+    $first_name = $firstSan['value'];
+    $middle_name = $middleSan['value'];
+    $last_name = $lastSan['value'];
+    $inquiry_message = $messageSan['value'];
     $contact_info = trim($_POST['contact_info'] ?? '');
-    $source = $_POST['source'] ?? '';
+    $source = trim((string)($_POST['source'] ?? ''));
     $topic = trim($_POST['topic'] ?? '');
-    $inquiry_message = trim($_POST['inquiry_message'] ?? '');
     $status = 'Unread';
-    
-    error_log("Final values - First: '$first_name', Last: '$last_name', Source: '$source'");
-    
+
+    if ($contact_info !== '' && contains_html($contact_info)) {
+        echo json_encode(['success' => false, 'message' => 'This field contains invalid characters.']);
+        exit();
+    }
+    if ($source === '' || contains_html($source)) {
+        echo json_encode(['success' => false, 'message' => $source === '' ? 'First name, last name, and source are required' : 'This field contains invalid characters.']);
+        exit();
+    }
+    if (contains_html($topic)) {
+        echo json_encode(['success' => false, 'message' => 'This field contains invalid characters.']);
+        exit();
+    }
+
     if (empty($first_name) || empty($last_name) || empty($source)) {
         echo json_encode(['success' => false, 'message' => 'First name, last name, and source are required']);
         exit();

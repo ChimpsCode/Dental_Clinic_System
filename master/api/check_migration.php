@@ -4,7 +4,8 @@
  * Run this to verify archive columns exist
  */
 
-require_once 'config/database.php';
+require_once __DIR__ . '/../../includes/require_admin.php';
+require_once __DIR__ . '/../../config/database.php';
 
 echo "<h2>Database Migration Check</h2>";
 echo "<pre>";

@@ -71,6 +71,18 @@ try {
     $newPatientsChartFillPercent = max(12, min(88, $newPatientsChartFillPercent));
     $newPatientsChartEmptyPercent = 100 - $newPatientsChartFillPercent;
 
+    // Get new patients for today and yesterday
+    $stmt = $pdo->query("SELECT COUNT(*) FROM patients WHERE DATE(created_at) = CURDATE()");
+    $newPatientsToday = (int)$stmt->fetchColumn();
+
+    $stmt = $pdo->query("SELECT COUNT(*) FROM patients WHERE DATE(created_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)");
+    $newPatientsYesterday = (int)$stmt->fetchColumn();
+
+    $newPatientsTodayTotalForChart = max(1, $newPatientsToday + $newPatientsYesterday);
+    $newPatientsTodayFillPercent = (int)round(($newPatientsToday / $newPatientsTodayTotalForChart) * 100);
+    $newPatientsTodayFillPercent = max(12, min(88, $newPatientsTodayFillPercent));
+    $newPatientsTodayEmptyPercent = 100 - $newPatientsTodayFillPercent;
+
     // Get active queue counts for today and yesterday
     $stmt = $pdo->query("SELECT COUNT(*) FROM queue WHERE status IN ('waiting', 'in_procedure') AND is_archived = 0 AND DATE(queue_time) = CURDATE()");
     $activeQueueToday = (int)$stmt->fetchColumn();
@@ -111,6 +123,10 @@ try {
     $newPatientsLastWeek = 0;
     $newPatientsChartFillPercent = 0;
     $newPatientsChartEmptyPercent = 0;
+    $newPatientsToday = 0;
+    $newPatientsYesterday = 0;
+    $newPatientsTodayFillPercent = 0;
+    $newPatientsTodayEmptyPercent = 0;
     $activeQueueToday = 0;
     $activeQueueYesterday = 0;
     $queueChartFillPercent = 0;
@@ -510,15 +526,15 @@ if (($patient['status_text'] ?? '') === 'in_procedure') {
                     </div>
                 </div>
                 <div class="quick-stat-card">
-                    <div class="quick-stat-label">Active Queue (Today)</div>
-                    <div class="quick-stat-value" id="dd-active-queue"><?php echo $activeQueueToday; ?></div>
+                    <div class="quick-stat-label">New <br>Patients (Today)</div>
+                    <div class="quick-stat-value" id="dd-new-patients-today"><?php echo $newPatientsToday; ?></div>
                     <div class="quick-stat-chart">
                         <span class="quick-stat-track"></span>
-                        <span class="quick-stat-fill" style="width: <?php echo $queueChartFillPercent; ?>%;">
-                            <span class="quick-stat-tooltip">Today: <?php echo $activeQueueToday; ?></span>
+                        <span class="quick-stat-fill" style="width: <?php echo $newPatientsTodayFillPercent; ?>%;">
+                            <span class="quick-stat-tooltip">Today: <?php echo $newPatientsToday; ?></span>
                         </span>
-                        <span class="quick-stat-empty" style="left: <?php echo $queueChartFillPercent; ?>%; width: <?php echo $queueChartEmptyPercent; ?>%;">
-                            <span class="quick-stat-tooltip">Yesterday: <?php echo $activeQueueYesterday; ?></span>
+                        <span class="quick-stat-empty" style="left: <?php echo $newPatientsTodayFillPercent; ?>%; width: <?php echo $newPatientsTodayEmptyPercent; ?>%;">
+                            <span class="quick-stat-tooltip">Yesterday: <?php echo $newPatientsYesterday; ?></span>
                         </span>
                     </div>
                 </div>

@@ -228,6 +228,24 @@ try {
     $upcomingApptCount = count($upcomingApptAll);
     $upcomingApptItems = array_slice($upcomingApptAll, 0, 3);
 
+    // Get new patients for this week and last week
+    $newPatientsThisWeek = (int)$pdo->query("SELECT COUNT(*) FROM patients WHERE YEARWEEK(created_at, 1) = YEARWEEK(CURDATE(), 1)")->fetchColumn();
+    $newPatientsLastWeek = (int)$pdo->query("SELECT COUNT(*) FROM patients WHERE YEARWEEK(created_at, 1) = YEARWEEK(DATE_SUB(CURDATE(), INTERVAL 1 WEEK), 1)")->fetchColumn();
+
+    $newPatientsTotalForChart = max(1, $newPatientsThisWeek + $newPatientsLastWeek);
+    $newPatientsChartFillPercent = (int)round(($newPatientsThisWeek / $newPatientsTotalForChart) * 100);
+    $newPatientsChartFillPercent = max(12, min(88, $newPatientsChartFillPercent));
+    $newPatientsChartEmptyPercent = 100 - $newPatientsChartFillPercent;
+
+    // Get new patients for today and yesterday
+    $newPatientsToday = (int)$pdo->query("SELECT COUNT(*) FROM patients WHERE DATE(created_at) = CURDATE()")->fetchColumn();
+    $newPatientsYesterday = (int)$pdo->query("SELECT COUNT(*) FROM patients WHERE DATE(created_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)")->fetchColumn();
+
+    $newPatientsTodayTotalForChart = max(1, $newPatientsToday + $newPatientsYesterday);
+    $newPatientsTodayFillPercent = (int)round(($newPatientsToday / $newPatientsTodayTotalForChart) * 100);
+    $newPatientsTodayFillPercent = max(12, min(88, $newPatientsTodayFillPercent));
+    $newPatientsTodayEmptyPercent = 100 - $newPatientsTodayFillPercent;
+
         // Today's Schedule removed from UI — keep placeholders in case of future re-enable
         $todayScheduleItems = [];
         $todayScheduleCount = 0;
@@ -253,6 +271,14 @@ try {
     $upcomingApptCount = 0;
     $upcomingApptItems = [];
     $todayScheduleItems = [];
+    $newPatientsThisWeek = 0;
+    $newPatientsLastWeek = 0;
+    $newPatientsChartFillPercent = 0;
+    $newPatientsChartEmptyPercent = 0;
+    $newPatientsToday = 0;
+    $newPatientsYesterday = 0;
+    $newPatientsTodayFillPercent = 0;
+    $newPatientsTodayEmptyPercent = 0;
 }
 
 ?>
@@ -636,7 +662,7 @@ try {
             
               
             <!-- Upcoming Appointments (next 24h) -->
-            <div class="section-card compact-queue">
+            <div class="section-card compact-queue upcoming-appt-card">
                 <h2 class="section-title">📅 Upcoming Appointments <span class="section-count upcoming-count" id="count-upcoming-appt"><?php echo $upcomingApptCount; ?></span></h2>
                 <div class="patient-list" id="upcoming-appt-list">
                     <?php if (empty($upcomingApptItems)): ?>
@@ -663,6 +689,38 @@ try {
                     <?php endif; ?>
                 </div>
                 <a href="staff_appointments.php?focus=scheduled" class="see-all-btn">View Upcoming Appointments</a>
+            </div>
+
+            <div class="notification-box quick-stats-panel">
+                <h3>📊 Quick Stats</h3>
+                <div class="quick-stats-grid">
+                    <div class="quick-stat-card">
+                        <div class="quick-stat-label">New <br>Patients (This Week)</div>
+                        <div class="quick-stat-value"><?php echo $newPatientsThisWeek; ?></div>
+                        <div class="quick-stat-chart">
+                            <span class="quick-stat-track"></span>
+                            <span class="quick-stat-fill" style="width: <?php echo $newPatientsChartFillPercent; ?>%;">
+                                <span class="quick-stat-tooltip">This week: <?php echo $newPatientsThisWeek; ?></span>
+                            </span>
+                            <span class="quick-stat-empty" style="left: <?php echo $newPatientsChartFillPercent; ?>%; width: <?php echo $newPatientsChartEmptyPercent; ?>%;">
+                                <span class="quick-stat-tooltip">Last week: <?php echo $newPatientsLastWeek; ?></span>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="quick-stat-card">
+                        <div class="quick-stat-label">New <br>Patients (Today)</div>
+                        <div class="quick-stat-value"><?php echo $newPatientsToday; ?></div>
+                        <div class="quick-stat-chart">
+                            <span class="quick-stat-track"></span>
+                            <span class="quick-stat-fill" style="width: <?php echo $newPatientsTodayFillPercent; ?>%;">
+                                <span class="quick-stat-tooltip">Today: <?php echo $newPatientsToday; ?></span>
+                            </span>
+                            <span class="quick-stat-empty" style="left: <?php echo $newPatientsTodayFillPercent; ?>%; width: <?php echo $newPatientsTodayEmptyPercent; ?>%;">
+                                <span class="quick-stat-tooltip">Yesterday: <?php echo $newPatientsYesterday; ?></span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
                 <!-- Today's Schedule removed per request -->

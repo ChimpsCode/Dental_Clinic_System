@@ -1,6 +1,7 @@
 <?php
 $pageTitle = 'Profile & Settings';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/input_sanitize.php';
 require_once __DIR__ . '/../../includes/dentist_layout_start.php';
 
 $uploadError = $_SESSION['upload_error'] ?? null;
@@ -25,30 +26,36 @@ try {
 } catch (Exception $e) {}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_profile') {
-    $first_name = trim($_POST['first_name'] ?? '');
-    $middle_name = trim($_POST['middle_name'] ?? '');
-    $last_name = trim($_POST['last_name'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    $phone = trim($_POST['phone'] ?? '');
-    $date_of_birth = $_POST['date_of_birth'] ?? null;
-    $gender = $_POST['gender'] ?? '';
-
-    $stmt = $pdo->prepare("UPDATE users SET first_name = ?, middle_name = ?, last_name = ?, email = ?, phone = ?, date_of_birth = ?, gender = ? WHERE id = ?");
-    $stmt->execute([$first_name, $middle_name, $last_name, $email, $phone, $date_of_birth ?: null, $gender ?: null, $userId]);
-
-    $message = 'Profile updated successfully!';
-    $messageType = 'success';
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_security') {
-    $sessionTimeout = (int)($_POST['session_timeout'] ?? 30);
-    if (in_array($sessionTimeout, [15, 30, 60, 120], true)) {
-        $stmt2 = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
-        $stmt2->execute(['session_timeout', (string)$sessionTimeout]);
+    $firstSan = sanitize_name($_POST['first_name'] ?? '', true, 80, 'First name');
+    $middleSan = sanitize_name($_POST['middle_name'] ?? '', false, 80, 'Middle name');
+    $lastSan = sanitize_name($_POST['last_name'] ?? '', true, 80, 'Last name');
+    $emailSan = sanitize_email($_POST['email'] ?? '', true);
+    $phoneSan = sanitize_phone($_POST['phone'] ?? '', false);
+    $fieldError = null;
+    foreach ([$firstSan, $middleSan, $lastSan, $emailSan, $phoneSan] as $field) {
+        if (!$field['ok']) {
+            $fieldError = $field['error'];
+            break;
+        }
     }
+    if ($fieldError) {
+        $message = $fieldError;
+        $messageType = 'error';
+    } else {
+        $first_name = $firstSan['value'];
+        $middle_name = $middleSan['value'];
+        $last_name = $lastSan['value'];
+        $email = $emailSan['value'];
+        $phone = $phoneSan['value'];
+        $date_of_birth = $_POST['date_of_birth'] ?? null;
+        $gender = $_POST['gender'] ?? '';
 
-    $message = 'Security settings saved successfully!';
-    $messageType = 'success';
+        $stmt = $pdo->prepare("UPDATE users SET first_name = ?, middle_name = ?, last_name = ?, email = ?, phone = ?, date_of_birth = ?, gender = ? WHERE id = ?");
+        $stmt->execute([$first_name, $middle_name, $last_name, $email, $phone, $date_of_birth ?: null, $gender ?: null, $userId]);
+
+        $message = 'Profile updated successfully!';
+        $messageType = 'success';
+    }
 }
 
 // Load session timeout setting
@@ -61,6 +68,8 @@ try {
         $sessionTimeoutSetting = $toVal;
     }
 } catch (Exception $e) {}
+$sessionTimeoutLabels = ['15' => '15 minutes', '30' => '30 minutes', '60' => '1 hour', '120' => '2 hours'];
+$sessionTimeoutLabel = $sessionTimeoutLabels[(string)$sessionTimeoutSetting] ?? ((int)$sessionTimeoutSetting . ' minutes');
 
 $stmt = $pdo->prepare("SELECT first_name, middle_name, last_name, email, phone, profile_picture, gender, date_of_birth, created_at, two_factor_enabled FROM users WHERE id = ?");
 $stmt->execute([$userId]);
@@ -238,9 +247,6 @@ $dentistTwoFactorEnabled = (int)($user['two_factor_enabled'] ?? 0) === 1;
 
     <div class="section" style="border-left: 4px solid #d97706;">
         <div class="section-title">🔒 Security</div>
-        <form method="POST" action="">
-            <input type="hidden" name="action" value="update_security">
-
             <div class="toggle-setting" style="display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid #f3f4f6; margin-bottom:16px;">
                 <div>
                     <span style="font-weight:600; color:#374151;">Two-Factor Authentication</span>
@@ -258,22 +264,10 @@ $dentistTwoFactorEnabled = (int)($user['two_factor_enabled'] ?? 0) === 1;
             <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid #f3f4f6; margin-bottom:16px;">
                 <div>
                     <span style="font-weight:600; color:#374151;">Session Timeout</span>
-                    <p style="font-size:13px; color:#6b7280; margin:4px 0 0;">Auto logout after inactivity (global setting)</p>
+                    <p style="font-size:13px; color:#6b7280; margin:4px 0 0;">Auto logout after inactivity. Only an administrator can change this clinic-wide setting.</p>
                 </div>
-                <select name="session_timeout" class="form-input" style="width:auto; padding:8px 12px;">
-                    <option value="15" <?php echo $sessionTimeoutSetting == '15' ? 'selected' : ''; ?>>15 minutes</option>
-                    <option value="30" <?php echo $sessionTimeoutSetting == '30' ? 'selected' : ''; ?>>30 minutes</option>
-                    <option value="60" <?php echo $sessionTimeoutSetting == '60' ? 'selected' : ''; ?>>1 hour</option>
-                    <option value="120" <?php echo $sessionTimeoutSetting == '120' ? 'selected' : ''; ?>>2 hours</option>
-                </select>
+                <span style="font-size:14px; font-weight:600; color:#374151;"><?php echo htmlspecialchars($sessionTimeoutLabel); ?></span>
             </div>
-
-            <div class="btn-container">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save"></i> Save Security Settings
-                </button>
-            </div>
-        </form>
     </div>
 </div>
 

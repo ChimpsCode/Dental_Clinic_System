@@ -210,6 +210,43 @@ function logFailedLogin($pdo, $username, $reason = 'invalid_password') {
 }
 
 /**
+ * Block further login tries after too many recent failures for the same identifier.
+ *
+ * @return array{locked:bool,message:?string}
+ */
+function getLoginLockStatus(PDO $pdo, string $identifier): array
+{
+    $identifier = trim($identifier);
+    if ($identifier === '') {
+        return ['locked' => false, 'message' => null];
+    }
+
+    $maxAttempts = 5;
+    $windowMinutes = 15;
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) FROM audit_logs
+            WHERE action_type = 'failed_login'
+              AND username = ?
+              AND created_at >= DATE_SUB(NOW(), INTERVAL ? MINUTE)
+        ");
+        $stmt->execute([$identifier, $windowMinutes]);
+        $count = (int)$stmt->fetchColumn();
+        if ($count >= $maxAttempts) {
+            return [
+                'locked' => true,
+                'message' => 'Too many failed login attempts. Please try again in ' . $windowMinutes . ' minutes.',
+            ];
+        }
+    } catch (Exception $e) {
+        error_log('Login lockout check error: ' . $e->getMessage());
+    }
+
+    return ['locked' => false, 'message' => null];
+}
+
+/**
  * Get audit logs with filters
  * 
  * @param PDO $pdo Database connection

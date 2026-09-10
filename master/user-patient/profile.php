@@ -32,6 +32,7 @@ require_once '../../includes/discount_helper.php';
 ensureDiscountSchema($pdo);
 require_once '../../includes/patient_session_helper.php';
 require_once '../../includes/patient_user_sync_helper.php';
+require_once __DIR__ . '/../../includes/input_sanitize.php';
 $patientSessionSettings = getPatientSessionSettings($pdo, (int)$user_id);
 
 $profileUserPatientJoin = 'LEFT JOIN patients p ON p.user_id = u.id';
@@ -175,10 +176,19 @@ try {
                 throw new Exception('Personal information can be edited again on ' . $personalInfoCooldownUntil->format('F j, Y') . '.');
             }
 
+            $firstSan = sanitize_name($_POST['first_name'] ?? '', true, 80, 'First name');
+            $middleSan = sanitize_name($_POST['middle_name'] ?? '', false, 80, 'Middle name');
+            $lastSan = sanitize_name($_POST['last_name'] ?? '', true, 80, 'Last name');
+            foreach ([$firstSan, $middleSan, $lastSan] as $field) {
+                if (!$field['ok']) {
+                    throw new Exception($field['error']);
+                }
+            }
+
             $personalFields = [
-                'first_name' => trim($_POST['first_name'] ?? ''),
-                'middle_name' => trim($_POST['middle_name'] ?? ''),
-                'last_name' => trim($_POST['last_name'] ?? ''),
+                'first_name' => $firstSan['value'],
+                'middle_name' => $middleSan['value'],
+                'last_name' => $lastSan['value'],
                 'date_of_birth' => trim($_POST['date_of_birth'] ?? ''),
                 'gender' => strtolower(trim($_POST['gender'] ?? ''))
             ];

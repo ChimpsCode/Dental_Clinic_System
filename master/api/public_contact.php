@@ -3,6 +3,13 @@ header('Content-Type: application/json');
 require_once '../../config/database.php';
 require_once '../../includes/inquiry_module_helper.php';
 require_once '../../includes/input_sanitize.php';
+require_once '../../includes/rate_limit.php';
+
+if (!rate_limit_allow('public_contact', 5, 600)) {
+    http_response_code(429);
+    echo json_encode(['success' => false, 'message' => 'Too many messages. Please wait a few minutes and try again.']);
+    exit;
+}
 
 ensureInquiryModuleSchema($pdo);
 
@@ -43,8 +50,13 @@ $stmt->execute([$firstName, $middleName ?: null, $lastName, $phone, $email, $mes
 
 $inquiryId = (int)$pdo->lastInsertId();
 
-$token = bin2hex(random_bytes(32));
+$token = generateReplyToken();
 $tokenStmt = $pdo->prepare("UPDATE inquiries SET reply_token = ? WHERE id = ?");
 $tokenStmt->execute([$token, $inquiryId]);
 
-echo json_encode(['success' => true, 'message' => 'Your message has been sent! We will reply to you via email.', 'token' => $token]);
+$baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'];
+$projectBase = rtrim(dirname(dirname(dirname($_SERVER['SCRIPT_NAME']))), '/');
+$conversationLink = $baseUrl . $projectBase . '/inquiry/' . $token;
+sendInquiryConversationLinkEmail($email, $firstName, $conversationLink);
+
+echo json_encode(['success' => true, 'message' => 'Your message has been sent! We will reply to you via email.']);
