@@ -206,6 +206,7 @@
     })();
     </script>
     <?php require __DIR__ . '/session_timeout_script.php'; ?>
+    <script src="../../assets/js/logout_confirm.js?v=3"></script>
 </body>
 </html>
 <?php

@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../includes/session_bootstrap.php';
+require_once __DIR__ . '/../../includes/auth_redirect.php';
 
 $isLoginPost = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
 $explicitLogin = isset($_GET['form']) || isset($_GET['expired']) || isset($_GET['deleted']);
@@ -7,6 +8,11 @@ $inAuthFlow = !empty($_SESSION['2fa_user_id'])
     || !empty($_SESSION['2fa_user_data'])
     || !empty($_SESSION['reset_user_id'])
     || !empty($_SESSION['reset_code_verified']);
+
+$skipAuthRedirect = isset($_GET['expired']) || isset($_GET['deleted']) || $inAuthFlow;
+if (!$skipAuthRedirect) {
+    redirect_if_authenticated();
+}
 
 if (!$isLoginPost && !$explicitLogin && !$inAuthFlow) {
     header('Location: home.php');
@@ -995,6 +1001,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
         }
     </style>
     <?php require __DIR__ . '/../../includes/app_notice_modal_script.php'; ?>
+    <?php app_guest_bfcache_reload_script(); ?>
 </head>
 <body>
     <!-- Back Button -->

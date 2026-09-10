@@ -1,4 +1,7 @@
 <?php
+require_once __DIR__ . '/../../includes/session_bootstrap.php';
+require_once __DIR__ . '/../../includes/auth_redirect.php';
+redirect_if_authenticated();
 require_once '../../config/database.php';
 require_once __DIR__ . '/../../includes/discount_helper.php';
 
@@ -314,6 +317,7 @@ $assets = [
       }
     </style>
     <?php require __DIR__ . '/../../includes/app_notice_modal_script.php'; ?>
+    <?php app_guest_bfcache_reload_script(); ?>
   </head>
   <body>
     <div id="top" aria-hidden="true"></div>

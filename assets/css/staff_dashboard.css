@@ -1083,6 +1083,30 @@ header.top-header {
     max-height: calc(100vh - 100px);
     overflow-y: auto;
     overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.18) transparent;
+}
+
+.right-column::-webkit-scrollbar {
+    width: 6px;
+}
+
+.right-column::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.right-column::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, 0.18);
+    border-radius: 3px;
+    transition: background-color 0.2s ease;
+}
+
+.right-column:hover {
+    scrollbar-color: #cbd5e1 transparent;
+}
+
+.right-column:hover::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
 }
 
 .right-column .section-card,
