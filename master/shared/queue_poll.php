@@ -73,8 +73,11 @@ try {
     $completedToday = count(array_filter($items, fn($q) => ($q['status'] ?? '') === 'completed'));
     $onHoldCount = count(array_filter($items, fn($q) => ($q['status'] ?? '') === 'on_hold'));
     $cancelledCount = count(array_filter($items, fn($q) => ($q['status'] ?? '') === 'cancelled'));
+    $completedTodayCard = function_exists('countCompletedQueueToday')
+        ? countCompletedQueueToday($pdo)
+        : $completedToday;
 
-    $hash = md5(json_encode($items));
+    $hash = md5(json_encode($items) . '|ct:' . $completedTodayCard);
 
     echo json_encode([
         'success' => true,
@@ -85,6 +88,7 @@ try {
             'waiting' => $waitingCount,
             'in_procedure' => $procedureCount,
             'completed' => $completedToday,
+            'completed_today' => $completedTodayCard,
             'on_hold' => $onHoldCount
             ,'cancelled' => $cancelledCount
         ]

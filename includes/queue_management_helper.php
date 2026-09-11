@@ -360,3 +360,13 @@ function getQueueDisplayStatus(string $status): string
             return ucwords(str_replace('_', ' ', trim($status)));
     }
 }
+
+function countCompletedQueueToday(PDO $pdo): int
+{
+    return (int)$pdo->query("
+        SELECT COUNT(*) FROM queue
+        WHERE COALESCE(is_archived, 0) = 0
+          AND status IN ('completed', 'pending_payment')
+          AND DATE(COALESCE(completed_at, created_at)) = CURDATE()
+    ")->fetchColumn();
+}

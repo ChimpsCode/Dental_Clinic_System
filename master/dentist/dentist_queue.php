@@ -48,6 +48,7 @@ try {
     $waitingCount = count(array_filter($allQueueItems, fn($q) => ($q['status_text'] ?? '') === 'waiting'));
     $procedureCount = count(array_filter($allQueueItems, fn($q) => ($q['status_text'] ?? '') === 'in_procedure'));
     $completedToday = count(array_filter($allQueueItems, fn($q) => ($q['status_text'] ?? '') === 'completed'));
+    $completedTodayCard = countCompletedQueueToday($pdo);
     $onHoldCount = count(array_filter($allQueueItems, fn($q) => ($q['status_text'] ?? '') === 'on_hold'));
     $cancelledCount = count(array_filter($allQueueItems, fn($q) => ($q['status_text'] ?? '') === 'cancelled'));
     $totalInQueue = $waitingCount + $procedureCount + $onHoldCount;
@@ -81,6 +82,7 @@ try {
     $waitingCount = 0;
     $procedureCount = 0;
     $completedToday = 0;
+    $completedTodayCard = 0;
     $onHoldCount = 0;
     $cancelledCount = 0;
     $totalInQueue = 0;
@@ -1243,7 +1245,7 @@ div.main-content {
             <img src="../../assets/icons/check.png" alt="Completed">
         </div>
         <div class="summary-widget-info">
-            <h3><?php echo $completedToday; ?></h3>
+            <h3 id="queue-completed-count"><?php echo $completedTodayCard; ?></h3>
             <p>Completed</p>
         </div>
     </div>
@@ -2205,6 +2207,9 @@ function refreshQueueTable(data) {
 
     var items = data.items;
     var counts = data.counts;
+
+    var completedCard = document.getElementById('queue-completed-count');
+    if (completedCard) completedCard.textContent = counts.completed_today ?? counts.completed;
 
     // Update tab counts (dentist: All, Waiting, In Procedure, Completed, Cancelled)
     var tabs = document.querySelectorAll('.tab-item');

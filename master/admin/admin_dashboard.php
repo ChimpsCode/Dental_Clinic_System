@@ -52,13 +52,8 @@ try {
            AND (balance IS NOT NULL AND balance > 0)
     ")->fetchColumn() ?? 0);
     
-    // Completed Today - queue items marked as completed today
-    $completedToday = (int)($pdo->query("
-        SELECT COUNT(*)
-        FROM queue
-        WHERE status = 'completed'
-          AND DATE(completed_at) = CURDATE()
-    ")->fetchColumn() ?? 0);
+    // Completed Today - consultations/procedures finished today (includes pending payment)
+    $completedToday = countCompletedQueueToday($pdo);
 
     // Current 6 months data for dashboard revenue overview
     $chartYear = (int)date('Y');
@@ -1022,7 +1017,7 @@ function pollAdminQueueCounts() {
             if (data.hash !== adQueueCountHash) {
                 adQueueCountHash = data.hash;
                 var el = document.getElementById('ad-completed-today');
-                if (el) el.textContent = data.counts.completed;
+                if (el) el.textContent = data.counts.completed_today ?? data.counts.completed;
             }
         })
         .catch(function(e) { console.error('Admin queue poll error:', e); });

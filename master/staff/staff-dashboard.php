@@ -179,7 +179,7 @@ try {
     
     $waitingCount = count(array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'waiting'));
     $procedureCount = count(array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'in_procedure'));
-    $completedCount = count(array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'completed'));
+    $completedCount = countCompletedQueueToday($pdo);
     $onHoldCount = count(array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'on_hold'));
     $cancelledCount = count(array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'cancelled'));
     
@@ -2441,7 +2441,7 @@ function pollDashboardQueueCounts() {
                 el = document.getElementById('count-up-next');
                 if (el) el.textContent = c.waiting;
                 el = document.getElementById('count-completed');
-                if (el) el.textContent = c.completed;
+                if (el) el.textContent = c.completed_today ?? c.completed;
                 el = document.getElementById('count-skipped');
                 if (el) el.textContent = c.on_hold;
             }

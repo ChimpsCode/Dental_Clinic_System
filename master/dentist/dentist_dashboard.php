@@ -32,9 +32,8 @@ try {
         }
     }
     
-    // Get today's completed count
-    $stmt = $pdo->query("SELECT COUNT(*) FROM queue WHERE status = 'completed' AND DATE(completed_at) = CURDATE()");
-    $completedToday = $stmt->fetchColumn();
+    // Get today's completed count (includes pending payment after consultation)
+    $completedToday = countCompletedQueueToday($pdo);
     
     // Get patients currently in queue
     $stmt = $pdo->query("
@@ -1434,7 +1433,7 @@ function refreshDashboardQueue(data) {
     el = document.getElementById('dd-in-procedure');
     if (el) el.textContent = c.in_procedure;
     el = document.getElementById('dd-completed');
-    if (el) el.textContent = c.completed;
+    if (el) el.textContent = c.completed_today ?? c.completed;
     el = document.getElementById('dd-on-hold');
     if (el) el.textContent = c.on_hold;
     el = document.getElementById('dd-active-queue');
