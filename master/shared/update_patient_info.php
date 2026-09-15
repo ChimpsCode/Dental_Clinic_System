@@ -5,8 +5,7 @@
  * Notifies patient if their info was changed
  */
 
-require_once __DIR__ . '/../../includes/session_bootstrap.php';
-header('Content-Type: application/json');
+require_once __DIR__ . '/../../includes/session_bootstrap.php';header('Content-Type: application/json');
 
 if (($_SESSION['role'] ?? '') !== 'admin') {
     http_response_code(403);
@@ -16,8 +15,11 @@ if (($_SESSION['role'] ?? '') !== 'admin') {
 
 require_once '../../config/database.php';
 require_once '../../includes/audit_helper.php';
+<<<<<<< Updated upstream
 require_once '../../includes/patient_user_sync_helper.php';
 require_once __DIR__ . '/../../includes/input_sanitize.php';
+=======
+>>>>>>> Stashed changes
 
 $patient_id = $_POST['patient_id'] ?? null;
 $firstSan = sanitize_name($_POST['first_name'] ?? '', true, 80, 'First name');
@@ -41,8 +43,7 @@ $last_name = $lastSan['value'];
 $suffix = $_POST['suffix'] ?? '';
 $phone = $_POST['phone'] ?? '';
 $email = $_POST['email'] ?? '';
-$date_of_birth = trim((string)($_POST['date_of_birth'] ?? ''));
-$date_of_birth = $date_of_birth === '' ? null : substr($date_of_birth, 0, 10);
+$date_of_birth = $_POST['date_of_birth'] ?? null;
 $gender = $_POST['gender'] ?? '';
 
 require_once __DIR__ . '/../../includes/discount_helper.php';
@@ -133,12 +134,6 @@ try {
         $newPatient['senior_id_type'] = $senior_id_type;
         $newPatient['pwd_id'] = $pwd_id;
         logRecordChange($pdo, $_SESSION['user_id'], $_SESSION['username'] ?? 'unknown', 'admin', 'update', 'patients', 'patients', (int)$patient_id, 'patient record #' . $patient_id, $oldPatient, $newPatient);
-
-        try {
-            syncPatientToUser($pdo, (int)$patient_id);
-        } catch (Exception $e) {
-            // Identity sync is best-effort; the patient row was already saved.
-        }
 
         // Build change notification
         $changes = [];

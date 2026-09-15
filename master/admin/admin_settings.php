@@ -816,7 +816,8 @@ function saveDateStatus() {
 }
 
 function deleteDateStatus(silent = false) {
-    var run = function() {
+    if (!silent && !confirm('Remove this date from unavailable dates?')) return;
+    
     fetch('settings_actions.php?action=delete_unavailable_date', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -836,12 +837,6 @@ function deleteDateStatus(silent = false) {
     .catch(() => {
         alert('Failed to delete date');
     });
-    };
-    if (silent) {
-        run();
-        return;
-    }
-    window.appAsk('Remove this date from unavailable dates?', run, { title: 'Please Confirm', kind: 'error', confirmText: 'Remove' });
 }
 
 function deleteUnavailableDate(dateStr) {

@@ -471,7 +471,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     if ($role === 'admin') $redirect = '../admin/admin_dashboard.php';
     elseif ($role === 'staff') $redirect = '../staff/staff-dashboard.php';
     elseif ($role === 'dentist') $redirect = '../dentist/dentist_dashboard.php';
-    elseif ($role === 'user') $redirect = '../user-patient/patient-dashboard.php' . ((!empty($_SESSION['is_new_patient']) || !empty($_SESSION['first_login']) || !empty($_SESSION['new_registration'])) ? '?tour=1' : '');
+    elseif ($role === 'user') $redirect = '../user-patient/patient-dashboard.php';
     else $redirect = '../../dashboard.php';
 
     echo json_encode(['success' => true, 'message' => 'Logged in successfully', 'redirect' => $redirect, 'role' => $role]);
@@ -706,7 +706,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             } elseif ($role === 'dentist') {
                 $redirect = '../dentist/dentist_dashboard.php';
             } elseif ($role === 'user') {
-                $redirect = '../user-patient/patient-dashboard.php' . ((!empty($_SESSION['is_new_patient']) || !empty($_SESSION['first_login']) || !empty($_SESSION['new_registration'])) ? '?tour=1' : '');
+                $redirect = '../user-patient/patient-dashboard.php';
             } else {
                 $redirect = '../../dashboard.php';
             }
@@ -862,7 +862,7 @@ if ($role === 'dentist') {
                 } elseif ($role === 'dentist') {
                     $redirect = '../dentist/dentist_dashboard.php';
                 } elseif ($role === 'user') {
-                    $redirect = '../user-patient/patient-dashboard.php' . ((!empty($_SESSION['is_new_patient']) || !empty($_SESSION['first_login']) || !empty($_SESSION['new_registration'])) ? '?tour=1' : '');
+                    $redirect = '../user-patient/patient-dashboard.php';
                 } else {
                     $redirect = '../../dashboard.php';
                 }
@@ -1000,8 +1000,11 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
             background: #2563eb;
         }
     </style>
+<<<<<<< Updated upstream
     <?php require __DIR__ . '/../../includes/app_notice_modal_script.php'; ?>
     <?php app_guest_bfcache_reload_script(); ?>
+=======
+>>>>>>> Stashed changes
 </head>
 <body>
     <!-- Back Button -->

@@ -117,15 +117,6 @@ try {
         $patient['street_address'] = '';
     }
 
-    foreach (['first_name' => 'user_first_name', 'middle_name' => 'user_middle_name', 'last_name' => 'user_last_name'] as $patientField => $userField) {
-        if (trim((string)($patient[$patientField] ?? '')) === '') {
-            $patient[$patientField] = $patient[$userField] ?? '';
-        }
-    }
-    if (!empty($patient['date_of_birth'])) {
-        $patient['date_of_birth'] = substr((string)$patient['date_of_birth'], 0, 10);
-    }
-
     $patientGender = strtolower(trim((string)($patient['gender'] ?? '')));
     if ($patientGender === 'm') {
         $patientGender = 'male';
@@ -217,15 +208,6 @@ try {
                     $normalizedOldGender = ['m' => 'male', 'f' => 'female'][$normalizedOldGender] ?? $normalizedOldGender;
                     $normalizedNewGender = ['m' => 'male', 'f' => 'female'][$normalizedNewGender] ?? $normalizedNewGender;
                     if ($normalizedOldGender === $normalizedNewGender) continue;
-                    $changes[$field] = [$oldValue, $newValue];
-                    continue;
-                }
-                if ($field === 'date_of_birth') {
-                    $oldDob = substr(trim((string)($oldValue ?? '')), 0, 10);
-                    $newDob = substr(trim((string)($newValue ?? '')), 0, 10);
-                    if ($oldDob === $newDob) continue;
-                    $changes[$field] = [$oldValue, $newValue];
-                    continue;
                 }
                 if ((string)($oldValue ?? '') !== (string)($newValue ?? '')) {
                     $changes[$field] = [$oldValue, $newValue];
@@ -443,11 +425,10 @@ $pageTitle = 'My Profile';
         .otp-modal-content { background: white; padding: 24px; border-radius: 12px; width: 100%; max-width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
     </style>
     <link rel="stylesheet" href="../../assets/css/patient_portal.css">
-    <?php require __DIR__ . '/../../includes/app_notice_modal_script.php'; ?>
 </head>
 <body>
-    <aside class="sidebar">
-        <a href="../../index.php" class="sidebar-brand">
+    <aside class="sidebar" id="patientSidebar">
+        <div class="sidebar-brand">
             <img src="../../assets/images/Logo.png" alt="RF Dental Clinic">
             <span>RF Dental</span>
         </div>
@@ -490,7 +471,6 @@ $pageTitle = 'My Profile';
                 </div>
             </div>
             <div class="header-right">
-                <?php include '../../includes/patient_tour_widget.php'; ?>
                 <?php include '../../includes/patient_notification_widget.php'; ?>
                 <div class="user-profile">
                     <div class="user-avatar">
@@ -569,7 +549,7 @@ $pageTitle = 'My Profile';
                         </div>
                         <button class="btn btn-primary" id="saveBtn" style="display:none;" type="submit">Save Photo</button>
                         <?php if (!empty($profPic)): ?>
-                            <a href="../shared/profile_picture_actions.php?action=delete" class="btn btn-secondary" style="text-decoration:none;color:#dc2626;" onclick="return window.appAskNav ? appAskNav(event, 'Remove profile photo?') : confirm('Remove profile photo?')">Remove Photo</a>
+                            <a href="../shared/profile_picture_actions.php?action=delete" class="btn btn-secondary" style="text-decoration:none;color:#dc2626;" onclick="return confirm('Remove profile photo?')">Remove Photo</a>
                         <?php endif; ?>
                         <span style="font-size:12px;color:#6b7280;">JPG, PNG, GIF, WebP. Max 2MB.</span>
                     </form>
@@ -880,10 +860,6 @@ $pageTitle = 'My Profile';
         if (savePersonalInfoBtn) {
             savePersonalInfoBtn.addEventListener('click', function() {
                 if (!personalInfoAction || !profileUpdateForm) return;
-                personalInfoFields.forEach(function(field) {
-                    if (field.tagName === 'SELECT') field.disabled = false;
-                    else field.readOnly = false;
-                });
                 personalInfoAction.value = 'personal_info_update';
                 profileUpdateForm.submit();
             });

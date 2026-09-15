@@ -172,29 +172,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const registerSuccess = document.getElementById('registerSuccess');
     const registerPasswordInput = document.getElementById('reg_password');
     const registerConfirmPasswordInput = document.getElementById('reg_confirm_password');
-
-    function clearRegisterAutofill() {
-        const email = document.getElementById('reg_email');
-        [email, registerPasswordInput, registerConfirmPasswordInput].forEach(function(el) {
-            if (el) el.value = '';
-        });
-        if (registerPasswordInput) registerPasswordInput.dispatchEvent(new Event('input'));
-        [50, 300, 800].forEach(function(delay) {
-            setTimeout(function() {
-                [email, registerPasswordInput, registerConfirmPasswordInput].forEach(function(el) {
-                    if (el) el.value = '';
-                });
-                if (registerPasswordInput) registerPasswordInput.dispatchEvent(new Event('input'));
-            }, delay);
-        });
-    }
-
-    [registerPasswordInput, registerConfirmPasswordInput].forEach(function(el) {
-        if (!el) return;
-        el.addEventListener('focus', function() {
-            el.removeAttribute('readonly');
-        });
-    });
     const toggleRegisterPassword = document.getElementById('toggleRegPassword');
     const toggleRegisterConfirmPassword = document.getElementById('toggleRegConfirmPassword');
     const forgotError = document.getElementById('forgotError');
@@ -232,7 +209,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (forgotContainer) forgotContainer.style.display = 'none';
         if (registrationContainer) registrationContainer.style.display = 'block';
         showRegistrationStep(1);
-        clearRegisterAutofill();
         document.title = 'Sign Up - RF Dental Clinic';
         if (window.location.hash !== '#register') {
             history.replaceState(null, '', '#register');
@@ -432,59 +408,14 @@ document.addEventListener('DOMContentLoaded', function() {
             && /[^A-Za-z0-9]/.test(password);
     }
 
-    function getPasswordRuleFlags(password) {
-        return {
-            length: password.length >= 8,
-            upper: /[A-Z]/.test(password),
-            lower: /[a-z]/.test(password),
-            number: /[0-9]/.test(password),
-            symbol: /[^A-Za-z0-9]/.test(password)
-        };
-    }
-
-    function updatePasswordRequirementChecks(password) {
-        const flags = getPasswordRuleFlags(password || '');
-        document.querySelectorAll('#regPasswordStrengthBox [data-rule]').forEach(function(item) {
-            const rule = item.getAttribute('data-rule');
-            const met = !!flags[rule];
-            if (item.classList.contains('is-met') === met) return;
-            item.classList.toggle('is-met', met);
-        });
-    }
-
-    function updateConfirmPasswordMatch() {
-        const hint = document.getElementById('regPasswordMatchHint');
-        const text = hint ? hint.querySelector('.pwd-match-text') : null;
-        const password = registerPasswordInput ? registerPasswordInput.value : '';
-        const confirm = registerConfirmPasswordInput ? registerConfirmPasswordInput.value : '';
-
-        if (!hint || !text || !registerConfirmPasswordInput) return;
-
-        hint.classList.remove('is-met', 'is-mismatch', 'is-idle');
-
-        if (!confirm) {
-            hint.classList.add('is-idle');
-            text.textContent = 'Re-enter password to confirm';
-            registerConfirmPasswordInput.dataset.match = 'empty';
-            return;
-        }
-
-        if (password && password === confirm) {
-            hint.classList.add('is-met');
-            text.textContent = 'Passwords match';
-            registerConfirmPasswordInput.dataset.match = 'match';
-            return;
-        }
-
-        hint.classList.add('is-mismatch');
-        text.textContent = 'Passwords do not match';
-        registerConfirmPasswordInput.dataset.match = 'mismatch';
-    }
-
     function getPasswordStrengthState(password) {
-        const flags = getPasswordRuleFlags(password);
-        const hasLength = flags.length;
-        const matchedRules = [flags.length, flags.upper, flags.lower, flags.number, flags.symbol].filter(Boolean).length;
+        const hasLength = password.length >= 8;
+        const hasUpper = /[A-Z]/.test(password);
+        const hasLower = /[a-z]/.test(password);
+        const hasNumber = /[0-9]/.test(password);
+        const hasSymbol = /[^A-Za-z0-9]/.test(password);
+
+        const matchedRules = [hasLength, hasUpper, hasLower, hasNumber, hasSymbol].filter(Boolean).length;
 
         if (!password) {
             return {
@@ -528,8 +459,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const value = input.value || '';
             const state = getPasswordStrengthState(value);
             input.dataset.strength = state.strength;
-            updatePasswordRequirementChecks(value);
-            updateConfirmPasswordMatch();
         };
 
         input.addEventListener('input', update);
@@ -541,12 +470,6 @@ document.addEventListener('DOMContentLoaded', function() {
     setupPasswordStrengthMeter(
         registerPasswordInput
     );
-
-    if (registerConfirmPasswordInput) {
-        registerConfirmPasswordInput.addEventListener('input', updateConfirmPasswordMatch);
-        registerConfirmPasswordInput.addEventListener('blur', updateConfirmPasswordMatch);
-        updateConfirmPasswordMatch();
-    }
 
     function bindDigitsOnlyField(field) {
         if (!field) return;
@@ -579,7 +502,6 @@ document.addEventListener('DOMContentLoaded', function() {
         sanitize();
     }
 
-    bindDigitsOnlyField(document.getElementById('reg_phone'));
     bindDigitsOnlyField(document.getElementById('reg-phone'));
     bindDigitsOnlyField(document.getElementById('reg_emergency_phone'));
     bindDigitsOnlyField(document.getElementById('reg-emergency-phone'));
@@ -598,24 +520,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!firstName || !lastName || !phone || !gender || !dob || !emergencyName || !emergencyPhone || !emergencyRelationship) {
                 showToast('Error', 'Please complete all personal and emergency contact details before continuing.', 'error');
                 return;
-            }
-
-            const middleName = document.getElementById('reg_middle_name')?.value.trim() || '';
-            const addressVal = document.getElementById('reg_address')?.value.trim() || '';
-            if (window.FormSanitize) {
-                const bad = window.FormSanitize.firstError([
-                    window.FormSanitize.name(firstName, true, 'First name'),
-                    window.FormSanitize.name(middleName, false, 'Middle name'),
-                    window.FormSanitize.name(lastName, true, 'Last name'),
-                    window.FormSanitize.phone(phone, true),
-                    window.FormSanitize.address(addressVal, false),
-                    window.FormSanitize.name(emergencyName, true, 'Emergency contact name'),
-                    window.FormSanitize.phone(emergencyPhone, true)
-                ]);
-                if (bad) {
-                    showToast('Error', bad.error, 'error');
-                    return;
-                }
             }
 
             showRegistrationStep(2);
@@ -643,30 +547,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!email) {
                 showToast('Error', 'Please enter your email address.', 'error');
                 return;
-            }
-
-            if (window.FormSanitize) {
-                const firstName = document.getElementById('reg_first_name')?.value || '';
-                const middleName = document.getElementById('reg_middle_name')?.value || '';
-                const lastName = document.getElementById('reg_last_name')?.value || '';
-                const phone = document.getElementById('reg_phone')?.value || '';
-                const addressVal = document.getElementById('reg_address')?.value || '';
-                const emergencyName = document.getElementById('reg_emergency_name')?.value || '';
-                const emergencyPhone = document.getElementById('reg_emergency_phone')?.value || '';
-                const bad = window.FormSanitize.firstError([
-                    window.FormSanitize.name(firstName, true, 'First name'),
-                    window.FormSanitize.name(middleName, false, 'Middle name'),
-                    window.FormSanitize.name(lastName, true, 'Last name'),
-                    window.FormSanitize.phone(phone, true),
-                    window.FormSanitize.email(email, true),
-                    window.FormSanitize.address(addressVal, false),
-                    window.FormSanitize.name(emergencyName, true, 'Emergency contact name'),
-                    window.FormSanitize.phone(emergencyPhone, true)
-                ]);
-                if (bad) {
-                    showToast('Error', bad.error, 'error');
-                    return;
-                }
             }
 
             if (pwd !== confirmPwd) {
@@ -896,13 +776,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!email) {
                 showForgotError('Please enter your email address.');
                 return;
-            }
-            if (window.FormSanitize) {
-                const emailCheck = window.FormSanitize.email(email, true);
-                if (!emailCheck.ok) {
-                    showForgotError(emailCheck.error);
-                    return;
-                }
             }
             clearForgotMessages();
             fpSendBtn.disabled = true;
@@ -1143,15 +1016,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 showToast('Error', 'Please enter your username', 'error');
                 if (usernameInput) usernameInput.focus();
                 return false;
-            }
-
-            if (window.FormSanitize) {
-                const ident = window.FormSanitize.loginIdentifier(username);
-                if (!ident.ok) {
-                    showToast('Error', ident.error, 'error');
-                    if (usernameInput) usernameInput.focus();
-                    return false;
-                }
             }
 
             if (!password) {

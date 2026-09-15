@@ -911,10 +911,10 @@ function editService(id) {
 }
 
 function deleteService(id) {
-    window.appAsk('Are you sure you want to delete this service?', function() {
+    if (confirm('Are you sure you want to delete this service?')) {
         document.getElementById('deleteId').value = id;
         document.getElementById('deleteForm').submit();
-    }, { title: 'Please Confirm', kind: 'error', confirmText: 'Delete' });
+    }
 }
 
 function showToast(message, type) {
