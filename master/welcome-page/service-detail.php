@@ -367,11 +367,8 @@ $assets = [
         .success-modal { padding: 30px 20px; }
       }
     </style>
-<<<<<<< Updated upstream
     <?php require __DIR__ . '/../../includes/app_notice_modal_script.php'; ?>
     <?php app_guest_bfcache_reload_script(); ?>
-=======
->>>>>>> Stashed changes
   </head>
   <body>
     <div class="nav-overlay"></div>

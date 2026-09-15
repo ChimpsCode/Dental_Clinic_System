@@ -15,11 +15,8 @@ if (($_SESSION['role'] ?? '') !== 'admin') {
 
 require_once '../../config/database.php';
 require_once '../../includes/audit_helper.php';
-<<<<<<< Updated upstream
 require_once '../../includes/patient_user_sync_helper.php';
 require_once __DIR__ . '/../../includes/input_sanitize.php';
-=======
->>>>>>> Stashed changes
 
 $patient_id = $_POST['patient_id'] ?? null;
 $firstSan = sanitize_name($_POST['first_name'] ?? '', true, 80, 'First name');

@@ -1000,11 +1000,8 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
             background: #2563eb;
         }
     </style>
-<<<<<<< Updated upstream
     <?php require __DIR__ . '/../../includes/app_notice_modal_script.php'; ?>
     <?php app_guest_bfcache_reload_script(); ?>
-=======
->>>>>>> Stashed changes
 </head>
 <body>
     <!-- Back Button -->
