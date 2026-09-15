@@ -66,6 +66,7 @@ $periodStats = [
     'today' => ['inquiries' => 0, 'appointments' => 0],
     'week' => ['inquiries' => 0, 'appointments' => 0],
     'month' => ['inquiries' => 0, 'appointments' => 0],
+    'total' => ['inquiries' => 0, 'appointments' => 0],
 ];
 
 try {
@@ -137,13 +138,18 @@ try {
                         (SELECT COUNT(*) FROM appointments
                          WHERE COALESCE(is_archived, 0) = 0
                              AND appointment_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
-                             AND appointment_date < DATE_ADD(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 1 MONTH)) AS appointments_month
+                             AND appointment_date < DATE_ADD(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 1 MONTH)) AS appointments_month,
+                        (SELECT COUNT(*) FROM inquiries
+                         WHERE COALESCE(is_archived, 0) = 0) AS inquiries_total,
+                        (SELECT COUNT(*) FROM appointments
+                         WHERE COALESCE(is_archived, 0) = 0) AS appointments_total
         ");
         $periodStatsRow = $periodStatsStmt->fetch(PDO::FETCH_ASSOC) ?: [];
         $periodStats = [
                 'today' => ['inquiries' => (int)($periodStatsRow['inquiries_today'] ?? 0), 'appointments' => (int)($periodStatsRow['appointments_today'] ?? 0)],
                 'week' => ['inquiries' => (int)($periodStatsRow['inquiries_week'] ?? 0), 'appointments' => (int)($periodStatsRow['appointments_week'] ?? 0)],
                 'month' => ['inquiries' => (int)($periodStatsRow['inquiries_month'] ?? 0), 'appointments' => (int)($periodStatsRow['appointments_month'] ?? 0)],
+                'total' => ['inquiries' => (int)($periodStatsRow['inquiries_total'] ?? 0), 'appointments' => (int)($periodStatsRow['appointments_total'] ?? 0)],
         ];
 
     // Revenue series for full year (2026)
@@ -220,29 +226,6 @@ try {
         $genderDistribution = $femalePct . '% F / ' . $malePct . '% M';
     }
 
-    $stmt = $pdo->query("
-        SELECT service_name, COUNT(*) AS total
-        FROM (
-            SELECT s.name AS service_name
-            FROM appointments a
-            JOIN services s ON a.service_id = s.id
-            WHERE a.service_id IS NOT NULL AND a.service_id > 0
-
-            UNION ALL
-
-            SELECT COALESCE(s.name, q.treatment_type) AS service_name
-            FROM queue q
-            LEFT JOIN services s ON q.service_id = s.id
-            WHERE (q.service_id IS NOT NULL AND q.service_id > 0)
-               OR (q.treatment_type IS NOT NULL AND q.treatment_type != '')
-        ) combined
-        WHERE service_name IS NOT NULL AND service_name != ''
-        GROUP BY service_name
-        ORDER BY total DESC
-        LIMIT 4
-    ");
-    $topServices = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
     // Top Dentist - join with roles table using role_id
     $stmt = $pdo->prepare("
         SELECT CONCAT(u.first_name, ' ', u.last_name) as full_name, COUNT(*) AS total
@@ -285,28 +268,33 @@ try {
 }
 
 try {
-    // Same real records as admin dashboard Appointments by Type (appointments + queue, all-time)
-    $stmt = $pdo->query("
+    $stmt = $pdo->prepare("
         SELECT service_name, COUNT(*) AS total
         FROM (
             SELECT s.name AS service_name
             FROM appointments a
             JOIN services s ON a.service_id = s.id
             WHERE a.service_id IS NOT NULL AND a.service_id > 0
+              AND a.appointment_date BETWEEN ? AND ?
 
             UNION ALL
 
             SELECT COALESCE(s.name, q.treatment_type) AS service_name
             FROM queue q
             LEFT JOIN services s ON q.service_id = s.id
-            WHERE (q.service_id IS NOT NULL AND q.service_id > 0)
-               OR (q.treatment_type IS NOT NULL AND q.treatment_type != '')
+            WHERE (
+                    (q.service_id IS NOT NULL AND q.service_id > 0)
+                    OR (q.treatment_type IS NOT NULL AND q.treatment_type != '')
+                  )
+              AND COALESCE(q.queue_date, DATE(q.created_at)) BETWEEN ? AND ?
         ) combined
         WHERE service_name IS NOT NULL AND service_name != ''
         GROUP BY service_name
         ORDER BY total DESC
     ");
+    $stmt->execute([$startStr, $endStr, $startStr, $endStr]);
     $appointmentTypeRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $topServices = array_slice($appointmentTypeRows, 0, 4);
 
     $pieColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
     $topTypes = array_slice($appointmentTypeRows, 0, 3);
@@ -349,6 +337,7 @@ try {
         $appointmentTypeGradient = 'conic-gradient(' . implode(', ', $gradientParts) . ')';
     }
 } catch (Exception $e) {
+    $topServices = [];
     $appointmentTypeSlices = [];
     $appointmentTypeGradient = '#e5e7eb';
     $appointmentTypeTotal = 0;
@@ -405,7 +394,7 @@ try {
                     <!-- Revenue Chart -->
                     <div class="chart-card">
                         <h3 class="chart-title">Revenue Overview</h3>
-                        <div style="display: flex; align-items: flex-end; gap: 10px; height: 180px; padding: 10px 15px 30px 15px; border-bottom: 1px solid #e5e7eb;">
+                        <div class="dash-revenue-chart" style="display: flex; align-items: flex-end; gap: 10px; height: 180px; padding: 10px 15px 30px 15px; border-bottom: 1px solid #e5e7eb;">
                                 <?php 
                                 // Get all 12 months for the chart year
                                 $allMonths = [];
@@ -444,8 +433,9 @@ try {
                                         $bg = '#e5e7eb';
                                     }
                                     ?>
-                                    <div style="flex: 1; height: <?php echo $height; ?>%; min-height: 15px; background: <?php echo $bg; ?>; border-radius: 4px 4px 0 0; position: relative;" title="<?php echo $label; ?>: ₱<?php echo number_format($total); ?>">
-                                        <span style="position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 11px; color: #6b7280; white-space: nowrap;"><?php echo $label; ?></span>
+                                    <div class="dash-revenue-col" title="<?php echo $label; ?>: ₱<?php echo number_format($total); ?>">
+                                        <div class="dash-revenue-bar" style="height: <?php echo $height; ?>%; min-height: 15px; background: <?php echo $bg; ?>;"></div>
+                                        <span class="dash-revenue-label"><?php echo $label; ?></span>
                                     </div>
                                     <?php
                                 }
@@ -457,8 +447,8 @@ try {
                     <div class="chart-card">
                         <h3 class="chart-title">Appointments by Type</h3>
                         <div class="chart-placeholder">
-                            <div class="pie-chart" style="background: <?php echo htmlspecialchars($appointmentTypeGradient, ENT_QUOTES, 'UTF-8'); ?>;"></div>
-                            <div class="chart-legend">
+                            <div class="pie-chart analytics-pie-chart" style="background: <?php echo htmlspecialchars($appointmentTypeGradient, ENT_QUOTES, 'UTF-8'); ?>;"></div>
+                            <div class="chart-legend analytics-pie-legend">
                                 <?php if ($appointmentTypeTotal > 0): ?>
                                     <?php foreach ($appointmentTypeSlices as $slice): ?>
                                         <?php $pct = (int)round(($slice['count'] / $appointmentTypeTotal) * 100); ?>
@@ -476,24 +466,26 @@ try {
                     </div>
                 </div>
 
-                <section class="period-statistics" aria-label="Inquiry and appointment statistics">
+                <section class="period-statistics" id="periodStatistics" data-view="inquiry" aria-label="Inquiry and appointment statistics">
                     <div class="period-statistics-header">
                         <div>
-                            <h2>Inquiry and Appointment Statistics</h2>
+                            <h2 id="periodStatisticsTitle">Inquiry Statistics</h2>
                             <p>Automatically calculated from active records.</p>
                         </div>
+                        <select class="filter-select" id="periodStatisticsView" aria-label="Choose statistics type">
+                            <option value="inquiry" selected>Inquiry Statistics</option>
+                            <option value="appointment">Appointment Statistics</option>
+                        </select>
                     </div>
                     <div class="period-statistics-grid">
-                        <?php foreach (['today' => 'Today', 'week' => 'This Week', 'month' => 'This Month'] as $periodKey => $periodLabel): ?>
-                            <div class="period-stat-card">
+                        <?php foreach (['today' => 'Today', 'week' => 'This Week', 'month' => 'This Month', 'total' => 'Total'] as $periodKey => $periodLabel): ?>
+                            <div class="period-stat-card"
+                                 data-inquiries="<?php echo (int)$periodStats[$periodKey]['inquiries']; ?>"
+                                 data-appointments="<?php echo (int)$periodStats[$periodKey]['appointments']; ?>">
                                 <h3><?php echo $periodLabel; ?></h3>
                                 <div class="period-stat-row">
-                                    <span>Patient inquiries</span>
-                                    <strong><?php echo number_format($periodStats[$periodKey]['inquiries']); ?></strong>
-                                </div>
-                                <div class="period-stat-row">
-                                    <span>Appointments</span>
-                                    <strong><?php echo number_format($periodStats[$periodKey]['appointments']); ?></strong>
+                                    <span class="period-stat-label">Patient inquiries</span>
+                                    <strong class="period-stat-value"><?php echo number_format($periodStats[$periodKey]['inquiries']); ?></strong>
                                 </div>
                             </div>
                         <?php endforeach; ?>
@@ -570,6 +562,31 @@ try {
         params.set('period', this.value);
         window.location.search = params.toString();
     });
+
+    (function () {
+        const section = document.getElementById('periodStatistics');
+        const select = document.getElementById('periodStatisticsView');
+        const title = document.getElementById('periodStatisticsTitle');
+        if (!section || !select || !title) return;
+
+        function applyPeriodView(view) {
+            const isAppointment = view === 'appointment';
+            section.setAttribute('data-view', view);
+            title.textContent = isAppointment ? 'Appointment Statistics' : 'Inquiry Statistics';
+            section.querySelectorAll('.period-stat-card').forEach(function (card) {
+                const value = isAppointment ? card.getAttribute('data-appointments') : card.getAttribute('data-inquiries');
+                const label = card.querySelector('.period-stat-label');
+                const strong = card.querySelector('.period-stat-value');
+                if (label) label.textContent = isAppointment ? 'Appointments' : 'Patient inquiries';
+                if (strong) strong.textContent = Number(value || 0).toLocaleString();
+            });
+        }
+
+        select.addEventListener('change', function () {
+            applyPeriodView(this.value);
+        });
+        applyPeriodView(select.value);
+    })();
 </script>
 <style>
     .content-main {
@@ -583,19 +600,30 @@ try {
         background: #ffffff;
         box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
     }
+    .period-statistics-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
     .period-statistics-header h2 {
         margin: 0;
         color: #1f2937;
         font-size: 1.05rem;
     }
     .period-statistics-header p {
-        margin: 4px 0 16px;
+        margin: 4px 0 0;
         color: #64748b;
         font-size: 0.82rem;
     }
+    .period-statistics-header .filter-select {
+        flex-shrink: 0;
+        min-width: 220px;
+    }
     .period-statistics-grid {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 16px;
     }
     .period-stat-card {
@@ -624,7 +652,9 @@ try {
         font-size: 1.1rem;
     }
     @media (max-width: 900px) {
-        .period-statistics-grid { grid-template-columns: 1fr; }
+        .period-statistics-header { flex-direction: column; }
+        .period-statistics-header .filter-select { width: 100%; min-width: 0; }
+        .period-statistics-grid { grid-template-columns: 1fr 1fr; }
     }
 </style>
 <?php

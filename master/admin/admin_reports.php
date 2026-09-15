@@ -16,6 +16,7 @@ $servicesReport = [];
 $dailySummaryReport = [];
 $printedInvoices = [];
 $printedDaily = [];
+$appointmentsAllTimeTotal = 0;
 
 // Get date filter from GET parameter
 $dateFilter = $_GET['date_filter'] ?? 'all';
@@ -101,6 +102,8 @@ try {
         " . $appointmentWhere . $appointmentDateCondition . "
         ORDER BY a.appointment_date DESC, a.appointment_time DESC
     ")->fetchAll(PDO::FETCH_ASSOC);
+
+    $appointmentsAllTimeTotal = (int)($pdo->query("SELECT COUNT(*) FROM appointments")->fetchColumn() ?? 0);
 
     $billingReport = $pdo->query("
         SELECT b.id, CONCAT(p.first_name, ' ', p.last_name) AS patient,
@@ -509,7 +512,8 @@ $reportPayload = [
     'services' => $servicesReport,
     'daily' => $dailySummaryReport,
     'printed' => $printedInvoices,
-    'printed_daily' => $printedDaily
+    'printed_daily' => $printedDaily,
+    'appointments_total' => $appointmentsAllTimeTotal
 ];
 $reportJson = json_encode($reportPayload, $jsonFlags);
 ?>
@@ -654,6 +658,9 @@ function renderNewReport(type) {
     }
 
     const table = buildTable(headers, rows);
+    const appointmentsTotalMeta = type === 'appointments'
+        ? `<div>Total Appointments: ${Number(reportData.appointments_total || 0).toLocaleString()}</div>`
+        : '';
     return `
         <div class="print-report">
             <div class="print-header">
@@ -666,6 +673,7 @@ function renderNewReport(type) {
                 </div>
                 <div class="print-meta">
                     <div>Generated: ${new Date().toLocaleString()}</div>
+                    ${appointmentsTotalMeta}
                 </div>
             </div>
             <div class="print-body">${table}</div>

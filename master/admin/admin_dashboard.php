@@ -49,8 +49,12 @@ try {
     // Total Patients (only active, not archived)
     $totalPatients = (int)($pdo->query("SELECT COUNT(*) FROM patients WHERE is_archived = 0")->fetchColumn() ?? 0);
     
-    // Total Appointments (all appointments)
-    $totalAppointments = (int)($pdo->query("SELECT COUNT(*) FROM appointments")->fetchColumn() ?? 0);
+    // This month's appointments (calendar month; resets on the 1st)
+    $totalAppointments = (int)($pdo->query("
+        SELECT COUNT(*) FROM appointments
+        WHERE appointment_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+          AND appointment_date < DATE_ADD(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 1 MONTH)
+    ")->fetchColumn() ?? 0);
     
     // Total Revenue - sum of all paid amounts from billing
     $totalRevenue = (float)($pdo->query("SELECT COALESCE(SUM(paid_amount), 0) FROM billing")->fetchColumn() ?? 0);
@@ -346,7 +350,7 @@ try {
                         </div>
                         <div class="summary-info">
                             <h3><?php echo $totalAppointments; ?></h3>
-                            <p>Appointments</p>
+                            <p>This Month's Appointments</p>
                         </div>
                     </div>
 
@@ -396,7 +400,7 @@ try {
                     <!-- Revenue Overview -->
                     <div class="section-card" style="flex: 1; min-width: 300px;">
                         <h2 class="section-title">6-Month Revenue</h2>
-                        <div style="display: flex; align-items: flex-end; gap: 15px; height: 180px; padding: 10px 20px 30px 20px; border-bottom: 1px solid #e5e7eb;">
+                        <div class="dash-revenue-chart" style="display: flex; align-items: flex-end; gap: 15px; height: 180px; padding: 10px 20px 30px 20px; border-bottom: 1px solid #e5e7eb;">
                                 <?php 
                                 // Get last 6 months dynamically
                                 $currentMonth = (int)date('n');
@@ -447,8 +451,9 @@ try {
                                         $bg = '#e5e7eb';
                                     }
                                     ?>
-                                    <div style="flex: 1; height: <?php echo $height; ?>%; min-height: 15px; background: <?php echo $bg; ?>; border-radius: 4px 4px 0 0; position: relative;" title="<?php echo $label; ?>: ₱<?php echo number_format($total); ?>">
-                                        <span style="position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 12px; color: #6b7280; white-space: nowrap;"><?php echo $label; ?></span>
+                                    <div class="dash-revenue-col" title="<?php echo $label; ?>: ₱<?php echo number_format($total); ?>">
+                                        <div class="dash-revenue-bar" style="height: <?php echo $height; ?>%; min-height: 15px; background: <?php echo $bg; ?>;"></div>
+                                        <span class="dash-revenue-label"><?php echo $label; ?></span>
                                     </div>
                                     <?php
                                 }
@@ -557,8 +562,8 @@ try {
                 <div class="section-card dash-appt-type-card" style="margin-bottom: 0px; padding-bottom: 0px !important;">
                     <h2 class="section-title">Appointments by Type</h2>
                     <div class="dash-appt-type-body">
-                        <div class="pie-chart" style="background: <?php echo htmlspecialchars($appointmentTypeGradient, ENT_QUOTES, 'UTF-8'); ?>;"></div>
-                        <div class="chart-legend">
+                        <div class="pie-chart dash-pie-chart" style="background: <?php echo htmlspecialchars($appointmentTypeGradient, ENT_QUOTES, 'UTF-8'); ?>;"></div>
+                        <div class="chart-legend dash-pie-legend">
                             <?php if ($appointmentTypeTotal > 0): ?>
                                 <?php foreach ($appointmentTypeSlices as $slice): ?>
                                     <?php $pct = (int)round(($slice['count'] / $appointmentTypeTotal) * 100); ?>
@@ -1287,11 +1292,15 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('adCalPrev'))
     min-height: 100px;
     position: relative;
     overflow: hidden;
+    overflow: clip;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
     transition: transform 0.2s ease;
     cursor: default;
 }
 .summary-cards .summary-card:hover {
-    transform: translateY(-2px);
+    transform: translate3d(0, -2px, 0);
 }
 .summary-cards .summary-icon,
 .summary-cards .summary-info {

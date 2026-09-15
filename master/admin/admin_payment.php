@@ -8,6 +8,17 @@ $pageTitle = 'Payment';
 
 require_once __DIR__ . '/../../config/database.php';
 
+$isSuggest = isset($_GET['suggest']);
+if ($isSuggest) {
+    require_once __DIR__ . '/../../includes/session_bootstrap.php';
+    header('Content-Type: application/json; charset=utf-8');
+    if (!empty($GLOBALS['APP_SESSION_EXPIRED']) || !isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
+        http_response_code(403);
+        echo json_encode(['suggestions' => []]);
+        exit;
+    }
+}
+
 $billingRecords = [];
 $totalCollected = 0;
 $pendingPayments = 0;
@@ -20,9 +31,14 @@ $currentPage = 1;
 $totalPages = 1;
 $perPage = 10;
 $dbError = '';
+$searchQuery = '';
+$statusFilter = '';
+$dateFilter = 'all';
 
 try {
-    $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : '';
+    $searchQuery = $isSuggest
+        ? trim((string)($_GET['q'] ?? ''))
+        : (isset($_GET['search']) ? trim($_GET['search']) : '');
     $statusFilter = isset($_GET['status']) ? trim($_GET['status']) : '';
     $dateFilter = isset($_GET['date']) ? trim($_GET['date']) : 'all';
     $currentPage = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
@@ -43,7 +59,12 @@ try {
 
     if ($searchQuery !== '') {
         $whereClause .= " AND (
-            CONCAT(COALESCE(p.first_name,''), ' ', COALESCE(p.middle_name,''), ' ', COALESCE(p.last_name,'')) LIKE :search
+            CONCAT_WS(' ',
+                NULLIF(TRIM(p.first_name), ''),
+                NULLIF(TRIM(p.middle_name), ''),
+                NULLIF(TRIM(p.last_name), ''),
+                NULLIF(TRIM(p.suffix), '')
+            ) LIKE :search
             OR b.id LIKE :searchId
         )";
         $params[':search'] = '%' . $searchQuery . '%';
@@ -70,6 +91,46 @@ try {
         case 'month':
             $whereClause .= " AND b.billing_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
             break;
+    }
+
+    if ($isSuggest) {
+        $suggestions = [];
+        if ($searchQuery !== '') {
+            $suggestSql = "
+                SELECT
+                    b.id AS billing_id,
+                    b.payment_status,
+                    p.first_name,
+                    p.middle_name,
+                    p.last_name,
+                    p.suffix
+                FROM billing b
+                LEFT JOIN patients p ON p.id = b.patient_id
+                $queueJoin
+                $whereClause
+                ORDER BY b.billing_date DESC
+                LIMIT 8
+            ";
+            $suggestStmt = $pdo->prepare($suggestSql);
+            foreach ($params as $key => $value) {
+                $suggestStmt->bindValue($key, $value);
+            }
+            $suggestStmt->execute();
+            foreach ($suggestStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $fullName = trim(($row['first_name'] ?? '') . ' ' . ($row['middle_name'] ?? '') . ' ' . ($row['last_name'] ?? '') . ' ' . ($row['suffix'] ?? ''));
+                $fullName = preg_replace('/\s+/', ' ', $fullName);
+                $billingId = (int)($row['billing_id'] ?? 0);
+                $suggestions[] = [
+                    'name' => $fullName !== '' ? $fullName : 'Unknown Patient',
+                    'invoice' => 'INV-' . str_pad((string)$billingId, 3, '0', STR_PAD_LEFT),
+                    'billing_id' => $billingId,
+                    'status' => $row['payment_status'] ?? '',
+                    'search' => $fullName !== '' ? $fullName : (string)$billingId,
+                ];
+            }
+        }
+        echo json_encode(['suggestions' => $suggestions]);
+        exit;
     }
 
     $statsSql = "
@@ -162,6 +223,10 @@ try {
     $showingStart = $filteredTotal ? $offset + 1 : 0;
     $showingEnd = min($offset + $perPage, $filteredTotal);
 } catch (Exception $e) {
+    if (!empty($isSuggest)) {
+        echo json_encode(['suggestions' => []]);
+        exit;
+    }
     $billingRecords = [];
     $dbError = $e->getMessage();
 }
@@ -217,8 +282,11 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 <?php endif; ?>
 
                 <!-- Search and Filter -->
-                <form method="GET" class="search-filters">
-                    <input type="text" class="search-input" placeholder="Search by patient name or invoice..." name="search" value="<?php echo htmlspecialchars($searchQuery); ?>">
+                <form method="GET" class="search-filters" id="paymentSearchForm">
+                    <div class="payment-search-wrap">
+                        <input type="text" class="search-input" id="paymentSearch" placeholder="Search by patient name or invoice..." name="search" value="<?php echo htmlspecialchars($searchQuery); ?>" autocomplete="off">
+                        <div id="paymentSearchSuggestions" class="payment-search-suggestions" hidden></div>
+                    </div>
                     <select class="filter-select" name="status">
                         <option value="">All Status</option>
                         <option value="paid" <?php echo $statusFilter === 'paid' ? 'selected' : ''; ?>>Paid</option>
@@ -1476,8 +1544,151 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                         if (typeof closePaymentKebabDropdown === 'function') closePaymentKebabDropdown();
                         closePaymentModal();
                         closePrintPaymentModal();
+                        if (typeof window.hidePaymentSuggestions === 'function') window.hidePaymentSuggestions();
                     }
                 });
+
+                (function initPaymentLiveSearch() {
+                    var form = document.getElementById('paymentSearchForm');
+                    var input = document.getElementById('paymentSearch');
+                    var list = document.getElementById('paymentSearchSuggestions');
+                    if (!form || !input || !list) return;
+
+                    var debounceTimer = null;
+                    var abortCtrl = null;
+                    var items = [];
+                    var activeIndex = -1;
+                    var selecting = false;
+
+                    function hidePaymentSuggestions() {
+                        list.hidden = true;
+                        list.innerHTML = '';
+                        items = [];
+                        activeIndex = -1;
+                    }
+
+                    window.hidePaymentSuggestions = hidePaymentSuggestions;
+
+                    function suggestionSearchValue(item, query) {
+                        var q = (query || '').trim();
+                        if (/^inv-?/i.test(q) || /^\d+$/.test(q)) {
+                            return String(item.billing_id);
+                        }
+                        return item.search || item.name || '';
+                    }
+
+                    function applySuggestion(item) {
+                        if (!item) return;
+                        selecting = true;
+                        input.value = suggestionSearchValue(item, input.value);
+                        hidePaymentSuggestions();
+                        form.submit();
+                    }
+
+                    function highlight() {
+                        var rows = list.querySelectorAll('.payment-search-suggestion');
+                        for (var i = 0; i < rows.length; i++) {
+                            if (i === activeIndex) rows[i].classList.add('is-active');
+                            else rows[i].classList.remove('is-active');
+                        }
+                    }
+
+                    function renderSuggestions(suggestions, query) {
+                        items = suggestions || [];
+                        activeIndex = items.length ? 0 : -1;
+                        list.innerHTML = '';
+                        if (!items.length) {
+                            var empty = document.createElement('div');
+                            empty.className = 'payment-search-empty';
+                            empty.textContent = 'No matching records';
+                            list.appendChild(empty);
+                            list.hidden = false;
+                            return;
+                        }
+                        items.forEach(function(item, idx) {
+                            var btn = document.createElement('button');
+                            btn.type = 'button';
+                            btn.className = 'payment-search-suggestion' + (idx === 0 ? ' is-active' : '');
+                            btn.setAttribute('role', 'option');
+                            var name = document.createElement('span');
+                            name.className = 'payment-search-suggestion-name';
+                            name.textContent = item.name || 'Unknown Patient';
+                            var meta = document.createElement('span');
+                            meta.className = 'payment-search-suggestion-meta';
+                            meta.textContent = (item.invoice || '') + (item.status ? ' · ' + item.status : '');
+                            btn.appendChild(name);
+                            btn.appendChild(meta);
+                            btn.addEventListener('mousedown', function(e) {
+                                e.preventDefault();
+                                applySuggestion(item);
+                            });
+                            list.appendChild(btn);
+                        });
+                        list.hidden = false;
+                    }
+
+                    function fetchSuggestions(query) {
+                        if (abortCtrl) abortCtrl.abort();
+                        abortCtrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+                        var params = new URLSearchParams();
+                        params.set('suggest', '1');
+                        params.set('q', query);
+                        var statusEl = form.querySelector('select[name="status"]');
+                        var dateEl = form.querySelector('select[name="date"]');
+                        if (statusEl && statusEl.value) params.set('status', statusEl.value);
+                        if (dateEl && dateEl.value) params.set('date', dateEl.value);
+                        var opts = {};
+                        if (abortCtrl) opts.signal = abortCtrl.signal;
+                        fetch('admin_payment.php?' + params.toString(), opts)
+                            .then(function(res) { return res.json(); })
+                            .then(function(data) {
+                                if (input.value.trim() !== query) return;
+                                renderSuggestions((data && data.suggestions) || [], query);
+                            })
+                            .catch(function() {});
+                    }
+
+                    input.addEventListener('input', function() {
+                        var query = input.value.trim();
+                        clearTimeout(debounceTimer);
+                        if (!query) {
+                            hidePaymentSuggestions();
+                            return;
+                        }
+                        debounceTimer = setTimeout(function() {
+                            fetchSuggestions(query);
+                        }, 200);
+                    });
+
+                    input.addEventListener('keydown', function(e) {
+                        if (list.hidden || !items.length) return;
+                        if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            activeIndex = (activeIndex + 1) % items.length;
+                            highlight();
+                        } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            activeIndex = (activeIndex - 1 + items.length) % items.length;
+                            highlight();
+                        } else if (e.key === 'Enter' && activeIndex >= 0) {
+                            e.preventDefault();
+                            applySuggestion(items[activeIndex]);
+                        }
+                    });
+
+                    input.addEventListener('blur', function() {
+                        setTimeout(function() {
+                            if (!selecting) hidePaymentSuggestions();
+                            selecting = false;
+                        }, 150);
+                    });
+
+                    document.addEventListener('click', function(e) {
+                        if (!e.target.closest('.payment-search-wrap')) {
+                            hidePaymentSuggestions();
+                        }
+                    });
+                })();
             </script>
 
 <style>
@@ -1566,6 +1777,61 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 @media (max-width: 480px) {
     .summary-cards { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
     .summary-card { padding: 12px !important; }
+}
+
+.payment-search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 250px;
+}
+.payment-search-wrap .search-input {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+.payment-search-suggestions {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    box-shadow: 0 8px 16px rgba(15, 23, 42, 0.12);
+    z-index: 40;
+    max-height: 280px;
+    overflow-y: auto;
+}
+.payment-search-suggestion {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: 100%;
+    padding: 10px 14px;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+}
+.payment-search-suggestion:hover,
+.payment-search-suggestion.is-active {
+    background: #f1f5f9;
+}
+.payment-search-suggestion-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #0f172a;
+}
+.payment-search-suggestion-meta {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+.payment-search-empty {
+    padding: 10px 14px;
+    font-size: 0.8125rem;
+    color: #64748b;
 }
 </style>
 

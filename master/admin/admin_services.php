@@ -2,6 +2,66 @@
 $pageTitle = 'Services Management';
 require_once __DIR__ . '/../../config/database.php';
 
+if (isset($_GET['suggest'])) {
+    require_once __DIR__ . '/../../includes/session_bootstrap.php';
+    header('Content-Type: application/json; charset=utf-8');
+    if (!empty($GLOBALS['APP_SESSION_EXPIRED']) || !isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
+        http_response_code(403);
+        echo json_encode(['suggestions' => []]);
+        exit;
+    }
+
+    $q = trim((string)($_GET['q'] ?? ''));
+    $modeFilter = isset($_GET['mode']) ? trim($_GET['mode']) : '';
+    $statusFilter = isset($_GET['status']) ? trim($_GET['status']) : '';
+    $suggestions = [];
+
+    if ($q !== '') {
+        try {
+            $nameColumnForQuery = 'name';
+            $nameColumnCheck = $pdo->query("SHOW COLUMNS FROM services LIKE 'name'")->fetch();
+            if (!$nameColumnCheck) {
+                $nameColumnForQuery = 'service_name';
+            }
+
+            $whereClauses = ["($nameColumnForQuery LIKE ? OR description LIKE ?)"];
+            $params = ['%' . $q . '%', '%' . $q . '%'];
+
+            if ($modeFilter !== '') {
+                $whereClauses[] = 'mode = ?';
+                $params[] = $modeFilter;
+            }
+            if ($statusFilter !== '') {
+                $whereClauses[] = 'is_active = ?';
+                $params[] = (int)$statusFilter;
+            }
+
+            $whereSQL = 'WHERE ' . implode(' AND ', $whereClauses);
+            $sql = "SELECT id, $nameColumnForQuery AS name, mode, is_active
+                    FROM services
+                    $whereSQL
+                    ORDER BY $nameColumnForQuery ASC
+                    LIMIT 8";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $name = trim((string)($row['name'] ?? ''));
+                $suggestions[] = [
+                    'name' => $name !== '' ? $name : 'Untitled service',
+                    'mode' => $row['mode'] ?? '',
+                    'status' => !empty($row['is_active']) ? 'Active' : 'Inactive',
+                    'search' => $name !== '' ? $name : '',
+                ];
+            }
+        } catch (Exception $e) {
+            $suggestions = [];
+        }
+    }
+
+    echo json_encode(['suggestions' => $suggestions]);
+    exit;
+}
+
 require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
 // Check and migrate services table schema if needed
@@ -504,6 +564,56 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
     padding-top: 26px;
 }
 
+.service-search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+}
+.service-search-suggestions {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    box-shadow: 0 8px 16px rgba(15, 23, 42, 0.12);
+    z-index: 40;
+    max-height: 280px;
+    overflow-y: auto;
+}
+.service-search-suggestion {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: 100%;
+    padding: 10px 14px;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+}
+.service-search-suggestion:hover,
+.service-search-suggestion.is-active {
+    background: #f1f5f9;
+}
+.service-search-suggestion-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #0f172a;
+}
+.service-search-suggestion-meta {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+.service-search-empty {
+    padding: 10px 14px;
+    font-size: 0.8125rem;
+    color: #64748b;
+}
+
 </style>
 
 <div class="content-main">
@@ -533,9 +643,12 @@ $totalInactive = count(array_filter($allServices, function($s) { return $s['is_a
         </div>
     </div>
 
-    <form method="GET" style="margin-bottom: 25px; display: flex; gap: 12px; flex-wrap: wrap;">
-        <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Search services by name, mode, or description..."
-               style="flex: 1; padding: 12px 16px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; outline: none; min-width: 200px;">
+    <form method="GET" id="serviceSearchForm" style="margin-bottom: 25px; display: flex; gap: 12px; flex-wrap: wrap;">
+        <div class="service-search-wrap">
+            <input type="text" name="search" id="serviceSearch" value="<?php echo htmlspecialchars($search); ?>" placeholder="Search services by name, mode, or description..." autocomplete="off"
+                   style="width: 100%; padding: 12px 16px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; outline: none; box-sizing: border-box;">
+            <div id="serviceSearchSuggestions" class="service-search-suggestions" hidden></div>
+        </div>
         <select name="mode" onchange="this.form.submit()" style="padding: 12px 16px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; outline: none;">
             <option value="">All Modes</option>
             <option value="BULK" <?php echo $modeFilter === 'BULK' ? 'selected' : ''; ?>>BULK</option>
@@ -944,6 +1057,144 @@ function handleServiceKebabAction(e) {
 
 // Kick off kebab menu bindings
 initServiceKebabMenu();
+
+(function initServiceLiveSearch() {
+    var form = document.getElementById('serviceSearchForm');
+    var input = document.getElementById('serviceSearch');
+    var list = document.getElementById('serviceSearchSuggestions');
+    if (!form || !input || !list) return;
+
+    var debounceTimer = null;
+    var abortCtrl = null;
+    var items = [];
+    var activeIndex = -1;
+    var selecting = false;
+
+    function hideServiceSuggestions() {
+        list.hidden = true;
+        list.innerHTML = '';
+        items = [];
+        activeIndex = -1;
+    }
+
+    function applySuggestion(item) {
+        if (!item) return;
+        selecting = true;
+        input.value = item.search || item.name || '';
+        hideServiceSuggestions();
+        form.submit();
+    }
+
+    function highlight() {
+        var rows = list.querySelectorAll('.service-search-suggestion');
+        for (var i = 0; i < rows.length; i++) {
+            if (i === activeIndex) rows[i].classList.add('is-active');
+            else rows[i].classList.remove('is-active');
+        }
+    }
+
+    function renderSuggestions(suggestions) {
+        items = suggestions || [];
+        activeIndex = items.length ? 0 : -1;
+        list.innerHTML = '';
+        if (!items.length) {
+            var empty = document.createElement('div');
+            empty.className = 'service-search-empty';
+            empty.textContent = 'No matching records';
+            list.appendChild(empty);
+            list.hidden = false;
+            return;
+        }
+        items.forEach(function(item, idx) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'service-search-suggestion' + (idx === 0 ? ' is-active' : '');
+            var name = document.createElement('span');
+            name.className = 'service-search-suggestion-name';
+            name.textContent = item.name || 'Untitled service';
+            var meta = document.createElement('span');
+            meta.className = 'service-search-suggestion-meta';
+            var parts = [];
+            if (item.mode) parts.push(item.mode);
+            if (item.status) parts.push(item.status);
+            meta.textContent = parts.join(' · ');
+            btn.appendChild(name);
+            btn.appendChild(meta);
+            btn.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                applySuggestion(item);
+            });
+            list.appendChild(btn);
+        });
+        list.hidden = false;
+    }
+
+    function fetchSuggestions(query) {
+        if (abortCtrl) abortCtrl.abort();
+        abortCtrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+        var params = new URLSearchParams();
+        params.set('suggest', '1');
+        params.set('q', query);
+        var modeEl = form.querySelector('select[name="mode"]');
+        var statusEl = form.querySelector('select[name="status"]');
+        if (modeEl && modeEl.value) params.set('mode', modeEl.value);
+        if (statusEl && statusEl.value) params.set('status', statusEl.value);
+        var opts = {};
+        if (abortCtrl) opts.signal = abortCtrl.signal;
+        fetch('admin_services.php?' + params.toString(), opts)
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (input.value.trim() !== query) return;
+                renderSuggestions((data && data.suggestions) || []);
+            })
+            .catch(function() {});
+    }
+
+    input.addEventListener('input', function() {
+        var query = input.value.trim();
+        clearTimeout(debounceTimer);
+        if (!query) {
+            hideServiceSuggestions();
+            return;
+        }
+        debounceTimer = setTimeout(function() {
+            fetchSuggestions(query);
+        }, 200);
+    });
+
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            hideServiceSuggestions();
+            return;
+        }
+        if (list.hidden || !items.length) return;
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            activeIndex = (activeIndex + 1) % items.length;
+            highlight();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            activeIndex = (activeIndex - 1 + items.length) % items.length;
+            highlight();
+        } else if (e.key === 'Enter' && activeIndex >= 0) {
+            e.preventDefault();
+            applySuggestion(items[activeIndex]);
+        }
+    });
+
+    input.addEventListener('blur', function() {
+        setTimeout(function() {
+            if (!selecting) hideServiceSuggestions();
+            selecting = false;
+        }, 150);
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.service-search-wrap')) {
+            hideServiceSuggestions();
+        }
+    });
+})();
 </script>
 
 <?php require_once __DIR__ . '/../../includes/admin_layout_end.php'; ?>
