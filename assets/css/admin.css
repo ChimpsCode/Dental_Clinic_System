@@ -806,12 +806,12 @@
     display: flex;
     align-items: center;
     gap: 16px;
-    padding-bottom: 12px;
+    padding-bottom: 8px;
 }
 
 .dash-appt-type-card .pie-chart {
-    width: 130px;
-    height: 130px;
+    width: 168px;
+    height: 168px;
     margin-right: 0;
 }
 

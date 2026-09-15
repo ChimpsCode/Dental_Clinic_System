@@ -285,34 +285,27 @@ try {
 }
 
 try {
-    $serviceNameExpr = "COALESCE(NULLIF(TRIM(s.name), ''), 'Unspecified')";
-    $stmt = $pdo->prepare("
-        SELECT {$serviceNameExpr} AS service_name, COUNT(*) AS total
-        FROM appointments a
-        LEFT JOIN services s ON s.id = a.service_id
-        WHERE COALESCE(a.is_archived, 0) = 0
-          AND LOWER(COALESCE(a.status, '')) <> 'cancelled'
-          AND (
-                a.appointment_date BETWEEN ? AND ?
-                OR DATE(a.created_at) BETWEEN ? AND ?
-                OR DATE(a.check_in_time) BETWEEN ? AND ?
-                OR EXISTS (
-                    SELECT 1
-                    FROM queue q
-                    WHERE q.appointment_id = a.id
-                      AND COALESCE(q.is_archived, 0) = 0
-                      AND COALESCE(q.queue_date, DATE(q.created_at)) BETWEEN ? AND ?
-                )
-            )
-        GROUP BY {$serviceNameExpr}
+    // Same real records as admin dashboard Appointments by Type (appointments + queue, all-time)
+    $stmt = $pdo->query("
+        SELECT service_name, COUNT(*) AS total
+        FROM (
+            SELECT s.name AS service_name
+            FROM appointments a
+            JOIN services s ON a.service_id = s.id
+            WHERE a.service_id IS NOT NULL AND a.service_id > 0
+
+            UNION ALL
+
+            SELECT COALESCE(s.name, q.treatment_type) AS service_name
+            FROM queue q
+            LEFT JOIN services s ON q.service_id = s.id
+            WHERE (q.service_id IS NOT NULL AND q.service_id > 0)
+               OR (q.treatment_type IS NOT NULL AND q.treatment_type != '')
+        ) combined
+        WHERE service_name IS NOT NULL AND service_name != ''
+        GROUP BY service_name
         ORDER BY total DESC
     ");
-    $stmt->execute([
-        $startStr, $occurEndStr,
-        $startStr, $endStr,
-        $startStr, $endStr,
-        $startStr, $endStr,
-    ]);
     $appointmentTypeRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $pieColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
@@ -476,7 +469,7 @@ try {
                                         </span>
                                     <?php endforeach; ?>
                                 <?php else: ?>
-                                    <span class="legend-item">No appointments in this period</span>
+                                    <span class="legend-item">No appointments</span>
                                 <?php endif; ?>
                             </div>
                         </div>
