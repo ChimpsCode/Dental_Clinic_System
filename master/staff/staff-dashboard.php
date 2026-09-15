@@ -3436,11 +3436,27 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
 .summary-cards .summary-card {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     border-radius: 12px;
+    overflow: hidden;
+    overflow: clip;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
     transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 .summary-cards .summary-card:hover {
-    transform: translateY(-2px);
+    transform: translate3d(0, -2px, 0);
     box-shadow: 0 6px 16px rgba(15, 23, 42, 0.07);
+}
+
+.left-column .section-card,
+.left-column .live-queue,
+.right-column .section-card,
+.right-column .quick-stats-panel,
+.right-column .notification-box,
+.right-column .sidebar-section {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 }
 .summary-cards .card-waiting,
 .summary-cards .card-completed,

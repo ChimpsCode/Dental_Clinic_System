@@ -1368,4 +1368,26 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('adCalPrev'))
     background-image: url('../../assets/icons/peso.png');
 }
 
+.content-main .section-card,
+.content-sidebar .section-card,
+.content-sidebar .quick-stats-panel,
+.content-sidebar .sidebar-section {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+.content-main .dash-revenue-bar {
+    animation-fill-mode: backwards;
+}
+.content-main .dash-pie-legend {
+    animation-fill-mode: backwards;
+}
+.content-main .dash-revenue-label {
+    left: 0;
+    right: 0;
+    transform: none;
+    text-align: center;
+}
+
 </style>
