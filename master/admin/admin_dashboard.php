@@ -21,6 +21,14 @@ $completedToday = 0;
 $topServices = [];
 $liveQueue = [];
 $todayAppointments = [];
+$newPatientsThisWeek = 0;
+$newPatientsLastWeek = 0;
+$newPatientsChartFillPercent = 12;
+$newPatientsChartEmptyPercent = 88;
+$newPatientsToday = 0;
+$newPatientsYesterday = 0;
+$newPatientsTodayFillPercent = 12;
+$newPatientsTodayEmptyPercent = 88;
     $today = new DateTime();
 $startDate = new DateTime($today->format('Y-m-01'));
 $endDate = clone $today;
@@ -148,6 +156,23 @@ try {
         $totalUpcomingAppts = 0;
     }
 
+    // Quick Stats: new patients this week vs last week, today vs yesterday
+    $newPatientsThisWeek = (int)$pdo->query("SELECT COUNT(*) FROM patients WHERE YEARWEEK(created_at, 1) = YEARWEEK(CURDATE(), 1)")->fetchColumn();
+    $newPatientsLastWeek = (int)$pdo->query("SELECT COUNT(*) FROM patients WHERE YEARWEEK(created_at, 1) = YEARWEEK(DATE_SUB(CURDATE(), INTERVAL 1 WEEK), 1)")->fetchColumn();
+
+    $newPatientsTotalForChart = max(1, $newPatientsThisWeek + $newPatientsLastWeek);
+    $newPatientsChartFillPercent = (int)round(($newPatientsThisWeek / $newPatientsTotalForChart) * 100);
+    $newPatientsChartFillPercent = max(12, min(88, $newPatientsChartFillPercent));
+    $newPatientsChartEmptyPercent = 100 - $newPatientsChartFillPercent;
+
+    $newPatientsToday = (int)$pdo->query("SELECT COUNT(*) FROM patients WHERE DATE(created_at) = CURDATE()")->fetchColumn();
+    $newPatientsYesterday = (int)$pdo->query("SELECT COUNT(*) FROM patients WHERE DATE(created_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)")->fetchColumn();
+
+    $newPatientsTodayTotalForChart = max(1, $newPatientsToday + $newPatientsYesterday);
+    $newPatientsTodayFillPercent = (int)round(($newPatientsToday / $newPatientsTodayTotalForChart) * 100);
+    $newPatientsTodayFillPercent = max(12, min(88, $newPatientsTodayFillPercent));
+    $newPatientsTodayEmptyPercent = 100 - $newPatientsTodayFillPercent;
+
     // Mini Calendar - determine displayed month
     $calMonthParam = (isset($_GET['cal']) && preg_match('/^\d{4}-\d{2}$/', $_GET['cal'])) ? $_GET['cal'] : date('Y-m');
     $calYear = (int)substr($calMonthParam, 0, 4);
@@ -201,6 +226,14 @@ try {
     $topServices = [];
     $liveQueue = [];
     $todayAppointments = [];
+    $newPatientsThisWeek = 0;
+    $newPatientsLastWeek = 0;
+    $newPatientsChartFillPercent = 12;
+    $newPatientsChartEmptyPercent = 88;
+    $newPatientsToday = 0;
+    $newPatientsYesterday = 0;
+    $newPatientsTodayFillPercent = 12;
+    $newPatientsTodayEmptyPercent = 88;
     error_log("Admin Dashboard Error: " . $e->getMessage());
 }
 
@@ -494,11 +527,11 @@ try {
                 </div>
 
                 <!-- Today's Appointments Overview -->
-                    <div class="section-card" >
+                    <div class="section-card upcoming-appts-card">
                         <h2 class="section-title">📅 Upcoming Appointments</h2>
-                        <div style="max-height: 250px; overflow-y: auto;">
+                        <div class="upcoming-appts-list">
                             <?php if (empty($todayAppointments)): ?>
-                                <p style="text-align: center; color: #0d92f7; padding: 20px;">No upcoming appointments</p>
+                                <p class="upcoming-appts-empty">No upcoming appointments</p>
                             <?php else: ?>
                                 <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                                     <thead>
@@ -533,9 +566,41 @@ try {
                                 </table>
                             <?php endif; ?>
                         </div>
-                        <a href="admin_appointments.php" style="display: block; text-align: center; margin-top: 12px; padding: 8px; background: #0d92f7; border-radius: 6px; color: #ffffff; text-decoration: none; font-size: 12px;">
+                        <a href="admin_appointments.php" class="upcoming-appts-view-all">
                             View All (<?php echo $totalUpcomingAppts; ?>)
                         </a>
+                    </div>
+
+                    <div class="notification-box quick-stats-panel">
+                        <h3>📊 Quick Stats</h3>
+                        <div class="quick-stats-grid">
+                            <div class="quick-stat-card">
+                                <div class="quick-stat-label">New <br>Patients (This Week)</div>
+                                <div class="quick-stat-value"><?php echo $newPatientsThisWeek; ?></div>
+                                <div class="quick-stat-chart">
+                                    <span class="quick-stat-track"></span>
+                                    <span class="quick-stat-fill" style="width: <?php echo $newPatientsChartFillPercent; ?>%;">
+                                        <span class="quick-stat-tooltip">This week: <?php echo $newPatientsThisWeek; ?></span>
+                                    </span>
+                                    <span class="quick-stat-empty" style="left: <?php echo $newPatientsChartFillPercent; ?>%; width: <?php echo $newPatientsChartEmptyPercent; ?>%;">
+                                        <span class="quick-stat-tooltip">Last week: <?php echo $newPatientsLastWeek; ?></span>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="quick-stat-card">
+                                <div class="quick-stat-label">New <br>Patients (Today)</div>
+                                <div class="quick-stat-value"><?php echo $newPatientsToday; ?></div>
+                                <div class="quick-stat-chart">
+                                    <span class="quick-stat-track"></span>
+                                    <span class="quick-stat-fill" style="width: <?php echo $newPatientsTodayFillPercent; ?>%;">
+                                        <span class="quick-stat-tooltip">Today: <?php echo $newPatientsToday; ?></span>
+                                    </span>
+                                    <span class="quick-stat-empty" style="left: <?php echo $newPatientsTodayFillPercent; ?>%; width: <?php echo $newPatientsTodayEmptyPercent; ?>%;">
+                                        <span class="quick-stat-tooltip">Yesterday: <?php echo $newPatientsYesterday; ?></span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 
 
