@@ -38,8 +38,8 @@ try {
     $dateFilter = isset($_GET['date']) ? trim($_GET['date']) : 'all';
     
     // Billing-based listing so staff can see all billed patients, not only active queue rows.
-    // Voided/cancelled bills from queue cancel are hidden.
-    $whereClause = "WHERE LOWER(COALESCE(b.payment_status, 'unpaid')) != 'cancelled'";
+    // Cancelled/voided bills stay visible so Payment Status can show VOIDED.
+    $whereClause = "WHERE 1=1";
     $params = [];
     
     // Apply search filter
@@ -56,6 +56,7 @@ try {
             $whereClause .= " AND b.payment_status = 'Paid'";
         } elseif ($statusFilter === 'unpaid') {
             $whereClause .= " AND (b.id IS NULL OR b.payment_status IS NULL OR b.payment_status IN ('Unpaid', 'Partial', 'Overdue'))";
+            $whereClause .= " AND LOWER(COALESCE(q.status, '')) NOT IN ('cancelled', 'canceled')";
         }
     }
     
@@ -114,8 +115,9 @@ try {
                 COALESCE(b.payment_status, 'Unpaid') as payment_status,
                 CASE
                     WHEN b.payment_status = 'Paid' THEN 'paid'
+                    WHEN b.payment_status = 'Cancelled' THEN 'voided'
+                    WHEN LOWER(COALESCE(q.status, '')) IN ('cancelled', 'canceled') THEN 'voided'
                     WHEN b.payment_status = 'Partial' THEN 'partial'
-                    WHEN b.payment_status = 'Cancelled' THEN 'cancelled'
                     ELSE 'unpaid'
                 END AS effective_payment_status,
                 b.billing_date,
@@ -155,10 +157,13 @@ try {
              FROM payments p
              WHERE DATE(p.payment_date) = CURDATE()) AS total_collected_today,
              
-            (SELECT COALESCE(SUM(b.total_amount), 0)
+            (SELECT COALESCE(SUM(b.balance), 0)
              FROM billing b
-             WHERE DATE(b.billing_date) = CURDATE()
-               AND b.payment_status NOT IN ('Paid', 'Cancelled')) AS pending_today,
+             LEFT JOIN queue q
+               ON CAST(q.patient_id AS UNSIGNED) = b.patient_id
+              AND DATE(q.created_at) = DATE(b.billing_date)
+             WHERE b.payment_status IN ('Partial', 'Unpaid', 'Overdue')
+               AND LOWER(COALESCE(q.status, '')) NOT IN ('cancelled', 'canceled')) AS pending_payments,
                
             (SELECT COUNT(*)
              FROM billing b
@@ -172,7 +177,7 @@ try {
     ";
     $statsStmt = $conn->query($statsSql);
     $stats = $statsStmt ? $statsStmt->fetch(PDO::FETCH_ASSOC) : [
-        'total_collected_today' => 0, 'pending_today' => 0, 'completed_today' => 0, 'unpaid_today' => 0
+        'total_collected_today' => 0, 'pending_payments' => 0, 'completed_today' => 0, 'unpaid_today' => 0
     ];
     
     // Get services for calculating amounts
@@ -254,11 +259,11 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     </div>
                     <div class="summary-card card-pending">
                         <div class="summary-icon">
-                            <img src="../../assets/icons/pending.png" alt="Pending Today">
+                            <img src="../../assets/icons/pending.png" alt="Pending Payments">
                         </div>
                         <div class="summary-info">
-                            <h3>P<?php echo number_format($stats['pending_today'] ?? 0, 2); ?></h3>
-                            <p>Pending Today</p>
+                            <h3>P<?php echo number_format($stats['pending_payments'] ?? 0, 2); ?></h3>
+                            <p>Pending Payments</p>
                         </div>
                     </div>
                     <div class="summary-card card-completed">
@@ -340,6 +345,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                 $payStatus = $record['effective_payment_status'] ?? 'unpaid';
                                 $isPaid = ($payStatus === 'paid');
                                 $isPartial = ($payStatus === 'partial');
+                                $isVoided = ($payStatus === 'voided' || $payStatus === 'cancelled');
                                 $calculatedAmount = $record['amount'] > 0 ? $record['amount'] : calculateAmount($record['treatment_type'], $servicesMap);
                             ?>
                             <tr data-queue-id="<?php echo (int)($record['queue_id'] ?? 0); ?>" data-patient-id="<?php echo (int)$record['patient_id']; ?>" data-billing-id="<?php echo (int)$record['billing_id']; ?>">
@@ -384,7 +390,9 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                     ?>
                                 </td>
                                 <td>
-                                    <?php if ($isPaid): ?>
+                                    <?php if ($isVoided): ?>
+                                        <span class="status-badge voided">Voided</span>
+                                    <?php elseif ($isPaid): ?>
                                         <span class="status-badge paid">Paid</span>
                                     <?php elseif ($isPartial): ?>
                                         <span class="status-badge partial">Partial</span>
@@ -402,6 +410,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                             data-amount="<?php echo $calculatedAmount; ?>"
                                             data-treatment="<?php echo htmlspecialchars($record['treatment_type'] ?: 'General Checkup'); ?>"
                                             data-is-paid="<?php echo $isPaid ? '1' : ($isPartial ? '0' : '0'); ?>"
+                                            data-is-voided="<?php echo $isVoided ? '1' : '0'; ?>"
                                             data-paid-amount="<?php echo (float)($record['paid_amount'] ?? 0); ?>"
                                             data-balance="<?php echo max(0, $calculatedAmount - (float)($record['paid_amount'] ?? 0)); ?>"
                                             data-discount-type="<?php echo htmlspecialchars($record['discount_type'] ?? 'none'); ?>"
@@ -519,6 +528,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                         <input type="hidden" id="payDetailBalance">
                         <input type="hidden" id="payDetailTreatment">
                         <input type="hidden" id="payDetailIsPaid">
+                        <input type="hidden" id="payDetailIsVoided">
                         <input type="hidden" id="setDueDateBillingId">
                         <input type="hidden" id="confirmPaymentQueueId">
                         <input type="hidden" id="confirmPaymentPatientId">
@@ -555,6 +565,9 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                         <div id="payTabRecord" class="pay-detail-tab-panel" style="display:none;">
                             <div id="recordPaymentPaidState" class="pay-detail-paid-state" style="display:none;">
                                 <p>All services paid.</p>
+                            </div>
+                            <div id="recordPaymentVoidedState" class="pay-detail-voided-state" style="display:none;">
+                                <p>This invoice is voided. No payment is expected.</p>
                             </div>
                             <div id="recordPaymentFormWrap">
                                 <div id="recordPaymentBreakdown" class="pay-detail-breakdown"></div>
@@ -836,6 +849,11 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                 .status-badge.unpaid {
                     background: #fef3c7;
                     color: #d97706;
+                }
+
+                .status-badge.voided {
+                    background: #fee2e2;
+                    color: #dc2626;
                 }
 
                 .status-badge.queue-completed {
@@ -1310,6 +1328,13 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     font-weight: 600;
                 }
 
+                .pay-detail-voided-state {
+                    text-align: center;
+                    padding: 2rem 1rem;
+                    color: #dc2626;
+                    font-weight: 600;
+                }
+
                 .pay-mark-paid-confirm {
                     flex-shrink: 0;
                     margin: 0;
@@ -1532,18 +1557,19 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     const treatment = button.dataset.treatment;
                     const billingId = button.dataset.billingId || '0';
                     const isPaid = button.dataset.isPaid === '1';
+                    const isVoided = button.dataset.isVoided === '1';
                     const paidAmount = button.dataset.paidAmount || '0';
                     const balance = button.dataset.balance || amount;
 
                     return `
-                        <a href="javascript:void(0)" data-action="view" data-queue-id="${queueId}" data-patient-id="${patientId}" data-billing-id="${billingId}" data-amount="${amount}" data-treatment="${treatment}" data-paid-amount="${paidAmount}" data-balance="${balance}" data-is-paid="${isPaid ? '1' : '0'}">
+                        <a href="javascript:void(0)" data-action="view" data-queue-id="${queueId}" data-patient-id="${patientId}" data-billing-id="${billingId}" data-amount="${amount}" data-treatment="${treatment}" data-paid-amount="${paidAmount}" data-balance="${balance}" data-is-paid="${isPaid ? '1' : '0'}" data-is-voided="${isVoided ? '1' : '0'}">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
                                 <path fill="none" stroke="currentColor" stroke-width="2" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                                 <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
                             </svg>
                             View Details
                         </a>
-                        ${!isPaid ? `
+                        ${!isPaid && !isVoided ? `
                         <a href="javascript:void(0)" data-action="toggle-discount" data-billing-id="${billingId}" data-apply="${button.dataset.discountType === 'none' ? '1' : '0'}">
                             ${button.dataset.discountType === 'none'
                                 ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M21.41 11.58l-9-9A2 2 0 0 0 11 2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 .59 1.42l9 9A2 2 0 0 0 13 22a2 2 0 0 0 1.41-.59l7-7A2 2 0 0 0 22 13a2 2 0 0 0-.59-1.42M6.5 8A1.5 1.5 0 1 1 8 6.5A1.5 1.5 0 0 1 6.5 8"/></svg>
@@ -1651,7 +1677,8 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                 treatment: treatment,
                                 paidAmount: paidAmount,
                                 balance: balance,
-                                isPaid: link.dataset.isPaid === '1'
+                                isPaid: link.dataset.isPaid === '1',
+                                isVoided: link.dataset.isVoided === '1'
                             });
                             break;
                         case 'toggle-discount':
@@ -1696,10 +1723,28 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     }
                 });
 
+                function isVoidedPaymentStatus(status) {
+                    const s = (status || '').toLowerCase();
+                    return s === 'cancelled' || s === 'canceled' || s === 'voided';
+                }
+
+                function isVoidedBilling(bl, billingId, isVoided) {
+                    if (isVoidedPaymentStatus(bl && bl.payment_status)) {
+                        return true;
+                    }
+                    return !!isVoided && !!billingId && bl && String(bl.id) === String(billingId);
+                }
+
+                function currentPayDetailIsVoided() {
+                    var el = document.getElementById('payDetailIsVoided');
+                    return !!(el && el.value === '1');
+                }
+
                 function formatPayStatus(status) {
                     const s = (status || 'unpaid').toLowerCase();
                     if (s === 'paid') return '<span style="background:#dcfce7;color:#16a34a;padding:2px 10px;border-radius:9999px;font-size:0.75rem;font-weight:600;text-transform:uppercase;">Paid</span>';
                     if (s === 'partial') return '<span style="background:#fef3c7;color:#92400e;padding:2px 10px;border-radius:9999px;font-size:0.75rem;font-weight:600;text-transform:uppercase;">Partial</span>';
+                    if (s === 'cancelled' || s === 'canceled' || s === 'voided') return '<span style="background:#fee2e2;color:#dc2626;padding:2px 10px;border-radius:9999px;font-size:0.75rem;font-weight:600;text-transform:uppercase;">Voided</span>';
                     return '<span style="background:#fee2e2;color:#dc2626;padding:2px 10px;border-radius:9999px;font-size:0.75rem;font-weight:600;text-transform:uppercase;">Unpaid</span>';
                 }
 
@@ -1745,21 +1790,23 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     document.getElementById('payDetailBillingId').value = billingId || 0;
                     document.getElementById('payDetailAmount').value = extras.amount || 0;
                     document.getElementById('payDetailPaidAmount').value = extras.paidAmount || 0;
-                    document.getElementById('payDetailBalance').value = extras.balance || extras.amount || 0;
+                    document.getElementById('payDetailBalance').value = extras.isVoided ? 0 : (extras.balance || extras.amount || 0);
                     document.getElementById('payDetailTreatment').value = extras.treatment || 'General Checkup';
                     document.getElementById('payDetailIsPaid').value = extras.isPaid ? '1' : '0';
+                    document.getElementById('payDetailIsVoided').value = extras.isVoided ? '1' : '0';
                     document.getElementById('setDueDateBillingId').value = billingId || 0;
                     document.getElementById('recordPaymentQueueId').value = queueId || 0;
                     document.getElementById('recordPaymentPatientId').value = patientId || 0;
                     document.getElementById('recordPaymentBillingId').value = billingId || 0;
                 }
 
-                function updateOverviewActions(isPaid, billingId, dueDate) {
+                function updateOverviewActions(isPaid, billingId, dueDate, isVoided) {
                     var dueSection = document.getElementById('payDueDateSection');
                     var markSection = document.getElementById('payMarkPaidSection');
                     var hasBilling = billingId && billingId !== '0';
-                    dueSection.style.display = hasBilling ? 'flex' : 'none';
-                    markSection.style.display = (!isPaid && hasBilling) ? 'flex' : 'none';
+                    var hideCollection = !!isPaid || !!isVoided;
+                    dueSection.style.display = (hasBilling && !isVoided) ? 'flex' : 'none';
+                    markSection.style.display = (!hideCollection && hasBilling) ? 'flex' : 'none';
                     hideMarkPaidConfirm();
                     if (hasBilling) {
                         document.getElementById('setDueDateInput').value = dueDate || defaultDueDateValue();
@@ -1778,7 +1825,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                             <p>Loading payment details...</p>
                         </div>
                     `;
-                    updateOverviewActions(!!extras.isPaid, billingId, '');
+                    updateOverviewActions(!!extras.isPaid, billingId, '', !!extras.isVoided);
                     populateRecordPaymentTab();
                     loadPaymentHistory(billingId);
 
@@ -1792,14 +1839,17 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                             var pid = patientId;
                             var dueDate = '';
                             var invoicePaid = !!extras.isPaid;
+                            var invoiceVoided = !!extras.isVoided;
                             if (data.success && data.billing) {
                                 pid = data.billing.patient_id || pid;
                                 dueDate = data.billing.due_date || '';
-                                invoicePaid = (data.billing.payment_status || '').toLowerCase() === 'paid' || invoicePaid;
+                                var fetchedStatus = (data.billing.payment_status || '').toLowerCase();
+                                invoicePaid = fetchedStatus === 'paid' || invoicePaid;
+                                invoiceVoided = invoiceVoided || isVoidedPaymentStatus(fetchedStatus);
                                 if (!extras.amount) {
                                     document.getElementById('payDetailAmount').value = data.billing.total_amount || 0;
                                     document.getElementById('payDetailPaidAmount').value = data.billing.paid_amount || 0;
-                                    document.getElementById('payDetailBalance').value = data.billing.balance || 0;
+                                    document.getElementById('payDetailBalance').value = invoiceVoided ? 0 : (data.billing.balance || 0);
                                 }
                                 if (data.billing.treatment_type) {
                                     document.getElementById('payDetailTreatment').value = data.billing.treatment_type;
@@ -1811,10 +1861,14 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                             if (data.success && data.due_date) {
                                 dueDate = data.due_date;
                             }
+                            if (invoiceVoided) {
+                                document.getElementById('payDetailBalance').value = 0;
+                            }
                             document.getElementById('payDetailPatientId').value = pid || 0;
                             document.getElementById('recordPaymentPatientId').value = pid || 0;
                             document.getElementById('payDetailIsPaid').value = invoicePaid ? '1' : '0';
-                            updateOverviewActions(invoicePaid, billingId, dueDate);
+                            document.getElementById('payDetailIsVoided').value = invoiceVoided ? '1' : '0';
+                            updateOverviewActions(invoicePaid, billingId, dueDate, invoiceVoided);
                             populateRecordPaymentTab();
 
                             return fetch('../user-patient/patient_record_details.php?id=' + encodeURIComponent(pid))
@@ -1829,32 +1883,50 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                     var patientName = [patientInfo.first_name || '', patientInfo.middle_name || '', patientInfo.last_name || ''].filter(Boolean).join(' ') || 'N/A';
                                     
                                     var totalAmount = 0, paidAmount = 0, balance = 0;
+                                    var collectableUnpaid = false;
+                                    var collectablePartial = false;
+                                    var anyVoided = false;
                                     allBillings.forEach(function(bl) {
+                                        var rowVoided = isVoidedBilling(bl, billingId, invoiceVoided);
+                                        var st = (bl.payment_status || 'unpaid').toLowerCase();
+                                        if (rowVoided) {
+                                            anyVoided = true;
+                                            totalAmount += parseFloat(bl.total_amount || 0);
+                                            paidAmount += parseFloat(bl.paid_amount || 0);
+                                            return;
+                                        }
                                         totalAmount += parseFloat(bl.total_amount || 0);
                                         paidAmount += parseFloat(bl.paid_amount || 0);
                                         balance += parseFloat(bl.balance || 0);
+                                        if (st === 'partial') collectablePartial = true;
+                                        else if (st !== 'paid') collectableUnpaid = true;
                                     });
-                                    
-                                    var overallPaid = true;
-                                    allBillings.forEach(function(bl) {
-                                        if ((bl.payment_status || 'unpaid').toLowerCase() !== 'paid') overallPaid = false;
-                                    });
-                                    
-                                    var statusBadge = overallPaid 
-                                        ? '<span style="background:#dcfce7;color:#16a34a;padding:3px 10px;border-radius:9999px;font-size:0.8rem;font-weight:600;">PAID</span>'
-                                        : (balance > 0 ? '<span style="background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:9999px;font-size:0.8rem;font-weight:600;">UNPAID</span>' : '<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:9999px;font-size:0.8rem;font-weight:600;">PARTIAL</span>');
+
+                                    var statusBadge;
+                                    if (collectableUnpaid) {
+                                        statusBadge = '<span style="background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:9999px;font-size:0.8rem;font-weight:600;">UNPAID</span>';
+                                    } else if (collectablePartial) {
+                                        statusBadge = '<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:9999px;font-size:0.8rem;font-weight:600;">PARTIAL</span>';
+                                    } else if (invoiceVoided || anyVoided) {
+                                        statusBadge = '<span style="background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:9999px;font-size:0.8rem;font-weight:600;">VOIDED</span>';
+                                    } else {
+                                        statusBadge = '<span style="background:#dcfce7;color:#16a34a;padding:3px 10px;border-radius:9999px;font-size:0.8rem;font-weight:600;">PAID</span>';
+                                    }
                                     
                                     var billingRows = allBillings.map(function(bl) {
                                         var st = (bl.payment_status || 'unpaid').toLowerCase();
+                                        var rowVoided = isVoidedBilling(bl, billingId, invoiceVoided);
+                                        var rowBalance = rowVoided ? 0 : parseFloat(bl.balance || 0);
                                         var sBg = '#fee2e2', sClr = '#991b1b', sLbl = 'UNPAID';
                                         var rowBg = '#fff5f5';
-                                        if (st === 'paid') { sBg = '#dcfce7'; sClr = '#15803d'; sLbl = 'PAID'; rowBg = '#f0fdf4'; }
+                                        if (rowVoided) { sBg = '#fee2e2'; sClr = '#dc2626'; sLbl = 'VOIDED'; rowBg = '#fef2f2'; }
+                                        else if (st === 'paid') { sBg = '#dcfce7'; sClr = '#15803d'; sLbl = 'PAID'; rowBg = '#f0fdf4'; }
                                         else if (st === 'partial') { sBg = '#fef3c7'; sClr = '#92400e'; sLbl = 'PARTIAL'; rowBg = '#fffbeb'; }
                                         return '<tr style="border-top:1px solid #f1f5f9;background:' + rowBg + ';">' +
                                             '<td style="padding:10px 12px;color:#374151;font-weight:500;">' + (bl.service_name || 'General Service') + '</td>' +
                                             '<td style="padding:10px 12px;text-align:right;color:#111827;font-weight:600;">P' + parseFloat(bl.total_amount).toFixed(2) + '</td>' +
                                             '<td style="padding:10px 12px;text-align:right;color:#16a34a;font-weight:600;">P' + parseFloat(bl.paid_amount).toFixed(2) + '</td>' +
-                                            '<td style="padding:10px 12px;text-align:right;color:' + (parseFloat(bl.balance) > 0 ? '#dc2626' : '#16a34a') + ';font-weight:600;">P' + parseFloat(bl.balance).toFixed(2) + '</td>' +
+                                            '<td style="padding:10px 12px;text-align:right;color:' + (rowBalance > 0 ? '#dc2626' : '#16a34a') + ';font-weight:600;">P' + rowBalance.toFixed(2) + '</td>' +
                                             '<td style="padding:10px 12px;text-align:center;"><span style="background:' + sBg + ';color:' + sClr + ';padding:3px 10px;border-radius:9999px;font-size:0.75rem;font-weight:600;">' + sLbl + '</span></td></tr>';
                                     }).join('');
 
@@ -1912,9 +1984,11 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                 }
 
                 function renderSingleBillingDetails(data) {
+                    var forceVoided = currentPayDetailIsVoided();
                     if (data.success && data.billing) {
                         const billing = data.billing;
                         const patientName = [billing.first_name || '', billing.middle_name || '', billing.last_name || '', billing.suffix || ''].filter(Boolean).join(' ') || 'N/A';
+                        const payStatus = forceVoided ? 'voided' : billing.payment_status;
                         document.getElementById('paymentModalContent').innerHTML = `
                             <div class="billing-detail-view">
                                 <div class="detail-row"><span class="detail-label">Invoice:</span><span class="detail-value">INV-${String(billing.id).padStart(4, '0')}</span></div>
@@ -1922,20 +1996,21 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                 <div class="detail-row"><span class="detail-label">Phone:</span><span class="detail-value">${billing.phone || 'N/A'}</span></div>
                                 <div class="detail-row"><span class="detail-label">Amount:</span><span class="detail-value">P${parseFloat(billing.total_amount || 0).toFixed(2)}</span></div>
                                 <div class="detail-row"><span class="detail-label">Paid Amount:</span><span class="detail-value">P${parseFloat(billing.paid_amount || 0).toFixed(2)}</span></div>
-                                <div class="detail-row"><span class="detail-label">Payment Status:</span><span class="detail-value">${formatPayStatus(billing.payment_status)}</span></div>
+                                <div class="detail-row"><span class="detail-label">Payment Status:</span><span class="detail-value">${formatPayStatus(payStatus)}</span></div>
                                 <div class="detail-row"><span class="detail-label">Billing Date:</span><span class="detail-value">${billing.billing_date || 'N/A'}</span></div>
                                 <div class="detail-row"><span class="detail-label">Due Date:</span><span class="detail-value">${billing.due_date ? formatDueDate(billing.due_date) : '<span style="color:#9ca3af;">Not set</span>'}</span></div>
                                 <div class="detail-row"><span class="detail-label">Notes:</span><span class="detail-value">${billing.notes || 'N/A'}</span></div>
                             </div>
                         `;
                     } else if (data.success) {
+                        const payStatus = forceVoided ? 'voided' : data.payment_status;
                         document.getElementById('paymentModalContent').innerHTML = `
                             <div class="billing-detail-view">
                                 <div class="detail-row"><span class="detail-label">Patient:</span><span class="detail-value">${data.patient_name}</span></div>
                                 <div class="detail-row"><span class="detail-label">Treatment:</span><span class="detail-value">${data.treatment_type || 'General Checkup'}</span></div>
                                 <div class="detail-row"><span class="detail-label">Queue Status:</span><span class="detail-value">${data.queue_status}</span></div>
                                 <div class="detail-row"><span class="detail-label">Amount:</span><span class="detail-value">P${parseFloat(data.amount).toFixed(2)}</span></div>
-                                <div class="detail-row"><span class="detail-label">Payment Status:</span><span class="detail-value">${formatPayStatus(data.payment_status)}</span></div>
+                                <div class="detail-row"><span class="detail-label">Payment Status:</span><span class="detail-value">${formatPayStatus(payStatus)}</span></div>
                                 <div class="detail-row"><span class="detail-label">Date:</span><span class="detail-value">${data.queue_date}</span></div>
                                 <div class="detail-row"><span class="detail-label">Due Date:</span><span class="detail-value">${data.due_date ? formatDueDate(data.due_date) : '<span style="color:#9ca3af;">Not set</span>'}</span></div>
                             </div>
@@ -2015,8 +2090,17 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
 
                 function populateRecordPaymentTab() {
                     var isPaid = document.getElementById('payDetailIsPaid').value === '1';
+                    var isVoided = currentPayDetailIsVoided();
                     var paidState = document.getElementById('recordPaymentPaidState');
+                    var voidedState = document.getElementById('recordPaymentVoidedState');
                     var formWrap = document.getElementById('recordPaymentFormWrap');
+                    if (isVoided) {
+                        if (paidState) paidState.style.display = 'none';
+                        if (voidedState) voidedState.style.display = 'block';
+                        formWrap.style.display = 'none';
+                        return;
+                    }
+                    if (voidedState) voidedState.style.display = 'none';
                     if (isPaid) {
                         paidState.style.display = 'block';
                         formWrap.style.display = 'none';
@@ -2037,8 +2121,8 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     document.getElementById('recordPaymentBillingId').value = billingId || 0;
                     document.getElementById('recordPaymentTotalAmount').textContent = 'P' + parseFloat(amount || 0).toFixed(2);
                     document.getElementById('recordPaymentPaidSoFar').textContent = 'P' + parseFloat(paidAmount || 0).toFixed(2);
-                    document.getElementById('recordPaymentBalance').textContent = 'P' + parseFloat(balance || amount || 0).toFixed(2);
-                    document.getElementById('recordPaymentAmount').value = parseFloat(balance || amount || 0).toFixed(2);
+                    document.getElementById('recordPaymentBalance').textContent = 'P' + parseFloat(balance || 0).toFixed(2);
+                    document.getElementById('recordPaymentAmount').value = parseFloat(balance || 0).toFixed(2);
                     document.getElementById('recordPaymentMethod').value = 'cash';
 
                     if (!patientId) {
@@ -2053,7 +2137,9 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                             if (detailData.success) {
                                 var allBillings = detailData.all_billings || [];
                                 var unpaidBills = allBillings.filter(function(bl) {
-                                    return (bl.payment_status || 'unpaid').toLowerCase() !== 'paid';
+                                    var st = (bl.payment_status || 'unpaid').toLowerCase();
+                                    if (st === 'paid' || isVoidedBilling(bl, billingId, isVoided)) return false;
+                                    return true;
                                 });
                                 if (unpaidBills.length > 0) {
                                     breakdownHtml = '<div style="font-weight:600;color:#374151;margin-bottom:8px;font-size:0.85rem;">Unpaid Services:</div>';
@@ -2071,6 +2157,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
 
                                     var totalAmt = 0, totalPaid = 0, totalBal = 0;
                                     allBillings.forEach(function(bl) {
+                                        if (isVoidedBilling(bl, billingId, isVoided)) return;
                                         totalAmt += parseFloat(bl.total_amount || 0);
                                         totalPaid += parseFloat(bl.paid_amount || 0);
                                         totalBal += parseFloat(bl.balance || 0);
@@ -2081,6 +2168,8 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                     document.getElementById('recordPaymentAmount').value = totalBal.toFixed(2);
                                 } else {
                                     breakdownHtml = '<div style="color:#16a34a;text-align:center;padding:4px;">All services paid</div>';
+                                    document.getElementById('recordPaymentBalance').textContent = 'P0.00';
+                                    document.getElementById('recordPaymentAmount').value = '0.00';
                                 }
                             }
                             document.getElementById('recordPaymentBreakdown').innerHTML = breakdownHtml;
@@ -2091,6 +2180,10 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                 }
 
                 function confirmRecordPayment() {
+                    if (currentPayDetailIsVoided()) {
+                        alert('This invoice is voided. No payment is expected.');
+                        return;
+                    }
                     const billingId = document.getElementById('recordPaymentBillingId').value;
                     const queueId = document.getElementById('recordPaymentQueueId').value;
                     const patientId = document.getElementById('recordPaymentPatientId').value;

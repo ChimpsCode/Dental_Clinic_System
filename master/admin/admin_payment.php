@@ -27,8 +27,19 @@ try {
     $dateFilter = isset($_GET['date']) ? trim($_GET['date']) : 'all';
     $currentPage = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 
-    $whereClause = "WHERE LOWER(COALESCE(b.payment_status, 'unpaid')) != 'cancelled'";
+    $whereClause = "WHERE 1=1";
     $params = [];
+
+    $queueJoin = "LEFT JOIN (
+            SELECT q1.patient_id, DATE(q1.created_at) AS created_date,
+                   q1.id, q1.treatment_type, q1.status
+            FROM queue q1
+            INNER JOIN (
+                SELECT patient_id, DATE(created_at) AS created_date, MIN(id) AS min_id
+                FROM queue
+                GROUP BY patient_id, DATE(created_at)
+            ) q2 ON q2.min_id = q1.id
+        ) q ON q.patient_id = b.patient_id AND q.created_date = DATE(b.billing_date)";
 
     if ($searchQuery !== '') {
         $whereClause .= " AND (
@@ -44,7 +55,9 @@ try {
     } elseif ($statusFilter === 'partial') {
         $whereClause .= " AND b.payment_status = 'Partial'";
     } elseif ($statusFilter === 'unpaid') {
-        $whereClause .= " AND b.payment_status IN ('Unpaid', 'Overdue')";
+        $whereClause .= " AND b.payment_status IN ('Unpaid', 'Overdue', 'Partial')";
+        $whereClause .= " AND LOWER(COALESCE(q.status, '')) NOT IN ('cancelled', 'canceled')";
+        $whereClause .= " AND LOWER(COALESCE(b.payment_status, '')) != 'cancelled'";
     }
 
     switch ($dateFilter) {
@@ -62,15 +75,24 @@ try {
     $statsSql = "
         SELECT
             COALESCE(SUM(CASE WHEN b.payment_status IN ('Paid', 'Partial') THEN b.paid_amount ELSE 0 END), 0) AS total_collected,
-            COALESCE(SUM(CASE WHEN b.payment_status IN ('Partial', 'Unpaid', 'Overdue') THEN b.balance ELSE 0 END), 0) AS pending_payments,
+            COALESCE(SUM(CASE
+                WHEN LOWER(COALESCE(b.payment_status, '')) = 'cancelled' THEN 0
+                WHEN LOWER(COALESCE(q.status, '')) IN ('cancelled', 'canceled') THEN 0
+                WHEN b.payment_status IN ('Partial', 'Unpaid', 'Overdue') THEN b.balance
+                ELSE 0
+            END), 0) AS pending_payments,
             COUNT(*) AS total_transactions,
             SUM(CASE
+                WHEN LOWER(COALESCE(b.payment_status, '')) = 'cancelled' THEN 0
+                WHEN LOWER(COALESCE(q.status, '')) IN ('cancelled', 'canceled') THEN 0
+                WHEN b.payment_status = 'Paid' THEN 0
                 WHEN b.payment_status = 'Overdue' THEN 1
                 WHEN b.payment_status = 'Unpaid' AND b.due_date IS NOT NULL AND b.due_date < CURDATE() AND COALESCE(b.balance, 0) > 0 THEN 1
                 ELSE 0
             END) AS overdue_count
         FROM billing b
         LEFT JOIN patients p ON p.id = b.patient_id
+        $queueJoin
         $whereClause
     ";
     $statsStmt = $pdo->prepare($statsSql);
@@ -84,7 +106,7 @@ try {
     $totalTransactions = (int)($stats['total_transactions'] ?? 0);
     $overdueCount = (int)($stats['overdue_count'] ?? 0);
 
-    $countSql = "SELECT COUNT(DISTINCT b.id) as total FROM billing b LEFT JOIN patients p ON p.id = b.patient_id $whereClause";
+    $countSql = "SELECT COUNT(DISTINCT b.id) as total FROM billing b LEFT JOIN patients p ON p.id = b.patient_id $queueJoin $whereClause";
     $countStmt = $pdo->prepare($countSql);
     foreach ($params as $key => $value) {
         $countStmt->bindValue($key, $value);
@@ -117,18 +139,13 @@ try {
             p.phone,
             svc.name AS service_name,
             COALESCE(q.treatment_type, svc.name, 'General Service') AS treatment_type,
-            q.id AS queue_id
+            q.id AS queue_id,
+            q.status AS queue_status
         FROM billing b
         LEFT JOIN patients p ON p.id = b.patient_id
         LEFT JOIN appointments a ON a.id = b.appointment_id
         LEFT JOIN services svc ON a.service_id = svc.id
-        LEFT JOIN (
-            SELECT patient_id, DATE(created_at) AS created_date,
-                   MIN(id) AS id,
-                   MIN(treatment_type) AS treatment_type
-            FROM queue
-            GROUP BY patient_id, DATE(created_at)
-        ) q ON q.patient_id = b.patient_id AND q.created_date = DATE(b.billing_date)
+        $queueJoin
         $whereClause
         ORDER BY b.billing_date DESC
         LIMIT :limit OFFSET :offset
@@ -249,19 +266,24 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                 $fullName = trim(($record['first_name'] ?? '') . ' ' . ($record['middle_name'] ?? '') . ' ' . ($record['last_name'] ?? '') . ' ' . ($record['suffix'] ?? ''));
                                 $fullName = preg_replace('/\s+/', ' ', $fullName);
                                 $services = $record['service_name'] ?? $record['treatment_type'] ?? 'General Service';
-                                $statusRaw = $record['payment_status'];
-                                if (strtolower($statusRaw) === 'paid') {
+                                $statusRaw = strtolower((string)($record['payment_status'] ?? 'unpaid'));
+                                $queueStatus = strtolower((string)($record['queue_status'] ?? ''));
+                                $isPaid = ($statusRaw === 'paid');
+                                $isPartial = ($statusRaw === 'partial');
+                                $isVoided = !$isPaid && ($statusRaw === 'cancelled' || $queueStatus === 'cancelled' || $queueStatus === 'canceled');
+                                if ($isPaid) {
                                     $status = 'paid';
-                                } elseif (strtolower($statusRaw) === 'partial') {
+                                } elseif ($isVoided) {
+                                    $status = 'voided';
+                                } elseif ($isPartial) {
                                     $status = 'partial';
                                 } else {
                                     $status = 'unpaid';
                                 }
-                                $isOverdue = !empty($record['due_date']) && $record['due_date'] < date('Y-m-d') && $record['balance'] > 0;
-                                $displayStatus = $isOverdue ? 'overdue' : $status;
-                                $isPaid = ($status === 'paid');
+                                $isOverdue = !$isVoided && !$isPaid && !empty($record['due_date']) && $record['due_date'] < date('Y-m-d') && (float)($record['balance'] ?? 0) > 0;
+                                $displayStatus = $isVoided ? 'voided' : ($isOverdue ? 'overdue' : $status);
                                 $paidAmt = (float)($record['paid_amount'] ?? 0);
-                                $balanceAmt = (float)($record['balance'] ?? 0);
+                                $balanceAmt = $isVoided ? 0 : (float)($record['balance'] ?? 0);
                             ?>
                             <tr data-invoice-id="<?php echo $invoiceNum; ?>" data-status="<?php echo $status; ?>" data-name="<?php echo strtolower($fullName); ?>">
                                 <td><?php echo $invoiceNum; ?></td>
@@ -288,7 +310,9 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                 <td><?php echo date('Y-m-d', strtotime($record['billing_date'])); ?></td>
                                 <td>
                                     <span class="status-badge <?php echo $displayStatus; ?>">
-                                        <?php if ($isOverdue): ?>
+                                        <?php if ($isVoided): ?>
+                                        Voided
+                                        <?php elseif ($isOverdue): ?>
                                         Overdue
                                         <?php else: ?>
                                         <?php echo ucfirst($status); ?>
@@ -307,6 +331,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                         data-balance="<?php echo $balanceAmt; ?>"
                                         data-treatment="<?php echo htmlspecialchars($services); ?>"
                                         data-is-paid="<?php echo $isPaid ? '1' : '0'; ?>"
+                                        data-is-voided="<?php echo $isVoided ? '1' : '0'; ?>"
                                         data-discount-type="<?php echo htmlspecialchars($record['discount_type'] ?? 'none'); ?>">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                                             <circle cx="12" cy="5" r="2"/>
@@ -368,6 +393,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                         <input type="hidden" id="payDetailBalance">
                         <input type="hidden" id="payDetailTreatment">
                         <input type="hidden" id="payDetailIsPaid">
+                        <input type="hidden" id="payDetailIsVoided">
                         <input type="hidden" id="setDueDateBillingId">
                         <input type="hidden" id="confirmPaymentQueueId">
                         <input type="hidden" id="confirmPaymentPatientId">
@@ -420,6 +446,9 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                         <div id="payTabRecord" class="pay-detail-tab-panel" style="display:none;">
                             <div id="recordPaymentPaidState" class="pay-detail-paid-state" style="display:none;">
                                 <p>All services paid.</p>
+                            </div>
+                            <div id="recordPaymentVoidedState" class="pay-detail-voided-state" style="display:none;">
+                                <p>This invoice is voided. No payment is expected.</p>
                             </div>
                             <div id="recordPaymentFormWrap">
                                 <div id="recordPaymentBreakdown" class="pay-detail-breakdown"></div>
@@ -603,6 +632,8 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 .pay-detail-breakdown { background: #f9fafb; border-radius: 8px; padding: 14px; margin-bottom: 14px; border: 1px solid #e5e7eb; }
                 .pay-detail-balance-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px; margin-bottom: 16px; }
                 .pay-detail-paid-state { text-align: center; padding: 2rem 1rem; color: #16a34a; font-weight: 600; }
+                .pay-detail-voided-state { text-align: center; padding: 2rem 1rem; color: #dc2626; font-weight: 600; }
+                .status-badge.voided { background: #fee2e2; color: #dc2626; }
                 .pay-mark-paid-confirm { flex-shrink: 0; margin: 0; padding: 12px 1.25rem 0; border: none; border-top: 1px solid #e5e7eb; border-radius: 0; background: #f9fafb; }
                 .pay-mark-paid-confirm .payment-details { margin-top: 0.5rem; }
                 .pay-history-table { width: 100%; border-collapse: collapse; }
@@ -673,12 +704,13 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     var balance = button.dataset.balance || '0';
                     var treatment = button.dataset.treatment || '';
                     var isPaid = button.dataset.isPaid === '1';
+                    var isVoided = button.dataset.isVoided === '1';
 
-                    var html = '<a href="javascript:void(0)" data-action="view" data-invoice-id="' + invoiceId + '" data-queue-id="' + queueId + '" data-patient-id="' + patientId + '" data-billing-id="' + billingId + '" data-amount="' + amount + '" data-treatment="' + encodeURIComponent(treatment) + '" data-paid-amount="' + paidAmount + '" data-balance="' + balance + '" data-is-paid="' + (isPaid ? '1' : '0') + '">' +
+                    var html = '<a href="javascript:void(0)" data-action="view" data-invoice-id="' + invoiceId + '" data-queue-id="' + queueId + '" data-patient-id="' + patientId + '" data-billing-id="' + billingId + '" data-amount="' + amount + '" data-treatment="' + encodeURIComponent(treatment) + '" data-paid-amount="' + paidAmount + '" data-balance="' + balance + '" data-is-paid="' + (isPaid ? '1' : '0') + '" data-is-voided="' + (isVoided ? '1' : '0') + '">' +
                         '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>' +
                         'View Details</a>';
 
-                    if (!isPaid) {
+                    if (!isPaid && !isVoided) {
                         html += (button.dataset.discountType === 'none'
                             ? '<a href="javascript:void(0)" data-action="toggle-discount" data-billing-id="' + billingId + '" data-apply="1">' +
                             '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21.41 11.58l-9-9A2 2 0 0 0 11 2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 .59 1.42l9 9A2 2 0 0 0 13 22a2 2 0 0 0 1.41-.59l7-7A2 2 0 0 0 22 13a2 2 0 0 0-.59-1.42M6.5 8A1.5 1.5 0 1 1 8 6.5A1.5 1.5 0 0 1 6.5 8"/></svg>' +
@@ -745,7 +777,8 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                 treatment: decodeURIComponent(link.dataset.treatment || ''),
                                 paidAmount: link.dataset.paidAmount,
                                 balance: link.dataset.balance,
-                                isPaid: link.dataset.isPaid === '1'
+                                isPaid: link.dataset.isPaid === '1',
+                                isVoided: link.dataset.isVoided === '1'
                             });
                             break;
                         case 'print':
@@ -792,10 +825,28 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 window.__adminPaymentKebabClickHandler = handleAdminPaymentKebabDocumentClick;
                 document.addEventListener('click', window.__adminPaymentKebabClickHandler, true);
 
+                function isVoidedPaymentStatus(status) {
+                    var s = (status || '').toLowerCase();
+                    return s === 'cancelled' || s === 'canceled' || s === 'voided';
+                }
+
+                function isVoidedBilling(bl, billingId, isVoided) {
+                    if (isVoidedPaymentStatus(bl && bl.payment_status)) {
+                        return true;
+                    }
+                    return !!isVoided && !!billingId && bl && String(bl.id) === String(billingId);
+                }
+
+                function currentPayDetailIsVoided() {
+                    var el = document.getElementById('payDetailIsVoided');
+                    return !!(el && el.value === '1');
+                }
+
                 function formatPayStatus(status) {
                     var s = (status || 'unpaid').toLowerCase();
                     if (s === 'paid') return '<span style="background:#dcfce7;color:#16a34a;padding:2px 10px;border-radius:9999px;font-size:0.75rem;font-weight:600;text-transform:uppercase;">Paid</span>';
                     if (s === 'partial') return '<span style="background:#fef3c7;color:#92400e;padding:2px 10px;border-radius:9999px;font-size:0.75rem;font-weight:600;text-transform:uppercase;">Partial</span>';
+                    if (s === 'cancelled' || s === 'canceled' || s === 'voided') return '<span style="background:#fee2e2;color:#dc2626;padding:2px 10px;border-radius:9999px;font-size:0.75rem;font-weight:600;text-transform:uppercase;">Voided</span>';
                     return '<span style="background:#fee2e2;color:#dc2626;padding:2px 10px;border-radius:9999px;font-size:0.75rem;font-weight:600;text-transform:uppercase;">Unpaid</span>';
                 }
 
@@ -841,9 +892,10 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     document.getElementById('payDetailBillingId').value = billingId || 0;
                     document.getElementById('payDetailAmount').value = extras.amount || 0;
                     document.getElementById('payDetailPaidAmount').value = extras.paidAmount || 0;
-                    document.getElementById('payDetailBalance').value = extras.balance || extras.amount || 0;
+                    document.getElementById('payDetailBalance').value = extras.isVoided ? 0 : (extras.balance || extras.amount || 0);
                     document.getElementById('payDetailTreatment').value = extras.treatment || 'General Checkup';
                     document.getElementById('payDetailIsPaid').value = extras.isPaid ? '1' : '0';
+                    document.getElementById('payDetailIsVoided').value = extras.isVoided ? '1' : '0';
                     document.getElementById('setDueDateBillingId').value = billingId || 0;
                     document.getElementById('recordPaymentQueueId').value = queueId || 0;
                     document.getElementById('recordPaymentPatientId').value = patientId || 0;
@@ -851,15 +903,16 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     document.getElementById('editPaymentBillingId').value = billingId || 0;
                 }
 
-                function updateOverviewActions(isPaid, billingId, dueDate) {
+                function updateOverviewActions(isPaid, billingId, dueDate, isVoided) {
                     var dueSection = document.getElementById('payDueDateSection');
                     var markSection = document.getElementById('payMarkPaidSection');
                     var editSection = document.getElementById('payEditAmountSection');
                     var hasBilling = billingId && billingId !== '0';
-                    dueSection.style.display = hasBilling ? 'flex' : 'none';
-                    markSection.style.display = (!isPaid && hasBilling) ? 'flex' : 'none';
+                    var hideCollection = !!isPaid || !!isVoided;
+                    dueSection.style.display = (hasBilling && !isVoided) ? 'flex' : 'none';
+                    markSection.style.display = (!hideCollection && hasBilling) ? 'flex' : 'none';
                     if (editSection) {
-                        editSection.style.display = (!isPaid && hasBilling) ? 'block' : 'none';
+                        editSection.style.display = (!hideCollection && hasBilling) ? 'block' : 'none';
                     }
                     hideMarkPaidConfirm();
                     if (hasBilling) {
@@ -879,7 +932,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     document.getElementById('paymentModal').style.display = 'flex';
                     document.getElementById('paymentModalContent').innerHTML =
                         '<div style="text-align: center; padding: 2rem;"><p>Loading payment details...</p></div>';
-                    updateOverviewActions(!!extras.isPaid, billingId, '');
+                    updateOverviewActions(!!extras.isPaid, billingId, '', !!extras.isVoided);
                     populateRecordPaymentTab();
                     loadPaymentHistory(billingId);
 
@@ -893,13 +946,16 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                             var pid = patientId;
                             var dueDate = '';
                             var invoicePaid = !!extras.isPaid;
+                            var invoiceVoided = !!extras.isVoided;
                             if (data.success && data.billing) {
                                 pid = data.billing.patient_id || pid;
                                 dueDate = data.billing.due_date || '';
-                                invoicePaid = (data.billing.payment_status || '').toLowerCase() === 'paid' || invoicePaid;
+                                var fetchedStatus = (data.billing.payment_status || '').toLowerCase();
+                                invoicePaid = fetchedStatus === 'paid' || invoicePaid;
+                                invoiceVoided = invoiceVoided || isVoidedPaymentStatus(fetchedStatus);
                                 document.getElementById('payDetailAmount').value = data.billing.total_amount || extras.amount || 0;
                                 document.getElementById('payDetailPaidAmount').value = data.billing.paid_amount || extras.paidAmount || 0;
-                                document.getElementById('payDetailBalance').value = data.billing.balance || extras.balance || 0;
+                                document.getElementById('payDetailBalance').value = invoiceVoided ? 0 : (data.billing.balance || extras.balance || 0);
                                 if (data.billing.treatment_type) {
                                     document.getElementById('payDetailTreatment').value = data.billing.treatment_type;
                                 }
@@ -910,10 +966,14 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                             if (data.success && data.due_date) {
                                 dueDate = data.due_date;
                             }
+                            if (invoiceVoided) {
+                                document.getElementById('payDetailBalance').value = 0;
+                            }
                             document.getElementById('payDetailPatientId').value = pid || 0;
                             document.getElementById('recordPaymentPatientId').value = pid || 0;
                             document.getElementById('payDetailIsPaid').value = invoicePaid ? '1' : '0';
-                            updateOverviewActions(invoicePaid, billingId, dueDate);
+                            document.getElementById('payDetailIsVoided').value = invoiceVoided ? '1' : '0';
+                            updateOverviewActions(invoicePaid, billingId, dueDate, invoiceVoided);
                             populateRecordPaymentTab();
 
                             return fetch('../user-patient/patient_record_details.php?id=' + encodeURIComponent(pid))
@@ -928,32 +988,50 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                     var patientName = [patientInfo.first_name || '', patientInfo.middle_name || '', patientInfo.last_name || ''].filter(Boolean).join(' ') || 'N/A';
 
                                     var totalAmount = 0, paidAmount = 0, balance = 0;
+                                    var collectableUnpaid = false;
+                                    var collectablePartial = false;
+                                    var anyVoided = false;
                                     allBillings.forEach(function(bl) {
+                                        var rowVoided = isVoidedBilling(bl, billingId, invoiceVoided);
+                                        var st = (bl.payment_status || 'unpaid').toLowerCase();
+                                        if (rowVoided) {
+                                            anyVoided = true;
+                                            totalAmount += parseFloat(bl.total_amount || 0);
+                                            paidAmount += parseFloat(bl.paid_amount || 0);
+                                            return;
+                                        }
                                         totalAmount += parseFloat(bl.total_amount || 0);
                                         paidAmount += parseFloat(bl.paid_amount || 0);
                                         balance += parseFloat(bl.balance || 0);
+                                        if (st === 'partial') collectablePartial = true;
+                                        else if (st !== 'paid') collectableUnpaid = true;
                                     });
 
-                                    var overallPaid = true;
-                                    allBillings.forEach(function(bl) {
-                                        if ((bl.payment_status || 'unpaid').toLowerCase() !== 'paid') overallPaid = false;
-                                    });
-
-                                    var statusBadge = overallPaid
-                                        ? '<span style="background:#dcfce7;color:#16a34a;padding:3px 10px;border-radius:9999px;font-size:0.8rem;font-weight:600;">PAID</span>'
-                                        : (balance > 0 ? '<span style="background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:9999px;font-size:0.8rem;font-weight:600;">UNPAID</span>' : '<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:9999px;font-size:0.8rem;font-weight:600;">PARTIAL</span>');
+                                    var statusBadge;
+                                    if (collectableUnpaid) {
+                                        statusBadge = '<span style="background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:9999px;font-size:0.8rem;font-weight:600;">UNPAID</span>';
+                                    } else if (collectablePartial) {
+                                        statusBadge = '<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:9999px;font-size:0.8rem;font-weight:600;">PARTIAL</span>';
+                                    } else if (invoiceVoided || anyVoided) {
+                                        statusBadge = '<span style="background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:9999px;font-size:0.8rem;font-weight:600;">VOIDED</span>';
+                                    } else {
+                                        statusBadge = '<span style="background:#dcfce7;color:#16a34a;padding:3px 10px;border-radius:9999px;font-size:0.8rem;font-weight:600;">PAID</span>';
+                                    }
 
                                     var billingRows = allBillings.map(function(bl) {
                                         var st = (bl.payment_status || 'unpaid').toLowerCase();
+                                        var rowVoided = isVoidedBilling(bl, billingId, invoiceVoided);
+                                        var rowBalance = rowVoided ? 0 : parseFloat(bl.balance || 0);
                                         var sBg = '#fee2e2', sClr = '#991b1b', sLbl = 'UNPAID';
                                         var rowBg = '#fff5f5';
-                                        if (st === 'paid') { sBg = '#dcfce7'; sClr = '#15803d'; sLbl = 'PAID'; rowBg = '#f0fdf4'; }
+                                        if (rowVoided) { sBg = '#fee2e2'; sClr = '#dc2626'; sLbl = 'VOIDED'; rowBg = '#fef2f2'; }
+                                        else if (st === 'paid') { sBg = '#dcfce7'; sClr = '#15803d'; sLbl = 'PAID'; rowBg = '#f0fdf4'; }
                                         else if (st === 'partial') { sBg = '#fef3c7'; sClr = '#92400e'; sLbl = 'PARTIAL'; rowBg = '#fffbeb'; }
                                         return '<tr style="border-top:1px solid #f1f5f9;background:' + rowBg + ';">' +
                                             '<td style="padding:10px 12px;color:#374151;font-weight:500;">' + (bl.service_name || 'General Service') + '</td>' +
                                             '<td style="padding:10px 12px;text-align:right;color:#111827;font-weight:600;">P' + parseFloat(bl.total_amount).toFixed(2) + '</td>' +
                                             '<td style="padding:10px 12px;text-align:right;color:#16a34a;font-weight:600;">P' + parseFloat(bl.paid_amount).toFixed(2) + '</td>' +
-                                            '<td style="padding:10px 12px;text-align:right;color:' + (parseFloat(bl.balance) > 0 ? '#dc2626' : '#16a34a') + ';font-weight:600;">P' + parseFloat(bl.balance).toFixed(2) + '</td>' +
+                                            '<td style="padding:10px 12px;text-align:right;color:' + (rowBalance > 0 ? '#dc2626' : '#16a34a') + ';font-weight:600;">P' + rowBalance.toFixed(2) + '</td>' +
                                             '<td style="padding:10px 12px;text-align:center;"><span style="background:' + sBg + ';color:' + sClr + ';padding:3px 10px;border-radius:9999px;font-size:0.75rem;font-weight:600;">' + sLbl + '</span></td></tr>';
                                     }).join('');
 
@@ -1001,9 +1079,11 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 }
 
                 function renderSingleBillingDetails(data) {
+                    var forceVoided = currentPayDetailIsVoided();
                     if (data.success && data.billing) {
                         var billing = data.billing;
                         var patientName = [billing.first_name || '', billing.middle_name || '', billing.last_name || '', billing.suffix || ''].filter(Boolean).join(' ') || 'N/A';
+                        var payStatus = forceVoided ? 'voided' : billing.payment_status;
                         document.getElementById('paymentModalContent').innerHTML =
                             '<div class="billing-detail-view">' +
                                 '<div class="detail-row"><span class="detail-label">Invoice:</span><span class="detail-value">INV-' + String(billing.id).padStart(3, '0') + '</span></div>' +
@@ -1011,18 +1091,19 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                 '<div class="detail-row"><span class="detail-label">Phone:</span><span class="detail-value">' + (billing.phone || 'N/A') + '</span></div>' +
                                 '<div class="detail-row"><span class="detail-label">Amount:</span><span class="detail-value">P' + parseFloat(billing.total_amount || 0).toFixed(2) + '</span></div>' +
                                 '<div class="detail-row"><span class="detail-label">Paid Amount:</span><span class="detail-value">P' + parseFloat(billing.paid_amount || 0).toFixed(2) + '</span></div>' +
-                                '<div class="detail-row"><span class="detail-label">Payment Status:</span><span class="detail-value">' + formatPayStatus(billing.payment_status) + '</span></div>' +
+                                '<div class="detail-row"><span class="detail-label">Payment Status:</span><span class="detail-value">' + formatPayStatus(payStatus) + '</span></div>' +
                                 '<div class="detail-row"><span class="detail-label">Billing Date:</span><span class="detail-value">' + (billing.billing_date || 'N/A') + '</span></div>' +
                                 '<div class="detail-row"><span class="detail-label">Due Date:</span><span class="detail-value">' + (billing.due_date ? formatDueDate(billing.due_date) : '<span style="color:#9ca3af;">Not set</span>') + '</span></div>' +
                                 '<div class="detail-row"><span class="detail-label">Notes:</span><span class="detail-value">' + (billing.notes || 'N/A') + '</span></div>' +
                             '</div>';
                     } else if (data.success) {
+                        var fallbackStatus = forceVoided ? 'voided' : data.payment_status;
                         document.getElementById('paymentModalContent').innerHTML =
                             '<div class="billing-detail-view">' +
                                 '<div class="detail-row"><span class="detail-label">Patient:</span><span class="detail-value">' + data.patient_name + '</span></div>' +
                                 '<div class="detail-row"><span class="detail-label">Treatment:</span><span class="detail-value">' + (data.treatment_type || 'General Checkup') + '</span></div>' +
                                 '<div class="detail-row"><span class="detail-label">Amount:</span><span class="detail-value">P' + parseFloat(data.amount).toFixed(2) + '</span></div>' +
-                                '<div class="detail-row"><span class="detail-label">Payment Status:</span><span class="detail-value">' + formatPayStatus(data.payment_status) + '</span></div>' +
+                                '<div class="detail-row"><span class="detail-label">Payment Status:</span><span class="detail-value">' + formatPayStatus(fallbackStatus) + '</span></div>' +
                                 '<div class="detail-row"><span class="detail-label">Date:</span><span class="detail-value">' + data.queue_date + '</span></div>' +
                                 '<div class="detail-row"><span class="detail-label">Due Date:</span><span class="detail-value">' + (data.due_date ? formatDueDate(data.due_date) : '<span style="color:#9ca3af;">Not set</span>') + '</span></div>' +
                             '</div>';
@@ -1105,8 +1186,17 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
                 function populateRecordPaymentTab() {
                     var isPaid = document.getElementById('payDetailIsPaid').value === '1';
+                    var isVoided = currentPayDetailIsVoided();
                     var paidState = document.getElementById('recordPaymentPaidState');
+                    var voidedState = document.getElementById('recordPaymentVoidedState');
                     var formWrap = document.getElementById('recordPaymentFormWrap');
+                    if (isVoided) {
+                        if (paidState) paidState.style.display = 'none';
+                        if (voidedState) voidedState.style.display = 'block';
+                        formWrap.style.display = 'none';
+                        return;
+                    }
+                    if (voidedState) voidedState.style.display = 'none';
                     if (isPaid) {
                         paidState.style.display = 'block';
                         formWrap.style.display = 'none';
@@ -1127,8 +1217,8 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     document.getElementById('recordPaymentBillingId').value = billingId || 0;
                     document.getElementById('recordPaymentTotalAmount').textContent = 'P' + parseFloat(amount || 0).toFixed(2);
                     document.getElementById('recordPaymentPaidSoFar').textContent = 'P' + parseFloat(paidAmount || 0).toFixed(2);
-                    document.getElementById('recordPaymentBalance').textContent = 'P' + parseFloat(balance || amount || 0).toFixed(2);
-                    document.getElementById('recordPaymentAmount').value = parseFloat(balance || amount || 0).toFixed(2);
+                    document.getElementById('recordPaymentBalance').textContent = 'P' + parseFloat(balance || 0).toFixed(2);
+                    document.getElementById('recordPaymentAmount').value = parseFloat(balance || 0).toFixed(2);
                     document.getElementById('recordPaymentMethod').value = 'cash';
 
                     if (!patientId) {
@@ -1143,7 +1233,9 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                             if (detailData.success) {
                                 var allBillings = detailData.all_billings || [];
                                 var unpaidBills = allBillings.filter(function(bl) {
-                                    return (bl.payment_status || 'unpaid').toLowerCase() !== 'paid';
+                                    var st = (bl.payment_status || 'unpaid').toLowerCase();
+                                    if (st === 'paid' || isVoidedBilling(bl, billingId, isVoided)) return false;
+                                    return true;
                                 });
                                 if (unpaidBills.length > 0) {
                                     breakdownHtml = '<div style="font-weight:600;color:#374151;margin-bottom:8px;font-size:0.85rem;">Unpaid Services:</div>';
@@ -1161,6 +1253,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
                                     var totalAmt = 0, totalPaid = 0, totalBal = 0;
                                     allBillings.forEach(function(bl) {
+                                        if (isVoidedBilling(bl, billingId, isVoided)) return;
                                         totalAmt += parseFloat(bl.total_amount || 0);
                                         totalPaid += parseFloat(bl.paid_amount || 0);
                                         totalBal += parseFloat(bl.balance || 0);
@@ -1171,6 +1264,8 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                     document.getElementById('recordPaymentAmount').value = totalBal.toFixed(2);
                                 } else {
                                     breakdownHtml = '<div style="color:#16a34a;text-align:center;padding:4px;">All services paid</div>';
+                                    document.getElementById('recordPaymentBalance').textContent = 'P0.00';
+                                    document.getElementById('recordPaymentAmount').value = '0.00';
                                 }
                             }
                             document.getElementById('recordPaymentBreakdown').innerHTML = breakdownHtml;
@@ -1181,6 +1276,10 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 }
 
                 function confirmRecordPayment() {
+                    if (currentPayDetailIsVoided()) {
+                        alert('This invoice is voided. No payment is expected.');
+                        return;
+                    }
                     var billingId = document.getElementById('recordPaymentBillingId').value;
                     var queueId = document.getElementById('recordPaymentQueueId').value;
                     var patientId = document.getElementById('recordPaymentPatientId').value;
