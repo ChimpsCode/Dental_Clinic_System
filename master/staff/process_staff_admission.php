@@ -83,11 +83,19 @@ try {
     // Senior / PWD discount IDs (RA 9994 / RA 10754)
     require_once __DIR__ . '/../../includes/discount_helper.php';
     ensureDiscountSchema($pdo);
+    $seniorIdSan = sanitize_id_code($_POST['senior_citizen_id'] ?? '', false, 30, 'Senior ID number');
+    if (!$seniorIdSan['ok']) {
+        throw new Exception($seniorIdSan['error']);
+    }
+    $pwdIdSan = sanitize_id_code($_POST['pwd_id'] ?? '', false, 30, 'PWD ID number');
+    if (!$pwdIdSan['ok']) {
+        throw new Exception($pwdIdSan['error']);
+    }
     list($seniorIdType, $seniorCitizenId) = normalizeSeniorIdFields(
         $_POST['senior_id_type'] ?? '',
-        $_POST['senior_citizen_id'] ?? ''
+        $seniorIdSan['value']
     );
-    $pwdId = normalizePwdIdField(!empty($_POST['is_pwd']), $_POST['pwd_id'] ?? '');
+    $pwdId = normalizePwdIdField(!empty($_POST['is_pwd']), $pwdIdSan['value']);
     
     // Insurance
     $dentalInsurance = trim($_POST['dentalInsurance'] ?? '');

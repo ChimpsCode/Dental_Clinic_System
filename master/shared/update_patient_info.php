@@ -48,11 +48,22 @@ $gender = $_POST['gender'] ?? '';
 require_once __DIR__ . '/../../includes/discount_helper.php';
 ensureDiscountSchema($pdo);
 
+$seniorIdSan = sanitize_id_code($_POST['senior_citizen_id'] ?? '', false, 30, 'Senior ID number');
+if (!$seniorIdSan['ok']) {
+    echo json_encode(['success' => false, 'message' => $seniorIdSan['error']]);
+    exit;
+}
+$pwdIdSan = sanitize_id_code($_POST['pwd_id'] ?? '', false, 30, 'PWD ID number');
+if (!$pwdIdSan['ok']) {
+    echo json_encode(['success' => false, 'message' => $pwdIdSan['error']]);
+    exit;
+}
+
 list($senior_id_type, $senior_citizen_id) = normalizeSeniorIdFields(
     $_POST['senior_id_type'] ?? '',
-    $_POST['senior_citizen_id'] ?? ''
+    $seniorIdSan['value']
 );
-$pwd_id = normalizePwdIdField(!empty($_POST['is_pwd']), $_POST['pwd_id'] ?? '');
+$pwd_id = normalizePwdIdField(!empty($_POST['is_pwd']), $pwdIdSan['value']);
 
 if (!$patient_id) {
     echo json_encode(['success' => false, 'message' => 'Patient ID required']);

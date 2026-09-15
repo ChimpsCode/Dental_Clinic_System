@@ -53,6 +53,18 @@
         });
     }
 
+    function bindIdCodeInputs(root) {
+        root.querySelectorAll('input[name="senior_citizen_id"], input[name="pwd_id"]').forEach(function (el) {
+            if (el.dataset.idCodeBound) return;
+            el.dataset.idCodeBound = '1';
+            el.setAttribute('pattern', '[A-Za-z0-9\\-/]+');
+            el.setAttribute('title', 'Letters, numbers, hyphens, and slashes only');
+            el.addEventListener('input', function () {
+                this.value = this.value.replace(/[^A-Za-z0-9\-\/]/g, '');
+            });
+        });
+    }
+
     function init(root) {
         root = root || document;
         const dob = findDob(root);
@@ -67,6 +79,7 @@
             pwdCheck.dataset.discountPwdBound = '1';
             pwdCheck.addEventListener('change', function () { sync(root); });
         }
+        bindIdCodeInputs(root);
         sync(root);
     }
 

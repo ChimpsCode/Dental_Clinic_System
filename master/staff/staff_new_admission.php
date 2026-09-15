@@ -491,7 +491,7 @@ elseif ($appointmentId) {
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Birthdate <span class="text-red-500">*</span></label>
-                                <input type="date" name="birthdate" data-discount-dob="1" value="<?php echo htmlspecialchars($patientFromAppointment['date_of_birth'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-slate-600">
+                                <input type="date" name="birthdate" data-discount-dob="1" max="9999-12-31" value="<?php echo htmlspecialchars($patientFromAppointment['date_of_birth'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-slate-600">
                             </div>
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Age <span class="text-xs text-slate-400">(auto-calculated)</span></label>
@@ -512,6 +512,36 @@ elseif ($appointmentId) {
                                 <label class="block text-sm font-medium text-slate-600 mb-1">Religion</label>
                                 <input type="text" name="religion" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm">
                             </div>
+                        </div>
+                    </section>
+                    <div class="mt-4" data-senior-id-fields style="display:none;">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-600 mb-1">Senior government ID <span class="text-red-500">*</span></label>
+                                    <div class="relative">
+                                        <select name="senior_id_type" class="w-full h-10 px-3 py-2 border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-slate-600 bg-white box-border">
+                                            <?php echo seniorIdTypeOptionsHtml($patientFromAppointment['senior_id_type'] ?? ''); ?>
+                                        </select>
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-600 mb-1">ID number <span class="text-red-500">*</span></label>
+                                    <input type="text" name="senior_citizen_id" value="<?php echo htmlspecialchars($patientFromAppointment['senior_citizen_id'] ?? ''); ?>" class="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm box-border" placeholder="ID number" maxlength="30">
+                                </div>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-1">Age 60+ still needs a government ID number for the official 20% senior discount (RA 9994).</p>
+                        </div>
+                        <div class="mt-4">
+                            <label class="inline-flex items-center gap-2 text-sm font-medium text-slate-600">
+                                <input type="checkbox" name="is_pwd" value="1" data-pwd-toggle="1" <?php echo !empty($patientFromAppointment['pwd_id']) ? 'checked' : ''; ?>>
+                                Person with Disability (PWD)
+                            </label>
+                        </div>
+                        <div class="mt-2" data-pwd-id-fields style="display:none;">
+                            <label class="block text-sm font-medium text-slate-600 mb-1">PWD ID No. <span class="text-red-500">*</span></label>
+                            <input type="text" name="pwd_id" value="<?php echo htmlspecialchars($patientFromAppointment['pwd_id'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Official PWD ID number" maxlength="30">
+                            <p class="text-xs text-slate-500 mt-1">The official PWD ID number is required for the 20% PWD discount (RA 10754).</p>
                         </div>
                     </section>
 
@@ -588,39 +618,10 @@ elseif ($appointmentId) {
                             </div>
                         </div>
 
-                        <div class="mt-4" data-senior-id-fields style="display:none;">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-600 mb-1">Senior government ID <span class="text-red-500">*</span></label>
-                                    <div class="relative">
-                                        <select name="senior_id_type" class="w-full h-10 px-3 py-2 border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-slate-600 bg-white box-border">
-                                            <?php echo seniorIdTypeOptionsHtml($patientFromAppointment['senior_id_type'] ?? ''); ?>
-                                        </select>
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-600 mb-1">ID number <span class="text-red-500">*</span></label>
-                                    <input type="text" name="senior_citizen_id" value="<?php echo htmlspecialchars($patientFromAppointment['senior_citizen_id'] ?? ''); ?>" class="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm box-border" placeholder="ID number" maxlength="30">
-                                </div>
-                            </div>
-                            <p class="text-xs text-slate-500 mt-1">Age 60+ still needs a government ID number for the official 20% senior discount (RA 9994).</p>
-                        </div>
-                        <div class="mt-4">
-                            <label class="inline-flex items-center gap-2 text-sm font-medium text-slate-600">
-                                <input type="checkbox" name="is_pwd" value="1" data-pwd-toggle="1" <?php echo !empty($patientFromAppointment['pwd_id']) ? 'checked' : ''; ?>>
-                                Person with Disability (PWD)
-                            </label>
-                        </div>
-                        <div class="mt-2" data-pwd-id-fields style="display:none;">
-                            <label class="block text-sm font-medium text-slate-600 mb-1">PWD ID No. <span class="text-red-500">*</span></label>
-                            <input type="text" name="pwd_id" value="<?php echo htmlspecialchars($patientFromAppointment['pwd_id'] ?? ''); ?>" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Official PWD ID number" maxlength="30">
-                            <p class="text-xs text-slate-500 mt-1">The official PWD ID number is required for the 20% PWD discount (RA 10754).</p>
-                        </div>
-                    </section>
+                        
 
                     <!-- Section 3: Insurance Information -->
-                    <section class="pt-4">
+                    <!-- <section class="pt-4">
                         <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Insurance Information <span class="text-slate-300 font-normal">(Optional)</span></h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -632,7 +633,7 @@ elseif ($appointmentId) {
                                 <input type="date" name="effectiveDate" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-slate-600">
                             </div>
                         </div>
-                    </section>
+                    </section> -->
                     <!-- Patient Info Validation Message -->
                     <div id="patientInfoValidation" class="hidden mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
                         Please complete required patient information: First Name, Last Name, Birthdate, Gender, and Mobile Number.
@@ -1763,11 +1764,23 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
             }
         }
 
+        function clampBirthdateYearToFourDigits(input) {
+            if (!input || !input.value) return;
+            const year = input.value.split('-')[0] || '';
+            if (year.length > 4) {
+                input.value = year.slice(0, 4) + input.value.slice(year.length);
+            }
+        }
+
         // Listen for birthdate change to auto-calculate age
         document.addEventListener('DOMContentLoaded', function() {
             const birthdateInput = document.querySelector('input[name="birthdate"]');
             if (birthdateInput) {
+                birthdateInput.addEventListener('input', function() {
+                    clampBirthdateYearToFourDigits(this);
+                });
                 birthdateInput.addEventListener('change', function() {
+                    clampBirthdateYearToFourDigits(this);
                     handleBirthdateChange();
                     if (window.DiscountIdFields) window.DiscountIdFields.sync(document);
                 });

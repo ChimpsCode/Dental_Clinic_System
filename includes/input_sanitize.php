@@ -238,8 +238,8 @@ function sanitize_id_code($raw, bool $required = false, int $maxLen = 30, string
     if (input_str_len($value) > $maxLen) {
         return sanitize_fail($label . ' is too long.');
     }
-    if (!preg_match('/^[A-Za-z0-9\\-]+$/', $value)) {
-        return sanitize_fail($label . ' may only contain letters, numbers, and hyphens.');
+    if (!preg_match('/^[A-Za-z0-9\\-\/]+$/', $value)) {
+        return sanitize_fail($label . ' may only contain letters, numbers, hyphens, and slashes.');
     }
 
     return sanitize_ok($value);
