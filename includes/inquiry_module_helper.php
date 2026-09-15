@@ -392,6 +392,44 @@ function sendInquiryConversationLinkEmail(string $email, string $firstName, stri
     }
 }
 
+function inquiryPatientAvatarJoinSql(PDO $pdo): string
+{
+    $matchClauses = [];
+
+    if (inquiryColumnExists($pdo, 'inquiries', 'patient_id')) {
+        $patientLinkClauses = [];
+        if (inquiryColumnExists($pdo, 'users', 'patient_id')) {
+            $patientLinkClauses[] = 'u2.patient_id = i.patient_id';
+        }
+        if (inquiryColumnExists($pdo, 'patients', 'user_id')) {
+            $patientLinkClauses[] = 'u2.id = (SELECT p.user_id FROM patients p WHERE p.id = i.patient_id AND p.user_id IS NOT NULL LIMIT 1)';
+        }
+        if ($patientLinkClauses !== []) {
+            $matchClauses[] = '(i.patient_id IS NOT NULL AND i.patient_id > 0 AND (' . implode(' OR ', $patientLinkClauses) . '))';
+        }
+    }
+
+    if (inquiryColumnExists($pdo, 'inquiries', 'source')) {
+        $matchClauses[] = "(LOWER(TRIM(COALESCE(i.source, ''))) = 'patient portal' AND i.email IS NOT NULL AND i.email != '' AND u2.email = i.email)";
+    }
+
+    if ($matchClauses === []) {
+        return 'LEFT JOIN users up ON up.id = NULL';
+    }
+
+    $matchSql = implode("\n            OR ", $matchClauses);
+
+    return "LEFT JOIN users up ON up.id = (
+        SELECT u2.id FROM users u2
+        WHERE COALESCE(u2.is_archived, 0) = 0
+          AND (
+            {$matchSql}
+          )
+        ORDER BY (u2.username = u2.email) DESC, u2.id ASC
+        LIMIT 1
+    )";
+}
+
 function inquiryColumnExists(PDO $pdo, string $table, string $column): bool
 {
     static $cache = [];

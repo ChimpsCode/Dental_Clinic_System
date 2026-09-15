@@ -265,6 +265,7 @@ function fetchInquiryById(PDO $pdo, int $id): ?array
     $resolvedPhoneExpr = inquiryColumnExists($pdo, 'inquiries', 'contact_info')
         ? "COALESCE(i.phone, i.contact_info)"
         : "i.phone";
+    $avatarJoin = inquiryPatientAvatarJoinSql($pdo);
 
     $stmt = $pdo->prepare("
         SELECT i.*,
@@ -279,12 +280,7 @@ function fetchInquiryById(PDO $pdo, int $id): ?array
         FROM inquiries i
         LEFT JOIN services s ON s.id = i.service_id
         LEFT JOIN users ass ON ass.id = i.assigned_staff_id
-        LEFT JOIN users up ON up.id = (
-            SELECT u2.id FROM users u2
-            WHERE u2.email = i.email AND COALESCE(u2.is_archived, 0) = 0
-            ORDER BY (u2.username = u2.email) DESC, u2.id ASC
-            LIMIT 1
-        )
+        {$avatarJoin}
         WHERE i.id = ?
         LIMIT 1
     ");
@@ -510,6 +506,7 @@ if ($action === 'get_inquiries') {
 
     $offset = max(0, (int)($_REQUEST['offset'] ?? 0));
     $limit = min(50, max(1, (int)($_REQUEST['limit'] ?? 20)));
+    $avatarJoin = inquiryPatientAvatarJoinSql($pdo);
 
     $stmt = $pdo->prepare("
         SELECT i.*, s.name AS service_name,
@@ -525,12 +522,7 @@ if ($action === 'get_inquiries') {
         FROM inquiries i
         LEFT JOIN services s ON s.id = i.service_id
         LEFT JOIN users ass ON ass.id = i.assigned_staff_id
-        LEFT JOIN users up ON up.id = (
-            SELECT u2.id FROM users u2
-            WHERE u2.email = i.email AND COALESCE(u2.is_archived, 0) = 0
-            ORDER BY (u2.username = u2.email) DESC, u2.id ASC
-            LIMIT 1
-        )
+        {$avatarJoin}
         LEFT JOIN (
             SELECT r1.id, r1.inquiry_id, r1.message, r1.attachment, r1.sender_type, r1.created_at
             FROM inquiry_replies r1
