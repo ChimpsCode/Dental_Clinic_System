@@ -782,6 +782,51 @@
     color: #3f75ea;
 }
 
+.dash-services-row {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    width: 100%;
+    align-items: stretch;
+}
+
+.dash-services-row .top-services-card {
+    flex: 1 1 42%;
+    min-width: 0;
+    width: auto;
+}
+
+.dash-services-row .dash-appt-type-card {
+    flex: 1 1 58%;
+    min-width: 0;
+    width: auto;
+}
+
+.dash-appt-type-body {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 12px;
+}
+
+.dash-appt-type-card .pie-chart {
+    width: 130px;
+    height: 130px;
+    margin-right: 0;
+}
+
+@media (max-width: 1024px) {
+    .dash-services-row {
+        flex-direction: column;
+    }
+
+    .dash-services-row .top-services-card,
+    .dash-services-row .dash-appt-type-card {
+        width: 100%;
+        flex: 1 1 auto;
+    }
+}
+
 /* Staff Stats */
 .staff-stat {
     display: flex;

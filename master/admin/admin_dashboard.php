@@ -29,6 +29,9 @@ $newPatientsToday = 0;
 $newPatientsYesterday = 0;
 $newPatientsTodayFillPercent = 12;
 $newPatientsTodayEmptyPercent = 88;
+$appointmentTypeSlices = [];
+$appointmentTypeGradient = '#e5e7eb';
+$appointmentTypeTotal = 0;
     $today = new DateTime();
 $startDate = new DateTime($today->format('Y-m-01'));
 $endDate = clone $today;
@@ -90,6 +93,87 @@ try {
             LIMIT 4
         ");
         $topServices = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Appointments by Type (same default month window as analytics)
+    $typeStartStr = (clone $today)->modify('-29 days')->format('Y-m-d');
+    $typeEndStr = $today->format('Y-m-d');
+    $typeOccurEndStr = (clone $today)->modify('+29 days')->format('Y-m-d');
+    try {
+        $serviceNameExpr = "COALESCE(NULLIF(TRIM(s.name), ''), 'Unspecified')";
+        $typeStmt = $pdo->prepare("
+            SELECT {$serviceNameExpr} AS service_name, COUNT(*) AS total
+            FROM appointments a
+            LEFT JOIN services s ON s.id = a.service_id
+            WHERE COALESCE(a.is_archived, 0) = 0
+              AND LOWER(COALESCE(a.status, '')) <> 'cancelled'
+              AND (
+                    a.appointment_date BETWEEN ? AND ?
+                    OR DATE(a.created_at) BETWEEN ? AND ?
+                    OR DATE(a.check_in_time) BETWEEN ? AND ?
+                    OR EXISTS (
+                        SELECT 1
+                        FROM queue q
+                        WHERE q.appointment_id = a.id
+                          AND COALESCE(q.is_archived, 0) = 0
+                          AND COALESCE(q.queue_date, DATE(q.created_at)) BETWEEN ? AND ?
+                    )
+                )
+            GROUP BY {$serviceNameExpr}
+            ORDER BY total DESC
+        ");
+        $typeStmt->execute([
+            $typeStartStr, $typeOccurEndStr,
+            $typeStartStr, $typeEndStr,
+            $typeStartStr, $typeEndStr,
+            $typeStartStr, $typeEndStr,
+        ]);
+        $appointmentTypeRows = $typeStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $pieColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
+        $topTypes = array_slice($appointmentTypeRows, 0, 3);
+        $otherCount = 0;
+        foreach (array_slice($appointmentTypeRows, 3) as $otherRow) {
+            $otherCount += (int)($otherRow['total'] ?? 0);
+        }
+
+        foreach ($topTypes as $index => $typeRow) {
+            $count = (int)($typeRow['total'] ?? 0);
+            if ($count <= 0) {
+                continue;
+            }
+            $appointmentTypeSlices[] = [
+                'label' => (string)($typeRow['service_name'] ?? 'Unspecified'),
+                'count' => $count,
+                'color' => $pieColors[$index] ?? $pieColors[0],
+            ];
+            $appointmentTypeTotal += $count;
+        }
+        if ($otherCount > 0) {
+            $appointmentTypeSlices[] = [
+                'label' => 'Other',
+                'count' => $otherCount,
+                'color' => $pieColors[3],
+            ];
+            $appointmentTypeTotal += $otherCount;
+        }
+
+        if ($appointmentTypeTotal > 0) {
+            $cursorDeg = 0.0;
+            $gradientParts = [];
+            foreach ($appointmentTypeSlices as $slice) {
+                $spanDeg = ($slice['count'] / $appointmentTypeTotal) * 360;
+                $fromDeg = $cursorDeg;
+                $toDeg = $cursorDeg + $spanDeg;
+                $gradientParts[] = $slice['color'] . ' ' . round($fromDeg, 2) . 'deg ' . round($toDeg, 2) . 'deg';
+                $cursorDeg = $toDeg;
+            }
+            $appointmentTypeGradient = 'conic-gradient(' . implode(', ', $gradientParts) . ')';
+        }
+    } catch (Exception $e) {
+        $appointmentTypeSlices = [];
+        $appointmentTypeGradient = '#e5e7eb';
+        $appointmentTypeTotal = 0;
+    }
 
     // Get live queue data (next 3 patients in line)
     try {
@@ -234,6 +318,9 @@ try {
     $newPatientsYesterday = 0;
     $newPatientsTodayFillPercent = 12;
     $newPatientsTodayEmptyPercent = 88;
+    $appointmentTypeSlices = [];
+    $appointmentTypeGradient = '#e5e7eb';
+    $appointmentTypeTotal = 0;
     error_log("Admin Dashboard Error: " . $e->getMessage());
 }
 
@@ -456,7 +543,8 @@ try {
     </div>
                 </div>
 
-                <!-- Top Services -->
+                <!-- Top Services + Appointments by Type -->
+                <div class="dash-services-row">
                 <div class="section-card top-services-card" style="margin-bottom: 0px; padding-bottom: 0px !important;">
                     <h2 class="section-title">Top Services</h2>
                     <div class="stat-content">
@@ -476,6 +564,27 @@ try {
                             </div>
                         <?php endif; ?>
                     </div>
+                </div>
+                <div class="section-card dash-appt-type-card" style="margin-bottom: 0px; padding-bottom: 0px !important;">
+                    <h2 class="section-title">Appointments by Type</h2>
+                    <div class="dash-appt-type-body">
+                        <div class="pie-chart" style="background: <?php echo htmlspecialchars($appointmentTypeGradient, ENT_QUOTES, 'UTF-8'); ?>;"></div>
+                        <div class="chart-legend">
+                            <?php if ($appointmentTypeTotal > 0): ?>
+                                <?php foreach ($appointmentTypeSlices as $slice): ?>
+                                    <?php $pct = (int)round(($slice['count'] / $appointmentTypeTotal) * 100); ?>
+                                    <span class="legend-item">
+                                        <span class="legend-color" style="background: <?php echo htmlspecialchars($slice['color'], ENT_QUOTES, 'UTF-8'); ?>;"></span>
+                                        <?php echo htmlspecialchars($slice['label']); ?>
+                                        (<?php echo number_format($slice['count']); ?> · <?php echo $pct; ?>%)
+                                    </span>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <span class="legend-item">No appointments in this period</span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
                 </div>
                 <div class="top-services-bottom-space" aria-hidden="true"></div>
 
