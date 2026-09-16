@@ -102,22 +102,35 @@ try {
             break;
 
         case 'get_payments':
-            // Get all payment records for a billing record
-            $billing_id = $_GET['billing_id'] ?? 0;
+            // Get payment records for a patient (all invoices) or a single billing record
+            $billing_id = (int)($_GET['billing_id'] ?? 0);
+            $patient_id = (int)($_GET['patient_id'] ?? 0);
 
-            if (!$billing_id) {
-                $response['message'] = 'Billing ID is required';
+            if (!$patient_id && !$billing_id) {
+                $response['message'] = 'Patient ID or Billing ID is required';
                 echo json_encode($response);
                 exit;
             }
 
-            $stmt = $pdo->prepare("
-                SELECT id, billing_id, patient_id, amount, payment_method, payment_date, reference_number, created_by, notes, created_at
-                FROM payments
-                WHERE billing_id = ?
-                ORDER BY payment_date DESC, created_at DESC
-            ");
-            $stmt->execute([$billing_id]);
+            if ($patient_id) {
+                $stmt = $pdo->prepare("
+                    SELECT pay.id, pay.billing_id, pay.patient_id, pay.amount, pay.payment_method,
+                           pay.payment_date, pay.reference_number, pay.created_by, pay.notes, pay.created_at
+                    FROM payments pay
+                    LEFT JOIN billing b ON b.id = pay.billing_id
+                    WHERE pay.patient_id = ? OR b.patient_id = ?
+                    ORDER BY pay.payment_date DESC, pay.created_at DESC
+                ");
+                $stmt->execute([$patient_id, $patient_id]);
+            } else {
+                $stmt = $pdo->prepare("
+                    SELECT id, billing_id, patient_id, amount, payment_method, payment_date, reference_number, created_by, notes, created_at
+                    FROM payments
+                    WHERE billing_id = ?
+                    ORDER BY payment_date DESC, created_at DESC
+                ");
+                $stmt->execute([$billing_id]);
+            }
             $payments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             $response['success'] = true;

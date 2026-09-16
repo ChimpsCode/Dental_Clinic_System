@@ -41,13 +41,32 @@ try {
     // Cancelled/voided bills stay visible so Payment Status can show VOIDED.
     $whereClause = "WHERE 1=1";
     $params = [];
+
+    $queueJoin = "LEFT JOIN (
+            SELECT q1.patient_id, DATE(q1.created_at) AS created_date,
+                   q1.id, q1.queue_number, q1.treatment_type, q1.teeth_numbers,
+                   q1.status, q1.created_at, q1.notes
+            FROM queue q1
+            INNER JOIN (
+                SELECT patient_id, DATE(created_at) AS created_date, MIN(id) AS min_id
+                FROM queue
+                GROUP BY patient_id, DATE(created_at)
+            ) q2 ON q2.min_id = q1.id
+        ) q ON q.patient_id = b.patient_id AND q.created_date = DATE(b.billing_date)";
     
     // Apply search filter
     if (!empty($searchQuery)) {
-        $whereClause .= " AND (CONCAT(p.first_name, ' ', p.last_name) LIKE :search 
-                  OR q.treatment_type LIKE :search2)";
-        $params[':search'] = "%$searchQuery%";
-        $params[':search2'] = "%$searchQuery%";
+        $whereClause .= " AND (
+            CONCAT_WS(' ',
+                NULLIF(TRIM(p.first_name), ''),
+                NULLIF(TRIM(p.middle_name), ''),
+                NULLIF(TRIM(p.last_name), ''),
+                NULLIF(TRIM(p.suffix), '')
+            ) LIKE :search
+            OR b.id LIKE :searchId
+        )";
+        $params[':search'] = '%' . $searchQuery . '%';
+        $params[':searchId'] = '%' . $searchQuery . '%';
     }
     
     // Apply payment status filter
@@ -75,12 +94,20 @@ try {
             // All time - no filter
             break;
     }
+
+    $latestRowClause = " AND b.id = (
+            SELECT b2.id FROM billing b2
+            WHERE b2.patient_id = b.patient_id
+            ORDER BY COALESCE(b2.updated_at, b2.billing_date) DESC, b2.id DESC
+            LIMIT 1
+        )";
+    $listWhereClause = $whereClause . $latestRowClause;
     
     // Get total count for pagination
-    $countSql = "SELECT COUNT(*) FROM billing b
+    $countSql = "SELECT COUNT(DISTINCT b.patient_id) FROM billing b
                  LEFT JOIN patients p ON b.patient_id = p.id
-                 LEFT JOIN queue q ON CAST(q.patient_id AS UNSIGNED) = b.patient_id AND DATE(q.created_at) = DATE(b.billing_date)
-                 $whereClause";
+                 $queueJoin
+                 $listWhereClause";
     $countStmt = $conn->prepare($countSql);
     foreach ($params as $key => $value) {
         $countStmt->bindValue($key, $value);
@@ -128,9 +155,9 @@ try {
                 0 as discount_amount
             FROM billing b
             LEFT JOIN patients p ON b.patient_id = p.id
-            LEFT JOIN queue q ON CAST(q.patient_id AS UNSIGNED) = b.patient_id AND DATE(q.created_at) = DATE(b.billing_date)
-            $whereClause
-            ORDER BY b.billing_date DESC, b.id DESC
+            $queueJoin
+            $listWhereClause
+            ORDER BY COALESCE(b.updated_at, b.billing_date) DESC, b.id DESC
             LIMIT :limit OFFSET :offset";
     
     $stmt = $conn->prepare($sql);
@@ -1779,7 +1806,10 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     document.getElementById('payTabHistory').style.display = tab === 'history' ? 'block' : 'none';
                     document.getElementById('payTabRecord').style.display = tab === 'record' ? 'block' : 'none';
                     if (tab === 'history') {
-                        loadPaymentHistory(document.getElementById('payDetailBillingId').value);
+                        loadPaymentHistory(
+                            document.getElementById('payDetailBillingId').value,
+                            document.getElementById('payDetailPatientId').value
+                        );
                     }
                 }
 
@@ -1827,7 +1857,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     `;
                     updateOverviewActions(!!extras.isPaid, billingId, '', !!extras.isVoided);
                     populateRecordPaymentTab();
-                    loadPaymentHistory(billingId);
+                    loadPaymentHistory(billingId, patientId);
 
                     var billingEndpoint = billingId && billingId !== '0'
                         ? '../shared/billing_actions.php?action=get_billing&billing_id=' + encodeURIComponent(billingId)
@@ -2220,12 +2250,15 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     });
                 }
 
-                function loadPaymentHistory(billingId) {
+                function loadPaymentHistory(billingId, patientId) {
                     const tbody = document.getElementById('paymentHistoryBody');
                     const empty = document.getElementById('paymentHistoryEmpty');
                     if (!tbody || !empty) return;
 
-                    if (!billingId || billingId === '0') {
+                    patientId = patientId || document.getElementById('payDetailPatientId').value;
+                    billingId = billingId || document.getElementById('payDetailBillingId').value;
+
+                    if ((!patientId || patientId === '0') && (!billingId || billingId === '0')) {
                         tbody.innerHTML = '';
                         empty.style.display = 'block';
                         empty.querySelector('p').textContent = 'No billing record found for this patient.';
@@ -2236,7 +2269,10 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     empty.style.display = 'none';
                     empty.querySelector('p').textContent = 'No payment records found.';
 
-                    fetch('../shared/billing_actions.php?action=get_payments&billing_id=' + encodeURIComponent(billingId))
+                    var historyUrl = (patientId && patientId !== '0')
+                        ? '../shared/billing_actions.php?action=get_payments&patient_id=' + encodeURIComponent(patientId)
+                        : '../shared/billing_actions.php?action=get_payments&billing_id=' + encodeURIComponent(billingId);
+                    fetch(historyUrl)
                         .then(response => response.json())
                         .then(data => {
                             tbody.innerHTML = '';
@@ -2525,54 +2561,20 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     }
                 });
 
-                // Filter visible rows locally while typing to avoid page reload flicker
+                const paymentSearchForm = document.getElementById('filterForm');
                 const paymentSearchInput = document.getElementById('paymentSearch');
-                const paymentTableBody = document.getElementById('paymentTableBody');
 
-                if (paymentSearchInput && paymentTableBody) {
-                    const paymentRows = Array.from(paymentTableBody.querySelectorAll('tr[data-queue-id]'));
-                    const emptyStateRow = paymentTableBody.querySelector('.no-records')?.closest('tr') || null;
-                    let noMatchRow = document.getElementById('paymentNoMatchRow');
+                if (paymentSearchForm && paymentSearchInput) {
+                    const appliedSearch = paymentSearchInput.value.trim();
+                    let searchDebounceTimer = null;
 
-                    if (!noMatchRow && paymentRows.length > 0) {
-                        noMatchRow = document.createElement('tr');
-                        noMatchRow.id = 'paymentNoMatchRow';
-                        noMatchRow.hidden = true;
-                        noMatchRow.innerHTML = `
-                            <td colspan="7" class="no-records">
-                                <div class="empty-state">
-                                    <p>No matching payment records found</p>
-                                </div>
-                            </td>
-                        `;
-                        paymentTableBody.appendChild(noMatchRow);
-                    }
-
-                    function filterPaymentRows() {
-                        const query = paymentSearchInput.value.trim().toLowerCase();
-                        let visibleCount = 0;
-
-                        paymentRows.forEach(function(row) {
-                            const rowText = row.textContent.toLowerCase();
-                            const matches = !query || rowText.includes(query);
-                            row.hidden = !matches;
-
-                            if (matches) {
-                                visibleCount++;
-                            }
-                        });
-
-                        if (emptyStateRow) {
-                            emptyStateRow.hidden = paymentRows.length > 0 || !!query;
-                        }
-
-                        if (noMatchRow) {
-                            noMatchRow.hidden = !(paymentRows.length > 0 && query && visibleCount === 0);
-                        }
-                    }
-
-                    paymentSearchInput.addEventListener('input', filterPaymentRows);
-                    filterPaymentRows();
+                    paymentSearchInput.addEventListener('input', function() {
+                        clearTimeout(searchDebounceTimer);
+                        searchDebounceTimer = setTimeout(function() {
+                            if (paymentSearchInput.value.trim() === appliedSearch) return;
+                            paymentSearchForm.submit();
+                        }, 300);
+                    });
                 }
             </script>
 

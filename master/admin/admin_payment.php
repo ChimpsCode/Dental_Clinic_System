@@ -93,6 +93,14 @@ try {
             break;
     }
 
+    $latestRowClause = " AND b.id = (
+            SELECT b2.id FROM billing b2
+            WHERE b2.patient_id = b.patient_id
+            ORDER BY COALESCE(b2.updated_at, b2.billing_date) DESC, b2.id DESC
+            LIMIT 1
+        )";
+    $listWhereClause = $whereClause . $latestRowClause;
+
     if ($isSuggest) {
         $suggestions = [];
         if ($searchQuery !== '') {
@@ -107,8 +115,8 @@ try {
                 FROM billing b
                 LEFT JOIN patients p ON p.id = b.patient_id
                 $queueJoin
-                $whereClause
-                ORDER BY b.billing_date DESC
+                $listWhereClause
+                ORDER BY COALESCE(b.updated_at, b.billing_date) DESC, b.id DESC
                 LIMIT 8
             ";
             $suggestStmt = $pdo->prepare($suggestSql);
@@ -167,7 +175,7 @@ try {
     $totalTransactions = (int)($stats['total_transactions'] ?? 0);
     $overdueCount = (int)($stats['overdue_count'] ?? 0);
 
-    $countSql = "SELECT COUNT(DISTINCT b.id) as total FROM billing b LEFT JOIN patients p ON p.id = b.patient_id $queueJoin $whereClause";
+    $countSql = "SELECT COUNT(DISTINCT b.patient_id) as total FROM billing b LEFT JOIN patients p ON p.id = b.patient_id $queueJoin $listWhereClause";
     $countStmt = $pdo->prepare($countSql);
     foreach ($params as $key => $value) {
         $countStmt->bindValue($key, $value);
@@ -207,8 +215,8 @@ try {
         LEFT JOIN appointments a ON a.id = b.appointment_id
         LEFT JOIN services svc ON a.service_id = svc.id
         $queueJoin
-        $whereClause
-        ORDER BY b.billing_date DESC
+        $listWhereClause
+        ORDER BY COALESCE(b.updated_at, b.billing_date) DESC, b.id DESC
         LIMIT :limit OFFSET :offset
     ";
     $stmt = $pdo->prepare($sql);
@@ -949,7 +957,10 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     document.getElementById('payTabHistory').style.display = tab === 'history' ? 'block' : 'none';
                     document.getElementById('payTabRecord').style.display = tab === 'record' ? 'block' : 'none';
                     if (tab === 'history') {
-                        loadPaymentHistory(document.getElementById('payDetailBillingId').value);
+                        loadPaymentHistory(
+                            document.getElementById('payDetailBillingId').value,
+                            document.getElementById('payDetailPatientId').value
+                        );
                     }
                 }
 
@@ -1002,7 +1013,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                         '<div style="text-align: center; padding: 2rem;"><p>Loading payment details...</p></div>';
                     updateOverviewActions(!!extras.isPaid, billingId, '', !!extras.isVoided);
                     populateRecordPaymentTab();
-                    loadPaymentHistory(billingId);
+                    loadPaymentHistory(billingId, patientId);
 
                     var billingEndpoint = billingId && billingId !== '0'
                         ? '../shared/billing_actions.php?action=get_billing&billing_id=' + encodeURIComponent(billingId)
@@ -1384,12 +1395,15 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     });
                 }
 
-                function loadPaymentHistory(billingId) {
+                function loadPaymentHistory(billingId, patientId) {
                     var tbody = document.getElementById('paymentHistoryBody');
                     var empty = document.getElementById('paymentHistoryEmpty');
                     if (!tbody || !empty) return;
 
-                    if (!billingId || billingId === '0') {
+                    patientId = patientId || document.getElementById('payDetailPatientId').value;
+                    billingId = billingId || document.getElementById('payDetailBillingId').value;
+
+                    if ((!patientId || patientId === '0') && (!billingId || billingId === '0')) {
                         tbody.innerHTML = '';
                         empty.style.display = 'block';
                         empty.querySelector('p').textContent = 'No billing record found for this patient.';
@@ -1400,7 +1414,10 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     empty.style.display = 'none';
                     empty.querySelector('p').textContent = 'No payment records found.';
 
-                    fetch('../shared/billing_actions.php?action=get_payments&billing_id=' + encodeURIComponent(billingId))
+                    var historyUrl = (patientId && patientId !== '0')
+                        ? '../shared/billing_actions.php?action=get_payments&patient_id=' + encodeURIComponent(patientId)
+                        : '../shared/billing_actions.php?action=get_payments&billing_id=' + encodeURIComponent(billingId);
+                    fetch(historyUrl)
                         .then(function(response) { return response.json(); })
                         .then(function(data) {
                             tbody.innerHTML = '';
