@@ -93,7 +93,16 @@ try {
             b.discount_amount,
             b.notes
         FROM billing b
-        LEFT JOIN queue q ON CAST(q.patient_id AS UNSIGNED) = b.patient_id AND DATE(q.created_at) = DATE(b.billing_date)
+        LEFT JOIN (
+            SELECT q1.patient_id, DATE(q1.created_at) AS created_date,
+                   q1.treatment_type, q1.queue_number
+            FROM queue q1
+            INNER JOIN (
+                SELECT patient_id, DATE(created_at) AS created_date, MIN(id) AS min_id
+                FROM queue
+                GROUP BY patient_id, DATE(created_at)
+            ) q2 ON q2.min_id = q1.id
+        ) q ON q.patient_id = b.patient_id AND q.created_date = DATE(b.billing_date)
         WHERE b.patient_id = ?
           AND LOWER(COALESCE(b.payment_status, 'unpaid')) != 'cancelled'
         ORDER BY b.billing_date DESC, b.id DESC

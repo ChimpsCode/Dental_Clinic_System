@@ -57,6 +57,34 @@ try {
             ) q2 ON q2.min_id = q1.id
         ) q ON q.patient_id = b.patient_id AND q.created_date = DATE(b.billing_date)";
 
+    $overallUnpaidExists = "EXISTS (
+            SELECT 1 FROM billing x
+            WHERE x.patient_id = b.patient_id
+              AND LOWER(COALESCE(x.payment_status, '')) NOT IN ('paid', 'cancelled', 'partial')
+              AND COALESCE(x.balance, 0) > 0
+        )";
+    $overallPartialExists = "EXISTS (
+            SELECT 1 FROM billing x
+            WHERE x.patient_id = b.patient_id
+              AND LOWER(COALESCE(x.payment_status, '')) = 'partial'
+              AND COALESCE(x.balance, 0) > 0
+        )";
+    $overallPaidExists = "EXISTS (
+            SELECT 1 FROM billing x
+            WHERE x.patient_id = b.patient_id
+              AND LOWER(COALESCE(x.payment_status, '')) = 'paid'
+        )";
+    $overallStatusExpr = "CASE
+            WHEN $overallUnpaidExists THEN 'unpaid'
+            WHEN $overallPartialExists THEN 'partial'
+            WHEN $overallPaidExists THEN 'paid'
+            ELSE 'voided'
+        END";
+    $overallBalanceExpr = "(SELECT COALESCE(SUM(CASE
+            WHEN LOWER(COALESCE(x.payment_status, '')) = 'cancelled' THEN 0
+            ELSE COALESCE(x.balance, 0)
+        END), 0) FROM billing x WHERE x.patient_id = b.patient_id)";
+
     if ($searchQuery !== '') {
         $whereClause .= " AND (
             CONCAT_WS(' ',
@@ -72,13 +100,11 @@ try {
     }
 
     if ($statusFilter === 'paid') {
-        $whereClause .= " AND b.payment_status = 'Paid'";
+        $whereClause .= " AND ($overallStatusExpr) = 'paid'";
     } elseif ($statusFilter === 'partial') {
-        $whereClause .= " AND b.payment_status = 'Partial'";
+        $whereClause .= " AND ($overallStatusExpr) = 'partial'";
     } elseif ($statusFilter === 'unpaid') {
-        $whereClause .= " AND b.payment_status IN ('Unpaid', 'Overdue', 'Partial')";
-        $whereClause .= " AND LOWER(COALESCE(q.status, '')) NOT IN ('cancelled', 'canceled')";
-        $whereClause .= " AND LOWER(COALESCE(b.payment_status, '')) != 'cancelled'";
+        $whereClause .= " AND ($overallStatusExpr) IN ('unpaid', 'partial')";
     }
 
     switch ($dateFilter) {
@@ -107,7 +133,7 @@ try {
             $suggestSql = "
                 SELECT
                     b.id AS billing_id,
-                    b.payment_status,
+                    ($overallStatusExpr) AS payment_status,
                     p.first_name,
                     p.middle_name,
                     p.last_name,
@@ -194,8 +220,8 @@ try {
             b.appointment_id,
             b.total_amount,
             b.paid_amount,
-            b.balance,
-            b.payment_status AS payment_status,
+            $overallBalanceExpr AS balance,
+            ($overallStatusExpr) AS payment_status,
             b.billing_date,
             b.due_date,
             b.subtotal_amount,
@@ -343,10 +369,9 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                 $fullName = preg_replace('/\s+/', ' ', $fullName);
                                 $services = $record['service_name'] ?? $record['treatment_type'] ?? 'General Service';
                                 $statusRaw = strtolower((string)($record['payment_status'] ?? 'unpaid'));
-                                $queueStatus = strtolower((string)($record['queue_status'] ?? ''));
                                 $isPaid = ($statusRaw === 'paid');
                                 $isPartial = ($statusRaw === 'partial');
-                                $isVoided = !$isPaid && ($statusRaw === 'cancelled' || $queueStatus === 'cancelled' || $queueStatus === 'canceled');
+                                $isVoided = ($statusRaw === 'voided' || $statusRaw === 'cancelled');
                                 if ($isPaid) {
                                     $status = 'paid';
                                 } elseif ($isVoided) {
@@ -501,7 +526,8 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                         </div>
 
                         <div id="payTabHistory" class="pay-detail-tab-panel" style="display:none;">
-                            <table class="pay-history-table">
+                            <div id="paidServicesWrap"></div>
+                            <table class="pay-history-table" id="payHistoryPaymentsTable">
                                 <thead>
                                     <tr>
                                         <th>Date</th>
@@ -709,6 +735,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 .pay-detail-balance-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px; margin-bottom: 16px; }
                 .pay-detail-paid-state { text-align: center; padding: 2rem 1rem; color: #16a34a; font-weight: 600; }
                 .pay-detail-voided-state { text-align: center; padding: 2rem 1rem; color: #dc2626; font-weight: 600; }
+                .status-badge.partial { background: #fef3c7; color: #92400e; }
                 .status-badge.voided { background: #fee2e2; color: #dc2626; }
                 .pay-mark-paid-confirm { flex-shrink: 0; margin: 0; padding: 12px 1.25rem 0; border: none; border-top: 1px solid #e5e7eb; border-radius: 0; background: #f9fafb; }
                 .pay-mark-paid-confirm .payment-details { margin-top: 0.5rem; }
@@ -926,6 +953,75 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     return '<span style="background:#fee2e2;color:#dc2626;padding:2px 10px;border-radius:9999px;font-size:0.75rem;font-weight:600;text-transform:uppercase;">Unpaid</span>';
                 }
 
+                var payDetailPaidServices = [];
+
+                function uniqueBillings(rows) {
+                    var seen = {};
+                    var out = [];
+                    (rows || []).forEach(function(bl) {
+                        var id = String(bl.id || '');
+                        if (!id || seen[id]) return;
+                        seen[id] = true;
+                        out.push(bl);
+                    });
+                    return out;
+                }
+
+                function formatPayMoney(n) {
+                    return 'P' + parseFloat(n || 0).toFixed(2);
+                }
+
+                function serviceAdjustmentNote(bl) {
+                    var billed = parseFloat(bl.total_amount || 0);
+                    var clinic = parseFloat(bl.service_price || 0);
+                    if (!clinic || Math.abs(billed - clinic) < 0.01) return '';
+                    var adj = billed - clinic;
+                    var sign = adj >= 0 ? '+' : '\u2212';
+                    return '<div style="font-size:0.75rem;color:#6b7280;font-weight:400;margin-top:4px;">Clinic price ' + formatPayMoney(clinic) + '<br>Adjustment ' + sign + 'P' + Math.abs(adj).toFixed(2) + '</div>';
+                }
+
+                function payServiceRowHtml(bl, billingId, invoiceVoided) {
+                    var st = (bl.payment_status || 'unpaid').toLowerCase();
+                    var rowVoided = isVoidedBilling(bl, billingId, invoiceVoided);
+                    var rowBalance = rowVoided ? 0 : parseFloat(bl.balance || 0);
+                    var sBg = '#fee2e2', sClr = '#991b1b', sLbl = 'UNPAID';
+                    var rowBg = '#fff5f5';
+                    if (rowVoided) { sBg = '#fee2e2'; sClr = '#dc2626'; sLbl = 'VOIDED'; rowBg = '#fef2f2'; }
+                    else if (st === 'paid') { sBg = '#dcfce7'; sClr = '#15803d'; sLbl = 'PAID'; rowBg = '#f0fdf4'; }
+                    else if (st === 'partial') { sBg = '#fef3c7'; sClr = '#92400e'; sLbl = 'PARTIAL'; rowBg = '#fffbeb'; }
+                    return '<tr style="border-top:1px solid #f1f5f9;background:' + rowBg + ';">' +
+                        '<td style="padding:10px 12px;color:#374151;font-weight:500;">' + (bl.service_name || 'General Service') + serviceAdjustmentNote(bl) + '</td>' +
+                        '<td style="padding:10px 12px;text-align:right;color:#111827;font-weight:600;">' + formatPayMoney(bl.total_amount) + '</td>' +
+                        '<td style="padding:10px 12px;text-align:right;color:#16a34a;font-weight:600;">' + formatPayMoney(bl.paid_amount) + '</td>' +
+                        '<td style="padding:10px 12px;text-align:right;color:' + (rowBalance > 0 ? '#dc2626' : '#16a34a') + ';font-weight:600;">' + formatPayMoney(rowBalance) + '</td>' +
+                        '<td style="padding:10px 12px;text-align:center;"><span style="background:' + sBg + ';color:' + sClr + ';padding:3px 10px;border-radius:9999px;font-size:0.75rem;font-weight:600;">' + sLbl + '</span></td></tr>';
+                }
+
+                function renderPaidServicesHistory(paidServices, hasPayments) {
+                    var wrap = document.getElementById('paidServicesWrap');
+                    if (!wrap) return;
+                    if (!paidServices || !paidServices.length) {
+                        wrap.innerHTML = '';
+                        wrap.style.display = 'none';
+                        return;
+                    }
+                    var rows = paidServices.map(function(bl) {
+                        return payServiceRowHtml(bl, null, false);
+                    }).join('');
+                    wrap.style.display = 'block';
+                    wrap.innerHTML = '<div style="font-weight:600;color:#166534;margin-bottom:8px;font-size:0.9rem;">Paid services</div>' +
+                        '<div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:16px;">' +
+                        '<table style="width:100%;border-collapse:collapse;font-size:0.85rem;">' +
+                        '<thead><tr style="background:#f0fdf4;">' +
+                        '<th style="padding:10px 12px;text-align:left;color:#166534;font-weight:600;">Service</th>' +
+                        '<th style="padding:10px 12px;text-align:right;color:#166534;font-weight:600;">Amount</th>' +
+                        '<th style="padding:10px 12px;text-align:right;color:#166534;font-weight:600;">Paid</th>' +
+                        '<th style="padding:10px 12px;text-align:right;color:#166534;font-weight:600;">Balance</th>' +
+                        '<th style="padding:10px 12px;text-align:center;color:#166534;font-weight:600;">Status</th>' +
+                        '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+                        (hasPayments ? '<div style="font-weight:600;color:#374151;margin-bottom:8px;font-size:0.9rem;">Payments</div>' : '');
+                }
+
                 function formatDueDate(dateStr) {
                     if (!dateStr) return '';
                     var today = new Date();
@@ -1013,6 +1109,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                         '<div style="text-align: center; padding: 2rem;"><p>Loading payment details...</p></div>';
                     updateOverviewActions(!!extras.isPaid, billingId, '', !!extras.isVoided);
                     populateRecordPaymentTab();
+                    payDetailPaidServices = [];
                     loadPaymentHistory(billingId, patientId);
 
                     var billingEndpoint = billingId && billingId !== '0'
@@ -1062,7 +1159,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                         renderSingleBillingDetails(data);
                                         return;
                                     }
-                                    var allBillings = detailData.all_billings || [];
+                                    var allBillings = uniqueBillings(detailData.all_billings || []);
                                     var patientInfo = detailData.patient || {};
                                     var patientName = [patientInfo.first_name || '', patientInfo.middle_name || '', patientInfo.last_name || ''].filter(Boolean).join(' ') || 'N/A';
 
@@ -1070,21 +1167,27 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                     var collectableUnpaid = false;
                                     var collectablePartial = false;
                                     var anyVoided = false;
+                                    var dueBills = [];
+                                    var paidBills = [];
                                     allBillings.forEach(function(bl) {
                                         var rowVoided = isVoidedBilling(bl, billingId, invoiceVoided);
                                         var st = (bl.payment_status || 'unpaid').toLowerCase();
                                         if (rowVoided) {
                                             anyVoided = true;
-                                            totalAmount += parseFloat(bl.total_amount || 0);
-                                            paidAmount += parseFloat(bl.paid_amount || 0);
                                             return;
                                         }
                                         totalAmount += parseFloat(bl.total_amount || 0);
                                         paidAmount += parseFloat(bl.paid_amount || 0);
                                         balance += parseFloat(bl.balance || 0);
-                                        if (st === 'partial') collectablePartial = true;
-                                        else if (st !== 'paid') collectableUnpaid = true;
+                                        if (st === 'paid') {
+                                            paidBills.push(bl);
+                                        } else {
+                                            dueBills.push(bl);
+                                            if (st === 'partial') collectablePartial = true;
+                                            else collectableUnpaid = true;
+                                        }
                                     });
+                                    payDetailPaidServices = paidBills;
 
                                     var statusBadge;
                                     if (collectableUnpaid) {
@@ -1097,58 +1200,54 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                         statusBadge = '<span style="background:#dcfce7;color:#16a34a;padding:3px 10px;border-radius:9999px;font-size:0.8rem;font-weight:600;">PAID</span>';
                                     }
 
-                                    var billingRows = allBillings.map(function(bl) {
-                                        var st = (bl.payment_status || 'unpaid').toLowerCase();
-                                        var rowVoided = isVoidedBilling(bl, billingId, invoiceVoided);
-                                        var rowBalance = rowVoided ? 0 : parseFloat(bl.balance || 0);
-                                        var sBg = '#fee2e2', sClr = '#991b1b', sLbl = 'UNPAID';
-                                        var rowBg = '#fff5f5';
-                                        if (rowVoided) { sBg = '#fee2e2'; sClr = '#dc2626'; sLbl = 'VOIDED'; rowBg = '#fef2f2'; }
-                                        else if (st === 'paid') { sBg = '#dcfce7'; sClr = '#15803d'; sLbl = 'PAID'; rowBg = '#f0fdf4'; }
-                                        else if (st === 'partial') { sBg = '#fef3c7'; sClr = '#92400e'; sLbl = 'PARTIAL'; rowBg = '#fffbeb'; }
-                                        return '<tr style="border-top:1px solid #f1f5f9;background:' + rowBg + ';">' +
-                                            '<td style="padding:10px 12px;color:#374151;font-weight:500;">' + (bl.service_name || 'General Service') + '</td>' +
-                                            '<td style="padding:10px 12px;text-align:right;color:#111827;font-weight:600;">P' + parseFloat(bl.total_amount).toFixed(2) + '</td>' +
-                                            '<td style="padding:10px 12px;text-align:right;color:#16a34a;font-weight:600;">P' + parseFloat(bl.paid_amount).toFixed(2) + '</td>' +
-                                            '<td style="padding:10px 12px;text-align:right;color:' + (rowBalance > 0 ? '#dc2626' : '#16a34a') + ';font-weight:600;">P' + rowBalance.toFixed(2) + '</td>' +
-                                            '<td style="padding:10px 12px;text-align:center;"><span style="background:' + sBg + ';color:' + sClr + ';padding:3px 10px;border-radius:9999px;font-size:0.75rem;font-weight:600;">' + sLbl + '</span></td></tr>';
-                                    }).join('');
+                                    var dueTableHtml = '';
+                                    if (dueBills.length) {
+                                        var dueRows = dueBills.map(function(bl) {
+                                            return payServiceRowHtml(bl, billingId, invoiceVoided);
+                                        }).join('');
+                                        var dueBilled = 0, duePaid = 0, dueBal = 0;
+                                        dueBills.forEach(function(bl) {
+                                            dueBilled += parseFloat(bl.total_amount || 0);
+                                            duePaid += parseFloat(bl.paid_amount || 0);
+                                            dueBal += parseFloat(bl.balance || 0);
+                                        });
+                                        dueTableHtml =
+                                            '<div style="font-weight:600;color:#374151;margin-bottom:8px;font-size:0.9rem;">Still unpaid</div>' +
+                                            '<div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:12px;">' +
+                                            '<table style="width:100%;border-collapse:collapse;font-size:0.85rem;">' +
+                                            '<thead><tr style="background:#fff7ed;">' +
+                                            '<th style="padding:10px 12px;text-align:left;color:#9a3412;font-weight:600;">Service</th>' +
+                                            '<th style="padding:10px 12px;text-align:right;color:#9a3412;font-weight:600;">Amount</th>' +
+                                            '<th style="padding:10px 12px;text-align:right;color:#9a3412;font-weight:600;">Paid</th>' +
+                                            '<th style="padding:10px 12px;text-align:right;color:#9a3412;font-weight:600;">Balance</th>' +
+                                            '<th style="padding:10px 12px;text-align:center;color:#9a3412;font-weight:600;">Status</th>' +
+                                            '</tr></thead><tbody>' + dueRows +
+                                            '<tr style="border-top:2px solid #d1d5db;background:#fff7ed;">' +
+                                            '<td style="padding:10px 12px;color:#9a3412;font-weight:700;">TOTAL DUE</td>' +
+                                            '<td style="padding:10px 12px;text-align:right;color:#9a3412;font-weight:700;">' + formatPayMoney(dueBilled) + '</td>' +
+                                            '<td style="padding:10px 12px;text-align:right;color:#16a34a;font-weight:700;">' + formatPayMoney(duePaid) + '</td>' +
+                                            '<td style="padding:10px 12px;text-align:right;color:#dc2626;font-weight:700;">' + formatPayMoney(dueBal) + '</td>' +
+                                            '<td></td></tr></tbody></table></div>';
+                                    } else {
+                                        dueTableHtml = '<p style="color:#166534;margin:0 0 12px;font-size:0.9rem;">All services are paid. Open History to see paid items and payments.</p>';
+                                    }
 
                                     document.getElementById('paymentModalContent').innerHTML =
                                         '<div style="margin-bottom:16px;">' +
                                             '<div class="detail-row"><span class="detail-label">Patient:</span><span class="detail-value">' + patientName + '</span></div>' +
                                             '<div class="detail-row"><span class="detail-label">Phone:</span><span class="detail-value">' + (patientInfo.phone || 'N/A') + '</span></div>' +
                                         '</div>' +
-                                        '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px;margin-bottom:16px;">' +
+                                        '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;margin-bottom:16px;">' +
                                             '<div style="display:flex;justify-content:space-between;align-items:center;">' +
-                                                '<span style="color:#166534;font-weight:600;">Overall Status</span>' + statusBadge +
+                                                '<span style="color:#0f172a;font-weight:600;">Still due</span>' + statusBadge +
                                             '</div>' +
-                                            '<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.9rem;">' +
-                                                '<span style="color:#6b7280;">Total: <strong>P' + totalAmount.toFixed(2) + '</strong></span>' +
-                                                '<span style="color:#16a34a;">Paid: <strong>P' + paidAmount.toFixed(2) + '</strong></span>' +
-                                                '<span style="color:' + (balance > 0 ? '#dc2626' : '#16a34a') + ';">Balance: <strong>P' + balance.toFixed(2) + '</strong></span>' +
+                                            '<div style="margin-top:8px;font-size:1.25rem;font-weight:700;color:' + (balance > 0 ? '#dc2626' : '#16a34a') + ';">' + formatPayMoney(balance) + '</div>' +
+                                            '<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.85rem;color:#6b7280;">' +
+                                                '<span>Billed: <strong>' + formatPayMoney(totalAmount) + '</strong></span>' +
+                                                '<span>Collected: <strong style="color:#16a34a;">' + formatPayMoney(paidAmount) + '</strong></span>' +
                                             '</div>' +
-                                        '</div>' +
-                                        '<div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:12px;">' +
-                                            '<table style="width:100%;border-collapse:collapse;font-size:0.85rem;">' +
-                                                '<thead><tr style="background:#f0fdf4;">' +
-                                                    '<th style="padding:10px 12px;text-align:left;color:#166534;font-weight:600;">Service</th>' +
-                                                    '<th style="padding:10px 12px;text-align:right;color:#166534;font-weight:600;">Amount</th>' +
-                                                    '<th style="padding:10px 12px;text-align:right;color:#166534;font-weight:600;">Paid</th>' +
-                                                    '<th style="padding:10px 12px;text-align:right;color:#166534;font-weight:600;">Balance</th>' +
-                                                    '<th style="padding:10px 12px;text-align:center;color:#166534;font-weight:600;">Status</th>' +
-                                                '</tr></thead>' +
-                                                '<tbody>' + billingRows +
-                                                    '<tr style="border-top:2px solid #d1d5db;background:#f0fdf4;">' +
-                                                        '<td style="padding:10px 12px;color:#166534;font-weight:700;">TOTAL</td>' +
-                                                        '<td style="padding:10px 12px;text-align:right;color:#166534;font-weight:700;">P' + totalAmount.toFixed(2) + '</td>' +
-                                                        '<td style="padding:10px 12px;text-align:right;color:#16a34a;font-weight:700;">P' + paidAmount.toFixed(2) + '</td>' +
-                                                        '<td style="padding:10px 12px;text-align:right;color:' + (balance > 0 ? '#dc2626' : '#16a34a') + ';font-weight:700;">P' + balance.toFixed(2) + '</td>' +
-                                                        '<td></td>' +
-                                                    '</tr>' +
-                                                '</tbody>' +
-                                            '</table>' +
-                                        '</div>';
+                                        '</div>' + dueTableHtml;
+                                    loadPaymentHistory(billingId, pid || patientId);
                                 });
                         })
                         .catch(function() {
@@ -1310,7 +1409,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                         .then(function(detailData) {
                             var breakdownHtml = '';
                             if (detailData.success) {
-                                var allBillings = detailData.all_billings || [];
+                                var allBillings = uniqueBillings(detailData.all_billings || []);
                                 var unpaidBills = allBillings.filter(function(bl) {
                                     var st = (bl.payment_status || 'unpaid').toLowerCase();
                                     if (st === 'paid' || isVoidedBilling(bl, billingId, isVoided)) return false;
@@ -1398,6 +1497,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 function loadPaymentHistory(billingId, patientId) {
                     var tbody = document.getElementById('paymentHistoryBody');
                     var empty = document.getElementById('paymentHistoryEmpty');
+                    var payTable = document.getElementById('payHistoryPaymentsTable');
                     if (!tbody || !empty) return;
 
                     patientId = patientId || document.getElementById('payDetailPatientId').value;
@@ -1407,12 +1507,15 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                         tbody.innerHTML = '';
                         empty.style.display = 'block';
                         empty.querySelector('p').textContent = 'No billing record found for this patient.';
+                        renderPaidServicesHistory([], false);
+                        if (payTable) payTable.style.display = '';
                         return;
                     }
 
                     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:#6b7280;">Loading...</td></tr>';
                     empty.style.display = 'none';
                     empty.querySelector('p').textContent = 'No payment records found.';
+                    if (payTable) payTable.style.display = '';
 
                     var historyUrl = (patientId && patientId !== '0')
                         ? '../shared/billing_actions.php?action=get_payments&patient_id=' + encodeURIComponent(patientId)
@@ -1420,10 +1523,15 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     fetch(historyUrl)
                         .then(function(response) { return response.json(); })
                         .then(function(data) {
+                            var payments = (data.success && data.payments) ? data.payments : [];
+                            var hasPaid = !!(payDetailPaidServices && payDetailPaidServices.length);
+                            var hasPayments = payments.length > 0;
+                            renderPaidServicesHistory(payDetailPaidServices, hasPayments);
                             tbody.innerHTML = '';
-                            if (data.success && data.payments && data.payments.length > 0) {
+                            if (hasPayments) {
                                 empty.style.display = 'none';
-                                data.payments.forEach(function(p) {
+                                if (payTable) payTable.style.display = '';
+                                payments.forEach(function(p) {
                                     var row = document.createElement('tr');
                                     var methodLabel = (p.payment_method || 'Cash').charAt(0).toUpperCase() + (p.payment_method || 'Cash').slice(1);
                                     row.innerHTML =
@@ -1434,7 +1542,8 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                     tbody.appendChild(row);
                                 });
                             } else {
-                                empty.style.display = 'block';
+                                if (payTable) payTable.style.display = 'none';
+                                empty.style.display = hasPaid ? 'none' : 'block';
                             }
                         })
                         .catch(function() {

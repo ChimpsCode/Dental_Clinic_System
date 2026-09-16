@@ -400,6 +400,44 @@ try {
         ");
         $stmt->execute([$patientId]);
         $allBillings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $uniqueBillings = [];
+        foreach ($allBillings as $row) {
+            $billingRowId = (int)($row['id'] ?? 0);
+            if ($billingRowId && !isset($uniqueBillings[$billingRowId])) {
+                $uniqueBillings[$billingRowId] = $row;
+            }
+        }
+        $allBillings = array_values($uniqueBillings);
+
+        $needsCatalogPrice = false;
+        foreach ($allBillings as $row) {
+            if ($row['service_price'] === null || $row['service_price'] === '') {
+                $needsCatalogPrice = true;
+                break;
+            }
+        }
+        if ($needsCatalogPrice) {
+            $priceMap = [];
+            try {
+                $svcRows = $pdo->query("SELECT name, price FROM services")->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($svcRows as $svc) {
+                    $priceMap[strtolower(trim((string)($svc['name'] ?? '')))] = (float)$svc['price'];
+                }
+            } catch (Exception $e) {
+                $priceMap = [];
+            }
+            foreach ($allBillings as &$row) {
+                if ($row['service_price'] === null || $row['service_price'] === '') {
+                    $nameKey = strtolower(trim((string)($row['service_name'] ?? '')));
+                    if ($nameKey !== '' && isset($priceMap[$nameKey])) {
+                        $row['service_price'] = $priceMap[$nameKey];
+                    }
+                }
+            }
+            unset($row);
+        }
+
         $billing = !empty($allBillings) ? end($allBillings) : null;
     } catch (Exception $e) {
         $billing = null;
