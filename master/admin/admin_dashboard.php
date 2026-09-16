@@ -794,13 +794,18 @@ try {
     </div>
     <div id="inquiryPanelChatView" class="dashboard-inquiry-view" hidden>
         <div class="chat-modal-header">
-            <button type="button" class="chat-modal-back" onclick="showInquiryList()" aria-label="Back">&#8592;</button>
-            <div id="inquiryChatAvatar" class="chat-modal-avatar">P</div>
+            <button type="button" class="chat-modal-back" onclick="showInquiryList()" aria-label="Back">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+            </button>
+            <div id="inquiryChatAvatar" class="chat-modal-avatar" style="overflow:hidden;">P</div>
             <div class="chat-modal-user-info">
                 <div id="inquiryChatName" class="chat-modal-name"></div>
-                <div id="inquiryChatContact" class="chat-modal-email"></div>
+                <div id="inquiryChatSource" class="chat-modal-source"></div>
             </div>
-            <div id="inquiryChatSource" class="chat-modal-source"></div>
+            <span id="inquiryChatContact" hidden></span>
+            <button type="button" class="chat-info-button" onclick="openInquiryInfoPanel()" aria-label="Conversation information" title="Conversation information">
+                <span aria-hidden="true">i</span>
+            </button>
         </div>
         <div id="inquiryChatMessages" class="chat-modal-messages"></div>
         <div id="inquiryChatChannel" class="chat-channel-info"></div>
@@ -811,6 +816,36 @@ try {
                 <button type="submit" class="chat-send-btn" aria-label="Send reply">&#10148;</button>
             </div>
         </form>
+        <div class="inquiry-info-panel" id="inquiryInfoPanel" aria-hidden="true">
+            <div class="inquiry-info-header">
+                <button type="button" class="chat-modal-back" onclick="closeInquiryInfoPanel()" aria-label="Back to conversation">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+                </button>
+                <strong>Conversation info</strong>
+            </div>
+            <div class="inquiry-info-profile">
+                <div class="inquiry-info-avatar" id="inquiryInfoAvatar"></div>
+                <div class="inquiry-info-name" id="inquiryInfoName"></div>
+            </div>
+            <div class="inquiry-more-info">
+                <h4>More info</h4>
+                <div class="inquiry-info-row">
+                    <span>Email</span>
+                    <strong id="inquiryInfoEmail">No email</strong>
+                </div>
+                <div class="inquiry-info-row">
+                    <span>Phone</span>
+                    <strong id="inquiryInfoPhone">No phone</strong>
+                </div>
+            </div>
+            <button type="button" class="inquiry-media-toggle" id="inquiryMediaToggle" onclick="toggleInquiryMedia()" aria-expanded="false">
+                <span>Media &amp; Files</span>
+                <svg class="inquiry-media-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div class="inquiry-media-content" id="inquiryMediaContent">
+                <div class="inquiry-media-gallery" id="inquiryMediaGallery"></div>
+            </div>
+        </div>
     </div>
 </aside>
 
@@ -843,6 +878,7 @@ require_once __DIR__ . '/../../includes/admin_layout_end.php';
 .dashboard-inquiry-panel.open { transform: translateX(0); opacity: 1; visibility: visible; pointer-events: auto; }
 .dashboard-inquiry-view { display: flex; flex: 1; min-height: 0; flex-direction: column; }
 .dashboard-inquiry-view[hidden] { display: none !important; }
+#inquiryPanelChatView { position: relative; overflow: hidden; }
 .dashboard-inquiry-panel-header { display: flex; align-items: center; gap: 10px; padding: 18px 20px; border-bottom: 1px solid #e5e7eb; background: #fafbff; }
 .dashboard-inquiry-panel-header h3 { margin: 0; font-size: 1.1rem; color: #0f172a; }
 .dashboard-inquiry-panel-count { min-width: 22px; padding: 3px 7px; border-radius: 999px; background: #dbeafe; color: #1d4ed8; font-size: 11px; font-weight: 700; text-align: center; }
@@ -857,13 +893,39 @@ require_once __DIR__ . '/../../includes/admin_layout_end.php';
 .dashboard-inquiry-item-status { color: #2563eb; font-size: 10px; font-weight: 700; text-transform: uppercase; }
 .dashboard-inquiry-item-preview { margin: 5px 0 9px; color: #64748b; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dashboard-inquiry-item-reply { border: 0; border-radius: 6px; padding: 6px 10px; background: #eff6ff; color: #1d4ed8; cursor: pointer; font-size: 12px; font-weight: 700; }
-.chat-modal-header { display: flex; align-items: center; gap: 12px; padding: 16px 18px; border-bottom: 1px solid #e5e7eb; background: #fafbff; }
-.chat-modal-back { width: 34px; height: 34px; border: 0; border-radius: 50%; background: #eef2ff; color: #1d4ed8; cursor: pointer; font-size: 18px; }
-.chat-modal-avatar { width: 42px; height: 42px; flex-shrink: 0; border-radius: 50%; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+.chat-modal-header { display: flex; align-items: center; flex-wrap: nowrap; gap: 14px; padding: 18px 20px; border-bottom: 1px solid #e5e7eb; background: #fafbff; }
+.chat-modal-back { width: 38px; height: 38px; border-radius: 50%; border: none; background: #eef2ff; color: #1d4ed8; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s; }
+.chat-modal-back:hover { background: #dbeafe; }
+.chat-modal-avatar { width: 44px; height: 44px; flex-shrink: 0; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; }
+.chat-modal-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
 .chat-modal-user-info { min-width: 0; flex: 1; }
-.chat-modal-name { color: #0f172a; font-size: 14px; font-weight: 700; }
-.chat-modal-email { margin-top: 2px; color: #64748b; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.chat-modal-source { padding: 4px 8px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 10px; font-weight: 700; }
+.chat-modal-name { color: #0f172a; font-size: 15px; font-weight: 700; }
+.chat-modal-source { display: inline-flex; margin-top: 4px; font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; }
+.chat-info-button { width: 48px; height: 48px; flex: 0 0 48px; display: inline-flex; align-items: center; justify-content: center; align-self: center; border: none; border-radius: 50%; background: #eff6ff; color: #2563eb; font: 700 22px/1 Georgia, "Times New Roman", serif; cursor: pointer; margin-left: auto; z-index: 2; transition: background 0.2s, transform 0.2s; }
+.chat-info-button span { font: 700 22px/1 Georgia, "Times New Roman", serif; color: #2563eb; }
+.chat-info-button:hover { background: #dbeafe; transform: scale(1.04); }
+.inquiry-info-panel { position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column; overflow-y: auto; background: #fff; transform: translateX(100%); visibility: hidden; transition: transform 0.25s ease, visibility 0.25s; }
+.inquiry-info-panel.open { transform: translateX(0); visibility: visible; }
+.inquiry-info-header { min-height: 72px; display: flex; align-items: center; gap: 14px; padding: 16px 20px; border-bottom: 1px solid #e5e7eb; color: #0f172a; }
+.inquiry-info-profile { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 28px 20px; border-bottom: 1px solid #eef2f7; }
+.inquiry-info-avatar { width: 76px; height: 76px; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; font-size: 24px; font-weight: 700; }
+.inquiry-info-avatar img { width: 100% !important; height: 100% !important; object-fit: cover; border-radius: 50%; }
+.inquiry-info-name { color: #0f172a; font-size: 17px; font-weight: 700; text-align: center; }
+.inquiry-more-info { padding: 16px 20px; border-bottom: 1px solid #eef2f7; }
+.inquiry-more-info h4 { margin: 0 0 12px; font-size: 13px; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
+.inquiry-info-row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; }
+.inquiry-info-row span { color: #64748b; font-size: 13px; }
+.inquiry-info-row strong { color: #0f172a; font-size: 13px; text-align: right; word-break: break-word; }
+.inquiry-media-toggle { width: 100%; min-height: 58px; display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border: none; border-bottom: 1px solid #eef2f7; background: #fff; color: #0f172a; font: inherit; font-weight: 700; cursor: pointer; }
+.inquiry-media-toggle:hover { background: #f8fafc; }
+.inquiry-media-chevron { transition: transform 0.2s; }
+.inquiry-media-toggle.open .inquiry-media-chevron { transform: rotate(180deg); }
+.inquiry-media-content { display: none; padding: 12px; }
+.inquiry-media-content.open { display: block; }
+.inquiry-media-gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.inquiry-media-item { aspect-ratio: 1; overflow: hidden; padding: 0; border: none; border-radius: 8px; background: #e2e8f0; cursor: pointer; }
+.inquiry-media-item img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.inquiry-media-empty { grid-column: 1 / -1; padding: 36px 16px; color: #64748b; font-size: 13px; text-align: center; }
 .chat-modal-messages { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 10px; background: #fcfdff; }
 .chat-bubble { max-width: 88%; padding: 10px 13px; border-radius: 16px; font-size: 13px; line-height: 1.45; word-break: break-word; }
 .chat-bubble.received { align-self: flex-start; background: #f0f2f5; color: #111827; border-bottom-left-radius: 5px; }
@@ -895,14 +957,23 @@ require_once __DIR__ . '/../../includes/admin_layout_end.php';
     const apiUrl = '../shared/inquiry_actions.php';
     let inquiries = [];
     let inquiryMap = {};
+    let conversationReplies = [];
+    let activeInquiryId = 0;
 
     window.toggleInquiryPanel = function () {
         const open = panel.classList.toggle('open');
         backdrop.classList.toggle('open', open);
-        if (open) loadInquiries();
+        if (open) {
+            loadInquiries();
+        } else {
+            window.closeInquiryInfoPanel();
+            activeInquiryId = 0;
+        }
     };
 
     window.showInquiryList = function () {
+        window.closeInquiryInfoPanel();
+        activeInquiryId = 0;
         listView.hidden = false;
         chatView.hidden = true;
     };
@@ -917,6 +988,75 @@ require_once __DIR__ . '/../../includes/admin_layout_end.php';
         const parts = String(name || 'Patient').trim().split(/\s+/);
         return ((parts[0]?.[0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase() || 'P';
     }
+
+    function renderInquiryMediaGallery() {
+        const gallery = document.getElementById('inquiryMediaGallery');
+        if (!gallery) return;
+        const images = conversationReplies.filter((reply) =>
+            reply.attachment && /\.(jpe?g|png|gif|webp)$/i.test(reply.attachment)
+        );
+        if (!images.length) {
+            gallery.innerHTML = '<div class="inquiry-media-empty">No photos have been shared in this conversation.</div>';
+            return;
+        }
+        gallery.innerHTML = images.map((reply) => {
+            const path = '../' + reply.attachment;
+            const sender = reply.sender_type === 'staff' ? 'Staff' : 'Patient';
+            return '<button type="button" class="inquiry-media-item" onclick="window.open(\'' + escapeHtml(path).replace(/'/g, '&#39;') + '\', \'_blank\')" aria-label="View image sent by ' + sender + '">'
+                + '<img src="' + escapeHtml(path) + '" alt="Image sent by ' + sender + '" loading="lazy">'
+                + '</button>';
+        }).join('');
+    }
+
+    window.openInquiryInfoPanel = async function () {
+        if (!activeInquiryId) return;
+        const infoPanel = document.getElementById('inquiryInfoPanel');
+        const sourceAvatar = document.getElementById('inquiryChatAvatar');
+        const targetAvatar = document.getElementById('inquiryInfoAvatar');
+        const inquiry = inquiryMap[String(activeInquiryId)] || {};
+        targetAvatar.innerHTML = sourceAvatar.innerHTML;
+        if (!sourceAvatar.querySelector('img')) targetAvatar.textContent = sourceAvatar.textContent || 'P';
+        document.getElementById('inquiryInfoName').textContent = document.getElementById('inquiryChatName').textContent;
+        document.getElementById('inquiryInfoEmail').textContent = inquiry.email || 'No email';
+        document.getElementById('inquiryInfoPhone').textContent = inquiry.phone || inquiry.contact_info || 'No phone';
+        renderInquiryMediaGallery();
+        infoPanel.classList.add('open');
+        infoPanel.setAttribute('aria-hidden', 'false');
+        try {
+            const formData = new FormData();
+            formData.append('action', 'get_conversation');
+            formData.append('id', String(activeInquiryId));
+            const response = await fetch(apiUrl, { method: 'POST', body: formData });
+            const data = await response.json();
+            if (response.ok && data.success) {
+                conversationReplies = data.replies || [];
+                renderInquiryMediaGallery();
+            }
+        } catch (_error) {}
+    };
+
+    window.closeInquiryInfoPanel = function () {
+        const infoPanel = document.getElementById('inquiryInfoPanel');
+        if (!infoPanel) return;
+        infoPanel.classList.remove('open');
+        infoPanel.setAttribute('aria-hidden', 'true');
+        const toggle = document.getElementById('inquiryMediaToggle');
+        const content = document.getElementById('inquiryMediaContent');
+        if (toggle) {
+            toggle.classList.remove('open');
+            toggle.setAttribute('aria-expanded', 'false');
+        }
+        if (content) content.classList.remove('open');
+    };
+
+    window.toggleInquiryMedia = function () {
+        const toggle = document.getElementById('inquiryMediaToggle');
+        const content = document.getElementById('inquiryMediaContent');
+        if (!toggle || !content) return;
+        const isOpen = content.classList.toggle('open');
+        toggle.classList.toggle('open', isOpen);
+        toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    };
 
     async function loadInquiries() {
         try {
@@ -970,13 +1110,16 @@ require_once __DIR__ . '/../../includes/admin_layout_end.php';
     async function openInquiry(id) {
         const inquiry = inquiryMap[String(id)];
         if (!inquiry) return;
+        window.closeInquiryInfoPanel();
+        activeInquiryId = Number(id) || 0;
+        conversationReplies = [];
         const name = [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown Patient';
         document.getElementById('inquiryChatName').textContent = name;
         document.getElementById('inquiryChatContact').textContent = [inquiry.email, inquiry.phone || inquiry.contact_info].filter(Boolean).join(' · ') || 'No contact';
         document.getElementById('inquiryChatSource').textContent = inquiry.source || 'Website';
         const chatAvatar = document.getElementById('inquiryChatAvatar');
         if (inquiry.patient_profile_picture) {
-            chatAvatar.innerHTML = '<img src="../../' + escapeHtml(inquiry.patient_profile_picture) + '" alt="" style="width:42px;height:42px;border-radius:50%;object-fit:cover;">';
+            chatAvatar.innerHTML = '<img src="../../' + escapeHtml(inquiry.patient_profile_picture) + '" alt="" style="width:44px;height:44px;border-radius:50%;object-fit:cover;">';
         } else {
             chatAvatar.textContent = initials(name);
         }
@@ -989,7 +1132,10 @@ require_once __DIR__ . '/../../includes/admin_layout_end.php';
             formData.append('id', id);
             const response = await fetch(apiUrl, { method: 'POST', body: formData });
             const data = await response.json();
-            if (data.success) (data.replies || []).forEach(reply => addBubble(reply.sender_type === 'staff' ? 'Clinic' : name, reply.message, reply.sender_type === 'staff' ? 'sent' : 'received', reply.created_at, reply.attachment));
+            if (data.success) {
+                conversationReplies = data.replies || [];
+                conversationReplies.forEach(reply => addBubble(reply.sender_type === 'staff' ? 'Clinic' : name, reply.message, reply.sender_type === 'staff' ? 'sent' : 'received', reply.created_at, reply.attachment));
+            }
         } catch (error) {}
         document.getElementById('inquiryChatChannel').textContent = 'Replies appear in the patient account messages.';
         listView.hidden = true;
