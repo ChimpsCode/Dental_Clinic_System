@@ -413,12 +413,10 @@ require_once '../../includes/staff_layout_start.php';
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    position: relative;
 }
 .chat-modal-header {
     display: flex;
     align-items: center;
-    flex-wrap: nowrap;
     gap: 14px;
     padding: 18px 20px;
     border-bottom: 1px solid #e5e7eb;
@@ -461,180 +459,19 @@ require_once '../../includes/staff_layout_start.php';
     color: #0f172a;
     font-size: 15px;
 }
-.chat-modal-contact {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0 10px;
-    margin-top: 2px;
-    min-width: 0;
-}
 .chat-modal-email {
     font-size: 12px;
     color: #64748b;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    margin-top: 2px;
 }
 .chat-modal-source {
-    display: inline-flex;
-    margin-top: 4px;
     font-size: 11px;
     font-weight: 700;
     padding: 5px 10px;
     border-radius: 999px;
     background: #eff6ff;
     color: #1d4ed8;
-}
-.chat-info-button {
-    width: 48px;
-    height: 48px;
-    flex: 0 0 48px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    align-self: center;
-    border: none;
-    border-radius: 50%;
-    background: #eff6ff;
-    color: #2563eb;
-    font: 700 22px/1 Georgia, "Times New Roman", serif;
-    cursor: pointer;
-    margin-left: auto;
-    z-index: 2;
-    transition: background 0.2s, transform 0.2s;
-}
-.chat-info-button span {
-    font: 700 22px/1 Georgia, "Times New Roman", serif;
-    color: #2563eb;
-}
-.chat-info-button:hover {
-    background: #dbeafe;
-    transform: scale(1.04);
-}
-.inquiry-info-panel {
-    position: absolute;
-    inset: 0;
-    z-index: 30;
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    background: #fff;
-    transform: translateX(100%);
-    visibility: hidden;
-    transition: transform 0.25s ease, visibility 0.25s;
-}
-.inquiry-info-panel.open {
-    transform: translateX(0);
-    visibility: visible;
-}
-.inquiry-info-header {
-    min-height: 72px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 16px 20px;
-    border-bottom: 1px solid #e5e7eb;
-    color: #0f172a;
-}
-.inquiry-info-profile {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    padding: 28px 20px;
-    border-bottom: 1px solid #eef2f7;
-}
-.inquiry-info-avatar {
-    width: 76px;
-    height: 76px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
-    color: #fff;
-    font-size: 24px;
-    font-weight: 700;
-}
-.inquiry-info-avatar img {
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: cover;
-    border-radius: 50%;
-}
-.inquiry-info-name {
-    color: #0f172a;
-    font-size: 17px;
-    font-weight: 700;
-    text-align: center;
-}
-.inquiry-more-info {
-    padding: 16px 20px;
-    border-bottom: 1px solid #eef2f7;
-}
-.inquiry-more-info h4 {
-    margin: 0 0 12px;
-    font-size: 13px;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-.inquiry-info-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 8px 0;
-}
-.inquiry-info-row span { color: #64748b; font-size: 13px; }
-.inquiry-info-row strong { color: #0f172a; font-size: 13px; text-align: right; word-break: break-word; }
-.inquiry-media-toggle {
-    width: 100%;
-    min-height: 58px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 20px;
-    border: none;
-    border-bottom: 1px solid #eef2f7;
-    background: #fff;
-    color: #0f172a;
-    font: inherit;
-    font-weight: 700;
-    cursor: pointer;
-}
-.inquiry-media-toggle:hover { background: #f8fafc; }
-.inquiry-media-chevron { transition: transform 0.2s; }
-.inquiry-media-toggle.open .inquiry-media-chevron { transform: rotate(180deg); }
-.inquiry-media-content { display: none; padding: 12px; }
-.inquiry-media-content.open { display: block; }
-.inquiry-media-gallery {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
-}
-.inquiry-media-item {
-    position: relative;
-    aspect-ratio: 1;
-    overflow: hidden;
-    padding: 0;
-    border: none;
-    border-radius: 8px;
-    background: #e2e8f0;
-    cursor: pointer;
-}
-.inquiry-media-item img {
-    width: 100%;
-    height: 100%;
-    display: block;
-    object-fit: cover;
-}
-.inquiry-media-empty {
-    grid-column: 1 / -1;
-    padding: 36px 16px;
-    color: #64748b;
-    font-size: 13px;
-    text-align: center;
+    flex-shrink: 0;
 }
 .chat-modal-messages {
     flex: 1;
@@ -644,62 +481,6 @@ require_once '../../includes/staff_layout_start.php';
     flex-direction: column;
     gap: 10px;
     background: #fcfdff;
-}
-.inquiry-typing-row {
-    align-self: flex-start;
-    display: none;
-    align-items: flex-end;
-    gap: 8px;
-}
-.inquiry-typing-avatar {
-    width: 34px;
-    height: 34px;
-    flex: 0 0 34px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
-    color: #fff;
-    font-size: 11px;
-    font-weight: 700;
-    border: 1px solid #dbe3ee;
-}
-.inquiry-typing-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 50%;
-    background: #fff;
-}
-.inquiry-typing-bubble {
-    display: flex;
-    align-items: center;
-    min-width: 54px;
-    min-height: 38px;
-    padding: 10px 14px;
-    border-radius: 19px;
-    border-bottom-left-radius: 6px;
-    background: #e2e8f0;
-}
-.inquiry-typing-dots {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-}
-.inquiry-typing-dots span {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #64748b;
-    animation: inquiryTypingWave 1.1s infinite ease-in-out;
-}
-.inquiry-typing-dots span:nth-child(2) { animation-delay: .15s; }
-.inquiry-typing-dots span:nth-child(3) { animation-delay: .3s; }
-@keyframes inquiryTypingWave {
-    0%, 60%, 100% { transform: translateY(0); opacity: .45; }
-    30% { transform: translateY(-3px); opacity: 1; }
 }
 .chat-bubble {
     max-width: 88%;
@@ -750,7 +531,7 @@ require_once '../../includes/staff_layout_start.php';
     color: #475569;
 }
 .chat-compose {
-    padding: 12px;
+    padding: 14px 20px 18px;
     border-top: 1px solid #e5e7eb;
     background: #fff;
 }
@@ -813,52 +594,46 @@ require_once '../../includes/staff_layout_start.php';
 }
 .chat-send-row {
     display: flex;
-    gap: 6px;
-    align-items: center;
-    min-height: 58px;
-    padding: 6px;
-    border: 1px solid #2563eb;
-    border-radius: 999px;
-    background: #fff;
-    box-shadow: 0 0 0 3px rgba(37,99,235,.08);
+    gap: 10px;
+    align-items: flex-end;
 }
 .chat-send-row textarea {
     flex: 1;
-    min-width: 0;
-    height: 44px;
-    border: none;
-    padding: 0 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 20px;
+    padding: 12px 16px;
     font: inherit;
     font-size: 14px;
     resize: none;
-    min-height: 44px;
+    min-height: 48px;
     max-height: 120px;
     outline: none;
-    background: transparent;
+    transition: border-color 0.2s;
+    background: #f9fafb;
 }
 .chat-send-row textarea:focus {
-    border: none;
-    box-shadow: none;
-    background: transparent;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    background: #fff;
 }
 .chat-send-btn {
-    width: 46px;
-    height: 46px;
-    flex: 0 0 46px;
-    padding: 0;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     border: none;
     background: linear-gradient(135deg, #2563eb, #1d4ed8);
     color: #fff;
     cursor: pointer;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
-    box-shadow: 0 4px 12px rgba(37,99,235,.25);
+    flex-shrink: 0;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 4px 12px rgba(37,99,235,0.25);
 }
 .chat-send-btn:hover {
-    transform: scale(1.04);
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(37,99,235,0.35);
 }
 .chat-send-btn:disabled {
     opacity: 0.5;
@@ -866,27 +641,22 @@ require_once '../../includes/staff_layout_start.php';
     transform: none;
 }
 .chat-attach-btn {
-    width: 42px;
-    height: 42px;
-    flex: 0 0 42px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     border: none;
-    background: transparent;
+    background: #f1f5f9;
     color: #64748b;
     cursor: pointer;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
-    padding: 0;
+    flex-shrink: 0;
+    transition: background 0.2s, color 0.2s;
 }
 .chat-attach-btn:hover {
-    background: #e8eef7;
+    background: #e2e8f0;
     color: #2563eb;
-}
-.chat-attach-btn i,
-.chat-send-btn i {
-    font-family: "Font Awesome 6 Free" !important;
 }
 .chat-attachment-preview {
     padding: 8px 0 4px;
@@ -1156,13 +926,10 @@ require_once '../../includes/staff_layout_start.php';
             <div class="chat-modal-avatar" id="replyAvatar" style="overflow:hidden;">JD</div>
             <div class="chat-modal-user-info">
                 <div class="chat-modal-name" id="replyFromName"></div>
-                <div class="chat-modal-source" id="replySource"></div>
+                <div class="chat-modal-email" id="replyEmail"></div>
+                <div class="chat-modal-email" id="replyPhone" style="color:#64748b;font-size:11px;margin-top:1px;"></div>
             </div>
-            <span id="replyEmail" hidden></span>
-            <span id="replyPhone" hidden></span>
-            <button type="button" class="chat-info-button" onclick="openInquiryInfoPanel()" aria-label="Conversation information" title="Conversation information">
-                <span aria-hidden="true">i</span>
-            </button>
+            <div class="chat-modal-source" id="replySource"></div>
         </div>
         <div class="chat-modal-messages" id="chatMessages">
             <div class="chat-bubble received" id="originalBubble">
@@ -1182,45 +949,17 @@ require_once '../../includes/staff_layout_start.php';
             </div>
             <div id="replyAttachmentPreview" class="chat-attachment-preview" style="display:none;"></div>
             <div class="chat-send-row">
-                <button type="button" class="chat-attach-btn" id="replyAttachFile" title="Attach file" aria-label="Attach file"><i class="fas fa-paperclip"></i></button>
-                <button type="button" class="chat-attach-btn" id="replyAttachImage" title="Attach image" aria-label="Attach image"><i class="far fa-image"></i></button>
+                <button type="button" class="chat-attach-btn" id="replyAttachFile" title="Attach file"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
+                <button type="button" class="chat-attach-btn" id="replyAttachImage" title="Attach image"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></button>
                 <input type="file" id="replyFileInput" style="display:none;" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,image/*">
-                <textarea id="reply_message" name="message" placeholder="Type your message..." rows="1"></textarea>
+                <textarea id="reply_message" name="message" placeholder="Type your reply..." rows="1"></textarea>
                 <button type="submit" class="chat-send-btn" aria-label="Send">
-                    <i class="fas fa-paper-plane"></i>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4Z"/>
+                    </svg>
                 </button>
             </div>
         </form>
-        <div class="inquiry-info-panel" id="inquiryInfoPanel" aria-hidden="true">
-            <div class="inquiry-info-header">
-                <button type="button" class="chat-modal-back" onclick="closeInquiryInfoPanel()" aria-label="Back to conversation">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
-                </button>
-                <strong>Conversation info</strong>
-            </div>
-            <div class="inquiry-info-profile">
-                <div class="inquiry-info-avatar" id="inquiryInfoAvatar"></div>
-                <div class="inquiry-info-name" id="inquiryInfoName"></div>
-            </div>
-            <div class="inquiry-more-info">
-                <h4>More info</h4>
-                <div class="inquiry-info-row">
-                    <span>Email</span>
-                    <strong id="inquiryInfoEmail">No email</strong>
-                </div>
-                <div class="inquiry-info-row">
-                    <span>Phone</span>
-                    <strong id="inquiryInfoPhone">No phone</strong>
-                </div>
-            </div>
-            <button type="button" class="inquiry-media-toggle" id="inquiryMediaToggle" onclick="toggleInquiryMedia()" aria-expanded="false">
-                <span>Media &amp; Files</span>
-                <svg class="inquiry-media-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-            </button>
-            <div class="inquiry-media-content" id="inquiryMediaContent">
-                <div class="inquiry-media-gallery" id="inquiryMediaGallery"></div>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -1232,7 +971,6 @@ let inquiries = <?php echo json_encode($inquiries); ?>;
 let inquiryMap = Object.fromEntries(inquiries.map((item) => [String(item.id), item]));
 let filteredInquiries = [...inquiries];
 let activeInquiryId = null;
-let inquiryConversationReplies = [];
 let currentPage = 1;
 const itemsPerPage = 8;
 
@@ -1549,22 +1287,6 @@ let inquiryKebabDropdown = null;
 let inquiryKebabBackdrop = null;
 let inquiryActiveButton = null;
 
-function scrollInquiryChatToLatest() {
-    const container = document.getElementById('chatMessages');
-    if (!container) return;
-    const go = () => { container.scrollTop = container.scrollHeight; };
-    go();
-    requestAnimationFrame(() => {
-        go();
-        requestAnimationFrame(go);
-    });
-    window.setTimeout(go, 50);
-    window.setTimeout(go, 200);
-    container.querySelectorAll('img').forEach((img) => {
-        if (!img.complete) img.addEventListener('load', go, { once: true });
-    });
-}
-
 function openModal(id) {
     const el = document.getElementById(id);
     if (el) {
@@ -1576,12 +1298,7 @@ function openModal(id) {
 function closeModal(id) {
     const el = document.getElementById(id);
     if (el) el.classList.remove('active');
-    if (id === 'replyModal') {
-        hideReplyQuote();
-        closeInquiryInfoPanel();
-        sendInquiryTypingState(0);
-        showPatientInquiryTyping(false);
-    }
+    if (id === 'replyModal') hideReplyQuote();
 }
 
 function closeActionMenu() {
@@ -1714,15 +1431,7 @@ function handleInquiryMenuClick(event, action, id) {
 }
 
 async function archiveInquiry(id) {
-    if (window.appAsk) {
-        window.appAsk('Move this inquiry to archive?', function() { archiveInquiryDo(id); }, { title: 'Please Confirm' });
-        return;
-    }
     if (!confirm('Move this inquiry to archive?')) return;
-    archiveInquiryDo(id);
-}
-
-async function archiveInquiryDo(id) {
     const data = await postAction({ action: 'archive', id });
     if (!data.success) {
         showToast(data.message || 'Unable to archive inquiry.', true);
@@ -1778,13 +1487,10 @@ function getInitials(name) {
     return ((first[0] || '') + (last[0] || '')).toUpperCase() || 'P';
 }
 
-function addChatBubble(text, type, timestamp, label, attachment, replyId) {
+function addChatBubble(text, type, timestamp, label, attachment) {
     const container = document.getElementById('chatMessages');
-    const rid = Number(replyId || 0);
-    if (rid > 0 && container.querySelector('[data-reply-id="' + rid + '"]')) return;
     const bubble = document.createElement('div');
     bubble.className = 'chat-bubble ' + type;
-    if (rid > 0) bubble.dataset.replyId = String(rid);
     const labelHtml = label ? '<div style="font-size:11px;font-weight:600;color:' + (type === 'received' ? '#64748b' : 'rgba(255,255,255,0.7)') + ';margin-bottom:3px;">' + escapeHtml(label) + '</div>' : '';
     let contentHtml = '';
     if (text) {
@@ -1801,8 +1507,7 @@ function addChatBubble(text, type, timestamp, label, attachment, replyId) {
         }
     }
     bubble.innerHTML = labelHtml + '<div>' + contentHtml + '</div><div class="chat-meta">' + escapeHtml(timestamp || 'just now') + '</div>';
-    const typing = document.getElementById('patientInquiryTypingIndicator');
-    container.insertBefore(bubble, typing || null);
+    container.appendChild(bubble);
     container.scrollTop = container.scrollHeight;
 }
 
@@ -1832,8 +1537,6 @@ async function openReplyModal(id) {
     }
 
     activeInquiryId = id;
-    inquiryConversationReplies = [];
-    closeInquiryInfoPanel();
     document.getElementById('reply_inquiry_id').value = inquiry.id;
     const msgInput = document.getElementById('reply_message');
     msgInput.value = '';
@@ -1865,7 +1568,6 @@ async function openReplyModal(id) {
     try {
         const data = await postAction({ action: 'get_conversation', id });
         if (data.success && data.replies) {
-            inquiryConversationReplies = data.replies;
             data.replies.forEach((reply) => {
                 const bubble = document.createElement('div');
                 if (reply.sender_type !== 'staff') {
@@ -1887,12 +1589,10 @@ async function openReplyModal(id) {
                     }
                 }
                 bubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:' + (reply.sender_type !== 'staff' ? '#64748b' : 'rgba(255,255,255,0.7)') + ';margin-bottom:3px;">' + escapeHtml(label) + '</div><div>' + msgText + attHtml + '</div><div class="chat-meta">' + escapeHtml(formatCreatedAt(reply.created_at)) + '</div>';
-                if (reply.id) bubble.dataset.replyId = String(reply.id);
                 messageContainer.appendChild(bubble);
             });
         }
     } catch (e) {
-        inquiryConversationReplies = [];
         const replies = parseStaffReplies(inquiry.notes);
         replies.forEach((reply) => {
             const bubble = document.createElement('div');
@@ -1902,6 +1602,8 @@ async function openReplyModal(id) {
             messageContainer.appendChild(bubble);
         });
     }
+
+    messageContainer.scrollTop = messageContainer.scrollHeight;
 
     const channelInfo = document.getElementById('replyChannelInfo');
     const isPortal = (inquiry.source || '') === 'Patient Portal' && inquiry.patient_id;
@@ -1915,7 +1617,6 @@ async function openReplyModal(id) {
     }
 
     openModal('replyModal');
-    scrollInquiryChatToLatest();
 
     if ((inquiry.status || 'Unread') === 'Unread') {
         inquiry.status = 'Read';
@@ -1978,7 +1679,7 @@ document.getElementById('replyForm').addEventListener('submit', async (event) =>
         const now = new Date();
         const ts = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
         const attPath = data.attachment || null;
-        addChatBubble(message, 'sent', ts, 'Staff', attPath, data.reply_id);
+        addChatBubble(message, 'sent', ts, 'Staff', attPath);
         const entry = inquiryMap[String(id)];
         if (entry) {
             entry.notes = (entry.notes || '') + '\n[Staff replied on ' + ts + ']\n' + message;
@@ -1988,7 +1689,6 @@ document.getElementById('replyForm').addEventListener('submit', async (event) =>
         hideReplyQuote();
         replyFileInput.value = '';
         clearReplyAttachment();
-        sendInquiryTypingState(0);
         btn.disabled = false;
         textarea.focus();
         showToast('Reply sent.');
@@ -2000,156 +1700,9 @@ document.getElementById('replyForm').addEventListener('submit', async (event) =>
 });
 
 const replyTextarea = document.getElementById('reply_message');
-let inquiryTypingState = 0;
-let inquiryTypingSentAt = 0;
-let inquiryTypingTimer = null;
-let inquiryConvPollInFlight = false;
-
-function renderInquiryMediaGallery() {
-    const gallery = document.getElementById('inquiryMediaGallery');
-    if (!gallery) return;
-    const images = (inquiryConversationReplies || []).filter((reply) =>
-        reply.attachment && /\.(jpe?g|png|gif|webp)$/i.test(reply.attachment)
-    );
-    if (!images.length) {
-        gallery.innerHTML = '<div class="inquiry-media-empty">No photos have been shared in this conversation.</div>';
-        return;
-    }
-    gallery.innerHTML = images.map((reply) => {
-        const path = '../' + reply.attachment;
-        const sender = reply.sender_type === 'staff' ? 'Staff' : 'Patient';
-        return '<button type="button" class="inquiry-media-item" onclick="openLightbox(\'' + escapeHtml(path).replace(/'/g, '&#39;') + '\')" aria-label="View image sent by ' + sender + '">'
-            + '<img src="' + escapeHtml(path) + '" alt="Image sent by ' + sender + '" loading="lazy">'
-            + '</button>';
-    }).join('');
-}
-
-async function openInquiryInfoPanel() {
-    if (!activeInquiryId) return;
-    const panel = document.getElementById('inquiryInfoPanel');
-    const sourceAvatar = document.getElementById('replyAvatar');
-    const targetAvatar = document.getElementById('inquiryInfoAvatar');
-    targetAvatar.innerHTML = sourceAvatar.innerHTML;
-    if (!sourceAvatar.querySelector('img')) targetAvatar.textContent = sourceAvatar.textContent || 'P';
-    document.getElementById('inquiryInfoName').textContent = document.getElementById('replyFromName').textContent;
-    document.getElementById('inquiryInfoEmail').textContent = document.getElementById('replyEmail').textContent || 'No email';
-    document.getElementById('inquiryInfoPhone').textContent = document.getElementById('replyPhone').textContent || 'No phone';
-    renderInquiryMediaGallery();
-    panel.classList.add('open');
-    panel.setAttribute('aria-hidden', 'false');
-    try {
-        const data = await postAction({ action: 'get_conversation', id: String(activeInquiryId) });
-        if (data && data.success) {
-            inquiryConversationReplies = data.replies || [];
-            renderInquiryMediaGallery();
-        }
-    } catch (_error) {}
-}
-
-function closeInquiryInfoPanel() {
-    const panel = document.getElementById('inquiryInfoPanel');
-    if (!panel) return;
-    panel.classList.remove('open');
-    panel.setAttribute('aria-hidden', 'true');
-}
-
-function toggleInquiryMedia() {
-    const toggle = document.getElementById('inquiryMediaToggle');
-    const content = document.getElementById('inquiryMediaContent');
-    const isOpen = content.classList.toggle('open');
-    toggle.classList.toggle('open', isOpen);
-    toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-}
-
-function getInquiryLastReplyId() {
-    const ids = Array.from(document.querySelectorAll('#chatMessages [data-reply-id]'))
-        .map((el) => Number(el.dataset.replyId))
-        .filter((id) => Number.isFinite(id) && id > 0);
-    return ids.length ? Math.max(...ids) : 0;
-}
-
-function showPatientInquiryTyping(visible) {
-    const container = document.getElementById('chatMessages');
-    if (!container) return;
-    let indicator = document.getElementById('patientInquiryTypingIndicator');
-    if (!indicator && visible) {
-        const inquiry = inquiryMap[String(activeInquiryId)] || {};
-        const name = [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Patient';
-        const avatarInner = inquiry.patient_profile_picture
-            ? '<img src="../../' + escapeHtml(inquiry.patient_profile_picture) + '" alt="">'
-            : escapeHtml(getInitials(name));
-        indicator = document.createElement('div');
-        indicator.id = 'patientInquiryTypingIndicator';
-        indicator.className = 'inquiry-typing-row';
-        indicator.innerHTML = '<div class="inquiry-typing-avatar">' + avatarInner + '</div><div class="inquiry-typing-bubble"><span class="inquiry-typing-dots" aria-label="Patient is typing"><span></span><span></span><span></span></span></div>';
-        container.appendChild(indicator);
-    }
-    if (indicator) {
-        indicator.style.display = visible ? 'flex' : 'none';
-        if (visible) container.scrollTop = container.scrollHeight;
-    }
-}
-
-async function sendInquiryTypingState(isTyping) {
-    if (!activeInquiryId) return;
-    const now = Date.now();
-    if (inquiryTypingState === isTyping && (!isTyping || now - inquiryTypingSentAt < 2500)) return;
-    inquiryTypingState = isTyping;
-    inquiryTypingSentAt = now;
-    try {
-        await postAction({ action: 'set_typing', id: String(activeInquiryId), is_typing: isTyping ? '1' : '0' });
-    } catch (_e) {}
-}
-
-async function pollInquiryConversation() {
-    const modal = document.getElementById('replyModal');
-    if (!activeInquiryId || !modal || !modal.classList.contains('active') || inquiryConvPollInFlight || document.hidden) return;
-    inquiryConvPollInFlight = true;
-    try {
-        const data = await postAction({
-            action: 'conversation_updates',
-            id: String(activeInquiryId),
-            last_reply_id: String(getInquiryLastReplyId())
-        });
-        if (!data || !data.success) return;
-        const inquiry = inquiryMap[String(activeInquiryId)];
-        const fullName = inquiry
-            ? ([inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Patient')
-            : 'Patient';
-        (data.replies || []).forEach((reply) => {
-            const isStaff = reply.sender_type === 'staff';
-            addChatBubble(
-                reply.message || '',
-                isStaff ? 'sent' : 'received',
-                formatCreatedAt(reply.created_at),
-                isStaff ? 'Staff' : fullName,
-                reply.attachment || null,
-                reply.id
-            );
-        });
-        showPatientInquiryTyping(!!data.other_is_typing);
-    } catch (_e) {
-    } finally {
-        inquiryConvPollInFlight = false;
-    }
-}
-
 replyTextarea.addEventListener('input', function () {
     this.style.height = 'auto';
     this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-    const hasText = this.value.trim().length > 0;
-    if (!hasText) {
-        clearTimeout(inquiryTypingTimer);
-        sendInquiryTypingState(0);
-        return;
-    }
-    sendInquiryTypingState(1);
-    clearTimeout(inquiryTypingTimer);
-    inquiryTypingTimer = setTimeout(() => sendInquiryTypingState(0), 3000);
-});
-replyTextarea.addEventListener('blur', function () {
-    clearTimeout(inquiryTypingTimer);
-    sendInquiryTypingState(0);
 });
 replyTextarea.addEventListener('keydown', function (event) {
     if (event.key !== 'Enter' || event.shiftKey) return;
@@ -2245,13 +1798,6 @@ async function pollInquiries() {
     } catch (_e) {}
 }
 setInterval(pollInquiries, 8000);
-setInterval(pollInquiryConversation, 2000);
-document.addEventListener('visibilitychange', function () {
-    if (!document.hidden) pollInquiryConversation();
-});
-window.addEventListener('beforeunload', function () {
-    sendInquiryTypingState(0);
-});
 </script>
 
 <?php require_once '../../includes/staff_layout_end.php'; ?>

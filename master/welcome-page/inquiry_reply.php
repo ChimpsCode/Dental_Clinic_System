@@ -313,7 +313,6 @@ $createdAt = $inquiry['created_at'] ?? '';
             .compose-area { padding: 12px 16px 16px; }
         }
     </style>
-    <?php require __DIR__ . '/../../includes/app_notice_modal_script.php'; ?>
 </head>
 <body>
     <div class="top-bar">

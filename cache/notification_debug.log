@@ -138,7 +138,6 @@
 2026-09-05 04:49:32 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
 2026-09-05 04:49:53 | createNotification OK: id=215 user_id=40 type=inquiry title=Inquiry Response
 2026-09-05 04:50:24 | createNotification OK: id=216 user_id=40 type=inquiry title=Inquiry Response
-<<<<<<< Updated upstream
 2026-09-06 15:00:21 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
 2026-09-06 15:02:30 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
 2026-09-06 15:02:35 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
@@ -190,9 +189,7 @@
 2026-09-08 22:12:43 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
 2026-09-08 22:13:02 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
 2026-09-08 22:27:54 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
-<<<<<<< Updated upstream
 2026-09-08 23:27:56 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
-=======
 2026-09-08 17:30:21 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
 2026-09-08 17:44:02 | createNotification OK: id=252 user_id=41 type=appointment title=Appointment Approved
 2026-09-08 17:44:02 | createNotification OK: id=253 user_id=41 type=reminder title=Follow-up Reminder
@@ -202,14 +199,13 @@
 2026-09-08 18:06:32 | createNotification OK: id=261 user_id=41 type=payment title=Consultation complete
 2026-09-08 18:06:32 | notifyPatientConsultationComplete OK: user_id=41 patient_id=71 balance=2000
 2026-09-08 18:06:32 | notifyStaffConsultationComplete OK: patient=Devs Nams Cas amount=2000 treatment=Consultation
->>>>>>> Stashed changes
-<<<<<<< Updated upstream
 2026-09-08 18:38:41 | createNotification OK: id=267 user_id=41 type=appointment title=Appointment Approved
 2026-09-08 18:38:41 | createNotification OK: id=268 user_id=41 type=reminder title=Follow-up Reminder
 2026-09-08 18:38:51 | createNotification OK: id=273 user_id=41 type=appointment title=Appointment Approved
 2026-09-08 18:38:51 | createNotification OK: id=274 user_id=41 type=reminder title=Follow-up Reminder
 2026-09-09 07:36:41 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
-=======
+2026-09-09 08:03:24 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
+2026-09-09 08:04:26 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
 2026-09-09 08:33:02 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
 2026-09-09 09:33:22 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
 2026-09-09 10:33:24 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
@@ -221,7 +217,6 @@
 2026-09-09 10:58:10 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
 2026-09-09 13:37:06 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
 2026-09-09 13:45:29 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
->>>>>>> Stashed changes
 2026-09-09 14:32:16 | createNotification OK: id=361 user_id=58 type=queue title=Queue Update
 2026-09-09 14:33:36 | createNotification OK: id=362 user_id=58 type=payment title=Consultation complete
 2026-09-09 14:33:36 | notifyPatientConsultationComplete OK: user_id=58 patient_id=107 balance=1100
@@ -288,6 +283,8 @@
 2026-09-15 13:42:29 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
 2026-09-15 14:50:35 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
 2026-09-15 15:50:37 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-09-15 15:58:20 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-09-15 16:01:06 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
 2026-09-15 16:51:30 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
 2026-09-15 17:52:29 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
 2026-09-15 18:52:29 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
@@ -313,3 +310,17 @@
 2026-09-16 18:52:17 | notifyPatientDueDateSet: user_id=58 patient_id=107 billing_id=83 due=2026-09-18 balance=0
 2026-09-16 18:52:17 | createNotification OK: id=392 user_id=58 type=payment title=Payment due
 2026-09-16 19:52:05 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-09-16 20:52:08 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-09-16 21:16:36 | getUserIdForPatient: no user found for patient_id=116
+2026-09-16 21:36:36 | getUserIdForPatient: no user found for patient_id=116
+2026-09-16 21:44:52 | getUserIdForPatient: no user found for patient_id=116
+2026-09-16 21:45:49 | getUserIdForPatient: no user found for patient_id=116
+2026-09-16 21:46:12 | getUserIdForPatient: no user found for patient_id=116
+2026-09-16 21:46:38 | getUserIdForPatient: no user found for patient_id=116
+2026-09-16 21:46:54 | getUserIdForPatient: no user found for patient_id=116
+2026-09-16 21:47:33 | getUserIdForPatient: no user found for patient_id=116
+2026-09-16 21:53:05 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-09-16 22:44:27 | getUserIdForPatient: no user found for patient_id=116
+2026-09-16 22:44:31 | getUserIdForPatient: no user found for patient_id=116
+2026-09-16 22:44:35 | getUserIdForPatient: no user found for patient_id=116
+2026-09-16 22:44:37 | getUserIdForPatient: no user found for patient_id=116

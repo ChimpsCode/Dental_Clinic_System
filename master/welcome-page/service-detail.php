@@ -978,7 +978,7 @@ $assets = [
                 closeModal(registrationModal);
                 openModal(successModal);
                 setTimeout(function() {
-                  window.location.href = '../user-patient/patient-dashboard.php?tour=1';
+                  window.location.href = '../user-patient/patient-dashboard.php';
                 }, 2000);
               }
             } else {
@@ -1025,7 +1025,7 @@ $assets = [
                 closeModal(registrationModal);
                 openModal(successModal);
                 setTimeout(function() {
-                  window.location.href = result.redirect || '../user-patient/patient-dashboard.php?tour=1';
+                  window.location.href = result.redirect || '../user-patient/patient-dashboard.php';
                 }, 2000);
               } else {
                 regOtpError.textContent = result.message || 'Verification failed.';

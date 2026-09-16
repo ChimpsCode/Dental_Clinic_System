@@ -174,7 +174,6 @@ function isActivePage($page) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../assets/css/dashboard.css">
     <link rel="stylesheet" href="../../assets/css/admin.css">
-    <link rel="stylesheet" href="../../assets/css/notif_dropdown_mobile.css">
     <link rel="stylesheet" href="../../assets/css/appointments.css">
     <link rel="stylesheet" href="../../assets/css/mini_calendar.css">
     <style>
@@ -320,19 +319,7 @@ function isActivePage($page) {
         .notif-time  { font-size: 11px; color: #9ca3af; margin-top: 3px; }
         .notif-empty { text-align: center; padding: 32px 16px; color: #9ca3af; font-size: 13px; }
         .notif-empty i { display: block; font-size: 28px; margin-bottom: 8px; color: #d1d5db; }
-        @media (max-width: 1024px) {
-            .notif-dropdown {
-                position: fixed;
-                top: 70px;
-                right: 10px;
-                left: auto;
-                width: min(300px, calc(100vw - 20px));
-                max-height: min(380px, calc(100vh - 90px));
-            }
-            .notif-list { max-height: min(300px, calc(100vh - 150px)); }
-        }
     </style>
-    <?php require __DIR__ . '/app_notice_modal_script.php'; ?>
 </head>
 <body data-user-id="<?php echo (int)($_SESSION['user_id'] ?? 0); ?>">
     <div id="userModal" class="modal-overlay">

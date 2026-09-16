@@ -1729,24 +1729,26 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
     function openMarkArrivedModal(id) {
         markArrivedId = id;
 
-        const staleMarkArrived = document.getElementById('markArrivedModal');
-        if (staleMarkArrived && staleMarkArrived.dataset.palette !== 'edit-info') staleMarkArrived.remove();
-
         if (!document.getElementById('markArrivedModal')) {
             const modal = document.createElement('div');
             modal.id = 'markArrivedModal';
             modal.className = 'modal-overlay';
             // Keep open across background polling refreshes; Done/Cancel close it explicitly
             modal.dataset.preserveOpen = '1';
-            modal.dataset.palette = 'edit-info';
             modal.style.display = 'none';
-            modal.style.background = 'rgba(15, 23, 42, 0.45)';
             modal.innerHTML = `
-                <div class="modal" style="width: 100%; max-width: 420px; padding: 28px 24px 24px; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,.35);">
-                    <div style="text-align: center; margin-bottom: 16px;">
-                        <div style="width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; background: #e0f2fe; color: #0284c7; font-size: 28px; font-weight: 700;">i</div>
-                        <h2 style="margin: 0; font-size: 18px; font-weight: 700; color: #0c4a6e;">Mark as Arrived</h2>
-                        <p style="margin: 4px 0 0; color: #6b7280; font-size: 13px;">Check-in appointment &amp; add to queue</p>
+                <div class="modal" style="width: 420px;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                        <div style="width: 44px; height: 44px; border-radius: 50%; background: #ecfdf5; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                <polyline points="22 4 12 14.01 9 11.01"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 style="margin: 0; font-size: 1.25rem; font-weight: 600;">Mark as Arrived</h2>
+                            <p style="margin: 2px 0 0; color: #6b7280; font-size: 0.85rem;">Check-in appointment &amp; add to queue</p>
+                        </div>
                     </div>
                     <div id="markArrivedBody">
                         <div id="markArrivedInfo" style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;">
@@ -1756,12 +1758,12 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                             </div>
                             <div style="color: #6b7280; font-size: 0.85rem; margin-top: 4px;">Scheduled appointment</div>
                         </div>
-                        <p style="color: #4b5563; margin: 0 0 16px; font-size: 14px; line-height: 1.5;">Mark this patient as arrived? They will be automatically added to today&rsquo;s queue.</p>
+                        <p style="color: #374151; margin: 0 0 16px; font-size: 0.9rem;">Mark this patient as arrived? They will be automatically added to today&rsquo;s queue.</p>
                     </div>
                     <div id="markArrivedResult" style="display: none;"></div>
-                    <div id="markArrivedActions" style="display: flex; gap: 12px; margin-top: 8px; justify-content: center; flex-wrap: wrap;">
-                        <button onclick="closeMarkArrivedModal()" class="btn-cancel" style="min-width: 120px; padding: 10px 20px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">Cancel</button>
-                        <button id="markArrivedConfirmBtn" onclick="confirmMarkArrived()" class="btn-primary" style="min-width: 120px; padding: 10px 20px; background: #0ea5e9; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">Confirm</button>
+                    <div id="markArrivedActions" style="display: flex; gap: 12px; margin-top: 20px; justify-content: flex-end;">
+                        <button onclick="closeMarkArrivedModal()" class="btn-cancel" style="padding: 10px 20px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
+                        <button id="markArrivedConfirmBtn" onclick="confirmMarkArrived()" class="btn-primary" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Confirm Mark as Arrived</button>
                     </div>
                 </div>
             `;
@@ -1792,8 +1794,8 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         const actions = document.getElementById('markArrivedActions');
         actions.style.justifyContent = 'flex-end';
         actions.innerHTML = `
-            <button onclick="closeMarkArrivedModal()" class="btn-cancel" style="min-width: 120px; padding: 10px 20px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">Cancel</button>
-            <button id="markArrivedConfirmBtn" onclick="confirmMarkArrived()" class="btn-primary" style="min-width: 120px; padding: 10px 20px; background: #0ea5e9; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">Confirm</button>
+            <button onclick="closeMarkArrivedModal()" class="btn-cancel" style="padding: 10px 20px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
+            <button id="markArrivedConfirmBtn" onclick="confirmMarkArrived()" class="btn-primary" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Confirm Mark as Arrived</button>
         `;
         actions.style.display = 'flex';
         document.getElementById('markArrivedModal').style.display = 'flex';
@@ -1834,7 +1836,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 `;
                 const actions = document.getElementById('markArrivedActions');
                 actions.style.justifyContent = 'center';
-                actions.innerHTML = `<button onclick="closeMarkArrivedModal(); refreshAppointmentsAjax()" class="btn-primary" style="min-width: 120px; padding: 10px 20px; background: #0ea5e9; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">Done</button>`;
+                actions.innerHTML = `<button onclick="closeMarkArrivedModal(); refreshAppointmentsAjax()" class="btn-primary" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Done</button>`;
             } else {
                 btn.disabled = false;
                 btn.textContent = 'Confirm Mark as Arrived';
@@ -1871,12 +1873,6 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         const appt = appointments.find(a => a.id == id);
         if (!appt) return;
         
-        if (window.appAsk) {
-            window.appAsk('Forward this appointment to admission?', function() {
-                window.location.href = 'new_admission.php?appointment_id=' + id;
-            }, { title: 'Please Confirm' });
-            return;
-        }
         if (confirm('Forward this appointment to admission?')) {
             // Redirect to new admission form with appointment data
             window.location.href = 'new_admission.php?appointment_id=' + id;
@@ -1884,7 +1880,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
     }
 
     function deleteAppointment(id) {
-        window.appAsk('Are you sure you want to archive this appointment?\n\nIt will be moved to the Archive page where you can restore or permanently delete it.', function() {
+        if (confirm('Are you sure you want to archive this appointment?\n\nIt will be moved to the Archive page where you can restore or permanently delete it.')) {
             fetch('../api/delete_appointment.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1902,7 +1898,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 console.error('Error:', error);
                 alert('Error deleting appointment');
             });
-        }, { title: 'Please Confirm', kind: 'error', confirmText: 'Archive' });
+        }
     }
 
 // Appointment status auto-polling
@@ -1966,7 +1962,7 @@ function getApptBadgeClass(status) {
 document.addEventListener('DOMContentLoaded', startAppointmentPolling);
 </script>
 
-<script src="../../assets/js/appointment_ajax_refresh.js?v=3"></script>
+<script src="../../assets/js/appointment_ajax_refresh.js?v=2"></script>
 <!-- live_refresh must load LAST: both files define window.refreshAppointmentsAjax,
      and this gentle version (swaps only .list-view) must win so background
      polling never replaces .content-main and force-closes open modals -->

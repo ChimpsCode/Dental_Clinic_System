@@ -306,7 +306,6 @@ $pageTitle = 'Account Settings';
         }
     </style>
     <link rel="stylesheet" href="../../assets/css/patient_portal.css">
-    <?php require __DIR__ . '/../../includes/app_notice_modal_script.php'; ?>
 </head>
 <body>
     <aside class="sidebar" id="patientSidebar">
@@ -353,7 +352,6 @@ $pageTitle = 'Account Settings';
                 </div>
             </div>
             <div class="header-right">
-                <?php include '../../includes/patient_tour_widget.php'; ?>
                 <?php include '../../includes/patient_notification_widget.php'; ?>
                 <div class="user-profile">
                     <div class="user-avatar">

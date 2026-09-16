@@ -1854,8 +1854,9 @@ function renderNoBillingHTML() {
 
 // Hold Patient
 function holdPatientQueue(queueId) {
-    window.appAsk('Put this patient on hold?', function() {
-        fetch('../shared/queue_actions.php', {
+    if (!confirm('Put this patient on hold?')) return;
+    
+    fetch('../shared/queue_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'on_hold', queue_id: queueId })
@@ -1871,13 +1872,13 @@ function holdPatientQueue(queueId) {
     .catch(() => {
         alert('Error putting patient on hold');
     });
-    }, { title: 'Please Confirm' });
 }
 
 // Re-queue Patient
 function requeuePatientQueue(queueId) {
-    window.appAsk('Re-queue this patient?', function() {
-        fetch('../shared/queue_actions.php', {
+    if (!confirm('Re-queue this patient?')) return;
+    
+    fetch('../shared/queue_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'requeue', queue_id: queueId })
@@ -1893,13 +1894,13 @@ function requeuePatientQueue(queueId) {
     .catch(() => {
         alert('Error re-queuing patient');
     });
-    }, { title: 'Please Confirm' });
 }
 
 // Cancel Patient
 function cancelPatientQueue(queueId) {
-    window.appAsk('Cancel this patient from the queue?', function() {
-        fetch('../shared/queue_actions.php', {
+    if (!confirm('Cancel this patient from the queue?')) return;
+    
+    fetch('../shared/queue_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'cancel', queue_id: queueId })
@@ -1915,13 +1916,13 @@ function cancelPatientQueue(queueId) {
     .catch(() => {
         alert('Error cancelling patient');
     });
-    }, { title: 'Please Confirm', kind: 'error', confirmText: 'Cancel Patient' });
 }
 
 // Delete Queue Item
 function deleteQueueItem(queueId) {
-    window.appAsk('Delete this patient record from the queue? This action cannot be undone.', function() {
-        fetch('../shared/queue_actions.php', {
+    if (!confirm('Delete this patient record from the queue? This action cannot be undone.')) return;
+    
+    fetch('../shared/queue_actions.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'delete', queue_id: queueId })
@@ -1937,7 +1938,6 @@ function deleteQueueItem(queueId) {
     .catch(() => {
         alert('Error deleting patient record');
     });
-    }, { title: 'Please Confirm', kind: 'error', confirmText: 'Delete' });
 }
 
 // Assign Doctor Modal

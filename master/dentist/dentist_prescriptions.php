@@ -976,7 +976,9 @@ function savePrescription() {
 }
 
 function deletePrescription(prescriptionId) {
-    window.appAsk('Are you sure you want to delete this prescription?', function() {
+    if (!confirm('Are you sure you want to delete this prescription?')) {
+        return;
+    }
 
     fetch('prescription_actions.php', {
         method: 'POST',
@@ -1000,7 +1002,6 @@ function deletePrescription(prescriptionId) {
         console.error('Delete prescription error:', error);
         alert('An error occurred while deleting the prescription.');
     });
-    }, { title: 'Please Confirm', kind: 'error', confirmText: 'Delete' });
 }
 
 function loadPatientSafetyInfo(patientId) {

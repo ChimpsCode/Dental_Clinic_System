@@ -84,27 +84,21 @@
     window.openAppointmentDecisionModal = function (action, onConfirm) {
         var isDecline = action === 'decline';
         var modal = document.getElementById('appointmentDecisionModal');
-        if (modal && modal.dataset.palette !== 'edit-info') {
-            modal.remove();
-            modal = null;
-        }
         if (!modal) {
             modal = document.createElement('div');
             modal.id = 'appointmentDecisionModal';
             modal.className = 'modal-overlay';
-            modal.dataset.palette = 'edit-info';
-            modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(15,23,42,0.45);z-index:99999;align-items:center;justify-content:center;padding:16px;';
-            modal.innerHTML =
-                '<div style="background:#fff;border-radius:16px;padding:40px 24px 28px;width:100%;max-width:420px;position:relative;z-index:100000;box-shadow:0 25px 50px -12px rgba(0,0,0,.35);text-align:center;">' +
-                '<button type="button" aria-label="Close" style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:22px;cursor:pointer;color:#9ca3af;line-height:1;">&times;</button>' +
-                '<div id="appointmentDecisionIcon" style="width:56px;height:56px;border-radius:50%;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;"></div>' +
-                '<h2 id="appointmentDecisionTitle" style="font-size:18px;font-weight:700;margin:0 0 6px;"></h2>' +
-                '<p id="appointmentDecisionMessage" style="color:#4b5563;margin:0 0 16px;font-size:14px;line-height:1.5;white-space:pre-line;"></p>' +
-                '<label id="appointmentDecisionReasonLabel" for="appointmentDecisionReason" style="display:none;font-size:13px;font-weight:600;color:#374151;margin:0 0 6px;text-align:left;">Reason (optional)</label>' +
-                '<textarea id="appointmentDecisionReason" rows="3" placeholder="Enter a reason for declining this request..." style="display:none;width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;resize:vertical;box-sizing:border-box;margin-bottom:18px;text-align:left;"></textarea>' +
-                '<div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap;">' +
-                '<button type="button" id="appointmentDecisionCancel" style="min-width:120px;padding:10px 20px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;display:inline-flex;align-items:center;justify-content:center;line-height:1.25;">Cancel</button>' +
-                '<button type="button" id="appointmentDecisionConfirm" style="min-width:120px;padding:10px 20px;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;display:inline-flex;align-items:center;justify-content:center;line-height:1.25;"></button></div></div>';
+            modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;align-items:center;justify-content:center;';
+            modal.innerHTML = '<div style="background:white;border-radius:12px;padding:24px;width:90%;max-width:460px;position:relative;z-index:100000;">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
+                '<h2 id="appointmentDecisionTitle" style="font-size:1.25rem;font-weight:600;margin:0;"></h2>' +
+                '<button type="button" aria-label="Close" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#6b7280;">&times;</button></div>' +
+                '<p id="appointmentDecisionMessage" style="color:#374151;margin:0 0 16px;white-space:pre-line;"></p>' +
+                '<label id="appointmentDecisionReasonLabel" for="appointmentDecisionReason" style="display:none;font-size:0.85rem;font-weight:600;color:#374151;margin-bottom:6px;">Reason (optional)</label>' +
+                '<textarea id="appointmentDecisionReason" rows="3" placeholder="Enter a reason for declining this request..." style="display:none;width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.9rem;resize:vertical;box-sizing:border-box;margin-bottom:20px;"></textarea>' +
+                '<div style="display:flex;justify-content:flex-end;gap:12px;">' +
+                '<button type="button" id="appointmentDecisionCancel" style="padding:10px 20px;background:#f3f4f6;color:#374151;border:none;border-radius:8px;cursor:pointer;font-weight:500;">Cancel</button>' +
+                '<button type="button" id="appointmentDecisionConfirm" style="padding:10px 20px;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;"></button></div></div>';
             document.body.appendChild(modal);
             modal.querySelector('button[aria-label="Close"]').addEventListener('click', closeAppointmentDecisionModal);
             modal.querySelector('#appointmentDecisionCancel').addEventListener('click', closeAppointmentDecisionModal);
@@ -113,16 +107,10 @@
             });
         }
 
-        var icon = document.getElementById('appointmentDecisionIcon');
-        var title = document.getElementById('appointmentDecisionTitle');
-        icon.textContent = isDecline ? '!' : '✓';
-        icon.style.background = isDecline ? '#fee2e2' : '#e0f2fe';
-        icon.style.color = isDecline ? '#dc2626' : '#0284c7';
-        title.textContent = isDecline ? 'Decline Appointment' : 'Approve Appointment';
-        title.style.color = isDecline ? '#991b1b' : '#0c4a6e';
+        document.getElementById('appointmentDecisionTitle').textContent = isDecline ? 'Decline Appointment' : 'Approve Appointment';
         document.getElementById('appointmentDecisionMessage').textContent = isDecline
-            ? 'Decline this appointment request?\nThe patient will be notified.'
-            : 'Approve this appointment request?\nThe patient will be notified and the slot will be added to the calendar.';
+            ? 'Decline this appointment request?\n\nThe patient will be notified.'
+            : 'Approve this appointment request?\n\nThe patient will be notified and the slot will be added to the calendar.';
         var reasonLabel = document.getElementById('appointmentDecisionReasonLabel');
         var reasonInput = document.getElementById('appointmentDecisionReason');
         reasonLabel.style.display = isDecline ? 'block' : 'none';
@@ -130,7 +118,7 @@
         reasonInput.value = '';
         var confirmButton = document.getElementById('appointmentDecisionConfirm');
         confirmButton.textContent = isDecline ? 'Decline' : 'Approve';
-        confirmButton.style.background = isDecline ? '#dc2626' : '#0ea5e9';
+        confirmButton.style.background = isDecline ? '#dc2626' : '#16a34a';
         confirmButton.onclick = function () {
             var reason = isDecline ? reasonInput.value.trim() : '';
             closeAppointmentDecisionModal();
@@ -146,14 +134,6 @@
 
     window.showAppointmentNoticeModal = function (message, options) {
         options = options || {};
-        if (window.showAppNotice) {
-            window.showAppNotice(
-                options.title || (options.error ? 'Notice' : 'Success'),
-                message || '',
-                options.error ? 'error' : 'success'
-            );
-            return;
-        }
         var isError = !!options.error;
         var modal = document.getElementById('appointmentNoticeModal');
         if (!modal) {

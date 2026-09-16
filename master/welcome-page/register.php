@@ -395,7 +395,6 @@ $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
             }
         }
     </style>
-    <?php require __DIR__ . '/../../includes/app_notice_modal_script.php'; ?>
 </head>
 <body>
 

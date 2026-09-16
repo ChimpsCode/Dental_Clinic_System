@@ -25,6 +25,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'dashboard') {
         $queueItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $waitingItems = array_values(array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'waiting'));
+        $onHoldItems = array_values(array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'on_hold'));
         $cancelledItems = array_values(array_filter($queueItems, fn($q) => ($q['status_text'] ?? '') === 'cancelled'));
         usort($cancelledItems, function ($first, $second) {
             $firstTime = strtotime($first['updated_at'] ?? $first['created_at'] ?? '') ?: 0;
@@ -91,6 +92,16 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'dashboard') {
             ];
         }
 
+        $onHoldPayload = [];
+        foreach ($onHoldItems as $item) {
+            $onHoldPayload[] = [
+                'id' => (int)($item['id'] ?? 0),
+                'patient_id' => (int)($item['patient_id'] ?? 0),
+                'patient_name' => trim(($item['first_name'] ?? '') . ' ' . ($item['middle_name'] ?? '') . ' ' . ($item['last_name'] ?? '') . ' ' . ($item['suffix'] ?? '')),
+                'treatment_type' => $item['treatment_type'] ?? '',
+            ];
+        }
+
         $cancelledPayload = [];
         foreach ($cancelledItems as $item) {
             $cancelledPayload[] = [
@@ -133,12 +144,14 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'dashboard') {
         echo json_encode([
             'live_queue' => $liveQueue,
             'waiting' => $waitingPayload,
+            'on_hold' => $onHoldPayload,
             'cancelled' => $cancelledPayload,
             'pending_approval' => $pendingPayload,
             'upcoming_appointments' => $upcomingPayload,
             //'today_schedule' => $todaySchedulePayload,
             'counts' => [
                 'waiting' => count($waitingItems),
+                'on_hold' => count($onHoldItems),
                 'cancelled' => count($cancelledItems),
                 'pending' => count($pendingApprovalItems),
                 'upcoming' => count($upcomingApptItems),
@@ -148,7 +161,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'dashboard') {
         exit;
     } catch (Throwable $e) {
         header('Content-Type: application/json; charset=utf-8');
-        echo json_encode(['error' => true, 'message' => $e->getMessage(), 'waiting' => [], 'pending_approval' => [], 'upcoming_appointments' => [], 'live_queue' => null], JSON_UNESCAPED_SLASHES);
+        echo json_encode(['error' => true, 'message' => $e->getMessage(), 'waiting' => [], 'on_hold' => [], 'pending_approval' => [], 'upcoming_appointments' => [], 'live_queue' => null], JSON_UNESCAPED_SLASHES);
         exit;
     }
 }
@@ -475,12 +488,31 @@ try {
                                     </div>
                                 </div>
                                 <div class="patient-actions">
-                                    <button class="action-btn text-btn" onclick="viewPatientDashboard(<?php echo $item['patient_id']; ?>)">View</button>
-                                    <button class="action-btn text-btn" onclick="moveToOnHoldDashboard(<?php echo $item['id']; ?>)">Hold</button>
-                                    <button 
-                                        class="action-btn text-btn queue-cancel-btn" 
-                                        onclick="cancelPatientDashboard(<?php echo $item['id']; ?>)">
-                                        Cancel
+                                    <button class="action-btn queue-pill-btn" type="button" onclick="viewPatientDashboard(<?php echo $item['patient_id']; ?>)" title="View">
+                                        <span class="queue-pill-icon">
+                                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/>
+                                            </svg>
+                                        </span>
+                                        <span class="queue-pill-label"><span>View</span></span>
+                                    </button>
+                                    <button class="action-btn queue-pill-btn" type="button" onclick="moveToOnHoldDashboard(<?php echo $item['id']; ?>)" title="Hold">
+                                        <span class="queue-pill-icon">
+                                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                                <rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/>
+                                                <rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/>
+                                            </svg>
+                                        </span>
+                                        <span class="queue-pill-label"><span>Hold</span></span>
+                                    </button>
+                                    <button class="action-btn queue-pill-btn queue-cancel-btn" type="button" onclick="cancelPatientDashboard(<?php echo $item['id']; ?>)" title="Cancel">
+                                        <span class="queue-pill-icon">
+                                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                                <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                            </svg>
+                                        </span>
+                                        <span class="queue-pill-label"><span>Cancel</span></span>
                                     </button>
                                 </div>
                             </div>
@@ -515,12 +547,33 @@ try {
                                     <div class="patient-treatment"><?php echo htmlspecialchars($item['treatment_type'] ?? ''); ?></div>
                                 </div>
                                 <div class="patient-actions">
-                                    <button class="action-btn icon view-btn" onclick="viewPatientDashboard(<?php echo (int)$item['patient_id']; ?>)">
-                                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="16" height="16"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path opacity="0.15" fill-rule="evenodd" clip-rule="evenodd" d="M12 5C5.63636 5 2 12 2 12C2 12 5.63636 19 12 19C18.3636 19 22 12 22 12C22 12 18.3636 5 12 5ZM15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" fill="#000000"></path> <path d="M12 5C5.63636 5 2 12 2 12C2 12 5.63636 19 12 19C18.3636 19 22 12 22 12C22 12 18.3636 5 12 5Z" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
+                                    <button class="action-btn queue-pill-btn" type="button" onclick="viewPatientDashboard(<?php echo (int)$item['patient_id']; ?>)" title="View">
+                                        <span class="queue-pill-icon">
+                                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/>
+                                            </svg>
+                                        </span>
+                                        <span class="queue-pill-label"><span>View</span></span>
                                     </button>
-                                    <button class="action-btn text-btn onhold-requeue-btn" onclick="requeuePatientDashboard(<?php echo $item['id']; ?>)">Re-queue</button>
-                                    <button class="action-btn icon delete-btn">
-                                        <svg viewBox="-2.4 -2.4 28.80 28.80" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#000000" width="16" height="16"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round" stroke="#CCCCCC" stroke-width="0.144"></g><g id="SVGRepo_iconCarrier"> <path d="M5.82907 6.65808H18.6325V19.2906C18.6325 20.3951 17.7371 21.2906 16.6325 21.2906H7.82907C6.7245 21.2906 5.82907 20.3951 5.82907 19.2906V6.65808Z" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M4 5.74365L20.4615 5.74365" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M14.9134 3H9.54816L8.57266 5.74359H15.8889L14.9134 3Z" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></path> <line x1="12.3163" y1="10.4017" x2="12.3163" y2="17.547" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></line> <line x1="9.57266" y1="10.4017" x2="9.57266" y2="17.547" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></line> <line x1="15.0598" y1="10.4017" x2="15.0598" y2="17.547" stroke="#000000" stroke-width="1.152" stroke-linecap="round" stroke-linejoin="round"></line> </g></svg>
+                                    <button class="action-btn queue-pill-btn onhold-requeue-btn" type="button" onclick="requeuePatientDashboard(<?php echo $item['id']; ?>)" title="Re-queue">
+                                        <span class="queue-pill-icon">
+                                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                                <path d="M3 12a9 9 0 1 0 3-6.7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                                <path d="M3 4v5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </svg>
+                                        </span>
+                                        <span class="queue-pill-label"><span>Re-queue</span></span>
+                                    </button>
+                                    <button class="action-btn queue-pill-btn onhold-delete-btn" type="button" title="Delete">
+                                        <span class="queue-pill-icon">
+                                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                                <path d="M4 7h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                                <path d="M9 7V5h6v2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                                <path d="M6 7l1 12h10l1-12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </svg>
+                                        </span>
+                                        <span class="queue-pill-label"><span>Delete</span></span>
                                     </button>
                                 </div>
                             </div>
@@ -858,7 +911,7 @@ try {
             <div class="dashboard-inquiry-loading">Loading...</div>
         </div>
     </div>
-    <div id="inquiryPanelChatView" style="display:none;flex-direction:column;flex:1;min-height:0;position:relative;overflow:hidden;">
+    <div id="inquiryPanelChatView" style="display:none;flex-direction:column;flex:1;min-height:0;">
         <div class="chat-modal-header">
             <button type="button" class="chat-modal-back" onclick="showInquiryList()" aria-label="Back">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
@@ -866,12 +919,9 @@ try {
             <div class="chat-modal-avatar" id="inquiryChatAvatar" style="overflow:hidden;">JD</div>
             <div class="chat-modal-user-info">
                 <div class="chat-modal-name" id="inquiryChatName"></div>
-                <div class="chat-modal-source" id="inquiryChatSource"></div>
+                <div class="chat-modal-email" id="inquiryChatContact"></div>
             </div>
-            <span id="inquiryChatContact" hidden></span>
-            <button type="button" class="chat-info-button" onclick="openInquiryInfoPanel()" aria-label="Conversation information" title="Conversation information">
-                <span aria-hidden="true">i</span>
-            </button>
+            <div class="chat-modal-source" id="inquiryChatSource"></div>
         </div>
         <div class="chat-modal-messages" id="inquiryChatMessages"></div>
         <div class="chat-channel-info" id="inquiryChatChannel"></div>
@@ -879,45 +929,15 @@ try {
             <input type="hidden" id="inquiryChatReplyId">
             <div id="dashReplyAttachmentPreview" class="chat-attachment-preview" style="display:none;"></div>
             <div class="chat-send-row">
-                <button type="button" class="chat-attach-btn" id="dashReplyAttachFile" title="Attach file" aria-label="Attach file"><i class="fas fa-paperclip"></i></button>
-                <button type="button" class="chat-attach-btn" id="dashReplyAttachImage" title="Attach image" aria-label="Attach image"><i class="far fa-image"></i></button>
+                <button type="button" class="chat-attach-btn" id="dashReplyAttachFile" title="Attach file"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
+                <button type="button" class="chat-attach-btn" id="dashReplyAttachImage" title="Attach image"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></button>
                 <input type="file" id="dashReplyFileInput" style="display:none;" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,image/*">
-                <textarea id="inquiryChatReplyMsg" placeholder="Type your message..." rows="1"></textarea>
+                <textarea id="inquiryChatReplyMsg" placeholder="Type your reply..." rows="1"></textarea>
                 <button type="submit" class="chat-send-btn" aria-label="Send">
-                    <i class="fas fa-paper-plane"></i>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4Z"/></svg>
                 </button>
             </div>
         </form>
-        <div class="inquiry-info-panel" id="inquiryInfoPanel" aria-hidden="true">
-            <div class="inquiry-info-header">
-                <button type="button" class="chat-modal-back" onclick="closeInquiryInfoPanel()" aria-label="Back to conversation">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
-                </button>
-                <strong>Conversation info</strong>
-            </div>
-            <div class="inquiry-info-profile">
-                <div class="inquiry-info-avatar" id="inquiryInfoAvatar"></div>
-                <div class="inquiry-info-name" id="inquiryInfoName"></div>
-            </div>
-            <div class="inquiry-more-info">
-                <h4>More info</h4>
-                <div class="inquiry-info-row">
-                    <span>Email</span>
-                    <strong id="inquiryInfoEmail">No email</strong>
-                </div>
-                <div class="inquiry-info-row">
-                    <span>Phone</span>
-                    <strong id="inquiryInfoPhone">No phone</strong>
-                </div>
-            </div>
-            <button type="button" class="inquiry-media-toggle" id="inquiryMediaToggle" onclick="toggleInquiryMedia()" aria-expanded="false">
-                <span>Media &amp; Files</span>
-                <svg class="inquiry-media-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-            </button>
-            <div class="inquiry-media-content" id="inquiryMediaContent">
-                <div class="inquiry-media-gallery" id="inquiryMediaGallery"></div>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -1000,15 +1020,96 @@ function renderDashboardQueue(items) {
                 </div>
             </div>
             <div class="patient-actions">
-                <button class="action-btn text-btn" onclick="viewPatientDashboard(${Number(item.patient_id || 0)})">View</button>
-                <button class="action-btn text-btn" onclick="moveToOnHoldDashboard(${Number(item.id || 0)})">Hold</button>
-                <button class="action-btn text-btn queue-cancel-btn" onclick="cancelPatientDashboard(${Number(item.id || 0)})">Cancel</button>
+                <button class="action-btn queue-pill-btn" type="button" onclick="viewPatientDashboard(${Number(item.patient_id || 0)})" title="View">
+                    <span class="queue-pill-icon">
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/>
+                        </svg>
+                    </span>
+                    <span class="queue-pill-label"><span>View</span></span>
+                </button>
+                <button class="action-btn queue-pill-btn" type="button" onclick="moveToOnHoldDashboard(${Number(item.id || 0)})" title="Hold">
+                    <span class="queue-pill-icon">
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/>
+                            <rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/>
+                        </svg>
+                    </span>
+                    <span class="queue-pill-label"><span>Hold</span></span>
+                </button>
+                <button class="action-btn queue-pill-btn queue-cancel-btn" type="button" onclick="cancelPatientDashboard(${Number(item.id || 0)})" title="Cancel">
+                    <span class="queue-pill-icon">
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </span>
+                    <span class="queue-pill-label"><span>Cancel</span></span>
+                </button>
             </div>
         </div>
     `).join('');
 
     container.innerHTML = html;
     document.getElementById('count-up-next').textContent = String(items.length);
+}
+
+function renderDashboardOnHold(items) {
+    const container = document.getElementById('onhold-list');
+    if (!container) return;
+
+    const count = String(items.length);
+    const countOnHold = document.getElementById('count-on-hold');
+    if (countOnHold) countOnHold.textContent = count;
+    const countSkipped = document.getElementById('count-skipped');
+    if (countSkipped) countSkipped.textContent = count;
+
+    if (!items.length) {
+        container.innerHTML = '<div style="text-align: center; padding: 0; color: #6b7280;"><p>No patients on hold</p></div>';
+        return;
+    }
+
+    container.innerHTML = items.map(item => `
+        <div class="patient-item" id="onhold-${Number(item.id || 0)}">
+            <div class="patient-info">
+                <div class="patient-name">${escapeDashboardHtml(item.patient_name || 'Unknown')}</div>
+                <div class="patient-details" style="margin-top:3px;">
+                    <span class="status-badge cancelled">On Hold</span>
+                </div>
+                <div class="patient-treatment">${escapeDashboardHtml(item.treatment_type || '')}</div>
+            </div>
+            <div class="patient-actions">
+                <button class="action-btn queue-pill-btn" type="button" onclick="viewPatientDashboard(${Number(item.patient_id || 0)})" title="View">
+                    <span class="queue-pill-icon">
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/>
+                        </svg>
+                    </span>
+                    <span class="queue-pill-label"><span>View</span></span>
+                </button>
+                <button class="action-btn queue-pill-btn onhold-requeue-btn" type="button" onclick="requeuePatientDashboard(${Number(item.id || 0)})" title="Re-queue">
+                    <span class="queue-pill-icon">
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M3 12a9 9 0 1 0 3-6.7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            <path d="M3 4v5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                    <span class="queue-pill-label"><span>Re-queue</span></span>
+                </button>
+                <button class="action-btn queue-pill-btn onhold-delete-btn" type="button" title="Delete">
+                    <span class="queue-pill-icon">
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M4 7h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            <path d="M9 7V5h6v2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M6 7l1 12h10l1-12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                    <span class="queue-pill-label"><span>Delete</span></span>
+                </button>
+            </div>
+        </div>
+    `).join('');
 }
 
 function normalizeDashboardTime(value) {
@@ -1201,6 +1302,7 @@ async function loadDashboardData() {
         const data = await response.json();
         renderDashboardLive(data);
         renderDashboardQueue(data.waiting || []);
+        renderDashboardOnHold(data.on_hold || []);
         renderDashboardCancelled(data.cancelled || []);
         renderDashboardPending(data.pending_approval || []);
         renderDashboardUpcoming(data.upcoming_appointments || []);
@@ -1274,10 +1376,6 @@ function closeCallModal() {
 }
 
 function showDashboardMessage(message, title = 'Notice') {
-    if (window.showAppNotice) {
-        window.showAppNotice(title, message);
-        return;
-    }
     document.getElementById('dashboardMessageTitle').textContent = title;
     document.getElementById('dashboardMessageText').textContent = message;
     document.getElementById('dashboardMessageModal').style.display = 'flex';
@@ -1835,7 +1933,6 @@ let dashboardConversationPollInFlight = false;
 let dashboardTypingState = 0;
 let dashboardTypingSentAt = 0;
 let dashboardTypingTimer = null;
-let dashboardConversationReplies = [];
 
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (character) => ({
@@ -1867,78 +1964,8 @@ function toggleInquiryPanel() {
 function showInquiryList() {
     sendDashboardTypingState(0);
     dashboardActiveInquiryId = 0;
-    closeInquiryInfoPanel();
     document.getElementById('inquiryPanelListView').style.display = 'flex';
     document.getElementById('inquiryPanelChatView').style.display = 'none';
-}
-
-function mergeDashboardConversationReplies(replies) {
-    const replyMap = new Map(dashboardConversationReplies.map((reply) => [String(reply.id), reply]));
-    (replies || []).forEach((reply) => replyMap.set(String(reply.id), reply));
-    dashboardConversationReplies = Array.from(replyMap.values())
-        .sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
-}
-
-function renderInquiryMediaGallery() {
-    const gallery = document.getElementById('inquiryMediaGallery');
-    if (!gallery) return;
-    const images = dashboardConversationReplies.filter((reply) =>
-        reply.attachment && /\.(jpe?g|png|gif|webp)$/i.test(reply.attachment)
-    );
-    if (!images.length) {
-        gallery.innerHTML = '<div class="inquiry-media-empty">No photos have been shared in this conversation.</div>';
-        return;
-    }
-    gallery.innerHTML = images.map((reply) => {
-        const path = '../' + reply.attachment;
-        const sender = reply.sender_type === 'staff' ? 'Staff' : 'Patient';
-        return '<button type="button" class="inquiry-media-item" onclick="openLightbox(\'' + escapeHtml(path).replace(/'/g, '&#39;') + '\')" aria-label="View image sent by ' + sender + '">'
-            + '<img src="' + escapeHtml(path) + '" alt="Image sent by ' + sender + '" loading="lazy">'
-            + '</button>';
-    }).join('');
-}
-
-async function openInquiryInfoPanel() {
-    if (!dashboardActiveInquiryId) return;
-    const panel = document.getElementById('inquiryInfoPanel');
-    const sourceAvatar = document.getElementById('inquiryChatAvatar');
-    const targetAvatar = document.getElementById('inquiryInfoAvatar');
-    const inquiry = dashboardInquiryMap[String(dashboardActiveInquiryId)] || {};
-    targetAvatar.innerHTML = sourceAvatar.innerHTML;
-    if (!sourceAvatar.querySelector('img')) targetAvatar.textContent = sourceAvatar.textContent || 'P';
-    document.getElementById('inquiryInfoName').textContent = document.getElementById('inquiryChatName').textContent;
-    document.getElementById('inquiryInfoEmail').textContent = inquiry.email || 'No email';
-    document.getElementById('inquiryInfoPhone').textContent = inquiry.phone || inquiry.contact_info || 'No phone';
-    renderInquiryMediaGallery();
-    panel.classList.add('open');
-    panel.setAttribute('aria-hidden', 'false');
-    try {
-        const formData = new FormData();
-        formData.append('action', 'get_conversation');
-        formData.append('id', String(dashboardActiveInquiryId));
-        const response = await fetch('../shared/inquiry_actions.php', { method: 'POST', body: formData });
-        const data = await response.json();
-        if (response.ok && data.success) {
-            mergeDashboardConversationReplies(data.replies || []);
-            renderInquiryMediaGallery();
-        }
-    } catch (_error) {}
-}
-
-function closeInquiryInfoPanel() {
-    const panel = document.getElementById('inquiryInfoPanel');
-    if (!panel) return;
-    panel.classList.remove('open');
-    panel.setAttribute('aria-hidden', 'true');
-}
-
-function toggleInquiryMedia() {
-    const toggle = document.getElementById('inquiryMediaToggle');
-    const content = document.getElementById('inquiryMediaContent');
-    if (!toggle || !content) return;
-    const isOpen = content.classList.toggle('open');
-    toggle.classList.toggle('open', isOpen);
-    toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
 }
 
 async function fetchDashboardInquiries() {
@@ -2064,16 +2091,10 @@ function showDashboardPatientTyping(visible) {
     const container = document.getElementById('inquiryChatMessages');
     let indicator = document.getElementById('patientInquiryTypingIndicator');
     if (!indicator && visible) {
-        const inquiry = dashboardInquiryMap[String(dashboardActiveInquiryId)] || {};
-        const name = [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Patient';
-        const initials = ((name.split(/\s+/)[0] || 'P')[0] + ((name.split(/\s+/).pop() || '')[0] || '')).toUpperCase();
-        const avatarInner = inquiry.patient_profile_picture
-            ? '<img src="../../' + escapeHtml(inquiry.patient_profile_picture) + '" alt="">'
-            : escapeHtml(initials);
         indicator = document.createElement('div');
         indicator.id = 'patientInquiryTypingIndicator';
-        indicator.className = 'inquiry-typing-row';
-        indicator.innerHTML = '<div class="inquiry-typing-avatar">' + avatarInner + '</div><div class="inquiry-typing-bubble"><span class="inquiry-typing-dots" aria-label="Patient is typing"><span></span><span></span><span></span></span></div>';
+        indicator.className = 'inquiry-typing-indicator';
+        indicator.innerHTML = '<span class="inquiry-typing-dots" aria-label="Patient is typing"><span></span><span></span><span></span></span>';
         container.appendChild(indicator);
     }
     if (indicator) {
@@ -2161,7 +2182,6 @@ async function openDashboardInquiryChat(id) {
         const response = await fetch('../shared/inquiry_actions.php', { method: 'POST', body: formData });
         const data = await response.json();
         if (data.success && data.replies) {
-            dashboardConversationReplies = data.replies;
             data.replies.forEach((reply) => {
                 const bubble = document.createElement('div');
                 const isNotStaff = reply.sender_type !== 'staff';
@@ -2193,6 +2213,8 @@ async function openDashboardInquiryChat(id) {
         });
     }
 
+    container.scrollTop = container.scrollHeight;
+
     const channelInfo = document.getElementById('inquiryChatChannel');
     if ((inquiry.source || '') === 'Patient Portal' && inquiry.patient_id) {
         channelInfo.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Reply will appear in patient\'s account messages';
@@ -2202,21 +2224,8 @@ async function openDashboardInquiryChat(id) {
 
     document.getElementById('inquiryPanelListView').style.display = 'none';
     document.getElementById('inquiryPanelChatView').style.display = 'flex';
-    const chatMessages = document.getElementById('inquiryChatMessages');
-    const scrollToLatest = () => { chatMessages.scrollTop = chatMessages.scrollHeight; };
-    scrollToLatest();
-    requestAnimationFrame(() => {
-        scrollToLatest();
-        requestAnimationFrame(scrollToLatest);
-    });
-    window.setTimeout(scrollToLatest, 50);
-    window.setTimeout(scrollToLatest, 200);
-    chatMessages.querySelectorAll('img').forEach((img) => {
-        if (!img.complete) img.addEventListener('load', scrollToLatest, { once: true });
-    });
     dashboardActiveInquiryId = Number(inquiry.id);
     dashboardTypingState = 0;
-    closeInquiryInfoPanel();
 
     if ((inquiry.status || 'Unread') === 'Unread') {
         inquiry.status = 'Read';
@@ -2928,7 +2937,6 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
 .chat-modal-header {
     display: flex;
     align-items: center;
-    flex-wrap: nowrap;
     gap: 14px;
     padding: 18px 20px;
     border-bottom: 1px solid #e5e7eb;
@@ -2975,169 +2983,15 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
     font-size: 12px;
     color: #64748b;
     margin-top: 2px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 .chat-modal-source {
-    display: inline-flex;
-    margin-top: 4px;
     font-size: 11px;
     font-weight: 700;
     padding: 5px 10px;
     border-radius: 999px;
     background: #eff6ff;
     color: #1d4ed8;
-}
-.chat-info-button {
-    width: 48px;
-    height: 48px;
-    flex: 0 0 48px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    align-self: center;
-    border: none;
-    border-radius: 50%;
-    background: #eff6ff;
-    color: #2563eb;
-    font: 700 22px/1 Georgia, "Times New Roman", serif;
-    cursor: pointer;
-    margin-left: auto;
-    z-index: 2;
-    transition: background 0.2s, transform 0.2s;
-}
-.chat-info-button span {
-    font: 700 22px/1 Georgia, "Times New Roman", serif;
-    color: #2563eb;
-}
-.chat-info-button:hover {
-    background: #dbeafe;
-    transform: scale(1.04);
-}
-.inquiry-info-panel {
-    position: absolute;
-    inset: 0;
-    z-index: 30;
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    background: #fff;
-    transform: translateX(100%);
-    visibility: hidden;
-    transition: transform 0.25s ease, visibility 0.25s;
-}
-.inquiry-info-panel.open {
-    transform: translateX(0);
-    visibility: visible;
-}
-.inquiry-info-header {
-    min-height: 72px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 16px 20px;
-    border-bottom: 1px solid #e5e7eb;
-    color: #0f172a;
-}
-.inquiry-info-profile {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    padding: 28px 20px;
-    border-bottom: 1px solid #eef2f7;
-}
-.inquiry-info-avatar {
-    width: 76px;
-    height: 76px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
-    color: #fff;
-    font-size: 24px;
-    font-weight: 700;
-}
-.inquiry-info-avatar img {
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: cover;
-    border-radius: 50%;
-}
-.inquiry-info-name {
-    color: #0f172a;
-    font-size: 17px;
-    font-weight: 700;
-    text-align: center;
-}
-.inquiry-more-info {
-    padding: 16px 20px;
-    border-bottom: 1px solid #eef2f7;
-}
-.inquiry-more-info h4 {
-    margin: 0 0 12px;
-    font-size: 13px;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-.inquiry-info-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 8px 0;
-}
-.inquiry-info-row span { color: #64748b; font-size: 13px; }
-.inquiry-info-row strong { color: #0f172a; font-size: 13px; text-align: right; word-break: break-word; }
-.inquiry-media-toggle {
-    width: 100%;
-    min-height: 58px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 20px;
-    border: none;
-    border-bottom: 1px solid #eef2f7;
-    background: #fff;
-    color: #0f172a;
-    font: inherit;
-    font-weight: 700;
-    cursor: pointer;
-}
-.inquiry-media-toggle:hover { background: #f8fafc; }
-.inquiry-media-chevron { transition: transform 0.2s; }
-.inquiry-media-toggle.open .inquiry-media-chevron { transform: rotate(180deg); }
-.inquiry-media-content { display: none; padding: 12px; }
-.inquiry-media-content.open { display: block; }
-.inquiry-media-gallery {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
-}
-.inquiry-media-item {
-    aspect-ratio: 1;
-    overflow: hidden;
-    padding: 0;
-    border: none;
-    border-radius: 8px;
-    background: #e2e8f0;
-    cursor: pointer;
-}
-.inquiry-media-item img {
-    width: 100%;
-    height: 100%;
-    display: block;
-    object-fit: cover;
-}
-.inquiry-media-empty {
-    grid-column: 1 / -1;
-    padding: 36px 16px;
-    color: #64748b;
-    font-size: 13px;
-    text-align: center;
+    flex-shrink: 0;
 }
 .chat-modal-messages {
     flex: 1;
@@ -3194,54 +3048,24 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
     margin-top: 4px;
     border: 1px solid #e5e7eb;
 }
-.inquiry-typing-row {
+.inquiry-typing-indicator {
     align-self: flex-start;
-    display: none;
-    align-items: flex-end;
-    gap: 8px;
-}
-.inquiry-typing-avatar {
-    width: 34px;
-    height: 34px;
-    flex: 0 0 34px;
     display: flex;
     align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
-    color: #fff;
-    font-size: 11px;
-    font-weight: 700;
-    border: 1px solid #dbe3ee;
-}
-.inquiry-typing-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 50%;
-    background: #fff;
-}
-.inquiry-typing-bubble {
-    display: flex;
-    align-items: center;
-    min-width: 54px;
-    min-height: 38px;
-    padding: 10px 14px;
-    border-radius: 19px;
-    border-bottom-left-radius: 6px;
-    background: #e2e8f0;
+    gap: 7px;
+    padding: 7px 10px;
+    color: #64748b;
+    font-size: 12px;
 }
 .inquiry-typing-dots {
     display: inline-flex;
-    gap: 4px;
-    align-items: center;
+    gap: 3px;
 }
 .inquiry-typing-dots span {
-    width: 7px;
-    height: 7px;
+    width: 5px;
+    height: 5px;
     border-radius: 50%;
-    background: #64748b;
+    background: #94a3b8;
     animation: inquiryTypingWave 1.1s infinite ease-in-out;
 }
 .inquiry-typing-dots span:nth-child(2) { animation-delay: .15s; }
@@ -3262,58 +3086,52 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
     color: #475569;
 }
 .chat-compose {
-    padding: 12px;
+    padding: 14px 20px 18px;
     border-top: 1px solid #e5e7eb;
     background: #fff;
 }
 .chat-send-row {
     display: flex;
-    gap: 6px;
-    align-items: center;
-    min-height: 58px;
-    padding: 6px;
-    border: 1px solid #2563eb;
-    border-radius: 999px;
-    background: #fff;
-    box-shadow: 0 0 0 3px rgba(37,99,235,.08);
+    gap: 10px;
+    align-items: flex-end;
 }
 .chat-send-row textarea {
     flex: 1;
-    min-width: 0;
-    height: 44px;
-    border: none;
-    padding: 0 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 20px;
+    padding: 12px 16px;
     font: inherit;
     font-size: 14px;
     resize: none;
-    min-height: 44px;
+    min-height: 48px;
     max-height: 120px;
     outline: none;
-    background: transparent;
+    transition: border-color 0.2s;
+    background: #f9fafb;
 }
 .chat-send-row textarea:focus {
-    border: none;
-    box-shadow: none;
-    background: transparent;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    background: #fff;
 }
 .chat-send-btn {
-    width: 46px;
-    height: 46px;
-    flex: 0 0 46px;
-    padding: 0;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     border: none;
     background: linear-gradient(135deg, #2563eb, #1d4ed8);
     color: #fff;
     cursor: pointer;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
-    box-shadow: 0 4px 12px rgba(37,99,235,.25);
+    flex-shrink: 0;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 4px 12px rgba(37,99,235,0.25);
 }
 .chat-send-btn:hover {
-    transform: scale(1.04);
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(37,99,235,0.35);
 }
 .chat-send-btn:disabled {
     opacity: 0.5;
@@ -3321,27 +3139,22 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
     transform: none;
 }
 .chat-attach-btn {
-    width: 42px;
-    height: 42px;
-    flex: 0 0 42px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     border: none;
-    background: transparent;
+    background: #f1f5f9;
     color: #64748b;
     cursor: pointer;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
-    padding: 0;
+    flex-shrink: 0;
+    transition: background 0.2s, color 0.2s;
 }
 .chat-attach-btn:hover {
-    background: #e8eef7;
+    background: #e2e8f0;
     color: #2563eb;
-}
-.chat-attach-btn i,
-.chat-send-btn i {
-    font-family: "Font Awesome 6 Free" !important;
 }
 .chat-attachment-preview {
     padding: 8px 0 4px;

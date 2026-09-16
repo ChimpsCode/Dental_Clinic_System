@@ -176,7 +176,7 @@ $dentistTwoFactorEnabled = (int)($user['two_factor_enabled'] ?? 0) === 1;
                     </div>
                     <button class="btn btn-success" id="saveBtn" style="display:none;" type="button">Save Photo</button>
                     <?php if ($profPic): ?>
-                        <a href="../shared/profile_picture_actions.php?action=delete" class="btn btn-danger" id="deleteBtn" onclick="return window.appAskNav ? appAskNav(event, 'Remove your profile picture?') : confirm('Remove your profile picture?')">Remove Photo</a>
+                        <a href="../shared/profile_picture_actions.php?action=delete" class="btn btn-danger" id="deleteBtn" onclick="return confirm('Remove your profile picture?')">Remove Photo</a>
                     <?php endif; ?>
                     <span class="upload-hint">JPG, PNG, GIF, WebP. Max 2MB.</span>
                 </div>

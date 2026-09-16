@@ -1884,9 +1884,8 @@ function updateQueueStatus(queueId, status) {
 
 // Cancel Patient
 function cancelPatientQueue(queueId) {
-    window.appAsk('Cancel this patient from the queue?', function() {
-        updateQueueStatus(queueId, 'cancelled');
-    }, { title: 'Please Confirm', kind: 'error', confirmText: 'Cancel Patient' });
+    if (!confirm('Cancel this patient from the queue?')) return;
+    updateQueueStatus(queueId, 'cancelled');
 }
 
 // Start Procedure Modal

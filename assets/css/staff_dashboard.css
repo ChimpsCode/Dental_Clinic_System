@@ -642,7 +642,7 @@ header.top-header {
 }
 
 .header-notifications .kebab-menu button.delete-btn {
-    color: #dc2626 !important;
+    color: #cd5959 !important;
 }
 
 .header-notifications .kebab-menu button.delete-btn:hover {
@@ -1337,7 +1337,106 @@ header.top-header {
 }
 
 .compact-queue .queue-cancel-btn:hover {
-    background-color: #dc2626 !important;
+    background-color: #cd5959 !important;
+}
+
+/* IN THE QUEUE View / Hold / Cancel: icon-only pill that expands on hover */
+:is(#up-next-list, #onhold-list) .queue-pill-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    min-width: 28px;
+    padding: 0 6px;
+    gap: 0;
+    border-radius: 999px;
+    overflow: hidden;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: #374151;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    cursor: pointer;
+    transition:
+        background-color 0.2s ease,
+        border-color 0.2s ease;
+}
+
+:is(#up-next-list, #onhold-list) .queue-pill-btn:hover {
+    background-color: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+:is(#up-next-list, #onhold-list) .queue-pill-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    transform-origin: center center;
+    transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:is(#up-next-list, #onhold-list) .queue-pill-icon svg {
+    width: 14px;
+    height: 14px;
+    display: block;
+}
+
+:is(#up-next-list, #onhold-list) .queue-pill-btn:hover .queue-pill-icon {
+    transform: rotate(360deg);
+}
+
+:is(#up-next-list, #onhold-list) .queue-pill-label {
+    display: grid;
+    grid-template-columns: 0fr;
+    overflow: hidden;
+    opacity: 0;
+    margin-left: 0;
+    transition:
+        grid-template-columns 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 0.25s ease,
+        margin-left 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:is(#up-next-list, #onhold-list) .queue-pill-label > span {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+:is(#up-next-list, #onhold-list) .queue-pill-btn:hover .queue-pill-label {
+    grid-template-columns: 1fr;
+    opacity: 1;
+    margin-left: 6px;
+}
+
+:is(#up-next-list, #onhold-list) .queue-pill-btn.queue-cancel-btn {
+    padding: 0 7px !important;
+    color: #fff !important;
+}
+
+:is(#up-next-list, #onhold-list) .queue-pill-btn.queue-cancel-btn:hover {
+    background-color: #cd5959 !important;
+}
+
+:is(#up-next-list, #onhold-list) .queue-pill-btn.onhold-requeue-btn {
+    padding: 0 7px !important;
+    color: #fff !important;
+}
+
+#onhold-list .queue-pill-btn.onhold-delete-btn {
+    padding: 0 7px !important;
+    background-color: #cd5959 !important;
+    color: #fff !important;
+    border: none !important;
+}
+
+#onhold-list .queue-pill-btn.onhold-delete-btn:hover {
+    background-color: #cd5959 !important;
 }
 
 /* Pending Approval approve/decline buttons */
@@ -1697,7 +1796,7 @@ header.top-header {
 
 .btn-primary {
     background-color: #0d92f7; color: white; border: none; padding: 10px 20px;
-    border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; text-align: center; gap: 8px;
+    border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px;
     transition: background 0.2s;
 }
 .btn-primary:hover { background-color: #0b6cf3; }
@@ -1859,6 +1958,11 @@ header.top-header {
         flex: 1;
         min-width: 120px;
         justify-content: center;
+    }
+
+    :is(#up-next-list, #onhold-list) .queue-pill-btn {
+        flex: 0 0 auto;
+        min-width: 28px;
     }
 
     .search-filters {

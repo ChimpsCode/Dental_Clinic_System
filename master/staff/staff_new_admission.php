@@ -342,7 +342,6 @@ elseif ($appointmentId) {
         }
 
     </style>
-    <?php require __DIR__ . '/../../includes/app_notice_modal_script.php'; ?>
 </head>
 <body class="bg-gray-50 text-slate-800 min-h-screen flex flex-col">
 
@@ -1903,12 +1902,6 @@ text.className = 'text-sm font-medium text-slate-400 transition-colors duration-
         }
 
         function showModal(type, title, message, buttons = []) {
-            if (type !== 'loading' && window.showAppNotice) {
-                var kind = type === 'error' ? 'error' : 'success';
-                var onOk = (buttons[0] && typeof buttons[0].onclick === 'function') ? buttons[0].onclick : closeModal;
-                window.showAppNotice(title, message, kind, onOk);
-                return;
-            }
             const modal = document.getElementById('resultModal');
             const icon = document.getElementById('modalIcon');
             const titleEl = document.getElementById('modalTitle');
