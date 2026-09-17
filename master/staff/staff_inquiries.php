@@ -413,6 +413,7 @@ require_once '../../includes/staff_layout_start.php';
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    position: relative;
 }
 .chat-modal-header {
     display: flex;
@@ -465,14 +466,145 @@ require_once '../../includes/staff_layout_start.php';
     margin-top: 2px;
 }
 .chat-modal-source {
+    display: inline-flex;
+    width: fit-content;
     font-size: 11px;
     font-weight: 700;
     padding: 5px 10px;
+    margin-top: 4px;
     border-radius: 999px;
     background: #eff6ff;
     color: #1d4ed8;
-    flex-shrink: 0;
 }
+.chat-info-button {
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 50%;
+    background: #eff6ff;
+    color: #2563eb;
+    cursor: pointer;
+}
+.chat-info-button span {
+    font: 700 22px/1 Georgia, serif;
+    color: #2563eb;
+}
+.chat-info-button:hover { background: #dbeafe; }
+.staff-chat-info-panel {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    background: #fff;
+    transform: translateX(100%);
+    visibility: hidden;
+    transition: transform .25s ease, visibility .25s;
+}
+.staff-chat-info-panel.open {
+    transform: translateX(0);
+    visibility: visible;
+}
+.staff-chat-info-header {
+    min-height: 72px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    color: #0f172a;
+    font-weight: 700;
+}
+.staff-chat-info-profile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 28px 20px;
+    border-bottom: 1px solid #eef2f7;
+    color: #0f172a;
+    font-size: 17px;
+    font-weight: 700;
+    text-align: center;
+}
+.staff-chat-info-profile .staff-chat-info-avatar {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+}
+.staff-chat-info-profile .staff-chat-info-avatar img {
+    width: 76px;
+    height: 76px;
+    object-fit: cover;
+}
+.staff-more-info {
+    padding: 16px 20px;
+    border-bottom: 1px solid #eef2f7;
+}
+.staff-more-info h4 {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.staff-chat-info-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: none;
+}
+.staff-chat-info-row span {
+    display: block;
+    color: #64748b;
+    font-size: 13px;
+    margin-bottom: 0;
+}
+.staff-chat-info-row strong {
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: right;
+    word-break: break-word;
+}
+.staff-media-toggle {
+    width: 100%;
+    min-height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border: none;
+    border-bottom: 1px solid #eef2f7;
+    background: #fff;
+    color: #0f172a;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+.staff-media-toggle:hover { background: #f8fafc; }
+.staff-media-chevron { transition: transform 0.2s; }
+.staff-media-toggle.open .staff-media-chevron { transform: rotate(180deg); }
+.staff-media-content { display: none; padding: 12px; }
+.staff-media-content.open { display: block; }
+.staff-media-gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.staff-media-item { aspect-ratio: 1; overflow: hidden; padding: 0; border: none; border-radius: 8px; background: #e2e8f0; cursor: pointer; }
+.staff-media-item img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.staff-media-empty { grid-column: 1 / -1; padding: 36px 16px; color: #64748b; font-size: 13px; text-align: center; }
 .chat-modal-messages {
     flex: 1;
     overflow-y: auto;
@@ -495,6 +627,59 @@ require_once '../../includes/staff_layout_start.php';
     background: #f0f2f5;
     color: #111827;
     border-bottom-left-radius: 6px;
+}
+.staff-typing-row {
+    align-self: flex-start;
+    display: none;
+    align-items: flex-end;
+    gap: 8px;
+}
+.staff-typing-row.is-on {
+    display: flex;
+}
+.staff-typing-avatar,
+.staff-typing-avatar img {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    border: 1px solid #dbe3ee;
+}
+.staff-typing-bubble {
+    display: flex;
+    align-items: center;
+    min-width: 54px;
+    min-height: 38px;
+    padding: 10px 14px;
+    border-radius: 19px;
+    border-bottom-left-radius: 6px;
+    background: #e2e8f0;
+}
+.staff-typing-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.staff-typing-dots span {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #64748b;
+    animation: staffTypingWave 1.1s infinite ease-in-out;
+}
+.staff-typing-dots span:nth-child(2) { animation-delay: .15s; }
+.staff-typing-dots span:nth-child(3) { animation-delay: .3s; }
+@keyframes staffTypingWave {
+    0%, 60%, 100% { transform: translateY(0); opacity: .45; }
+    30% { transform: translateY(-3px); opacity: 1; }
 }
 .chat-bubble.sent {
     align-self: flex-end;
@@ -531,7 +716,7 @@ require_once '../../includes/staff_layout_start.php';
     color: #475569;
 }
 .chat-compose {
-    padding: 14px 20px 18px;
+    padding: 12px;
     border-top: 1px solid #e5e7eb;
     background: #fff;
 }
@@ -594,31 +779,39 @@ require_once '../../includes/staff_layout_start.php';
 }
 .chat-send-row {
     display: flex;
-    gap: 10px;
-    align-items: flex-end;
+    gap: 6px;
+    align-items: center;
+    min-height: 58px;
+    padding: 6px;
+    border: 1px solid #2563eb;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(37,99,235,.08);
 }
 .chat-send-row textarea {
     flex: 1;
-    border: 1px solid #d1d5db;
-    border-radius: 20px;
-    padding: 12px 16px;
+    min-width: 0;
+    height: 44px;
+    border: none;
+    padding: 11px 8px;
     font: inherit;
     font-size: 14px;
+    line-height: 22px;
     resize: none;
-    min-height: 48px;
+    min-height: 44px;
     max-height: 120px;
     outline: none;
-    transition: border-color 0.2s;
-    background: #f9fafb;
+    background: transparent;
+    box-sizing: border-box;
 }
 .chat-send-row textarea:focus {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
-    background: #fff;
+    border: none;
+    box-shadow: none;
+    background: transparent;
 }
 .chat-send-btn {
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     border: none;
     background: linear-gradient(135deg, #2563eb, #1d4ed8);
@@ -645,17 +838,17 @@ require_once '../../includes/staff_layout_start.php';
     height: 40px;
     border-radius: 50%;
     border: none;
-    background: #f1f5f9;
+    background: transparent;
     color: #64748b;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    transition: background 0.2s, color 0.2s;
+    font-size: 16px;
 }
 .chat-attach-btn:hover {
-    background: #e2e8f0;
+    background: #eff6ff;
     color: #2563eb;
 }
 .chat-attachment-preview {
@@ -926,10 +1119,11 @@ require_once '../../includes/staff_layout_start.php';
             <div class="chat-modal-avatar" id="replyAvatar" style="overflow:hidden;">JD</div>
             <div class="chat-modal-user-info">
                 <div class="chat-modal-name" id="replyFromName"></div>
-                <div class="chat-modal-email" id="replyEmail"></div>
-                <div class="chat-modal-email" id="replyPhone" style="color:#64748b;font-size:11px;margin-top:1px;"></div>
+                <div class="chat-modal-source" id="replySource"></div>
             </div>
-            <div class="chat-modal-source" id="replySource"></div>
+            <button type="button" class="chat-info-button" id="staffChatInfoBtn" aria-label="Conversation information" title="Conversation information">
+                <span aria-hidden="true">i</span>
+            </button>
         </div>
         <div class="chat-modal-messages" id="chatMessages">
             <div class="chat-bubble received" id="originalBubble">
@@ -949,17 +1143,45 @@ require_once '../../includes/staff_layout_start.php';
             </div>
             <div id="replyAttachmentPreview" class="chat-attachment-preview" style="display:none;"></div>
             <div class="chat-send-row">
-                <button type="button" class="chat-attach-btn" id="replyAttachFile" title="Attach file"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
-                <button type="button" class="chat-attach-btn" id="replyAttachImage" title="Attach image"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></button>
+                <button type="button" class="chat-attach-btn" id="replyAttachFile" title="Attach file"><i class="fas fa-paperclip"></i></button>
+                <button type="button" class="chat-attach-btn" id="replyAttachImage" title="Attach image"><i class="far fa-image"></i></button>
                 <input type="file" id="replyFileInput" style="display:none;" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,image/*">
-                <textarea id="reply_message" name="message" placeholder="Type your reply..." rows="1"></textarea>
+                <textarea id="reply_message" name="message" placeholder="Type your message..." rows="1"></textarea>
                 <button type="submit" class="chat-send-btn" aria-label="Send">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4Z"/>
-                    </svg>
+                    <i class="fas fa-paper-plane"></i>
                 </button>
             </div>
         </form>
+        <div class="staff-chat-info-panel" id="staffChatInfoPanel" aria-hidden="true">
+            <div class="staff-chat-info-header">
+                <button type="button" class="chat-modal-back" id="staffChatInfoBack" aria-label="Back to conversation">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+                </button>
+                Conversation info
+            </div>
+            <div class="staff-chat-info-profile">
+                <div class="staff-chat-info-avatar" id="staffChatInfoAvatar">P</div>
+                <div id="staffChatInfoName"></div>
+            </div>
+            <div class="staff-more-info">
+                <h4>More info</h4>
+                <div class="staff-chat-info-row">
+                    <span>Email</span>
+                    <strong id="replyEmail">Not provided</strong>
+                </div>
+                <div class="staff-chat-info-row">
+                    <span>Phone</span>
+                    <strong id="replyPhone">Not provided</strong>
+                </div>
+            </div>
+            <button type="button" class="staff-media-toggle" id="staffMediaToggle" aria-expanded="false">
+                <span>Media &amp; Files</span>
+                <svg class="staff-media-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div class="staff-media-content" id="staffMediaContent">
+                <div class="staff-media-gallery" id="staffMediaGallery"></div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -1295,10 +1517,74 @@ function openModal(id) {
     }
 }
 
+function collapseStaffMedia() {
+    const toggle = document.getElementById('staffMediaToggle');
+    const content = document.getElementById('staffMediaContent');
+    if (toggle) {
+        toggle.classList.remove('open');
+        toggle.setAttribute('aria-expanded', 'false');
+    }
+    if (content) content.classList.remove('open');
+}
+
+function renderStaffInquiryMediaGallery() {
+    const gallery = document.getElementById('staffMediaGallery');
+    if (!gallery) return;
+    const seen = new Set();
+    const items = [];
+    document.querySelectorAll('#chatMessages img.chat-att-img').forEach((img) => {
+        const src = img.getAttribute('src');
+        if (!src || seen.has(src)) return;
+        seen.add(src);
+        items.push(src);
+    });
+    if (!items.length) {
+        gallery.innerHTML = '<div class="staff-media-empty">No photos have been shared in this conversation.</div>';
+        return;
+    }
+    gallery.innerHTML = items.map((src) =>
+        '<button type="button" class="staff-media-item" onclick="openLightbox(' + JSON.stringify(src) + ')" aria-label="View shared photo">'
+        + '<img src="' + escapeHtml(src) + '" alt="" loading="lazy">'
+        + '</button>'
+    ).join('');
+}
+
+function closeStaffChatInfo() {
+    const panel = document.getElementById('staffChatInfoPanel');
+    if (panel) {
+        panel.classList.remove('open');
+        panel.setAttribute('aria-hidden', 'true');
+    }
+    collapseStaffMedia();
+}
+
+function openStaffChatInfo() {
+    const panel = document.getElementById('staffChatInfoPanel');
+    if (panel) {
+        renderStaffInquiryMediaGallery();
+        panel.classList.add('open');
+        panel.setAttribute('aria-hidden', 'false');
+    }
+}
+
+function toggleStaffInquiryMedia() {
+    const toggle = document.getElementById('staffMediaToggle');
+    const content = document.getElementById('staffMediaContent');
+    if (!toggle || !content) return;
+    const isOpen = content.classList.toggle('open');
+    toggle.classList.toggle('open', isOpen);
+    toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+}
+
 function closeModal(id) {
     const el = document.getElementById(id);
     if (el) el.classList.remove('active');
-    if (id === 'replyModal') hideReplyQuote();
+    if (id === 'replyModal') {
+        hideReplyQuote();
+        closeStaffChatInfo();
+        sendInquiryTypingState(0);
+        showPatientInquiryTyping(false);
+    }
 }
 
 function closeActionMenu() {
@@ -1431,7 +1717,15 @@ function handleInquiryMenuClick(event, action, id) {
 }
 
 async function archiveInquiry(id) {
+    if (window.appAsk) {
+        window.appAsk('Move this inquiry to archive?', function() { archiveInquiryDo(id); }, { title: 'Please Confirm' });
+        return;
+    }
     if (!confirm('Move this inquiry to archive?')) return;
+    archiveInquiryDo(id);
+}
+
+async function archiveInquiryDo(id) {
     const data = await postAction({ action: 'archive', id });
     if (!data.success) {
         showToast(data.message || 'Unable to archive inquiry.', true);
@@ -1487,7 +1781,7 @@ function getInitials(name) {
     return ((first[0] || '') + (last[0] || '')).toUpperCase() || 'P';
 }
 
-function addChatBubble(text, type, timestamp, label, attachment) {
+function addChatBubble(text, type, timestamp, label, attachment, replyId) {
     const container = document.getElementById('chatMessages');
     const bubble = document.createElement('div');
     bubble.className = 'chat-bubble ' + type;
@@ -1507,8 +1801,55 @@ function addChatBubble(text, type, timestamp, label, attachment) {
         }
     }
     bubble.innerHTML = labelHtml + '<div>' + contentHtml + '</div><div class="chat-meta">' + escapeHtml(timestamp || 'just now') + '</div>';
-    container.appendChild(bubble);
-    container.scrollTop = container.scrollHeight;
+    if (replyId) bubble.dataset.replyId = String(replyId);
+    const typing = document.getElementById('patientInquiryTypingIndicator');
+    container.insertBefore(bubble, typing || null);
+    scrollStaffChatToLatest();
+}
+
+function scrollStaffChatToLatest() {
+    const el = document.getElementById('chatMessages');
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+    requestAnimationFrame(function () {
+        el.scrollTop = el.scrollHeight;
+    });
+    setTimeout(function () {
+        el.scrollTop = el.scrollHeight;
+    }, 80);
+}
+
+function ensurePatientTypingRow(inquiry) {
+    const container = document.getElementById('chatMessages');
+    if (!container) return null;
+    let row = document.getElementById('patientInquiryTypingIndicator');
+    if (!row) {
+        row = document.createElement('div');
+        row.id = 'patientInquiryTypingIndicator';
+        row.className = 'staff-typing-row';
+        row.setAttribute('aria-hidden', 'true');
+        row.innerHTML = '<div class="staff-typing-avatar" id="staffTypingAvatar"></div><div class="staff-typing-bubble"><span class="staff-typing-dots" aria-label="Patient is typing"><span></span><span></span><span></span></span></div>';
+    }
+    container.appendChild(row);
+    const avatar = row.querySelector('#staffTypingAvatar');
+    const fullName = inquiry
+        ? ([inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Patient')
+        : 'Patient';
+    if (inquiry && inquiry.patient_profile_picture) {
+        avatar.innerHTML = '<img src="../../' + escapeHtml(inquiry.patient_profile_picture) + '" alt="">';
+    } else {
+        avatar.innerHTML = '';
+        avatar.textContent = getInitials(fullName);
+    }
+    return row;
+}
+
+function showPatientInquiryTyping(visible) {
+    const row = document.getElementById('patientInquiryTypingIndicator') || ensurePatientTypingRow(inquiryMap[String(activeInquiryId)]);
+    if (!row) return;
+    row.classList.toggle('is-on', !!visible);
+    row.style.display = visible ? 'flex' : 'none';
+    if (visible) scrollStaffChatToLatest();
 }
 
 function parseStaffReplies(notes) {
@@ -1545,15 +1886,21 @@ async function openReplyModal(id) {
 
     const fullName = [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown Patient';
     document.getElementById('replyFromName').textContent = fullName;
+    document.getElementById('staffChatInfoName').textContent = fullName;
     document.getElementById('replySource').textContent = inquiry.source || 'Website';
     document.getElementById('replyEmail').textContent = inquiry.email || 'No email';
     document.getElementById('replyPhone').textContent = inquiry.phone || inquiry.contact_info || 'No phone';
+    closeStaffChatInfo();
     const avatarEl = document.getElementById('replyAvatar');
+    const infoAvatar = document.getElementById('staffChatInfoAvatar');
     if (inquiry.patient_profile_picture) {
+        const img = '<img src="../../' + escapeHtml(inquiry.patient_profile_picture) + '" alt="">';
         avatarEl.innerHTML = '<img src="../../' + escapeHtml(inquiry.patient_profile_picture) + '" alt="" style="width:44px;height:44px;border-radius:50%;object-fit:cover;">';
+        infoAvatar.innerHTML = img;
     } else {
         avatarEl.textContent = getInitials(fullName);
         avatarEl.style.background = 'linear-gradient(135deg,#2563eb,#1d4ed8)';
+        infoAvatar.textContent = getInitials(fullName);
     }
 
     const concernText = inquiry.concern || inquiry.inquiry_message || 'No concern provided.';
@@ -1562,7 +1909,10 @@ async function openReplyModal(id) {
     messageContainer.innerHTML = '';
     const originalBubble = document.createElement('div');
     originalBubble.className = 'chat-bubble received';
-    originalBubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:3px;">' + escapeHtml(fullName) + '</div><div>' + escapeHtml(concernText).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(formatCreatedAt(inquiry.created_at)) + '</div>';
+    const concernHtml = (typeof inquiryQuotedMessageHtml === 'function')
+        ? inquiryQuotedMessageHtml(concernText)
+        : escapeHtml(concernText).replace(/\n/g, '<br>');
+    originalBubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:3px;">' + escapeHtml(fullName) + '</div><div>' + concernHtml + '</div><div class="chat-meta">' + escapeHtml(formatCreatedAt(inquiry.created_at)) + '</div>';
     messageContainer.appendChild(originalBubble);
 
     try {
@@ -1589,6 +1939,7 @@ async function openReplyModal(id) {
                     }
                 }
                 bubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:' + (reply.sender_type !== 'staff' ? '#64748b' : 'rgba(255,255,255,0.7)') + ';margin-bottom:3px;">' + escapeHtml(label) + '</div><div>' + msgText + attHtml + '</div><div class="chat-meta">' + escapeHtml(formatCreatedAt(reply.created_at)) + '</div>';
+                if (reply.id) bubble.dataset.replyId = String(reply.id);
                 messageContainer.appendChild(bubble);
             });
         }
@@ -1603,7 +1954,8 @@ async function openReplyModal(id) {
         });
     }
 
-    messageContainer.scrollTop = messageContainer.scrollHeight;
+    ensurePatientTypingRow(inquiry);
+    showPatientInquiryTyping(false);
 
     const channelInfo = document.getElementById('replyChannelInfo');
     const isPortal = (inquiry.source || '') === 'Patient Portal' && inquiry.patient_id;
@@ -1617,6 +1969,7 @@ async function openReplyModal(id) {
     }
 
     openModal('replyModal');
+    scrollStaffChatToLatest();
 
     if ((inquiry.status || 'Unread') === 'Unread') {
         inquiry.status = 'Read';
@@ -1679,7 +2032,7 @@ document.getElementById('replyForm').addEventListener('submit', async (event) =>
         const now = new Date();
         const ts = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
         const attPath = data.attachment || null;
-        addChatBubble(message, 'sent', ts, 'Staff', attPath);
+        addChatBubble(message, 'sent', ts, 'Staff', attPath, data.reply_id);
         const entry = inquiryMap[String(id)];
         if (entry) {
             entry.notes = (entry.notes || '') + '\n[Staff replied on ' + ts + ']\n' + message;
@@ -1689,6 +2042,7 @@ document.getElementById('replyForm').addEventListener('submit', async (event) =>
         hideReplyQuote();
         replyFileInput.value = '';
         clearReplyAttachment();
+        sendInquiryTypingState(0);
         btn.disabled = false;
         textarea.focus();
         showToast('Reply sent.');
@@ -1700,9 +2054,78 @@ document.getElementById('replyForm').addEventListener('submit', async (event) =>
 });
 
 const replyTextarea = document.getElementById('reply_message');
+let inquiryTypingState = 0;
+let inquiryTypingSentAt = 0;
+let inquiryTypingTimer = null;
+let inquiryConvPollInFlight = false;
+
+function getInquiryLastReplyId() {
+    const ids = Array.from(document.querySelectorAll('#chatMessages [data-reply-id]'))
+        .map((el) => Number(el.dataset.replyId))
+        .filter((id) => Number.isFinite(id) && id > 0);
+    return ids.length ? Math.max(...ids) : 0;
+}
+
+async function sendInquiryTypingState(isTyping) {
+    if (!activeInquiryId) return;
+    const now = Date.now();
+    if (inquiryTypingState === isTyping && (!isTyping || now - inquiryTypingSentAt < 2500)) return;
+    inquiryTypingState = isTyping;
+    inquiryTypingSentAt = now;
+    try {
+        await postAction({ action: 'set_typing', id: String(activeInquiryId), is_typing: isTyping ? '1' : '0' });
+    } catch (_e) {}
+}
+
+async function pollInquiryConversation() {
+    const modal = document.getElementById('replyModal');
+    if (!activeInquiryId || !modal || !modal.classList.contains('active') || inquiryConvPollInFlight || document.hidden) return;
+    inquiryConvPollInFlight = true;
+    try {
+        const data = await postAction({
+            action: 'conversation_updates',
+            id: String(activeInquiryId),
+            last_reply_id: String(getInquiryLastReplyId())
+        });
+        if (!data || !data.success) return;
+        const inquiry = inquiryMap[String(activeInquiryId)];
+        const fullName = inquiry
+            ? ([inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Patient')
+            : 'Patient';
+        (data.replies || []).forEach((reply) => {
+            const isStaff = reply.sender_type === 'staff';
+            addChatBubble(
+                reply.message || '',
+                isStaff ? 'sent' : 'received',
+                formatCreatedAt(reply.created_at),
+                isStaff ? 'Staff' : fullName,
+                reply.attachment || null,
+                reply.id
+            );
+        });
+        showPatientInquiryTyping(!!data.other_is_typing);
+    } catch (_e) {
+    } finally {
+        inquiryConvPollInFlight = false;
+    }
+}
+
 replyTextarea.addEventListener('input', function () {
     this.style.height = 'auto';
     this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    const hasText = this.value.trim().length > 0;
+    if (!hasText) {
+        clearTimeout(inquiryTypingTimer);
+        sendInquiryTypingState(0);
+        return;
+    }
+    sendInquiryTypingState(1);
+    clearTimeout(inquiryTypingTimer);
+    inquiryTypingTimer = setTimeout(() => sendInquiryTypingState(0), 3000);
+});
+replyTextarea.addEventListener('blur', function () {
+    clearTimeout(inquiryTypingTimer);
+    sendInquiryTypingState(0);
 });
 replyTextarea.addEventListener('keydown', function (event) {
     if (event.key !== 'Enter' || event.shiftKey) return;
@@ -1776,6 +2199,10 @@ renderTable();
     });
 })();
 
+document.getElementById('staffChatInfoBtn')?.addEventListener('click', openStaffChatInfo);
+document.getElementById('staffChatInfoBack')?.addEventListener('click', closeStaffChatInfo);
+document.getElementById('staffMediaToggle')?.addEventListener('click', toggleStaffInquiryMedia);
+
 async function pollInquiries() {
     try {
         const r = await fetch(window.location.pathname + '?ajax=1');
@@ -1798,6 +2225,10 @@ async function pollInquiries() {
     } catch (_e) {}
 }
 setInterval(pollInquiries, 8000);
+setInterval(pollInquiryConversation, 2000);
+document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) pollInquiryConversation();
+});
 </script>
 
 <?php require_once '../../includes/staff_layout_end.php'; ?>

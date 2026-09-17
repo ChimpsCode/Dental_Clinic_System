@@ -2148,18 +2148,24 @@ try {
         markArrivedId = id;
         markArrivedQueueId = null;
 
+        const staleMarkArrived = document.getElementById('markArrivedModal');
+        if (staleMarkArrived && staleMarkArrived.dataset.palette !== 'edit-info') staleMarkArrived.remove();
+
         if (!document.getElementById('markArrivedModal')) {
             const modal = document.createElement('div');
             modal.id = 'markArrivedModal';
             modal.className = 'modal-overlay';
             // Keep open across background polling refreshes; Done/Cancel close it explicitly
             modal.dataset.preserveOpen = '1';
+            modal.dataset.palette = 'edit-info';
             modal.style.display = 'none';
+            modal.style.background = 'rgba(15, 23, 42, 0.45)';
             modal.innerHTML = `
-                <div class="modal" style="width: 560px;">
-                    <div style="margin-bottom: 16px;">
-                        <h2 style="margin: 0; font-size: 1.25rem; font-weight: 600;">Mark as Arrived</h2>
-                        <p style="margin: 2px 0 0; color: #6b7280; font-size: 0.85rem;">Check-in appointment &amp; add to queue</p>
+                <div class="modal" style="width: 100%; max-width: 420px; padding: 40px 24px 24px; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,.35);">
+                    <div style="text-align: center; margin-bottom: 16px;">
+                        <div style="width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; background: #e0f2fe; color: #0284c7; font-size: 28px; font-weight: 700;">i</div>
+                        <h2 style="margin: 0; font-size: 18px; font-weight: 700; color: #0c4a6e;">Mark as Arrived</h2>
+                        <p style="margin: 4px 0 0; color: #6b7280; font-size: 13px;">Check-in appointment &amp; add to queue</p>
                     </div>
                     <div id="markArrivedBody">
                         <div id="markArrivedInfo" style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;">
@@ -2169,12 +2175,12 @@ try {
                             </div>
                             <div style="color: #6b7280; font-size: 0.85rem; margin-top: 4px;">Scheduled appointment</div>
                         </div>
-                        <p style="color: #374151; margin: 0 0 16px; font-size: 0.9rem;">Mark this patient as arrived? They will be automatically added to today&rsquo;s queue.</p>
+                        <p style="color: #4b5563; margin: 0 0 16px; font-size: 14px; line-height: 1.5;">Mark this patient as arrived? They will be automatically added to today&rsquo;s queue.</p>
                     </div>
                     <div id="markArrivedResult" style="display: none;"></div>
-                    <div id="markArrivedActions" style="display: flex; gap: 12px; margin-top: 20px; justify-content: flex-end;">
-                        <button onclick="closeMarkArrivedModal()" class="btn-cancel" style="padding: 10px 20px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
-                        <button id="markArrivedConfirmBtn" onclick="confirmMarkArrived()" class="btn-primary" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Confirm Mark as Arrived</button>
+                    <div id="markArrivedActions" style="display: flex; gap: 12px; margin-top: 8px; justify-content: center; flex-wrap: wrap;">
+                        <button onclick="closeMarkArrivedModal()" class="btn-cancel" style="min-width: 120px; padding: 10px 20px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; display:inline-flex;align-items:center;justify-content:center;">Cancel</button>
+                        <button id="markArrivedConfirmBtn" onclick="confirmMarkArrived()" class="btn-primary" style="min-width: 120px; padding: 10px 20px; background: #0ea5e9; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; display:inline-flex;align-items:center;justify-content:center;">Confirm</button>
                     </div>
                 </div>
             `;
@@ -2208,10 +2214,10 @@ try {
         document.getElementById('markArrivedResult').style.display = 'none';
         document.getElementById('markArrivedResult').innerHTML = '';
         const actions = document.getElementById('markArrivedActions');
-        actions.style.justifyContent = 'flex-end';
+        actions.style.justifyContent = 'center';
         actions.innerHTML = `
-            <button onclick="closeMarkArrivedModal()" class="btn-cancel" style="padding: 10px 20px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
-            <button id="markArrivedConfirmBtn" onclick="confirmMarkArrived()" class="btn-primary" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Confirm Mark as Arrived</button>
+            <button onclick="closeMarkArrivedModal()" class="btn-cancel" style="min-width: 120px; padding: 10px 20px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; display:inline-flex;align-items:center;justify-content:center;">Cancel</button>
+            <button id="markArrivedConfirmBtn" onclick="confirmMarkArrived()" class="btn-primary" style="min-width: 120px; padding: 10px 20px; background: #0ea5e9; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; display:inline-flex;align-items:center;justify-content:center;">Confirm</button>
         `;
         actions.style.display = 'flex';
         document.getElementById('markArrivedModal').style.display = 'flex';
@@ -2257,8 +2263,8 @@ try {
                 const actions = document.getElementById('markArrivedActions');
                 actions.style.justifyContent = 'flex-end';
                 actions.innerHTML = `
-                    <button onclick="printMarkArrivedTicket()" class="btn-cancel" style="padding: 10px 20px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; border-radius: 6px; cursor: pointer; font-weight: 600;">🖨 Print Queue No.</button>
-                    <button id="markArrivedDoneBtn" onclick="saveMarkArrivedVitals()" class="btn-primary" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Done</button>
+                    <button onclick="printMarkArrivedTicket()" class="btn-cancel" style="min-width: 120px; padding: 10px 20px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; display:inline-flex;align-items:center;justify-content:center;">Print Queue No.</button>
+                    <button id="markArrivedDoneBtn" onclick="saveMarkArrivedVitals()" class="btn-primary" style="min-width: 120px; padding: 10px 20px; background: #0ea5e9; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; display:inline-flex;align-items:center;justify-content:center;">Done</button>
                 `;
             } else {
                 btn.disabled = false;
@@ -2504,7 +2510,7 @@ try {
     window.printAppointmentQueueTicket = printAppointmentQueueTicket;
 
     function deleteAppointment(id) {
-        if (confirm('Are you sure you want to archive this appointment?\n\nThis will move it to the Archive page where admin can restore or permanently delete it.')) {
+        const runArchive = function () {
             fetch('../api/delete_appointment.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -2535,6 +2541,13 @@ try {
                 console.error('Delete Error:', error);
                 alert('Error deleting appointment: ' + error.message);
             });
+        };
+        if (window.appAsk) {
+            window.appAsk('Are you sure you want to archive this appointment?\nThis will move it to the Archive page where admin can restore or permanently delete it.', runArchive, { title: 'Please Confirm', kind: 'error', confirmText: 'Archive' });
+            return;
+        }
+        if (confirm('Are you sure you want to archive this appointment?\n\nThis will move it to the Archive page where admin can restore or permanently delete it.')) {
+            runArchive();
         }
     }
 

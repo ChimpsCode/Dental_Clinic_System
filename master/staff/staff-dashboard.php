@@ -847,18 +847,17 @@ try {
     </div>
 </div>
 <!-- Dashboard Declining Modal -->
-<div id="dashboardDeclineModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
-    <div class="modal" style="background: white; border-radius: 12px; padding: 24px; width: 90%; max-width: 460px; position: relative; z-index: 100000;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <h2 id="dashboardDeclineTitle" style="font-size: 1.25rem; font-weight: 600; margin: 0;">Decline Appointment</h2>
-            <button onclick="closeDashboardDeclineModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">×</button>
-        </div>
-        <p id="dashboardDeclineMessage" style="color: #374151; margin: 0 0 16px;"></p>
-        <label for="dashboardDeclineReason" style="display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 6px;">Reason (optional)</label>
-        <textarea id="dashboardDeclineReason" rows="3" placeholder="Enter a reason for declining this request..." style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; resize: vertical; box-sizing: border-box; margin-bottom: 20px;"></textarea>
-        <div style="display: flex; justify-content: flex-end; gap: 12px;">
-            <button type="button" onclick="closeDashboardDeclineModal()" style="padding: 10px 20px; background: #f3f4f6; color: #374151; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">Cancel</button>
-            <button type="button" id="dashboardDeclineButton" style="padding: 10px 20px; background: #dc2626; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Decline</button>
+<div id="dashboardDeclineModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 99999; align-items: center; justify-content: center; padding: 16px;">
+    <div class="modal" style="background: #fff; border-radius: 16px; padding: 40px 24px 28px; width: 100%; max-width: 420px; position: relative; z-index: 100000; box-shadow: 0 25px 50px -12px rgba(0,0,0,.35); text-align: center;">
+        <button type="button" onclick="closeDashboardDeclineModal()" aria-label="Close" style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:22px;cursor:pointer;color:#9ca3af;line-height:1;">×</button>
+        <div style="width:56px;height:56px;border-radius:50%;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;background:#fee2e2;color:#dc2626;">!</div>
+        <h2 id="dashboardDeclineTitle" style="font-size:18px;font-weight:700;margin:0 0 6px;color:#991b1b;">Decline Appointment</h2>
+        <p id="dashboardDeclineMessage" style="color:#4b5563;margin:0 0 16px;font-size:14px;line-height:1.5;white-space:pre-line;"></p>
+        <label for="dashboardDeclineReason" style="display:block;font-size:13px;font-weight:600;color:#374151;margin:0 0 6px;text-align:left;">Reason (optional)</label>
+        <textarea id="dashboardDeclineReason" rows="3" placeholder="Enter a reason for declining this request..." style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;resize:vertical;box-sizing:border-box;margin-bottom:18px;text-align:left;"></textarea>
+        <div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap;">
+            <button type="button" onclick="closeDashboardDeclineModal()" style="min-width:120px;padding:10px 20px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;">Cancel</button>
+            <button type="button" id="dashboardDeclineButton" style="min-width:120px;padding:10px 20px;background:#dc2626;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;">Decline</button>
         </div>
     </div>
 </div>
@@ -911,7 +910,7 @@ try {
             <div class="dashboard-inquiry-loading">Loading...</div>
         </div>
     </div>
-    <div id="inquiryPanelChatView" style="display:none;flex-direction:column;flex:1;min-height:0;">
+    <div id="inquiryPanelChatView" style="display:none;flex-direction:column;flex:1;min-height:0;position:relative;overflow:hidden;">
         <div class="chat-modal-header">
             <button type="button" class="chat-modal-back" onclick="showInquiryList()" aria-label="Back">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
@@ -919,9 +918,11 @@ try {
             <div class="chat-modal-avatar" id="inquiryChatAvatar" style="overflow:hidden;">JD</div>
             <div class="chat-modal-user-info">
                 <div class="chat-modal-name" id="inquiryChatName"></div>
-                <div class="chat-modal-email" id="inquiryChatContact"></div>
+                <div class="chat-modal-source" id="inquiryChatSource"></div>
             </div>
-            <div class="chat-modal-source" id="inquiryChatSource"></div>
+            <button type="button" class="chat-info-button" id="dashChatInfoBtn" aria-label="Conversation information" title="Conversation information">
+                <span aria-hidden="true">i</span>
+            </button>
         </div>
         <div class="chat-modal-messages" id="inquiryChatMessages"></div>
         <div class="chat-channel-info" id="inquiryChatChannel"></div>
@@ -929,15 +930,45 @@ try {
             <input type="hidden" id="inquiryChatReplyId">
             <div id="dashReplyAttachmentPreview" class="chat-attachment-preview" style="display:none;"></div>
             <div class="chat-send-row">
-                <button type="button" class="chat-attach-btn" id="dashReplyAttachFile" title="Attach file"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
-                <button type="button" class="chat-attach-btn" id="dashReplyAttachImage" title="Attach image"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></button>
+                <button type="button" class="chat-attach-btn" id="dashReplyAttachFile" title="Attach file"><i class="fas fa-paperclip"></i></button>
+                <button type="button" class="chat-attach-btn" id="dashReplyAttachImage" title="Attach image"><i class="far fa-image"></i></button>
                 <input type="file" id="dashReplyFileInput" style="display:none;" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,image/*">
-                <textarea id="inquiryChatReplyMsg" placeholder="Type your reply..." rows="1"></textarea>
+                <textarea id="inquiryChatReplyMsg" placeholder="Type your message..." rows="1"></textarea>
                 <button type="submit" class="chat-send-btn" aria-label="Send">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4Z"/></svg>
+                    <i class="fas fa-paper-plane"></i>
                 </button>
             </div>
         </form>
+        <div class="staff-chat-info-panel" id="dashChatInfoPanel" aria-hidden="true">
+            <div class="staff-chat-info-header">
+                <button type="button" class="chat-modal-back" id="dashChatInfoBack" aria-label="Back to conversation">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+                </button>
+                Conversation info
+            </div>
+            <div class="staff-chat-info-profile">
+                <div class="staff-chat-info-avatar" id="dashChatInfoAvatar">P</div>
+                <div id="dashChatInfoName"></div>
+            </div>
+            <div class="staff-more-info">
+                <h4>More info</h4>
+                <div class="staff-chat-info-row">
+                    <span>Email</span>
+                    <strong id="inquiryChatEmail">Not provided</strong>
+                </div>
+                <div class="staff-chat-info-row">
+                    <span>Phone</span>
+                    <strong id="inquiryChatPhone">Not provided</strong>
+                </div>
+            </div>
+            <button type="button" class="staff-media-toggle" id="dashMediaToggle" aria-expanded="false">
+                <span>Media &amp; Files</span>
+                <svg class="staff-media-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div class="staff-media-content" id="dashMediaContent">
+                <div class="staff-media-gallery" id="dashMediaGallery"></div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -1376,6 +1407,14 @@ function closeCallModal() {
 }
 
 function showDashboardMessage(message, title = 'Notice') {
+    if (typeof window.showAppNotice === 'function') {
+        const blob = String(title) + ' ' + String(message);
+        let kind = 'info';
+        if (/(error|unable|wrong|fail)/i.test(blob)) kind = 'error';
+        else if (/(approv|success|declined|updated)/i.test(blob)) kind = 'success';
+        window.showAppNotice(title, message, kind);
+        return;
+    }
     document.getElementById('dashboardMessageTitle').textContent = title;
     document.getElementById('dashboardMessageText').textContent = message;
     document.getElementById('dashboardMessageModal').style.display = 'flex';
@@ -1386,6 +1425,15 @@ function closeDashboardMessageModal() {
 }
 
 function openDashboardConfirmModal(message, onConfirm, title = 'Confirm Action') {
+    if (typeof window.appAsk === 'function') {
+        const isDanger = /(delete|cancel this patient)/i.test(String(message) + ' ' + String(title));
+        window.appAsk(message, onConfirm, {
+            title: title,
+            kind: isDanger ? 'error' : 'info',
+            confirmText: /approve/i.test(String(title)) ? 'Approve' : 'OK'
+        });
+        return;
+    }
     document.getElementById('dashboardConfirmTitle').textContent = title;
     document.getElementById('dashboardConfirmMessage').textContent = message;
     dashboardConfirmHandler = onConfirm;
@@ -1963,7 +2011,14 @@ function toggleInquiryPanel() {
 
 function showInquiryList() {
     sendDashboardTypingState(0);
+    showDashboardPatientTyping(false);
     dashboardActiveInquiryId = 0;
+    const info = document.getElementById('dashChatInfoPanel');
+    if (info) {
+        info.classList.remove('open');
+        info.setAttribute('aria-hidden', 'true');
+    }
+    collapseDashMedia();
     document.getElementById('inquiryPanelListView').style.display = 'flex';
     document.getElementById('inquiryPanelChatView').style.display = 'none';
 }
@@ -2069,7 +2124,9 @@ function appendDashboardInquiryReply(reply) {
     if (replyId > 0) bubble.dataset.replyId = String(replyId);
 
     const label = isPatient ? (document.getElementById('inquiryChatName').textContent || 'Patient') : 'Staff';
-    const messageHtml = reply.message ? escapeHtml(reply.message).replace(/\n/g, '<br>') : '';
+    const messageHtml = reply.message
+        ? ((typeof inquiryQuotedMessageHtml === 'function') ? inquiryQuotedMessageHtml(reply.message) : escapeHtml(reply.message).replace(/\n/g, '<br>'))
+        : '';
     let attachmentHtml = '';
     if (reply.attachment) {
         const isImage = /\.(jpe?g|png|gif|webp)$/i.test(reply.attachment);
@@ -2084,23 +2141,53 @@ function appendDashboardInquiryReply(reply) {
 
     const typingIndicator = document.getElementById('patientInquiryTypingIndicator');
     container.insertBefore(bubble, typingIndicator || null);
-    container.scrollTop = container.scrollHeight;
+    scrollDashboardChatToLatest();
 }
 
-function showDashboardPatientTyping(visible) {
+function scrollDashboardChatToLatest() {
+    const el = document.getElementById('inquiryChatMessages');
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+    requestAnimationFrame(function () {
+        el.scrollTop = el.scrollHeight;
+    });
+    setTimeout(function () {
+        el.scrollTop = el.scrollHeight;
+    }, 80);
+}
+
+function ensureDashboardTypingRow() {
     const container = document.getElementById('inquiryChatMessages');
+    if (!container) return null;
     let indicator = document.getElementById('patientInquiryTypingIndicator');
-    if (!indicator && visible) {
+    if (!indicator) {
         indicator = document.createElement('div');
         indicator.id = 'patientInquiryTypingIndicator';
         indicator.className = 'inquiry-typing-indicator';
-        indicator.innerHTML = '<span class="inquiry-typing-dots" aria-label="Patient is typing"><span></span><span></span><span></span></span>';
-        container.appendChild(indicator);
+        indicator.setAttribute('aria-hidden', 'true');
+        indicator.innerHTML = '<div class="inquiry-typing-avatar" id="dashTypingAvatar"></div><div class="inquiry-typing-bubble"><span class="inquiry-typing-dots" aria-label="Patient is typing"><span></span><span></span><span></span></span></div>';
     }
-    if (indicator) {
-        indicator.style.display = visible ? 'flex' : 'none';
-        if (visible) container.scrollTop = container.scrollHeight;
+    container.appendChild(indicator);
+    const avatar = indicator.querySelector('#dashTypingAvatar');
+    const chatAvatar = document.getElementById('inquiryChatAvatar');
+    if (avatar && chatAvatar) {
+        const img = chatAvatar.querySelector('img');
+        if (img) {
+            avatar.innerHTML = '<img src="' + img.getAttribute('src') + '" alt="">';
+        } else {
+            avatar.innerHTML = '';
+            avatar.textContent = (chatAvatar.textContent || 'P').trim();
+        }
     }
+    return indicator;
+}
+
+function showDashboardPatientTyping(visible) {
+    const indicator = document.getElementById('patientInquiryTypingIndicator') || (visible ? ensureDashboardTypingRow() : null);
+    if (!indicator) return;
+    indicator.classList.toggle('is-on', !!visible);
+    indicator.style.display = visible ? 'flex' : 'none';
+    if (visible) scrollDashboardChatToLatest();
 }
 
 async function sendDashboardTypingState(isTyping) {
@@ -2152,16 +2239,25 @@ async function openDashboardInquiryChat(id) {
     if (!inquiry) return;
 
     const fullName = [inquiry.first_name, inquiry.middle_name, inquiry.last_name].filter(Boolean).join(' ') || 'Unknown Patient';
-    const contactParts = [inquiry.email, inquiry.phone || inquiry.contact_info].filter(Boolean);
     document.getElementById('inquiryChatName').textContent = fullName;
-    document.getElementById('inquiryChatContact').textContent = contactParts.join(' · ') || 'No contact';
+    document.getElementById('dashChatInfoName').textContent = fullName;
     document.getElementById('inquiryChatSource').textContent = inquiry.source || 'Website';
+    document.getElementById('inquiryChatEmail').textContent = inquiry.email || 'No email';
+    document.getElementById('inquiryChatPhone').textContent = inquiry.phone || inquiry.contact_info || 'No phone';
+    const infoPanel = document.getElementById('dashChatInfoPanel');
+    if (infoPanel) {
+        infoPanel.classList.remove('open');
+        infoPanel.setAttribute('aria-hidden', 'true');
+    }
     const avatarEl = document.getElementById('inquiryChatAvatar');
+    const infoAvatar = document.getElementById('dashChatInfoAvatar');
     if (inquiry.patient_profile_picture) {
         avatarEl.innerHTML = '<img src="../../' + escapeHtml(inquiry.patient_profile_picture) + '" alt="" style="width:44px;height:44px;border-radius:50%;object-fit:cover;">';
+        infoAvatar.innerHTML = '<img src="../../' + escapeHtml(inquiry.patient_profile_picture) + '" alt="">';
     } else {
         avatarEl.textContent = getInitials(fullName);
         avatarEl.style.background = 'linear-gradient(135deg,#2563eb,#1d4ed8)';
+        infoAvatar.textContent = getInitials(fullName);
     }
     document.getElementById('inquiryChatReplyId').value = inquiry.id;
 
@@ -2172,7 +2268,10 @@ async function openDashboardInquiryChat(id) {
     const originalBubble = document.createElement('div');
     originalBubble.className = 'chat-bubble received';
     const createdDate = inquiry.created_at ? new Date(String(inquiry.created_at).replace(' ', 'T')).toLocaleString() : '';
-    originalBubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:3px;">' + escapeHtml(fullName) + '</div><div>' + escapeHtml(concernText).replace(/\n/g, '<br>') + '</div><div class="chat-meta">' + escapeHtml(createdDate) + '</div>';
+    const concernHtml = (typeof inquiryQuotedMessageHtml === 'function')
+        ? inquiryQuotedMessageHtml(concernText)
+        : escapeHtml(concernText).replace(/\n/g, '<br>');
+    originalBubble.innerHTML = '<div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:3px;">' + escapeHtml(fullName) + '</div><div>' + concernHtml + '</div><div class="chat-meta">' + escapeHtml(createdDate) + '</div>';
     container.appendChild(originalBubble);
 
     try {
@@ -2189,7 +2288,9 @@ async function openDashboardInquiryChat(id) {
                 if (!reply.message && reply.attachment) bubble.classList.add('attachment-only');
                 if (reply.id) bubble.dataset.replyId = String(reply.id);
                 const label = isNotStaff ? fullName : 'Staff';
-                const msgText = reply.message ? escapeHtml(reply.message).replace(/\n/g, '<br>') : '';
+                const msgText = reply.message
+                    ? ((typeof inquiryQuotedMessageHtml === 'function') ? inquiryQuotedMessageHtml(reply.message) : escapeHtml(reply.message).replace(/\n/g, '<br>'))
+                    : '';
                 let attHtml = '';
                 if (reply.attachment) {
                     const isImg = /\.(jpe?g|png|gif|webp)$/i.test(reply.attachment);
@@ -2213,7 +2314,8 @@ async function openDashboardInquiryChat(id) {
         });
     }
 
-    container.scrollTop = container.scrollHeight;
+    ensureDashboardTypingRow();
+    showDashboardPatientTyping(false);
 
     const channelInfo = document.getElementById('inquiryChatChannel');
     if ((inquiry.source || '') === 'Patient Portal' && inquiry.patient_id) {
@@ -2226,6 +2328,7 @@ async function openDashboardInquiryChat(id) {
     document.getElementById('inquiryPanelChatView').style.display = 'flex';
     dashboardActiveInquiryId = Number(inquiry.id);
     dashboardTypingState = 0;
+    scrollDashboardChatToLatest();
 
     if ((inquiry.status || 'Unread') === 'Unread') {
         inquiry.status = 'Read';
@@ -2985,14 +3088,145 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
     margin-top: 2px;
 }
 .chat-modal-source {
+    display: inline-flex;
+    width: fit-content;
     font-size: 11px;
     font-weight: 700;
     padding: 5px 10px;
+    margin-top: 4px;
     border-radius: 999px;
     background: #eff6ff;
     color: #1d4ed8;
-    flex-shrink: 0;
 }
+.chat-info-button {
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 50%;
+    background: #eff6ff;
+    color: #2563eb;
+    cursor: pointer;
+}
+.chat-info-button span {
+    font: 700 22px/1 Georgia, serif;
+    color: #2563eb;
+}
+.chat-info-button:hover { background: #dbeafe; }
+.staff-chat-info-panel {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    background: #fff;
+    transform: translateX(100%);
+    visibility: hidden;
+    transition: transform .25s ease, visibility .25s;
+}
+.staff-chat-info-panel.open {
+    transform: translateX(0);
+    visibility: visible;
+}
+.staff-chat-info-header {
+    min-height: 72px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    color: #0f172a;
+    font-weight: 700;
+}
+.staff-chat-info-profile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 28px 20px;
+    border-bottom: 1px solid #eef2f7;
+    color: #0f172a;
+    font-size: 17px;
+    font-weight: 700;
+    text-align: center;
+}
+.staff-chat-info-profile .staff-chat-info-avatar {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+}
+.staff-chat-info-profile .staff-chat-info-avatar img {
+    width: 76px;
+    height: 76px;
+    object-fit: cover;
+}
+.staff-more-info {
+    padding: 16px 20px;
+    border-bottom: 1px solid #eef2f7;
+}
+.staff-more-info h4 {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.staff-chat-info-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: none;
+}
+.staff-chat-info-row span {
+    display: block;
+    color: #64748b;
+    font-size: 13px;
+    margin-bottom: 0;
+}
+.staff-chat-info-row strong {
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: right;
+    word-break: break-word;
+}
+.staff-media-toggle {
+    width: 100%;
+    min-height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border: none;
+    border-bottom: 1px solid #eef2f7;
+    background: #fff;
+    color: #0f172a;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+.staff-media-toggle:hover { background: #f8fafc; }
+.staff-media-chevron { transition: transform 0.2s; }
+.staff-media-toggle.open .staff-media-chevron { transform: rotate(180deg); }
+.staff-media-content { display: none; padding: 12px; }
+.staff-media-content.open { display: block; }
+.staff-media-gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.staff-media-item { aspect-ratio: 1; overflow: hidden; padding: 0; border: none; border-radius: 8px; background: #e2e8f0; cursor: pointer; }
+.staff-media-item img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.staff-media-empty { grid-column: 1 / -1; padding: 36px 16px; color: #64748b; font-size: 13px; text-align: center; }
 .chat-modal-messages {
     flex: 1;
     overflow-y: auto;
@@ -3050,22 +3284,49 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
 }
 .inquiry-typing-indicator {
     align-self: flex-start;
+    display: none;
+    align-items: flex-end;
+    gap: 8px;
+}
+.inquiry-typing-indicator.is-on {
+    display: flex;
+}
+.inquiry-typing-avatar,
+.inquiry-typing-avatar img {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #fff;
     display: flex;
     align-items: center;
-    gap: 7px;
-    padding: 7px 10px;
-    color: #64748b;
-    font-size: 12px;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    border: 1px solid #dbe3ee;
+}
+.inquiry-typing-bubble {
+    display: flex;
+    align-items: center;
+    min-width: 54px;
+    min-height: 38px;
+    padding: 10px 14px;
+    border-radius: 19px;
+    border-bottom-left-radius: 6px;
+    background: #e2e8f0;
 }
 .inquiry-typing-dots {
     display: inline-flex;
-    gap: 3px;
+    align-items: center;
+    gap: 4px;
 }
 .inquiry-typing-dots span {
-    width: 5px;
-    height: 5px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
-    background: #94a3b8;
+    background: #64748b;
     animation: inquiryTypingWave 1.1s infinite ease-in-out;
 }
 .inquiry-typing-dots span:nth-child(2) { animation-delay: .15s; }
@@ -3086,37 +3347,45 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
     color: #475569;
 }
 .chat-compose {
-    padding: 14px 20px 18px;
+    padding: 12px;
     border-top: 1px solid #e5e7eb;
     background: #fff;
 }
 .chat-send-row {
     display: flex;
-    gap: 10px;
-    align-items: flex-end;
+    gap: 6px;
+    align-items: center;
+    min-height: 58px;
+    padding: 6px;
+    border: 1px solid #2563eb;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(37,99,235,.08);
 }
 .chat-send-row textarea {
     flex: 1;
-    border: 1px solid #d1d5db;
-    border-radius: 20px;
-    padding: 12px 16px;
+    min-width: 0;
+    height: 44px;
+    border: none;
+    padding: 11px 8px;
     font: inherit;
     font-size: 14px;
+    line-height: 22px;
     resize: none;
-    min-height: 48px;
+    min-height: 44px;
     max-height: 120px;
     outline: none;
-    transition: border-color 0.2s;
-    background: #f9fafb;
+    background: transparent;
+    box-sizing: border-box;
 }
 .chat-send-row textarea:focus {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
-    background: #fff;
+    border: none;
+    box-shadow: none;
+    background: transparent;
 }
 .chat-send-btn {
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     border: none;
     background: linear-gradient(135deg, #2563eb, #1d4ed8);
@@ -3143,17 +3412,17 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
     height: 40px;
     border-radius: 50%;
     border: none;
-    background: #f1f5f9;
+    background: transparent;
     color: #64748b;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    transition: background 0.2s, color 0.2s;
+    font-size: 16px;
 }
 .chat-attach-btn:hover {
-    background: #e2e8f0;
+    background: #eff6ff;
     color: #2563eb;
 }
 .chat-attachment-preview {
@@ -3290,4 +3559,63 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('scCalPrev'))
 }
 
 </style>
+<script src="../../assets/js/inquiry_quote.js"></script>
+<script>
+function collapseDashMedia() {
+    const toggle = document.getElementById('dashMediaToggle');
+    const content = document.getElementById('dashMediaContent');
+    if (toggle) {
+        toggle.classList.remove('open');
+        toggle.setAttribute('aria-expanded', 'false');
+    }
+    if (content) content.classList.remove('open');
+}
+
+function renderDashInquiryMediaGallery() {
+    const gallery = document.getElementById('dashMediaGallery');
+    if (!gallery) return;
+    const seen = new Set();
+    const items = [];
+    document.querySelectorAll('#inquiryChatMessages img.chat-att-img').forEach((img) => {
+        const src = img.getAttribute('src');
+        if (!src || seen.has(src)) return;
+        seen.add(src);
+        items.push(src);
+    });
+    if (!items.length) {
+        gallery.innerHTML = '<div class="staff-media-empty">No photos have been shared in this conversation.</div>';
+        return;
+    }
+    gallery.innerHTML = items.map((src) =>
+        '<button type="button" class="staff-media-item" onclick="openLightbox(' + JSON.stringify(src) + ')" aria-label="View shared photo">'
+        + '<img src="' + escapeHtml(src) + '" alt="" loading="lazy">'
+        + '</button>'
+    ).join('');
+}
+
+document.getElementById('dashChatInfoBtn')?.addEventListener('click', function () {
+    const panel = document.getElementById('dashChatInfoPanel');
+    if (panel) {
+        renderDashInquiryMediaGallery();
+        panel.classList.add('open');
+        panel.setAttribute('aria-hidden', 'false');
+    }
+});
+document.getElementById('dashChatInfoBack')?.addEventListener('click', function () {
+    const panel = document.getElementById('dashChatInfoPanel');
+    if (panel) {
+        panel.classList.remove('open');
+        panel.setAttribute('aria-hidden', 'true');
+    }
+    collapseDashMedia();
+});
+document.getElementById('dashMediaToggle')?.addEventListener('click', function () {
+    const toggle = document.getElementById('dashMediaToggle');
+    const content = document.getElementById('dashMediaContent');
+    if (!toggle || !content) return;
+    const isOpen = content.classList.toggle('open');
+    toggle.classList.toggle('open', isOpen);
+    toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+});
+</script>
 <?php require_once '../../includes/staff_layout_end.php'; ?>

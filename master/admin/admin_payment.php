@@ -484,7 +484,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                         <button type="button" class="pay-detail-tab active" data-tab="overview" onclick="switchPayDetailTab('overview')">Overview</button>
                         <button type="button" class="pay-detail-tab" data-tab="history" onclick="switchPayDetailTab('history')">History</button>
                         <button type="button" class="pay-detail-tab" data-tab="record" onclick="switchPayDetailTab('record')">Record Payment</button>
-                    </div>
+                </div>
                     <div class="modal-body pay-detail-body">
                         <input type="hidden" id="payDetailQueueId">
                         <input type="hidden" id="payDetailPatientId">
@@ -514,16 +514,16 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                 <div style="margin-bottom: 12px;">
                                     <label class="pay-detail-label" for="editPaymentAmount">New Amount (&#8369;)</label>
                                     <input type="number" id="editPaymentAmount" class="pay-detail-input" min="0" step="0.01">
-                                </div>
+                    </div>
                                 <div style="margin-bottom: 12px;">
                                     <label class="pay-detail-label" for="editPaymentReason">Reason for Change</label>
                                     <input type="text" id="editPaymentReason" class="pay-detail-input" placeholder="e.g., Discount applied, Additional procedure">
                                 </div>
                                 <div class="pay-detail-due-row" style="justify-content:flex-end;">
                                     <button type="button" class="btn-primary" onclick="savePaymentEdit()">Save Changes</button>
-                                </div>
-                            </div>
-                        </div>
+                    </div>
+                </div>
+            </div>
 
                         <div id="payTabHistory" class="pay-detail-tab-panel" style="display:none;">
                             <div id="paidServicesWrap"></div>
@@ -542,8 +542,8 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                             </table>
                             <div id="paymentHistoryEmpty" style="display:none;text-align:center;padding:2rem;color:#9ca3af;">
                                 <p>No payment records found.</p>
+                    </div>
                             </div>
-                        </div>
 
                         <div id="payTabRecord" class="pay-detail-tab-panel" style="display:none;">
                             <div id="recordPaymentPaidState" class="pay-detail-paid-state" style="display:none;">
@@ -562,48 +562,48 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                     <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:0.85rem;">
                                         <span style="color:#6b7280;">Total: <span id="recordPaymentTotalAmount">P0.00</span></span>
                                         <span style="color:#6b7280;">Paid: <span id="recordPaymentPaidSoFar" style="color:#16a34a;">P0.00</span></span>
-                                    </div>
-                                </div>
-                                <div style="margin-top: 1rem;">
-                                    <label class="pay-detail-label">Payment Amount</label>
-                                    <input type="number" id="recordPaymentAmount" step="0.01" min="0.01" class="pay-detail-input">
-                                </div>
-                                <div style="margin-top: 1rem;">
-                                    <label class="pay-detail-label">Payment Method</label>
-                                    <select id="recordPaymentMethod" class="pay-detail-input">
-                                        <option value="cash">Cash</option>
-                                        <option value="gcash">GCash</option>
-                                        <option value="bank_transfer">Bank Transfer</option>
-                                        <option value="installment">Installment</option>
-                                        <option value="downpayment">Downpayment</option>
-                                    </select>
-                                </div>
-                                <div class="pay-detail-due-row" style="margin-top:16px;justify-content:flex-end;">
-                                    <button type="button" class="btn-primary" onclick="confirmRecordPayment()">Record Payment</button>
-                                </div>
                             </div>
                         </div>
+                        <div style="margin-top: 1rem;">
+                                    <label class="pay-detail-label">Payment Amount</label>
+                                    <input type="number" id="recordPaymentAmount" step="0.01" min="0.01" class="pay-detail-input">
+                        </div>
+                        <div style="margin-top: 1rem;">
+                                    <label class="pay-detail-label">Payment Method</label>
+                                    <select id="recordPaymentMethod" class="pay-detail-input">
+                                <option value="cash">Cash</option>
+                                <option value="gcash">GCash</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="installment">Installment</option>
+                                <option value="downpayment">Downpayment</option>
+                            </select>
+                        </div>
+                                <div class="pay-detail-due-row" style="margin-top:16px;justify-content:flex-end;">
+                                    <button type="button" class="btn-primary" onclick="confirmRecordPayment()">Record Payment</button>
                     </div>
+                    </div>
+                </div>
+            </div>
                     <div id="payMarkPaidConfirm" class="pay-mark-paid-confirm" style="display:none;">
                         <p>Are you sure you want to mark this as <strong>Paid</strong>?</p>
                         <div class="payment-details">
                             <div class="detail-row">
                                 <span class="detail-label">Treatment:</span>
                                 <span class="detail-value" id="confirmPaymentTreatment">-</span>
-                            </div>
+                    </div>
                             <div class="detail-row">
                                 <span class="detail-label">Total Amount:</span>
                                 <span class="detail-value" id="confirmPaymentTotalAmount">P0.00</span>
-                            </div>
+                    </div>
                             <div class="detail-row">
                                 <span class="detail-label">Already Paid:</span>
                                 <span class="detail-value" id="confirmPaymentPaidSoFar">P0.00</span>
-                            </div>
+                </div>
                             <div class="detail-row">
                                 <span class="detail-label">Balance to Pay:</span>
                                 <span class="detail-value" id="confirmPaymentBalance" style="font-weight: 700; color: #059669;">P0.00</span>
-                            </div>
-                        </div>
+            </div>
+                    </div>
                         <div class="pay-detail-due-row" style="margin-top:12px;justify-content:flex-end;">
                             <button type="button" class="btn-cancel" onclick="hideMarkPaidConfirm()">Cancel</button>
                             <button type="button" class="btn-primary" onclick="confirmPayment()">Confirm Payment</button>
@@ -614,13 +614,13 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                             <label class="pay-detail-footer-label" for="setDueDateInput">Due Date</label>
                             <input type="date" id="setDueDateInput">
                             <button type="button" class="btn-primary" onclick="confirmSetDueDate()">Save due date</button>
-                        </div>
+                    </div>
                         <div class="pay-detail-footer-right">
                             <div id="payMarkPaidSection" style="display:none;">
                                 <button type="button" class="btn-primary" id="payMarkPaidBtn" onclick="showMarkPaidConfirm()">Mark as Paid</button>
-                            </div>
+                </div>
                             <button type="button" class="btn-cancel" onclick="closePaymentModal()">Close</button>
-                        </div>
+            </div>
                     </div>
                 </div>
             </div>
@@ -815,12 +815,12 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
                     if (!isPaid && !isVoided) {
                         html += (button.dataset.discountType === 'none'
-                            ? '<a href="javascript:void(0)" data-action="toggle-discount" data-billing-id="' + billingId + '" data-apply="1">' +
-                            '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21.41 11.58l-9-9A2 2 0 0 0 11 2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 .59 1.42l9 9A2 2 0 0 0 13 22a2 2 0 0 0 1.41-.59l7-7A2 2 0 0 0 22 13a2 2 0 0 0-.59-1.42M6.5 8A1.5 1.5 0 1 1 8 6.5A1.5 1.5 0 0 1 6.5 8"/></svg>' +
-                            'Apply SC/PWD Discount</a>'
-                            : '<a href="javascript:void(0)" data-action="toggle-discount" data-billing-id="' + billingId + '" data-apply="0">' +
-                            '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12z"/></svg>' +
-                            'Remove SC/PWD Discount</a>');
+                                ? '<a href="javascript:void(0)" data-action="toggle-discount" data-billing-id="' + billingId + '" data-apply="1">' +
+                                '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21.41 11.58l-9-9A2 2 0 0 0 11 2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 .59 1.42l9 9A2 2 0 0 0 13 22a2 2 0 0 0 1.41-.59l7-7A2 2 0 0 0 22 13a2 2 0 0 0-.59-1.42M6.5 8A1.5 1.5 0 1 1 8 6.5A1.5 1.5 0 0 1 6.5 8"/></svg>' +
+                                'Apply SC/PWD Discount</a>'
+                                : '<a href="javascript:void(0)" data-action="toggle-discount" data-billing-id="' + billingId + '" data-apply="0">' +
+                                '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12z"/></svg>' +
+                                'Remove SC/PWD Discount</a>');
                     }
 
                     html += '<a href="javascript:void(0)" data-action="print" data-invoice-id="' + invoiceId + '">' +
@@ -1236,7 +1236,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                         '<div style="margin-bottom:16px;">' +
                                             '<div class="detail-row"><span class="detail-label">Patient:</span><span class="detail-value">' + patientName + '</span></div>' +
                                             '<div class="detail-row"><span class="detail-label">Phone:</span><span class="detail-value">' + (patientInfo.phone || 'N/A') + '</span></div>' +
-                                        '</div>' +
+                        '</div>' +
                                         '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;margin-bottom:16px;">' +
                                             '<div style="display:flex;justify-content:space-between;align-items:center;">' +
                                                 '<span style="color:#0f172a;font-weight:600;">Still due</span>' + statusBadge +
@@ -1273,7 +1273,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                 '<div class="detail-row"><span class="detail-label">Billing Date:</span><span class="detail-value">' + (billing.billing_date || 'N/A') + '</span></div>' +
                                 '<div class="detail-row"><span class="detail-label">Due Date:</span><span class="detail-value">' + (billing.due_date ? formatDueDate(billing.due_date) : '<span style="color:#9ca3af;">Not set</span>') + '</span></div>' +
                                 '<div class="detail-row"><span class="detail-label">Notes:</span><span class="detail-value">' + (billing.notes || 'N/A') + '</span></div>' +
-                            '</div>';
+                        '</div>';
                     } else if (data.success) {
                         var fallbackStatus = forceVoided ? 'voided' : data.payment_status;
                         document.getElementById('paymentModalContent').innerHTML =
@@ -1522,7 +1522,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                         : '../shared/billing_actions.php?action=get_payments&billing_id=' + encodeURIComponent(billingId);
                     fetch(historyUrl)
                         .then(function(response) { return response.json(); })
-                        .then(function(data) {
+                    .then(function(data) {
                             var payments = (data.success && data.payments) ? data.payments : [];
                             var hasPaid = !!(payDetailPaidServices && payDetailPaidServices.length);
                             var hasPayments = payments.length > 0;
@@ -1541,14 +1541,14 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                         '<td>' + (p.reference_number || '-') + '</td>';
                                     tbody.appendChild(row);
                                 });
-                            } else {
+                        } else {
                                 if (payTable) payTable.style.display = 'none';
                                 empty.style.display = hasPaid ? 'none' : 'block';
-                            }
-                        })
-                        .catch(function() {
+                        }
+                    })
+                    .catch(function() {
                             tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:#dc2626;">Error loading payment history.</td></tr>';
-                        });
+                    });
                 }
 
                 function confirmSetDueDate() {

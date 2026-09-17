@@ -13,10 +13,14 @@
     function parseInquiryQuotedMessage(text) {
         const raw = String(text || '');
         const match = raw.match(/^\[\[QUOTE\]\]\s*([\s\S]*?)\s*\[\[\/QUOTE\]\]\s*([\s\S]*)$/);
-        if (!match) {
-            return { quote: '', message: raw };
+        if (match) {
+            return { quote: match[1].trim(), message: match[2] };
         }
-        return { quote: match[1].trim(), message: match[2] };
+        const loose = raw.match(/^([\s\S]*?)\[\[\/QUOTE\]\]\s*([\s\S]*)$/);
+        if (loose) {
+            return { quote: loose[1].replace(/\[\[QUOTE\]\]/g, '').trim(), message: loose[2] };
+        }
+        return { quote: '', message: raw };
     }
 
     function wrapInquiryQuotedMessage(quote, message) {
