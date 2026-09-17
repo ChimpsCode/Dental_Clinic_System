@@ -15,6 +15,7 @@ if ($__pjax) {
     <script src="../../assets/js/admin_router.js?v=2"></script>
     <?php if (isset($pageScript)) { echo $pageScript; } ?>
     <?php require __DIR__ . '/session_timeout_script.php'; ?>
+    <?php require __DIR__ . '/app_notice_modal_script.php'; ?>
     <script src="../../assets/js/logout_confirm.js?v=3"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {

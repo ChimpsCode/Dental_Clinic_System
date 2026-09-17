@@ -1138,23 +1138,23 @@ $pageTitle = 'Patient Dashboard';
                     <i class="fas fa-home"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="#" class="menu-item" data-page="inquiry">
+                <a href="#" class="menu-item" data-page="inquiry" data-tour="inquiry">
                     <i class="fas fa-comments"></i>
                     <span>Inquiry / Consultation</span>
                 </a>
-                <a href="#" class="menu-item" data-page="appointments">
+                <a href="#" class="menu-item" data-page="appointments" data-tour="appointments">
                     <i class="fas fa-calendar-alt"></i>
                     <span>My appointments</span>
                 </a>
-            <a href="#" class="menu-item" data-page="records">
+            <a href="#" class="menu-item" data-page="records" data-tour="records">
                 <i class="fas fa-file-medical"></i>
                 <span>Medical records</span>
             </a>
-            <a href="#" class="menu-item" data-page="billing">
+            <a href="#" class="menu-item" data-page="billing" data-tour="billing">
                 <i class="fas fa-credit-card"></i>
                 <span>Billing</span>
             </a>
-            <a href="#" class="menu-item" data-page="settings">
+            <a href="#" class="menu-item" data-page="settings" data-tour="settings">
                 <i class="fas fa-cog"></i>
                 <span>Account settings</span>
             </a>
@@ -1178,8 +1178,9 @@ $pageTitle = 'Patient Dashboard';
 </div>
                 </div>
             <div class="header-right">
+                <?php include '../../includes/patient_tour_widget.php'; ?>
                 <?php include '../../includes/patient_notification_widget.php'; ?>
-                <div class="user-profile">
+                <div class="user-profile" data-tour="profile">
                     <div class="user-avatar">
                         <?php 
                             $profPic = $patient['profile_picture'] ?? $_SESSION['profile_picture'] ?? '';
@@ -1219,13 +1220,13 @@ $pageTitle = 'Patient Dashboard';
         <!-- Main Content -->
         <main class="dashboard-main">
             <!-- Welcome Section -->
-            <section class="welcome-section">
+            <section class="welcome-section" data-tour="welcome">
                 <div class="welcome-content">
                     <h1><?php echo (!empty($_SESSION['is_new_patient']) || !empty($_SESSION['new_registration'])) ? 'Welcome' : 'Welcome Back'; ?>, <?php echo htmlspecialchars($patient['first_name'] ?? 'Patient'); ?>!</h1>
                     <?php if (!empty($_SESSION['new_registration'])) unset($_SESSION['new_registration']); ?>
                     <p>Track your oral wellness journey and manage your dental plan details below.</p>
                 </div>
-                <a href="appointments.php" class="btn">
+                <a href="appointments.php" class="btn" data-tour="book">
                     <i class="fas fa-calendar-plus"></i>
                     Book a New Appointment
                 </a>
@@ -1528,7 +1529,7 @@ $pageTitle = 'Patient Dashboard';
             renderCalendar();
         });
     </script>
-    <a href="#" class="floating-message-btn" data-inquiry-launcher aria-label="Open messages" title="Messages">
+    <a href="#" class="floating-message-btn" data-inquiry-launcher data-tour="messages" aria-label="Open messages" title="Messages">
         <i class="fas fa-paper-plane"></i>
         <span class="unread-badge" id="inquiryUnreadBadge" style="display: none;">0</span>
     </a>
