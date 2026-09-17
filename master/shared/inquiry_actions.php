@@ -8,9 +8,6 @@ require_once '../../includes/inquiry_module_helper.php';
 require_once '../../includes/typing_status_helper.php';
 require_once '../../includes/notification_functions.php';
 
-ensureInquiryModuleSchema($pdo);
-ensureNotificationSchema($pdo);
-
 if (!isset($_SESSION['user_id'])) {
     ob_end_clean();
     echo json_encode(['success' => false, 'message' => 'Authentication required.']);
@@ -20,6 +17,10 @@ if (!isset($_SESSION['user_id'])) {
 $role = $_SESSION['role'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $action = $_REQUEST['action'] ?? '';
+session_write_close();
+
+ensureInquiryModuleSchema($pdo);
+ensureNotificationSchema($pdo);
 
 function inquiryJson(array $payload): void
 {

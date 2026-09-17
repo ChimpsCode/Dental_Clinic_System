@@ -15,4 +15,5 @@ if (!empty($GLOBALS['APP_SESSION_EXPIRED']) || empty($_SESSION['user_id'])) {
     exit;
 }
 
+session_write_close();
 echo json_encode(['ok' => true]);

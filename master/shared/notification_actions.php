@@ -18,6 +18,8 @@ if ($userId === 0) {
     exit;
 }
 
+session_write_close();
+
 $action = $_POST['action'] ?? '';
 
 switch ($action) {

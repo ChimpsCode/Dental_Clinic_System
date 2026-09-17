@@ -101,13 +101,6 @@ function ensureInquiryModuleSchema(PDO $pdo): void
         $pdo->exec("ALTER TABLE inquiries DROP COLUMN full_name");
     }
 
-    if (inquiryModuleColumnExists($pdo, 'inquiries', 'source')) {
-        $pdo->exec("ALTER TABLE inquiries MODIFY COLUMN source VARCHAR(50) NOT NULL DEFAULT 'Patient Portal'");
-    }
-    if (inquiryModuleColumnExists($pdo, 'inquiries', 'status')) {
-        $pdo->exec("ALTER TABLE inquiries MODIFY COLUMN status VARCHAR(30) NOT NULL DEFAULT 'Unread'");
-    }
-
     if (!inquiryModuleColumnExists($pdo, 'appointments', 'service_id')) {
         $pdo->exec("ALTER TABLE appointments ADD COLUMN service_id INT NULL AFTER patient_id");
     }

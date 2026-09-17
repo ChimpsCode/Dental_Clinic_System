@@ -17,13 +17,14 @@ if (!$colCheck->fetch()) {
     $pdo->exec("ALTER TABLE users ADD COLUMN profile_picture VARCHAR(255) DEFAULT NULL AFTER updated_at");
 }
 
-// Ensure 2FA columns exist
-try {
+$twoFaCheck = $pdo->query("SHOW COLUMNS FROM users LIKE 'two_factor_enabled'");
+if (!$twoFaCheck->fetch()) {
     $pdo->exec("ALTER TABLE users ADD COLUMN two_factor_enabled TINYINT(1) DEFAULT 0");
-} catch (Exception $e) {}
-try {
+}
+$twoFaSecretCheck = $pdo->query("SHOW COLUMNS FROM users LIKE 'two_factor_secret'");
+if (!$twoFaSecretCheck->fetch()) {
     $pdo->exec("ALTER TABLE users ADD COLUMN two_factor_secret VARCHAR(255) DEFAULT NULL");
-} catch (Exception $e) {}
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_profile') {
     $firstSan = sanitize_name($_POST['first_name'] ?? '', true, 80, 'First name');
