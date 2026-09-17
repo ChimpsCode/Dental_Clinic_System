@@ -1104,14 +1104,6 @@ $pageTitle = 'Patient Dashboard';
                 font-size: 11px;
             }
 
-            .dashboard-header {
-                justify-content: flex-end;
-            }
-
-            .header-left {
-                display: none;
-            }
-
             .header-right {
                 gap: 12px;
             }
@@ -1123,7 +1115,7 @@ $pageTitle = 'Patient Dashboard';
             }
         }
     </style>
-    <link rel="stylesheet" href="../../assets/css/patient_portal.css?v=6">
+    <link rel="stylesheet" href="../../assets/css/patient_portal.css?v=7">
 </head>
 <body>
     <!-- Sidebar -->

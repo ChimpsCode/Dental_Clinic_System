@@ -503,3 +503,105 @@ body {
         font-size: 11px !important;
     }
 }
+
+@media (max-width: 1024px) {
+    html,
+    body {
+        overflow-x: hidden;
+        max-width: 100%;
+    }
+
+    .header-left {
+        display: flex !important;
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+
+    .header-left > div {
+        min-width: 0;
+    }
+
+    .header-left h1,
+    .header-left > div h1 {
+        font-size: 16px !important;
+        line-height: 1.25;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .header-left p {
+        display: none !important;
+    }
+
+    .dashboard-main {
+        padding: 14px 12px calc(88px + env(safe-area-inset-bottom, 0px)) !important;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .page-title {
+        font-size: 22px !important;
+    }
+
+    .booking-layout {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+    }
+
+    .tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        flex-wrap: nowrap;
+    }
+
+    .tab-btn {
+        flex-shrink: 0;
+    }
+
+    .welcome-section .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .form-select,
+    .form-textarea,
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="password"],
+    input[type="date"],
+    select,
+    textarea {
+        font-size: 16px !important;
+        max-width: 100%;
+    }
+
+    table {
+        display: block;
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+@media (max-width: 480px) {
+    .time-slots {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    .calendar-day {
+        min-height: 40px;
+        font-size: 12px;
+    }
+
+    .btn-book,
+    .welcome-section .btn {
+        min-height: 48px;
+    }
+
+    .floating-message-btn {
+        right: max(12px, env(safe-area-inset-right));
+        bottom: max(12px, env(safe-area-inset-bottom));
+    }
+}

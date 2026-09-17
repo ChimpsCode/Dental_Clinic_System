@@ -30,6 +30,7 @@
     box-sizing: border-box;
     padding: 16px 18px 12px;
     font-family: sans-serif;
+    z-index: 300010 !important;
 }
 
 .driver-popover.patient-tour-popover.patient-tour-popover-pending {
@@ -174,8 +175,29 @@ svg.driver-overlay {
 
 @media (max-width: 1024px) {
     .driver-popover.patient-tour-popover {
-        width: min(300px, calc(100vw - 32px));
-        max-width: min(300px, calc(100vw - 32px));
+        width: calc(100vw - 24px);
+        max-width: calc(100vw - 24px);
+    }
+
+    .driver-popover.patient-tour-popover .driver-popover-footer {
+        flex-wrap: wrap;
+        justify-content: space-between;
+        row-gap: 8px;
+    }
+
+    .driver-popover.patient-tour-popover .driver-popover-progress-text {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .driver-popover.patient-tour-popover .driver-popover-navigation-btns {
+        margin-left: auto;
+        flex-shrink: 0;
+    }
+
+    .driver-popover.patient-tour-popover .driver-popover-next-btn,
+    .driver-popover.patient-tour-popover .driver-popover-prev-btn {
+        padding: 8px 12px;
     }
 }
 

@@ -719,7 +719,7 @@ $pageTitle = 'Medical Records';
             .dashboard-main { padding: 16px; }
         }
     </style>
-    <link rel="stylesheet" href="../../assets/css/patient_portal.css">
+    <link rel="stylesheet" href="../../assets/css/patient_portal.css?v=7">
 </head>
 <body>
     <aside class="sidebar" id="patientSidebar">

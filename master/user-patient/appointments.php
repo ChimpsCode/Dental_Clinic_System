@@ -303,20 +303,25 @@ $pageTitle = 'My Appointments';
         
         @media (max-width: 1024px) { .booking-layout { grid-template-columns: 1fr; } }
         @media (max-width: 768px) {
-            .sidebar { width: 60px; padding: 24px 0; }
-            .sidebar-brand span, .menu-item span { display: none; }
-            .sidebar-brand { justify-content: center; padding: 0; }
-            .menu-item { justify-content: center; padding: 14px; }
-            .main-wrapper { margin-left: 60px; }
             .dashboard-header { padding: 12px 16px; }
             .user-details { display: none; }
-            .dashboard-main { padding: 16px; }
-            .time-slots { grid-template-columns: repeat(3, 1fr); }
-            .appointment-card { flex-direction: column; text-align: center; }
-            .apt-date { width: 100%; }
+            .dashboard-main { padding: 12px; padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
+            .page-title { font-size: 22px; }
+            .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .tab-btn { flex-shrink: 0; padding: 10px 16px; }
+            .time-slots { grid-template-columns: repeat(2, 1fr); }
+            .calendar-box, .booking-box, .card { padding: 16px; }
+            .appointment-card { flex-direction: column; align-items: stretch; text-align: left; }
+            .apt-date { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; }
+            .modal { width: calc(100% - 24px); max-width: 500px; padding: 20px; }
+        }
+        @media (max-width: 480px) {
+            .calendar-day { min-height: 40px; font-size: 12px; }
+            .btn-book { min-height: 48px; font-size: 15px; }
+            .form-select, .form-textarea { font-size: 16px; }
         }
     </style>
-    <link rel="stylesheet" href="../../assets/css/patient_portal.css">
+    <link rel="stylesheet" href="../../assets/css/patient_portal.css?v=7">
 </head>
 <body>
     <aside class="sidebar" id="patientSidebar">

@@ -236,7 +236,7 @@ $pageTitle = 'Billing';
             .invoice-table { display: block; overflow-x: auto; }
         }
     </style>
-    <link rel="stylesheet" href="../../assets/css/patient_portal.css">
+    <link rel="stylesheet" href="../../assets/css/patient_portal.css?v=7">
 </head>
 <body>
     <aside class="sidebar" id="patientSidebar">
