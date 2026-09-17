@@ -2,6 +2,7 @@
 header('Content-Type: application/json');
 require_once '../../config/database.php';
 require_once '../../includes/inquiry_module_helper.php';
+require_once '../../includes/typing_status_helper.php';
 
 ensureInquiryModuleSchema($pdo);
 
@@ -32,16 +33,9 @@ $inquiryId = (int)$inquiry['id'];
 $action = trim((string)($_POST['action'] ?? $_GET['action'] ?? ''));
 
 if ($action === 'set_typing' || $action === 'conversation_updates') {
-    ensureInquiryTypingSchema($pdo);
-
     if ($action === 'set_typing') {
-        $isTyping = (int)($_POST['is_typing'] ?? 0) === 1 ? 1 : 0;
-        $typingStmt = $pdo->prepare("
-            INSERT INTO inquiry_typing_status (inquiry_id, sender_type, is_typing, updated_at)
-            VALUES (?, 'patient', ?, NOW())
-            ON DUPLICATE KEY UPDATE is_typing = VALUES(is_typing), updated_at = NOW()
-        ");
-        $typingStmt->execute([$inquiryId, $isTyping]);
+        $isTyping = (int)($_POST['is_typing'] ?? 0) === 1;
+        setTypingStatus('inquiry', $inquiryId, 'patient', $isTyping);
         echo json_encode(['success' => true]);
         exit;
     }
@@ -56,19 +50,10 @@ if ($action === 'set_typing' || $action === 'conversation_updates') {
     $replyStmt->execute([$inquiryId, $lastReplyId]);
     $newReplies = $replyStmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $typingStmt = $pdo->prepare("
-        SELECT is_typing, updated_at, user_id
-        FROM inquiry_typing_status
-        WHERE inquiry_id = ? AND sender_type = 'staff'
-        LIMIT 1
-    ");
-    $typingStmt->execute([$inquiryId]);
-    $typingRow = $typingStmt->fetch(PDO::FETCH_ASSOC) ?: null;
-    $staffIsTyping = $typingRow
-        && (int)$typingRow['is_typing'] === 1
-        && (time() - strtotime((string)$typingRow['updated_at'])) <= 6;
+    $typing = getTypingStatus('inquiry', $inquiryId, 'staff', 6);
+    $staffIsTyping = $typing['is_typing'];
 
-    $staffUserId = (int)($typingRow['user_id'] ?? 0);
+    $staffUserId = $typing['user_id'];
     if ($staffUserId <= 0) {
         $staffUserId = (int)($inquiry['assigned_staff_id'] ?? 0);
     }

@@ -172,6 +172,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const registerSuccess = document.getElementById('registerSuccess');
     const registerPasswordInput = document.getElementById('reg_password');
     const registerConfirmPasswordInput = document.getElementById('reg_confirm_password');
+    [registerPasswordInput, registerConfirmPasswordInput].forEach(function(el) {
+        if (!el) return;
+        el.addEventListener('focus', function() {
+            el.removeAttribute('readonly');
+        });
+    });
     const toggleRegisterPassword = document.getElementById('toggleRegPassword');
     const toggleRegisterConfirmPassword = document.getElementById('toggleRegConfirmPassword');
     const forgotError = document.getElementById('forgotError');
@@ -408,14 +414,58 @@ document.addEventListener('DOMContentLoaded', function() {
             && /[^A-Za-z0-9]/.test(password);
     }
 
-    function getPasswordStrengthState(password) {
-        const hasLength = password.length >= 8;
-        const hasUpper = /[A-Z]/.test(password);
-        const hasLower = /[a-z]/.test(password);
-        const hasNumber = /[0-9]/.test(password);
-        const hasSymbol = /[^A-Za-z0-9]/.test(password);
+    function getPasswordRuleFlags(password) {
+        return {
+            length: password.length >= 8,
+            upper: /[A-Z]/.test(password),
+            lower: /[a-z]/.test(password),
+            number: /[0-9]/.test(password),
+            symbol: /[^A-Za-z0-9]/.test(password)
+        };
+    }
 
-        const matchedRules = [hasLength, hasUpper, hasLower, hasNumber, hasSymbol].filter(Boolean).length;
+    function updatePasswordRequirementChecks(password) {
+        const flags = getPasswordRuleFlags(password || '');
+        document.querySelectorAll('#regPasswordStrengthBox [data-rule]').forEach(function(item) {
+            const met = !!flags[item.getAttribute('data-rule')];
+            if (item.classList.contains('is-met') === met) return;
+            item.classList.toggle('is-met', met);
+        });
+    }
+
+    function updateConfirmPasswordMatch() {
+        const hint = document.getElementById('regPasswordMatchHint');
+        const text = hint ? hint.querySelector('.pwd-match-text') : null;
+        const password = registerPasswordInput ? registerPasswordInput.value : '';
+        const confirm = registerConfirmPasswordInput ? registerConfirmPasswordInput.value : '';
+
+        if (!hint || !text || !registerConfirmPasswordInput) return;
+
+        hint.classList.remove('is-met', 'is-mismatch', 'is-idle');
+
+        if (!confirm) {
+            hint.classList.add('is-idle');
+            text.textContent = 'Re-enter password to confirm';
+            registerConfirmPasswordInput.dataset.match = 'empty';
+            return;
+        }
+
+        if (password && password === confirm) {
+            hint.classList.add('is-met');
+            text.textContent = 'Passwords match';
+            registerConfirmPasswordInput.dataset.match = 'match';
+            return;
+        }
+
+        hint.classList.add('is-mismatch');
+        text.textContent = 'Passwords do not match';
+        registerConfirmPasswordInput.dataset.match = 'mismatch';
+    }
+
+    function getPasswordStrengthState(password) {
+        const flags = getPasswordRuleFlags(password);
+        const hasLength = flags.length;
+        const matchedRules = [flags.length, flags.upper, flags.lower, flags.number, flags.symbol].filter(Boolean).length;
 
         if (!password) {
             return {
@@ -459,6 +509,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const value = input.value || '';
             const state = getPasswordStrengthState(value);
             input.dataset.strength = state.strength;
+            updatePasswordRequirementChecks(value);
+            updateConfirmPasswordMatch();
         };
 
         input.addEventListener('input', update);
@@ -471,11 +523,17 @@ document.addEventListener('DOMContentLoaded', function() {
         registerPasswordInput
     );
 
+    if (registerConfirmPasswordInput) {
+        registerConfirmPasswordInput.addEventListener('input', updateConfirmPasswordMatch);
+        registerConfirmPasswordInput.addEventListener('blur', updateConfirmPasswordMatch);
+        updateConfirmPasswordMatch();
+    }
+
     function bindDigitsOnlyField(field) {
         if (!field) return;
 
         const sanitize = () => {
-            const digits = field.value.replace(/\D+/g, '');
+            const digits = field.value.replace(/\D+/g, '').slice(0, 11);
             if (field.value !== digits) {
                 field.value = digits;
             }
@@ -490,7 +548,14 @@ document.addEventListener('DOMContentLoaded', function() {
             ];
 
             if (allowedKeys.includes(e.key)) return;
-            if (/^[0-9]$/.test(e.key)) return;
+            if (/^[0-9]$/.test(e.key)) {
+                const start = field.selectionStart ?? field.value.length;
+                const end = field.selectionEnd ?? field.value.length;
+                if (field.value.length >= 11 && start === end) {
+                    e.preventDefault();
+                }
+                return;
+            }
             if (e.key.startsWith('F') && e.key.length <= 3) return;
 
             e.preventDefault();
@@ -502,9 +567,26 @@ document.addEventListener('DOMContentLoaded', function() {
         sanitize();
     }
 
+    bindDigitsOnlyField(document.getElementById('reg_phone'));
     bindDigitsOnlyField(document.getElementById('reg-phone'));
     bindDigitsOnlyField(document.getElementById('reg_emergency_phone'));
     bindDigitsOnlyField(document.getElementById('reg-emergency-phone'));
+
+    function isValidPhMobile(value) {
+        return /^09\d{9}$/.test(String(value || '').replace(/\D+/g, ''));
+    }
+
+    function showRegisterError(message) {
+        if (!registerError) return;
+        registerError.textContent = message;
+        registerError.style.display = 'block';
+    }
+
+    function hideRegisterError() {
+        if (!registerError) return;
+        registerError.textContent = '';
+        registerError.style.display = 'none';
+    }
 
     if (registerNextBtn) {
         registerNextBtn.addEventListener('click', function() {
@@ -522,6 +604,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
+            if (!isValidPhMobile(phone) || !isValidPhMobile(emergencyPhone)) {
+                showRegisterError('Enter a valid 11-digit mobile number starting with 09.');
+                return;
+            }
+
+            hideRegisterError();
             showRegistrationStep(2);
             const emailField = document.getElementById('reg_email');
             if (emailField) emailField.focus();

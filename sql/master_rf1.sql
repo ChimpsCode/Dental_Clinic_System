@@ -131,15 +131,6 @@ CREATE TABLE IF NOT EXISTS `audit_logs` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS `chat_typing_status` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `patient_id` int(11) NOT NULL,
-  `sender_type` enum('patient','staff') NOT NULL,
-  `is_typing` tinyint(1) NOT NULL DEFAULT 0,
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
 CREATE TABLE IF NOT EXISTS `content_images` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `file_name` varchar(255) NOT NULL,

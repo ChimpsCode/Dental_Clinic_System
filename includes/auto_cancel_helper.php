@@ -15,8 +15,7 @@ function autoCancelNoShows($pdo) {
                    p.email, p.first_name, p.last_name
             FROM appointments a
             LEFT JOIN patients p ON a.patient_id = p.id
-            WHERE (a.status_id NOT IN (4, 5) OR a.status_id IS NULL)
-              AND (LOWER(a.status) NOT IN ('completed', 'cancelled', 'pending approval') OR a.status IS NULL)
+            WHERE (LOWER(a.status) NOT IN ('completed', 'cancelled', 'pending approval') OR a.status IS NULL)
               AND a.check_in_time IS NULL
               AND (
                 a.appointment_date < CURDATE()
@@ -45,7 +44,7 @@ function autoCancelNoShows($pdo) {
         require_once $phpMailerBase . '/SMTP.php';
     }
 
-    $updateStmt = $pdo->prepare("UPDATE appointments SET status = 'cancelled', status_id = 5, cancel_reason = ? WHERE id = ?");
+    $updateStmt = $pdo->prepare("UPDATE appointments SET status = 'cancelled', cancel_reason = ? WHERE id = ?");
 
     foreach ($appointments as $appt) {
         $reason = 'Auto-cancelled due to no-show (patient did not arrive within ' . $minutes . ' minutes of appointment time)';

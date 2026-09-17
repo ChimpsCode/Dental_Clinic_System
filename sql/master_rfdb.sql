@@ -1085,20 +1085,6 @@ INSERT INTO `billing` (`id`, `patient_id`, `treatment_id`, `appointment_id`, `to
 -- --------------------------------------------------------
 
 --
--- Table structure for table `chat_typing_status`
---
-
-CREATE TABLE `chat_typing_status` (
-  `id` int(11) NOT NULL,
-  `patient_id` int(11) NOT NULL,
-  `sender_type` enum('patient','staff') NOT NULL,
-  `is_typing` tinyint(1) NOT NULL DEFAULT 0,
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
-
---
 -- Table structure for table `consultations`
 --
 
@@ -2219,12 +2205,6 @@ ALTER TABLE `billing`
   ADD KEY `fk_billing_appt` (`appointment_id`);
 
 --
--- Indexes for table `chat_typing_status`
---
-ALTER TABLE `chat_typing_status`
-  ADD PRIMARY KEY (`id`);
-
---
 -- Indexes for table `consultations`
 --
 ALTER TABLE `consultations`
@@ -2455,12 +2435,6 @@ ALTER TABLE `audit_logs`
 --
 ALTER TABLE `billing`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=40;
-
---
--- AUTO_INCREMENT for table `chat_typing_status`
---
-ALTER TABLE `chat_typing_status`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `consultations`

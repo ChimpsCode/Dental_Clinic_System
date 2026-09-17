@@ -67,18 +67,6 @@ function ensureInquiryModuleSchema(PDO $pdo): void
         $pdo->exec("INSERT IGNORE INTO inquiry_statuses (status_name) VALUES ('Unread'), ('Read'), ('Replied')");
     }
 
-    if (!tableExists($pdo, 'appointment_statuses')) {
-        $pdo->exec("
-            CREATE TABLE IF NOT EXISTS appointment_statuses (
-                id INT(11) NOT NULL AUTO_INCREMENT,
-                status_name VARCHAR(50) NOT NULL,
-                PRIMARY KEY (id),
-                UNIQUE KEY uk_appointment_status_name (status_name)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
-        ");
-        $pdo->exec("INSERT IGNORE INTO appointment_statuses (status_name) VALUES ('Pending'), ('Confirmed'), ('Cancelled'), ('Completed')");
-    }
-
     if (!inquiryModuleColumnExists($pdo, 'inquiries', 'status')) {
         $pdo->exec("ALTER TABLE inquiries ADD COLUMN status VARCHAR(30) NOT NULL DEFAULT 'Unread' AFTER status_id");
     }
@@ -215,32 +203,6 @@ function ensureInquiryReplySchema(PDO $pdo): void
 
     if (!inquiryModuleColumnExists($pdo, 'inquiry_replies', 'attachment')) {
         $pdo->exec("ALTER TABLE `inquiry_replies` ADD COLUMN `attachment` VARCHAR(500) DEFAULT NULL AFTER `sender_type`");
-    }
-
-    $ensured = true;
-}
-
-function ensureInquiryTypingSchema(PDO $pdo): void
-{
-    static $ensured = false;
-    if ($ensured) {
-        return;
-    }
-
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS `inquiry_typing_status` (
-            `inquiry_id` INT(11) NOT NULL,
-            `sender_type` ENUM('patient','staff') NOT NULL,
-            `is_typing` TINYINT(1) NOT NULL DEFAULT 0,
-            `user_id` INT(11) DEFAULT NULL,
-            `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (`inquiry_id`, `sender_type`),
-            KEY `idx_inquiry_typing_updated` (`updated_at`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
-    ");
-
-    if (!inquiryModuleColumnExists($pdo, 'inquiry_typing_status', 'user_id')) {
-        $pdo->exec("ALTER TABLE `inquiry_typing_status` ADD COLUMN `user_id` INT(11) DEFAULT NULL AFTER `is_typing`");
     }
 
     $ensured = true;

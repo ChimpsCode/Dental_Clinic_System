@@ -142,7 +142,7 @@ $assets = [
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,700;1,400&family=Inria+Sans:wght@400;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="../../assets/css/home-styles.css?v=14" />
+    <link rel="stylesheet" href="../../assets/css/home-styles.css?v=15" />
     <link rel="stylesheet" href="../../assets/css/home-integration.css" />
     <link rel="stylesheet" href="../../assets/css/chatbot-components.css" />
     <script src="../../assets/js/home-integration.js" defer></script>
@@ -418,7 +418,6 @@ $assets = [
           </div>
         </div>
       </section>
-      <div class="hero-scroll-space" aria-hidden="true"></div>
 
       <section id="about" class="section about" style="padding-bottom:50px">
         <div class="container about-inner">
@@ -857,44 +856,6 @@ $assets = [
         }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
 
         targets.forEach((el) => observer.observe(el));
-      })();
-
-      // Hero zoom while scrolling the buffer, before About Us covers it
-      (() => {
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-
-        const heroInner = document.querySelector('.hero-inner');
-        const space = document.querySelector('.hero-scroll-space');
-        if (!heroInner || !space) return;
-
-        const MAX_SCALE = 1.08;
-        let ticking = false;
-
-        function pageScrollY() {
-          return Math.max(
-            window.pageYOffset || 0,
-            document.documentElement.scrollTop || 0,
-            document.body.scrollTop || 0
-          );
-        }
-
-        function updateZoom() {
-          ticking = false;
-          const range = space.offsetHeight || 1;
-          const progress = Math.min(1, Math.max(0, pageScrollY() / range));
-          heroInner.style.transform = 'scale(' + (1 + (MAX_SCALE - 1) * progress) + ')';
-        }
-
-        function onScroll() {
-          if (ticking) return;
-          ticking = true;
-          requestAnimationFrame(updateZoom);
-        }
-
-        window.addEventListener('scroll', onScroll, { passive: true });
-        document.addEventListener('scroll', onScroll, { capture: true, passive: true });
-
-        updateZoom();
       })();
 
       // Count-up animation for stats

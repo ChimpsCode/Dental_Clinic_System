@@ -369,20 +369,6 @@ INSERT INTO `billing` (`id`, `patient_id`, `treatment_id`, `appointment_id`, `to
 -- --------------------------------------------------------
 
 --
--- Table structure for table `chat_typing_status`
---
-
-CREATE TABLE `chat_typing_status` (
-  `id` int(11) NOT NULL,
-  `patient_id` int(11) NOT NULL,
-  `sender_type` enum('patient','staff') NOT NULL,
-  `is_typing` tinyint(1) NOT NULL DEFAULT 0,
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
-
---
 -- Table structure for table `content_images`
 --
 
@@ -1404,13 +1390,6 @@ INSERT INTO `users` (`id`, `role_id`, `first_name`, `middle_name`, `last_name`, 
 --
 
 --
--- Indexes for table `chat_typing_status`
---
-ALTER TABLE `chat_typing_status`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `uq_chat_typing` (`patient_id`,`sender_type`);
-
---
 -- Indexes for table `content_images`
 --
 ALTER TABLE `content_images`
@@ -1713,12 +1692,6 @@ ALTER TABLE `users`
 --
 -- AUTO_INCREMENT for dumped tables
 --
-
---
--- AUTO_INCREMENT for table `chat_typing_status`
---
-ALTER TABLE `chat_typing_status`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `content_images`

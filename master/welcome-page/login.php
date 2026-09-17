@@ -909,8 +909,8 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RF Dental Clinic - Login</title>
     <link rel="icon" type="image/png" href="<?php echo htmlspecialchars($loginLogo); ?>">
-    <link rel="stylesheet" href="../../assets/css/login-new.css?v=5">
-    <link rel="stylesheet" href="../../assets/css/login-new.css?v=4">
+    <link rel="stylesheet" href="../../assets/css/login-new.css?v=6">
+    <link rel="stylesheet" href="../../assets/css/login-new.css?v=6">
     <style>
         #registrationContainer {
             position: relative;
@@ -1273,7 +1273,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
                         </div>
 
                         <div class="input-group">
-                            <input type="tel" id="reg_phone" name="phone" placeholder="Phone Number" required maxlength="11" inputmode="numeric" pattern="[0-9]*" autocomplete="tel">
+                            <input type="tel" id="reg_phone" name="phone" placeholder="Phone Number" required maxlength="11" inputmode="numeric" pattern="09[0-9]{9}" title="11-digit mobile number starting with 09" autocomplete="tel">
                         </div>
 
                         <div style="display: flex; gap: 12px; width: 100%;">
@@ -1299,7 +1299,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
 
                         <div style="display: flex; gap: 12px; width: 100%;">
                             <div class="input-group" style="flex:1;">
-                                <input type="tel" id="reg_emergency_phone" name="emergency_contact_phone" placeholder="Emergency Contact Number" required maxlength="11" inputmode="numeric" pattern="[0-9]*" autocomplete="tel">
+                                <input type="tel" id="reg_emergency_phone" name="emergency_contact_phone" placeholder="Emergency Contact Number" required maxlength="11" inputmode="numeric" pattern="09[0-9]{9}" title="11-digit mobile number starting with 09" autocomplete="tel">
                             </div>
                             <div class="input-group" style="flex:1;">
                                 <select id="reg_emergency_relationship" name="emergency_contact_relationship" required>
@@ -1476,7 +1476,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
         <div class="toast-loading-line"></div>
     </div>
     
-    <script src="../../assets/js/login.js?v=4"></script>
+    <script src="../../assets/js/login.js?v=7"></script>
     
     <?php if ($showDeletedMsg): ?>
     <script>

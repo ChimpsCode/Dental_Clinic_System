@@ -16,6 +16,7 @@ if (!in_array($role, ['admin', 'staff'], true)) {
 }
 
 require_once '../../config/database.php';
+require_once '../../includes/typing_status_helper.php';
 
 function jsonResponse(array $payload, int $status = 200): void
 {
@@ -75,21 +76,6 @@ function ensureMessagesTable(PDO $pdo): void
             ELSE 'system'
         END
         WHERE `sender_type` IS NULL OR `sender_type` = ''
-    ");
-}
-
-function ensureTypingTable(PDO $pdo): void
-{
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS `chat_typing_status` (
-            `id` INT(11) NOT NULL AUTO_INCREMENT,
-            `patient_id` INT(11) NOT NULL,
-            `sender_type` ENUM('patient','staff') NOT NULL,
-            `is_typing` TINYINT(1) NOT NULL DEFAULT 0,
-            `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (`id`),
-            UNIQUE KEY `uq_chat_typing` (`patient_id`, `sender_type`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
     ");
 }
 
@@ -208,7 +194,6 @@ function getStaffUnreadSummary(PDO $pdo, array $columns): array
 
 try {
     ensureMessagesTable($pdo);
-    ensureTypingTable($pdo);
     $messageColumns = tableColumns($pdo, 'messages');
     $senderSqlExpr = senderExpr($messageColumns);
     $staffUserId = (int)($_SESSION['user_id'] ?? 0);
@@ -276,13 +261,8 @@ try {
         if ($patientId <= 0) {
             jsonResponse(['success' => false, 'message' => 'Invalid patient.'], 422);
         }
-        $isTyping = (int)($_POST['is_typing'] ?? 0) === 1 ? 1 : 0;
-        $typingUpsert = $pdo->prepare("
-            INSERT INTO chat_typing_status (patient_id, sender_type, is_typing, updated_at)
-            VALUES (?, 'staff', ?, NOW())
-            ON DUPLICATE KEY UPDATE is_typing = VALUES(is_typing), updated_at = NOW()
-        ");
-        $typingUpsert->execute([$patientId, $isTyping]);
+        $isTyping = (int)($_POST['is_typing'] ?? 0) === 1;
+        setTypingStatus('chat', $patientId, 'staff', $isTyping);
         jsonResponse(['success' => true]);
     }
 
@@ -305,24 +285,11 @@ try {
         ));
         markPatientThreadAsRead($pdo, $patientId, $messageColumns);
 
-        $typingStmt = $pdo->prepare("
-            SELECT is_typing, updated_at
-            FROM chat_typing_status
-            WHERE patient_id = ? AND sender_type = 'patient'
-            LIMIT 1
-        ");
-        $typingStmt->execute([$patientId]);
-        $typingRow = $typingStmt->fetch(PDO::FETCH_ASSOC) ?: null;
-        $patientTyping = false;
-        if ($typingRow) {
-            $recent = (time() - strtotime($typingRow['updated_at'])) <= 8;
-            $patientTyping = ((int)$typingRow['is_typing'] === 1) && $recent;
-        }
-
+        $typing = getTypingStatus('chat', $patientId, 'patient', 8);
         jsonResponse([
             'success' => true,
             'messages' => $newMessages,
-            'patient_typing' => $patientTyping
+            'patient_typing' => $typing['is_typing']
         ]);
     }
 

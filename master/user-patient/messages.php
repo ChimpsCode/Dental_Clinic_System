@@ -31,6 +31,7 @@ $isAjaxRequest = $_SERVER['REQUEST_METHOD'] === 'POST'
 
 require_once '../../config/database.php';
 require_once '../../includes/patient_session_helper.php';
+require_once '../../includes/typing_status_helper.php';
 $patientSessionSettings = getPatientSessionSettings($pdo, (int)($_SESSION['user_id'] ?? 0));
 
 const AUTO_REPLY_TEXT = "Thank you for your message! Please wait for our staff to respond your message. We appreciate your patience.";
@@ -107,21 +108,6 @@ function ensureMessagesTable(PDO $pdo): void
     }
 }
 
-function ensureTypingTable(PDO $pdo): void
-{
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS `chat_typing_status` (
-            `id` INT(11) NOT NULL AUTO_INCREMENT,
-            `patient_id` INT(11) NOT NULL,
-            `sender_type` ENUM('patient','staff') NOT NULL,
-            `is_typing` TINYINT(1) NOT NULL DEFAULT 0,
-            `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (`id`),
-            UNIQUE KEY `uq_chat_typing` (`patient_id`, `sender_type`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
-    ");
-}
-
 function buildMessageInsert(PDO $pdo, array $columns, array $data): int
 {
     $insertCols = [];
@@ -194,7 +180,6 @@ function getPatientUnreadCount(PDO $pdo, int $patientId, array $columns): int
 
 try {
     ensureMessagesTable($pdo);
-    ensureTypingTable($pdo);
     $messageColumns = tableColumns($pdo, 'messages');
 
     $userStmt = $pdo->prepare("
@@ -313,35 +298,18 @@ try {
         ");
         $pollStmt->execute([$patient_id, $lastId]);
         $newMessages = $pollStmt->fetchAll(PDO::FETCH_ASSOC);
-        $typingStmt = $pdo->prepare("
-            SELECT is_typing, updated_at
-            FROM chat_typing_status
-            WHERE patient_id = ? AND sender_type = 'staff'
-            LIMIT 1
-        ");
-        $typingStmt->execute([$patient_id]);
-        $typingRow = $typingStmt->fetch(PDO::FETCH_ASSOC) ?: null;
-        $staffTyping = false;
-        if ($typingRow) {
-            $recent = (time() - strtotime($typingRow['updated_at'])) <= 8;
-            $staffTyping = ((int)$typingRow['is_typing'] === 1) && $recent;
-        }
+        $typing = getTypingStatus('chat', (int)$patient_id, 'staff', 8);
         jsonResponse([
             'success' => true,
             'messages' => $newMessages,
-            'staff_typing' => $staffTyping,
+            'staff_typing' => $typing['is_typing'],
             'unread_count' => getPatientUnreadCount($pdo, (int)$patient_id, $messageColumns)
         ]);
     }
 
     if ($isAjaxTyping) {
-        $isTyping = (int)($_POST['is_typing'] ?? 0) === 1 ? 1 : 0;
-        $typingUpsert = $pdo->prepare("
-            INSERT INTO chat_typing_status (patient_id, sender_type, is_typing, updated_at)
-            VALUES (?, 'patient', ?, NOW())
-            ON DUPLICATE KEY UPDATE is_typing = VALUES(is_typing), updated_at = NOW()
-        ");
-        $typingUpsert->execute([$patient_id, $isTyping]);
+        $isTyping = (int)($_POST['is_typing'] ?? 0) === 1;
+        setTypingStatus('chat', (int)$patient_id, 'patient', $isTyping);
         jsonResponse(['success' => true]);
     }
 

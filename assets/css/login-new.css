@@ -594,9 +594,117 @@ body {
     margin-bottom: 6px;
 }
 
-.registration-password-box ul {
+.pwd-req-list {
+    list-style: none;
     margin: 0;
-    padding-left: 18px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.pwd-req,
+.pwd-match-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #64748b;
+    font-size: 13px;
+    transition: color 0.2s ease;
+}
+
+.pwd-check {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    display: inline-flex;
+}
+
+.pwd-check svg {
+    width: 20px;
+    height: 20px;
+    overflow: visible;
+}
+
+.pwd-check-bg {
+    fill: #fff;
+    stroke: #cbd5e1;
+    stroke-width: 1.75;
+    transition: fill 0.22s ease, stroke 0.22s ease;
+}
+
+.pwd-check-mark {
+    fill: none;
+    stroke: #fff;
+    stroke-width: 2.3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 20;
+    stroke-dashoffset: 20;
+    transition: stroke-dashoffset 0.32s ease 0.08s;
+}
+
+.pwd-check-x {
+    fill: none;
+    stroke: #ef4444;
+    stroke-width: 2.1;
+    stroke-linecap: round;
+    opacity: 0;
+    transform-origin: 12px 12px;
+    transform: scale(0.6);
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.pwd-req.is-met,
+.pwd-match-hint.is-met {
+    color: #15803d;
+    font-weight: 600;
+}
+
+.pwd-req.is-met .pwd-check-bg,
+.pwd-match-hint.is-met .pwd-check-bg {
+    fill: #22c55e;
+    stroke: #16a34a;
+}
+
+.pwd-req.is-met .pwd-check-mark,
+.pwd-match-hint.is-met .pwd-check-mark {
+    stroke-dashoffset: 0;
+}
+
+.pwd-req.is-met .pwd-check,
+.pwd-match-hint.is-met .pwd-check {
+    animation: pwdCheckPop 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.pwd-match-hint {
+    margin: 2px 0 14px;
+    min-height: 22px;
+}
+
+.pwd-match-hint.is-idle {
+    color: #94a3b8;
+}
+
+.pwd-match-hint.is-mismatch {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.pwd-match-hint.is-mismatch .pwd-check-bg {
+    fill: #fef2f2;
+    stroke: #ef4444;
+}
+
+.pwd-match-hint.is-mismatch .pwd-check-x {
+    opacity: 1;
+    transform: scale(1);
+}
+
+@keyframes pwdCheckPop {
+    0% { transform: scale(0.72); }
+    55% { transform: scale(1.18); }
+    100% { transform: scale(1); }
 }
 
 #reg_password,
@@ -620,6 +728,16 @@ body {
 
 #reg_password[data-strength="strong"] {
     border-color: #16a34a !important;
+    box-shadow: none !important;
+}
+
+#reg_confirm_password[data-match="match"] {
+    border-color: #16a34a !important;
+    box-shadow: none !important;
+}
+
+#reg_confirm_password[data-match="mismatch"] {
+    border-color: #ef4444 !important;
     box-shadow: none !important;
 }
 
@@ -1109,67 +1227,166 @@ body {
 
 @media (max-width: 1024px) {
     .login-container {
-        flex-direction: column;
-        min-height: auto;
-        gap: 40px;
-        padding: 40px 24px;
+        display: block;
+        position: relative;
+        min-height: 100dvh;
+        height: 100dvh;
+        gap: 0;
+        padding: 0;
     }
     
     .carousel-section {
-        flex: 1 1 auto;
-        min-width: 0;
-        max-width: 520px;
+        position: fixed;
+        inset: 0;
         width: 100%;
-        height: 400px;
+        height: 100dvh;
+        max-width: none;
+        z-index: 0 !important;
+    }
+    
+    .carousel-wrapper,
+    .carousel,
+    .carousel-image {
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        object-fit: cover;
     }
     
     .image-section {
         display: none;
     }
     
-    .form-section {
-        flex: 1;
-        min-width: 0;
-        max-width: 100%;
+    .carousel-content {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 18px;
+        z-index: 30;
+        opacity: 1;
+        pointer-events: none;
+        text-align: center;
+        transform: translateX(-20px);
+    }
+
+    .carousel-heading {
+        color: #fff;
+        opacity: 1;
+        text-align: center;
         width: 100%;
+        padding: 0;
+    }
+    
+    .form-section {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 96px;
+        z-index: 20 !important;
+        height: auto;
+        min-width: 0;
+        max-width: none;
+        width: 100%;
+        background: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex-direction: column;
+        padding: 72px 16px 12px;
+        overflow-y: auto;
     }
     
     .login-form-container {
-        max-width: 100%;
+        position: relative;
+        z-index: 21;
+        max-width: 420px;
+        margin: 0 auto;
     }
 }
 
 @media (max-width: 768px) {
     .login-container {
-        flex-direction: column;
-        min-height: auto;
+        display: block;
+        position: relative;
+        min-height: 100dvh;
+        height: 100dvh;
+        gap: 0;
+        padding: 0;
     }
     
     .carousel-section {
-        flex: 0 0 auto;
-        height: 250px;
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100dvh;
+        max-width: none;
+        z-index: 0 !important;
+    }
+    
+    .carousel-wrapper,
+    .carousel,
+    .carousel-image {
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        object-fit: cover;
     }
     
     .carousel-heading {
-        font-size: 1rem;
-        padding: 0 16px;
+        font-size: 1.15rem;
+        padding: 0 20px;
     }
     
     .carousel-content {
-        bottom: 40px;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 18px;
+        z-index: 30;
+        opacity: 1;
+        pointer-events: none;
+        text-align: center;
+        transform: translateX(-12px);
+    }
+
+    .carousel-heading {
+        color: #fff;
+        opacity: 1;
+        text-align: center;
+        width: 100%;
+        padding: 0;
     }
     
     .carousel-dots {
-        bottom: 16px;
+        bottom: 12px;
+        z-index: 4;
     }
     
     .form-section {
-        flex: 1;
-        padding: 32px 24px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 96px;
+        z-index: 20 !important;
+        height: auto;
+        background: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex-direction: column;
+        padding: 72px 16px 12px;
+        overflow-y: auto;
     }
     
     .login-form-container {
-        padding: 40px 32px;
+        position: relative;
+        z-index: 21;
+        width: 100%;
+        max-width: 420px;
+        margin: 0 auto;
+        padding: 22px 20px 14px;
     }
     
     .clinic-name {
@@ -1201,27 +1418,28 @@ body {
 
 @media (max-width: 480px) {
     .login-container {
-        flex-direction: column;
+        min-height: 100dvh;
+        height: 100dvh;
     }
     
     .carousel-section {
-        height: 200px;
+        height: 100dvh;
     }
     
     .carousel-heading {
-        font-size: 0.95rem;
+        font-size: 1rem;
     }
     
     .carousel-content {
-        bottom: 40px;
+        bottom: 24px;
     }
     
     .form-section {
-        padding: 24px 16px;
+        padding: 64px 14px 100px;
     }
     
     .login-form-container {
-        padding: 24px 16px;
+        padding: 18px 16px 12px;
     }
     
     .clinic-name {

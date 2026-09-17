@@ -5,6 +5,7 @@ header('Content-Type: application/json');
 
 require_once '../../config/database.php';
 require_once '../../includes/inquiry_module_helper.php';
+require_once '../../includes/typing_status_helper.php';
 require_once '../../includes/notification_functions.php';
 
 ensureInquiryModuleSchema($pdo);
@@ -585,20 +586,11 @@ if ($action === 'conversation_updates' || $action === 'set_typing') {
     }
 
     ensureInquiryReplySchema($pdo);
-    ensureInquiryTypingSchema($pdo);
 
     if ($action === 'set_typing') {
-        $isTyping = (int)($_POST['is_typing'] ?? 0) === 1 ? 1 : 0;
+        $isTyping = (int)($_POST['is_typing'] ?? 0) === 1;
         $userId = (int)($_SESSION['user_id'] ?? 0);
-        $typingStmt = $pdo->prepare("
-            INSERT INTO inquiry_typing_status (inquiry_id, sender_type, is_typing, user_id, updated_at)
-            VALUES (?, ?, ?, ?, NOW())
-            ON DUPLICATE KEY UPDATE
-                is_typing = VALUES(is_typing),
-                user_id = VALUES(user_id),
-                updated_at = NOW()
-        ");
-        $typingStmt->execute([$id, $senderType, $isTyping, $userId > 0 ? $userId : null]);
+        setTypingStatus('inquiry', $id, $senderType, $isTyping, $userId > 0 ? $userId : null);
         inquiryJson(['success' => true]);
     }
 
@@ -620,21 +612,12 @@ if ($action === 'conversation_updates' || $action === 'set_typing') {
         }
     }
 
-    $typingStmt = $pdo->prepare("
-        SELECT is_typing, updated_at, user_id
-        FROM inquiry_typing_status
-        WHERE inquiry_id = ? AND sender_type = ?
-        LIMIT 1
-    ");
-    $typingStmt->execute([$id, $otherSenderType]);
-    $typingRow = $typingStmt->fetch(PDO::FETCH_ASSOC) ?: null;
-    $otherIsTyping = $typingRow
-        && (int)$typingRow['is_typing'] === 1
-        && (time() - strtotime((string)$typingRow['updated_at'])) <= 6;
+    $typing = getTypingStatus('inquiry', $id, $otherSenderType, 6);
+    $otherIsTyping = $typing['is_typing'];
 
     $staffAvatar = '';
     if ($senderType === 'patient' && $otherIsTyping) {
-        $staffAvatar = resolveStaffProfilePictureUrl($pdo, (int)($typingRow['user_id'] ?? 0));
+        $staffAvatar = resolveStaffProfilePictureUrl($pdo, $typing['user_id']);
     }
 
     inquiryJson([
