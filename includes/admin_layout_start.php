@@ -174,6 +174,7 @@ function isActivePage($page) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../assets/css/dashboard.css">
     <link rel="stylesheet" href="../../assets/css/admin.css">
+    <link rel="stylesheet" href="../../assets/css/notif_dropdown_mobile.css">
     <link rel="stylesheet" href="../../assets/css/appointments.css">
     <link rel="stylesheet" href="../../assets/css/mini_calendar.css">
     <style>

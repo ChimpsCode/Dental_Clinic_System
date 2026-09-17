@@ -75,6 +75,7 @@ $notifInitial = $notifUserId ? getNotifications($pdo, $notifUserId, 8) : [];
     }
     .notif-empty i { display: block; font-size: 28px; margin-bottom: 8px; color: #d1d5db; }
 </style>
+<link rel="stylesheet" href="../../assets/css/notif_dropdown_mobile.css">
 
 <div class="notif-wrapper">
     <button type="button" class="notif-bell-btn" id="notifBellBtn" aria-label="Notifications">

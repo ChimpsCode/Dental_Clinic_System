@@ -125,6 +125,7 @@ $staffTwoFactorEnabled = (int)($user['two_factor_enabled'] ?? 0) === 1;
     .avatar-upload-actions { flex-direction: column; align-items: flex-start; }
 }
 </style>
+<link rel="stylesheet" href="../../assets/css/profile_cover.css">
 
 <div class="content-main">
 
@@ -149,7 +150,8 @@ $staffTwoFactorEnabled = (int)($user['two_factor_enabled'] ?? 0) === 1;
     $date_of_birth = $user['date_of_birth'] ?? '';
     ?>
 
-    <div class="section">
+    <div class="section profile-intro-section">
+        <div class="profile-cover" aria-hidden="true"></div>
         <div class="profile-header">
             <div class="profile-avatar">
                 <?php if ($profPic && file_exists(dirname(__DIR__, 2) . '/' . $profPic)): ?>
@@ -263,6 +265,7 @@ $staffTwoFactorEnabled = (int)($user['two_factor_enabled'] ?? 0) === 1;
 
 <?php require_once __DIR__ . '/../../includes/partials/two_factor_modals.php'; ?>
 
+<script src="../../assets/js/profile_photo_view.js"></script>
 <?php require_once __DIR__ . '/../../includes/staff_layout_end.php'; ?>
 <script src="../../assets/js/two_factor_setup.js"></script>
 <script>

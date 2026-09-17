@@ -425,6 +425,7 @@ $pageTitle = 'My Profile';
         .otp-modal-content { background: white; padding: 24px; border-radius: 12px; width: 100%; max-width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
     </style>
     <link rel="stylesheet" href="../../assets/css/patient_portal.css">
+    <link rel="stylesheet" href="../../assets/css/profile_cover.css">
 </head>
 <body>
     <aside class="sidebar" id="patientSidebar">
@@ -519,14 +520,15 @@ $pageTitle = 'My Profile';
                 <div class="alert alert-<?php echo $messageType; ?>"><?php echo htmlspecialchars($message); ?></div>
             <?php endif; ?>
 
-            <div class="section">
+            <div class="section profile-intro-section">
+                <div class="profile-cover" aria-hidden="true"></div>
                 <div class="profile-header">
                     <div class="profile-avatar" style="overflow:hidden;">
                         <?php 
                             $profPic = $patient['profile_picture'] ?? $_SESSION['profile_picture'] ?? '';
                             if (!empty($profPic) && file_exists(dirname(__DIR__, 2) . '/' . $profPic)):
                         ?>
-                            <img src="../../<?php echo htmlspecialchars($profPic); ?>" alt="Profile" style="width:80px;height:80px;border-radius:50%;object-fit:cover;">
+                            <img src="../../<?php echo htmlspecialchars($profPic); ?>" alt="Profile">
                         <?php 
                             else:
                             $initials = strtoupper(substr($patient['first_name'] ?? 'P', 0, 1) . substr($patient['middle_name'] ?? '', 0, 1) . substr($patient['last_name'] ?? '', 0, 1));
@@ -991,5 +993,6 @@ $pageTitle = 'My Profile';
             profileUpdateForm.submit();
         });
     </script>
+    <script src="../../assets/js/profile_photo_view.js"></script>
 </body>
 </html>
