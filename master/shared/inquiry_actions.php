@@ -411,7 +411,13 @@ function resolveInquiryPatientId(PDO $pdo, array $inquiry): ?int
     ");
     $stmt->execute($values);
 
-    return (int)$pdo->lastInsertId();
+    $newId = (int)$pdo->lastInsertId();
+    try {
+        require_once __DIR__ . '/../../includes/patient_list_overflow_helper.php';
+        runPatientListOverflow($pdo);
+    } catch (Exception $overflowErr) {
+    }
+    return $newId;
 }
 
 if ($action === 'services') {

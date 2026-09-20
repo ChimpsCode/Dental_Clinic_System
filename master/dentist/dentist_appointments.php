@@ -181,6 +181,11 @@ usort($sections['inqueue'], function ($a, $b) use ($queuePanelOrder) {
     color: #b45309;
 }
 
+.mini-card-notes {
+    font-size: 11px;
+    color: #6b7280;
+}
+
 .status-badge.status-pending_payment {
     background: #fed7aa;
     color: #c2410c;
@@ -464,6 +469,12 @@ $sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'pe
                         <span class="mini-card-treatment"><?php echo $treatment; ?></span>
                         <span class="status-badge badge-small <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($status); ?></span>
                     </div>
+                    <?php
+                    $pendingNotes = trim((string)($apt['notes'] ?? ''));
+                    if ($sec === 'pendingapproval' && $pendingNotes !== ''):
+                    ?>
+                    <div class="mini-card-notes">notes: <?php echo htmlspecialchars($pendingNotes); ?></div>
+                    <?php endif; ?>
                     <?php if ($sec === 'pendingapproval'): ?>
                     <div class="appt-approval-actions">
                         <button type="button" class="btn-approve" onclick="approveAppointment(<?php echo (int)$apt['id']; ?>)">✓ Approve</button>

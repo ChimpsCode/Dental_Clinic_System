@@ -18,9 +18,17 @@ if ($userId === 0) {
     exit;
 }
 
-session_write_close();
-
 $action = $_POST['action'] ?? '';
+
+if ($action === 'mark_panel_seen') {
+    $seen = trim((string)($_POST['latest_created_at'] ?? ''));
+    $_SESSION['notif_panel_seen_at'] = $seen !== '' ? $seen : date('Y-m-d H:i:s');
+    session_write_close();
+    echo json_encode(['success' => true]);
+    exit;
+}
+
+session_write_close();
 
 switch ($action) {
     case 'mark_read':
@@ -61,10 +69,21 @@ switch ($action) {
         
     case 'get_unread_count':
         try {
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0");
+            $stmt = $pdo->prepare("
+                SELECT
+                    SUM(CASE WHEN is_read = 0 THEN 1 ELSE 0 END) AS cnt,
+                    MAX(created_at) AS latest_at
+                FROM notifications
+                WHERE user_id = ?
+            ");
             $stmt->execute([$userId]);
-            $count = (int)$stmt->fetchColumn();
-            echo json_encode(['success' => true, 'count' => $count]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+            $count = (int)($row['cnt'] ?? 0);
+            echo json_encode([
+                'success' => true,
+                'count' => $count,
+                'latest_created_at' => $row['latest_at'] ?? null,
+            ]);
         } catch (Exception $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }

@@ -19,7 +19,9 @@ header('Content-Type: application/json');
 
 try {
     require_once '../../config/database.php';
-    $stmt = $pdo->query("SELECT id, created_at FROM patients WHERE COALESCE(is_archived, 0) = 0 ORDER BY id DESC LIMIT 1");
+    require_once __DIR__ . '/../../includes/patient_list_overflow_helper.php';
+    ensurePatientLogColumn($pdo);
+    $stmt = $pdo->query("SELECT id, created_at FROM patients WHERE COALESCE(is_archived, 0) = 0 AND COALESCE(in_patient_log, 0) = 0 ORDER BY id DESC LIMIT 1");
     $latest = $stmt->fetch(PDO::FETCH_ASSOC);
 
     echo json_encode([

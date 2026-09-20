@@ -130,6 +130,13 @@ try {
     $notificationTotal = 0;
 }
 
+$notifLatestAt = !empty($notifications[0]['created_at']) ? $notifications[0]['created_at'] : null;
+$notifSeenAt = $_SESSION['notif_panel_seen_at'] ?? null;
+$notifSeenAt = (is_string($notifSeenAt) && trim($notifSeenAt) !== '') ? $notifSeenAt : null;
+$notifUnseen = !$notifSeenAt || ($notifLatestAt && strtotime((string)$notifLatestAt) > strtotime((string)$notifSeenAt));
+$notifRinging = $notifUnseen && $notifLatestAt && (time() - strtotime($notifLatestAt) < 60);
+$notifShowBadge = $notificationTotal > 0 && $notifUnseen;
+
 // Load dynamic logo
 try {
     $logoStmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'welcome_logo'");
@@ -269,6 +276,19 @@ function isActivePage($page) {
             transition: background 0.15s, color 0.15s;
         }
         .notif-bell-btn:hover { background: #f3f4f6; color: #1f2937; }
+        .notif-bell-btn.ringing > i {
+            display: inline-block;
+            transform-origin: top center;
+            animation: notifBellRing 1.6s ease-in-out infinite;
+        }
+        @keyframes notifBellRing {
+            0%  { transform: rotate(0deg); }
+            8%  { transform: rotate(14deg); }
+            16% { transform: rotate(-14deg); }
+            24% { transform: rotate(14deg); }
+            32% { transform: rotate(-14deg); }
+            40%, 100% { transform: rotate(0deg); }
+        }
         .notif-badge {
             position: absolute; top: 0; right: 0; min-width: 18px; height: 18px;
             background: #ef4444; color: #fff; font-size: 10px; font-weight: 700;
@@ -463,6 +483,14 @@ function isActivePage($page) {
                         </span>
                         <span>Patient Records</span>
                     </a>
+                    <a href="admin_patient_log.php" class="nav-item nav-dropdown-item <?php echo isActivePage('admin_patient_log.php') ? 'active' : ''; ?>">
+                        <span class="nav-item-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM8 17h2.5L14 8h-2.5L8 17z"/>
+                            </svg>
+                        </span>
+                        <span>Patient Logs</span>
+                    </a>
                     <a href="admin_queue.php" class="nav-item nav-dropdown-item <?php echo isActivePage('admin_queue.php') ? 'active' : ''; ?>">
                         <span class="nav-item-icon">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
@@ -495,6 +523,14 @@ function isActivePage($page) {
                             </svg>  
                         </span>
                         <span>Payment</span>
+                    </a>
+                    <a href="admin_payment_log.php" class="nav-item nav-dropdown-item <?php echo isActivePage('admin_payment_log.php') ? 'active' : ''; ?>">
+                        <span class="nav-item-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM8 17h2.5L14 8h-2.5L8 17z"/>
+                            </svg>
+                        </span>
+                        <span>Payment Logs</span>
                     </a>
                     <a href="admin_services.php" class="nav-item nav-dropdown-item <?php echo isActivePage('admin_services.php') ? 'active' : ''; ?>">
                         <span class="nav-item-icon">
@@ -614,9 +650,9 @@ function isActivePage($page) {
             
             <div class="header-right">
                 <div class="notif-wrapper" id="adminNotifWrapper">
-                    <button type="button" class="notif-bell-btn" id="adminNotifBellBtn" aria-label="Notifications">
+                    <button type="button" class="notif-bell-btn<?php echo !empty($notifRinging) ? ' ringing' : ''; ?>" id="adminNotifBellBtn" aria-label="Notifications">
                         <i class="fas fa-bell"></i>
-                        <span class="notif-badge" id="adminNotifBadge" <?php if ($notificationTotal === 0) echo 'hidden'; ?>>
+                        <span class="notif-badge" id="adminNotifBadge" <?php if (empty($notifShowBadge)) echo 'hidden'; ?>>
                             <?php echo $notificationTotal > 99 ? '99+' : $notificationTotal; ?>
                         </span>
                     </button>

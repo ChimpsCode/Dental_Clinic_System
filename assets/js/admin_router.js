@@ -62,6 +62,18 @@
 
     function shouldKeepBodyNode(el) {
         if (!el) return false;
+        var pageModalIds = {
+            adminPatientModal: true,
+            odontogramModalOverlay: true,
+            odXrayViewerOverlay: true,
+            recordPaymentModal: true,
+            paymentHistoryModal: true,
+            setDueDateModal: true,
+            'archive-patient-modal': true,
+            patientKebabDropdownPortal: true,
+            patientKebabBackdrop: true
+        };
+        if (el.id && pageModalIds[el.id]) return false;
         if (coreBodyChildren.indexOf(el) !== -1) return true;
         // Session-timeout overlay is appended after this snapshot and must survive nav.
         if (el.id === 'stoOverlay') return true;
@@ -87,7 +99,8 @@
             '__adminApptKebabClickHandler',
             '__adminPaymentKebabClickHandler',
             '__adminUsersKebabClickHandler',
-            '__adminServicesKebabClickHandler'
+            '__adminServicesKebabClickHandler',
+            '__adminPatientLogKebabClickHandler'
         ];
         var i, fn, el, nodes, btns;
         for (i = 0; i < handlerKeys.length; i++) {

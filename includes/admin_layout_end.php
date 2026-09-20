@@ -11,8 +11,9 @@ if ($__pjax) {
     </main>
 
     <script src="../../assets/js/dashboard.js"></script>
+    <script src="../../assets/js/notif_bell_ring.js"></script>
     <script src="../../assets/js/admin.js"></script>
-    <script src="../../assets/js/admin_router.js?v=2"></script>
+    <script src="../../assets/js/admin_router.js?v=3"></script>
     <?php if (isset($pageScript)) { echo $pageScript; } ?>
     <?php require __DIR__ . '/session_timeout_script.php'; ?>
     <?php require __DIR__ . '/app_notice_modal_script.php'; ?>
@@ -63,6 +64,14 @@ if ($__pjax) {
 
         var actionsUrl    = _notifActionsUrl;
         var lastCount     = parseInt((badge && badge.textContent) || '0', 10) || 0;
+        var latestCreatedAt = <?php echo json_encode($notifLatestAt ?? null); ?>;
+        var seenLatestAt = <?php echo json_encode($notifSeenAt ?? null); ?>;
+        if (seenLatestAt && typeof stopNotifBellRing === 'function') {
+            stopNotifBellRing(btn, seenLatestAt);
+        }
+        if (typeof syncNotifBellRing === 'function') {
+            syncNotifBellRing(btn, latestCreatedAt);
+        }
         var cachedHtml    = '';
         var fetchInFlight = false;
         var pollInFlight  = false;
@@ -113,9 +122,14 @@ if ($__pjax) {
                      + '<div class="notif-time">' + timeAgo(n.created_at) + '</div></div></a>';
             }).join('');
         }
-        function setBadge(c) {
+        function setBadge(c, latestAt) {
             lastCount = c;
+            if (latestAt) latestCreatedAt = latestAt;
             if (!badge) return;
+            if (c > 0 && seenLatestAt && typeof notifCreatedAtIsNewer === 'function' && !notifCreatedAtIsNewer(latestCreatedAt, seenLatestAt)) {
+                badge.hidden = true;
+                return;
+            }
             if (c > 0) { badge.textContent = c > 99 ? '99+' : c; badge.hidden = false; }
             else        { badge.hidden = true; }
         }
@@ -130,9 +144,14 @@ if ($__pjax) {
             .then(function(data) {
                 if (!data.success) return;
                 var notifs = data.notifications || [];
+                var latestAt = notifs.length ? notifs[0].created_at : null;
+                if (latestAt) latestCreatedAt = latestAt;
+                if (typeof syncNotifBellRing === 'function') {
+                    syncNotifBellRing(btn, latestCreatedAt);
+                }
                 cachedHtml = renderList(notifs);
                 var unread = notifs.filter(function(n){ return n.is_read == 0; }).length;
-                setBadge(unread);
+                setBadge(unread, latestAt);
                 if (callback) callback(cachedHtml);
                 else list.innerHTML = cachedHtml;
             }).catch(function(){})
@@ -146,6 +165,18 @@ if ($__pjax) {
             var opening = !dropdown.classList.contains('open');
             dropdown.classList.toggle('open');
             if (!opening) return;
+            seenLatestAt = latestCreatedAt;
+            if (typeof stopNotifBellRing === 'function') {
+                stopNotifBellRing(btn, seenLatestAt);
+            } else {
+                btn.classList.remove('ringing');
+            }
+            if (badge) badge.hidden = true;
+            fetch(actionsUrl, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'action=mark_panel_seen&latest_created_at=' + encodeURIComponent(seenLatestAt || '')
+            }).catch(function(){});
             if (cachedHtml) list.innerHTML = cachedHtml;
             fetchList(function(html) { list.innerHTML = html; });
         });
@@ -202,7 +233,10 @@ if ($__pjax) {
                 if (!data.success) return;
                 var c = Number(data.count || 0);
                 var prev = lastCount;
-                setBadge(c);
+                setBadge(c, data.latest_created_at || null);
+                if (typeof syncNotifBellRing === 'function') {
+                    syncNotifBellRing(btn, data.latest_created_at || null);
+                }
                 if (c !== prev) {
                     fetchList(function(html) {
                         cachedHtml = html;

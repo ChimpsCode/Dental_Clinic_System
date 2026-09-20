@@ -106,6 +106,33 @@ try {
         $params[] = $appointment_id;
         $pdo->prepare("UPDATE appointments SET " . implode(', ', $updates) . " WHERE id = ?")->execute($params);
 
+        try {
+            require_once __DIR__ . '/../../includes/audit_helper.php';
+            $auditService = $appointment['service_name'] ?? ($appointment['treatment'] ?? 'General Checkup');
+            $auditTime = !empty($appointment['appointment_time'])
+                ? date('g:i A', strtotime($appointment['appointment_time']))
+                : '';
+            $auditDate = $appointment['appointment_date'] ?? '';
+            $auditDescription = 'Appointment accepted: APT-' . str_pad((string)$appointment_id, 4, '0', STR_PAD_LEFT)
+                . ' for ' . $patientName
+                . ($auditDate !== '' ? ' on ' . $auditDate : '')
+                . ($auditTime !== '' ? ' at ' . $auditTime : '')
+                . ' (' . $auditService . ')';
+            logAudit(
+                $pdo,
+                $_SESSION['user_id'],
+                $_SESSION['username'] ?? 'unknown',
+                $role,
+                'status_change',
+                'appointments',
+                $auditDescription,
+                $appointment_id,
+                'appointments',
+                'Pending Approval',
+                'Scheduled'
+            );
+        } catch (Exception $e) {}
+
         // Close session before external calls so other requests aren't blocked
         if (session_status() === PHP_SESSION_ACTIVE) {
             session_write_close();

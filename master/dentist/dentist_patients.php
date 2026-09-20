@@ -2,7 +2,9 @@
 $pageTitle = 'Patient Records';
 require_once '../../config/database.php';
 require_once '../../includes/discount_helper.php';
+require_once '../../includes/patient_list_overflow_helper.php';
 ensureDiscountSchema($pdo);
+ensurePatientLogColumn($pdo);
 require_once '../../includes/dentist_layout_start.php';
 
 try {
@@ -31,7 +33,7 @@ try {
                 SELECT MAX(q2.id) FROM queue q2 WHERE q2.patient_id = q1.patient_id
             )
         ) q ON p.id = q.patient_id
-        WHERE p.is_archived = 0
+        WHERE p.is_archived = 0 AND COALESCE(p.in_patient_log, 0) = 0
         GROUP BY p.id
         ORDER BY p.created_at DESC, p.id DESC
     ");
@@ -43,19 +45,19 @@ try {
     $inQueueStmt = $pdo->query("
         SELECT COUNT(DISTINCT p.id) FROM patients p
         INNER JOIN appointments a ON p.id = a.patient_id
-        WHERE p.is_archived = 0 AND a.status IN ('Scheduled', 'In Queue') AND a.appointment_date >= CURDATE()
+        WHERE p.is_archived = 0 AND COALESCE(p.in_patient_log, 0) = 0 AND a.status IN ('Scheduled', 'In Queue') AND a.appointment_date >= CURDATE()
     ");
     $inQueue = $inQueueStmt->fetchColumn();
     
     $completedStmt = $pdo->query("
         SELECT COUNT(DISTINCT p.id) FROM patients p
         INNER JOIN appointments a ON p.id = a.patient_id
-        WHERE p.is_archived = 0 AND a.status = 'Completed'
+        WHERE p.is_archived = 0 AND COALESCE(p.in_patient_log, 0) = 0 AND a.status = 'Completed'
     ");
     $completedCount = $completedStmt->fetchColumn();
     
     $newThisMonthStmt = $pdo->query("
-        SELECT COUNT(*) FROM patients WHERE is_archived = 0 AND created_at > DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        SELECT COUNT(*) FROM patients WHERE is_archived = 0 AND COALESCE(in_patient_log, 0) = 0 AND created_at > DATE_SUB(CURDATE(), INTERVAL 30 DAY)
     ");
     $newThisMonth = $newThisMonthStmt->fetchColumn();
 } catch (Exception $e) {
@@ -3095,6 +3097,7 @@ document.addEventListener('keydown', function(e) {
 // --- Live patient list updates (AJAX polling) ---
 var knownPatientSig = allPatients.map(function(p) { return Number(p.id); }).join(',');
 var liveToastTimer = null;
+var livePollReady = false;
 
 function patientListUiBusy() {
     // Never re-render underneath an open kebab dropdown or modal
@@ -3108,16 +3111,25 @@ function showPatientListToast(message) {
     if (!toast) {
         toast = document.createElement('div');
         toast.id = 'livePatientToast';
-        toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#065f46;color:#ffffff;padding:12px 18px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.18);font-size:0.9rem;z-index:99999;display:flex;align-items:center;gap:10px;opacity:0;transform:translateY(8px);transition:opacity .25s ease, transform .25s ease;pointer-events:none;';
         document.body.appendChild(toast);
     }
+    toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#065f46;color:#ffffff;padding:12px 18px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.18);font-size:0.9rem;z-index:99999;display:flex;align-items:center;gap:10px;opacity:0;transform:translateY(8px);transition:opacity .25s ease, transform .25s ease;pointer-events:none;visibility:visible;';
     toast.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>' + message + '</span>';
-    requestAnimationFrame(function() { toast.style.opacity = '1'; toast.style.transform = 'translateY(0)'; });
+    requestAnimationFrame(function() {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+    });
     clearTimeout(liveToastTimer);
     liveToastTimer = setTimeout(function() {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateY(8px)';
-    }, 4000);
+        var el = document.getElementById('livePatientToast');
+        if (!el) return;
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(8px)';
+        setTimeout(function() {
+            var gone = document.getElementById('livePatientToast');
+            if (gone && gone.parentNode) gone.parentNode.removeChild(gone);
+        }, 300);
+    }, 2000);
 }
 
 setInterval(function() {
@@ -3127,10 +3139,17 @@ setInterval(function() {
         .then(function(data) {
             if (!data || !data.success || !Array.isArray(data.patients)) return;
             var sig = data.patients.map(function(p) { return Number(p.id); }).join(',');
-            if (sig === knownPatientSig) return;
+            if (sig === knownPatientSig) {
+                livePollReady = true;
+                return;
+            }
 
             var prevIds = {};
-            knownPatientSig.split(',').forEach(function(idStr) { prevIds[idStr] = true; });
+            if (knownPatientSig) {
+                knownPatientSig.split(',').forEach(function(idStr) {
+                    if (idStr) prevIds[idStr] = true;
+                });
+            }
             var hasNew = data.patients.some(function(p) { return !prevIds[String(Number(p.id))]; });
 
             allPatients.length = 0;
@@ -3142,7 +3161,8 @@ setInterval(function() {
             var statTotal = document.getElementById('statTotalPatients');
             if (statTotal) statTotal.textContent = data.patients.length;
 
-            if (hasNew) showPatientListToast('New patient added — list updated automatically.');
+            if (hasNew && livePollReady) showPatientListToast('New patient added — list updated automatically.');
+            livePollReady = true;
         })
         .catch(function() {});
 }, 8000);

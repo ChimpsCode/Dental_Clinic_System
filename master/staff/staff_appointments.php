@@ -465,6 +465,12 @@ try {
                             <span class="mini-card-treatment"><?php echo $treatment; ?> &middot; <?php echo $dentist; ?></span>
                             <span class="status-badge badge-small <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($status); ?></span>
                         </div>
+                        <?php
+                        $pendingNotes = trim((string)($appt['notes'] ?? ''));
+                        if ($sec === 'pendingapproval' && $pendingNotes !== ''):
+                        ?>
+                        <div class="mini-card-notes">notes: <?php echo htmlspecialchars($pendingNotes); ?></div>
+                        <?php endif; ?>
                         <?php if ($sec === 'pendingapproval'): ?>
                         <div class="appt-approval-actions">
                             <button type="button" class="btn-approve" onclick="approveAppointment(<?php echo (int)$appt['id']; ?>)">✓ Approve</button>

@@ -26,6 +26,8 @@ header('Content-Type: application/json');
 
 try {
     require_once '../../config/database.php';
+    require_once __DIR__ . '/../../includes/patient_list_overflow_helper.php';
+    ensurePatientLogColumn($pdo);
 
     // Must stay byte-compatible with the initial query in
     // admin_patients.php / staff_patient_records.php / dentist_patients.php
@@ -53,7 +55,7 @@ try {
                 SELECT MAX(q2.id) FROM queue q2 WHERE q2.patient_id = q1.patient_id
             )
         ) q ON p.id = q.patient_id
-        WHERE p.is_archived = 0
+        WHERE p.is_archived = 0 AND COALESCE(p.in_patient_log, 0) = 0
         GROUP BY p.id
         ORDER BY p.created_at DESC, p.id DESC
     ");

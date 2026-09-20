@@ -10,6 +10,12 @@ ensureNotificationSchema($pdo);
 $notifUserId = (int)($_SESSION['user_id'] ?? 0);
 $notifCount = $notifUserId ? getUnreadCount($pdo, $notifUserId) : 0;
 $notifInitial = $notifUserId ? getNotifications($pdo, $notifUserId, 8) : [];
+$notifLatestAt = !empty($notifInitial[0]['created_at']) ? $notifInitial[0]['created_at'] : null;
+$notifSeenAt = $_SESSION['notif_panel_seen_at'] ?? null;
+$notifSeenAt = (is_string($notifSeenAt) && trim($notifSeenAt) !== '') ? $notifSeenAt : null;
+$notifUnseen = !$notifSeenAt || ($notifLatestAt && strtotime((string)$notifLatestAt) > strtotime((string)$notifSeenAt));
+$notifRinging = $notifUnseen && $notifLatestAt && (time() - strtotime($notifLatestAt) < 60);
+$notifShowBadge = $notifCount > 0 && $notifUnseen;
 ?>
 
 <style>
@@ -20,6 +26,19 @@ $notifInitial = $notifUserId ? getNotifications($pdo, $notifUserId, 8) : [];
         transition: background 0.15s, color 0.15s;
     }
     .notif-bell-btn:hover { background: #f3f4f6; color: #1f2937; }
+    .notif-bell-btn.ringing > i {
+        display: inline-block;
+        transform-origin: top center;
+        animation: notifBellRing 1.6s ease-in-out infinite;
+    }
+    @keyframes notifBellRing {
+        0%  { transform: rotate(0deg); }
+        8%  { transform: rotate(14deg); }
+        16% { transform: rotate(-14deg); }
+        24% { transform: rotate(14deg); }
+        32% { transform: rotate(-14deg); }
+        40%, 100% { transform: rotate(0deg); }
+    }
     .notif-badge {
         position: absolute; top: 0; right: 0; min-width: 18px; height: 18px;
         background: #ef4444; color: #fff; font-size: 10px; font-weight: 700;
@@ -60,7 +79,7 @@ $notifInitial = $notifUserId ? getNotifications($pdo, $notifUserId, 8) : [];
     }
     .notif-icon.queue { background: #f59e0b; }
     .notif-icon.reminder { background: #8b5cf6; }
-    .notif-icon.payment { background: #ef4444; }
+    .notif-icon.payment { background: #14b8a6; }
     .notif-icon.inquiry { background: #3b82f6; }
     .notif-icon.appointment { background: #10b981; }
     .notif-icon.system { background: #6b7280; }
@@ -78,9 +97,9 @@ $notifInitial = $notifUserId ? getNotifications($pdo, $notifUserId, 8) : [];
 <link rel="stylesheet" href="../../assets/css/notif_dropdown_mobile.css">
 
 <div class="notif-wrapper">
-    <button type="button" class="notif-bell-btn" id="notifBellBtn" aria-label="Notifications">
+    <button type="button" class="notif-bell-btn<?php echo $notifRinging ? ' ringing' : ''; ?>" id="notifBellBtn" aria-label="Notifications">
         <i class="fas fa-bell"></i>
-        <span class="notif-badge" id="notifBadge" <?php if ($notifCount === 0) echo 'hidden'; ?>>
+        <span class="notif-badge" id="notifBadge" <?php if (empty($notifShowBadge)) echo 'hidden'; ?>>
             <?php echo $notifCount > 99 ? '99+' : $notifCount; ?>
         </span>
     </button>
@@ -98,6 +117,10 @@ $notifInitial = $notifUserId ? getNotifications($pdo, $notifUserId, 8) : [];
                     $typeClass = htmlspecialchars($n['type'] ?? 'system');
                     $iconMap = ['queue' => 'fa-layer-group', 'reminder' => 'fa-calendar-check', 'payment' => 'fa-credit-card', 'inquiry' => 'fa-comment-dots', 'appointment' => 'fa-calendar', 'cancellation' => 'fa-times-circle', 'patient' => 'fa-user-plus', 'system' => 'fa-info-circle'];
                     $icon = $iconMap[$n['type']] ?? 'fa-bell';
+                    if (strcasecmp((string)($n['title'] ?? ''), 'Appointment Declined') === 0) {
+                        $typeClass = 'cancellation';
+                        $icon = 'fa-times';
+                    }
                     $unread = empty($n['is_read']) ? ' unread' : '';
                     $href = !empty($n['action_url']) ? htmlspecialchars($n['action_url']) : '#';
                     $timeAgo = '';
@@ -122,6 +145,7 @@ $notifInitial = $notifUserId ? getNotifications($pdo, $notifUserId, 8) : [];
     </div>
 </div>
 
+<script src="../../assets/js/notif_bell_ring.js"></script>
 <script>
 (function() {
     const btn = document.getElementById('notifBellBtn');
@@ -132,11 +156,31 @@ $notifInitial = $notifUserId ? getNotifications($pdo, $notifUserId, 8) : [];
     if (!btn || !dropdown) return;
 
     const actionsUrl = '../shared/notification_actions.php';
+    var latestCreatedAt = <?php echo json_encode($notifLatestAt); ?>;
+    var seenLatestAt = <?php echo json_encode($notifSeenAt); ?>;
+    if (seenLatestAt && typeof stopNotifBellRing === 'function') {
+        stopNotifBellRing(btn, seenLatestAt);
+    }
+    if (typeof syncNotifBellRing === 'function') {
+        syncNotifBellRing(btn, latestCreatedAt);
+    }
 
     btn.addEventListener('click', function(e) {
         e.stopPropagation();
         const isOpen = dropdown.classList.toggle('open');
         if (isOpen) {
+            seenLatestAt = latestCreatedAt;
+            if (typeof stopNotifBellRing === 'function') {
+                stopNotifBellRing(btn, seenLatestAt);
+            } else {
+                btn.classList.remove('ringing');
+            }
+            badge.hidden = true;
+            fetch(actionsUrl, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'action=mark_panel_seen&latest_created_at=' + encodeURIComponent(seenLatestAt || '')
+            }).catch(function(){});
             loadNotifications();
         }
     });
@@ -191,7 +235,13 @@ $notifInitial = $notifUserId ? getNotifications($pdo, $notifUserId, 8) : [];
         .then(function(data) {
             if (data.success) {
                 const c = data.count;
-                if (c > 0) {
+                latestCreatedAt = data.latest_created_at || latestCreatedAt;
+                if (typeof syncNotifBellRing === 'function') {
+                    syncNotifBellRing(btn, latestCreatedAt);
+                }
+                if (c > 0 && seenLatestAt && typeof notifCreatedAtIsNewer === 'function' && !notifCreatedAtIsNewer(latestCreatedAt, seenLatestAt)) {
+                    badge.hidden = true;
+                } else if (c > 0) {
                     badge.textContent = c > 99 ? '99+' : String(c);
                     badge.hidden = false;
                 } else {
@@ -210,6 +260,10 @@ $notifInitial = $notifUserId ? getNotifications($pdo, $notifUserId, 8) : [];
         .then(function(data) {
             if (!data.success || !data.notifications) return;
             var notifs = data.notifications;
+            latestCreatedAt = notifs.length ? notifs[0].created_at : latestCreatedAt;
+            if (typeof syncNotifBellRing === 'function') {
+                syncNotifBellRing(btn, latestCreatedAt);
+            }
             if (!notifs.length) {
                 list.innerHTML = '<div class="notif-empty"><i class="fas fa-bell-slash"></i>No notifications yet</div>';
                 return;
@@ -218,6 +272,10 @@ $notifInitial = $notifUserId ? getNotifications($pdo, $notifUserId, 8) : [];
             list.innerHTML = notifs.map(function(n) {
                 var typeClass = n.type || 'system';
                 var icon = iconMap[n.type] || 'fa-bell';
+                if (String(n.title || '').toLowerCase() === 'appointment declined') {
+                    typeClass = 'cancellation';
+                    icon = 'fa-times';
+                }
                 var unread = n.is_read == 0 ? ' unread' : '';
                 var href = n.action_url || '#';
                 var d = new Date(n.created_at + 'Z');

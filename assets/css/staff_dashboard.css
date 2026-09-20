@@ -1299,6 +1299,12 @@ header.top-header {
     margin-top: 2px;
 }
 
+.compact-queue .mini-card-notes {
+    font-size: 11px;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
 .compact-queue .patient-time {
     font-size: 0.72rem;
 }

@@ -214,6 +214,12 @@ if ($action === 'verify_otp') {
         $pdo->commit();
 
         try {
+            require_once __DIR__ . '/../../includes/patient_list_overflow_helper.php';
+            runPatientListOverflow($pdo);
+        } catch (Exception $overflowErr) {
+        }
+
+        try {
             require_once __DIR__ . '/../../includes/sms_functions.php';
             sendRegistrationWelcomeSMS($phone, $first_name);
         } catch (\Throwable $e) {

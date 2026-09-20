@@ -248,6 +248,12 @@ if ($action === 'verify_otp') {
 
         $pdo->commit();
 
+        try {
+            require_once __DIR__ . '/../../includes/patient_list_overflow_helper.php';
+            runPatientListOverflow($pdo);
+        } catch (Exception $overflowErr) {
+        }
+
         $_SESSION['reg_data'] = null;
 
         $_SESSION['new_registration'] = true;

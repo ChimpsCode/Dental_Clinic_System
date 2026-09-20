@@ -1,6 +1,5 @@
 <?php
 require_once __DIR__ . '/../../includes/session_bootstrap.php';
-require_once __DIR__ . '/../../includes/auth_redirect.php';
 
 $isLoginPost = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
 $explicitLogin = isset($_GET['form']) || isset($_GET['expired']) || isset($_GET['deleted']);
@@ -8,11 +7,6 @@ $inAuthFlow = !empty($_SESSION['2fa_user_id'])
     || !empty($_SESSION['2fa_user_data'])
     || !empty($_SESSION['reset_user_id'])
     || !empty($_SESSION['reset_code_verified']);
-
-$skipAuthRedirect = isset($_GET['expired']) || isset($_GET['deleted']) || $inAuthFlow;
-if (!$skipAuthRedirect) {
-    redirect_if_authenticated();
-}
 
 if (!$isLoginPost && !$explicitLogin && !$inAuthFlow) {
     header('Location: home.php');
@@ -91,6 +85,19 @@ function verifyAndUpgradePassword($pdo, array $user, string $inputPassword): boo
     }
 
     if (password_verify($inputPassword, $storedPassword)) {
+        return true;
+    }
+
+    // Legacy compatibility: allow plaintext passwords from old dumps once,
+    // then immediately upgrade to a secure hash.
+    if (hash_equals($storedPassword, $inputPassword)) {
+        try {
+            $newHash = password_hash($inputPassword, PASSWORD_DEFAULT);
+            $upd = $pdo->prepare("UPDATE users SET password = ? WHERE id = ? LIMIT 1");
+            $upd->execute([$newHash, (int)$user['id']]);
+        } catch (Exception $e) {
+            // Ignore upgrade failure; login can still proceed.
+        }
         return true;
     }
 
@@ -187,8 +194,13 @@ function ensurePatientRecordForUser(PDO $pdo, array $user): ?int {
     $sql = "INSERT INTO patients (" . implode(', ', $patientColumns) . ") VALUES (" . $placeholders . ")";
     $insertStmt = $pdo->prepare($sql);
     $insertStmt->execute($patientValues);
-
-    return (int)$pdo->lastInsertId();
+    $newId = (int)$pdo->lastInsertId();
+    try {
+        require_once __DIR__ . '/../../includes/patient_list_overflow_helper.php';
+        runPatientListOverflow($pdo);
+    } catch (Exception $overflowErr) {
+    }
+    return $newId;
 }
 
 // Determine where to go back to
@@ -494,23 +506,20 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
         exit();
     }
     
-    if (empty($captcha)) {
-        echo json_encode(['success' => false, 'message' => 'Please enter the captcha code']);
-        exit();
-    }
-
-    if (!validateCaptcha($captcha)) {
-        refreshCaptcha();
-        echo json_encode(['success' => false, 'message' => 'Invalid or expired captcha code']);
-        exit();
-    }
-
-    require_once '../../includes/audit_helper.php';
-    $lockStatus = getLoginLockStatus($pdo, $username);
-    if ($lockStatus['locked']) {
-        refreshCaptcha();
-        echo json_encode(['success' => false, 'message' => $lockStatus['message']]);
-        exit();
+    // Skip captcha check if skip_captcha flag is set (used by welcome-back flow where patient identity is already verified)
+    $skipCaptcha = isset($_POST['skip_captcha']) && $_POST['skip_captcha'] === '1';
+    
+    if (!$skipCaptcha) {
+        if (empty($captcha)) {
+            echo json_encode(['success' => false, 'message' => 'Please enter the captcha code']);
+            exit();
+        }
+        
+        if (!validateCaptcha($captcha)) {
+            refreshCaptcha();
+            echo json_encode(['success' => false, 'message' => 'Invalid or expired captcha code']);
+            exit();
+        }
     }
     
     try {
@@ -763,12 +772,6 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
         refreshCaptcha();
         $error = 'Invalid or expired captcha code';
     } else {
-        require_once '../../includes/audit_helper.php';
-        $lockStatus = getLoginLockStatus($pdo, $username);
-        if ($lockStatus['locked']) {
-            refreshCaptcha();
-            $error = $lockStatus['message'];
-        } else {
         try {
             require_once '../../config/database.php';
             
@@ -883,18 +886,13 @@ if ($role === 'dentist') {
                 header('Location: ' . $redirect);
                 exit();
             } else {
-                if ($user) {
-                    logFailedLogin($pdo, $username, 'invalid_password');
-                } else {
-                    logFailedLogin($pdo, $username, 'user_not_found');
-                }
+                // Skip duplicate failed login logging - already logged at line 410
                 $error = 'Wrong username or password. Please try again.';
             }
         } catch (PDOException $e) {
             $error = 'Database connection error. Please check your database settings.';
         } catch (Exception $e) {
             $error = 'Login failed. Please try again.';
-        }
         }
     }
 }
@@ -909,7 +907,8 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RF Dental Clinic - Login</title>
     <link rel="icon" type="image/png" href="<?php echo htmlspecialchars($loginLogo); ?>">
-    <link rel="stylesheet" href="../../assets/css/login-new.css?v=10">
+    <link rel="stylesheet" href="../../assets/css/login-new.css?v=5">
+    <link rel="stylesheet" href="../../assets/css/login-new.css?v=4">
     <style>
         #registrationContainer {
             position: relative;
@@ -1000,7 +999,6 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
         }
     </style>
     <?php require __DIR__ . '/../../includes/app_notice_modal_script.php'; ?>
-    <?php app_guest_bfcache_reload_script(); ?>
 </head>
 <body>
     <!-- Back Button -->
@@ -1272,7 +1270,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
                         </div>
 
                         <div class="input-group">
-                            <input type="tel" id="reg_phone" name="phone" placeholder="Phone Number" required maxlength="11" inputmode="numeric" pattern="09[0-9]{9}" title="11-digit mobile number starting with 09" autocomplete="tel">
+                            <input type="tel" id="reg_phone" name="phone" placeholder="Phone Number" required maxlength="11" inputmode="numeric" pattern="[0-9]*" autocomplete="tel">
                         </div>
 
                         <div style="display: flex; gap: 12px; width: 100%;">
@@ -1298,7 +1296,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
 
                         <div style="display: flex; gap: 12px; width: 100%;">
                             <div class="input-group" style="flex:1;">
-                                <input type="tel" id="reg_emergency_phone" name="emergency_contact_phone" placeholder="Emergency Contact Number" required maxlength="11" inputmode="numeric" pattern="09[0-9]{9}" title="11-digit mobile number starting with 09" autocomplete="tel">
+                                <input type="tel" id="reg_emergency_phone" name="emergency_contact_phone" placeholder="Emergency Contact Number" required maxlength="11" inputmode="numeric" pattern="[0-9]*" autocomplete="tel">
                             </div>
                             <div class="input-group" style="flex:1;">
                                 <select id="reg_emergency_relationship" name="emergency_contact_relationship" required>
@@ -1475,7 +1473,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
         <div class="toast-loading-line"></div>
     </div>
     
-    <script src="../../assets/js/login.js?v=11"></script>
+    <script src="../../assets/js/login.js?v=4"></script>
     
     <?php if ($showDeletedMsg): ?>
     <script>

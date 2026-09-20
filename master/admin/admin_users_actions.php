@@ -245,6 +245,11 @@ try {
                     $pdo->prepare($patSql)->execute($patVals);
                     $newPatientId = (int)$pdo->lastInsertId();
                     $pdo->prepare("UPDATE users SET patient_id = ? WHERE id = ?")->execute([$newPatientId, $newId]);
+                    try {
+                        require_once __DIR__ . '/../../includes/patient_list_overflow_helper.php';
+                        runPatientListOverflow($pdo);
+                    } catch (Exception $overflowErr) {
+                    }
                 } catch (Exception $e) {
                     error_log('admin_users_actions create patient record failed: ' . $e->getMessage());
                 }

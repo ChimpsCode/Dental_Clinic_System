@@ -455,7 +455,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     <div class="pagination-buttons">
                         <?php
                         $queryString = $_GET;
-                        unset($queryString['page']);
+                        unset($queryString['page'], $queryString['__pjax'], $queryString['_pjax']);
                         $baseUrl = '?' . http_build_query($queryString);
                         if (!empty($queryString)) $baseUrl .= '&';
                         ?>

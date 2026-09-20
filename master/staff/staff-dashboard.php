@@ -39,7 +39,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'dashboard') {
         autoDeclineExpiredPendingAppointments($pdo);
 
         $pendingApprovalItems = $pdo->query("
-            SELECT a.id, a.appointment_date, a.appointment_time, a.status,
+            SELECT a.id, a.appointment_date, a.appointment_time, a.status, a.notes,
                    COALESCE(p.first_name, 'Unknown') as first_name,
                    COALESCE(p.middle_name, '') as middle_name,
                    COALESCE(p.last_name, '') as last_name,
@@ -122,6 +122,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'dashboard') {
                 'service_name' => $appt['service_name'] ?? 'General',
                 'appointment_date' => $appt['appointment_date'] ?? '',
                 'appointment_time' => $appt['appointment_time'] ?? '',
+                'notes' => $appt['notes'] ?? '',
             ];
         }
 
@@ -206,7 +207,7 @@ try {
     autoDeclineExpiredPendingAppointments($pdo);
 
     $pendingApprovalAll = $pdo->query("
-        SELECT a.id, a.appointment_date, a.appointment_time, a.status,
+        SELECT a.id, a.appointment_date, a.appointment_time, a.status, a.notes,
                COALESCE(p.first_name, 'Unknown') as first_name,
                COALESCE(p.middle_name, '') as middle_name,
                COALESCE(p.last_name, '') as last_name,
@@ -597,6 +598,7 @@ try {
                                 $paName = trim(($appt['first_name'] ?? '') . ' ' . ($appt['middle_name'] ?? '') . ' ' . ($appt['last_name'] ?? ''));
                                 $paDate = !empty($appt['appointment_date']) ? date('M j', strtotime($appt['appointment_date'])) : '';
                                 $paTime = !empty($appt['appointment_time']) ? date('h:i A', strtotime($appt['appointment_time'])) : '';
+                                $paNotes = trim((string)($appt['notes'] ?? ''));
                             ?>
                             <div class="patient-item" id="pending-appt-<?php echo $appt['id']; ?>">
                                 <div class="patient-info">
@@ -606,6 +608,9 @@ try {
                                         <span class="patient-time"><?php echo htmlspecialchars(trim($paDate . ' · ' . $paTime)); ?></span>
                                     </div>
                                     <div class="patient-treatment"><?php echo htmlspecialchars($appt['service_name'] ?? 'General'); ?></div>
+                                    <?php if ($paNotes !== ''): ?>
+                                    <div class="mini-card-notes">notes: <?php echo htmlspecialchars($paNotes); ?></div>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="patient-actions">
                                     
@@ -1188,6 +1193,8 @@ function renderDashboardPending(items) {
         const dateLabel = date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
         const timeLabel = normalizeDashboardTime(appt.appointment_time);
         const combined = [dateLabel, timeLabel].filter(Boolean).join(' · ');
+        const notes = String(appt.notes || '').trim();
+        const notesHtml = notes ? `<div class="mini-card-notes">notes: ${escapeDashboardHtml(notes)}</div>` : '';
         return `
             <div class="patient-item" id="pending-appt-${appt.id}">
                 <div class="patient-info">
@@ -1197,6 +1204,7 @@ function renderDashboardPending(items) {
                         <span class="patient-time">${escapeDashboardHtml(combined)}</span>
                     </div>
                     <div class="patient-treatment">${escapeDashboardHtml(appt.service_name || 'General')}</div>
+                    ${notesHtml}
                 </div>
                 <div class="patient-actions">
                     <button class="action-btn pa-approve" onclick="approveAppointment(${Number(appt.id || 0)})">✓</button>

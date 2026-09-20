@@ -61,6 +61,7 @@ try {
     }
     
     // Find or create patient (check by first_name + last_name + phone)
+    $createdNewPatient = false;
     $stmt = $pdo->prepare("SELECT id FROM patients WHERE first_name = ? AND last_name = ? AND phone = ? LIMIT 1");
     $stmt->execute([$firstName, $lastName, $phone]);
     $existing_patient = $stmt->fetch();
@@ -72,6 +73,7 @@ try {
         $stmt = $pdo->prepare("INSERT INTO patients (first_name, middle_name, last_name, phone, created_at) VALUES (?, ?, ?, ?, NOW())");
         $stmt->execute([$firstName, $middleName, $lastName, $phone]);
         $patient_id = $pdo->lastInsertId();
+        $createdNewPatient = true;
     }
 
     // CHECK: Patient can only have one pending approval request at a time
@@ -137,6 +139,14 @@ try {
     $stmt->execute([$id]);
     
     $pdo->commit();
+
+    if (!empty($createdNewPatient)) {
+        try {
+            require_once __DIR__ . '/../../includes/patient_list_overflow_helper.php';
+            runPatientListOverflow($pdo);
+        } catch (Exception $overflowErr) {
+        }
+    }
     
     echo json_encode([
         'success' => true, 

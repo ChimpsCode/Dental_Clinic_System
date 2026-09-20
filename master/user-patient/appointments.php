@@ -718,6 +718,63 @@ function selectDate(selDate, el) {
             const [h, m] = t.split(':');
             return `${parseInt(h) % 12 || 12}:${m} ${h >= 12 ? 'PM' : 'AM'}`;
         }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function addUpcomingAppointment(dateStr, timeStr, serviceLabel, notes) {
+            const upcoming = document.getElementById('upcoming');
+            if (!upcoming) return;
+
+            const emptyState = upcoming.querySelector('.empty-state');
+            if (emptyState) emptyState.remove();
+
+            const date = new Date(dateStr + 'T00:00:00');
+            const month = date.toLocaleDateString('en-US', { month: 'short' });
+            const day = String(date.getDate()).padStart(2, '0');
+            const year = String(date.getFullYear());
+            const serviceName = (serviceLabel || 'General Checkup').replace(/\s*\(\d+\s*min\)\s*$/i, '').trim();
+            const notesText = (notes || '').trim();
+            const notesHtml = notesText
+                ? `<div class="apt-notes"><i class="fas fa-sticky-note"></i> ${escapeHtml(notesText.substring(0, 60))}${notesText.length > 60 ? '...' : ''}</div>`
+                : '';
+
+            const card = document.createElement('div');
+            card.className = 'appointment-card';
+            card.innerHTML = `
+                <div class="apt-date">
+                    <div class="apt-month">${escapeHtml(month)}</div>
+                    <div class="apt-day">${escapeHtml(day)}</div>
+                    <div class="apt-year">${escapeHtml(year)}</div>
+                </div>
+                <div class="apt-details">
+                    <div class="apt-time"><i class="far fa-clock"></i> ${escapeHtml(formatTime(timeStr))}</div>
+                    <div class="apt-treatment">${escapeHtml(serviceName)}</div>
+                    ${notesHtml}
+                </div>
+                <span class="apt-status status-pending-approval">Pending Approval</span>
+            `;
+            upcoming.prepend(card);
+
+            const count = upcoming.querySelectorAll('.appointment-card').length;
+            const upcomingBtn = document.querySelector('.tab-btn[data-tab="upcoming"]');
+            if (upcomingBtn) upcomingBtn.textContent = `Upcoming (${count})`;
+        }
+
+        function switchToUpcomingTab() {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            const upcomingBtn = document.querySelector('.tab-btn[data-tab="upcoming"]');
+            if (upcomingBtn) upcomingBtn.classList.add('active');
+            const upcoming = document.getElementById('upcoming');
+            if (upcoming) upcoming.classList.add('active');
+        }
         
         function selectTime(time, el) {
     // 1. Clear previous selections
@@ -784,12 +841,17 @@ function selectDate(selDate, el) {
                     console.log('Response:', text);
                     const data = JSON.parse(text);
                     if (data.success) {
+                        const bookedDate = selectedDate;
+                        const bookedTime = selectedTime;
                         const serviceName = document.querySelector('#serviceSelect option:checked').text;
+                        const notes = document.getElementById('appointmentNotes').value;
+                        addUpcomingAppointment(bookedDate, bookedTime, serviceName, notes);
+                        switchToUpcomingTab();
                         document.getElementById('modalMessage').textContent = data.message;
                         document.getElementById('modalDetails').innerHTML = `
                             <p><strong>Service:</strong> ${serviceName}</p>
-                            <p><strong>Date:</strong> ${new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                            <p><strong>Time:</strong> ${formatTime(selectedTime)}</p>
+                            <p><strong>Date:</strong> ${new Date(bookedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                            <p><strong>Time:</strong> ${formatTime(bookedTime)}</p>
                         `;
                         document.getElementById('successModal').classList.add('active');
                         

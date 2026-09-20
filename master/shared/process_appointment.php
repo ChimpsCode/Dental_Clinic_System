@@ -95,6 +95,8 @@ try {
         $patient_id = (int)$existingAppointment['patient_id'];
     }
 
+    $createdNewPatient = false;
+
     // Search for existing patient by phone (more reliable than name)
     if (!$appointment_id && $phone) {
         $stmt = $pdo->prepare("SELECT id FROM patients WHERE phone = ? LIMIT 1");
@@ -178,6 +180,7 @@ try {
         $emailToSave = $email ?: null;
         $stmt->execute([$first_name, $middle_name, $last_name, $phone, $emailToSave]);
         $patient_id = $pdo->lastInsertId();
+        $createdNewPatient = true;
     }
 
     // Check if is_archived column exists, if not create it
@@ -367,6 +370,14 @@ try {
     }
 
     $pdo->commit();
+
+        if (!empty($createdNewPatient)) {
+            try {
+                require_once __DIR__ . '/../../includes/patient_list_overflow_helper.php';
+                runPatientListOverflow($pdo);
+            } catch (Exception $overflowErr) {
+            }
+        }
 
         // Check if patient should transition from New Patient to Returning Patient
         try {

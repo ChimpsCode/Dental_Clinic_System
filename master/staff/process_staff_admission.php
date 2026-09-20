@@ -582,8 +582,13 @@ if ($appointmentId) {
     }
     
     $pdo->commit();
-    
-    // Try to send notification (don't break if it fails)
+
+    try {
+        require_once __DIR__ . '/../../includes/patient_list_overflow_helper.php';
+        runPatientListOverflow($pdo);
+    } catch (Exception $overflowErr) {
+        // Silent fail
+    }
     try {
         require_once __DIR__ . '/../../includes/notification_functions.php';
         if (function_exists('notifyNewPatient')) {

@@ -6,10 +6,12 @@
 $pageTitle = 'Patient Records';
 
 require_once __DIR__ . '/../../includes/discount_helper.php';
+require_once __DIR__ . '/../../includes/patient_list_overflow_helper.php';
 
 try {
     require_once __DIR__ . '/../../config/database.php';
     ensureDiscountSchema($pdo);
+    runPatientListOverflow($pdo);
     
     // Fetch ALL non-archived patients (no server-side pagination — client-side handles it)
     $stmt = $pdo->prepare("
@@ -36,7 +38,7 @@ try {
                 SELECT MAX(q2.id) FROM queue q2 WHERE q2.patient_id = q1.patient_id
             )
         ) q ON p.id = q.patient_id
-        WHERE p.is_archived = 0
+        WHERE p.is_archived = 0 AND COALESCE(p.in_patient_log, 0) = 0
         GROUP BY p.id
         ORDER BY p.created_at DESC
     ");
@@ -45,26 +47,23 @@ try {
     $totalPatients = count($patients);
     
     // Calculate stats from ALL patients
-    // Get patients with completed appointments
     $completedStmt = $pdo->query("
         SELECT COUNT(DISTINCT p.id) FROM patients p
         INNER JOIN appointments a ON p.id = a.patient_id
-        WHERE p.is_archived = 0 AND a.status = 'Completed'
+        WHERE p.is_archived = 0 AND COALESCE(p.in_patient_log, 0) = 0 AND a.status = 'Completed'
     ");
     $completedCount = $completedStmt->fetchColumn();
     
-    // Get patients with pending appointments (status 1 = Pending, 2 = Confirmed)
     $pendingStmt = $pdo->query("
         SELECT COUNT(DISTINCT p.id) FROM patients p
         INNER JOIN appointments a ON p.id = a.patient_id
-        WHERE p.is_archived = 0 AND a.status IN ('Scheduled', 'In Queue') AND a.appointment_date >= CURDATE()
+        WHERE p.is_archived = 0 AND COALESCE(p.in_patient_log, 0) = 0 AND a.status IN ('Scheduled', 'In Queue') AND a.appointment_date >= CURDATE()
     ");
     $pendingCount = $pendingStmt->fetchColumn();
     
-    // Stats for new patients this month
     $newThisMonthStmt = $pdo->query("
         SELECT COUNT(*) FROM patients 
-        WHERE is_archived = 0 AND created_at > DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        WHERE is_archived = 0 AND COALESCE(in_patient_log, 0) = 0 AND created_at > DATE_SUB(CURDATE(), INTERVAL 30 DAY)
     ");
     $newThisMonth = $newThisMonthStmt->fetchColumn();
     
@@ -1408,8 +1407,9 @@ function confirmArchivePatient(patientId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Patient archived successfully');
-            location.reload();
+            showAppNotice('Success', 'Patient archived successfully', 'success', function () {
+                location.reload();
+            });
         } else {
             alert('Error: ' + data.message);
         }
@@ -2234,19 +2234,22 @@ function closeOdontogramModalDirect() {
     height: 100%;
     background: rgba(0, 0, 0, 0.5);
     justify-content: center;
+    align-items: flex-start;
+    padding: 80px 16px 24px;
+    box-sizing: border-box;
     backdrop-filter: blur(0px);
     z-index: 99999;
 }
 .fullscreen-modal-overlay.active {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
 }
 .fullscreen-modal-content {
     background: white;
     border-radius: 16px;
     width: 95%;
     max-width: 900px;
-    max-height: 90vh;
+    max-height: calc(100vh - 110px);
     overflow: hidden;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     position: relative;

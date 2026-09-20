@@ -282,6 +282,11 @@ try {
             VALUES (?, ?, ?, ?, ?, NOW())");
         $stmt->execute([$first_name, $middle_name, $last_name, $phone, $email]);
         $patient_id = $pdo->lastInsertId();
+        try {
+            require_once __DIR__ . '/../../includes/patient_list_overflow_helper.php';
+            runPatientListOverflow($pdo);
+        } catch (Exception $overflowErr) {
+        }
     }
     
     // Always generate unique reference_code 

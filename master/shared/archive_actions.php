@@ -24,6 +24,7 @@ if (empty($_SESSION['user_id']) || !in_array($archiveRole, ['admin', 'staff'], t
 
 require_once '../../config/database.php';
 require_once __DIR__ . '/../../includes/patient_user_sync_helper.php';
+require_once __DIR__ . '/../../includes/patient_list_overflow_helper.php';
 require_once __DIR__ . '/../../includes/audit_helper.php';
 
 $action = $_POST['action'] ?? '';
@@ -440,6 +441,9 @@ function handleRestore($pdo, $module, $ids) {
             }
             
             $totalRestored = 0;
+            $restoredPatientIds = [];
+
+            makeRoomForPatientRestore($pdo, $patientIds, $userIds);
 
             // Restore patient records (together with their linked user account)
             if (!empty($patientIds)) {
@@ -448,6 +452,8 @@ function handleRestore($pdo, $module, $ids) {
                     $exists->execute([$pid]);
                     if (!$exists->fetchColumn()) continue;
                     archivePatientWithUser($pdo, (int)$pid, false);
+                    clearPatientLogFlag($pdo, (int)$pid);
+                    $restoredPatientIds[] = (int)$pid;
                     $totalRestored++;
                 }
             }
@@ -458,11 +464,18 @@ function handleRestore($pdo, $module, $ids) {
                     $exists = $pdo->prepare("SELECT 1 FROM users WHERE id = ? AND is_archived = 1");
                     $exists->execute([$uid]);
                     if (!$exists->fetchColumn()) continue;
+                    $linked = getLinkedPatientId($pdo, (int)$uid);
                     // Restoring also revives the linked patient record if one exists.
                     archiveUserWithPatient($pdo, (int)$uid, false);
+                    if ($linked) {
+                        clearPatientLogFlag($pdo, (int)$linked);
+                        $restoredPatientIds[] = (int)$linked;
+                    }
                     $totalRestored++;
                 }
             }
+
+            runPatientListOverflow($pdo, $restoredPatientIds);
             
             echo json_encode([
                 'success' => true,
@@ -485,14 +498,23 @@ function handleRestore($pdo, $module, $ids) {
         
         // Special handling for users table
         if ($module === 'users') {
+            $count = 0;
+            $restoredPatientIds = [];
+            makeRoomForPatientRestore($pdo, [], $ids);
             foreach ($ids as $uid) {
                 $exists = $pdo->prepare("SELECT 1 FROM users WHERE id = ? AND is_archived = 1");
                 $exists->execute([$uid]);
                 if (!$exists->fetchColumn()) continue;
+                $linked = getLinkedPatientId($pdo, (int)$uid);
                 // Restoring a user also restores its linked patient record.
                 archiveUserWithPatient($pdo, (int)$uid, false);
+                if ($linked) {
+                    clearPatientLogFlag($pdo, (int)$linked);
+                    $restoredPatientIds[] = (int)$linked;
+                }
                 $count++;
             }
+            runPatientListOverflow($pdo, $restoredPatientIds);
             echo json_encode([
                 'success' => true,
                 'message' => $count . ' record(s) restored successfully',

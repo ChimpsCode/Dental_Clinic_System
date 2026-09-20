@@ -132,6 +132,13 @@ try {
     $notificationTotal = 0;
 }
 
+$notifLatestAt = !empty($notifications[0]['created_at']) ? $notifications[0]['created_at'] : null;
+$notifSeenAt = $_SESSION['notif_panel_seen_at'] ?? null;
+$notifSeenAt = (is_string($notifSeenAt) && trim($notifSeenAt) !== '') ? $notifSeenAt : null;
+$notifUnseen = !$notifSeenAt || ($notifLatestAt && strtotime((string)$notifLatestAt) > strtotime((string)$notifSeenAt));
+$notifRinging = $notifUnseen && $notifLatestAt && (time() - strtotime($notifLatestAt) < 60);
+$notifShowBadge = $notificationTotal > 0 && $notifUnseen;
+
 $pageTitle = $pageTitle ?? 'Staff Dashboard';
 
 function isActivePage($page) {
@@ -243,6 +250,19 @@ try {
             transition: background 0.15s, color 0.15s;
         }
         .notif-bell-btn:hover { background: #f3f4f6; color: #1f2937; }
+        .notif-bell-btn.ringing > i {
+            display: inline-block;
+            transform-origin: top center;
+            animation: notifBellRing 1.6s ease-in-out infinite;
+        }
+        @keyframes notifBellRing {
+            0%  { transform: rotate(0deg); }
+            8%  { transform: rotate(14deg); }
+            16% { transform: rotate(-14deg); }
+            24% { transform: rotate(14deg); }
+            32% { transform: rotate(-14deg); }
+            40%, 100% { transform: rotate(0deg); }
+        }
         .notif-badge {
             position: absolute; top: 0; right: 0; min-width: 18px; height: 18px;
             background: #ef4444; color: #fff; font-size: 10px; font-weight: 700;
@@ -567,9 +587,9 @@ try {
             <div class="header-right">
                 <!-- Staff Notification Bell (same design as patient widget) -->
                 <div class="notif-wrapper" id="staffNotifWrapper">
-                    <button type="button" class="notif-bell-btn" id="staffNotifBellBtn" aria-label="Notifications">
+                    <button type="button" class="notif-bell-btn<?php echo !empty($notifRinging) ? ' ringing' : ''; ?>" id="staffNotifBellBtn" aria-label="Notifications">
                         <i class="fas fa-bell"></i>
-                        <span class="notif-badge" id="staffNotifBadge" <?php if ($notificationTotal === 0) echo 'hidden'; ?>>
+                        <span class="notif-badge" id="staffNotifBadge" <?php if (empty($notifShowBadge)) echo 'hidden'; ?>>
                             <?php echo $notificationTotal > 99 ? '99+' : $notificationTotal; ?>
                         </span>
                     </button>
