@@ -8,6 +8,8 @@ $pageTitle = 'Audit Trail';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/audit_helper.php';
 
+purgeOldAuditLogs($pdo);
+
 // Get filter parameters
 $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : '';
 $actionFilter = isset($_GET['action']) ? trim($_GET['action']) : '';

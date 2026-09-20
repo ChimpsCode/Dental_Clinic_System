@@ -23,6 +23,16 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     exit();
 }
 
+if (isset($pdo) && $pdo instanceof PDO) {
+    try {
+        if (!function_exists('purgeOldAuditLogs')) {
+            require_once __DIR__ . '/audit_helper.php';
+        }
+        purgeOldAuditLogs($pdo);
+    } catch (Exception $e) {
+    }
+}
+
 // Get user info from session
 $username = $_SESSION['username'] ?? 'Admin';
 $userId = (int)($_SESSION['user_id'] ?? 0);

@@ -602,7 +602,6 @@ try {
             <input type="text" id="onlineBookingLinkInput" readonly>
             <button type="button" onclick="copyBookingLink()">Copy</button>
         </div>
-        <a href="#" id="onlineBookingLinkAnchor" target="_blank" rel="noopener" style="display: inline-block; margin-top: 8px; color: #2563eb; font-size: 0.875rem; text-decoration: none;">Open booking page</a>
         <div class="modal-actions">
             <button type="button" onclick="closeOnlineBookingModal()" class="btn-cancel">Close</button>
         </div>
@@ -1520,7 +1519,6 @@ try {
 
     function openOnlineBookingModal() {
         document.getElementById('onlineBookingLinkInput').value = onlineBookingUrl;
-        document.getElementById('onlineBookingLinkAnchor').href = onlineBookingUrl;
         var qrContainer = document.getElementById('onlineBookingQr');
         qrContainer.innerHTML = '';
         if (typeof QRCode !== 'undefined') {
