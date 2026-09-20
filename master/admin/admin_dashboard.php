@@ -209,6 +209,7 @@ try {
             FROM appointments
             WHERE appointment_date >= CURDATE()
               AND (is_archived = 0 OR is_archived IS NULL)
+              AND LOWER(TRIM(COALESCE(status, ''))) NOT IN ('completed', 'complete')
         ")->fetchColumn() ?? 0);
 
         // Get only 2 upcoming appointments for overview
@@ -224,6 +225,7 @@ try {
             LEFT JOIN services s ON a.service_id = s.id
             WHERE a.appointment_date >= CURDATE()
               AND (a.is_archived = 0 OR a.is_archived IS NULL)
+              AND LOWER(TRIM(COALESCE(a.status, ''))) NOT IN ('completed', 'complete')
             ORDER BY a.appointment_date ASC, a.appointment_time ASC
             LIMIT 2
         ");
