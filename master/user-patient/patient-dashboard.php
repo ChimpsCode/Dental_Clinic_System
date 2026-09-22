@@ -136,6 +136,30 @@ try {
     $stmt->execute([$patient_id]);
     $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    $calendarAppointmentsByDate = [];
+    $calStmt = $pdo->prepare("
+        SELECT a.appointment_date, a.appointment_time, a.status, a.notes, a.reference_code,
+               s.name AS service_name
+        FROM appointments a
+        LEFT JOIN services s ON a.service_id = s.id
+        WHERE a.patient_id = ?
+          AND COALESCE(a.is_archived, 0) = 0
+          AND LOWER(COALESCE(a.status, '')) NOT IN ('cancelled', 'canceled')
+        ORDER BY a.appointment_date ASC, a.appointment_time ASC
+    ");
+    $calStmt->execute([$patient_id]);
+    foreach ($calStmt->fetchAll(PDO::FETCH_ASSOC) as $calApt) {
+        $dateKey = date('Y-m-d', strtotime($calApt['appointment_date']));
+        $calendarAppointmentsByDate[$dateKey][] = [
+            'date' => $dateKey,
+            'time' => !empty($calApt['appointment_time']) ? date('g:i A', strtotime($calApt['appointment_time'])) : '',
+            'service' => $calApt['service_name'] ?: 'General Checkup',
+            'status' => $calApt['status'] ?: 'Scheduled',
+            'notes' => $calApt['notes'] ?? '',
+            'reference' => $calApt['reference_code'] ?? '',
+        ];
+    }
+
     $upcomingCount = count($appointments);
     $nextAppointment = $appointments[0] ?? null;
     $activeInquiryCount = 0;
@@ -255,6 +279,7 @@ try {
 } catch (Exception $e) {
     $patient = [];
     $appointments = [];
+    $calendarAppointmentsByDate = [];
     $upcomingCount = 0;
     $nextAppointment = null;
     $activeInquiryCount = 0;
@@ -720,18 +745,152 @@ $pageTitle = 'Patient Dashboard';
         }
 
         .calendar-day.has-appointment {
-            background: #e8f5e9;
-            color: #2e7d32;
+            background: transparent;
+            color: #713f12;
+            cursor: pointer;
+            overflow: visible;
         }
 
-        .calendar-day.has-appointment::after {
+        .calendar-day.has-appointment:hover {
+            background: transparent;
+        }
+
+        .calendar-day.has-appointment.today {
+            background: #dcf0ff;
+        }
+
+        .calendar-day.has-appointment .calendar-day-num {
+            display: none;
+        }
+
+        .calendar-sticky-note {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 38px;
+            height: 42px;
+            background: #fef08a;
+            box-shadow: 1px 2px 4px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+            font-size: 15px;
+            font-weight: 700;
+            color: #713f12;
+            transform: rotate(-4deg);
+            border: none;
+            border-radius: 1px 1px 2px 1px;
+            cursor: pointer;
+            line-height: 1;
+            padding: 6px 0 0;
+            font-family: inherit;
+            position: relative;
+            z-index: 1;
+        }
+
+        .calendar-sticky-note::before {
             content: '';
             position: absolute;
-            bottom: 6px;
-            width: 5px;
-            height: 5px;
-            background: #2e7d32;
-            border-radius: 50%;
+            top: -7px;
+            left: 50%;
+            width: 18px;
+            height: 10px;
+            transform: translateX(-50%) rotate(-2deg);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 248, 220, 0.5) 45%, rgba(255, 255, 255, 0.35) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 1px 2px rgba(0, 0, 0, 0.1);
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .calendar-sticky-note:hover {
+            transform: rotate(-1deg) scale(1.06);
+            background: #fde047;
+        }
+
+        .apt-cal-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .apt-cal-modal-overlay.is-open {
+            display: flex;
+        }
+
+        .apt-cal-modal {
+            background: white;
+            border-radius: 16px;
+            max-width: 480px;
+            width: 100%;
+            max-height: 82vh;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .apt-cal-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 16px 20px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .apt-cal-modal-header h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #005daa;
+            margin: 0;
+        }
+
+        .apt-cal-modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6b7280;
+            line-height: 1;
+            padding: 0 4px;
+        }
+
+        .apt-cal-modal-close:hover {
+            color: #1a1a2e;
+        }
+
+        .apt-cal-modal-body {
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .apt-cal-detail {
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            background: #f9fafb;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+        }
+
+        .apt-cal-detail:last-child {
+            margin-bottom: 0;
+        }
+
+        .apt-cal-detail p {
+            margin: 0 0 8px;
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .apt-cal-detail p:last-child {
+            margin-bottom: 0;
+        }
+
+        .apt-cal-detail strong {
+            color: #1a1a2e;
         }
 
         /* Sidebar Card Sections */
@@ -1040,6 +1199,18 @@ $pageTitle = 'Patient Dashboard';
                 font-size: 12px;
             }
 
+            .calendar-sticky-note {
+                width: 32px;
+                height: 36px;
+                font-size: 13px;
+            }
+
+            .calendar-sticky-note::before {
+                width: 15px;
+                height: 8px;
+                top: -6px;
+            }
+
             .welcome-section {
                 padding: 20px;
             }
@@ -1066,6 +1237,18 @@ $pageTitle = 'Patient Dashboard';
             .calendar-day {
                 font-size: 11px;
                 aspect-ratio: 1;
+            }
+
+            .calendar-sticky-note {
+                width: 28px;
+                height: 32px;
+                font-size: 12px;
+            }
+
+            .calendar-sticky-note::before {
+                width: 13px;
+                height: 7px;
+                top: -5px;
             }
 
             .calendar-day-header {
@@ -1398,14 +1581,87 @@ $pageTitle = 'Patient Dashboard';
         </main>
     </div>
 
+    <div class="apt-cal-modal-overlay" id="aptCalModal" role="dialog" aria-modal="true" aria-labelledby="aptCalModalTitle">
+        <div class="apt-cal-modal">
+            <div class="apt-cal-modal-header">
+                <h3 id="aptCalModalTitle">Appointment details</h3>
+                <button type="button" class="apt-cal-modal-close" id="aptCalModalClose" aria-label="Close">&times;</button>
+            </div>
+            <div class="apt-cal-modal-body" id="aptCalModalBody"></div>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const calendarGrid = document.getElementById('calendarGrid');
             const currentMonthYear = document.getElementById('currentMonthYear');
             const prevMonthBtn = document.getElementById('prevMonth');
             const nextMonthBtn = document.getElementById('nextMonth');
+            const calendarAppointments = <?php echo json_encode($calendarAppointmentsByDate ?? [], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_UNESCAPED_UNICODE); ?>;
+            const aptCalModal = document.getElementById('aptCalModal');
+            const aptCalModalTitle = document.getElementById('aptCalModalTitle');
+            const aptCalModalBody = document.getElementById('aptCalModalBody');
+            const aptCalModalClose = document.getElementById('aptCalModalClose');
             
             let currentDate = new Date();
+
+            function escapeHtml(value) {
+                return String(value == null ? '' : value)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            function appointmentStatusClass(status) {
+                const label = String(status || 'Scheduled').toLowerCase();
+                if (label.indexOf('pending approval') !== -1) return 'status-pending-approval';
+                if (label.indexOf('queue') !== -1) return 'status-in-queue';
+                if (label.indexOf('pending') !== -1) return 'status-pending-payment';
+                if (label.indexOf('complete') !== -1) return 'status-completed';
+                if (label.indexOf('cancel') !== -1) return 'status-cancelled';
+                return 'status-scheduled';
+            }
+
+            function closeAppointmentModal() {
+                aptCalModal.classList.remove('is-open');
+            }
+
+            function openAppointmentModal(dateStr) {
+                const list = calendarAppointments[dateStr] || [];
+                const titleDate = new Date(dateStr + 'T00:00:00');
+                aptCalModalTitle.textContent = titleDate.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+
+                if (!list.length) {
+                    aptCalModalBody.innerHTML = '<p style="color:#6b7280; text-align:center; margin:0;">No appointment on this date.</p>';
+                } else {
+                    aptCalModalBody.innerHTML = list.map(function(apt) {
+                        const status = apt.status || 'Scheduled';
+                        let html = '<div class="apt-cal-detail">';
+                        if (apt.time) {
+                            html += '<p><strong>Time:</strong> ' + escapeHtml(apt.time) + '</p>';
+                        }
+                        html += '<p><strong>Service:</strong> ' + escapeHtml(apt.service || 'General Checkup') + '</p>';
+                        html += '<p><strong>Status:</strong> <span class="appointment-status ' + appointmentStatusClass(status) + '">' + escapeHtml(status) + '</span></p>';
+                        if (apt.reference) {
+                            html += '<p><strong>Reference:</strong> ' + escapeHtml(apt.reference) + '</p>';
+                        }
+                        if (apt.notes) {
+                            html += '<p><strong>Notes:</strong> ' + escapeHtml(apt.notes) + '</p>';
+                        }
+                        html += '</div>';
+                        return html;
+                    }).join('');
+                }
+
+                aptCalModal.classList.add('is-open');
+            }
             
             // Generate calendar
             function renderCalendar() {
@@ -1445,13 +1701,34 @@ $pageTitle = 'Patient Dashboard';
                 for (let i = 1; i <= totalDays; i++) {
                     const day = document.createElement('div');
                     day.className = 'calendar-day';
-                    day.textContent = i;
-                    
                     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                    const dayAppointments = calendarAppointments[dateStr] || [];
+
+                    const dayNum = document.createElement('span');
+                    dayNum.className = 'calendar-day-num';
+                    dayNum.textContent = i;
+                    day.appendChild(dayNum);
                     
                     // Check if it's today
                     if (today.getFullYear() === year && today.getMonth() === month && today.getDate() === i) {
                         day.classList.add('today');
+                    }
+
+                    if (dayAppointments.length) {
+                        day.classList.add('has-appointment');
+                        const note = document.createElement('button');
+                        note.type = 'button';
+                        note.className = 'calendar-sticky-note';
+                        note.textContent = i;
+                        note.setAttribute('aria-label', 'View appointment on ' + dateStr);
+                        note.addEventListener('click', function(e) {
+                            e.stopPropagation();
+                            openAppointmentModal(dateStr);
+                        });
+                        day.appendChild(note);
+                        day.addEventListener('click', function() {
+                            openAppointmentModal(dateStr);
+                        });
                     }
                     
                     calendarGrid.appendChild(day);
@@ -1466,6 +1743,16 @@ $pageTitle = 'Patient Dashboard';
                     calendarGrid.appendChild(day);
                 }
             }
+
+            aptCalModalClose.addEventListener('click', closeAppointmentModal);
+            aptCalModal.addEventListener('click', function(e) {
+                if (e.target === aptCalModal) closeAppointmentModal();
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && aptCalModal.classList.contains('is-open')) {
+                    closeAppointmentModal();
+                }
+            });
             
             // Navigation
             prevMonthBtn.addEventListener('click', function() {
