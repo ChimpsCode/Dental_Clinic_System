@@ -19,6 +19,18 @@
         return g;
     }
 
+    function setRxSignature(dataUrl) {
+        var img = document.getElementById('rxSignImage');
+        if (!img) return;
+        if (dataUrl && String(dataUrl).indexOf('data:image/') === 0) {
+            img.src = dataUrl;
+            img.style.display = 'block';
+        } else {
+            img.removeAttribute('src');
+            img.style.display = 'none';
+        }
+    }
+
     function setField(id, value) {
         var el = document.getElementById(id);
         if (!el) return;
@@ -34,6 +46,7 @@
         setField('rxAddress', patientAddress(p));
         setField('rxDate', p.issue_date || '');
         setField('rxDoctor', p.doctor_name || '');
+        setRxSignature(p.dentist_signature || p.signature_data || '');
         setField('rxFollowup', p.follow_up_date || '');
         setField('rxLicNo', p.license_no || '');
         setField('rxPtrNo', p.ptr_no || '');

@@ -2,7 +2,9 @@
 $pageTitle = 'Profile & Settings';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/input_sanitize.php';
+require_once __DIR__ . '/../../includes/medical_certificate_helper.php';
 require_once __DIR__ . '/../../includes/dentist_layout_start.php';
+ensureDentistSignatureColumn($pdo);
 
 $uploadError = $_SESSION['upload_error'] ?? null;
 unset($_SESSION['upload_error']);
@@ -72,7 +74,7 @@ try {
 $sessionTimeoutLabels = ['15' => '15 minutes', '30' => '30 minutes', '60' => '1 hour', '120' => '2 hours'];
 $sessionTimeoutLabel = $sessionTimeoutLabels[(string)$sessionTimeoutSetting] ?? ((int)$sessionTimeoutSetting . ' minutes');
 
-$stmt = $pdo->prepare("SELECT first_name, middle_name, last_name, email, phone, profile_picture, gender, date_of_birth, created_at, two_factor_enabled FROM users WHERE id = ?");
+$stmt = $pdo->prepare("SELECT first_name, middle_name, last_name, email, phone, profile_picture, gender, date_of_birth, created_at, two_factor_enabled, signature_data FROM users WHERE id = ?");
 $stmt->execute([$userId]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 $dentistTwoFactorEnabled = (int)($user['two_factor_enabled'] ?? 0) === 1;
@@ -248,6 +250,21 @@ $dentistTwoFactorEnabled = (int)($user['two_factor_enabled'] ?? 0) === 1;
         </form>
     </div>
 
+    <div class="section">
+        <div class="section-title">My Signature</div>
+        <p style="font-size:13px;color:#6b7280;margin:0 0 16px;">Draw your signature once. It is saved with your name and used on medical certificates, informed consent, and prescriptions.</p>
+        <img id="savedSignaturePreview" alt="Saved signature" style="display:none;max-height:80px;max-width:280px;object-fit:contain;margin-bottom:12px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px;">
+        <div style="border:1px solid #d1d5db;border-radius:10px;background:#fff;max-width:520px;overflow:hidden;">
+            <canvas id="profileSignatureCanvas" style="width:100%;height:160px;touch-action:none;display:block;"></canvas>
+        </div>
+        <div class="avatar-upload-actions" style="margin-top:14px;">
+            <button type="button" class="btn btn-primary" id="saveSignatureBtn">Save Signature</button>
+            <button type="button" class="btn btn-secondary" id="clearSignaturePadBtn">Clear</button>
+            <button type="button" class="btn btn-danger" id="removeSignatureBtn" style="display:none;">Remove Signature</button>
+        </div>
+        <p id="signatureStatus" style="font-size:13px;min-height:1.2em;margin:10px 0 0;"></p>
+    </div>
+
     <div class="section" style="border-left: 4px solid #d97706;">
         <div class="section-title">🔒 Security</div>
             <div class="toggle-setting" style="display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid #f3f4f6; margin-bottom:16px;">
@@ -277,6 +294,98 @@ $dentistTwoFactorEnabled = (int)($user['two_factor_enabled'] ?? 0) === 1;
 <?php require_once __DIR__ . '/../../includes/partials/two_factor_modals.php'; ?>
 
 <script src="../../assets/js/profile_photo_view.js"></script>
+<script src="../../assets/js/signature_pad.min.js"></script>
+<script>
+(function() {
+    var savedSignature = <?php echo json_encode($user['signature_data'] ?? ''); ?>;
+    var canvas = document.getElementById('profileSignatureCanvas');
+    var preview = document.getElementById('savedSignaturePreview');
+    var statusEl = document.getElementById('signatureStatus');
+    var removeBtn = document.getElementById('removeSignatureBtn');
+    var pad = null;
+
+    function showSaved(dataUrl) {
+        savedSignature = dataUrl || '';
+        if (savedSignature && savedSignature.indexOf('data:image/') === 0) {
+            preview.src = savedSignature;
+            preview.style.display = 'block';
+            removeBtn.style.display = 'inline-flex';
+        } else {
+            preview.removeAttribute('src');
+            preview.style.display = 'none';
+            removeBtn.style.display = 'none';
+        }
+    }
+
+    function resizePad() {
+        if (!canvas) return;
+        var ratio = Math.max(window.devicePixelRatio || 1, 1);
+        var rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * ratio;
+        canvas.height = rect.height * ratio;
+        var ctx = canvas.getContext('2d');
+        if (ctx) ctx.scale(ratio, ratio);
+        if (pad) pad.clear();
+    }
+
+    showSaved(savedSignature);
+    resizePad();
+    pad = new SignaturePad(canvas, { backgroundColor: 'rgb(255,255,255)', penColor: 'rgb(15, 23, 42)' });
+
+    document.getElementById('clearSignaturePadBtn').addEventListener('click', function() {
+        if (pad) pad.clear();
+    });
+
+    document.getElementById('saveSignatureBtn').addEventListener('click', function() {
+        if (!pad || pad.isEmpty()) {
+            statusEl.style.color = '#b91c1c';
+            statusEl.textContent = 'Draw your signature before saving.';
+            return;
+        }
+        var dataUrl = pad.toDataURL('image/png');
+        statusEl.style.color = '#065f46';
+        statusEl.textContent = 'Saving...';
+        fetch('consultation_actions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'save_doctor_signature', signature_data: dataUrl })
+        }).then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (d && d.success) {
+                showSaved(dataUrl);
+                pad.clear();
+                statusEl.style.color = '#065f46';
+                statusEl.textContent = 'Signature saved. It will appear on new certificates, consent forms, and prescriptions.';
+            } else {
+                statusEl.style.color = '#b91c1c';
+                statusEl.textContent = (d && d.message) || 'Unable to save signature.';
+            }
+        }).catch(function() {
+            statusEl.style.color = '#b91c1c';
+            statusEl.textContent = 'Unable to save signature.';
+        });
+    });
+
+    removeBtn.addEventListener('click', function() {
+        if (!confirm('Remove your saved signature?')) return;
+        fetch('consultation_actions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'delete_doctor_signature' })
+        }).then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (d && d.success) {
+                showSaved('');
+                statusEl.style.color = '#065f46';
+                statusEl.textContent = 'Signature removed. Certificates already issued keep the signature they were given.';
+            } else {
+                statusEl.style.color = '#b91c1c';
+                statusEl.textContent = 'Unable to remove signature.';
+            }
+        });
+    });
+})();
+</script>
 <?php require_once __DIR__ . '/../../includes/dentist_layout_end.php'; ?>
 <script src="../../assets/js/two_factor_setup.js"></script>
 <script>

@@ -33,6 +33,17 @@ function columnExistsCheckIn(PDO $pdo, string $tableName, string $columnName): b
     return (bool)$stmt->fetchColumn();
 }
 
+function checkInTreatmentType(PDO $pdo, array $appointment): string
+{
+    $treatmentType = trim((string)($appointment['treatment'] ?? ''));
+    if ($treatmentType === '' && !empty($appointment['service_id'])) {
+        $svc = $pdo->prepare('SELECT name FROM services WHERE id = ?');
+        $svc->execute([(int)$appointment['service_id']]);
+        $treatmentType = trim((string)$svc->fetchColumn());
+    }
+    return $treatmentType !== '' ? $treatmentType : 'General Checkup';
+}
+
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('Invalid request method.');
@@ -96,7 +107,7 @@ try {
         'patient_id' => (int)$appointment['patient_id'],
         'appointment_id' => $appointmentId,
         'queue_date' => $today,
-        'treatment_type' => (string)($appointment['treatment'] ?? 'General Checkup'),
+        'treatment_type' => checkInTreatmentType($pdo, $appointment),
         'notes' => 'Checked in from scheduled appointment.',
         'queue_time' => date('H:i:s'),
         'status' => 'waiting'

@@ -3,6 +3,8 @@
 require_once __DIR__ . '/../../includes/session_bootstrap.php';
 
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/medical_certificate_helper.php';
+ensureDentistSignatureColumn($pdo);
 
 function ensurePrescriptionTableColumns(PDO $pdo): void {
     static $checked = false;
@@ -130,7 +132,8 @@ try {
                        CONCAT(p.first_name, ' ', p.last_name) as patient_name,
                        TIMESTAMPDIFF(YEAR, p.date_of_birth, CURDATE()) as age, p.phone,
                        p.gender, p.street_address, p.city, p.province,
-                       CONCAT(u.first_name, ' ', u.last_name) as doctor_name
+                       CONCAT(u.first_name, ' ', u.last_name) as doctor_name,
+                       u.signature_data AS dentist_signature
                 FROM prescriptions pr
                 LEFT JOIN patients p ON pr.patient_id = p.id
                 LEFT JOIN users u ON pr.doctor_id = u.id

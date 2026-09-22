@@ -197,7 +197,7 @@ $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doc
 .consult-tabs-bar {
     background: white;
     border-bottom: 2px solid #e2e8f0;
-    padding: 0 28px;
+    padding: 0 10px;
     display: flex;
     align-items: stretch;
     flex-shrink: 0;
@@ -2019,6 +2019,7 @@ $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doc
         <button class="consult-tab-btn" data-tab="diagnosis" onclick="switchConsultTab(this, 'diagnosis')">Diagnosis</button>
         <button class="consult-tab-btn" data-tab="treatment-plan" onclick="switchConsultTab(this, 'treatment-plan')">Treatment Plan</button>
         <button class="consult-tab-btn" data-tab="prescription" onclick="switchConsultTab(this, 'prescription')">Prescription</button>
+        <button class="consult-tab-btn" data-tab="certificate" onclick="switchConsultTab(this, 'certificate')">Medical Certificate</button>
     </div>
 
     <!-- Tab Content -->
@@ -2388,6 +2389,58 @@ $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doc
                 </div>
             </div>
 
+            <!-- Medical Certificate -->
+            <div class="consult-tab-panel" id="panel-certificate">
+                <?php if ($isPastView): ?><div class="read-only-overlay-msg">This is a completed past consultation. All data is read-only.</div><?php endif; ?>
+                <div style="max-width:720px;">
+                    <h3 style="font-size:1rem;font-weight:700;color:#1e293b;margin:0 0 6px;">Medical Certificate</h3>
+                    <p id="certPatientLine" style="margin:0 0 16px;color:#64748b;font-size:0.88rem;"></p>
+                    <div id="certSignatureWarning" style="display:none;margin-bottom:14px;padding:10px 12px;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;color:#9a3412;font-size:0.85rem;">
+                        Save your signature in <a href="dentist_profile.php" style="color:#9a3412;font-weight:700;">Profile &amp; Settings</a> before issuing this certificate.
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <div>
+                            <label style="display:block;font-size:0.82rem;font-weight:600;color:#334155;margin-bottom:4px;">Purpose</label>
+                            <input type="text" class="form-control" id="certPurpose" value="Employment">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:0.82rem;font-weight:600;color:#334155;margin-bottom:4px;">Date issued</label>
+                            <input type="date" class="form-control" id="certIssuedAt">
+                        </div>
+                        <div style="grid-column:1 / -1;">
+                            <label style="display:block;font-size:0.82rem;font-weight:600;color:#334155;margin-bottom:4px;">Findings</label>
+                            <textarea class="form-control" id="certFindings" rows="3" placeholder="Examination findings"></textarea>
+                        </div>
+                        <div style="grid-column:1 / -1;">
+                            <label style="display:block;font-size:0.82rem;font-weight:600;color:#334155;margin-bottom:4px;">Recommendation</label>
+                            <textarea class="form-control" id="certRecommendation" rows="2" placeholder="Fit to work, or advised rest"></textarea>
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:0.82rem;font-weight:600;color:#334155;margin-bottom:4px;">Rest from</label>
+                            <input type="date" class="form-control" id="certRestFrom">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:0.82rem;font-weight:600;color:#334155;margin-bottom:4px;">Rest to</label>
+                            <input type="date" class="form-control" id="certRestTo">
+                        </div>
+                        <div style="grid-column:1 / -1;">
+                            <label style="display:block;font-size:0.82rem;font-weight:600;color:#334155;margin-bottom:4px;">Remarks</label>
+                            <textarea class="form-control" id="certRemarks" rows="2" placeholder="Optional"></textarea>
+                        </div>
+                    </div>
+                    <div style="margin-top:18px;text-align:right;">
+                        <img id="certSignaturePreview" alt="Dentist signature" style="display:none;height:72px;width:200px;margin-left:auto;margin-right:12px;object-fit:cover;object-position:left center;">
+                        <div id="certDentistName" style="font-weight:700;color:#0f172a;margin-top:4px;"></div>
+                        <div style="font-size:0.78rem;color:#64748b;">Dentist</div>
+                    </div>
+                    <div style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap;justify-content:flex-end;">
+                        <button type="button" class="consult-complete-btn" id="certSaveBtn" style="background:#0ea5e9;color:white;" onclick="saveCertificate()">Save Certificate</button>
+                        <button type="button" class="consult-complete-btn" id="certPrintBtn" style="background:#0f172a;color:white;" onclick="printCertificate()">Print Certificate</button>
+                    </div>
+                    <p id="certSaveStatus" style="text-align:right;font-size:0.82rem;color:#059669;min-height:1.2em;margin:8px 0 0;"></p>
+                </div>
+            </div>
+
             <!-- Informed Consent -->
             <div class="consult-tab-panel" id="panel-consent">
                 <?php if ($isPastView): ?><div class="read-only-overlay-msg">This is a completed past consultation. All data is read-only.</div><?php endif; ?>
@@ -2454,6 +2507,7 @@ $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doc
                             <div class="sig-preview" id="doctorSigPreview"></div>
                             <div class="sig-label">Doctor</div>
                             <input type="text" class="sig-name-input" id="consentDoctorSignName" value="<?php echo htmlspecialchars($_SESSION['username'] ?? ''); ?>" readonly style="background:#f1f5f9;">
+                            <div id="doctorSigSavedNote" style="font-size:0.75rem;color:#64748b;margin-top:6px;"></div>
                         </div>
                         <div class="sig-block">
                             <div class="sig-line" id="witnessSigLine" onclick="openConsentSignatureModal('witness')" title="Tap to sign">Tap to sign</div>
@@ -2755,6 +2809,7 @@ function loadConsultation(queueId) {
             populateXrays();
             populatePrescription();
             populateConsent();
+            populateCertificate();
             renderToothFindings();
             renderToothButtons();
             loadPastConsultations(data.consultation.patient_id, data.consultation.id);
@@ -3656,6 +3711,154 @@ function savePrescription() {
     });
 }
 
+// ===================== MEDICAL CERTIFICATE =====================
+function certificateSignatureSource() {
+    var cert = (currentConsultation && currentConsultation.medical_certificate) || null;
+    if (cert && typeof cert.dentist_signature === 'string' && cert.dentist_signature.indexOf('data:') === 0) {
+        return cert.dentist_signature;
+    }
+    if (!isPastView && currentConsultation && typeof currentConsultation.dentist_signature === 'string' && currentConsultation.dentist_signature.indexOf('data:') === 0) {
+        return currentConsultation.dentist_signature;
+    }
+    return '';
+}
+
+function populateCertificate() {
+    if (!currentConsultation) return;
+    var cert = currentConsultation.medical_certificate || {};
+    var age = currentConsultation.patient_age ? (currentConsultation.patient_age + ' years old') : '';
+    var bits = [currentConsultation.patient_name || '', age, currentConsultation.patient_gender || '', currentConsultation.patient_address || ''].filter(function(part) { return part; });
+    var line = document.getElementById('certPatientLine');
+    if (line) line.textContent = bits.join(' · ');
+    document.getElementById('certPurpose').value = cert.purpose || 'Employment';
+    document.getElementById('certIssuedAt').value = cert.issued_at || new Date().toISOString().split('T')[0];
+    document.getElementById('certFindings').value = cert.findings || '';
+    document.getElementById('certRecommendation').value = cert.recommendation || '';
+    document.getElementById('certRestFrom').value = cert.rest_from || '';
+    document.getElementById('certRestTo').value = cert.rest_to || '';
+    document.getElementById('certRemarks').value = cert.remarks || '';
+    var sig = certificateSignatureSource();
+    var preview = document.getElementById('certSignaturePreview');
+    if (sig) {
+        preview.src = sig;
+        preview.style.display = 'block';
+    } else {
+        preview.removeAttribute('src');
+        preview.style.display = 'none';
+    }
+    document.getElementById('certDentistName').textContent = (cert.dentist_name || currentConsultation.dentist_name || rxDoctorName || '');
+    var warning = document.getElementById('certSignatureWarning');
+    if (warning) warning.style.display = sig ? 'none' : 'block';
+    var status = document.getElementById('certSaveStatus');
+    if (status) status.textContent = '';
+}
+
+function saveCertificate() {
+    if (isPastView || !currentConsultation) return;
+    var status = document.getElementById('certSaveStatus');
+    if (status) {
+        status.style.color = '#059669';
+        status.textContent = 'Saving...';
+    }
+    fetch('consultation_actions.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'save_certificate',
+            consultation_id: currentConsultation.id,
+            purpose: document.getElementById('certPurpose').value,
+            findings: document.getElementById('certFindings').value,
+            recommendation: document.getElementById('certRecommendation').value,
+            rest_from: document.getElementById('certRestFrom').value,
+            rest_to: document.getElementById('certRestTo').value,
+            remarks: document.getElementById('certRemarks').value,
+            issued_at: document.getElementById('certIssuedAt').value
+        })
+    }).then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (d && d.success) {
+            currentConsultation.medical_certificate = d.certificate || currentConsultation.medical_certificate;
+            populateCertificate();
+            if (status) status.textContent = 'Certificate saved.';
+        } else {
+            if (status) {
+                status.style.color = '#b91c1c';
+                status.textContent = (d && d.message) || 'Unable to save certificate.';
+            }
+        }
+    }).catch(function() {
+        if (status) {
+            status.style.color = '#b91c1c';
+            status.textContent = 'Unable to save certificate.';
+        }
+    });
+}
+
+function formatCertDate(value) {
+    if (!value) return '';
+    var parts = String(value).split('-');
+    if (parts.length !== 3) return value;
+    var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    if (isNaN(d.getTime())) return value;
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function printCertificate() {
+    if (!currentConsultation) return;
+    var cert = currentConsultation.medical_certificate || {};
+    var sig = certificateSignatureSource();
+    if (!sig) {
+        alert('Save your signature in Profile & Settings before printing this certificate.');
+        return;
+    }
+    var purpose = (document.getElementById('certPurpose').value || cert.purpose || 'Employment').trim();
+    var findings = (document.getElementById('certFindings').value || cert.findings || '').trim();
+    var recommendation = (document.getElementById('certRecommendation').value || cert.recommendation || '').trim();
+    var remarks = (document.getElementById('certRemarks').value || cert.remarks || '').trim();
+    var issued = formatCertDate(document.getElementById('certIssuedAt').value || cert.issued_at);
+    var restFrom = formatCertDate(document.getElementById('certRestFrom').value || cert.rest_from);
+    var restTo = formatCertDate(document.getElementById('certRestTo').value || cert.rest_to);
+    var dentistName = (cert.dentist_name || currentConsultation.dentist_name || rxDoctorName || 'Dentist');
+    var patientBits = [currentConsultation.patient_name || 'the patient'];
+    if (currentConsultation.patient_age) patientBits.push(currentConsultation.patient_age + ' years old');
+    if (currentConsultation.patient_gender) patientBits.push(currentConsultation.patient_gender);
+    var who = patientBits.join(', ');
+    var address = currentConsultation.patient_address ? (' of ' + currentConsultation.patient_address) : '';
+    var restLine = (restFrom || restTo) ? ('<p>Period of rest: ' + escapeHtml(restFrom || '—') + ' to ' + escapeHtml(restTo || '—') + '.</p>') : '';
+    var remarksLine = remarks ? ('<p>Remarks: ' + escapeHtml(remarks).replace(/\n/g, '<br>') + '</p>') : '';
+    var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Medical Certificate</title><style>' +
+        '@page { margin: 0.6in; } body { font-family: Georgia, "Times New Roman", serif; color: #111; margin: 0; }' +
+        '.sheet { max-width: 720px; margin: 0 auto; padding: 0.65in 0.75in 0.7in; box-sizing: border-box; } h1 { text-align: center; font-size: 22px; letter-spacing: 0.08em; margin: 0 0 4px; }' +
+        '.clinic { text-align: center; font-size: 14px; margin-bottom: 4px; } .sub { text-align: center; font-size: 12px; color: #444; margin-bottom: 28px; }' +
+        'p { font-size: 15px; line-height: 1.7; margin: 0 0 12px; } .sign { margin-top: 40px; text-align: right; } .sign-col { display: inline-block; width: 260px; text-align: center; } .sign-pad { padding: 0 36px 12px 8px; } .sign img { display: block; height: 68px; width: 180px; margin: 0 auto; object-fit: contain; object-position: center; } .name { font-weight: 700; border-top: 1px solid #111; margin: 0; padding-top: 6px; }' +
+        '</style></head><body><div class="sheet">' +
+        '<div class="clinic">' + escapeHtml(rxClinicName) + '</div>' +
+        '<h1>MEDICAL CERTIFICATE</h1>' +
+        '<div class="sub">' + escapeHtml(rxClinicDetails || '') + '</div>' +
+        '<p>Date: ' + escapeHtml(issued) + '</p>' +
+        '<p>To Whom It May Concern:</p>' +
+        '<p>This is to certify that <strong>' + escapeHtml(who) + '</strong>' + escapeHtml(address) + ' was examined at this clinic.</p>' +
+        '<p>Purpose: ' + escapeHtml(purpose) + '</p>' +
+        '<p>Findings: ' + escapeHtml(findings || '—').replace(/\n/g, '<br>') + '</p>' +
+        '<p>Recommendation: ' + escapeHtml(recommendation || '—').replace(/\n/g, '<br>') + '</p>' +
+        restLine + remarksLine +
+        '<div class="sign"><div class="sign-col"><div class="sign-pad"><img src="' + sig + '" alt="Signature"></div><div class="name">' + escapeHtml(dentistName) + '</div><div>Dentist</div></div></div>' +
+        '</div></body></html>';
+    var printWindow = window.open('', '_blank');
+    if (!printWindow) { alert('Please allow popups to print the certificate.'); return; }
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(function() { printWindow.print(); }, 200);
+}
+
+function prescriptionSignatureHtml() {
+    var sig = (!currentConsultation || typeof currentConsultation.dentist_signature !== 'string') ? '' : currentConsultation.dentist_signature;
+    if (sig.indexOf('data:image/') !== 0) return '';
+    return '<img src="' + sig + '" alt="Signature" style="display:block;max-height:64px;margin-bottom:4px;">';
+}
+
 // ===================== CONSENT =====================
 function populateConsent() {
     var c = currentConsultation;
@@ -3691,12 +3894,26 @@ function populateConsent() {
             updateConsentSignaturePreview('witness');
         }
     }
-    if (c.consent_doctor_signature) {
+    var storedDoctorSig = (typeof c.consent_doctor_signature === 'string' && c.consent_doctor_signature.indexOf('data:') === 0) ? c.consent_doctor_signature : '';
+    var savedDoctorSig = (!isPastView && typeof c.dentist_signature === 'string' && c.dentist_signature.indexOf('data:') === 0) ? c.dentist_signature : '';
+    var doctorSigNote = document.getElementById('doctorSigSavedNote');
+    if (storedDoctorSig) {
         document.getElementById('doctorSigLine').textContent = 'Edit signature';
         document.getElementById('doctorSigLine').classList.add('signed');
-        if (typeof c.consent_doctor_signature === 'string' && c.consent_doctor_signature.startsWith('data:')) {
-            currentConsentSignatureData.doctor = c.consent_doctor_signature;
-        }
+        currentConsentSignatureData.doctor = storedDoctorSig;
+        if (doctorSigNote) doctorSigNote.textContent = '';
+    } else if (savedDoctorSig) {
+        document.getElementById('doctorSigLine').textContent = 'Edit signature';
+        document.getElementById('doctorSigLine').classList.add('signed');
+        currentConsentSignatureData.doctor = savedDoctorSig;
+        if (doctorSigNote) doctorSigNote.textContent = 'Using your saved signature. Saving consent keeps this copy on the form.';
+    } else {
+        document.getElementById('doctorSigLine').textContent = 'Tap to sign';
+        document.getElementById('doctorSigLine').classList.remove('signed');
+        if (doctorSigNote) doctorSigNote.textContent = 'Set your signature in Profile & Settings so it appears here.';
+    }
+    if (c.dentist_name) {
+        document.getElementById('consentDoctorSignName').value = c.dentist_name;
     }
 
     updateConsentSignaturePreview('patient');
@@ -3997,7 +4214,7 @@ function printPrescription() {
         '<div class="rx-instructions-box"><strong>Instructions:</strong> ' + escapeHtml(instructionsText) + '</div>' +
         '<div class="rx-footer">' +
         '<div class="rx-info-row"><span class="rx-info-label">Prescriber:</span><span class="rx-info-value">' + escapeHtml(rxDoctorName) + '</span></div>' +
-        '<div class="rx-signature-row"><span class="rx-info-label">Signature:</span><span class="rx-signature-line"></span></div>' +
+        '<div class="rx-signature-row"><span class="rx-info-label">Signature:</span><span>' + prescriptionSignatureHtml() + '<span class="rx-signature-line"></span></span></div>' +
         '</div>' +
         '<div class="rx-bottom-bar">' + escapeHtml(rxClinicName) + ' &middot; ' + escapeHtml(rxClinicDetails) + '</div>' +
         '</div>' +
@@ -4098,6 +4315,7 @@ function loadPastConsultationData(consultId) {
             populateXrays();
             populatePrescription();
             populateConsent();
+            populateCertificate();
             renderToothFindings();
             renderToothButtons();
             loadPastConsultations(data.consultation.patient_id, data.consultation.id);
@@ -4118,7 +4336,7 @@ function applyReadOnlyMode() {
     document.querySelectorAll('#consultPanels input[type="date"]').forEach(function(el) { el.readOnly = true; });
     document.querySelectorAll('#consultPanels textarea').forEach(function(el) { el.readOnly = true; });
     document.querySelectorAll('#consultPanels input[type="checkbox"]').forEach(function(el) { el.disabled = true; });
-    var saveBtns = document.querySelectorAll('#panel-prescription .consult-complete-btn, #panel-consent .consult-complete-btn, #panel-treatment-plan .consult-complete-btn');
+    var saveBtns = document.querySelectorAll('#panel-prescription .consult-complete-btn, #panel-consent .consult-complete-btn, #panel-treatment-plan .consult-complete-btn, #certSaveBtn');
     saveBtns.forEach(function(b) { b.style.display = 'none'; });
     document.querySelectorAll('#panel-treatment-plan .sess-btn').forEach(function(el) { el.disabled = true; });
     if (document.getElementById('notesSaveStatus')) document.getElementById('notesSaveStatus').textContent = '';

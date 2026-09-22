@@ -43,6 +43,7 @@ $rxLogo = $rxLogo ?? '../../assets/images/Logo.png';
             <input type="text" class="rx-input" id="rxFollowup" autocomplete="off">
         </div>
         <div class="rx-sign">
+            <img id="rxSignImage" class="rx-sign-image" alt="Dentist signature">
             <input type="text" class="rx-input rx-sign-input" id="rxDoctor" autocomplete="off">
             <div class="rx-sign-caption">Dentist's Name</div>
             <div class="rx-lic"><label for="rxLicNo">Lic. No.:</label><input type="text" class="rx-input" id="rxLicNo" autocomplete="off"></div>

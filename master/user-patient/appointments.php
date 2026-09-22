@@ -141,6 +141,9 @@ foreach ($bookedDates as $booked) {
     $bookedDateSlots[$date][] = $time;
 }
 
+require_once '../../includes/medical_certificate_helper.php';
+ensureMedicalCertificateService($pdo);
+
 // Get services for booking
 $stmt = $pdo->prepare("SELECT id, name, duration_minutes, price FROM services WHERE is_active = 1 ORDER BY name");
 $stmt->execute();

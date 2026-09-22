@@ -165,7 +165,10 @@ try {
     require_once '../../includes/billing_helper.php';
     require_once '../../includes/notification_functions.php';
     require_once '../../includes/patient_dashboard_status_helper.php';
+    require_once '../../includes/medical_certificate_helper.php';
     ensureNotificationSchema($pdo);
+    ensureMedicalCertificateSchema($pdo);
+    ensureMedicalCertificateService($pdo);
 
     // Ensure medical_history table has all required columns
     static $mhSchemaReady = false;
@@ -253,10 +256,15 @@ try {
 
     $method = $_SERVER['REQUEST_METHOD'];
     $action = $_GET['action'] ?? ($_POST['action'] ?? '');
-
-    if ($method === 'POST' && !$action) {
-        $input = json_decode(file_get_contents('php://input'), true);
-        if ($input) $action = $input['action'] ?? '';
+    $requestBody = [];
+    if ($method === 'POST') {
+        $decodedBody = json_decode(file_get_contents('php://input'), true);
+        if (is_array($decodedBody)) {
+            $requestBody = $decodedBody;
+        }
+    }
+    if (!$action && !empty($requestBody['action'])) {
+        $action = $requestBody['action'];
     }
 
     switch ($action) {
@@ -369,12 +377,14 @@ try {
                 $consultation['prescription_data'] = [];
             }
 
+            attachMedicalCertificateToConsultation($pdo, $consultation);
+
             ob_clean();
             echo json_encode(['success' => true, 'consultation' => $consultation]);
             break;
 
         case 'save_dental_exam':
-            $input = json_decode(file_get_contents('php://input'), true);
+            $input = $requestBody ?: $_POST;
             if (!$input) { $input = $_POST; }
             $consultId = (int)($input['consultation_id'] ?? 0);
             if (!$consultId) {
@@ -426,7 +436,7 @@ try {
             break;
 
         case 'save_notes':
-            $input = json_decode(file_get_contents('php://input'), true);
+            $input = $requestBody ?: $_POST;
             $consultId = (int)($input['consultation_id'] ?? 0);
             if (!$consultId) {
                 ob_clean();
@@ -440,7 +450,7 @@ try {
             break;
 
         case 'save_history':
-            $input = json_decode(file_get_contents('php://input'), true);
+            $input = $requestBody ?: $_POST;
             $consultId = (int)($input['consultation_id'] ?? 0);
             if (!$consultId) {
                 ob_clean();
@@ -474,7 +484,7 @@ try {
             break;
 
         case 'save_diagnosis':
-            $input = json_decode(file_get_contents('php://input'), true);
+            $input = $requestBody ?: $_POST;
             $consultId = (int)($input['consultation_id'] ?? 0);
             if (!$consultId) {
                 ob_clean();
@@ -539,7 +549,7 @@ try {
             break;
 
         case 'save_medical_history':
-            $input = json_decode(file_get_contents('php://input'), true);
+            $input = $requestBody ?: $_POST;
             $patientId = (int)($input['patient_id'] ?? 0);
             $medData = $input['medical_data'] ?? [];
             if (!$patientId) {
@@ -601,7 +611,7 @@ try {
             break;
 
         case 'save_prescription':
-            $input = json_decode(file_get_contents('php://input'), true);
+            $input = $requestBody ?: $_POST;
             $consultId = (int)($input['consultation_id'] ?? 0);
             if (!$consultId) {
                 ob_clean();
@@ -626,7 +636,7 @@ try {
             break;
 
         case 'save_consent':
-            $input = json_decode(file_get_contents('php://input'), true);
+            $input = $requestBody ?: $_POST;
             $consultId = (int)($input['consultation_id'] ?? 0);
             if (!$consultId) {
                 ob_clean();
@@ -674,7 +684,7 @@ try {
             break;
 
         case 'complete_consultation':
-            $input = json_decode(file_get_contents('php://input'), true);
+            $input = $requestBody ?: $_POST;
             $consultId = (int)($input['consultation_id'] ?? 0);
             if (!$consultId) {
                 ob_clean();
@@ -876,8 +886,21 @@ try {
                 $consultation['prescription_data'] = [];
             }
 
+            attachMedicalCertificateToConsultation($pdo, $consultation);
+
             ob_clean();
             echo json_encode(['success' => true, 'consultation' => $consultation]);
+            break;
+
+        case 'save_certificate':
+            $input = $requestBody;
+            if (!$input) {
+                $input = $_POST;
+            }
+            $consultId = (int)($input['consultation_id'] ?? 0);
+            $result = saveMedicalCertificate($pdo, $consultId, $user_id, $input);
+            ob_clean();
+            echo json_encode($result);
             break;
 
         case 'get_doctor_signature':
@@ -892,8 +915,13 @@ try {
             break;
 
         case 'save_doctor_signature':
-            $input = json_decode(file_get_contents('php://input'), true);
+            $input = $requestBody;
             $sigData = $input['signature_data'] ?? null;
+            if (!is_string($sigData) || strpos($sigData, 'data:image/') !== 0 || strlen($sigData) > 500000) {
+                ob_clean();
+                echo json_encode(['success' => false, 'message' => 'Draw a signature before saving.']);
+                break;
+            }
             $stmt = $pdo->prepare("UPDATE users SET signature_data = ? WHERE id = ?");
             $stmt->execute([$sigData, $user_id]);
             ob_clean();
