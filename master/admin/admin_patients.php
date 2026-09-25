@@ -1043,7 +1043,7 @@ function confirmRecordPayment() {
     .then(function(data) {
         if (data.success) {
             closeRecordPaymentModal();
-            window.location.reload();
+            (window.appCache ? window.appCache.refreshCurrent(['admin_dashboard.php']) : (window.location.reload.bind(window))());
         } else {
             alert('Error: ' + data.message);
         }
@@ -1154,7 +1154,7 @@ function confirmSetDueDate() {
     .then(function(data) {
         if (data.success) {
             closeSetDueDateModal();
-            window.location.reload();
+            (window.appCache ? window.appCache.refreshCurrent(['admin_dashboard.php']) : (window.location.reload.bind(window))());
         } else {
             alert('Error: ' + data.message);
         }
@@ -1331,7 +1331,7 @@ function savePatientChanges() {
         if (data.success) {
             alert('Patient information updated successfully!');
             closeEditPatientModal();
-            location.reload();
+            (window.appCache ? window.appCache.refreshCurrent(['admin_dashboard.php']) : (window.location.reload.bind(window))());
         } else {
             alert('Error: ' + data.message);
         }
@@ -1408,7 +1408,7 @@ function confirmArchivePatient(patientId) {
     .then(data => {
         if (data.success) {
             showAppNotice('Success', 'Patient archived successfully', 'success', function () {
-                location.reload();
+                (window.appCache ? window.appCache.refreshCurrent(['admin_dashboard.php']) : (window.location.reload.bind(window))());
             });
         } else {
             alert('Error: ' + data.message);
@@ -1497,7 +1497,7 @@ if (addAppointmentForm_el) {
         if (data.success) {
             alert('Appointment scheduled successfully!');
             closeAddAppointmentModal();
-            location.reload();
+            (window.appCache ? window.appCache.refreshCurrent(['admin_dashboard.php']) : (window.location.reload.bind(window))());
         } else {
             alert(data.message || 'Error scheduling appointment');
         }

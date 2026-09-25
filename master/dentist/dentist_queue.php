@@ -1871,7 +1871,7 @@ function updateQueueStatus(queueId, status) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            location.reload();
+            (window.appCache ? window.appCache.refreshCurrent(['dentist_dashboard.php']) : location.reload());
         } else {
             alert('Error: ' + data.message);
         }
@@ -1914,7 +1914,7 @@ function confirmStartProcedure() {
     .then(function(data) {
         if (data.success) {
             closeStartProcedureModal();
-            location.reload();
+            (window.appCache ? window.appCache.refreshCurrent(['dentist_dashboard.php']) : location.reload());
         } else {
             alert('Error: ' + (data.message || 'Unable to start procedure'));
         }

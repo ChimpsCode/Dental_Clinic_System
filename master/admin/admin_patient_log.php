@@ -480,7 +480,7 @@ function confirmArchivePatient(patientId) {
         if (data.success) {
             stripPatientLogPortals();
             showAppNotice('Success', 'Patient archived successfully', 'success', function () {
-                location.reload();
+                (window.appCache ? window.appCache.refreshCurrent(['admin_patients.php']) : (window.location.reload.bind(window))());
             });
         } else {
             alert('Error: ' + data.message);

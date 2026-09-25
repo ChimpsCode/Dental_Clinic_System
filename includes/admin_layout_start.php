@@ -353,6 +353,13 @@ function isActivePage($page) {
     </style>
 </head>
 <body data-user-id="<?php echo (int)($_SESSION['user_id'] ?? 0); ?>">
+    <div id="workspaceSplash" style="position:fixed;inset:0;z-index:100000;background:none;background-color:transparent;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:center;font-family:Inter,system-ui,sans-serif;">
+        <div style="text-align:center;color:#0f172a;">
+            <div style="width:36px;height:36px;margin:0 auto 14px;border:3px solid #dbe3ee;border-top-color:#005daa;border-radius:50%;animation:workspaceSpin .8s linear infinite;"></div>
+            <p style="margin:0;font-size:15px;font-weight:600;">Initializing workspace...</p>
+        </div>
+    </div>
+    <style>@keyframes workspaceSpin{to{transform:rotate(360deg)}}</style>
     <div id="userModal" class="modal-overlay">
         <div class="modal user-modal">
             <h2 id="modalTitle">Add New User</h2>
@@ -774,5 +781,6 @@ function isActivePage($page) {
             });
         });
         </script>
+        <script>window.__shellBodyNodes = Array.prototype.slice.call(document.body.children);</script>
         <?php endif; ?>
         <div class="content-area"<?php echo $__pjax ? ' data-page-title="' . htmlspecialchars($pageTitle) . '"' : ''; ?>>

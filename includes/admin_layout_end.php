@@ -13,7 +13,7 @@ if ($__pjax) {
     <script src="../../assets/js/dashboard.js"></script>
     <script src="../../assets/js/notif_bell_ring.js"></script>
     <script src="../../assets/js/admin.js"></script>
-    <script src="../../assets/js/admin_router.js?v=3"></script>
+    <script src="../../assets/js/admin_router.js?v=5"></script>
     <?php if (isset($pageScript)) { echo $pageScript; } ?>
     <?php require __DIR__ . '/session_timeout_script.php'; ?>
     <?php require __DIR__ . '/app_notice_modal_script.php'; ?>

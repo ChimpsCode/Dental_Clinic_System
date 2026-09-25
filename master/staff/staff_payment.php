@@ -1760,7 +1760,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     .then(r => r.json())
                     .then(data => {
                         alert(data.message || (data.success ? 'Done' : 'Failed'));
-                        if (data.success) location.reload();
+                        if (data.success) (window.appCache ? window.appCache.refreshCurrent(['staff-dashboard.php']) : location.reload());
                     })
                     .catch(() => alert('Request failed. Please try again.'));
                 }
@@ -2204,7 +2204,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            window.location.reload();
+                            (window.appCache ? window.appCache.refreshCurrent(['staff-dashboard.php']) : location.reload());
                         } else {
                             alert('Error: ' + data.message);
                         }
@@ -2371,7 +2371,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            window.location.reload();
+                            (window.appCache ? window.appCache.refreshCurrent(['staff-dashboard.php']) : location.reload());
                         } else {
                             recordPaymentInFlight = false;
                             if (recordBtn) recordBtn.disabled = false;

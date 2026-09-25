@@ -1237,7 +1237,7 @@ function confirmCompleteProcedure() {
     .then(data => {
         if (data.success) {
             closeCompleteProcedureModal();
-            location.reload();
+            (window.appCache ? window.appCache.refreshCurrent(['admin_queue.php', 'admin_appointments.php']) : (window.location.reload.bind(window))());
         } else {
             alert('Error: ' + (data.message || 'Unable to complete procedure'));
         }

@@ -686,7 +686,7 @@ function showProcedureCompleteModal(data) {
 
 function closeProcedureCompleteModal() {
     document.getElementById('procedureCompleteModal').style.display = 'none';
-    location.reload();
+    (window.appCache ? window.appCache.refreshCurrent(['dentist_queue.php', 'dentist_appointments.php']) : location.reload());
 }
 
 // Billing functions
@@ -840,7 +840,7 @@ function markAsPaidComplete(patientId, queueId) {
     .then(data => {
         if (data.success) {
             alert('Payment marked as paid!');
-            location.reload();
+            (window.appCache ? window.appCache.refreshCurrent(['dentist_queue.php', 'dentist_appointments.php']) : location.reload());
         } else {
             alert('Error: ' + data.message);
         }
@@ -1094,7 +1094,7 @@ function saveTeethChanges(queueId) {
             document.getElementById('editTeethBtn').textContent = 'Edit Teeth';
             document.getElementById('teethEditActions').style.display = 'none';
             alert('Teeth updated!');
-            location.reload();
+            (window.appCache ? window.appCache.refreshCurrent(['dentist_queue.php', 'dentist_appointments.php']) : location.reload());
         } else {
             alert('Failed to update teeth: ' + (data.message || 'Unknown error'));
         }

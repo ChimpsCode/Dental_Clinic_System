@@ -964,7 +964,7 @@ function savePrescription() {
     .then(data => {
         if (data.success) {
             closePrescriptionModal();
-            location.reload();
+            (window.appCache ? window.appCache.refreshCurrent(['dentist_dashboard.php']) : location.reload());
         } else {
             alert('Error: ' + data.message);
         }

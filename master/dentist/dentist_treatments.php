@@ -1255,7 +1255,7 @@ require_once '../../includes/dentist_layout_start.php';
             alert(data.message); // Show the message
             if (data.success) {
                 closeTreatmentPlanModal();
-                location.reload();
+                (window.appCache ? window.appCache.refreshCurrent(['dentist_dashboard.php']) : location.reload());
             }
         })
         .catch(error => {
@@ -1276,7 +1276,7 @@ require_once '../../includes/dentist_layout_start.php';
         .then(data => {
             if (data.success) {
                 closeProgressModal();
-                location.reload();
+                (window.appCache ? window.appCache.refreshCurrent(['dentist_dashboard.php']) : location.reload());
             } else {
                 alert(data.message || 'Error updating progress');
             }

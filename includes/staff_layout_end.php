@@ -1,6 +1,9 @@
 <?php
-
-
+$__pjax = isset($_GET['__pjax']) && $_GET['__pjax'] === '1';
+if ($__pjax) {
+    echo "            </div>\n        </div>\n";
+    return;
+}
 ?>
             </div>
         </div>
@@ -244,6 +247,7 @@
     <?php require __DIR__ . '/app_notice_modal_script.php'; ?>
     <script src="../../assets/js/logout_confirm.js?v=3"></script>
     <?php require __DIR__ . '/new_device_login_modal.php'; ?>
+    <script src="../../assets/js/shell_router.js?v=2"></script>
 </body>
 </html>
 <?php

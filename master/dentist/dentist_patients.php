@@ -925,7 +925,7 @@ function confirmRecordPayment() {
     .then(data => {
         if (data.success) {
             closeRecordPaymentModal();
-            window.location.reload();
+            (window.appCache ? window.appCache.refreshCurrent(['dentist_dashboard.php']) : location.reload());
         } else {
             alert('Error: ' + data.message);
         }
@@ -1036,7 +1036,7 @@ function confirmSetDueDate() {
     .then(data => {
         if (data.success) {
             closeSetDueDateModal();
-            window.location.reload();
+            (window.appCache ? window.appCache.refreshCurrent(['dentist_dashboard.php']) : location.reload());
         } else {
             alert('Error: ' + data.message);
         }
@@ -1441,7 +1441,7 @@ if (addAppointmentFormEl) {
         if (data.success) {
             alert('Appointment scheduled successfully!');
             closeAddAppointmentModal();
-            location.reload();
+            (window.appCache ? window.appCache.refreshCurrent(['dentist_dashboard.php']) : location.reload());
         } else {
             alert(data.message || 'Error scheduling appointment');
         }

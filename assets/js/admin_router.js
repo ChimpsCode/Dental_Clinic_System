@@ -14,12 +14,14 @@
     // Body nodes that belong to the persistent layout shell (sidebar, header,
     // main, content-area, modals). Everything else appended later is page-specific
     // (kebab portals, overlays, after-layout tags) and must be removed on nav.
-    var coreBodyChildren = Array.prototype.slice.call(document.body.children);
+    var coreBodyChildren = window.__shellBodyNodes || Array.prototype.slice.call(document.body.children);
+    var scriptMemory = {};
 
     var nativeSetInterval = window.setInterval;
     var nativeClearInterval = window.clearInterval;
     var nativeSetTimeout = window.setTimeout;
     var nativeClearTimeout = window.clearTimeout;
+    var nativeFetch = window.fetch.bind(window);
 
     // Track pollers so a previous page's timers can never write into a new page's DOM.
     window.setInterval = function (fn, delay) {
@@ -76,7 +78,7 @@
         if (el.id && pageModalIds[el.id]) return false;
         if (coreBodyChildren.indexOf(el) !== -1) return true;
         // Session-timeout overlay is appended after this snapshot and must survive nav.
-        if (el.id === 'stoOverlay') return true;
+        if (el.id === 'stoOverlay' || el.id === 'workspaceSplash') return true;
         if (el.getAttribute && el.getAttribute('data-persist-layout') === '1') return true;
         return false;
     }
@@ -174,9 +176,14 @@
     }
 
     function fetchExternalScript(src) {
-        return fetch(src, { cache: 'no-store', credentials: 'same-origin' })
+        if (Object.prototype.hasOwnProperty.call(scriptMemory, src)) {
+            if (scriptMemory[src]) runScriptCode(scriptMemory[src], src);
+            return Promise.resolve();
+        }
+        return nativeFetch(src, { credentials: 'same-origin' })
             .then(function (res) { return res.ok ? res.text() : ''; })
             .then(function (code) {
+                scriptMemory[src] = code;
                 if (code) runScriptCode(code, src);
             })
             .catch(function (err) {
@@ -292,28 +299,114 @@
         });
     }
 
+    function pageKey(url) {
+        try {
+            return new URL(url, location.href).pathname;
+        } catch (e) {
+            return String(url || '');
+        }
+    }
+
+    function listKey(url) {
+        try {
+            var u = new URL(url, location.href);
+            u.hash = '';
+            u.searchParams.delete('__pjax');
+            var query = u.searchParams.toString();
+            return query ? (u.pathname + '?' + query) : u.pathname;
+        } catch (e) {
+            return pageKey(url);
+        }
+    }
+
+    function pageName(url) {
+        var path = pageKey(url);
+        var parts = path.split('/');
+        return parts[parts.length - 1] || path;
+    }
+
+    function resolvePage(page) {
+        var name = String(page || '');
+        if (name.indexOf('?') !== -1 || name.indexOf('/') !== -1 || name.indexOf('://') !== -1) return listKey(name);
+        var links = document.querySelectorAll('#adminSidebar a.nav-item');
+        for (var i = 0; i < links.length; i++) {
+            var href = links[i].getAttribute('href') || '';
+            if (pageName(href) === name || href === name) return pageKey(href);
+        }
+        return pageKey(name);
+    }
+
     function appendPjaxParam(url) {
         var u = new URL(url, location.href);
         u.searchParams.set('__pjax', '1');
+        u.hash = '';
         return u.href;
     }
 
-    function loadPage(url, push) {
-        var token = ++router.navToken;
-        fetch(appendPjaxParam(url), { cache: 'no-store', credentials: 'same-origin' })
+    function hideSplash() {
+        var splash = document.getElementById('workspaceSplash');
+        if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+    }
+
+    function fetchFragment(url) {
+        return nativeFetch(appendPjaxParam(url), { cache: 'no-store', credentials: 'same-origin' })
             .then(function (res) {
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 return res.text();
             })
             .then(function (html) {
-                if (token !== router.navToken) return; // stale response, ignore
-                render(html, url, push);
-            })
-            .catch(function (err) {
-                if (token !== router.navToken) return;
-                console.error('pjax failed, falling back to full load:', err);
-                window.location.href = url;
+                window.appCache.set(listKey(url), html);
+                return html;
             });
+    }
+
+    window.appCache = {
+        data: {},
+        get: function (page) {
+            return this.data[resolvePage(page)] || null;
+        },
+        set: function (page, html) {
+            this.data[resolvePage(page)] = html;
+        },
+        invalidate: function (pages) {
+            var list = Array.isArray(pages) ? pages : [pages];
+            list.forEach(function (page) {
+                var key = resolvePage(page);
+                if (!key) return;
+                fetchFragment(key).catch(function (err) {
+                    console.error('appCache invalidate failed:', key, err);
+                });
+            });
+        },
+        refreshCurrent: function (extraPages) {
+            var url = (location.pathname + location.search).split('#')[0];
+            var token = ++router.navToken;
+            return fetchFragment(url).then(function (html) {
+                if (token !== router.navToken) return;
+                render(html, url, false);
+                if (extraPages && extraPages.length) window.appCache.invalidate(extraPages);
+            }).catch(function (err) {
+                console.error('appCache refreshCurrent failed:', err);
+                window.location.reload();
+            });
+        }
+    };
+
+    function loadPage(url, push) {
+        var token = ++router.navToken;
+        var cached = window.appCache.get(url);
+        if (cached) {
+            render(cached, url, push);
+            return;
+        }
+        fetchFragment(url).then(function (html) {
+            if (token !== router.navToken) return;
+            render(html, url, push);
+        }).catch(function (err) {
+            if (token !== router.navToken) return;
+            console.error('pjax failed, falling back to full load:', err);
+            window.location.href = url;
+        });
     }
 
     function closestItem(node) {
@@ -339,11 +432,91 @@
         if (url.split('#')[0] === location.href.split('#')[0]) return; // same page
 
         e.preventDefault();
-        loadPage(url, true);
+        loadPage(url.split('#')[0], true);
+    });
+
+    document.addEventListener('click', function (e) {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+        var node = e.target;
+        var link = null;
+        while (node && node !== document) {
+            if (node.nodeType === 1 && node.tagName === 'A' && node.closest && node.closest('.content-area')) {
+                link = node;
+                break;
+            }
+            node = node.parentNode;
+        }
+        if (!link || link.classList.contains('disabled')) return;
+        var href = link.getAttribute('href');
+        if (!href || href.charAt(0) === '#' || href.indexOf('javascript:') === 0) return;
+        if (link.getAttribute('target') && link.getAttribute('target') !== '_self') return;
+        if (link.hasAttribute('download')) return;
+        var url;
+        try { url = new URL(href, location.href); } catch (err) { return; }
+        if (url.origin !== location.origin) return;
+        if (url.pathname !== location.pathname) return;
+        if ((url.pathname + url.search) === (location.pathname + location.search)) return;
+        e.preventDefault();
+        loadPage(url.pathname + url.search, true);
     });
 
     window.addEventListener('popstate', function (e) {
         if (!e.state || !e.state.pjax) return;
-        loadPage(location.href, false);
+        loadPage(location.href.split('#')[0], false);
     });
+
+    function isMutating(input, init) {
+        var method = 'GET';
+        var url = '';
+        if (typeof input === 'string') url = input;
+        else if (input && input.url) url = input.url;
+        if (init && init.method) method = init.method;
+        else if (input && input.method) method = input.method;
+        method = String(method || 'GET').toUpperCase();
+        if (method === 'GET' || method === 'HEAD') return false;
+        if (url.indexOf('notification_actions.php') !== -1) return false;
+        if (url.indexOf('__pjax=1') !== -1) return false;
+        return true;
+    }
+
+    window.fetch = function (input, init) {
+        return nativeFetch(input, init).then(function (res) {
+            if (res && res.ok && isMutating(input, init)) {
+                window.appCache.invalidate(listKey(location.href));
+            }
+            return res;
+        });
+    };
+
+    (function seedCurrentPage() {
+        var current = document.querySelector('.content-area');
+        if (!current) return;
+        var h1 = document.querySelector('.header-title h1');
+        if (h1 && !current.getAttribute('data-page-title')) {
+            current.setAttribute('data-page-title', h1.textContent.trim());
+        }
+        window.appCache.set(listKey(location.href), current.outerHTML);
+    })();
+
+    (function preloadNav() {
+        var links = document.querySelectorAll('#adminSidebar a.nav-item');
+        var jobs = [];
+        var seen = {};
+        for (var i = 0; i < links.length; i++) {
+            var href = links[i].getAttribute('href');
+            if (!href || href.charAt(0) === '#') continue;
+            var url;
+            try { url = new URL(href, location.href); } catch (e) { continue; }
+            if (url.origin !== location.origin) continue;
+            var key = url.pathname;
+            if (seen[key] || key === location.pathname) continue;
+            seen[key] = true;
+            jobs.push(fetchFragment(url.pathname).catch(function (err) {
+                console.error('workspace preload failed:', err);
+            }));
+        }
+        Promise.allSettled(jobs).then(hideSplash);
+    })();
+
+    try { history.replaceState({ pjax: true }, '', location.href); } catch (e) {}
 })();

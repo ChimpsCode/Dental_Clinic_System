@@ -903,7 +903,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     .then(r => r.json())
                     .then(data => {
                         alert(data.message || (data.success ? 'Done' : 'Failed'));
-                        if (data.success) location.reload();
+                        if (data.success) (window.appCache ? window.appCache.refreshCurrent(['admin_dashboard.php']) : (window.location.reload.bind(window))());
                     })
                     .catch(() => alert('Request failed. Please try again.'));
                 }
@@ -1352,7 +1352,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     .then(function(response) { return response.json(); })
                     .then(function(data) {
                         if (data.success) {
-                            window.location.reload();
+                            (window.appCache ? window.appCache.refreshCurrent(['admin_dashboard.php']) : (window.location.reload.bind(window))());
                         } else {
                             alert('Error: ' + data.message);
                         }
@@ -1497,7 +1497,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     .then(function(response) { return response.json(); })
                     .then(function(data) {
                         if (data.success) {
-                            window.location.reload();
+                            (window.appCache ? window.appCache.refreshCurrent(['admin_dashboard.php']) : (window.location.reload.bind(window))());
                         } else {
                             recordPaymentInFlight = false;
                             if (recordBtn) recordBtn.disabled = false;
@@ -1615,7 +1615,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     .then(function(r) { return r.json(); })
                     .then(function(data) {
                         if (data.success) {
-                            location.reload();
+                            (window.appCache ? window.appCache.refreshCurrent(['admin_dashboard.php']) : (window.location.reload.bind(window))());
                         } else {
                             alert('Error: ' + data.message);
                         }

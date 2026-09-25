@@ -1863,7 +1863,7 @@ function holdPatientQueue(queueId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            location.reload();
+            (window.appCache ? window.appCache.refreshCurrent(['staff-dashboard.php']) : location.reload());
         } else {
             alert(data.message || 'Failed to put patient on hold');
         }
@@ -1885,7 +1885,7 @@ function requeuePatientQueue(queueId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            location.reload();
+            (window.appCache ? window.appCache.refreshCurrent(['staff-dashboard.php']) : location.reload());
         } else {
             alert(data.message || 'Failed to re-queue patient');
         }
@@ -1907,7 +1907,7 @@ function cancelPatientQueue(queueId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            location.reload();
+            (window.appCache ? window.appCache.refreshCurrent(['staff-dashboard.php']) : location.reload());
         } else {
             alert(data.message || 'Failed to cancel patient');
         }
@@ -1929,7 +1929,7 @@ function deleteQueueItem(queueId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            location.reload();
+            (window.appCache ? window.appCache.refreshCurrent(['staff-dashboard.php']) : location.reload());
         } else {
             alert(data.message || 'Failed to delete patient record');
         }
@@ -2000,7 +2000,7 @@ function assignDoctor() {
     .then(function(r) { return r.json(); })
     .then(function(data) {
         if (data.success) {
-            location.reload();
+            (window.appCache ? window.appCache.refreshCurrent(['staff-dashboard.php']) : location.reload());
         } else {
             alert(data.message || 'Failed to assign doctor');
         }
@@ -2135,7 +2135,7 @@ function confirmCompleteProcedure() {
     .then(data => {
         if (data.success) {
             closeCompleteProcedureModal();
-            location.reload();
+            (window.appCache ? window.appCache.refreshCurrent(['staff-dashboard.php']) : location.reload());
         } else {
             alert('Error: ' + (data.message || 'Unable to complete procedure'));
         }

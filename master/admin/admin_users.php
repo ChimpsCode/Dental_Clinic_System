@@ -982,7 +982,7 @@ try {
                                 .then(res => res.json())
                                 .then(data => {
                                     if (data.success) {
-                                        location.reload();
+                                        (window.appCache ? window.appCache.refreshCurrent() : (window.location.reload.bind(window))());
                                     } else {
                                         alert(data.message || 'Failed to save user.');
                                         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Save'; }
@@ -1044,7 +1044,7 @@ try {
                         .then(res => res.json())
                         .then(data => {
                             if (data.success) {
-                                location.reload();
+                                (window.appCache ? window.appCache.refreshCurrent() : (window.location.reload.bind(window))());
                             } else {
                                 alert(data.message || 'Failed to update status');
                             }

@@ -1771,7 +1771,7 @@ async function postAction(payload) {
 }
 
 async function refreshData() {
-    window.location.reload();
+    (window.appCache ? window.appCache.refreshCurrent(['staff-dashboard.php']) : window.location.reload());
 }
 
 function getInitials(name) {
