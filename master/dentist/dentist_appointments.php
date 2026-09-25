@@ -20,6 +20,16 @@ try {
 
 require_once '../../includes/dentist_layout_start.php';
 
+$clinicName = 'RF Dental Clinic';
+$clinicAddress = '';
+try {
+    $clinicRows = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('clinic_name', 'clinic_address')")->fetchAll(PDO::FETCH_KEY_PAIR);
+    $clinicName = $clinicRows['clinic_name'] ?? $clinicName;
+    $clinicAddress = $clinicRows['clinic_address'] ?? '';
+} catch (Exception $e) {
+    // Settings query is best-effort
+}
+
 // Load settings for business hours and unavailable dates
 try {
     $stmt = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('business_hours', 'unavailable_dates')");
@@ -675,7 +685,7 @@ $sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'pe
     </div>
 </div>
 
-
+<div id="queuePrintContainer" aria-hidden="true"></div>
 
 <script>
 var appointments = <?php echo json_encode($appointments); ?>;
@@ -1749,10 +1759,87 @@ function closeApptKebabDropdown() {
         openMarkArrivedModal(id);
     }
 
+    const clinicPrintInfo = {
+        name: <?php echo json_encode($clinicName); ?>,
+        address: <?php echo json_encode($clinicAddress); ?>
+    };
+
+    function printQueueTicket(opts) {
+        var o = opts || {};
+        var container = document.getElementById('queuePrintContainer');
+        if (!container) return;
+        var now = new Date();
+        var dateStr = o.date || (now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0'));
+        var timeStr = o.time || (String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0'));
+        var number = (o.queueNumber || o.queueLabel || '').replace('#', '');
+        var label = o.queueLabel || (number ? '#' + number : '');
+        var LINE = '----------------------------------------';
+        var esc = function(str) {
+            return String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        };
+        container.innerHTML =
+            '<div class="queue-ticket">' +
+                '<div class="qt-line">' + LINE + '</div>' +
+                '<div class="qt-clinic">' + esc(clinicPrintInfo.name || 'RF Dental Clinic') + '</div>' +
+                (clinicPrintInfo.address ? '<div class="qt-address">' + esc(clinicPrintInfo.address) + '</div>' : '') +
+                '<div class="qt-label">Queue Number</div>' +
+                '<div class="qt-number">' + esc(label) + '</div>' +
+                '<div class="qt-line">' + LINE + '</div>' +
+                '<div class="qt-meta">Patient: ' + esc(o.patientName || '') + '</div>' +
+                '<div class="qt-meta">Treatment: ' + esc(o.treatment || '') + '</div>' +
+                '<div class="qt-meta">Date: ' + esc(dateStr) + '  Time: ' + esc(timeStr) + '</div>' +
+                '<div class="qt-line">' + LINE + '</div>' +
+            '</div>';
+        document.body.appendChild(container);
+        window.print();
+    }
+
     let markArrivedId = null;
+    let markArrivedQueueId = null;
+    let markArrivedPatientName = '';
+    let markArrivedTreatment = '';
+
+    function buildVitalsHtml(prefix, values) {
+        var v = values || {};
+        var field = function(name, label, placeholder) {
+            return '<div><label>' + label + '</label><input type="text" name="' + prefix + name + '" placeholder="' + placeholder + '" value="' + escapeHtml(v[name] || '') + '"></div>';
+        };
+        return '' +
+            '<div class="vitals-section">' +
+                '<h4>Vital Signs (optional)</h4>' +
+                '<p class="vitals-sub">Blood pressure, heart rate, temperature, oxygen saturation</p>' +
+                '<div class="vitals-grid">' +
+                    field('blood_pressure', 'Blood Pressure (mmHg)', '120/80') +
+                    field('heart_rate', 'Heart Rate (bpm)', '72') +
+                    field('temperature', 'Temperature (&deg;C)', '36.5') +
+                    field('oxygen_saturation', 'Oxygen Saturation (%)', '98') +
+                '</div>' +
+            '</div>' +
+            '<div class="vitals-section">' +
+                '<h4>Body Measurement (optional)</h4>' +
+                '<p class="vitals-sub">Height, weight, and computed BMI</p>' +
+                '<div class="vitals-grid">' +
+                    field('height', 'Height (cm)', '165') +
+                    field('weight', 'Weight (kg)', '58') +
+                '</div>' +
+            '</div>';
+    }
+
+    function collectVitals(prefix) {
+        var out = {};
+        ['blood_pressure', 'heart_rate', 'temperature', 'oxygen_saturation', 'height', 'weight'].forEach(function(f) {
+            var el = document.querySelector('[name="' + prefix + f + '"]');
+            if (el) out[f] = el.value.trim();
+        });
+        return out;
+    }
 
     function openMarkArrivedModal(id) {
         markArrivedId = id;
+        markArrivedQueueId = null;
+
+        const staleMarkArrived = document.getElementById('markArrivedModal');
+        if (staleMarkArrived && staleMarkArrived.dataset.palette !== 'edit-info') staleMarkArrived.remove();
 
         if (!document.getElementById('markArrivedModal')) {
             const modal = document.createElement('div');
@@ -1760,20 +1847,15 @@ function closeApptKebabDropdown() {
             modal.className = 'modal-overlay';
             // Keep open across background polling refreshes; Done/Cancel close it explicitly
             modal.dataset.preserveOpen = '1';
+            modal.dataset.palette = 'edit-info';
             modal.style.display = 'none';
+            modal.style.background = 'rgba(15, 23, 42, 0.45)';
             modal.innerHTML = `
-                <div class="modal" style="width: 420px;">
-                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-                        <div style="width: 44px; height: 44px; border-radius: 50%; background: #ecfdf5; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2">
-                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                                <polyline points="22 4 12 14.01 9 11.01"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h2 style="margin: 0; font-size: 1.25rem; font-weight: 600;">Mark as Arrived</h2>
-                            <p style="margin: 2px 0 0; color: #6b7280; font-size: 0.85rem;">Check-in appointment &amp; add to queue</p>
-                        </div>
+                <div class="modal" style="width: 100%; max-width: 420px; padding: 40px 24px 24px; padding-top: 40px !important; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,.35);">
+                    <div style="text-align: center; margin-bottom: 16px;">
+                        <div style="width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; background: #e0f2fe; color: #0284c7; font-size: 28px; font-weight: 700;">i</div>
+                        <h2 style="margin: 0; font-size: 18px; font-weight: 700; color: #0c4a6e;">Mark as Arrived</h2>
+                        <p style="margin: 4px 0 0; color: #6b7280; font-size: 13px;">Check-in appointment &amp; add to queue</p>
                     </div>
                     <div id="markArrivedBody">
                         <div id="markArrivedInfo" style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;">
@@ -1783,12 +1865,12 @@ function closeApptKebabDropdown() {
                             </div>
                             <div style="color: #6b7280; font-size: 0.85rem; margin-top: 4px;">Scheduled appointment</div>
                         </div>
-                        <p style="color: #374151; margin: 0 0 16px; font-size: 0.9rem;">Mark this patient as arrived? They will be automatically added to today&rsquo;s queue.</p>
+                        <p style="color: #4b5563; margin: 0 0 16px; font-size: 14px; line-height: 1.5;">Mark this patient as arrived? They will be automatically added to today&rsquo;s queue.</p>
                     </div>
                     <div id="markArrivedResult" style="display: none;"></div>
-                    <div id="markArrivedActions" style="display: flex; gap: 12px; margin-top: 20px; justify-content: flex-end;">
-                        <button onclick="closeMarkArrivedModal()" class="btn-cancel" style="padding: 10px 20px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
-                        <button id="markArrivedConfirmBtn" onclick="confirmMarkArrived()" class="btn-primary" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Confirm Mark as Arrived</button>
+                    <div id="markArrivedActions" style="display: flex; gap: 12px; margin-top: 8px; justify-content: center; flex-wrap: wrap;">
+                        <button onclick="closeMarkArrivedModal()" class="btn-cancel" style="min-width: 120px; padding: 10px 20px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; display:inline-flex;align-items:center;justify-content:center;">Cancel</button>
+                        <button id="markArrivedConfirmBtn" onclick="confirmMarkArrived()" class="btn-primary" style="min-width: 120px; padding: 10px 20px; background: #0ea5e9; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; display:inline-flex;align-items:center;justify-content:center;">Confirm</button>
                     </div>
                 </div>
             `;
@@ -1800,6 +1882,7 @@ function closeApptKebabDropdown() {
 
         let name = 'This patient';
         let time = '';
+        let treatment = '';
         let card = document.querySelector('.appointment-mini-card[data-id="' + id + '"]');
         if (!card) {
             const kebab = document.querySelector('.appt-kebab-btn[data-appt-id="' + id + '"]');
@@ -1810,17 +1893,21 @@ function closeApptKebabDropdown() {
             if (nameEl && nameEl.textContent.trim()) name = nameEl.textContent.trim();
             const timeEl = card.querySelector('.mini-card-time');
             if (timeEl && timeEl.textContent.trim()) time = timeEl.textContent.trim();
+            const treatEl = card.querySelector('.mini-card-treatment');
+            if (treatEl && treatEl.textContent.trim()) treatment = treatEl.textContent.trim();
         }
+        markArrivedPatientName = name;
+        markArrivedTreatment = treatment;
         document.getElementById('markArrivedPatient').textContent = name;
         document.getElementById('markArrivedTime').textContent = time;
         document.getElementById('markArrivedBody').style.display = 'block';
         document.getElementById('markArrivedResult').style.display = 'none';
         document.getElementById('markArrivedResult').innerHTML = '';
         const actions = document.getElementById('markArrivedActions');
-        actions.style.justifyContent = 'flex-end';
+        actions.style.justifyContent = 'center';
         actions.innerHTML = `
-            <button onclick="closeMarkArrivedModal()" class="btn-cancel" style="padding: 10px 20px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
-            <button id="markArrivedConfirmBtn" onclick="confirmMarkArrived()" class="btn-primary" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Confirm Mark as Arrived</button>
+            <button onclick="closeMarkArrivedModal()" class="btn-cancel" style="min-width: 120px; padding: 10px 20px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; display:inline-flex;align-items:center;justify-content:center;">Cancel</button>
+            <button id="markArrivedConfirmBtn" onclick="confirmMarkArrived()" class="btn-primary" style="min-width: 120px; padding: 10px 20px; background: #0ea5e9; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; display:inline-flex;align-items:center;justify-content:center;">Confirm</button>
         `;
         actions.style.display = 'flex';
         document.getElementById('markArrivedModal').style.display = 'flex';
@@ -1830,6 +1917,45 @@ function closeApptKebabDropdown() {
         const modal = document.getElementById('markArrivedModal');
         if (modal) modal.style.display = 'none';
         markArrivedId = null;
+        markArrivedQueueId = null;
+        markArrivedPatientName = '';
+        markArrivedTreatment = '';
+    }
+
+    function printMarkArrivedTicket() {
+        const now = new Date();
+        const dateStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+        const timeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+        const label = document.querySelector('#markArrivedResult') ? (document.querySelector('#markArrivedResult').textContent.match(/queue as\s+([#0-9]+)/i) || [])[1] || '' : '';
+        printQueueTicket({
+            patientName: markArrivedPatientName,
+            treatment: markArrivedTreatment,
+            queueLabel: label ? '#' + label.replace('#', '') : '',
+            date: dateStr,
+            time: timeStr
+        });
+    }
+
+    function saveMarkArrivedVitals() {
+        const btn = document.getElementById('markArrivedDoneBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+        }
+        const finish = function() {
+            closeMarkArrivedModal();
+            if (typeof refreshAppointmentsAjax === 'function') refreshAppointmentsAjax();
+        };
+        if (!markArrivedQueueId) {
+            finish();
+            return;
+        }
+        const payload = Object.assign({ queue_id: markArrivedQueueId }, collectVitals('markArrived_'));
+        fetch('../shared/save_queue_vitals.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).finally(finish);
     }
 
     function confirmMarkArrived() {
@@ -1845,26 +1971,30 @@ function closeApptKebabDropdown() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                markArrivedQueueId = data.queue_id || null;
                 const queueLabel = data.queue_label || '';
                 const msg = data.message || 'Patient marked as arrived';
                 document.getElementById('markArrivedBody').style.display = 'none';
                 const result = document.getElementById('markArrivedResult');
                 result.style.display = 'block';
                 result.innerHTML = `
-                    <div style="display: flex; align-items: center; gap: 12px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px; padding: 16px;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                        <div>
-                            <div style="font-weight: 600; color: #065f46;">${queueLabel ? 'Patient added to queue as ' + queueLabel : msg}</div>
-                            <div style="color: #047857; font-size: 0.85rem; margin-top: 2px;">${msg}</div>
-                        </div>
+                    <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;">
+                        <div style="font-weight: 600; color: #065f46; font-size: 1rem;">${queueLabel ? 'Patient added to queue as ' + queueLabel : msg}</div>
+                        <div style="color: #047857; font-size: 0.85rem; margin-top: 2px;">${msg}</div>
+                    </div>
+                    <div id="markArrivedVitals">
+                        ${buildVitalsHtml('markArrived_', {})}
                     </div>
                 `;
                 const actions = document.getElementById('markArrivedActions');
-                actions.style.justifyContent = 'center';
-                actions.innerHTML = `<button onclick="closeMarkArrivedModal(); refreshAppointmentsAjax()" class="btn-primary" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Done</button>`;
+                actions.style.justifyContent = 'flex-end';
+                actions.innerHTML = `
+                    <button onclick="printMarkArrivedTicket()" class="btn-cancel" style="min-width: 120px; padding: 10px 20px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; display:inline-flex;align-items:center;justify-content:center;">Print Queue No.</button>
+                    <button id="markArrivedDoneBtn" onclick="saveMarkArrivedVitals()" class="btn-primary" style="min-width: 120px; padding: 10px 20px; background: #0ea5e9; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; display:inline-flex;align-items:center;justify-content:center;">Done</button>
+                `;
             } else {
                 btn.disabled = false;
-                btn.textContent = 'Confirm Mark as Arrived';
+                btn.textContent = 'Confirm';
                 const result = document.getElementById('markArrivedResult');
                 result.style.display = 'block';
                 result.innerHTML = `
@@ -1878,7 +2008,7 @@ function closeApptKebabDropdown() {
         .catch(error => {
             console.error('Error:', error);
             btn.disabled = false;
-            btn.textContent = 'Confirm Mark as Arrived';
+            btn.textContent = 'Confirm';
             const result = document.getElementById('markArrivedResult');
             result.style.display = 'block';
             result.innerHTML = `
@@ -1893,6 +2023,8 @@ function closeApptKebabDropdown() {
     window.openMarkArrivedModal = openMarkArrivedModal;
     window.closeMarkArrivedModal = closeMarkArrivedModal;
     window.confirmMarkArrived = confirmMarkArrived;
+    window.saveMarkArrivedVitals = saveMarkArrivedVitals;
+    window.printMarkArrivedTicket = printMarkArrivedTicket;
 
     function forwardToQueue(id) {
         closeApptKebabDropdown();
@@ -2037,6 +2169,45 @@ function closeApptKebabDropdown() {
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     position: relative;
     z-index: 100000;
+}
+
+.vitals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.vitals-section { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; }
+.vitals-section h4 { margin: 0 0 4px; font-size: 0.85rem; font-weight: 600; color: #334155; }
+.vitals-section .vitals-sub { margin: 0 0 12px; font-size: 0.75rem; color: #94a3b8; }
+.vitals-section label { display: block; font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 4px; }
+.vitals-section input { width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; outline: none; box-sizing: border-box; }
+.vitals-section input:focus { border-color: #2563eb; }
+
+#queuePrintContainer { display: none; }
+@media print {
+    @page { size: 58mm auto; margin: 0; }
+    html, body { width: 48mm; height: auto; margin: 0 !important; padding: 0 !important; background: #fff !important; overflow: hidden !important; }
+    body * { visibility: hidden !important; box-sizing: border-box !important; float: none !important; }
+    #queuePrintContainer, #queuePrintContainer * {
+        visibility: visible !important;
+        font-family: 'Courier New', monospace !important;
+        box-sizing: border-box !important;
+        text-align: center !important;
+    }
+    #queuePrintContainer {
+        display: block !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        right: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 48mm !important;
+        text-align: center !important;
+    }
+    .queue-ticket { width: 100% !important; padding: 0 !important; margin: 0 auto; border: none !important; text-align: center !important; }
+    .queue-ticket .qt-line { font-size: 2.5mm; font-weight: 700; line-height: 1.1; white-space: nowrap; overflow: hidden; }
+    .queue-ticket .qt-clinic { font-size: 3.6mm; font-weight: 700; text-transform: uppercase; white-space: normal; word-break: break-word; margin-top: 1mm; }
+    .queue-ticket .qt-address { font-size: 2.2mm; margin-bottom: 1mm; white-space: normal; word-break: break-word; }
+    .queue-ticket .qt-label { font-size: 2.8mm; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-top: 2mm; }
+    .queue-ticket .qt-number { font-size: 15mm; font-weight: 700; line-height: 1.05; margin: 0; }
+    .queue-ticket .qt-meta { font-size: 2.5mm; margin-top: 1mm; white-space: normal; word-break: break-word; }
 }
 
 .form-row {

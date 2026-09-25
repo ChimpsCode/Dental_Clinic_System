@@ -301,3 +301,4 @@ $notifShowBadge = $notifCount > 0 && $notifUnseen;
     setInterval(updateBadge, 30000);
 })();
 </script>
+<?php require __DIR__ . '/new_device_login_modal.php'; ?>

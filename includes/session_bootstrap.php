@@ -103,7 +103,23 @@ $GLOBALS['APP_SESSION_EXPIRED'] = false;
 $now = time();
 $inactivityEnabled = true;
 
-if (($_SESSION['role'] ?? '') === 'user' && !empty($_SESSION['user_id'])) {
+if (!empty($_SESSION['user_id']) && isset($pdo) && $pdo instanceof PDO) {
+    try {
+        $authStmt = $pdo->prepare('SELECT auth_version FROM users WHERE id = ? LIMIT 1');
+        $authStmt->execute([(int)$_SESSION['user_id']]);
+        $dbAuthVersion = $authStmt->fetchColumn();
+        if ($dbAuthVersion !== false && (int)$dbAuthVersion !== (int)($_SESSION['auth_version'] ?? 0)) {
+            $GLOBALS['APP_SESSION_EXPIRED'] = true;
+            $_SESSION = [];
+            session_destroy();
+            session_start();
+        }
+    } catch (Throwable $e) {
+        // auth_version is created on password save; skip until that column exists.
+    }
+}
+
+if (empty($GLOBALS['APP_SESSION_EXPIRED']) && ($_SESSION['role'] ?? '') === 'user' && !empty($_SESSION['user_id'])) {
     try {
         require_once $appRoot . '/includes/patient_session_helper.php';
         if (isset($pdo) && $pdo instanceof PDO) {

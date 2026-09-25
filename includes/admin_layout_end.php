@@ -254,5 +254,6 @@ if ($__pjax) {
         });
     })();
     </script>
+    <?php require __DIR__ . '/new_device_login_modal.php'; ?>
 </body>
 </html>

@@ -591,6 +591,11 @@ try {
             $billing_id = $input['billing_id'] ?? 0;
             $amount = floatval($input['amount'] ?? 0);
             $payment_method = $input['payment_method'] ?? 'Cash';
+            $settle_outstanding = !empty($input['settle_outstanding']);
+            $reference_number = trim((string)($input['reference_number'] ?? ''));
+            if ($reference_number === '' || !in_array(strtolower((string)$payment_method), ['gcash', 'bank_transfer'], true)) {
+                $reference_number = null;
+            }
             
             if (!$patient_id || $amount <= 0) {
                 $response['message'] = 'Patient ID and valid amount are required';
@@ -604,6 +609,114 @@ try {
             $pdo->beginTransaction();
             
             try {
+                if ($settle_outstanding) {
+                    $stmt = $pdo->prepare("
+                        SELECT id, total_amount, paid_amount, balance, payment_status
+                        FROM billing
+                        WHERE patient_id = ?
+                          AND COALESCE(balance, 0) > 0
+                          AND LOWER(COALESCE(payment_status, '')) NOT IN ('paid', 'cancelled', 'canceled', 'voided')
+                        ORDER BY created_at ASC, id ASC
+                    ");
+                    $stmt->execute([$patient_id]);
+                    $openBills = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                    $totalDue = 0.0;
+                    foreach ($openBills as $openBill) {
+                        $totalDue += floatval($openBill['balance']);
+                    }
+                    $totalDue = round($totalDue, 2);
+                    $amount = round($amount, 2);
+
+                    if ($totalDue <= 0) {
+                        $pdo->rollBack();
+                        $response['message'] = 'All services are paid.';
+                        break;
+                    }
+                    if ($amount - $totalDue > 0.009) {
+                        $pdo->rollBack();
+                        $response['message'] = 'Payment is higher than the remaining balance of P' . number_format($totalDue, 2) . '.';
+                        break;
+                    }
+
+                    $stmt = $pdo->query("DESCRIBE billing");
+                    $bcols = array_column($stmt->fetchAll(), 'Field');
+                    $remaining = $amount;
+                    $payment_id = null;
+                    $billing_id = 0;
+                    $new_status = 'partial';
+                    $recordedBalance = $totalDue;
+
+                    foreach ($openBills as $openBill) {
+                        if ($remaining <= 0.009) {
+                            break;
+                        }
+                        $billBalance = round(floatval($openBill['balance']), 2);
+                        if ($billBalance <= 0) {
+                            continue;
+                        }
+                        $apply = round(min($remaining, $billBalance), 2);
+                        $new_paid = round(floatval($openBill['paid_amount']) + $apply, 2);
+                        $new_balance = round(max(0, floatval($openBill['total_amount']) - $new_paid), 2);
+                        if ($new_balance <= 0.009) {
+                            $new_balance = 0;
+                            $new_status = 'paid';
+                            $new_status_id = 1;
+                        } else {
+                            $new_status = 'partial';
+                            $new_status_id = 2;
+                        }
+
+                        $targetId = (int)$openBill['id'];
+                        $bupdates = [];
+                        $bparams = [];
+                        $bupdates[] = "paid_amount = ?"; $bparams[] = $new_paid;
+                        $bupdates[] = "balance = ?"; $bparams[] = $new_balance;
+                        $bupdates[] = "payment_status = ?"; $bparams[] = $new_status;
+                        if (in_array('payment_status_id', $bcols)) { $bupdates[] = "payment_status_id = ?"; $bparams[] = $new_status_id; }
+                        $bupdates[] = "updated_at = NOW()";
+                        $bparams[] = $targetId;
+                        $upd = $pdo->prepare("UPDATE billing SET " . implode(', ', $bupdates) . " WHERE id = ?");
+                        $upd->execute($bparams);
+
+                        $payStmt = $pdo->prepare("
+                            INSERT INTO payments (billing_id, patient_id, amount, payment_method, payment_date, reference_number, created_by, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                        ");
+                        $payStmt->execute([$targetId, $patient_id, $apply, $payment_method, $paymentDate, $reference_number, $current_user_id]);
+                        $payment_id = $pdo->lastInsertId();
+                        $billing_id = $targetId;
+                        $remaining = round($remaining - $apply, 2);
+                        $recordedBalance = round($recordedBalance - $apply, 2);
+                    }
+
+                    $pdo->commit();
+
+                    logAudit($pdo, $current_user_id, $current_username, $current_role, 'payment', 'billing', 'Outstanding balance payment recorded: ₱' . number_format($amount, 2) . ' via ' . $payment_method . ' for patient: ' . $patient_name, $billing_id, 'billing', 'partial', $new_status ?? 'partial');
+                    if ($payment_id) {
+                        logAudit($pdo, $current_user_id, $current_username, $current_role, 'create', 'payments', 'Created payment record: ₱' . number_format($amount, 2) . ' for patient: ' . $patient_name, $payment_id, 'payments', null, '₱' . number_format($amount, 2));
+                    }
+
+                    if (!empty($patient_id)) {
+                        $treatmentType = 'consultation';
+                        if (!empty($queue_id)) {
+                            $tStmt = $pdo->prepare("SELECT treatment_type FROM queue WHERE id = ?");
+                            $tStmt->execute([(int)$queue_id]);
+                            $treatmentType = $tStmt->fetchColumn() ?: 'consultation';
+                        }
+                        $notifResult = notifyPatientPaymentRecorded($pdo, (int)$patient_id, floatval($amount), $payment_method, $treatmentType, max(0, $recordedBalance));
+                        if ($notifResult === false) {
+                            notifLog("billing_actions: notifyPatientPaymentRecorded FAILED for patient_id={$patient_id} user_id check needed");
+                        } else {
+                            notifLog("billing_actions: notifyPatientPaymentRecorded OK for patient_id={$patient_id} amount={$amount} method={$payment_method}");
+                        }
+                    }
+
+                    $response['success'] = true;
+                    $response['message'] = 'Payment recorded successfully';
+                    break;
+                }
+
                 // Find or create billing record
                 if ($billing_id) {
                     $stmt = $pdo->prepare("SELECT id, total_amount, paid_amount, balance, payment_status FROM billing WHERE id = ?");
@@ -676,10 +789,10 @@ try {
                 
                 // Create payment record
                 $stmt = $pdo->prepare("
-                    INSERT INTO payments (billing_id, patient_id, amount, payment_method, payment_date, created_by, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, NOW())
+                    INSERT INTO payments (billing_id, patient_id, amount, payment_method, payment_date, reference_number, created_by, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
                 ");
-                $stmt->execute([$billing_id, $patient_id, $paymentAmount ?? $amount, $payment_method, $paymentDate, $current_user_id]);
+                $stmt->execute([$billing_id, $patient_id, $paymentAmount ?? $amount, $payment_method, $paymentDate, $reference_number, $current_user_id]);
                 $payment_id = $pdo->lastInsertId();
                 
                 $pdo->commit();

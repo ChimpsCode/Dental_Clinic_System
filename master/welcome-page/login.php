@@ -14,6 +14,7 @@ if (!$isLoginPost && !$explicitLogin && !$inAuthFlow) {
 }
 
 require_once '../../config/database.php';
+require_once '../../includes/login_device_alert.php';
 
 // Load clinic settings
 $settingsStmt = $pdo->query("SELECT setting_key, setting_value FROM settings");
@@ -480,6 +481,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         ]);
     } catch (Exception $e) {}
 
+    recordLoginDeviceAndAlert($pdo, $user);
+
     if ($role === 'admin') $redirect = '../admin/admin_dashboard.php';
     elseif ($role === 'staff') $redirect = '../staff/staff-dashboard.php';
     elseif ($role === 'dentist') $redirect = '../dentist/dentist_dashboard.php';
@@ -706,6 +709,8 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
             } catch (Exception $e) {
                 // Do not block login when optional tracking columns are missing.
             }
+
+            recordLoginDeviceAndAlert($pdo, $user);
             
             // Redirect based on role
             if ($role === 'admin') {
@@ -856,6 +861,8 @@ if ($role === 'dentist') {
                 if (!$recentCheck->fetch()) {
                     logAudit($pdo, $user['id'], $user['username'], $role, 'login', 'users', 'Successful login from ' . ($_SERVER['HTTP_USER_AGENT'] ? 'web browser' : 'unknown device'));
                 }
+
+                recordLoginDeviceAndAlert($pdo, $user);
                 
             // Redirect based on role
                 if ($role === 'admin') {

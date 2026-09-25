@@ -45,7 +45,10 @@ function ensureMedicalCertificateSchema(PDO $pdo): void
             PRIMARY KEY (id),
             UNIQUE KEY uq_medcert_consultation (consultation_id),
             KEY idx_medcert_patient (patient_id),
-            KEY idx_medcert_dentist (dentist_id)
+            KEY idx_medcert_dentist (dentist_id),
+            CONSTRAINT fk_medcert_consultation FOREIGN KEY (consultation_id) REFERENCES consultations (id) ON DELETE CASCADE ON UPDATE CASCADE,
+            CONSTRAINT fk_medcert_patient FOREIGN KEY (patient_id) REFERENCES patients (id) ON DELETE CASCADE ON UPDATE CASCADE,
+            CONSTRAINT fk_medcert_dentist FOREIGN KEY (dentist_id) REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     } catch (Exception $e) {
         error_log('Failed to ensure medical_certificates table: ' . $e->getMessage());

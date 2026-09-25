@@ -19,7 +19,10 @@ CREATE TABLE IF NOT EXISTS `medical_certificates` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_medcert_consultation` (`consultation_id`),
   KEY `idx_medcert_patient` (`patient_id`),
-  KEY `idx_medcert_dentist` (`dentist_id`)
+  KEY `idx_medcert_dentist` (`dentist_id`),
+  CONSTRAINT `fk_medcert_consultation` FOREIGN KEY (`consultation_id`) REFERENCES `consultations` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_medcert_patient` FOREIGN KEY (`patient_id`) REFERENCES `patients` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_medcert_dentist` FOREIGN KEY (`dentist_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 INSERT INTO `services` (`name`, `mode`, `price`, `duration_minutes`, `description`, `is_active`, `is_archived`)

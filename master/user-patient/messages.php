@@ -32,6 +32,7 @@ $isAjaxRequest = $_SERVER['REQUEST_METHOD'] === 'POST'
 require_once '../../config/database.php';
 require_once '../../includes/patient_session_helper.php';
 require_once '../../includes/typing_status_helper.php';
+require_once '../../includes/inquiry_module_helper.php';
 $patientSessionSettings = getPatientSessionSettings($pdo, (int)($_SESSION['user_id'] ?? 0));
 
 const AUTO_REPLY_TEXT = "Thank you for your message! Please wait for our staff to respond your message. We appreciate your patience.";
@@ -533,6 +534,21 @@ $pageTitle = 'Messages';
         .chat-bubble.sent { align-self: flex-end; background: linear-gradient(135deg, #8b5cf6, #2563eb); color: #ffffff; border-bottom-right-radius: 6px; }
         .chat-bubble.received { align-self: flex-start; background: #f3f4f6; color: #111827; border-bottom-left-radius: 6px; }
         .chat-bubble.received.unread-message { background: #fff1f2; border: 1px solid #fecdd3; font-weight: 600; }
+        .chat-bubble .inq-quote {
+            font-size: 12px;
+            line-height: 1.4;
+            padding: 8px 10px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            border-left: 3px solid #2563eb;
+            background: #e5e7eb;
+            color: #374151;
+        }
+        .chat-bubble.sent .inq-quote {
+            background: rgba(255,255,255,.16);
+            border-left-color: rgba(255,255,255,.75);
+            color: rgba(255,255,255,.95);
+        }
         .chat-meta { font-size: 11px; opacity: 0.72; margin-top: 6px; }
         .chat-compose { padding: 14px; border-top: 1px solid #e5e7eb; background: #ffffff; }
         .chat-compose .form-input,
@@ -624,7 +640,7 @@ $pageTitle = 'Messages';
             <?php if (!empty($messages)): ?>
                 <?php foreach ($messages as $msg): ?>
                     <div class="chat-bubble <?php echo ($msg['sender_type'] === 'patient') ? 'sent' : 'received'; ?> <?php echo ($msg['sender_type'] !== 'patient' && (int)($msg['is_read'] ?? 1) === 0) ? 'unread-message' : ''; ?>" data-message-id="<?php echo (int)$msg['id']; ?>">
-                        <div><?php echo nl2br(htmlspecialchars($msg['message'])); ?></div>
+                        <div><?php echo renderInquiryQuotedMessageHtml((string)($msg['message'] ?? '')); ?></div>
                         <div class="chat-meta"><?php echo date('M j, g:i A', strtotime($msg['created_at'])); ?></div>
                     </div>
                 <?php endforeach; ?>
@@ -654,6 +670,7 @@ $pageTitle = 'Messages';
             </form>
         </div>
     </div>
+    <script src="../../assets/js/inquiry_quote.js"></script>
     <script>
         (function () {
             const chatHistory = document.getElementById('chatHistory');
@@ -740,8 +757,11 @@ $pageTitle = 'Messages';
                     bubble.setAttribute('data-message-id', String(messageId));
                     renderedMessageIds.add(messageId);
                 }
+                const messageHtml = (typeof inquiryQuotedMessageHtml === 'function')
+                    ? inquiryQuotedMessageHtml(msg.message)
+                    : escapeHtml(msg.message).replace(/\n/g, '<br>');
                 bubble.innerHTML = `
-                    <div>${escapeHtml(msg.message).replace(/\n/g, '<br>')}</div>
+                    <div>${messageHtml}</div>
                     <div class="chat-meta">${escapeHtml(formatDate(msg.created_at))}</div>
                 `;
                 chatHistory.appendChild(bubble);

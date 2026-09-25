@@ -1378,10 +1378,10 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     if (isPaid) {
                         paidState.style.display = 'block';
                         formWrap.style.display = 'none';
-                        return;
+                    } else {
+                        paidState.style.display = 'none';
+                        formWrap.style.display = 'block';
                     }
-                    paidState.style.display = 'none';
-                    formWrap.style.display = 'block';
 
                     var queueId = document.getElementById('payDetailQueueId').value;
                     var patientId = document.getElementById('payDetailPatientId').value;
@@ -1413,9 +1413,11 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                 var unpaidBills = allBillings.filter(function(bl) {
                                     var st = (bl.payment_status || 'unpaid').toLowerCase();
                                     if (st === 'paid' || isVoidedBilling(bl, billingId, isVoided)) return false;
-                                    return true;
+                                    return parseFloat(bl.balance || 0) > 0;
                                 });
                                 if (unpaidBills.length > 0) {
+                                    paidState.style.display = 'none';
+                                    formWrap.style.display = 'block';
                                     breakdownHtml = '<div style="font-weight:600;color:#374151;margin-bottom:8px;font-size:0.85rem;">Unpaid Services:</div>';
                                     breakdownHtml += '<table style="width:100%;border-collapse:collapse;font-size:0.82rem;">';
                                     unpaidBills.forEach(function(bl) {
@@ -1429,21 +1431,22 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                     });
                                     breakdownHtml += '</table>';
 
-                                    var totalAmt = 0, totalPaid = 0, totalBal = 0;
+                                    var totalAmt = 0, totalPaid = 0, outstanding = 0;
                                     allBillings.forEach(function(bl) {
                                         if (isVoidedBilling(bl, billingId, isVoided)) return;
                                         totalAmt += parseFloat(bl.total_amount || 0);
                                         totalPaid += parseFloat(bl.paid_amount || 0);
-                                        totalBal += parseFloat(bl.balance || 0);
+                                    });
+                                    unpaidBills.forEach(function(bl) {
+                                        outstanding += parseFloat(bl.balance || 0);
                                     });
                                     document.getElementById('recordPaymentTotalAmount').textContent = 'P' + totalAmt.toFixed(2);
                                     document.getElementById('recordPaymentPaidSoFar').textContent = 'P' + totalPaid.toFixed(2);
-                                    document.getElementById('recordPaymentBalance').textContent = 'P' + totalBal.toFixed(2);
-                                    document.getElementById('recordPaymentAmount').value = totalBal.toFixed(2);
+                                    document.getElementById('recordPaymentBalance').textContent = 'P' + outstanding.toFixed(2);
+                                    document.getElementById('recordPaymentAmount').value = outstanding.toFixed(2);
                                 } else {
-                                    breakdownHtml = '<div style="color:#16a34a;text-align:center;padding:4px;">All services paid</div>';
-                                    document.getElementById('recordPaymentBalance').textContent = 'P0.00';
-                                    document.getElementById('recordPaymentAmount').value = '0.00';
+                                    paidState.style.display = 'block';
+                                    formWrap.style.display = 'none';
                                 }
                             }
                             document.getElementById('recordPaymentBreakdown').innerHTML = breakdownHtml;
@@ -1453,7 +1456,12 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                         });
                 }
 
+                var recordPaymentInFlight = false;
+
                 function confirmRecordPayment() {
+                    if (recordPaymentInFlight) {
+                        return;
+                    }
                     if (currentPayDetailIsVoided()) {
                         alert('This invoice is voided. No payment is expected.');
                         return;
@@ -1469,11 +1477,16 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                         return;
                     }
 
+                    var recordBtn = document.querySelector('#payTabRecord button.btn-primary');
+                    recordPaymentInFlight = true;
+                    if (recordBtn) recordBtn.disabled = true;
+
                     fetch('../shared/billing_actions.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             action: 'record_payment',
+                            settle_outstanding: true,
                             billing_id: billingId,
                             queue_id: queueId,
                             patient_id: patientId,
@@ -1486,10 +1499,14 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                         if (data.success) {
                             window.location.reload();
                         } else {
+                            recordPaymentInFlight = false;
+                            if (recordBtn) recordBtn.disabled = false;
                             alert('Error: ' + data.message);
                         }
                     })
                     .catch(function() {
+                        recordPaymentInFlight = false;
+                        if (recordBtn) recordBtn.disabled = false;
                         alert('Error recording payment. Please try again.');
                     });
                 }

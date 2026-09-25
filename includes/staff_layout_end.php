@@ -243,6 +243,7 @@
     <?php require __DIR__ . '/session_timeout_script.php'; ?>
     <?php require __DIR__ . '/app_notice_modal_script.php'; ?>
     <script src="../../assets/js/logout_confirm.js?v=3"></script>
+    <?php require __DIR__ . '/new_device_login_modal.php'; ?>
 </body>
 </html>
 <?php
