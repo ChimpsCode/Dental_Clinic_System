@@ -55,8 +55,10 @@ try {
     }
 
     $today = date('Y-m-d');
+    $appointmentDate = substr((string)($appt['appointment_date'] ?? ''), 0, 10);
+    $queueDate = ($appointmentDate !== '' && $appointmentDate >= $today) ? $appointmentDate : $today;
 
-    $existingQueue = fetchQueueEntryByAppointment($pdo, $apptId, $today);
+    $existingQueue = fetchQueueEntryByAppointment($pdo, $apptId, $queueDate);
     if ($existingQueue) {
         $stmtUpd = $pdo->prepare("UPDATE appointments SET check_in_time = COALESCE(check_in_time, NOW()), status = 'In Queue' WHERE id = ?");
         $stmtUpd->execute([$apptId]);
@@ -80,7 +82,7 @@ try {
     $queueEntry = createQueueEntry($pdo, [
         'patient_id'      => $patientId,
         'appointment_id'  => $apptId,
-        'queue_date'      => $today,
+        'queue_date'      => $queueDate,
         'treatment_type'  => $treatmentType,
         'procedure_notes' => trim($appt['notes'] ?? ''),
         'queue_time'      => date('H:i:s'),

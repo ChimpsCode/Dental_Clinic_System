@@ -1499,10 +1499,14 @@ div.main-content {
 </div>
 
 <script>
-// Queue Kebab Menu Functionality
-let queueKebabDropdown = null;
-let queueKebabBackdrop = null;
-let queueActiveButton = null;
+// var so this script can run again after in-app navigation
+var queueKebabDropdown = null;
+var queueKebabBackdrop = null;
+var queueActiveButton = null;
+var staleQueueKebabPortal = document.getElementById('queueKebabDropdownPortal');
+var staleQueueKebabBackdrop = document.getElementById('queueKebabBackdrop');
+if (staleQueueKebabPortal && staleQueueKebabPortal.parentNode) staleQueueKebabPortal.parentNode.removeChild(staleQueueKebabPortal);
+if (staleQueueKebabBackdrop && staleQueueKebabBackdrop.parentNode) staleQueueKebabBackdrop.parentNode.removeChild(staleQueueKebabBackdrop);
 
 // Track if there's a procedure currently in progress
 var inProcedurePatient = <?php echo $inProcedurePatient ? json_encode(['id' => $inProcedurePatient['id'], 'name' => trim(($inProcedurePatient['first_name'] ?? '') . ' ' . ($inProcedurePatient['last_name'] ?? ''))]) : 'null'; ?>;
@@ -1637,7 +1641,9 @@ function positionQueueKebabDropdown(button) {
 }
 
 function openQueueKebabDropdown(button) {
-    if (!queueKebabDropdown) {
+    if (!queueKebabDropdown || !queueKebabDropdown.isConnected) {
+        queueKebabDropdown = null;
+        queueKebabBackdrop = null;
         createQueueKebabDropdown();
     }
 
@@ -1687,13 +1693,17 @@ function handleQueueKebabClick(e) {
     closeQueueKebabDropdown();
 }
 
-document.addEventListener('click', function(e) {
+if (window.__dentistQueueKebabClickHandler) {
+    document.removeEventListener('click', window.__dentistQueueKebabClickHandler, true);
+}
+
+function handleDentistQueueKebabDocumentClick(e) {
     const button = e.target.closest('.queue-kebab-btn');
     if (button) {
         e.preventDefault();
-        e.stopPropagation();
+        e.stopImmediatePropagation();
 
-        if (queueActiveButton === button && queueKebabDropdown && queueKebabDropdown.classList.contains('show')) {
+        if (queueActiveButton === button && queueKebabDropdown && queueKebabDropdown.classList.contains('show') && queueKebabDropdown.isConnected) {
             closeQueueKebabDropdown();
         } else {
             if (queueActiveButton) {
@@ -1707,7 +1717,10 @@ document.addEventListener('click', function(e) {
     if (!e.target.closest('.queue-kebab-dropdown-portal')) {
         closeQueueKebabDropdown();
     }
-});
+}
+
+window.__dentistQueueKebabClickHandler = handleDentistQueueKebabDocumentClick;
+document.addEventListener('click', window.__dentistQueueKebabClickHandler, true);
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
@@ -2148,8 +2161,8 @@ function filterQueueTable(status) {
 }
 
 // Search and Filter
-const queueSearch = document.getElementById('queueSearch');
-const statusFilter = document.getElementById('statusFilter');
+var queueSearch = document.getElementById('queueSearch');
+var statusFilter = document.getElementById('statusFilter');
 
 function filterTable() {
     const searchTerm = queueSearch.value.toLowerCase();

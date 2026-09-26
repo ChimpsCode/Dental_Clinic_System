@@ -2,6 +2,13 @@
 $pageTitle = 'Dentist Dashboard';
 require_once '../../config/database.php';
 require_once '../../includes/queue_management_helper.php';
+
+try {
+    require_once __DIR__ . '/../../includes/appointment_reminder_helper.php';
+    sendDueAppointmentReminders($pdo);
+} catch (Exception $e) {
+}
+
 require_once '../../includes/dentist_layout_start.php';
 
 try {

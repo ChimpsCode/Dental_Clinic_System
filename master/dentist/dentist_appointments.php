@@ -10,6 +10,13 @@ try {
     // Silently fail
 }
 
+try {
+    require_once __DIR__ . '/../../includes/appointment_reminder_helper.php';
+    sendDueAppointmentReminders($pdo);
+} catch (Exception $e) {
+    // Silently fail
+}
+
 // Auto-decline expired pending approval requests
 try {
     require_once __DIR__ . '/../../includes/appointment_approval_helper.php';

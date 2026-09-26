@@ -9,6 +9,12 @@ $pageTitle = 'Dashboard';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/queue_management_helper.php';
 
+try {
+    require_once __DIR__ . '/../../includes/appointment_reminder_helper.php';
+    sendDueAppointmentReminders($pdo);
+} catch (Exception $e) {
+}
+
 // Include the layout start
 require_once __DIR__ . '/../../includes/admin_layout_start.php';
 

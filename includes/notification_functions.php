@@ -488,6 +488,26 @@ function notifyPatientFollowUpReminder(PDO $pdo, int $patientId, string $appoint
 }
 
 /**
+ * Bell notice for an automatic appointment reminder (24 hours or 2 hours before).
+ */
+function notifyPatientAppointmentReminder(PDO $pdo, int $patientId, string $appointmentDate, string $appointmentTime, string $serviceName, int $hoursBefore): void
+{
+    $userId = getUserIdForPatient($pdo, $patientId);
+    if (!$userId) {
+        return;
+    }
+    $formattedDate = date('F j, Y', strtotime($appointmentDate));
+    $formattedTime = date('g:i A', strtotime($appointmentTime));
+    $title = 'Appointment Reminder';
+    if ($hoursBefore === 2) {
+        $message = "Your appointment is today at {$formattedTime} for {$serviceName}";
+    } else {
+        $message = "You have an appointment on {$formattedDate} at {$formattedTime} for {$serviceName}";
+    }
+    createNotification($pdo, $userId, 'reminder', $title, $message, 'appointments.php');
+}
+
+/**
  * Notify patient that consultation is complete, with current pending balance.
  */
 function notifyPatientConsultationComplete(PDO $pdo, int $patientId, ?float $balance = null): bool

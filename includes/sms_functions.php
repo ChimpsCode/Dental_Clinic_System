@@ -203,3 +203,17 @@ function sendRegistrationWelcomeSMS($phone, $firstName) {
     
     return sendSMS($phone, $message);
 }
+
+function sendAppointmentReminderSMS($phone, $patientName, $appointmentDate, $appointmentTime, $treatment, int $hoursBefore, bool $nonBlocking = false) {
+    $formattedDate = date('F j, Y', strtotime($appointmentDate));
+    $formattedTime = date('g:i A', strtotime($appointmentTime));
+    $treatment = trim((string)$treatment) !== '' ? $treatment : 'General Checkup';
+
+    if ($hoursBefore === 2) {
+        $message = "Reminder: Hi {$patientName}! Your appointment at RF Dental Clinic is today at {$formattedTime} ({$treatment}). See you soon!";
+    } else {
+        $message = "Reminder: Hi {$patientName}! You have an appointment at RF Dental Clinic on {$formattedDate} at {$formattedTime} ({$treatment}). See you soon!";
+    }
+
+    return sendSMS($phone, $message, $nonBlocking);
+}

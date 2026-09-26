@@ -768,6 +768,41 @@ function selectPatient(patient) {
     loadPatientSafetyInfo(patient.id);
 }
 
+function toggleKebabMenu(event, btn) {
+    event.stopPropagation();
+    var menu = btn.nextElementSibling;
+    if (!menu) return;
+    var isOpen = menu.classList.contains('show');
+
+    document.querySelectorAll('.kebab-menu.show').forEach(function(m) {
+        m.classList.remove('show');
+    });
+    document.querySelectorAll('.kebab-btn.active').forEach(function(b) {
+        b.classList.remove('active');
+    });
+
+    if (!isOpen) {
+        var rect = btn.getBoundingClientRect();
+        menu.style.top = Math.min(rect.bottom + 4, window.innerHeight - 8) + 'px';
+        menu.style.left = Math.max(8, rect.right - 200) + 'px';
+        menu.classList.add('show');
+        btn.classList.add('active');
+    }
+}
+
+if (window.__dentistRxKebabCloser) {
+    document.removeEventListener('click', window.__dentistRxKebabCloser);
+}
+window.__dentistRxKebabCloser = function() {
+    document.querySelectorAll('.kebab-menu.show').forEach(function(m) {
+        m.classList.remove('show');
+    });
+    document.querySelectorAll('.kebab-btn.active').forEach(function(b) {
+        b.classList.remove('active');
+    });
+};
+document.addEventListener('click', window.__dentistRxKebabCloser);
+
 // Close search results when clicking outside
 document.addEventListener('click', (e) => {
     if (!e.target.closest('.form-group')) {

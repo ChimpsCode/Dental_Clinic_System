@@ -38,6 +38,12 @@ $patient_id = $_SESSION['patient_id'] ?? null;
 
 // Get patient details from database
 require_once '../../config/database.php';
+
+try {
+    require_once __DIR__ . '/../../includes/appointment_reminder_helper.php';
+    sendDueAppointmentReminders($pdo);
+} catch (Exception $e) {
+}
 require_once '../../includes/patient_session_helper.php';
 require_once '../../includes/patient_dashboard_status_helper.php';
 $patientSessionSettings = getPatientSessionSettings($pdo, (int)($_SESSION['user_id'] ?? 0));

@@ -539,3 +539,21 @@
 2026-09-25 10:11:11 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
 2026-09-25 10:14:27 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
 2026-09-25 11:14:28 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-09-25 18:00:36 | createNotification OK: id=538 user_id=2 type=system title=New device sign-in
+2026-09-25 18:00:52 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-09-25 19:02:25 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-09-25 19:06:58 | createNotification OK: id=539 user_id=58 type=queue title=Queue Update
+2026-09-25 19:07:42 | createNotification OK: id=540 user_id=58 type=payment title=Consultation complete
+2026-09-25 19:07:42 | notifyPatientConsultationComplete OK: user_id=58 patient_id=107 balance=0
+2026-09-25 19:07:42 | notifyStaffConsultationComplete OK: patient=Bose Lorenzo Villar Zata amount=0 treatment=Orthodontic Appliance
+2026-09-25 20:11:22 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-09-25 22:13:42 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-09-25 23:14:36 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-09-25 23:38:11 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
+2026-09-26 10:51:38 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-09-26 10:53:51 | createNotification OK: id=542 user_id=2 type=system title=New device sign-in
+2026-09-26 11:52:22 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-09-26 12:52:52 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-09-26 13:53:14 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-09-26 14:27:42 | getUserIdForPatient: no user found for patient_id=127
+2026-09-26 14:27:42 | getUserIdForPatient: no user found for patient_id=127

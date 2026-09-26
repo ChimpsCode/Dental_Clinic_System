@@ -1367,15 +1367,19 @@ div.main-content {
 </div>
 
 <script>
-const queueClinicPrintInfo = {
+var queueClinicPrintInfo = {
     name: <?php echo json_encode($queueClinicName); ?>,
     address: <?php echo json_encode($queueClinicAddress); ?>
 };
 
-// Queue Kebab Menu - Portal Based (same as patient-records)
-let queueKebabDropdown = null;
-let queueKebabBackdrop = null;
-let queueActiveButton = null;
+// var so this script can run again after in-app navigation
+var queueKebabDropdown = null;
+var queueKebabBackdrop = null;
+var queueActiveButton = null;
+var staleQueueKebabPortal = document.getElementById('queueKebabDropdownPortal');
+var staleQueueKebabBackdrop = document.getElementById('queueKebabBackdrop');
+if (staleQueueKebabPortal && staleQueueKebabPortal.parentNode) staleQueueKebabPortal.parentNode.removeChild(staleQueueKebabPortal);
+if (staleQueueKebabBackdrop && staleQueueKebabBackdrop.parentNode) staleQueueKebabBackdrop.parentNode.removeChild(staleQueueKebabBackdrop);
 
 function createQueueKebabDropdown() {
     queueKebabDropdown = document.createElement('div');
@@ -1573,7 +1577,9 @@ function positionQueueKebabDropdown(button) {
 }
 
 function openQueueKebabDropdown(button) {
-    if (!queueKebabDropdown) {
+    if (!queueKebabDropdown || !queueKebabDropdown.isConnected) {
+        queueKebabDropdown = null;
+        queueKebabBackdrop = null;
         createQueueKebabDropdown();
     }
 
@@ -1653,24 +1659,30 @@ function handleQueueKebabClick(e) {
     }
 }
 
-// Click handler for kebab buttons
-document.addEventListener('click', function(e) {
-    const button = e.target.closest('.queue-kebab-btn');
-    if (button) {
-        e.preventDefault();
-        e.stopPropagation();
+// Replace the previous handler when this page is shown again.
+if (window.__staffQueueKebabClickHandler) {
+    document.removeEventListener('click', window.__staffQueueKebabClickHandler, true);
+}
 
-        if (queueActiveButton === button && queueKebabDropdown && queueKebabDropdown.classList.contains('show')) {
-            closeQueueKebabDropdown();
-        } else {
-            if (queueActiveButton) {
-                queueActiveButton.classList.remove('active');
-            }
-            openQueueKebabDropdown(button);
+function handleStaffQueueKebabDocumentClick(e) {
+    const button = e.target.closest('.queue-kebab-btn');
+    if (!button) return;
+
+    e.preventDefault();
+    e.stopImmediatePropagation();
+
+    if (queueActiveButton === button && queueKebabDropdown && queueKebabDropdown.classList.contains('show') && queueKebabDropdown.isConnected) {
+        closeQueueKebabDropdown();
+    } else {
+        if (queueActiveButton) {
+            queueActiveButton.classList.remove('active');
         }
-        return;
+        openQueueKebabDropdown(button);
     }
-});
+}
+
+window.__staffQueueKebabClickHandler = handleStaffQueueKebabDocumentClick;
+document.addEventListener('click', window.__staffQueueKebabClickHandler, true);
 
 // View Patient
 function viewPatientQueue(patientId) {
@@ -1941,7 +1953,7 @@ function deleteQueueItem(queueId) {
 }
 
 // Assign Doctor Modal
-let cachedDoctors = null;
+var cachedDoctors = null;
 
 function openAssignDoctorModal(queueId, currentDoctorId) {
     document.getElementById('assignDoctorQueueId').value = queueId;
@@ -2181,6 +2193,8 @@ function startQueuePolling() {
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (!data.success) return;
+                var modal = document.getElementById('queuePatientModal');
+                if (modal && modal.classList.contains('active')) return;
                 if (data.hash !== previousQueueHash) {
                     previousQueueHash = data.hash;
                     refreshQueueTable(data);
@@ -2194,8 +2208,23 @@ function refreshQueueTable(data) {
     var tbody = document.getElementById('queueTableBody');
     if (!tbody) return;
 
-    var items = data.items;
+    var items = data.items || [];
     var counts = data.counts;
+
+    var appointmentRows = [];
+    var existingRows = tbody.querySelectorAll('.queue-row');
+    for (var r = 0; r < existingRows.length; r++) {
+        var sourceBtn = existingRows[r].querySelector('.queue-kebab-btn');
+        if (sourceBtn && sourceBtn.getAttribute('data-source-type') === 'appointment') {
+            appointmentRows.push({
+                patientId: String(sourceBtn.getAttribute('data-patient-id') || ''),
+                html: existingRows[r].outerHTML
+            });
+        }
+    }
+
+    // An empty poll does not include In Queue appointments. Leave those rows in place.
+    if (items.length === 0 && appointmentRows.length) return;
 
     var completedCard = document.getElementById('queue-completed-count');
     if (completedCard) completedCard.textContent = counts.completed_today ?? counts.completed;
@@ -2215,7 +2244,6 @@ function refreshQueueTable(data) {
         else if (tabName === 'cancelled') countSpan.textContent = counts.cancelled;
     }
 
-    // Empty state
     if (items.length === 0) {
         tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state">' +
             '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">' +
@@ -2263,6 +2291,14 @@ function refreshQueueTable(data) {
         html += '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="18" r="2"/></svg>';
         html += '</button></div></td>';
         html += '</tr>';
+    }
+    var seenPatients = {};
+    for (var p = 0; p < items.length; p++) {
+        seenPatients[String(items[p].patient_id)] = true;
+    }
+    for (var a = 0; a < appointmentRows.length; a++) {
+        if (seenPatients[appointmentRows[a].patientId]) continue;
+        html += appointmentRows[a].html;
     }
     tbody.innerHTML = html;
     updatePaginationInfo(items.length, currentPage);

@@ -171,14 +171,19 @@ function archiveStaleQueueEntries(PDO $pdo, string $today = ''): int
         $today = date('Y-m-d');
     }
 
-    $select = $pdo->prepare("
-        SELECT *
-        FROM queue
-        WHERE status IN ('waiting', 'in_procedure', 'on_hold')
+    $staleSql = "
+          AND status IN ('waiting', 'in_procedure', 'on_hold')
           AND COALESCE(queue_date, DATE(created_at)) < ?
           AND COALESCE(is_archived, 0) = 0
-    ");
-    $select->execute([$today]);
+          AND NOT EXISTS (
+              SELECT 1
+              FROM appointments a
+              WHERE a.id = queue.appointment_id
+                AND a.appointment_date >= ?
+          )";
+
+    $select = $pdo->prepare("SELECT * FROM queue WHERE 1=1 {$staleSql}");
+    $select->execute([$today, $today]);
     $staleEntries = $select->fetchAll(PDO::FETCH_ASSOC);
 
     $stmt = $pdo->prepare("
@@ -186,11 +191,9 @@ function archiveStaleQueueEntries(PDO $pdo, string $today = ''): int
         SET status = 'cancelled',
             notes = CONCAT(COALESCE(notes, ''), ' [Auto-archived: stale entry from previous day]'),
             updated_at = NOW()
-        WHERE status IN ('waiting', 'in_procedure', 'on_hold')
-          AND COALESCE(queue_date, DATE(created_at)) < ?
-          AND COALESCE(is_archived, 0) = 0
+        WHERE 1=1 {$staleSql}
     ");
-    $stmt->execute([$today]);
+    $stmt->execute([$today, $today]);
     $count = $stmt->rowCount();
 
     if (!empty($staleEntries)) {

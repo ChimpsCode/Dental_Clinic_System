@@ -1492,11 +1492,11 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
 
             <script>
                 var staffPaymentData = {};
-                const receiptTemplateHtml = <?php echo json_encode($receiptHtmlTemplate); ?>;
-                const receiptTemplateCss = <?php echo json_encode($receiptCssTemplate); ?>;
-                const receiptBaseUrl = <?php echo json_encode($projectBaseUrl); ?>;
-                const receiptImageUrl = receiptBaseUrl + 'assets/images/profile.png';
-                const receiptPreviewOverrides = `
+                var receiptTemplateHtml = <?php echo json_encode($receiptHtmlTemplate); ?>;
+                var receiptTemplateCss = <?php echo json_encode($receiptCssTemplate); ?>;
+                var receiptBaseUrl = <?php echo json_encode($projectBaseUrl); ?>;
+                var receiptImageUrl = receiptBaseUrl + 'assets/images/profile.png';
+                var receiptPreviewOverrides = `
                     .receipt-book {
                         width: 1160px !important;
                         max-width: 1160px !important;
@@ -1577,24 +1577,28 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
 
                 var currentPrintBillingId = null;
 
-                // Portal Pattern: Move modals to body level to escape stacking context
-                // This ensures modals appear above sidebar and all other elements
-                (function() {
-                    const paymentModal = document.getElementById('paymentModal');
-                    const printPaymentModal = document.getElementById('printPaymentModal');
-                    
-                    if (paymentModal) {
+                // Move modals after the shell snapshots the page. Moving them earlier
+                // drops the receipt frame and details modal from the saved page.
+                function mountStaffPaymentModals() {
+                    var paymentModal = document.getElementById('paymentModal');
+                    var printPaymentModal = document.getElementById('printPaymentModal');
+                    if (paymentModal && paymentModal.parentElement !== document.body) {
                         document.body.appendChild(paymentModal);
                     }
-                    if (printPaymentModal) {
+                    if (printPaymentModal && printPaymentModal.parentElement !== document.body) {
                         document.body.appendChild(printPaymentModal);
                     }
-                })();
+                }
+                document.addEventListener('DOMContentLoaded', mountStaffPaymentModals);
 
-                // Payment Kebab Menu - Portal Based (mirrors appointment behavior)
-                let payKebabDropdown = null;
-                let payKebabBackdrop = null;
-                let payActiveButton = null;
+                // var so this script can run again after in-app navigation
+                var payKebabDropdown = null;
+                var payKebabBackdrop = null;
+                var payActiveButton = null;
+                var stalePayKebabPortal = document.getElementById('payKebabDropdownPortal');
+                var stalePayKebabBackdrop = document.getElementById('payKebabBackdrop');
+                if (stalePayKebabPortal && stalePayKebabPortal.parentNode) stalePayKebabPortal.parentNode.removeChild(stalePayKebabPortal);
+                if (stalePayKebabBackdrop && stalePayKebabBackdrop.parentNode) stalePayKebabBackdrop.parentNode.removeChild(stalePayKebabBackdrop);
 
                 function createPayKebabDropdown() {
                     payKebabDropdown = document.createElement('div');
@@ -1684,7 +1688,9 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                 }
 
                 function openPayKebabDropdown(button) {
-                    if (!payKebabDropdown) {
+                    if (!payKebabDropdown || !payKebabDropdown.isConnected) {
+                        payKebabDropdown = null;
+                        payKebabBackdrop = null;
                         createPayKebabDropdown();
                     }
 
@@ -1765,23 +1771,31 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     .catch(() => alert('Request failed. Please try again.'));
                 }
 
-                // Click handler for kebab buttons
-                document.addEventListener('click', function(e) {
+                if (window.__staffPayKebabClickHandler) {
+                    document.removeEventListener('click', window.__staffPayKebabClickHandler, true);
+                }
+
+                function handleStaffPayKebabDocumentClick(e) {
                     const button = e.target.closest('.pay-kebab-btn');
                     if (button) {
                         e.preventDefault();
-                        e.stopPropagation();
-                        
-                        if (payActiveButton === button) {
+                        e.stopImmediatePropagation();
+
+                        if (payActiveButton === button && payKebabDropdown && payKebabDropdown.classList.contains('show') && payKebabDropdown.isConnected) {
                             closePayKebabDropdown();
                         } else {
                             closePayKebabDropdown();
                             openPayKebabDropdown(button);
                         }
-                    } else if (!e.target.closest('.pay-kebab-dropdown-portal')) {
+                        return;
+                    }
+                    if (!e.target.closest('.pay-kebab-dropdown-portal')) {
                         closePayKebabDropdown();
                     }
-                });
+                }
+
+                window.__staffPayKebabClickHandler = handleStaffPayKebabDocumentClick;
+                document.addEventListener('click', window.__staffPayKebabClickHandler, true);
 
                 function isVoidedPaymentStatus(status) {
                     const s = (status || '').toLowerCase();
@@ -2706,8 +2720,8 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     }
                 });
 
-                const paymentSearchForm = document.getElementById('filterForm');
-                const paymentSearchInput = document.getElementById('paymentSearch');
+                var paymentSearchForm = document.getElementById('filterForm');
+                var paymentSearchInput = document.getElementById('paymentSearch');
 
                 if (paymentSearchForm && paymentSearchInput) {
                     const appliedSearch = paymentSearchInput.value.trim();

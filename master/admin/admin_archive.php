@@ -506,7 +506,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 Restore Selected
             </button>
             <button id="bulk-delete-patients" class="btn-delete-forever" onclick="bulkAction('patients', 'delete_forever')" disabled>
-                Delete Forever
+                Delete
             </button>
         </div>
 
@@ -573,7 +573,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 Restore Selected
             </button>
             <button id="bulk-delete-users" class="btn-delete-forever" onclick="bulkAction('users', 'delete_forever')" disabled>
-                Delete Forever
+                Delete
             </button>
         </div>
 
@@ -635,7 +635,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 Restore Selected
             </button>
             <button id="bulk-delete-inquiries" class="btn-delete-forever" onclick="bulkAction('inquiries', 'delete_forever')" disabled>
-                Delete Forever
+                Delete
             </button>
         </div>
 
