@@ -108,6 +108,7 @@ $dentistTwoFactorEnabled = (int)($user['two_factor_enabled'] ?? 0) === 1;
 .form-input { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; transition: border-color 0.2s; }
 .form-input:focus { outline: none; border-color: #005daa; box-shadow: 0 0 0 3px rgba(0,93,170,0.1); }
 .form-select { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; background: white; }
+.form-input:disabled, .form-select:disabled { background: #f3f4f6; color: #6b7280; cursor: not-allowed; }
 .btn-container { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
 .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
 .alert-success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
@@ -199,30 +200,30 @@ $dentistTwoFactorEnabled = (int)($user['two_factor_enabled'] ?? 0) === 1;
     <?php endif; ?>
 
     <div class="section">
-        <form method="POST" action="">
+        <form method="POST" action="" id="profileForm">
             <input type="hidden" name="action" value="update_profile">
 
             <div class="section-title">Personal Information</div>
             <div class="form-grid">
                 <div class="form-group">
                     <label class="form-label">First Name</label>
-                    <input type="text" name="first_name" class="form-input" value="<?php echo htmlspecialchars($user['first_name'] ?? ''); ?>" required>
+                    <input type="text" name="first_name" class="form-input" disabled value="<?php echo htmlspecialchars($user['first_name'] ?? ''); ?>" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Middle Name</label>
-                    <input type="text" name="middle_name" class="form-input" value="<?php echo htmlspecialchars($user['middle_name'] ?? ''); ?>">
+                    <input type="text" name="middle_name" class="form-input" disabled value="<?php echo htmlspecialchars($user['middle_name'] ?? ''); ?>">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Last Name</label>
-                    <input type="text" name="last_name" class="form-input" value="<?php echo htmlspecialchars($user['last_name'] ?? ''); ?>" required>
+                    <input type="text" name="last_name" class="form-input" disabled value="<?php echo htmlspecialchars($user['last_name'] ?? ''); ?>" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Date of Birth</label>
-                    <input type="date" name="date_of_birth" class="form-input" value="<?php echo htmlspecialchars($date_of_birth); ?>">
+                    <input type="date" name="date_of_birth" class="form-input" disabled value="<?php echo htmlspecialchars($date_of_birth); ?>">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Gender</label>
-                    <select name="gender" class="form-select">
+                    <select name="gender" class="form-select" disabled>
                         <option value="">Select Gender</option>
                         <option value="Male" <?php echo $gender === 'Male' ? 'selected' : ''; ?>>Male</option>
                         <option value="Female" <?php echo $gender === 'Female' ? 'selected' : ''; ?>>Female</option>
@@ -234,20 +235,49 @@ $dentistTwoFactorEnabled = (int)($user['two_factor_enabled'] ?? 0) === 1;
             <div class="form-grid">
                 <div class="form-group">
                     <label class="form-label">Email</label>
-                    <input type="email" name="email" class="form-input" value="<?php echo htmlspecialchars($email); ?>" required>
+                    <input type="email" name="email" class="form-input" disabled value="<?php echo htmlspecialchars($email); ?>" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Phone</label>
-                    <input type="tel" name="phone" class="form-input" value="<?php echo htmlspecialchars($phone); ?>">
+                    <input type="tel" name="phone" class="form-input" disabled value="<?php echo htmlspecialchars($phone); ?>">
                 </div>
             </div>
 
             <div class="btn-container">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save"></i> Save Changes
+                <button type="button" class="btn btn-secondary" id="profileEditBtn">
+                    <i class="fas fa-pen"></i> Edit
                 </button>
             </div>
         </form>
+        <script>
+        (function() {
+            var form = document.getElementById('profileForm');
+            var btn = document.getElementById('profileEditBtn');
+            var fields = Array.prototype.slice.call(form.querySelectorAll('.form-input, .form-select'));
+            var original = fields.map(function(f) { return f.value; });
+            var editing = false;
+
+            function refresh() {
+                var dirty = fields.some(function(f, i) { return f.value !== original[i]; });
+                btn.disabled = !dirty;
+                btn.type = dirty ? 'submit' : 'button';
+                btn.classList.toggle('btn-primary', dirty);
+                btn.classList.toggle('btn-secondary', !dirty);
+            }
+
+            btn.addEventListener('click', function(e) {
+                if (editing) return;
+                e.preventDefault();
+                editing = true;
+                fields.forEach(function(f) { f.disabled = false; });
+                btn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
+                refresh();
+                fields[0].focus();
+            });
+            form.addEventListener('input', function() { if (editing) refresh(); });
+            form.addEventListener('change', function() { if (editing) refresh(); });
+        })();
+        </script>
     </div>
 
     <div class="section">

@@ -1078,10 +1078,17 @@ try {
         }
     })();
 
+    let apptKebabDropdown = null;
+    let apptKebabBackdrop = null;
+    let apptActiveButtonId = null;
+
     document.addEventListener('DOMContentLoaded', function() {
         createApptKebabDropdown();
         
-        document.addEventListener('click', function(e) {
+        if (window.__staffApptKebabDocClick) {
+            document.removeEventListener('click', window.__staffApptKebabDocClick);
+        }
+        window.__staffApptKebabDocClick = function(e) {
             const button = e.target.closest('.appt-kebab-btn');
             if (button) {
                 e.preventDefault();
@@ -1098,7 +1105,8 @@ try {
             } else if (!e.target.closest('.appt-kebab-dropdown-portal')) {
                 closeApptKebabDropdown();
             }
-        });
+        };
+        document.addEventListener('click', window.__staffApptKebabDocClick);
         
         document.querySelectorAll('.filter-tabs span').forEach(tab => {
             tab.addEventListener('click', function() {
@@ -1888,10 +1896,6 @@ try {
             });
         });
     }
-
-    let apptKebabDropdown = null;
-    let apptKebabBackdrop = null;
-    let apptActiveButtonId = null;
 
     function createApptKebabDropdown() {
         apptKebabDropdown = document.createElement('div');

@@ -1579,7 +1579,10 @@ function handlePatientKebabClick(e) {
     }
 }
 
-document.addEventListener('click', function(e) {
+if (window.__staffPatientKebabClickHandler) {
+    document.removeEventListener('click', window.__staffPatientKebabClickHandler);
+}
+window.__staffPatientKebabClickHandler = function(e) {
     const button = e.target.closest('.patient-kebab-btn');
     if (button) {
         e.preventDefault();
@@ -1599,7 +1602,8 @@ document.addEventListener('click', function(e) {
     if (!e.target.closest('.patient-kebab-dropdown-portal')) {
         closePatientKebabDropdown();
     }
-});
+};
+document.addEventListener('click', window.__staffPatientKebabClickHandler);
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {

@@ -62,6 +62,18 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 .save-btn { padding: 10px 28px; background: #005daa; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
 .save-btn:hover { background: #004b8a; }
 .save-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.save-btn.is-edit { background: #e5e7eb; color: #4b5563; }
+.save-btn.is-edit:hover { background: #d1d5db; }
+.save-btn.is-idle,
+.save-btn.is-idle:hover,
+.save-btn.is-idle:disabled { background: #e5e7eb; color: #9ca3af; cursor: default; opacity: 1; }
+.wc-locked input:not([type="hidden"]),
+.wc-locked textarea,
+.wc-locked select { background: #f3f4f6; color: #6b7280; }
+.wc-locked .upload-btn,
+.wc-locked .add-btn,
+.wc-locked .remove-btn,
+.wc-locked .service-check-item { pointer-events: none; opacity: 0.55; }
 .saved-toast { display: none; padding: 10px 18px; background: #059669; color: #fff; border-radius: 8px; font-size: 14px; font-weight: 500; margin-top: 12px; animation: fadeInOut 2s ease; }
 @keyframes fadeInOut { 0% { opacity: 0; transform: translateY(-8px); } 15% { opacity: 1; transform: translateY(0); } 85% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; } }
 
@@ -150,7 +162,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
     <!-- ===== TAB: HOME ===== -->
     <div class="content-panel active" id="panel-home" role="tabpanel">
-        <div class="form-section">
+        <div class="form-section" id="wcHeroSection">
             <div class="form-section-title">Hero Section</div>
             <div class="form-row">
                 <label>Hero Title</label>
@@ -193,13 +205,13 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     <input type="text" id="heroNote2" class="form-control" value="<?php echo htmlspecialchars($settings['welcome_hero_note2'] ?? "and I'm Dr. Floralyn"); ?>">
                 </div>
             </div>
-            <button class="save-btn" onclick="saveSection('hero')">Save Home Section</button>
+            <button type="button" class="save-btn is-edit" id="saveHeroBtn" onclick="welcomeSectionClick('hero')">Edit</button>
         </div>
     </div>
 
     <!-- ===== TAB: ABOUT US ===== -->
     <div class="content-panel" id="panel-about" role="tabpanel">
-        <div class="form-section">
+        <div class="form-section" id="wcAboutSection">
             <div class="form-section-title">About Us Content</div>
             <div class="form-row">
                 <label for="aboutHeading">Heading (HTML allowed)</label>
@@ -226,33 +238,33 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
             </div>
         </div>
 
-        <div class="form-section">
+        <div class="form-section" id="wcStatsSection">
             <div class="form-section-title">Statistics</div>
             <p style="font-size:13px;color:#6b7280;margin:-8px 0 16px;">These appear below the About Us text (e.g. "5,000+ Happy Patients").</p>
             <div id="statsList"></div>
             <button class="add-btn" onclick="addStatItem()">+ Add Stat</button>
             <div style="margin-top:16px;">
-                <button class="save-btn" onclick="saveSection('about')">Save About Us Section</button>
+                <button type="button" class="save-btn is-edit" id="saveAboutBtn" onclick="welcomeSectionClick('about')">Edit</button>
             </div>
         </div>
     </div>
 
     <!-- ===== TAB: FAQ ===== -->
     <div class="content-panel" id="panel-faq" role="tabpanel">
-        <div class="form-section">
+        <div class="form-section" id="wcFaqSection">
             <div class="form-section-title">Frequently Asked Questions</div>
             <p style="font-size:13px;color:#6b7280;margin:-8px 0 16px;">Manage the Q&A pairs displayed on the welcome page.</p>
             <div id="faqList"></div>
             <button class="add-btn" onclick="addFaqItem()">+ Add FAQ</button>
             <div style="margin-top:16px;">
-                <button class="save-btn" onclick="saveSection('faq')">Save FAQ Section</button>
+                <button type="button" class="save-btn is-edit" id="saveFaqBtn" onclick="welcomeSectionClick('faq')">Edit</button>
             </div>
         </div>
     </div>
 
     <!-- ===== TAB: SERVICES ===== -->
     <div class="content-panel" id="panel-services" role="tabpanel">
-        <div class="form-section">
+        <div class="form-section" id="wcFeaturedSection">
             <div class="form-section-title">Featured Services</div>
             <p style="font-size:13px;color:#6b7280;margin:-8px 0 16px;">Select up to <strong>3 services</strong> to appear as featured cards on the welcome page.</p>
             <div style="font-size:13px;color:#374151;margin-bottom:10px;">Selected: <span id="featuredCount">0</span>/3</div>
@@ -268,11 +280,11 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 <?php endforeach; ?>
             </div>
             <div style="margin-top:16px;">
-                <button class="save-btn" onclick="saveSection('services')">Save Services Selection</button>
+                <button type="button" class="save-btn is-edit" id="saveServicesBtn" onclick="welcomeSectionClick('services')">Edit</button>
             </div>
         </div>
 
-        <div class="form-section">
+        <div class="form-section" id="wcServiceImagesSection">
             <div class="form-section-title" style="display:flex;align-items:center;justify-content:space-between;">
                 <span>Service Images</span>
                 <div class="svc-view-toggle">
@@ -286,12 +298,15 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
             </div>
             <p style="font-size:13px;color:#6b7280;margin:-8px 0 16px;">Assign a custom image to each service. Used in both the featured cards and the "Explore All Services" section.</p>
             <div id="allServiceImages"></div>
+            <div style="margin-top:16px;">
+                <button type="button" class="save-btn is-edit" id="saveServiceImagesBtn" onclick="welcomeSectionClick('serviceImages')">Edit</button>
+            </div>
         </div>
     </div>
 
     <!-- ===== TAB: LOGO ===== -->
     <div class="content-panel" id="panel-logo" role="tabpanel">
-        <div class="form-section">
+        <div class="form-section" id="wcLogoSection">
             <div class="form-section-title">Clinic Logo</div>
             <p style="font-size:13px;color:#6b7280;margin:-8px 0 16px;">This logo is shared across the entire welcome page (header, footer, contact form).</p>
             <div class="logo-upload-area">
@@ -308,7 +323,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 </label>
                 <input type="hidden" id="logoPath" value="<?php echo htmlspecialchars($logoPath); ?>">
                 <div style="margin-top:20px;">
-                    <button class="save-btn" onclick="saveSection('logo')">Save Logo</button>
+                    <button type="button" class="save-btn is-edit" id="saveLogoBtn" onclick="welcomeSectionClick('logo')">Edit</button>
                 </div>
             </div>
         </div>
@@ -316,7 +331,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
     <!-- ===== TAB: FOOTER ===== -->
     <div class="content-panel" id="panel-footer" role="tabpanel">
-        <div class="form-section">
+        <div class="form-section" id="wcFooterSection">
             <div class="form-section-title">Footer Content</div>
             <div class="form-row">
                 <label for="footerTagline">Footer Tagline</label>
@@ -331,7 +346,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 <input type="url" id="footerMessenger" class="form-control" value="<?php echo htmlspecialchars($settings['welcome_footer_messenger'] ?? 'https://m.me'); ?>" placeholder="https://m.me/...">
             </div>
             <div style="margin-top:16px;">
-                <button class="save-btn" onclick="saveSection('footer')">Save Footer</button>
+                <button type="button" class="save-btn is-edit" id="saveFooterBtn" onclick="welcomeSectionClick('footer')">Edit</button>
             </div>
         </div>
     </div>
@@ -409,11 +424,13 @@ function renderHeroBlocks() {
 function addHeroBlock() {
     HERO_BLOCKS.push({ text: '', color: '#000000', fontSize: 64, fontWeight: 700, lineHeight: 1.05, newLine: true });
     renderHeroBlocks();
+    refreshWelcomeSection('hero');
 }
 
 function removeHeroBlock(index) {
     HERO_BLOCKS.splice(index, 1);
     renderHeroBlocks();
+    refreshWelcomeSection('hero');
 }
 
 function renderStats() {
@@ -436,11 +453,13 @@ function renderStats() {
 function addStatItem() {
     STATS_DATA.push({ value: '', label: '' });
     renderStats();
+    refreshWelcomeSection('about');
 }
 
 function removeStatItem(index) {
     STATS_DATA.splice(index, 1);
     renderStats();
+    refreshWelcomeSection('about');
 }
 
 function renderFaqs() {
@@ -463,11 +482,13 @@ function renderFaqs() {
 function addFaqItem() {
     FAQS_DATA.push({ q: '', a: '' });
     renderFaqs();
+    refreshWelcomeSection('faq');
 }
 
 function removeFaqItem(index) {
     FAQS_DATA.splice(index, 1);
     renderFaqs();
+    refreshWelcomeSection('faq');
 }
 
 function escapeHtml(str) {
@@ -504,7 +525,9 @@ function setupImageUpload(inputId, previewId, hiddenId) {
         .then(data => {
             if (data.success) {
                 document.getElementById(previewId).src = '../../' + data.file_path;
-                document.getElementById(hiddenId).value = data.file_path;
+                const hidden = document.getElementById(hiddenId);
+                hidden.value = data.file_path;
+                hidden.dispatchEvent(new Event('change', { bubbles: true }));
                 showToast('Image uploaded successfully');
             } else {
                 alert('Upload failed: ' + (data.message || 'Unknown error'));
@@ -555,14 +578,10 @@ function renderAllServiceImages() {
                     if (data.success) {
                         const path = data.file_path;
                         document.getElementById('svcPreview_' + serviceId).src = '../../' + path;
-                        document.getElementById('svcPath_' + serviceId).value = path;
-                        SERVICE_IMAGES[serviceId] = path;
-                        fetch('welcome_content_actions.php', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                            body: 'action=save_service_image&service_id=' + encodeURIComponent(serviceId) + '&file_path=' + encodeURIComponent(path)
-                        });
-                        showToast('Image uploaded successfully');
+                        const hidden = document.getElementById('svcPath_' + serviceId);
+                        hidden.value = path;
+                        hidden.dispatchEvent(new Event('change', { bubbles: true }));
+                        showToast('Image uploaded. Click "Save Service Images" to apply.');
                     } else {
                         alert('Upload failed: ' + (data.message || 'Unknown error'));
                     }
@@ -581,8 +600,145 @@ function showToast(msg) {
     setTimeout(() => { toast.style.display = 'none'; }, 2500);
 }
 
+function wcValue(id) {
+    return document.getElementById(id).value;
+}
+
+const WC_SECTIONS = {
+    hero: {
+        roots: ['wcHeroSection'], btn: 'saveHeroBtn', label: 'Save Hero Section',
+        read: () => JSON.stringify([HERO_BLOCKS, wcValue('heroSubtitle'), wcValue('heroImage'), wcValue('heroBadgeBig'), wcValue('heroBadgeSmall'), wcValue('heroNote1'), wcValue('heroNote2')])
+    },
+    about: {
+        roots: ['wcAboutSection', 'wcStatsSection'], btn: 'saveAboutBtn', label: 'Save About Us Section',
+        read: () => JSON.stringify([
+            wcValue('aboutHeading'), wcValue('aboutParagraph1'), wcValue('aboutParagraph2'), wcValue('aboutImage'),
+            Array.from(document.querySelectorAll('#statsList .stat-item-row')).map(r => [r.querySelector('.stat-value').value, r.querySelector('.stat-label').value])
+        ])
+    },
+    faq: {
+        roots: ['wcFaqSection'], btn: 'saveFaqBtn', label: 'Save FAQ Section',
+        read: () => JSON.stringify(Array.from(document.querySelectorAll('#faqList .faq-item-row')).map(r => [r.querySelector('.faq-q').value, r.querySelector('.faq-a').value]))
+    },
+    services: {
+        roots: ['wcFeaturedSection'], btn: 'saveServicesBtn', label: 'Save Services Selection',
+        read: () => JSON.stringify(featuredOrder)
+    },
+    serviceImages: {
+        roots: ['wcServiceImagesSection'], btn: 'saveServiceImagesBtn', label: 'Save Service Images',
+        read: () => JSON.stringify(Array.from(document.querySelectorAll('.svc-img-path')).map(h => h.id + '=' + h.value))
+    },
+    logo: {
+        roots: ['wcLogoSection'], btn: 'saveLogoBtn', label: 'Save Logo',
+        read: () => wcValue('logoPath')
+    },
+    footer: {
+        roots: ['wcFooterSection'], btn: 'saveFooterBtn', label: 'Save Footer',
+        read: () => JSON.stringify([wcValue('footerTagline'), wcValue('footerFacebook'), wcValue('footerMessenger')])
+    }
+};
+
+function lockWelcomeSection(name, locked) {
+    WC_SECTIONS[name].roots.forEach(rootId => {
+        const root = document.getElementById(rootId);
+        root.classList.toggle('wc-locked', locked);
+        root.querySelectorAll('input, textarea, select').forEach(el => {
+            if (el.type === 'hidden') return;
+            const textual = el.tagName === 'TEXTAREA' || ['text', 'url', 'number', 'email'].indexOf(el.type) !== -1;
+            if (textual) el.readOnly = locked;
+            else el.disabled = locked;
+        });
+    });
+}
+
+function refreshWelcomeSection(name) {
+    const s = WC_SECTIONS[name];
+    if (!s || !s.editing || s.saving) return;
+    const btn = document.getElementById(s.btn);
+    const ready = s.read() !== s.snapshot;
+    btn.disabled = !ready;
+    btn.className = ready ? 'save-btn' : 'save-btn is-idle';
+    btn.textContent = s.label;
+}
+
+function finishWelcomeSection(name) {
+    const s = WC_SECTIONS[name];
+    const btn = document.getElementById(s.btn);
+    s.editing = false;
+    s.saving = false;
+    lockWelcomeSection(name, true);
+    btn.disabled = false;
+    btn.className = 'save-btn is-edit';
+    btn.textContent = 'Edit';
+}
+
+function welcomeSectionClick(name) {
+    const s = WC_SECTIONS[name];
+    if (!s.editing) {
+        s.editing = true;
+        s.snapshot = s.read();
+        lockWelcomeSection(name, false);
+        refreshWelcomeSection(name);
+        return;
+    }
+    if (document.getElementById(s.btn).disabled) return;
+    if (name === 'serviceImages') saveServiceImages();
+    else saveSection(name);
+}
+
+function welcomeSaveFailed(name) {
+    WC_SECTIONS[name].saving = false;
+    refreshWelcomeSection(name);
+}
+
+function saveServiceImages() {
+    const s = WC_SECTIONS.serviceImages;
+    const btn = document.getElementById(s.btn);
+    const changes = [];
+    document.querySelectorAll('.svc-img-path').forEach(hidden => {
+        const id = hidden.id.replace('svcPath_', '');
+        if (hidden.value && hidden.value !== (SERVICE_IMAGES[id] || '')) changes.push([id, hidden.value]);
+    });
+    if (!changes.length) return;
+    s.saving = true;
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    const saveNext = (i) => {
+        if (i >= changes.length) {
+            finishWelcomeSection('serviceImages');
+            showToast('Service images saved successfully');
+            return Promise.resolve();
+        }
+        const [id, path] = changes[i];
+        return fetch('welcome_content_actions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'action=save_service_image&service_id=' + encodeURIComponent(id) + '&file_path=' + encodeURIComponent(path)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) throw new Error(data.message || 'Unknown error');
+            SERVICE_IMAGES[id] = path;
+            return saveNext(i + 1);
+        });
+    };
+
+    saveNext(0).catch(e => {
+        alert('Save failed: ' + e.message);
+        s.snapshot = JSON.stringify(Array.from(document.querySelectorAll('.svc-img-path')).map(h => {
+            const id = h.id.replace('svcPath_', '');
+            return h.id + '=' + (SERVICE_IMAGES[id] || '');
+        }));
+        welcomeSaveFailed('serviceImages');
+    });
+}
+
 function saveSection(section) {
-    const btn = document.querySelector(`.save-btn[onclick*="${section}"]`);
+    const s = WC_SECTIONS[section];
+    const btn = document.getElementById(s.btn);
+    if (!s.editing || btn.disabled) return;
+    s.saving = true;
     btn.disabled = true;
     btn.textContent = 'Saving...';
 
@@ -622,16 +778,14 @@ function saveSection(section) {
         formData.append('faqs', JSON.stringify(faqs));
     } else if (section === 'services') {
         if (featuredOrder.length > 3) {
-            btn.disabled = false;
-            btn.textContent = 'Save Services Section';
+            welcomeSaveFailed(section);
             showToast('Maximum of 3 featured services allowed.');
             return;
         }
         formData.append('featured_services', JSON.stringify(featuredOrder));
         const images = {};
-        document.querySelectorAll('.svc-img-path').forEach(hidden => {
-            const id = hidden.id.replace('svcPath_', '');
-            if (hidden.value) images[id] = hidden.value;
+        Object.keys(SERVICE_IMAGES).forEach(id => {
+            if (SERVICE_IMAGES[id]) images[id] = SERVICE_IMAGES[id];
         });
         formData.append('service_images', JSON.stringify(images));
     } else if (section === 'logo') {
@@ -648,17 +802,16 @@ function saveSection(section) {
     })
     .then(r => r.json())
     .then(data => {
-        btn.disabled = false;
-        btn.textContent = 'Save ' + (section.charAt(0).toUpperCase() + section.slice(1)) + ' Section';
         if (data.success) {
+            finishWelcomeSection(section);
             showToast(data.message || 'Saved successfully!');
         } else {
+            welcomeSaveFailed(section);
             alert('Save failed: ' + (data.message || 'Unknown error'));
         }
     })
     .catch(e => {
-        btn.disabled = false;
-        btn.textContent = 'Save ' + (section.charAt(0).toUpperCase() + section.slice(1)) + ' Section';
+        welcomeSaveFailed(section);
         alert('Error: ' + e.message);
     });
 }
@@ -709,6 +862,15 @@ document.querySelectorAll('.svc-view-btn').forEach(btn => {
 const savedView = localStorage.getItem('svcImageView') || 'list';
 document.querySelectorAll('.svc-view-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.view === savedView);
+});
+
+Object.keys(WC_SECTIONS).forEach(name => {
+    WC_SECTIONS[name].roots.forEach(rootId => {
+        const root = document.getElementById(rootId);
+        root.addEventListener('input', () => refreshWelcomeSection(name));
+        root.addEventListener('change', () => refreshWelcomeSection(name));
+    });
+    lockWelcomeSection(name, true);
 });
 </script>
 

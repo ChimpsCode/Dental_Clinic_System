@@ -556,8 +556,7 @@ function confirmResetUser2FA() {
 
 function deleteUser(userId) {
     if (!userId) return;
-    if (!confirm('Archive this user? They will be moved to Archive Management.')) return;
-    
+    window.appAsk('Archive this user? They will be moved to Archive Management.', function() {
     const formData = new FormData();
     formData.append('action', 'delete');
     formData.append('id', userId);
@@ -578,6 +577,7 @@ function deleteUser(userId) {
     .catch(() => {
         showToast('Failed to delete user.', 'error');
     });
+    }, { title: 'Please Confirm', kind: 'error', confirmText: 'Archive' });
 }
 
 function toggleUserStatus(userId, currentStatus) {

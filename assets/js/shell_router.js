@@ -315,7 +315,9 @@
         if (h1 && !current.getAttribute('data-page-title')) {
             current.setAttribute('data-page-title', h1.textContent.trim());
         }
-        window.appCache.set(listKey(location.href), current.outerHTML);
+        fetchFragment(location.href).catch(function (err) {
+            console.error('workspace seed failed:', err);
+        });
     }
 
     function preloadNav() {
