@@ -64,9 +64,9 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 
                     
                     <div class="export-options">
-                        <button class="btn-secondary" onclick="exportAuditLogs('csv')">Export as CSV</button>
-                        <button class="btn-secondary" onclick="exportAuditLogs('excel')">Export as Excel</button>
-                        <button class="btn-secondary" onclick="printAuditLogs()">Print Logs</button>
+                        <button class="btn-secondary" onclick="openAuditExport('csv')">Export as CSV</button>
+                        <button class="btn-secondary" onclick="openAuditExport('excel')">Export as Excel</button>
+                        <button class="btn-secondary" onclick="openAuditExport('print')">Print Logs</button>
                     </div>
                 </div>
 
@@ -250,29 +250,244 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
             
 
+            <div class="modal-overlay" id="auditRangeModal">
+                <div class="modal-content audit-export-modal">
+                    <div class="modal-header">
+                        <h3>Choose a time frame</h3>
+                        <button type="button" class="modal-close" id="closeAuditRangeModal" aria-label="Close">&times;</button>
+                    </div>
+                    <p class="audit-export-help">Logs older than 1 year are already removed, so 12 months is the furthest this file can go. Search, action, role, and status on this page still apply.</p>
+                    <p class="audit-export-error" id="auditRangeError" hidden></p>
+                    <div class="form-group">
+                        <label for="auditTimeMode">Time frame</label>
+                        <select class="form-control" id="auditTimeMode">
+                            <option value="months" selected>Last few months</option>
+                            <option value="datetime">From a date and time</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="auditMonthsWrap">
+                        <label for="auditMonths">How far back</label>
+                        <select class="form-control" id="auditMonths">
+                            <option value="1">1 month</option>
+                            <option value="3" selected>3 months</option>
+                            <option value="6">6 months</option>
+                            <option value="12">12 months (all activity still on file)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="auditDatetimeWrap" style="display: none;">
+                        <label for="auditFromDatetime">From</label>
+                        <input type="datetime-local" class="form-control" id="auditFromDatetime">
+                        <span class="audit-export-help">Includes logs from this moment until now.</span>
+                    </div>
+                    <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                        <button type="button" class="btn-secondary" id="cancelAuditRange">Cancel</button>
+                        <button type="button" class="btn-primary" id="continueAuditRange">Continue</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-overlay" id="auditPasswordModal">
+                <div class="modal-content audit-export-modal">
+                    <div class="modal-header">
+                        <h3>Confirm it is you</h3>
+                        <button type="button" class="modal-close" id="closeAuditPasswordModal" aria-label="Close">&times;</button>
+                    </div>
+                    <p class="audit-export-help">Type your current login password. The file is created only after the password matches.</p>
+                    <p class="audit-export-error" id="auditPasswordError" hidden></p>
+                    <div class="form-group">
+                        <label for="auditExportPassword">Current password</label>
+                        <input type="password" class="form-control" id="auditExportPassword" autocomplete="current-password" placeholder="Type your login password">
+                    </div>
+                    <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                        <button type="button" class="btn-secondary" id="backToAuditRange">Back</button>
+                        <button type="button" class="btn-primary" id="confirmAuditExport">Download</button>
+                    </div>
+                </div>
+            </div>
+
+            <style>
+                .audit-export-modal { background: white; border-radius: 12px; padding: 24px; max-width: 440px; width: 100%; }
+                .audit-export-modal .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+                .audit-export-modal .modal-header h3 { margin: 0; font-size: 18px; }
+                .audit-export-modal .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280; line-height: 1; }
+                .audit-export-modal .form-group { margin-bottom: 16px; }
+                .audit-export-modal .form-group label { display: block; margin-bottom: 6px; font-weight: 500; color: #374151; }
+                .audit-export-modal .form-control { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
+                .audit-export-help { color: #4b5563; font-size: 13px; line-height: 1.5; margin: 0 0 16px; }
+                .audit-export-error { color: #b91c1c; font-size: 13px; margin: 0 0 12px; }
+                @media print {
+                    .sidebar,
+                    .sidebar-overlay,
+                    .top-header,
+                    .export-options,
+                    .summary-cards,
+                    .search-filters,
+                    .pagination {
+                        display: none !important;
+                    }
+                    .main-content {
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        width: 100% !important;
+                    }
+                    .table-container {
+                        overflow: visible !important;
+                        box-shadow: none !important;
+                    }
+                }
+            </style>
             <script>
-                // Export audit logs
+                var auditExportFormat = 'csv';
+                var auditRangeModal = document.getElementById('auditRangeModal');
+                var auditPasswordModal = document.getElementById('auditPasswordModal');
+                var auditTimeMode = document.getElementById('auditTimeMode');
+                var auditMonthsWrap = document.getElementById('auditMonthsWrap');
+                var auditDatetimeWrap = document.getElementById('auditDatetimeWrap');
+                var auditPasswordInput = document.getElementById('auditExportPassword');
+                var auditPasswordError = document.getElementById('auditPasswordError');
+                var auditConfirmBtn = document.getElementById('confirmAuditExport');
+
+                function syncAuditTimeFields() {
+                    var byDate = auditTimeMode.value === 'datetime';
+                    auditMonthsWrap.style.display = byDate ? 'none' : '';
+                    auditDatetimeWrap.style.display = byDate ? '' : 'none';
+                }
+
+                function showAuditPasswordError(message) {
+                    auditPasswordError.textContent = message;
+                    auditPasswordError.hidden = false;
+                }
+
+                function clearAuditPasswordError() {
+                    auditPasswordError.textContent = '';
+                    auditPasswordError.hidden = true;
+                }
+
+                function closeAuditExportModals() {
+                    auditRangeModal.classList.remove('active');
+                    auditPasswordModal.classList.remove('active');
+                    auditPasswordInput.value = '';
+                    clearAuditPasswordError();
+                    auditConfirmBtn.disabled = false;
+                    auditConfirmBtn.textContent = auditExportFormat === 'print' ? 'Print' : 'Download';
+                }
+
+                function openAuditExport(format) {
+                    auditExportFormat = format;
+                    auditConfirmBtn.textContent = format === 'print' ? 'Print' : 'Download';
+                    clearAuditPasswordError();
+                    auditRangeModal.classList.add('active');
+                }
+
                 function exportAuditLogs(format) {
-                    const search = document.getElementById('auditSearch').value;
-                    const action = document.getElementById('actionFilter').value;
-                    const role = document.getElementById('roleFilter').value;
-                    const status = document.getElementById('statusFilter').value;
-                    const date = document.getElementById('dateFilter').value;
-                    
-                    let url = 'export_audit.php?format=' + format;
-                    if (search) url += '&search=' + encodeURIComponent(search);
-                    if (action) url += '&action=' + encodeURIComponent(action);
-                    if (role) url += '&role=' + encodeURIComponent(role);
-                    if (status) url += '&status=' + encodeURIComponent(status);
-                    if (date) url += '&date=' + encodeURIComponent(date);
-                    
-                    window.open(url, '_blank');
+                    openAuditExport(format);
                 }
-                
-                // Print audit logs
+
                 function printAuditLogs() {
-                    window.print();
+                    openAuditExport('print');
                 }
+
+                auditTimeMode.addEventListener('change', syncAuditTimeFields);
+                document.getElementById('closeAuditRangeModal').addEventListener('click', closeAuditExportModals);
+                document.getElementById('cancelAuditRange').addEventListener('click', closeAuditExportModals);
+                document.getElementById('closeAuditPasswordModal').addEventListener('click', closeAuditExportModals);
+                document.getElementById('continueAuditRange').addEventListener('click', function () {
+                    var rangeError = document.getElementById('auditRangeError');
+                    if (auditTimeMode.value === 'datetime' && !document.getElementById('auditFromDatetime').value) {
+                        rangeError.textContent = 'Choose a date and time.';
+                        rangeError.hidden = false;
+                        return;
+                    }
+                    rangeError.hidden = true;
+                    auditRangeModal.classList.remove('active');
+                    clearAuditPasswordError();
+                    auditPasswordModal.classList.add('active');
+                    auditPasswordInput.focus();
+                });
+                document.getElementById('backToAuditRange').addEventListener('click', function () {
+                    auditPasswordModal.classList.remove('active');
+                    auditPasswordInput.value = '';
+                    clearAuditPasswordError();
+                    auditRangeModal.classList.add('active');
+                });
+
+                auditConfirmBtn.addEventListener('click', function () {
+                    var password = auditPasswordInput.value;
+                    if (!password) {
+                        showAuditPasswordError('Enter your current password.');
+                        return;
+                    }
+                    if (auditTimeMode.value === 'datetime' && !document.getElementById('auditFromDatetime').value) {
+                        showAuditPasswordError('Choose a date and time.');
+                        return;
+                    }
+
+                    auditConfirmBtn.disabled = true;
+                    auditConfirmBtn.textContent = auditExportFormat === 'print' ? 'Preparing print…' : 'Preparing download…';
+                    clearAuditPasswordError();
+
+                    var formData = new FormData();
+                    formData.append('format', auditExportFormat);
+                    formData.append('password', password);
+                    formData.append('time_mode', auditTimeMode.value);
+                    formData.append('months', document.getElementById('auditMonths').value);
+                    formData.append('from_datetime', document.getElementById('auditFromDatetime').value);
+                    formData.append('search', document.getElementById('auditSearch').value);
+                    formData.append('action', document.getElementById('actionFilter').value);
+                    formData.append('role', document.getElementById('roleFilter').value);
+                    formData.append('status', document.getElementById('statusFilter').value);
+
+                    fetch('../api/export_audit.php', { method: 'POST', body: formData })
+                        .then(function (res) {
+                            var type = res.headers.get('content-type') || '';
+                            if (type.indexOf('application/json') !== -1) {
+                                return res.json().then(function (data) {
+                                    throw new Error((data && data.message) || 'The export could not be created.');
+                                });
+                            }
+                            if (!res.ok) {
+                                throw new Error('The export could not be created.');
+                            }
+                            if (auditExportFormat === 'print') {
+                                return res.text().then(function (html) {
+                                    var printWindow = window.open('', '_blank');
+                                    if (!printWindow) {
+                                        throw new Error('Allow pop-ups to print the logs.');
+                                    }
+                                    printWindow.document.open();
+                                    printWindow.document.write(html);
+                                    printWindow.document.close();
+                                });
+                            }
+                            var match = (res.headers.get('content-disposition') || '').match(/filename="([^"]+)"/);
+                            var filename = match ? match[1] : (auditExportFormat === 'excel' ? 'audit_logs.xlsx' : 'audit_logs.csv');
+                            return res.blob().then(function (blob) {
+                                var url = URL.createObjectURL(blob);
+                                var link = document.createElement('a');
+                                link.href = url;
+                                link.download = filename;
+                                document.body.appendChild(link);
+                                link.click();
+                                link.remove();
+                                URL.revokeObjectURL(url);
+                            });
+                        })
+                        .then(function () {
+                            closeAuditExportModals();
+                        })
+                        .catch(function (err) {
+                            showAuditPasswordError(err.message || 'The export could not be created.');
+                            auditConfirmBtn.disabled = false;
+                            auditConfirmBtn.textContent = auditExportFormat === 'print' ? 'Print' : 'Download';
+                        });
+                });
+
+                auditPasswordInput.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        auditConfirmBtn.click();
+                    }
+                });
             </script>
 
 <?php

@@ -241,6 +241,52 @@ if ($action === 'save_auto_cancel_settings') {
     exit;
 }
 
+if ($action === 'save_auto_backup') {
+    $enabled = ($_POST['auto_backup_enabled'] ?? '0') === '1' ? '1' : '0';
+    $time = (string)($_POST['auto_backup_time'] ?? '02:00');
+    if (!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $time)) {
+        $time = '02:00';
+    }
+    $mode = (($_POST['auto_backup_mode'] ?? 'month') === 'date') ? 'date' : 'month';
+    $date = (string)($_POST['auto_backup_date'] ?? '');
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+        $date = '';
+    }
+    $day = (int)($_POST['auto_backup_day'] ?? 1);
+    if ($day < 1 || $day > 28) {
+        $day = 1;
+    }
+
+    if ($enabled === '1' && $mode === 'date' && $date === '') {
+        echo json_encode(['success' => false, 'message' => 'Choose the date for the automatic backup.']);
+        exit;
+    }
+
+    $current = [];
+    $currentStmt = $pdo->query("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'auto_backup_%'");
+    if ($currentStmt) {
+        $current = $currentStmt->fetchAll(PDO::FETCH_KEY_PAIR) ?: [];
+    }
+
+    $scheduleChanged = ($current['auto_backup_enabled'] ?? '0') !== $enabled
+        || ($current['auto_backup_time'] ?? '02:00') !== $time
+        || ($current['auto_backup_mode'] ?? 'month') !== $mode
+        || ($current['auto_backup_date'] ?? '') !== $date
+        || (string)($current['auto_backup_day'] ?? '1') !== (string)$day;
+
+    auditedUpsertSetting($pdo, 'auto_backup_enabled', $enabled, 'Updated auto backup', $auditUserId, $auditUsername, $auditRole);
+    auditedUpsertSetting($pdo, 'auto_backup_time', $time, 'Updated auto backup', $auditUserId, $auditUsername, $auditRole);
+    auditedUpsertSetting($pdo, 'auto_backup_mode', $mode, 'Updated auto backup', $auditUserId, $auditUsername, $auditRole);
+    auditedUpsertSetting($pdo, 'auto_backup_date', $date, 'Updated auto backup', $auditUserId, $auditUsername, $auditRole);
+    auditedUpsertSetting($pdo, 'auto_backup_day', (string)$day, 'Updated auto backup', $auditUserId, $auditUsername, $auditRole);
+    if ($scheduleChanged) {
+        auditedUpsertSetting($pdo, 'auto_backup_last_slot', '', 'Updated auto backup', $auditUserId, $auditUsername, $auditRole);
+    }
+
+    echo json_encode(['success' => true, 'message' => 'Auto backup saved successfully']);
+    exit;
+}
+
 if ($action === 'save_security_settings') {
     $sessionTimeout = (int)($_POST['session_timeout'] ?? 30);
     if (!in_array($sessionTimeout, [15, 30, 60, 120], true)) {

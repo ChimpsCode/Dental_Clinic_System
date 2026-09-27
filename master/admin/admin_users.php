@@ -10,6 +10,10 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
 $users = [];
 $totalUsers = 0;
+$dentistCount = 0;
+$staffCount = 0;
+$registeredPatients = 0;
+$unregisteredPatients = 0;
 
 try {
     // Get users with role names from roles table
@@ -80,22 +84,91 @@ try {
     }
     unset($user);
     $totalUsers = count($users);
+    foreach ($users as $u) {
+        $roleLower = strtolower((string)($u['role_name'] ?? ''));
+        if ($roleLower === 'dentist') {
+            $dentistCount++;
+        } elseif ($roleLower === 'staff') {
+            $staffCount++;
+        }
+    }
 } catch (Exception $e) {
     $users = [];
     $totalUsers = 0;
     $usersQueryError = $e->getMessage();
     error_log('[admin_users] users query error: ' . $usersQueryError);
 }
+
+try {
+    if (!empty($patientsTableExists)) {
+        $linkedCondition = '';
+        if (in_array('user_id', $patientsCols ?? [], true)) {
+            $linkedCondition = '(p.user_id IS NOT NULL AND p.user_id <> 0)';
+        } elseif (in_array('patient_id', $cols ?? [], true)) {
+            $linkedCondition = 'EXISTS (SELECT 1 FROM users u WHERE u.patient_id = p.id)';
+        }
+
+        if ($linkedCondition !== '') {
+            $patientWhere = in_array('is_archived', $patientsCols, true)
+                ? 'WHERE (p.is_archived = 0 OR p.is_archived IS NULL)'
+                : '';
+            $patientStats = $pdo->query("
+                SELECT
+                    SUM(CASE WHEN {$linkedCondition} THEN 1 ELSE 0 END) AS registered,
+                    SUM(CASE WHEN {$linkedCondition} THEN 0 ELSE 1 END) AS unregistered
+                FROM patients p
+                {$patientWhere}
+            ")->fetch(PDO::FETCH_ASSOC) ?: [];
+            $registeredPatients = (int)($patientStats['registered'] ?? 0);
+            $unregisteredPatients = (int)($patientStats['unregistered'] ?? 0);
+        }
+    }
+} catch (Exception $e) {
+    error_log('[admin_users] patient stats error: ' . $e->getMessage());
+}
 ?>
             <div class="content-main">
+                <div class="summary-cards">
+                    <div class="summary-card card-total-users">
+                        <div class="summary-info">
+                            <h3><?php echo number_format($totalUsers); ?></h3>
+                            <p>Total Users</p>
+                        </div>
+                    </div>
+                    <div class="summary-card card-dentist">
+                        <div class="summary-info">
+                            <h3><?php echo number_format($dentistCount); ?></h3>
+                            <p>Dentist</p>
+                        </div>
+                    </div>
+                    <div class="summary-card card-staff">
+                        <div class="summary-info">
+                            <h3><?php echo number_format($staffCount); ?></h3>
+                            <p>Staff</p>
+                        </div>
+                    </div>
+                    <div class="summary-card card-registered">
+                        <div class="summary-info">
+                            <h3><?php echo number_format($registeredPatients); ?></h3>
+                            <p>Registered Patients</p>
+                        </div>
+                    </div>
+                    <div class="summary-card card-unregistered">
+                        <div class="summary-info">
+                            <h3><?php echo number_format($unregisteredPatients); ?></h3>
+                            <p>Unregistered Patients</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Page Header -->
-                <div class="page-header">
+                <!-- <div class="page-header">
                     <div>
                         <h2>User Management</h2>
                         <p class="page-subtitle">Total Users: <strong><?php echo $totalUsers; ?></strong></p>
                     </div>
                     <button class="btn-primary" onclick="openUserModal()">+ Add New User</button>
-                </div>
+                </div> -->
 
                 <!-- Search and Filter -->
                 <div class="search-filters">
@@ -107,7 +180,9 @@ try {
                         <option value="staff">Staff</option>
                         <option value="patient">Patient</option>
                     </select>
+                    <button class="btn-primary" onclick="openUserModal()">+ Add New User</button>
                 </div>
+                
 
                 <!-- Users Table -->
                 <div class="table-container">

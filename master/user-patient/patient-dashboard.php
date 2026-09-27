@@ -1311,7 +1311,7 @@ $pageTitle = 'Patient Dashboard';
     <aside class="sidebar" id="patientSidebar">
         <div class="sidebar-brand">
             <img src="../../assets/images/Logo.png" alt="RF Dental Clinic">
-            <span>RF Dental Clinic</span>
+            <span><?php echo htmlspecialchars($inquiryClinicName); ?></span>
         </div>
 
         <nav class="sidebar-menu">

@@ -108,11 +108,64 @@ try {
     $billingReport = $pdo->query("
         SELECT b.id, CONCAT(p.first_name, ' ', p.last_name) AS patient,
                b.total_amount, b.paid_amount, b.balance, b.payment_status,
-               b.billing_date, b.due_date, b.printed_at
+               b.billing_date, b.due_date, b.printed_at,
+               pc.collected, pm.methods
         FROM billing b
         LEFT JOIN patients p ON p.id = b.patient_id
-        ORDER BY b.billing_date DESC
+        LEFT JOIN (
+            SELECT billing_id, SUM(amount) AS collected
+            FROM (
+                SELECT DISTINCT billing_id, amount, payment_date,
+                       DATE_FORMAT(created_at, '%Y-%m-%d %H:%i') AS created_minute
+                FROM payments
+            ) dp
+            GROUP BY billing_id
+        ) pc ON pc.billing_id = b.id
+        LEFT JOIN (
+            SELECT billing_id,
+                   GROUP_CONCAT(DISTINCT LOWER(TRIM(payment_method)) ORDER BY LOWER(TRIM(payment_method)) SEPARATOR ',') AS methods
+            FROM payments
+            WHERE payment_method IS NOT NULL AND TRIM(payment_method) <> ''
+            GROUP BY billing_id
+        ) pm ON pm.billing_id = b.id
+        ORDER BY b.billing_date DESC, b.id DESC
     ")->fetchAll(PDO::FETCH_ASSOC);
+
+    // Display values derived from actual payments (report only; the database is not changed)
+    $methodLabels = ['cash' => 'Cash', 'gcash' => 'GCash', 'installment' => 'Installment'];
+    foreach ($billingReport as &$bill) {
+        $total = (float)$bill['total_amount'];
+        $isCancelled = ($bill['payment_status'] === 'Cancelled');
+        $collected = $bill['collected'] !== null ? (float)$bill['collected'] : (float)$bill['paid_amount'];
+        $paid = $isCancelled ? 0 : min(max(0, $collected), $total);
+
+        $bill['paid_amount'] = round($paid, 2);
+        $bill['balance'] = $isCancelled ? 0 : round($total - $paid, 2);
+
+        if ($isCancelled) {
+            $status = 'Cancelled';
+        } elseif ($paid >= $total) {
+            $status = 'Paid';
+        } elseif ($paid > 0) {
+            $status = 'Partial';
+        } else {
+            $status = 'Unpaid';
+        }
+        if ($status === 'Partial' || $status === 'Unpaid') {
+            if (!empty($bill['due_date']) && $bill['due_date'] < date('Y-m-d')) {
+                $status = 'Overdue';
+            }
+        }
+        $bill['payment_status'] = $status;
+
+        $methods = [];
+        foreach (array_filter(explode(',', (string)$bill['methods'])) as $m) {
+            $methods[] = $methodLabels[$m] ?? ucwords($m);
+        }
+        $bill['payment_method'] = $methods ? implode(', ', $methods) : '—';
+        unset($bill['collected'], $bill['methods']);
+    }
+    unset($bill);
 
     // Revenue Report - Grouped by month then service
     // Service name resolved via 4 paths: treatments→services, appointments→services, notes field, amount fallback
@@ -132,8 +185,18 @@ $revenueStmt = $pdo->prepare("
         ) AS service,
         COALESCE(s.price, sa.price, b.total_amount, 0) AS service_price,
         COUNT(b.id) AS quantity,
-        COALESCE(SUM(CASE WHEN b.payment_status IN ('Paid', 'Partial') THEN b.paid_amount ELSE 0 END), 0) AS subtotal
+        COALESCE(SUM(CASE WHEN b.payment_status <> 'Cancelled'
+                          THEN LEAST(COALESCE(pc.collected, 0), b.total_amount) ELSE 0 END), 0) AS subtotal
     FROM billing b
+    LEFT JOIN (
+        SELECT billing_id, SUM(amount) AS collected
+        FROM (
+            SELECT DISTINCT billing_id, amount, payment_date,
+                   DATE_FORMAT(created_at, '%Y-%m-%d %H:%i') AS created_minute
+            FROM payments
+        ) dp
+        GROUP BY billing_id
+    ) pc ON pc.billing_id = b.id
     LEFT JOIN treatments t ON b.treatment_id = t.id
     LEFT JOIN services s ON t.service_id = s.id
     LEFT JOIN appointments a ON b.appointment_id = a.id
@@ -190,123 +253,181 @@ $availableMonths = $pdo->query("
         LIMIT 20
     ")->fetchAll(PDO::FETCH_ASSOC);
 
-    $printedDaily = $pdo->query("
-        SELECT DATE(printed_at) AS day, COUNT(*) AS printed_count
-        FROM billing
-        WHERE printed_at IS NOT NULL
-          AND printed_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-        GROUP BY DATE(printed_at)
-        ORDER BY day ASC
-    ")->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    error_log('Reports page error: ' . $e->getMessage());
+}
 
-    // Services Report - Summary of services rendered with frequency and revenue
+try {
+    // Print Activity - every print: what was printed, who printed it, and when
+    require_once __DIR__ . '/../../includes/print_log_helper.php';
+    ensurePrintLogsTable($pdo);
+
+    $printWhere = '';
+    $printParams = [];
+    if (!empty($selectedMonth)) {
+        $printWhere = " WHERE pl.printed_at >= ? AND pl.printed_at < ?";
+        $printParams = [$selectedMonth . '-01', date('Y-m-d', strtotime($selectedMonth . '-01 +1 month'))];
+    } elseif ($dateFilter === 'today') {
+        $printWhere = " WHERE pl.printed_at >= CURDATE()";
+    } elseif ($dateFilter === 'week') {
+        $printWhere = " WHERE pl.printed_at >= ?";
+        $printParams = [date('Y-m-d', strtotime('monday this week'))];
+    } elseif ($dateFilter === 'month') {
+        $printWhere = " WHERE pl.printed_at >= ?";
+        $printParams = [date('Y-m-01')];
+    }
+
+    $printStmt = $pdo->prepare("
+        SELECT pl.printed_at, pl.document_type, pl.details, pl.user_role,
+               COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), pl.username, 'Unknown') AS printed_by
+        FROM print_logs pl
+        LEFT JOIN users u ON u.id = pl.user_id
+        " . $printWhere . "
+        ORDER BY pl.printed_at DESC, pl.id DESC
+    ");
+    $printStmt->execute($printParams);
+    $printedDaily = $printStmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    $printedDaily = [];
+    error_log('Reports page print activity error: ' . $e->getMessage());
+}
+
+try {
+    // Services Report - services billed on non-cancelled invoices (the only place services are recorded)
     $servicesReport = [];
 
-    // Revenue lookup by service name from billing (using same COALESCE logic as Revenue Report)
-    // Joined to treatments via patient_id + date since billing.treatment_id is always NULL
-    $revenueByService = [];
-    $revenueServiceStmt = $pdo->prepare("
-        SELECT 
-            COALESCE(
-                NULLIF(s.name, ''),
-                NULLIF(sa.name, ''),
-                NULLIF(
-                    IF(LOCATE('Services: ', b.notes) > 0,
-                       TRIM(SUBSTRING_INDEX(b.notes, 'Services: ', -1)),
-                       ''),
-                    ''
-                ),
-                '—'
-            ) AS service,
-            COALESCE(SUM(CASE WHEN b.payment_status IN ('Paid', 'Partial') THEN b.paid_amount ELSE 0 END), 0) AS revenue
+    $serviceCatalog = [];
+    foreach ($pdo->query("SELECT name, price FROM services")->fetchAll(PDO::FETCH_ASSOC) as $svcRow) {
+        $serviceCatalog[strtolower(trim($svcRow['name']))] = ['name' => $svcRow['name'], 'price' => (float)$svcRow['price']];
+    }
+
+    // Collected per invoice: duplicates removed, capped at invoice total (same rules as Daily Summary)
+    $svcCollected = [];
+    $svcSeenPayments = [];
+    $svcPayments = $pdo->query("
+        SELECT p.billing_id, p.amount, p.payment_date,
+               DATE_FORMAT(p.created_at, '%Y-%m-%d %H:%i') AS created_minute,
+               b.total_amount
+        FROM payments p
+        INNER JOIN billing b ON b.id = p.billing_id
+        WHERE COALESCE(b.payment_status, '') <> 'Cancelled'
+        ORDER BY p.billing_id, p.payment_date, p.created_at, p.id
+    ")->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($svcPayments as $pay) {
+        $dupKey = $pay['billing_id'] . '|' . $pay['amount'] . '|' . $pay['payment_date'] . '|' . $pay['created_minute'];
+        if (isset($svcSeenPayments[$dupKey])) {
+            continue;
+        }
+        $svcSeenPayments[$dupKey] = true;
+        $already = $svcCollected[$pay['billing_id']] ?? 0;
+        $svcCollected[$pay['billing_id']] = $already + min((float)$pay['amount'], max(0, (float)$pay['total_amount'] - $already));
+    }
+
+    $svcInvoices = $pdo->query("
+        SELECT b.id, b.total_amount, b.notes, sa.name AS appt_service
         FROM billing b
-        LEFT JOIN treatments t ON b.patient_id = t.patient_id AND DATE(b.billing_date) = t.treatment_date
-        LEFT JOIN services s ON t.service_id = s.id
         LEFT JOIN appointments a ON b.appointment_id = a.id
         LEFT JOIN services sa ON a.service_id = sa.id
-        WHERE 1=1" . $dateCondition . "
-        GROUP BY service
-    ");
-    $revenueServiceStmt->execute();
-    foreach ($revenueServiceStmt->fetchAll(PDO::FETCH_ASSOC) as $rs) {
-        $revenueByService[$rs['service']] = (float)$rs['revenue'];
-    }
-
-    // Get treatments grouped by service
-
-    $treatments = $pdo->query("
-        SELECT
-            t.id,
-            s.name AS service,
-            t.cost
-        FROM treatments t
-        LEFT JOIN services s ON t.service_id = s.id
+        WHERE COALESCE(b.payment_status, '') <> 'Cancelled'" . $dateCondition . "
     ")->fetchAll(PDO::FETCH_ASSOC);
 
-    if (!empty($treatments)) {
-        // Group by service
-        $grouped = [];
-        foreach ($treatments as $t) {
-            $svc = $t['service'] ?? 'Unknown';
-            if (!isset($grouped[$svc])) {
-                $grouped[$svc] = ['frequency' => 0, 'treatment_cost' => 0, 'revenue' => 0];
+    $grouped = [];
+    foreach ($svcInvoices as $inv) {
+        $names = [];
+        if (!empty($inv['appt_service'])) {
+            $names = [$inv['appt_service']];
+        } else {
+            $notes = trim(preg_replace('/\s*\[Voided[^\]]*\]/i', '', (string)$inv['notes']));
+            $list = '';
+            if (($pos = stripos($notes, 'Services:')) !== false) {
+                $list = substr($notes, $pos + strlen('Services:'));
+            } elseif (($pos = strrpos($notes, ' - ')) !== false) {
+                $list = substr($notes, $pos + 3);
             }
-            $grouped[$svc]['frequency']++;
-            $grouped[$svc]['treatment_cost'] += (float)$t['cost'];
+            foreach (explode(',', $list) as $part) {
+                if (trim($part) !== '') {
+                    $names[] = trim($part);
+                }
+            }
         }
 
-        // Merge revenue from billing
-        foreach ($grouped as $service => &$stats) {
-            $stats['revenue'] = $revenueByService[$service] ?? 0;
+        $items = [];
+        foreach ($names as $n) {
+            $key = strtolower(trim($n));
+            $items[] = isset($serviceCatalog[$key])
+                ? ['name' => $serviceCatalog[$key]['name'], 'price' => $serviceCatalog[$key]['price']]
+                : ['name' => 'Other', 'price' => 0];
         }
-        unset($stats);
-
-        // Convert to indexed array
-        foreach ($grouped as $service => $stats) {
-            $servicesReport[] = array_merge(['service' => $service], $stats);
+        if (empty($items)) {
+            $items[] = ['name' => 'Other', 'price' => 0];
         }
 
-        // Sort by frequency descending
-        usort($servicesReport, fn($a, $b) => $b['frequency'] - $a['frequency']);
+        $weightTotal = array_sum(array_column($items, 'price'));
+        $billed = (float)$inv['total_amount'];
+        $collected = $svcCollected[$inv['id']] ?? 0;
+        foreach ($items as $item) {
+            $share = $weightTotal > 0 ? $item['price'] / $weightTotal : 1 / count($items);
+            if (!isset($grouped[$item['name']])) {
+                $grouped[$item['name']] = ['service' => $item['name'], 'frequency' => 0, 'amount_billed' => 0, 'revenue' => 0];
+            }
+            $grouped[$item['name']]['frequency']++;
+            $grouped[$item['name']]['amount_billed'] += $billed * $share;
+            $grouped[$item['name']]['revenue'] += $collected * $share;
+        }
     }
 
-    // Fallback to appointments table if no treatments found
-    if (empty($servicesReport)) {
-        $servicesReport = $pdo->query("
-            SELECT COALESCE(s.name, 'Unknown') AS service, COUNT(*) AS frequency, 0 AS treatment_cost, 0 AS revenue
-            FROM appointments a
-            LEFT JOIN services s ON a.service_id = s.id
-            WHERE s.name IS NOT NULL
-            GROUP BY s.name
-            ORDER BY frequency DESC
-        ")->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($grouped as $row) {
+        $row['amount_billed'] = round($row['amount_billed'], 2);
+        $row['revenue'] = round($row['revenue'], 2);
+        $servicesReport[] = $row;
     }
+    usort($servicesReport, fn($a, $b) => ($b['frequency'] <=> $a['frequency']) ?: strcmp($a['service'], $b['service']));
+} catch (Exception $e) {
+    $servicesReport = [];
+    error_log('Reports page services error: ' . $e->getMessage());
+}
 
-    // Daily Summary - dynamic date range based on filter, revenue from billing
-    $dailyStartDate = date('Y-m-d', strtotime('-29 days'));
-    $dailyEndDate = date('Y-m-d');
+try {
+    // Daily Summary - date range based on filter, revenue from actual payments collected
+    $today = date('Y-m-d');
+    $dailyEndDate = $today;
 
     if (!empty($selectedMonth)) {
         $dailyStartDate = $selectedMonth . '-01';
-        $dailyEndDate = date('Y-m-t', strtotime($dailyStartDate));
+        $dailyEndDate = min(date('Y-m-t', strtotime($dailyStartDate)), $today);
     } else {
         switch ($dateFilter) {
             case 'today':
-                $dailyStartDate = date('Y-m-d');
+                $dailyStartDate = $today;
                 break;
             case 'week':
-                $dailyStartDate = date('Y-m-d', strtotime('-6 days'));
+                $dailyStartDate = date('Y-m-d', strtotime('monday this week'));
+                break;
+            case 'month':
+                $dailyStartDate = date('Y-m-01');
+                break;
+            case 'all':
+            default:
+                $earliest = $pdo->query("
+                    SELECT MIN(d) FROM (
+                        SELECT MIN(DATE(created_at)) AS d FROM patients WHERE COALESCE(is_archived, 0) = 0
+                        UNION ALL SELECT MIN(appointment_date) FROM appointments WHERE COALESCE(is_archived, 0) = 0 AND status <> 'Cancelled'
+                        UNION ALL SELECT MIN(DATE(created_at)) FROM inquiries WHERE COALESCE(is_archived, 0) = 0
+                        UNION ALL SELECT MIN(payment_date) FROM payments
+                    ) x
+                ")->fetchColumn();
+                $dailyStartDate = $earliest ? min($earliest, $today) : $today;
                 break;
         }
     }
 
     // Build date series in PHP
     $dailySummaryReport = [];
-    $dailyPeriod = new DatePeriod(
+    $dailyPeriod = $dailyStartDate <= $dailyEndDate ? new DatePeriod(
         new DateTime($dailyStartDate),
         new DateInterval('P1D'),
         (new DateTime($dailyEndDate))->modify('+1 day')
-    );
+    ) : [];
     foreach ($dailyPeriod as $dt) {
         $dayKey = $dt->format('Y-m-d');
         $dailySummaryReport[$dayKey] = [
@@ -335,6 +456,7 @@ $availableMonths = $pdo->query("
         $stmt = $pdo->prepare("SELECT appointment_date AS day, COUNT(*) AS total
                 FROM appointments
                 WHERE COALESCE(is_archived, 0) = 0
+                    AND status <> 'Cancelled'
                     AND appointment_date BETWEEN ? AND ?
                 GROUP BY appointment_date");
     $stmt->execute([$dailyStartDate, $dailyEndDate]);
@@ -357,24 +479,48 @@ $availableMonths = $pdo->query("
         }
     }
 
-    // Revenue per day from billing (paid_amount, not payments table)
-    $stmt = $pdo->prepare("
-        SELECT DATE(billing_date) AS day, COALESCE(SUM(paid_amount), 0) AS total
-        FROM billing
-        WHERE payment_status IN ('Paid', 'Partial') AND billing_date BETWEEN ? AND ?
-        GROUP BY DATE(billing_date)
-    ");
-    $stmt->execute([$dailyStartDate, $dailyEndDate]);
-    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $rd) {
-        if (isset($dailySummaryReport[$rd['day']])) {
-            $dailySummaryReport[$rd['day']]['revenue'] = (float)$rd['total'];
+    // Revenue per day = cash collected (payments.payment_date).
+    // All payments are scanned so each invoice's running total (and cap) includes earlier payments.
+    $payments = $pdo->query("
+        SELECT p.billing_id, p.amount, p.payment_date,
+               DATE_FORMAT(p.created_at, '%Y-%m-%d %H:%i') AS created_minute,
+               b.total_amount
+        FROM payments p
+        INNER JOIN billing b ON b.id = p.billing_id
+        WHERE COALESCE(b.payment_status, '') <> 'Cancelled'
+        ORDER BY p.billing_id, p.payment_date, p.created_at, p.id
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    $seenPayments = [];
+    $collectedPerBilling = [];
+    foreach ($payments as $pay) {
+        // Same invoice + amount + date within the same minute = double-submitted duplicate
+        $dupKey = $pay['billing_id'] . '|' . $pay['amount'] . '|' . $pay['payment_date'] . '|' . $pay['created_minute'];
+        if (isset($seenPayments[$dupKey])) {
+            continue;
+        }
+        $seenPayments[$dupKey] = true;
+
+        $billingId = $pay['billing_id'];
+        $already = $collectedPerBilling[$billingId] ?? 0;
+        $credit = min((float)$pay['amount'], max(0, (float)$pay['total_amount'] - $already));
+        if ($credit <= 0) {
+            continue;
+        }
+        $collectedPerBilling[$billingId] = $already + $credit;
+
+        if (isset($dailySummaryReport[$pay['payment_date']])) {
+            $dailySummaryReport[$pay['payment_date']]['revenue'] += $credit;
         }
     }
 
-    // Re-index to sequential
-    $dailySummaryReport = array_values($dailySummaryReport);
+    // Keep only days with activity, re-indexed to sequential
+    $dailySummaryReport = array_values(array_filter($dailySummaryReport, function ($d) {
+        return $d['new_patients'] > 0 || $d['appointments'] > 0 || $d['inquiries'] > 0 || $d['revenue'] > 0;
+    }));
 } catch (Exception $e) {
-    error_log('Reports page error: ' . $e->getMessage());
+    $dailySummaryReport = [];
+    error_log('Reports page daily summary error: ' . $e->getMessage());
 }
 ?>
             <div class="content-main">
@@ -479,7 +625,7 @@ $availableMonths = $pdo->query("
                     <div class="report-card">
                         <div class="report-icon">&#128197;</div>
                         <h3>Print Activity</h3>
-                        <p>Daily count of invoices printed in the last 7 days.</p>
+                        <p>Log of everything printed: what was printed, who printed it, and when.</p>
                         <div class="report-actions">
                             <button class="btn-secondary" onclick="rfPreviewReport('printed_daily')">Preview</button>
                             <button class="btn-primary" onclick="rfPrintReport('printed_daily')">&#128424; Print</button>
@@ -490,7 +636,7 @@ $availableMonths = $pdo->query("
             </div>
 
             <div id="printPreviewModal" class="modal-overlay">
-                <div class="modal" style="max-width: 900px;">
+                <div class="modal" style="max-width: 1080px; width: 95%;">
                     <div class="modal-header">
                         <h2>Report Preview</h2>
                         <div class="modal-actions">
@@ -535,7 +681,7 @@ const reportTitles = {
     revenue: 'Revenue Report',
     services: 'Services Report',
     printed: 'Recently Printed Invoices',
-    printed_daily: 'Print Activity (Last 7 Days)',
+    printed_daily: 'Print Activity',
     daily: 'Daily Summary'
 };
 
@@ -569,11 +715,11 @@ function renderNewReport(type) {
             a.appointment_date ?? '', a.appointment_time ?? '', a.status ?? ''
         ]);
     } else if (type === 'billing') {
-        headers = ['Invoice', 'Patient', 'Total', 'Paid', 'Balance', 'Status', 'Date', 'Due'];
+        headers = ['Invoice', 'Patient', 'Total', 'Paid', 'Balance', 'Status', 'Method', 'Date', 'Due'];
         rows = data.map(b => [
             `INV-${String(b.id).padStart(4, '0')}`, b.patient ?? '',
             `₱${Number(b.total_amount || 0).toLocaleString()}`, `₱${Number(b.paid_amount || 0).toLocaleString()}`,
-            `₱${Number(b.balance || 0).toLocaleString()}`, b.payment_status ?? '', b.billing_date ?? '', b.due_date ?? ''
+            `₱${Number(b.balance || 0).toLocaleString()}`, b.payment_status ?? '', b.payment_method ?? '—', b.billing_date ?? '', b.due_date ?? ''
         ]);
     } else if (type === 'revenue') {
         const months = data.months || {};
@@ -633,16 +779,35 @@ function renderNewReport(type) {
     `;
         }
     } else if (type === 'services') {
-        headers = ['Service', 'Frequency', 'Treatment Cost', 'Revenue'];
+        headers = ['Service', 'Frequency', 'Amount Billed', 'Revenue'];
         rows = data.map(s => [
             s.service ?? 'Service',
             s.frequency ?? 0,
-            `₱${Number(s.treatment_cost || 0).toLocaleString()}`,
+            `₱${Number(s.amount_billed || 0).toLocaleString()}`,
             `₱${Number(s.revenue || 0).toLocaleString()}`
         ]);
+        if (data.length) {
+            const sum = key => data.reduce((t, s) => t + Number(s[key] || 0), 0);
+            rows.push([
+                '<strong>TOTAL</strong>',
+                `<strong>${sum('frequency')}</strong>`,
+                `<strong>₱${sum('amount_billed').toLocaleString()}</strong>`,
+                `<strong>₱${sum('revenue').toLocaleString()}</strong>`
+            ]);
+        }
     } else if (type === 'daily') {
         headers = ['Date', 'New Patients', 'Inquiries', 'Appointments', 'Revenue'];
         rows = data.map(d => [d.day ?? '', d.new_patients ?? 0, d.inquiries ?? 0, d.appointments ?? 0, `₱${Number(d.revenue || 0).toLocaleString()}`]);
+        if (data.length) {
+            const sum = key => data.reduce((t, d) => t + Number(d[key] || 0), 0);
+            rows.push([
+                '<strong>TOTAL</strong>',
+                `<strong>${sum('new_patients')}</strong>`,
+                `<strong>${sum('inquiries')}</strong>`,
+                `<strong>${sum('appointments')}</strong>`,
+                `<strong>₱${sum('revenue').toLocaleString()}</strong>`
+            ]);
+        }
     } else if (type === 'printed') {
         headers = ['Invoice #', 'Patient', 'Total Amount', 'Payment Status', 'Printed At'];
         rows = data.map(p => [
@@ -653,14 +818,24 @@ function renderNewReport(type) {
             p.printed_at ? new Date(p.printed_at).toLocaleString() : ''
         ]);
     } else if (type === 'printed_daily') {
-        headers = ['Date', 'Printed Count'];
-        rows = data.map(d => [d.day ?? '', d.printed_count ?? 0]);
+        const esc = v => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const roleLabel = r => r ? r.charAt(0).toUpperCase() + r.slice(1) : '—';
+        headers = ['Date & Time', 'Printed By', 'Role', 'Document', 'Details'];
+        rows = data.map(d => [
+            d.printed_at ? esc(new Date(String(d.printed_at).replace(' ', 'T')).toLocaleString()) : '',
+            esc(d.printed_by),
+            esc(roleLabel(d.user_role)),
+            esc(d.document_type),
+            esc(d.details || '—')
+        ]);
     }
 
     const table = buildTable(headers, rows);
     const appointmentsTotalMeta = type === 'appointments'
         ? `<div>Total Appointments: ${Number(reportData.appointments_total || 0).toLocaleString()}</div>`
-        : '';
+        : type === 'printed_daily'
+            ? `<div>TOTAL: ${data.length.toLocaleString()} print${data.length === 1 ? '' : 's'}</div>`
+            : '';
     return `
         <div class="print-report">
             <div class="print-header">
@@ -722,6 +897,28 @@ function getReportData(type) {
     });
 }
 
+// Shared by the print window and the preview modal so both render identically
+const reportPrintCss = `
+        .print-report { max-width: 980px; margin: 0 auto; font-family: "Segoe UI", Arial, sans-serif; color:#111; }
+        .print-header { display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e5e7eb; padding-bottom:12px; margin-bottom:16px; }
+        .print-brand { display:flex; gap:12px; align-items:center; }
+        .print-logo { width:44px; height:44px; border-radius:10px; background:#2563eb; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; }
+        .print-title { font-size:18px; font-weight:700; }
+        .print-subtitle { font-size:13px; color:#6b7280; }
+        .print-meta { font-size:12px; color:#6b7280; text-align:right; }
+        .print-table { width:100%; border-collapse:collapse; }
+        .print-table th, .print-table td { border:1px solid #e5e7eb; padding:8px 10px; font-size:12px; text-align:left; color:#111; }
+        .print-table th { background:#f9fafb; text-transform:uppercase; letter-spacing:.04em; font-size:11px; font-weight:700; }
+        .print-table tr:hover { background:transparent; }
+        .print-footer { margin-top:18px; font-size:11px; color:#9ca3af; display:flex; justify-content:space-between; }
+`;
+(function() {
+    const style = document.createElement('style');
+    style.id = 'reportPreviewCss';
+    style.textContent = reportPrintCss + ' #printPreviewContent { overflow-x: auto; }';
+    document.head.appendChild(style);
+})();
+
 // Renamed all functions with 'rf' prefix to bypass hidden scripts
 window.rfPreviewReport = function(type) {
     lastPreviewType = type;
@@ -732,6 +929,11 @@ window.rfPreviewReport = function(type) {
 
 window.rfPrintReport = function(type) {
     const html = renderNewReport(type);
+    if (window.rfLogPrint) {
+        const rangeEl = document.getElementById('dateRange');
+        const rangeLabel = rangeEl && rangeEl.selectedIndex >= 0 ? rangeEl.options[rangeEl.selectedIndex].text : 'All Time';
+        window.rfLogPrint('Report', `${reportTitles[type] || type} (${rangeLabel})`, null, null);
+    }
     const win = window.open('', '_blank');
     const doc = `
 <!DOCTYPE html>
@@ -740,17 +942,7 @@ window.rfPrintReport = function(type) {
     <title>${reportTitles[type]}</title>
     <style>
         body { font-family: "Segoe UI", Arial, sans-serif; color:#111; margin: 24px; }
-        .print-report { max-width: 980px; margin: 0 auto; }
-        .print-header { display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e5e7eb; padding-bottom:12px; margin-bottom:16px; }
-        .print-brand { display:flex; gap:12px; align-items:center; }
-        .print-logo { width:44px; height:44px; border-radius:10px; background:#2563eb; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; }
-        .print-title { font-size:18px; font-weight:700; }
-        .print-subtitle { font-size:13px; color:#6b7280; }
-        .print-meta { font-size:12px; color:#6b7280; text-align:right; }
-        .print-table { width:100%; border-collapse:collapse; }
-        .print-table th, .print-table td { border:1px solid #e5e7eb; padding:8px 10px; font-size:12px; text-align:left; }
-        .print-table th { background:#f9fafb; text-transform:uppercase; letter-spacing:.04em; font-size:11px; }
-        .print-footer { margin-top:18px; font-size:11px; color:#9ca3af; display:flex; justify-content:space-between; }
+        ${reportPrintCss}
         @media print { body { margin: 0.5in; } }
     </style>
 </head>

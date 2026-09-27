@@ -55,9 +55,9 @@ $returningPatients = 0;
 $ageGroupLabel = 'N/A';
 $genderDistribution = 'N/A';
 $topServices = [];
-$topDentistName = 'Dentist';
+$topDentistName = 'No dentist activity';
 $topDentistCount = 0;
-$topStaffName = 'Staff';
+$topStaffName = 'No staff activity';
 $topStaffCount = 0;
 $appointmentTypeSlices = [];
 $appointmentTypeGradient = '#e5e7eb';
@@ -226,14 +226,22 @@ try {
         $genderDistribution = $femalePct . '% F / ' . $malePct . '% M';
     }
 
-    // Top Dentist - join with roles table using role_id
+} catch (Exception $e) {
+    // Keep defaults on error
+}
+
+try {
+    // Top Dentist - finished queue visits (completed or awaiting payment)
     $stmt = $pdo->prepare("
-        SELECT CONCAT(u.first_name, ' ', u.last_name) as full_name, COUNT(*) AS total
-        FROM treatments t
-        JOIN users u ON u.id = t.doctor_id
-        JOIN roles r ON r.id = u.role_id
-        WHERE LOWER(r.role_name) = 'dentist'
-          AND t.treatment_date BETWEEN ? AND ?
+        SELECT CONCAT(u.first_name, ' ', u.last_name) AS full_name, COUNT(DISTINCT q.id) AS total
+        FROM queue q
+        LEFT JOIN consultations c ON c.queue_id = q.id
+        LEFT JOIN appointments a ON a.id = q.appointment_id
+        JOIN users u ON u.id = COALESCE(c.dentist_id, q.doctor_id, q.dentist_id, a.dentist_id)
+        WHERE LOWER(u.role) = 'dentist'
+          AND q.status IN ('completed', 'pending_payment')
+          AND COALESCE(q.is_archived, 0) = 0
+          AND DATE(COALESCE(q.completed_at, q.created_at)) BETWEEN ? AND ?
         GROUP BY u.id
         ORDER BY total DESC
         LIMIT 1
@@ -244,15 +252,19 @@ try {
         $topDentistName = trim($topDentist['full_name'] ?: '') ?: 'Dentist';
         $topDentistCount = (int)$topDentist['total'];
     }
+} catch (Exception $e) {
+    // Keep defaults on error
+}
 
-    // Top Staff - join with roles table using role_id
+try {
+    // Top Staff - appointments created or approved by a staff user
     $stmt = $pdo->prepare("
-        SELECT CONCAT(u.first_name, ' ', u.last_name) as full_name, COUNT(*) AS total
+        SELECT CONCAT(u.first_name, ' ', u.last_name) AS full_name, COUNT(DISTINCT a.id) AS total
         FROM appointments a
-        JOIN users u ON u.id = a.created_by
-        JOIN roles r ON r.id = u.role_id
-        WHERE LOWER(r.role_name) = 'staff'
-          AND a.appointment_date BETWEEN ? AND ?
+        JOIN users u ON u.id IN (a.created_by, a.approved_by)
+        WHERE LOWER(u.role) = 'staff'
+          AND COALESCE(a.is_archived, 0) = 0
+          AND DATE(a.created_at) BETWEEN ? AND ?
         GROUP BY u.id
         ORDER BY total DESC
         LIMIT 1
@@ -357,29 +369,29 @@ try {
 
                 <!-- Key Metrics -->
                 <div class="summary-cards">
-                    <div class="summary-card">
-                        <div class="summary-icon green">&#128176;</div>
+                    <div class="summary-card card-revenue">
+                        <div class="summary-icon green"><img src="../../assets/icons/revenue.png" alt="Monthly Revenue"></div>
                         <div class="summary-info">
                             <h3>&#8369;<?php echo number_format($monthlyRevenue, 2); ?></h3>
                             <p>Monthly Revenue</p>
                         </div>
                     </div>
-                    <div class="summary-card">
-                        <div class="summary-icon blue">&#128203;</div>
+                    <div class="summary-card card-collected">
+                        <div class="summary-icon blue"><img src="../../assets/icons/peso.png" alt="Total Collected"></div>
                         <div class="summary-info">
                             <h3>&#8369;<?php echo number_format($totalCollected, 2); ?></h3>
                             <p>Total Collected</p>
                         </div>
                     </div>
-                    <div class="summary-card">
-                        <div class="summary-icon yellow">&#9203;</div>
+                    <div class="summary-card card-pending">
+                        <div class="summary-icon yellow"><img src="../../assets/icons/transaction.png" alt="Pending Payment"></div>
                         <div class="summary-info">
                             <h3>&#8369;<?php echo number_format($pendingPayments, 2); ?></h3>
                             <p>Pending Payment</p>
                         </div>
                     </div>
-                    <div class="summary-card">
-                        <div class="summary-icon blue">&#128101;</div>
+                    <div class="summary-card card-patients">
+                        <div class="summary-icon blue"><img src="../../assets/icons/total-patients.png" alt="Today's Patients"></div>
                         <div class="summary-info">
                             <h3><?php echo number_format($todaysPatients); ?></h3>
                             <p>Today's Patients</p>
@@ -655,6 +667,46 @@ try {
         .period-statistics-header { flex-direction: column; }
         .period-statistics-header .filter-select { width: 100%; min-width: 0; }
         .period-statistics-grid { grid-template-columns: 1fr 1fr; }
+    }
+    .summary-cards .summary-card {
+        position: relative;
+        overflow: hidden;
+    }
+    .summary-cards .summary-icon,
+    .summary-cards .summary-info {
+        position: relative;
+        z-index: 2;
+    }
+    .summary-cards .summary-icon img {
+        width: 24px;
+        height: 24px;
+        object-fit: contain;
+    }
+    .summary-cards .summary-card::after {
+        content: '';
+        position: absolute;
+        right: -25px;
+        bottom: -15px;
+        width: 100px;
+        height: 100px;
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        opacity: 0.12;
+        z-index: 1;
+        pointer-events: none;
+    }
+    .summary-cards .summary-card.card-revenue::after {
+        background-image: url('../../assets/icons/revenue.png');
+    }
+    .summary-cards .summary-card.card-collected::after {
+        background-image: url('../../assets/icons/peso.png');
+    }
+    .summary-cards .summary-card.card-pending::after {
+        background-image: url('../../assets/icons/transaction.png');
+    }
+    .summary-cards .summary-card.card-patients::after {
+        background-image: url('../../assets/icons/total-patients.png');
     }
 </style>
 <?php

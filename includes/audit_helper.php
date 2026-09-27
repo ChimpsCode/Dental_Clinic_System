@@ -284,6 +284,11 @@ function getAuditLogs($pdo, $filters = [], $limit = 50, $offset = 0) {
         $params[] = $filters['user_role'];
     }
     
+    if (!empty($filters['from_datetime'])) {
+        $where .= " AND created_at >= ?";
+        $params[] = $filters['from_datetime'];
+    }
+
     if (!empty($filters['date_from'])) {
         $where .= " AND DATE(created_at) >= ?";
         $params[] = $filters['date_from'];

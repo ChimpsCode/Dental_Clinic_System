@@ -46,6 +46,25 @@ if ($adminUserId > 0) {
         $adminTwoFactorEnabled = false;
     }
 }
+
+require_once __DIR__ . '/../../includes/backup_helper.php';
+$latestBackup = latestBackupInfo();
+$backupLastLabel = $latestBackup['created_label'] ?? 'No backup yet';
+$backupSizeLabel = $latestBackup['size_label'] ?? '—';
+$autoBackupEnabled = ($settings['auto_backup_enabled'] ?? '0') === '1';
+$autoBackupTime = (string)($settings['auto_backup_time'] ?? '02:00');
+if (!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $autoBackupTime)) {
+    $autoBackupTime = '02:00';
+}
+$autoBackupMode = (($settings['auto_backup_mode'] ?? 'month') === 'date') ? 'date' : 'month';
+$autoBackupDate = (string)($settings['auto_backup_date'] ?? '');
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $autoBackupDate)) {
+    $autoBackupDate = '';
+}
+$autoBackupDay = (int)($settings['auto_backup_day'] ?? 1);
+if ($autoBackupDay < 1 || $autoBackupDay > 28) {
+    $autoBackupDay = 1;
+}
 ?>
             <style>
                 .schedule-tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 2px solid #e5e7eb; padding-bottom: 0; }
@@ -130,6 +149,18 @@ if ($adminUserId > 0) {
                 .btn-primary { background: #005daa; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; }
                 .btn-primary:hover { background: #004080; }
                 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+                .btn-primary.is-idle,
+                .btn-primary.is-idle:hover,
+                .btn-primary.is-idle:disabled {
+                    background: #e5e7eb;
+                    color: #9ca3af;
+                    opacity: 1;
+                    cursor: default;
+                    box-shadow: none;
+                }
+                .btn-edit { background: #e5e7eb; color: #4b5563; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; }
+                .btn-edit:hover { background: #d1d5db; }
+                .form-control.is-locked { background: #f3f4f6; color: #6b7280; }
                 .btn-secondary { background: #f3f4f6; color: #374151; padding: 10px 20px; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; }
                 .btn-secondary:hover { background: #e5e7eb; }
                 .bulk-form { background: #f9fafb; padding: 20px; border-radius: 8px; margin-top: 20px; }
@@ -137,6 +168,12 @@ if ($adminUserId > 0) {
                 .twofa-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; margin-top: 6px; }
                 .twofa-status.on { background: #d1fae5; color: #065f46; }
                 .twofa-status.off { background: #f3f4f6; color: #6b7280; }
+                .backup-note, .backup-help { color: #4b5563; font-size: 14px; line-height: 1.5; margin: 0 0 16px; }
+                .backup-help { font-size: 13px; }
+                .backup-info { grid-template-columns: repeat(2, 1fr); }
+                .backup-error { color: #b91c1c; font-size: 13px; margin: 0 0 12px; }
+                .backup-modal { max-width: 440px; }
+                @media (max-width: 640px) { .backup-info { grid-template-columns: 1fr; } }
                 
                 @media (max-width: 768px) {
                     .cal-day { min-height: 40px; font-size: 12px; }
@@ -157,23 +194,23 @@ if ($adminUserId > 0) {
                         <form class="settings-form" id="clinicSettingsForm">
                             <div class="form-group">
                                 <label>Clinic Name</label>
-                                <input type="text" class="form-control" id="clinicName" value="<?php echo htmlspecialchars($settings['clinic_name'] ?? 'RF Dental Clinic'); ?>">
+                                <input type="text" class="form-control is-locked" id="clinicName" readonly value="<?php echo htmlspecialchars($settings['clinic_name'] ?? 'RF Dental Clinic'); ?>">
                             </div>
                             <div class="form-group">
                                 <label>Address</label>
-                                <textarea class="form-control" id="clinicAddress" rows="2"><?php echo htmlspecialchars($settings['clinic_address'] ?? ''); ?></textarea>
+                                <textarea class="form-control is-locked" id="clinicAddress" rows="2" readonly><?php echo htmlspecialchars($settings['clinic_address'] ?? ''); ?></textarea>
                             </div>
                             <div class="form-row">
                                 <div class="form-group" style="flex:1;">
                                     <label>Phone</label>
-                                    <input type="text" class="form-control" id="clinicPhone" value="<?php echo htmlspecialchars($settings['clinic_phone'] ?? ''); ?>">
+                                    <input type="text" class="form-control is-locked" id="clinicPhone" readonly value="<?php echo htmlspecialchars($settings['clinic_phone'] ?? ''); ?>">
                                 </div>
                                 <div class="form-group" style="flex:1;">
                                     <label>Email</label>
-                                    <input type="email" class="form-control" id="clinicEmail" value="<?php echo htmlspecialchars($settings['clinic_email'] ?? ''); ?>">
+                                    <input type="email" class="form-control is-locked" id="clinicEmail" readonly value="<?php echo htmlspecialchars($settings['clinic_email'] ?? ''); ?>">
                                 </div>
                             </div>
-                            <button type="submit" class="btn-primary">Save Changes</button>
+                            <button type="button" class="btn-edit" id="clinicEditBtn">Edit</button>
                         </form>
                     </div>
 
@@ -236,7 +273,7 @@ if ($adminUserId > 0) {
                                     </div>
                                 </div>
                                 <?php endforeach; ?>
-                                <button type="submit" class="btn-primary">Save Hours</button>
+                                <button type="submit" class="btn-primary is-idle" id="saveHoursBtn" disabled>Save Hours</button>
                             </form>
                         </div>
 
@@ -289,7 +326,7 @@ if ($adminUserId > 0) {
 
                     <div class="settings-section">
                         <h3 class="section-title">🔔 Notifications</h3>
-                        <form class="settings-form">
+                        <form class="settings-form" id="notificationSettingsForm">
                             <div class="toggle-setting">
                                 <div class="toggle-info">
                                     <span class="toggle-label">Email Notifications</span>
@@ -311,7 +348,7 @@ if ($adminUserId > 0) {
                                 </label>
                             </div>
                             
-                            <button type="submit" class="btn-primary">Save Settings</button>
+                            <button type="submit" class="btn-primary is-idle" id="saveNotificationsBtn" disabled>Save Settings</button>
                         </form>
                     </div>
 
@@ -337,7 +374,7 @@ if ($adminUserId > 0) {
                                     <option value="30" <?php echo ($settings['auto_cancel_minutes'] ?? '15') == '30' ? 'selected' : ''; ?>>30 minutes after appointment time</option>
                                 </select>
                             </div>
-                            <button type="submit" class="btn-primary">Save Auto-Cancel Settings</button>
+                            <button type="submit" class="btn-primary is-idle" id="saveAutoCancelBtn" disabled>Save Auto-Cancel Settings</button>
                         </form>
                     </div>
 
@@ -371,38 +408,113 @@ if ($adminUserId > 0) {
                             </div>
                             <div class="form-group">
                                 <label>Password Policy</label>
-                                <select class="form-control">
+                                <select class="form-control" id="passwordPolicy">
                                     <option value="8">Minimum 8 characters</option>
                                     <option value="12" selected>Minimum 12 characters</option>
                                     <option value="16">Minimum 16 characters</option>
                                 </select>
                             </div>
-                            <button type="submit" class="btn-primary">Save Security Settings</button>
+                            <button type="submit" class="btn-primary is-idle" id="saveSecurityBtn" disabled>Save Security Settings</button>
                         </form>
                     </div>
 
                     <div class="settings-section">
                         <h3 class="section-title">💾 Backup & Data</h3>
-                        <form class="settings-form">
-                            <div class="backup-info">
-                                <div class="backup-stat">
-                                    <span class="backup-label">Last Backup</span>
-                                    <span class="backup-value">January 12, 2024 02:00 AM</span>
+                        <p class="backup-note">Downloading saves a copy of patients, appointments, billing, and settings to this computer. Activity logs older than 1 year are already removed, so 12 months is the furthest a file can go. Auto backup, when turned on, saves a copy on the server instead of downloading it.</p>
+                        <div class="backup-info">
+                            <div class="backup-stat">
+                                <span class="backup-label">Last Backup</span>
+                                <span class="backup-value" id="backupLastValue"><?php echo htmlspecialchars($backupLastLabel, ENT_QUOTES, 'UTF-8'); ?></span>
+                            </div>
+                            <div class="backup-stat">
+                                <span class="backup-label">Backup Size</span>
+                                <span class="backup-value" id="backupSizeValue"><?php echo htmlspecialchars($backupSizeLabel, ENT_QUOTES, 'UTF-8'); ?></span>
+                            </div>
+                        </div>
+                        <form class="settings-form" id="autoBackupForm">
+                            <div class="toggle-setting">
+                                <div class="toggle-info">
+                                    <span class="toggle-label">Auto Backup</span>
+                                    <span class="toggle-description">When this is on, the server saves a full clinic copy with 12 months of activity history at the time you choose. It does not download the file to your computer.</span>
                                 </div>
-                                <div class="backup-stat">
-                                    <span class="backup-label">Backup Size</span>
-                                    <span class="backup-value">45.2 MB</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="autoBackupEnabled" <?php echo $autoBackupEnabled ? 'checked' : ''; ?>>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div id="autoBackupSchedule" style="<?php echo $autoBackupEnabled ? '' : 'display: none;'; ?>">
+                                <div class="form-group">
+                                    <label for="autoBackupTime">Time</label>
+                                    <input type="time" class="form-control" id="autoBackupTime" value="<?php echo htmlspecialchars($autoBackupTime, ENT_QUOTES, 'UTF-8'); ?>" style="width: auto;">
                                 </div>
-                                <div class="backup-stat">
-                                    <span class="backup-label">Auto Backup</span>
-                                    <span class="backup-value">Daily at 2:00 AM</span>
+                                <div class="form-group">
+                                    <label for="autoBackupMode">When</label>
+                                    <select class="form-control" id="autoBackupMode" style="width: auto;">
+                                        <option value="date" <?php echo $autoBackupMode === 'date' ? 'selected' : ''; ?>>On a date</option>
+                                        <option value="month" <?php echo $autoBackupMode === 'month' ? 'selected' : ''; ?>>Every month</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="autoBackupDateWrap" style="<?php echo $autoBackupMode === 'date' ? '' : 'display: none;'; ?>">
+                                    <label for="autoBackupDate">Date</label>
+                                    <input type="date" class="form-control" id="autoBackupDate" value="<?php echo htmlspecialchars($autoBackupDate, ENT_QUOTES, 'UTF-8'); ?>" style="width: auto;">
+                                </div>
+                                <div class="form-group" id="autoBackupDayWrap" style="<?php echo $autoBackupMode === 'month' ? '' : 'display: none;'; ?>">
+                                    <label for="autoBackupDay">Day of the month</label>
+                                    <select class="form-control" id="autoBackupDay" style="width: auto;">
+                                        <?php for ($day = 1; $day <= 28; $day++): ?>
+                                            <option value="<?php echo $day; ?>" <?php echo $autoBackupDay === $day ? 'selected' : ''; ?>><?php echo $day; ?></option>
+                                        <?php endfor; ?>
+                                    </select>
+                                    <span class="toggle-description">Runs on this day each month, after the time above. Days stop at 28 so short months still work.</span>
                                 </div>
                             </div>
-                            <div class="form-actions">
-                                <button type="button" class="btn-primary" onclick="createBackup()">🔄 Create Backup Now</button>
-                                <button type="button" class="btn-secondary" onclick="downloadBackup()">📥 Download Latest Backup</button>
-                            </div>
+                            <button type="submit" class="btn-primary is-idle" id="saveAutoBackupBtn" disabled>Save Auto Backup</button>
                         </form>
+                        <div class="form-actions">
+                            <button type="button" class="btn-primary" id="openBackupDownload">Download a new backup</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-overlay" id="backupMonthsModal">
+                <div class="modal-content backup-modal">
+                    <div class="modal-header">
+                        <h3>Choose activity history</h3>
+                        <button type="button" class="modal-close" id="closeBackupMonthsModal" aria-label="Close">&times;</button>
+                    </div>
+                    <p class="backup-help">Patients, appointments, billing, and settings are always included. This choice only sets how much of the activity log goes in the file. Activity logs older than 1 year are already removed.</p>
+                    <div class="form-group">
+                        <label for="backupMonths">Activity history to include</label>
+                        <select class="form-control" id="backupMonths">
+                            <option value="1">1 month</option>
+                            <option value="3">3 months</option>
+                            <option value="6">6 months</option>
+                            <option value="12" selected>12 months (all activity still on file)</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                        <button type="button" class="btn-secondary" id="cancelBackupMonths">Cancel</button>
+                        <button type="button" class="btn-primary" id="continueBackupMonths">Continue</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-overlay" id="backupPasswordModal">
+                <div class="modal-content backup-modal">
+                    <div class="modal-header">
+                        <h3>Confirm it is you</h3>
+                        <button type="button" class="modal-close" id="closeBackupPasswordModal" aria-label="Close">&times;</button>
+                    </div>
+                    <p class="backup-help">Type your current login password. The backup file is created only after the password matches.</p>
+                    <p class="backup-error" id="backupPasswordError" hidden></p>
+                    <div class="form-group">
+                        <label for="backupPassword">Current password</label>
+                        <input type="password" class="form-control" id="backupPassword" autocomplete="current-password" placeholder="Type your login password">
+                    </div>
+                    <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                        <button type="button" class="btn-secondary" id="backToBackupMonths">Back</button>
+                        <button type="button" class="btn-primary" id="confirmBackupDownload">Download backup</button>
                     </div>
                 </div>
             </div>
@@ -454,8 +566,83 @@ require_once __DIR__ . '/../../includes/admin_layout_end.php';
 ?>
 
 <script>
+window.settingsSaveTrackers = {};
+
+function setSettingsSaveReady(button, ready) {
+    if (!button) return;
+    button.disabled = !ready;
+    button.classList.toggle('is-idle', !ready);
+}
+
+function trackSettingsForm(name, form, button, readState) {
+    if (!form || !button) return;
+    var saved = readState();
+    function refresh() {
+        setSettingsSaveReady(button, readState() !== saved);
+    }
+    form.addEventListener('input', refresh);
+    form.addEventListener('change', refresh);
+    window.settingsSaveTrackers[name] = {
+        refresh: refresh,
+        commit: function() {
+            saved = readState();
+            setSettingsSaveReady(button, false);
+        }
+    };
+    setSettingsSaveReady(button, false);
+}
+
+var clinicFields = ['clinicName', 'clinicAddress', 'clinicPhone', 'clinicEmail'].map(function(id) {
+    return document.getElementById(id);
+});
+var clinicBtn = document.getElementById('clinicEditBtn');
+var clinicEditing = false;
+var clinicSaved = clinicFields.map(function(el) { return el.value; }).join('\n');
+
+function readClinic() {
+    return clinicFields.map(function(el) { return el.value; }).join('\n');
+}
+
+function showClinicEdit() {
+    clinicEditing = false;
+    clinicFields.forEach(function(el) {
+        el.readOnly = true;
+        el.classList.add('is-locked');
+    });
+    clinicBtn.className = 'btn-edit';
+    clinicBtn.disabled = false;
+    clinicBtn.textContent = 'Edit';
+}
+
+function showClinicSave(ready) {
+    clinicEditing = true;
+    clinicFields.forEach(function(el) {
+        el.readOnly = false;
+        el.classList.remove('is-locked');
+    });
+    clinicBtn.className = ready ? 'btn-primary' : 'btn-primary is-idle';
+    clinicBtn.disabled = !ready;
+    clinicBtn.textContent = 'Save changes';
+}
+
+clinicBtn.addEventListener('click', function() {
+    if (!clinicEditing) {
+        showClinicSave(readClinic() !== clinicSaved);
+        clinicFields[0].focus();
+        return;
+    }
+    if (!clinicBtn.disabled) {
+        document.getElementById('clinicSettingsForm').requestSubmit();
+    }
+});
+
+document.getElementById('clinicSettingsForm').addEventListener('input', function() {
+    if (clinicEditing) showClinicSave(readClinic() !== clinicSaved);
+});
+
 document.getElementById('clinicSettingsForm').addEventListener('submit', function(e) {
     e.preventDefault();
+    if (!clinicEditing || readClinic() === clinicSaved) return;
     
     const formData = new FormData();
     formData.append('action', 'save_settings');
@@ -471,6 +658,12 @@ document.getElementById('clinicSettingsForm').addEventListener('submit', functio
     .then(res => res.json())
     .then(data => {
         if (data.success) {
+            clinicSaved = readClinic();
+            showClinicEdit();
+            var sidebarName = document.querySelector('.sidebar-logo span');
+            if (sidebarName) {
+                sidebarName.textContent = document.getElementById('clinicName').value.trim() || 'RF Dental Clinic';
+            }
             alert('Settings saved successfully!');
         } else {
             alert('Error: ' + data.message);
@@ -481,12 +674,41 @@ document.getElementById('clinicSettingsForm').addEventListener('submit', functio
     });
 });
 
+document.getElementById('notificationSettingsForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+});
+
+trackSettingsForm('notifications', document.getElementById('notificationSettingsForm'), document.getElementById('saveNotificationsBtn'), function() {
+    return Array.prototype.map.call(document.querySelectorAll('#notificationSettingsForm input[type="checkbox"]'), function(box) {
+        return box.checked ? '1' : '0';
+    }).join('');
+});
+
+trackSettingsForm('autoCancel', document.getElementById('autoCancelForm'), document.getElementById('saveAutoCancelBtn'), function() {
+    return (document.getElementById('autoCancelEnabled').checked ? '1' : '0') + '|' + document.getElementById('autoCancelMinutes').value;
+});
+
+trackSettingsForm('security', document.getElementById('securitySettingsForm'), document.getElementById('saveSecurityBtn'), function() {
+    return document.getElementById('sessionTimeout').value + '|' + document.getElementById('passwordPolicy').value;
+});
+
+trackSettingsForm('autoBackup', document.getElementById('autoBackupForm'), document.getElementById('saveAutoBackupBtn'), function() {
+    return [
+        document.getElementById('autoBackupEnabled').checked ? '1' : '0',
+        document.getElementById('autoBackupTime').value,
+        document.getElementById('autoBackupMode').value,
+        document.getElementById('autoBackupDate').value,
+        document.getElementById('autoBackupDay').value
+    ].join('|');
+});
+
 document.getElementById('autoCancelEnabled').addEventListener('change', function() {
     document.getElementById('autoCancelTimeoutContainer').style.display = this.checked ? '' : 'none';
 });
 
 document.getElementById('autoCancelForm').addEventListener('submit', function(e) {
     e.preventDefault();
+    if (document.getElementById('saveAutoCancelBtn').disabled) return;
 
     const formData = new FormData();
     formData.append('action', 'save_auto_cancel_settings');
@@ -500,6 +722,7 @@ document.getElementById('autoCancelForm').addEventListener('submit', function(e)
     .then(res => res.json())
     .then(data => {
         if (data.success) {
+            if (window.settingsSaveTrackers.autoCancel) window.settingsSaveTrackers.autoCancel.commit();
             alert('Auto-cancel settings saved successfully!');
         } else {
             alert('Error: ' + data.message);
@@ -512,6 +735,7 @@ document.getElementById('autoCancelForm').addEventListener('submit', function(e)
 
 document.getElementById('securitySettingsForm').addEventListener('submit', function(e) {
     e.preventDefault();
+    if (document.getElementById('saveSecurityBtn').disabled) return;
 
     const formData = new FormData();
     formData.append('action', 'save_security_settings');
@@ -524,6 +748,7 @@ document.getElementById('securitySettingsForm').addEventListener('submit', funct
     .then(res => res.json())
     .then(data => {
         if (data.success) {
+            if (window.settingsSaveTrackers.security) window.settingsSaveTrackers.security.commit();
             alert('Security settings saved successfully!');
         } else {
             alert('Error: ' + data.message);
@@ -573,6 +798,23 @@ document.querySelectorAll('.day-schedule').forEach(row => {
     }
 });
 
+trackSettingsForm('hours', document.getElementById('businessHoursForm'), document.getElementById('saveHoursBtn'), function() {
+    var parts = [];
+    document.querySelectorAll('#businessHoursForm .day-schedule').forEach(function(row) {
+        var isManual = row.querySelector('.manual-toggle-checkbox').checked;
+        var openVal = isManual ? row.querySelector('.time-open-manual').value : row.querySelector('select.time-open').value;
+        var closeVal = isManual ? row.querySelector('.time-close-manual').value : row.querySelector('select.time-close').value;
+        parts.push([
+            row.dataset.day,
+            row.querySelector('.is-open-checkbox').checked ? '1' : '0',
+            isManual ? '1' : '0',
+            openVal,
+            closeVal
+        ].join('|'));
+    });
+    return parts.join(';');
+});
+
 document.querySelectorAll('.manual-toggle-checkbox').forEach(checkbox => {
     checkbox.addEventListener('change', function() {
         const row = this.closest('.day-schedule');
@@ -602,6 +844,7 @@ document.querySelectorAll('.is-open-checkbox').forEach(checkbox => {
 
 document.getElementById('businessHoursForm').addEventListener('submit', function(e) {
     e.preventDefault();
+    if (document.getElementById('saveHoursBtn').disabled) return;
     
     const businessHours = {};
     document.querySelectorAll('.day-schedule').forEach(row => {
@@ -625,6 +868,7 @@ document.getElementById('businessHoursForm').addEventListener('submit', function
     .then(res => res.json())
     .then(data => {
         if (data.success) {
+            if (window.settingsSaveTrackers.hours) window.settingsSaveTrackers.hours.commit();
             alert('Business hours saved successfully!');
         } else {
             alert('Error: ' + data.message);
@@ -891,4 +1135,157 @@ function bulkAddDates() {
 }
 
 initCalendar();
+
+(function () {
+    var openBtn = document.getElementById('openBackupDownload');
+    var monthsModal = document.getElementById('backupMonthsModal');
+    var passwordModal = document.getElementById('backupPasswordModal');
+    if (!openBtn || !monthsModal || !passwordModal) return;
+
+    var monthsSelect = document.getElementById('backupMonths');
+    var passwordInput = document.getElementById('backupPassword');
+    var passwordError = document.getElementById('backupPasswordError');
+    var downloadBtn = document.getElementById('confirmBackupDownload');
+    var autoForm = document.getElementById('autoBackupForm');
+    var autoEnabled = document.getElementById('autoBackupEnabled');
+    var autoSchedule = document.getElementById('autoBackupSchedule');
+    var autoMode = document.getElementById('autoBackupMode');
+    var autoDateWrap = document.getElementById('autoBackupDateWrap');
+    var autoDayWrap = document.getElementById('autoBackupDayWrap');
+
+    function showPasswordError(message) {
+        passwordError.textContent = message;
+        passwordError.hidden = false;
+    }
+
+    function clearPasswordError() {
+        passwordError.textContent = '';
+        passwordError.hidden = true;
+    }
+
+    function closeBackupModals() {
+        monthsModal.classList.remove('active');
+        passwordModal.classList.remove('active');
+        passwordInput.value = '';
+        clearPasswordError();
+        downloadBtn.disabled = false;
+        downloadBtn.textContent = 'Download backup';
+    }
+
+    function syncAutoBackupFields() {
+        autoSchedule.style.display = autoEnabled.checked ? '' : 'none';
+        var monthly = autoMode.value === 'month';
+        autoDateWrap.style.display = monthly ? 'none' : '';
+        autoDayWrap.style.display = monthly ? '' : 'none';
+    }
+
+    openBtn.addEventListener('click', function () {
+        monthsModal.classList.add('active');
+    });
+    document.getElementById('closeBackupMonthsModal').addEventListener('click', closeBackupModals);
+    document.getElementById('cancelBackupMonths').addEventListener('click', closeBackupModals);
+    document.getElementById('closeBackupPasswordModal').addEventListener('click', closeBackupModals);
+    document.getElementById('continueBackupMonths').addEventListener('click', function () {
+        monthsModal.classList.remove('active');
+        clearPasswordError();
+        passwordModal.classList.add('active');
+        passwordInput.focus();
+    });
+    document.getElementById('backToBackupMonths').addEventListener('click', function () {
+        passwordModal.classList.remove('active');
+        passwordInput.value = '';
+        clearPasswordError();
+        monthsModal.classList.add('active');
+    });
+
+    downloadBtn.addEventListener('click', function () {
+        var password = passwordInput.value;
+        if (!password) {
+            showPasswordError('Enter your current password.');
+            return;
+        }
+
+        downloadBtn.disabled = true;
+        downloadBtn.textContent = 'Creating backup…';
+        clearPasswordError();
+
+        var formData = new FormData();
+        formData.append('months', monthsSelect.value);
+        formData.append('password', password);
+
+        fetch('../api/backup_database.php', { method: 'POST', body: formData })
+            .then(function (res) {
+                var type = res.headers.get('content-type') || '';
+                if (type.indexOf('application/json') !== -1) {
+                    return res.json().then(function (data) {
+                        throw new Error((data && data.message) || 'The backup could not be created.');
+                    });
+                }
+                if (!res.ok) {
+                    throw new Error('The backup could not be created.');
+                }
+                var created = res.headers.get('X-Backup-Created') || '';
+                var size = res.headers.get('X-Backup-Size') || '';
+                var match = (res.headers.get('content-disposition') || '').match(/filename="([^"]+)"/);
+                var filename = match ? match[1] : 'clinic_backup.sql';
+                return res.blob().then(function (blob) {
+                    return { blob: blob, filename: filename, created: created, size: size };
+                });
+            })
+            .then(function (file) {
+                var url = URL.createObjectURL(file.blob);
+                var link = document.createElement('a');
+                link.href = url;
+                link.download = file.filename;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                URL.revokeObjectURL(url);
+                if (file.created) document.getElementById('backupLastValue').textContent = file.created;
+                if (file.size) document.getElementById('backupSizeValue').textContent = file.size;
+                closeBackupModals();
+            })
+            .catch(function (err) {
+                showPasswordError(err.message || 'The backup could not be created.');
+                downloadBtn.disabled = false;
+                downloadBtn.textContent = 'Download backup';
+            });
+    });
+
+    passwordInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            downloadBtn.click();
+        }
+    });
+
+    autoEnabled.addEventListener('change', syncAutoBackupFields);
+    autoMode.addEventListener('change', syncAutoBackupFields);
+
+    autoForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (document.getElementById('saveAutoBackupBtn').disabled) return;
+        var formData = new FormData();
+        formData.append('action', 'save_auto_backup');
+        formData.append('auto_backup_enabled', autoEnabled.checked ? '1' : '0');
+        formData.append('auto_backup_time', document.getElementById('autoBackupTime').value || '02:00');
+        formData.append('auto_backup_mode', autoMode.value);
+        formData.append('auto_backup_date', document.getElementById('autoBackupDate').value || '');
+        formData.append('auto_backup_day', document.getElementById('autoBackupDay').value || '1');
+
+        fetch('settings_actions.php', { method: 'POST', body: formData })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    if (window.settingsSaveTrackers.autoBackup) window.settingsSaveTrackers.autoBackup.commit();
+                    alert('Auto backup saved successfully!');
+                } else {
+                    alert('Error: ' + (data.message || 'Could not save auto backup'));
+                }
+            })
+            .catch(function () {
+                alert('Failed to save auto backup');
+            });
+    });
+})();
 </script>

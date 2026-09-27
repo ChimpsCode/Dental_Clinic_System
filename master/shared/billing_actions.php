@@ -195,6 +195,20 @@ try {
             $stmt = $pdo->prepare("UPDATE billing SET printed_at = NOW() WHERE id = ?");
             $stmt->execute([$billing_id]);
 
+            // Must run before logAudit: the first-time print_logs backfill copies existing audit rows
+            require_once __DIR__ . '/../../includes/print_log_helper.php';
+            $printPatientStmt = $pdo->prepare("SELECT patient_id FROM billing WHERE id = ?");
+            $printPatientStmt->execute([$billing_id]);
+            $printPatientId = $printPatientStmt->fetchColumn();
+            logPrint(
+                $pdo,
+                'Invoice',
+                'INV-' . str_pad($billing_id, 4, '0', STR_PAD_LEFT) . ($printPatientId ? ' - ' . getPatientName($pdo, $printPatientId) : ''),
+                'billing',
+                $billing_id,
+                'billing_actions.php'
+            );
+
             logAudit(
                 $pdo,
                 $current_user_id,

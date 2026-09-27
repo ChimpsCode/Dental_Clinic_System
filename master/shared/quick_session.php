@@ -620,6 +620,7 @@ try {
     <!-- Hidden queue ticket used for print -->
     <div id="queuePrintContainer"></div>
 
+    <script src="../../assets/js/print_log.js"></script>
     <script>
         var _queuePage = '<?php echo $queuePage; ?>';
         var _queueId = 0;
@@ -735,6 +736,7 @@ try {
 
             // Move container to <body> so no transformed/offset ancestor shifts the ticket
             document.body.appendChild(container);
+            if (window.rfLogPrint) window.rfLogPrint('Queue Ticket', 'Queue ' + label + ' - ' + container.querySelector('.qt-meta').textContent.replace(/^Patient:\s*/, ''), 'queue', _queueId);
             window.print();
         }
 

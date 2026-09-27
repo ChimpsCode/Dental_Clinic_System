@@ -12,6 +12,7 @@ if ($__pjax) {
 
     <script src="../../assets/js/dashboard.js"></script>
     <script src="../../assets/js/notif_bell_ring.js"></script>
+    <script src="../../assets/js/print_log.js"></script>
     <script src="../../assets/js/admin.js"></script>
     <script src="../../assets/js/admin_router.js?v=5"></script>
     <?php if (isset($pageScript)) { echo $pageScript; } ?>

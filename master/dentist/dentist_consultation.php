@@ -3850,6 +3850,7 @@ function printCertificate() {
     printWindow.document.write(html);
     printWindow.document.close();
     printWindow.focus();
+    if (window.rfLogPrint) window.rfLogPrint('Medical Certificate', 'Medical certificate - ' + (currentConsultation.patient_name || '') + ' (' + purpose + ')', 'consultations', currentConsultation.id || null);
     setTimeout(function() { printWindow.print(); }, 200);
 }
 
@@ -4129,6 +4130,7 @@ function printConsentForm() {
     if (consentTabButton) {
         consentTabButton.click();
     }
+    if (window.rfLogPrint) window.rfLogPrint('Consent Form', 'Consent form - ' + ((typeof currentConsultation !== 'undefined' && currentConsultation && currentConsultation.patient_name) || ''), 'consultations', (typeof currentConsultation !== 'undefined' && currentConsultation && currentConsultation.id) || null);
     setTimeout(function() {
         window.print();
         document.body.classList.remove('print-panel-consent');
@@ -4226,6 +4228,7 @@ function printPrescription() {
     printWindow.document.write(html);
     printWindow.document.close();
     printWindow.focus();
+    if (window.rfLogPrint) window.rfLogPrint('Prescription', 'Prescription - ' + patientName, 'consultations', currentConsultation.id || null);
     printWindow.print();
 }
 

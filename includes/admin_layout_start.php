@@ -29,6 +29,10 @@ if (isset($pdo) && $pdo instanceof PDO) {
             require_once __DIR__ . '/audit_helper.php';
         }
         purgeOldAuditLogs($pdo);
+        if (!function_exists('runAutoBackupIfDue')) {
+            require_once __DIR__ . '/backup_helper.php';
+        }
+        runAutoBackupIfDue($pdo);
     } catch (Exception $e) {
     }
 }
@@ -155,6 +159,17 @@ try {
     $dynamicLogo = $logoVal ? '../../' . $logoVal : '../../assets/images/Logo.png';
 } catch (Exception $e) {
     $dynamicLogo = '../../assets/images/Logo.png';
+}
+
+$sidebarClinicName = 'RF Dental Clinic';
+try {
+    $nameStmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'clinic_name'");
+    $nameStmt->execute();
+    $savedClinicName = trim((string)$nameStmt->fetchColumn());
+    if ($savedClinicName !== '') {
+        $sidebarClinicName = $savedClinicName;
+    }
+} catch (Exception $e) {
 }
 
 // Get page title for the header
@@ -465,7 +480,7 @@ function isActivePage($page) {
     <aside class="sidebar" id="adminSidebar">
         <div class="sidebar-logo">
             <img src="<?php echo htmlspecialchars($dynamicLogo); ?>" alt="RF Logo">
-            <span>RF Dental Clinic</span>
+            <span><?php echo htmlspecialchars($sidebarClinicName); ?></span>
         </div>
         
         <nav class="sidebar-nav">

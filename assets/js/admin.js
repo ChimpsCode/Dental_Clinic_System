@@ -881,16 +881,6 @@ function exportBilling() {
 }
 
 /**
- * Audit Trail Functions
- */
-function exportAuditLogs(format) {
-    showToast(`Exporting audit logs as ${format.toUpperCase()}...`, 'info');
-    setTimeout(() => {
-        showToast('Audit logs exported successfully!', 'success');
-    }, 1000);
-}
-
-/**
  * Patient Functions
  */
 function exportPatients() {
@@ -907,23 +897,6 @@ function exportAppointments() {
     showToast('Exporting appointment data...', 'info');
     setTimeout(() => {
         showToast('Appointment data exported successfully!', 'success');
-    }, 1000);
-}
-
-/**
- * Settings Functions
- */
-function createBackup() {
-    showToast('Creating backup...', 'info');
-    setTimeout(() => {
-        showToast('Backup created successfully!', 'success');
-    }, 2000);
-}
-
-function downloadBackup() {
-    showToast('Preparing download...', 'info');
-    setTimeout(() => {
-        showToast('Download started!', 'success');
     }, 1000);
 }
 

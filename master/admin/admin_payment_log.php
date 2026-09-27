@@ -262,4 +262,39 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 </div>
                 <?php endif; ?>
             </div>
+
+<style>
+.summary-cards .summary-card {
+    position: relative;
+    overflow: hidden;
+}
+.summary-cards .summary-icon,
+.summary-cards .summary-info {
+    position: relative;
+    z-index: 2;
+}
+.summary-cards .summary-icon {
+    background: #d3e0fe;
+}
+.summary-cards .summary-card::after {
+    content: '';
+    position: absolute;
+    right: -25px;
+    bottom: -15px;
+    width: 100px;
+    height: 100px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0.12;
+    z-index: 1;
+    pointer-events: none;
+}
+.summary-cards .summary-card.card-collected::after {
+    background-image: url('../../assets/icons/peso.png');
+}
+.summary-cards .summary-card.card-transactions::after {
+    background-image: url('../../assets/icons/transaction.png');
+}
+</style>
 <?php require_once __DIR__ . '/../../includes/admin_layout_end.php'; ?>

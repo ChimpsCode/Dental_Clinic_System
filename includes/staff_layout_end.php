@@ -12,6 +12,7 @@ if ($__pjax) {
 
     <script src="../../assets/js/dashboard.js"></script>
     <script src="../../assets/js/notif_bell_ring.js"></script>
+    <script src="../../assets/js/print_log.js"></script>
     <script>
         // ── Notification actions URL (works from any master/* subdirectory) ──
         const _notifActionsUrl = (function() {

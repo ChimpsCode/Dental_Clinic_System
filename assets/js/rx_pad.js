@@ -99,6 +99,11 @@
         );
         printWindow.document.close();
         printWindow.focus();
+        if (window.rfLogPrint) {
+            var rxNameEl = document.getElementById('rxName');
+            var rxPatient = (rxNameEl && rxNameEl.value) || (p && p.patient_name) || '';
+            window.rfLogPrint('Prescription', 'Prescription - ' + rxPatient, 'prescriptions', p && (p.id || p.prescription_id) || null);
+        }
         setTimeout(function () { printWindow.print(); }, 250);
     }
 

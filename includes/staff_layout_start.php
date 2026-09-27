@@ -157,6 +157,17 @@ try {
 } catch (Exception $e) {
     $dynamicLogo = '../../assets/images/Logo.png';
 }
+
+$sidebarClinicName = 'RF Dental Clinic';
+try {
+    $nameStmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'clinic_name'");
+    $nameStmt->execute();
+    $savedClinicName = trim((string)$nameStmt->fetchColumn());
+    if ($savedClinicName !== '') {
+        $sidebarClinicName = $savedClinicName;
+    }
+} catch (Exception $e) {
+}
 ?>
 <?php if (!$__pjax): ?>
 <!DOCTYPE html>
@@ -474,7 +485,7 @@ try {
     <aside class="sidebar" id="staffSidebar">
         <div class="sidebar-logo">
             <img src="<?php echo htmlspecialchars($dynamicLogo); ?>" alt="RF Logo">
-            <span>RF Dental Clinic</span>
+            <span><?php echo htmlspecialchars($sidebarClinicName); ?></span>
         </div>
         
         <nav class="sidebar-nav">

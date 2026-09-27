@@ -1022,6 +1022,7 @@ try {
 
         // Move container to <body> so no transformed/offset ancestor shifts the ticket
         document.body.appendChild(container);
+        if (window.rfLogPrint) window.rfLogPrint('Queue Ticket', 'Queue ' + label + ' - ' + (o.patientName || ''), 'queue', o.queueId || null);
         window.print();
     }
 
