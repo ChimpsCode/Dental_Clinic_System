@@ -1480,7 +1480,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
         <div class="toast-loading-line"></div>
     </div>
     
-    <script src="../../assets/js/login.js?v=4"></script>
+    <script src="../../assets/js/login.js?v=5"></script>
     
     <?php if ($showDeletedMsg): ?>
     <script>

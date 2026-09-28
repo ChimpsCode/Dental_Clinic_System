@@ -12,6 +12,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const captchaImage = document.getElementById('captchaImage');
     const refreshCaptcha = document.getElementById('refreshCaptcha');
     const captchaInput = document.getElementById('captchaInput');
+    const rememberMeCheckbox = document.getElementById('rememberMe');
+    const REMEMBER_USERNAME_KEY = 'rf_remembered_username';
+    try {
+        const savedUsername = localStorage.getItem(REMEMBER_USERNAME_KEY);
+        if (savedUsername && usernameInput && rememberMeCheckbox) {
+            usernameInput.value = savedUsername;
+            rememberMeCheckbox.checked = true;
+        }
+    } catch (e) {}
 
     // 2FA elements
     const twoFactorContainer = document.getElementById('twoFactorContainer');
@@ -1186,6 +1195,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 if (data.success === true) {
+                    try {
+                        if (rememberMeCheckbox && rememberMeCheckbox.checked) {
+                            localStorage.setItem(REMEMBER_USERNAME_KEY, username);
+                        } else {
+                            localStorage.removeItem(REMEMBER_USERNAME_KEY);
+                        }
+                    } catch (e) {}
+
                     if (data.two_factor_required === true) {
                         console.log('=== 2FA REQUIRED ===');
                         if (loginFlowState === 'verified') {
