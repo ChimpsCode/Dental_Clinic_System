@@ -342,6 +342,103 @@ elseif ($appointmentId) {
             100% { transform: rotate(360deg); }
         }
 
+        @media (max-width: 767px) {
+            body {
+                overflow-x: hidden;
+            }
+
+            .admission-layout {
+                padding: 1rem;
+                gap: 1.5rem;
+            }
+
+            .admission-stepper {
+                position: static !important;
+                width: 100%;
+                height: auto !important;
+                min-height: 0 !important;
+                max-height: none !important;
+                overflow: visible !important;
+                flex: none;
+                padding: 1rem;
+                background: #ffffff;
+                border: 1px solid #e2e8f0;
+                border-radius: 0.75rem;
+                box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+            }
+
+            .admission-stepper-top {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                min-width: 0;
+            }
+
+            .admission-stepper .admission-brand {
+                flex: 0 0 auto;
+                margin-bottom: 0 !important;
+            }
+
+            .admission-stepper .admission-brand h1 {
+                font-size: 1.125rem;
+            }
+
+            .admission-stepper-top > .relative {
+                flex: 1 1 auto;
+                min-width: 0;
+            }
+
+            .admission-stepper-top > .relative > .absolute {
+                display: none;
+            }
+
+            .admission-stepper nav.space-y-8 {
+                display: flex;
+                gap: 0.75rem;
+                margin: 0;
+                overflow-x: auto;
+                overflow-y: hidden;
+                padding: 0.15rem 0.15rem 0.4rem;
+                scroll-snap-type: x proximity;
+                scrollbar-width: thin;
+            }
+
+            .admission-stepper nav.space-y-8 > :not([hidden]) ~ :not([hidden]) {
+                margin-top: 0;
+            }
+
+            .admission-stepper nav > div:not(.absolute) {
+                flex: 0 0 4.25rem;
+                min-width: 4.25rem;
+                flex-direction: column;
+                gap: 0.35rem;
+                padding-left: 0;
+                text-align: center;
+                scroll-snap-align: start;
+            }
+
+            .admission-stepper nav > div:not(.absolute) > div {
+                flex-shrink: 0;
+            }
+
+            .admission-stepper nav > div:not(.absolute) > span {
+                display: block;
+                width: 100%;
+                max-width: 100%;
+                overflow: hidden;
+                font-size: 0.625rem;
+                line-height: 1.2;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .admission-form-card {
+                width: 100%;
+                padding: 1.25rem;
+                margin-top: 0;
+            }
+        }
+
     </style>
 </head>
 <body class="bg-gray-50 text-slate-800 min-h-screen flex flex-col">
@@ -366,10 +463,10 @@ elseif ($appointmentId) {
     </div>
     <?php endif; ?>
 
-    <div class="flex-1 flex flex-col md:flex-row max-w-7xl mx-auto w-full p-6 gap-8">
+    <div class="admission-layout flex-1 flex flex-col md:flex-row max-w-7xl mx-auto w-full p-6 gap-8">
 
         <!-- Left Sidebar (Stepper) - Sticky with Back to Dashboard -->
-        <div class="w-full md:w-1/4 flex flex-col sticky top-6 h-[calc(100vh-3rem)] overflow-y-auto">
+        <div class="admission-stepper w-full md:w-1/4 flex flex-col sticky top-6 h-[calc(100vh-3rem)] overflow-y-auto">
             
             <!-- Back to Dashboard Button -->
             <div class="mb-6">
@@ -378,8 +475,9 @@ elseif ($appointmentId) {
                     <span class="text-sm font-medium">Back to Dashboard</span>
                 </a>
             </div>
+             <div class="admission-stepper-top">
              <!-- Logo -->
-             <div class="mb-10 flex items-center gap-2">
+             <div class="admission-brand mb-10 flex items-center gap-2">
                  <img src="<?php echo htmlspecialchars($dynamicLogo); ?>" alt="RF Dental Clinic Logo" class="w-8 h-8 rounded-md">
                  <h1 class="text-xl font-bold text-slate-800">New Patient</h1>
              </div>
@@ -433,10 +531,11 @@ elseif ($appointmentId) {
 
                 </nav>
             </div>
+            </div>
         </div>
 
         <!-- Right Content Area (Form) -->
-        <div class="w-full md:w-3/4 bg-white rounded-xl shadow-sm border border-slate-100 p-8 md:p-10 flex flex-col">
+        <div class="admission-form-card w-full md:w-3/4 bg-white rounded-xl shadow-sm border border-slate-100 p-8 md:p-10 flex flex-col">
             
             <!-- Header Container (Will update text based on step) -->
             <div id="form-header" class="mb-8">
