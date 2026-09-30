@@ -17,6 +17,11 @@ ALTER TABLE `billing`
     ADD COLUMN `discount_id_no` VARCHAR(50) DEFAULT NULL AFTER `discount_amount`,
     ADD COLUMN `discount_holder_name` VARCHAR(150) DEFAULT NULL AFTER `discount_id_no`;
 
+-- Manual / promotional discounts
+ALTER TABLE `billing`
+    MODIFY COLUMN `discount_type` ENUM('none','senior','pwd','custom') NOT NULL DEFAULT 'none',
+    ADD COLUMN `discount_reason` VARCHAR(255) DEFAULT NULL AFTER `discount_holder_name`;
+
 -- Allow 'discount' entries in audit log
 ALTER TABLE `audit_logs`
     MODIFY COLUMN `action_type` ENUM('login','logout','create','read','update','delete','payment','status_change','failed_login','discount') DEFAULT NULL;

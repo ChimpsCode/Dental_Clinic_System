@@ -185,6 +185,13 @@
     });
 
     window.refreshAppointmentsAjax = function () {
+        // Several actions and the status poll can request a refresh at nearly the
+        // same time. Reuse the active request so an older HTML response cannot
+        // replace newer appointment content.
+        if (window.__appointmentAjaxRefreshPromise) {
+            return window.__appointmentAjaxRefreshPromise;
+        }
+
         var content = document.querySelector('.content-main');
         if (!content) return Promise.resolve(false);
 
@@ -198,7 +205,8 @@
         };
 
         content.setAttribute('aria-busy', 'true');
-        return fetch(window.location.href, {
+        var refreshPromise = fetch(window.location.href, {
+            cache: 'no-store',
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
             credentials: 'same-origin'
         })
@@ -240,6 +248,15 @@
                 console.error('Appointment AJAX refresh error:', error);
                 return false;
             });
+
+        window.__appointmentAjaxRefreshPromise = refreshPromise;
+        return refreshPromise.then(function (result) {
+            window.__appointmentAjaxRefreshPromise = null;
+            return result;
+        }, function (error) {
+            window.__appointmentAjaxRefreshPromise = null;
+            throw error;
+        });
     };
 
     function restoreAppointmentView(state) {

@@ -82,6 +82,7 @@ $notifShowBadge = $notifCount > 0 && $notifUnseen;
     .notif-icon.payment { background: #14b8a6; }
     .notif-icon.inquiry { background: #3b82f6; }
     .notif-icon.appointment { background: #10b981; }
+    .notif-icon.approval { background: #f97316; }
     .notif-icon.system { background: #6b7280; }
     .notif-icon.cancellation { background: #dc2626; }
     .notif-icon.patient { background: #06b6d4; }
@@ -115,7 +116,7 @@ $notifShowBadge = $notifCount > 0 && $notifUnseen;
                 <?php foreach ($notifInitial as $n): ?>
                     <?php
                     $typeClass = htmlspecialchars($n['type'] ?? 'system');
-                    $iconMap = ['queue' => 'fa-layer-group', 'reminder' => 'fa-calendar-check', 'payment' => 'fa-credit-card', 'inquiry' => 'fa-comment-dots', 'appointment' => 'fa-calendar', 'cancellation' => 'fa-times-circle', 'patient' => 'fa-user-plus', 'system' => 'fa-info-circle'];
+                    $iconMap = ['queue' => 'fa-layer-group', 'reminder' => 'fa-calendar-check', 'payment' => 'fa-credit-card', 'inquiry' => 'fa-comment-dots', 'appointment' => 'fa-calendar', 'approval' => 'fa-hourglass-half', 'cancellation' => 'fa-times-circle', 'patient' => 'fa-user-plus', 'system' => 'fa-info-circle'];
                     $icon = $iconMap[$n['type']] ?? 'fa-bell';
                     if (strcasecmp((string)($n['title'] ?? ''), 'Appointment Declined') === 0) {
                         $typeClass = 'cancellation';
@@ -268,7 +269,7 @@ $notifShowBadge = $notifCount > 0 && $notifUnseen;
                 list.innerHTML = '<div class="notif-empty"><i class="fas fa-bell-slash"></i>No notifications yet</div>';
                 return;
             }
-            var iconMap = {queue:'fa-layer-group',reminder:'fa-calendar-check',payment:'fa-credit-card',inquiry:'fa-comment-dots',appointment:'fa-calendar',cancellation:'fa-times-circle',patient:'fa-user-plus',system:'fa-info-circle'};
+            var iconMap = {queue:'fa-layer-group',reminder:'fa-calendar-check',payment:'fa-credit-card',inquiry:'fa-comment-dots',appointment:'fa-calendar',approval:'fa-hourglass-half',cancellation:'fa-times-circle',patient:'fa-user-plus',system:'fa-info-circle'};
             list.innerHTML = notifs.map(function(n) {
                 var typeClass = n.type || 'system';
                 var icon = iconMap[n.type] || 'fa-bell';

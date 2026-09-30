@@ -8,9 +8,10 @@ require_once '../../includes/inquiry_module_helper.php';
 require_once '../../includes/typing_status_helper.php';
 require_once '../../includes/notification_functions.php';
 
-if (!isset($_SESSION['user_id'])) {
+$revoked = app_session_revoked_response();
+if ($revoked !== null || !isset($_SESSION['user_id'])) {
     ob_end_clean();
-    echo json_encode(['success' => false, 'message' => 'Authentication required.']);
+    echo json_encode($revoked ?? ['success' => false, 'message' => 'Authentication required.']);
     exit();
 }
 
@@ -44,17 +45,34 @@ function inquiryCanPatient(string $role): bool
 
 function handleInquiryAttachment(): ?string
 {
-    if (!isset($_FILES['attachment']) || $_FILES['attachment']['error'] !== UPLOAD_ERR_OK) {
-        if (isset($_FILES['attachment'])) {
-            error_log('Inquiry attachment upload error code: ' . $_FILES['attachment']['error']);
-        }
+    $GLOBALS['inquiry_attachment_error'] = null;
+
+    if (!isset($_FILES['attachment'])) {
         return null;
     }
 
     $file = $_FILES['attachment'];
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        $errorCode = (int)($file['error'] ?? UPLOAD_ERR_NO_FILE);
+        if ($errorCode !== UPLOAD_ERR_NO_FILE) {
+            $messages = [
+                UPLOAD_ERR_INI_SIZE => 'The attachment exceeds the server upload limit.',
+                UPLOAD_ERR_FORM_SIZE => 'The attachment exceeds the allowed size.',
+                UPLOAD_ERR_PARTIAL => 'The attachment was only partially uploaded. Please try again.',
+                UPLOAD_ERR_NO_TMP_DIR => 'The server upload folder is unavailable.',
+                UPLOAD_ERR_CANT_WRITE => 'The server could not save the attachment.',
+                UPLOAD_ERR_EXTENSION => 'The attachment was blocked by the server.',
+            ];
+            $GLOBALS['inquiry_attachment_error'] = $messages[$errorCode] ?? 'The attachment could not be uploaded.';
+            error_log('Inquiry attachment upload error code: ' . $errorCode);
+        }
+        return null;
+    }
+
     $maxSize = 10 * 1024 * 1024;
     if ($file['size'] > $maxSize) {
         error_log('Inquiry attachment too large: ' . $file['size']);
+        $GLOBALS['inquiry_attachment_error'] = 'File size must be 10MB or less.';
         return null;
     }
 
@@ -72,18 +90,24 @@ function handleInquiryAttachment(): ?string
     ];
     if (!in_array($mimeType, $allowedMimes)) {
         error_log('Inquiry attachment rejected MIME: ' . $mimeType . ' for file: ' . $file['name']);
+        $GLOBALS['inquiry_attachment_error'] = 'This file type is not supported. Attach an image, PDF, Word, Excel, or text file.';
         return null;
     }
 
     $uploadDir = __DIR__ . '/../uploads/inquiry_attachments';
     if (!is_dir($uploadDir)) {
-        mkdir($uploadDir, 0755, true);
+        if (!mkdir($uploadDir, 0755, true) && !is_dir($uploadDir)) {
+            $GLOBALS['inquiry_attachment_error'] = 'The server upload folder is unavailable. Please try again later.';
+            error_log('Unable to create inquiry attachment directory: ' . $uploadDir);
+            return null;
+        }
     }
 
     $allowedExts = ['jpg','jpeg','png','gif','webp','pdf','doc','docx','xls','xlsx','txt'];
     $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
     if (!in_array($ext, $allowedExts)) {
         error_log('Inquiry attachment rejected ext: ' . $ext);
+        $GLOBALS['inquiry_attachment_error'] = 'This file extension is not supported.';
         return null;
     }
 
@@ -97,7 +121,13 @@ function handleInquiryAttachment(): ?string
     }
 
     error_log('Inquiry attachment move_uploaded_file failed for: ' . $file['name']);
+    $GLOBALS['inquiry_attachment_error'] = 'The server could not save the attachment. Please try again.';
     return null;
+}
+
+function inquiryAttachmentError(): ?string
+{
+    return $GLOBALS['inquiry_attachment_error'] ?? null;
 }
 
 function resolveInquiryStatusId(PDO $pdo, string $statusName): ?int
@@ -658,6 +688,10 @@ if ($action === 'create') {
     $concern = trim($_POST['concern'] ?? '');
     $attachment = handleInquiryAttachment();
 
+    if ($attachmentError = inquiryAttachmentError()) {
+        inquiryJson(['success' => false, 'message' => $attachmentError]);
+    }
+
     if ($concern === '' && $attachment === null) {
         inquiryJson(['success' => false, 'message' => 'Concern / Message or attachment is required.']);
     }
@@ -704,6 +738,8 @@ if ($action === 'create') {
             'message' => 'Message sent successfully.',
             'inquiry_id' => (int)$existingInquiry['id'],
             'reply_id' => $createdReplyId,
+            'attachment' => $attachment,
+            'created_at' => date('Y-m-d H:i:s'),
         ]);
     }
 
@@ -759,11 +795,25 @@ if ($action === 'create') {
     ");
     $stmt->execute($values);
 
+    $inquiryId = (int)$pdo->lastInsertId();
+    $createdReplyId = null;
+    // inquiries stores the opening text. Keep an opening attachment as a reply
+    // so it is retained and rendered in the conversation without duplicating
+    // the inquiry's message text.
+    if ($attachment !== null) {
+        ensureInquiryReplySchema($pdo);
+        $replyStmt = $pdo->prepare("\n            INSERT INTO inquiry_replies (inquiry_id, message, sender_type, attachment, created_at)\n            VALUES (?, '', 'patient', ?, NOW())\n        ");
+        $replyStmt->execute([$inquiryId, $attachment]);
+        $createdReplyId = (int)$pdo->lastInsertId();
+    }
+
     inquiryJson([
         'success' => true,
         'message' => 'Inquiry submitted successfully.',
-        'inquiry_id' => (int)$pdo->lastInsertId(),
-        'reply_id' => null,
+        'inquiry_id' => $inquiryId,
+        'reply_id' => $createdReplyId,
+        'attachment' => $attachment,
+        'created_at' => date('Y-m-d H:i:s'),
     ]);
 }
 
@@ -1240,6 +1290,10 @@ if ($action === 'staff_reply') {
     $replyMessage = trim($_POST['message'] ?? '');
     $attachment = handleInquiryAttachment();
 
+    if ($attachmentError = inquiryAttachmentError()) {
+        inquiryJson(['success' => false, 'message' => $attachmentError]);
+    }
+
     if ($replyMessage === '' && $attachment === null) {
         inquiryJson(['success' => false, 'message' => 'Reply message or attachment is required.']);
     }
@@ -1323,44 +1377,10 @@ if ($action === 'staff_reply') {
                 $token = $inquiry['reply_token'];
             }
 
-            $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'];
-            $projectBase = rtrim(dirname(dirname(dirname($_SERVER['SCRIPT_NAME']))), '/');
-            $conversationLink = $baseUrl . $projectBase . '/inquiry/' . $token;
-
-            $mailerConfig = __DIR__ . '/../../config/mailer_config.php';
-            $phpMailerBase = __DIR__ . '/../../PHPMailer/src';
-            if (file_exists($mailerConfig) && file_exists($phpMailerBase . '/PHPMailer.php')) {
-                require_once $mailerConfig;
-                require_once $phpMailerBase . '/Exception.php';
-                require_once $phpMailerBase . '/PHPMailer.php';
-                require_once $phpMailerBase . '/SMTP.php';
-
-                try {
-                    $mailer = new \PHPMailer\PHPMailer\PHPMailer(true);
-                    $mailer->isSMTP();
-                    $mailer->Host = trim((string)SMTP_HOST);
-                    $mailer->SMTPAuth = true;
-                    $mailer->Username = SMTP_USER;
-                    $mailer->Password = preg_replace('/\s+/', '', (string)SMTP_PASS);
-                    $mailer->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-                    $mailer->Port = SMTP_PORT;
-                    $mailer->SMTPOptions = ['ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true]];
-                    $mailer->setFrom(MAIL_FROM, MAIL_FROM_NAME);
-                    $mailer->addAddress($recipientEmail, $fullName);
-                    $mailer->isHTML(true);
-                    $mailer->Subject = 'Re: Your Inquiry - RF Dental Clinic';
-                    $mailer->Body = '<p>Dear ' . htmlspecialchars($fullName) . ',</p>'
-                        . '<p>' . nl2br(htmlspecialchars($replyMessage)) . '</p>'
-                        . '<table border="0" cellpadding="0" cellspacing="0" style="margin:24px 0;">'
-                        . '<tr><td align="center" style="background:#2563eb;border-radius:12px;padding:14px 28px;">'
-                        . '<a href="' . htmlspecialchars($conversationLink) . '" style="color:#fff;text-decoration:none;font-size:15px;font-weight:700;display:inline-block;">Reply to this message &rarr;</a>'
-                        . '</td></tr></table>'
-                        . '<hr><p style="color:#64748b;font-size:13px;">Click the button above to view the full conversation and reply. This is a reply to your inquiry submitted through our website.</p>';
-                    $mailer->AltBody = "Dear {$fullName},\n\n{$replyMessage}\n\nTo reply, visit: {$conversationLink}\n\n-- RF Dental Clinic";
-                    $mailer->send();
-                } catch (\Exception $e) {
-                    inquiryJson(['success' => false, 'message' => 'Failed to send email reply. ' . $e->getMessage()]);
-                }
+            $conversationLink = inquiryConversationUrl($token);
+            $emailed = sendInquiryStaffReplyEmail($recipientEmail, $fullName, $replyMessage, $conversationLink, $pdo);
+            if (!$emailed) {
+                error_log("staff_reply: email delivery failed for inquiry {$id}");
             }
         }
     }

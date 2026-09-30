@@ -4,6 +4,13 @@ ini_set('display_errors', 0);
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../includes/session_bootstrap.php';
+
+$revoked = app_session_revoked_response();
+if ($revoked !== null) {
+    echo json_encode($revoked);
+    exit();
+}
+
 try {
     require_once '../../config/database.php';
     require_once '../../includes/appointment_approval_helper.php';
@@ -174,7 +181,7 @@ try {
 
     $pdo->commit();
 
-    // Notify staff/admin of new patient booking request
+    // Notify staff/admin that a new request is waiting for approval
     try {
         require_once __DIR__ . '/../../includes/notification_functions.php';
         $patStmt = $pdo->prepare("SELECT first_name, last_name FROM patients WHERE id = ? LIMIT 1");
@@ -182,7 +189,14 @@ try {
         $pat = $patStmt->fetch(PDO::FETCH_ASSOC);
         $patientDisplayName = $pat ? trim($pat['first_name'] . ' ' . $pat['last_name']) : 'Patient';
         $formattedDateForNotif = date('F j, Y', strtotime($appointment_date));
-        notifyNewAppointment($pdo, $patientDisplayName, $formattedDateForNotif);
+        $formattedTimeForNotif = date('g:i A', strtotime($appointment_time));
+        notifyAppointmentPendingApproval(
+            $pdo,
+            $patientDisplayName,
+            $formattedDateForNotif,
+            $formattedTimeForNotif,
+            $treatment
+        );
     } catch (Exception $notifErr) {
         // Silent fail - don't break booking
     }

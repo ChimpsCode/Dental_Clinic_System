@@ -28,7 +28,12 @@ try {
         LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id
         LEFT JOIN users u_doc ON q.doctor_id = u_doc.id
         WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'cancelled', 'on_hold') AND q.is_archived = 0
-          AND COALESCE(q.queue_date, DATE(q.created_at)) = ?
+          -- Keep active patients visible until they are resolved; show only
+          -- today's completed/cancelled records as queue history.
+          AND (
+              q.status IN ('waiting', 'in_procedure', 'on_hold')
+              OR COALESCE(q.queue_date, DATE(q.created_at)) = ?
+          )
         ORDER BY 
             CASE COALESCE(q.status, 'waiting')
                 WHEN 'in_procedure' THEN 1 

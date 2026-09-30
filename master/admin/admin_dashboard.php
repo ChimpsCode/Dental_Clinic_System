@@ -367,7 +367,7 @@ try {
                             <img src="../../assets/icons/revenue.png" alt="Total Revenue">
                         </div>
                         <div class="summary-info">
-                            <h3>₱<?php echo number_format($totalRevenue); ?></h3>
+                            <h3 id="ad-total-revenue">₱<?php echo number_format($totalRevenue); ?></h3>
                             <p>Total Revenue</p>
                         </div>
                     </div>
@@ -397,7 +397,7 @@ try {
                             <img src="../../assets/icons/peso.png" alt="Collected Today">
                         </div>
                         <div class="summary-info">
-                            <h3>₱<?php echo number_format($totalCollected); ?></h3>
+                            <h3 id="ad-collected-today">₱<?php echo number_format($totalCollected); ?></h3>
                             <p>Collected Today</p>
                         </div>
                     </div>
@@ -1331,11 +1331,19 @@ function adCalClose() {
 // Queue count auto-polling for admin dashboard
 var adQueueCountHash = '';
 
+function adFormatPeso(v) {
+    return '\u20B1' + Math.round(Number(v) || 0).toLocaleString('en-US');
+}
+
 function pollAdminQueueCounts() {
     fetch('../shared/queue_poll.php')
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (!data.success) return;
+            var rev = document.getElementById('ad-total-revenue');
+            if (rev && data.counts.total_revenue !== undefined) rev.textContent = adFormatPeso(data.counts.total_revenue);
+            var col = document.getElementById('ad-collected-today');
+            if (col && data.counts.collected_today !== undefined) col.textContent = adFormatPeso(data.counts.collected_today);
             if (data.hash !== adQueueCountHash) {
                 adQueueCountHash = data.hash;
                 var el = document.getElementById('ad-completed-today');

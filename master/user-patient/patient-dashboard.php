@@ -3,10 +3,11 @@ ob_start();
 
 require_once __DIR__ . '/../../includes/session_bootstrap.php';
 
-// Session already expired on entry (inactivity window elapsed) -> bounce to login
-if (!empty($GLOBALS['APP_SESSION_EXPIRED'])) {
+// Session already expired on entry (inactivity window elapsed), or the account
+// behind it was deleted/archived by an admin -> bounce to login with a notice
+if (!empty($GLOBALS['APP_SESSION_EXPIRED']) || ($GLOBALS['APP_ACCOUNT_REMOVED'] ?? '') !== '') {
     ob_end_clean();
-    header('Location: ../../master/welcome-page/login.php?expired=1');
+    header('Location: ' . app_session_login_url());
     exit();
 }
 
@@ -1565,10 +1566,7 @@ $pageTitle = 'Patient Dashboard';
                                 <span class="info-label">Email:</span>
                                 <span class="info-value"><?php echo htmlspecialchars($patient['email'] ?? 'j.smith@email.com'); ?></span>
                             </div>
-                            <div class="info-item">
-                                <span class="info-label">Insurance:</span>
-                                <span class="info-value">Aetna Platinum</span>
-                            </div>
+                        
                         </div>
                     </section>
 
@@ -1886,6 +1884,7 @@ $pageTitle = 'Patient Dashboard';
         </div>
         <form id="inquiryChatForm">
             <input type="hidden" name="action" value="create">
+            <div id="inquiryAttachmentStatus" class="inquiry-attachment-status" hidden></div>
             <div class="conv-input">
                 <button type="button" class="chat-input-icon" id="inquiryAttachFile" aria-label="Attach file"><i class="fas fa-paperclip"></i></button>
                 <button type="button" class="chat-input-icon" id="inquiryAttachImage" aria-label="Attach image"><i class="far fa-image"></i></button>
@@ -1932,21 +1931,21 @@ $pageTitle = 'Patient Dashboard';
             box-shadow: -8px 0 30px rgba(15, 23, 42, 0.16) !important;
         }
         #inquiryChatPanel .inquiry-messages-body {
-            flex: 1; overflow-y: auto; padding: 16px; background: #fff;
+            flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px; background: #fff;
             display: flex; flex-direction: column; gap: 16px; min-height: 0;
         }
         #inquiryChatPanel .inquiry-empty-state {
             text-align: center; color: #9ca3af; padding: 40px 16px; font-size: 14px; line-height: 1.5;
         }
         #inquiryChatPanel .message-row {
-            display: flex; gap: 12px; align-items: flex-end;
+            display: flex; gap: 12px; align-items: flex-end; min-width: 0; max-width: 100%;
         }
         #inquiryChatPanel .message-row.left { justify-content: flex-start; }
         #inquiryChatPanel .message-row.right { justify-content: flex-end; }
-        #inquiryChatPanel .message-row > div:last-child { max-width: 75%; }
+        #inquiryChatPanel .message-row > div:last-child { min-width: 0; max-width: 75%; }
         #inquiryChatPanel .bubble {
             padding: 14px 16px; border-radius: 12px; max-width: 100%; width: fit-content;
-            font-size: 14px; line-height: 1.5; word-wrap: break-word;
+            font-size: 14px; line-height: 1.5; word-wrap: break-word; overflow-wrap: anywhere;
         }
         #inquiryChatPanel .bubble-left {
             background: #f3f4f6; border: 1px solid #e5e7eb; color: #1f2937; border-bottom-left-radius: 4px;
@@ -1961,6 +1960,20 @@ $pageTitle = 'Patient Dashboard';
             display:flex; gap:6px; align-items:center; min-height:58px; margin:12px;
             padding:6px; border:1px solid #2563eb; border-radius:999px; background:#fff;
             box-shadow:0 0 0 3px rgba(37,99,235,.08);
+        }
+        #inquiryChatPanel .inquiry-attachment-status {
+            display:flex; align-items:center; justify-content:space-between; gap:10px;
+            margin:8px 16px 0; padding:8px 10px; border-radius:8px;
+            background:#eff6ff; color:#1e40af; font-size:12px; line-height:1.35;
+        }
+        #inquiryChatPanel .inquiry-attachment-status[hidden] { display:none !important; }
+        #inquiryChatPanel .inquiry-attachment-preview { display:flex; align-items:center; gap:8px; min-width:0; }
+        #inquiryChatPanel .inquiry-attachment-preview img { width:42px; height:42px; flex:0 0 42px; border-radius:6px; object-fit:cover; background:#dbeafe; }
+        #inquiryChatPanel .inquiry-attachment-icon { width:42px; height:42px; flex:0 0 42px; display:inline-flex; align-items:center; justify-content:center; border-radius:6px; background:#dbeafe; font-size:20px; }
+        #inquiryChatPanel .inquiry-attachment-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        #inquiryChatPanel .inquiry-attachment-status.is-error { background:#fef2f2; color:#b91c1c; }
+        #inquiryChatPanel .inquiry-attachment-status button {
+            border:0; background:transparent; color:inherit; cursor:pointer; padding:2px 4px; font-size:16px; line-height:1;
         }
         #inquiryChatPanel .conv-text {
             flex:1; min-width:0; height:44px; border:none; padding:0 8px; background:transparent;
@@ -1991,7 +2004,7 @@ $pageTitle = 'Patient Dashboard';
         #inquiryChatPanel .typing-dots span:nth-child(3) { animation-delay:.3s; }
         @keyframes patientDashTyping { 0%,60%,100% { transform:translateY(0); opacity:.45; } 30% { transform:translateY(-3px); opacity:1; } }
         #inquiryChatPanel .inquiry-chat-image { display:block; max-width:220px; max-height:220px; margin-top:6px; border-radius:8px; object-fit:cover; }
-        #inquiryChatPanel .inquiry-chat-file { display:inline-flex; align-items:center; gap:6px; margin-top:6px; color:inherit; }
+        #inquiryChatPanel .inquiry-chat-file { display:inline-flex; align-items:center; gap:6px; max-width:100%; margin-top:6px; color:inherit; overflow-wrap:anywhere; word-break:break-word; }
         #inquiryChatPanel.is-open { display: flex; flex-direction: column; }
         #inquiryChatPanel .floating-chat-header {
             min-height:92px; height:auto; padding:18px 20px; border-bottom:1px solid #e5e7eb;
@@ -2117,6 +2130,7 @@ $pageTitle = 'Patient Dashboard';
             var chatForm = document.getElementById('inquiryChatForm');
             var chatInput = document.getElementById('inquiryChatInput');
             var fileInput = document.getElementById('inquiryFileInput');
+            var attachmentStatus = document.getElementById('inquiryAttachmentStatus');
             var attachFileBtn = document.getElementById('inquiryAttachFile');
             var attachImageBtn = document.getElementById('inquiryAttachImage');
             var activeInquiryId = <?php echo $inquiryActiveId ?: 'null'; ?>;
@@ -2350,6 +2364,39 @@ $pageTitle = 'Patient Dashboard';
                 } catch (_) {}
             }
 
+            function clearAttachmentPreview() {
+                if (!attachmentStatus) return;
+                var previewImage = attachmentStatus.querySelector('img[data-attachment-preview]');
+                if (previewImage && previewImage.src.indexOf('blob:') === 0) {
+                    URL.revokeObjectURL(previewImage.src);
+                }
+                attachmentStatus.innerHTML = '';
+                attachmentStatus.hidden = true;
+                attachmentStatus.classList.remove('is-error');
+            }
+
+            function renderAttachmentPreview() {
+                var selectedFile = fileInput && fileInput.files ? fileInput.files[0] : null;
+                if (!attachmentStatus || !selectedFile) {
+                    clearAttachmentPreview();
+                    return;
+                }
+
+                clearAttachmentPreview();
+                var isImage = selectedFile.type.indexOf('image/') === 0;
+                var preview = isImage
+                    ? '<img data-attachment-preview src="' + escapeHtml(URL.createObjectURL(selectedFile)) + '" alt="Selected image">'
+                    : '<span class="inquiry-attachment-icon"><i class="fas fa-file-alt" aria-hidden="true"></i></span>';
+                attachmentStatus.innerHTML = '<div class="inquiry-attachment-preview">' + preview
+                    + '<span class="inquiry-attachment-name" title="' + escapeHtml(selectedFile.name) + '">' + escapeHtml(selectedFile.name) + '</span></div>'
+                    + '<button type="button" id="inquiryRemoveAttachment" aria-label="Remove attachment">&times;</button>';
+                attachmentStatus.hidden = false;
+                attachmentStatus.querySelector('#inquiryRemoveAttachment').addEventListener('click', function() {
+                    fileInput.value = '';
+                    clearAttachmentPreview();
+                });
+            }
+
             if (chatForm) {
                 attachFileBtn.addEventListener('click', function() {
                     fileInput.accept = '.pdf,.doc,.docx,.xls,.xlsx,.txt,image/*';
@@ -2359,6 +2406,7 @@ $pageTitle = 'Patient Dashboard';
                     fileInput.accept = 'image/*';
                     fileInput.click();
                 });
+                fileInput.addEventListener('change', renderAttachmentPreview);
                 chatInput.addEventListener('input', function() {
                     if (!chatInput.value.trim()) {
                         clearTimeout(typingTimer);
@@ -2389,6 +2437,7 @@ $pageTitle = 'Patient Dashboard';
                         if (data.success) {
                             chatInput.value = '';
                             fileInput.value = '';
+                            clearAttachmentPreview();
                             sendTypingState(0);
                             if (data.inquiry_id) {
                                 activeInquiryId = Number(data.inquiry_id);
@@ -2474,6 +2523,10 @@ $pageTitle = 'Patient Dashboard';
                 try {
                     var resp = await fetch('dashboard_status.php', { credentials: 'same-origin' });
                     var data = await resp.json();
+                    if (data && data.account_removed) {
+                        window.location.href = data.redirect || '../../master/welcome-page/login.php?deleted=1';
+                        return;
+                    }
                     applyDashboardStatus(data);
                 } catch (_) {}
             }

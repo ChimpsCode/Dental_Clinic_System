@@ -189,6 +189,41 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     const toggleRegisterPassword = document.getElementById('toggleRegPassword');
     const toggleRegisterConfirmPassword = document.getElementById('toggleRegConfirmPassword');
+
+    const WORD_FIRST_LETTER = /([^\p{L}]|^)(\p{Ll})/gu;
+
+    function autoCapitalizeField(field) {
+        if (!field || field.dataset.autoCapitalizeBound === '1') return;
+        field.dataset.autoCapitalizeBound = '1';
+
+        function apply() {
+            const value = field.value || '';
+            if (!value) return;
+
+            const updated = value.replace(WORD_FIRST_LETTER, function(match, prefix, letter) {
+                return prefix + letter.toUpperCase();
+            });
+
+            if (updated === value) return;
+
+            field.value = updated;
+
+            if (typeof field.setSelectionRange === 'function' && updated.length === value.length) {
+                const pos = typeof field.selectionStart === 'number' ? field.selectionStart : updated.length;
+                const end = typeof field.selectionEnd === 'number' ? field.selectionEnd : updated.length;
+                field.setSelectionRange(pos, end);
+            }
+        }
+
+        field.addEventListener('input', apply);
+        field.addEventListener('blur', apply);
+        apply();
+    }
+
+    ['reg_first_name', 'reg_middle_name', 'reg_last_name', 'reg_address', 'reg_emergency_name'].forEach(function(id) {
+        autoCapitalizeField(document.getElementById(id));
+    });
+
     const forgotError = document.getElementById('forgotError');
     const forgotSuccess = document.getElementById('forgotSuccess');
     const fpStep1 = document.getElementById('fpStep1');

@@ -17,6 +17,8 @@ if (!in_array($role, ['staff', 'dentist', 'admin'])) {
 }
 
 header('Content-Type: application/json');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
 
 try {
     require_once '../../config/database.php';
@@ -55,7 +57,12 @@ try {
         {$doctorJoin}
         WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'cancelled', 'on_hold')
           AND q.is_archived = 0
-          AND {$queueDateExpression} = ?
+          -- Active queue entries stay visible until they are resolved.  Finished
+          -- entries remain a same-day history list.
+          AND (
+              q.status IN ('waiting', 'in_procedure', 'on_hold')
+              OR {$queueDateExpression} = ?
+          )
         ORDER BY
             CASE COALESCE(q.status, 'waiting')
                 WHEN 'in_procedure' THEN 1
@@ -77,6 +84,14 @@ try {
         ? countCompletedQueueToday($pdo)
         : $completedToday;
 
+    $collectedToday = (float)($pdo->query("
+        SELECT COALESCE(SUM(paid_amount), 0)
+        FROM billing
+        WHERE DATE(billing_date) = CURDATE()
+          AND payment_status NOT IN ('unpaid', 'pending')
+    ")->fetchColumn() ?? 0);
+    $totalRevenue = (float)($pdo->query("SELECT COALESCE(SUM(paid_amount), 0) FROM billing")->fetchColumn() ?? 0);
+
     $hash = md5(json_encode($items) . '|ct:' . $completedTodayCard);
 
     echo json_encode([
@@ -91,6 +106,8 @@ try {
             'completed_today' => $completedTodayCard,
             'on_hold' => $onHoldCount
             ,'cancelled' => $cancelledCount
+            ,'collected_today' => $collectedToday
+            ,'total_revenue' => $totalRevenue
         ]
     ]);
 

@@ -222,6 +222,155 @@ function inquiryPublicAssetUrl(string $relativePath): string
     return ($webBase !== '' ? $webBase : '') . '/' . $relative;
 }
 
+/**
+ * Read the clinic `settings` rows once per request.
+ */
+function inquiryClinicSettings(PDO $pdo): array
+{
+    static $settings = null;
+
+    if ($settings !== null) {
+        return $settings;
+    }
+
+    $settings = [];
+    try {
+        $stmt = $pdo->query("SELECT setting_key, setting_value FROM settings");
+        if ($stmt) {
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $settings[$row['setting_key']] = $row['setting_value'];
+            }
+        }
+    } catch (Exception $e) {
+        error_log('inquiryClinicSettings: ' . $e->getMessage());
+    }
+
+    return $settings;
+}
+
+function inquiryClinicName(PDO $pdo): string
+{
+    $name = trim((string)(inquiryClinicSettings($pdo)['clinic_name'] ?? ''));
+    return $name !== '' ? $name : 'RF Dental Clinic';
+}
+
+/**
+ * Build the site origin from the request, ignoring a spoofed Host header so the
+ * links we email out cannot be poisoned.
+ */
+function inquiryRequestBaseUrl(): string
+{
+    $https = (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off')
+        || (string)($_SERVER['SERVER_PORT'] ?? '') === '443';
+    $scheme = $https ? 'https' : 'http';
+
+    $host = trim((string)($_SERVER['HTTP_HOST'] ?? ''));
+    if ($host === '' || !preg_match('/^[A-Za-z0-9.\-]+(:\d{1,5})?$/', $host)) {
+        $host = trim((string)($_SERVER['SERVER_NAME'] ?? ''));
+        if ($host === '' || !preg_match('/^[A-Za-z0-9.\-]+$/', $host)) {
+            $host = 'localhost';
+        }
+    }
+
+    return $scheme . '://' . $host;
+}
+
+function inquiryConversationUrl(string $replyToken): string
+{
+    return inquiryRequestBaseUrl() . inquiryProjectWebBase() . '/inquiry/' . $replyToken;
+}
+
+function inquiryStaffInquiriesUrl(): string
+{
+    return inquiryRequestBaseUrl() . inquiryProjectWebBase() . '/master/staff/staff_inquiries.php';
+}
+
+/**
+ * Shared PHPMailer instance configured from config/mailer_config.php.
+ * Returns null when SMTP is missing or incomplete so callers can degrade quietly.
+ */
+function inquiryCreateMailer(): ?object
+{
+    $mailerConfig = dirname(__DIR__) . '/config/mailer_config.php';
+    $phpMailerBase = dirname(__DIR__) . '/PHPMailer/src';
+    if (!file_exists($mailerConfig) || !file_exists($phpMailerBase . '/PHPMailer.php')) {
+        error_log('inquiryCreateMailer: mailer not configured');
+        return null;
+    }
+
+    require_once $mailerConfig;
+    require_once $phpMailerBase . '/Exception.php';
+    require_once $phpMailerBase . '/PHPMailer.php';
+    require_once $phpMailerBase . '/SMTP.php';
+
+    $host = trim((string)SMTP_HOST);
+    $user = trim((string)SMTP_USER);
+    $pass = preg_replace('/\s+/', '', (string)SMTP_PASS);
+    if ($host === '' || $user === '' || $pass === '') {
+        error_log('inquiryCreateMailer: SMTP credentials are incomplete');
+        return null;
+    }
+
+    $from = trim((string)MAIL_FROM);
+    if ($from === '' || !filter_var($from, FILTER_VALIDATE_EMAIL)) {
+        $from = $user;
+    }
+
+    $mailer = new \PHPMailer\PHPMailer\PHPMailer(true);
+    $mailer->isSMTP();
+    $mailer->Host = $host;
+    $mailer->SMTPAuth = true;
+    $mailer->Username = $user;
+    $mailer->Password = $pass;
+    $mailer->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+    $mailer->Port = SMTP_PORT;
+    $mailer->CharSet = 'UTF-8';
+    $mailer->SMTPOptions = [
+        'ssl' => [
+            'verify_peer' => false,
+            'verify_peer_name' => false,
+            'allow_self_signed' => true,
+        ],
+    ];
+    $mailer->setFrom($from, trim((string)MAIL_FROM_NAME) ?: 'RF Dental Clinic');
+
+    return $mailer;
+}
+
+/**
+ * Addresses that should hear about a new inquiry: the clinic inbox first,
+ * then any active admin/staff/dentist account that has an email on file.
+ */
+function inquiryNotificationRecipients(PDO $pdo): array
+{
+    $recipients = [];
+
+    $add = static function (?string $email) use (&$recipients): void {
+        $email = trim((string)$email);
+        if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $recipients[strtolower($email)] = $email;
+        }
+    };
+
+    $add(inquiryClinicSettings($pdo)['clinic_email'] ?? '');
+
+    try {
+        $stmt = $pdo->query("
+            SELECT email FROM users
+            WHERE LOWER(COALESCE(role, '')) IN ('admin', 'staff', 'dentist')
+              AND email IS NOT NULL AND email != ''
+              AND COALESCE(is_archived, 0) = 0
+        ");
+        foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $email) {
+            $add((string)$email);
+        }
+    } catch (Exception $e) {
+        error_log('inquiryNotificationRecipients: ' . $e->getMessage());
+    }
+
+    return array_slice(array_values($recipients), 0, 10);
+}
+
 function resolveStaffProfilePictureUrl(PDO $pdo, ?int $userId = null): string
 {
     $projectRoot = dirname(__DIR__);
@@ -294,55 +443,248 @@ function generateReplyToken(): string
     return bin2hex(random_bytes(32));
 }
 
-function sendInquiryConversationLinkEmail(string $email, string $firstName, string $conversationLink): bool
+function sendInquiryConversationLinkEmail(
+    string $email,
+    string $firstName,
+    string $conversationLink,
+    ?PDO $pdo = null,
+    string $subject = '',
+    string $intro = ''
+): bool
 {
-    $mailerConfig = dirname(__DIR__) . '/config/mailer_config.php';
-    $phpMailerBase = dirname(__DIR__) . '/PHPMailer/src';
-    if (!file_exists($mailerConfig) || !file_exists($phpMailerBase . '/PHPMailer.php')) {
-        error_log('sendInquiryConversationLinkEmail: mailer not configured');
+    $recipient = trim($email);
+    if ($recipient === '' || !filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+        error_log('sendInquiryConversationLinkEmail: invalid recipient');
         return false;
     }
 
-    require_once $mailerConfig;
-    require_once $phpMailerBase . '/Exception.php';
-    require_once $phpMailerBase . '/PHPMailer.php';
-    require_once $phpMailerBase . '/SMTP.php';
+    $mailer = inquiryCreateMailer();
+    if ($mailer === null) {
+        return false;
+    }
 
     try {
-        $mailer = new \PHPMailer\PHPMailer\PHPMailer(true);
-        $mailer->isSMTP();
-        $mailer->Host = trim((string)SMTP_HOST);
-        $mailer->SMTPAuth = true;
-        $mailer->Username = trim((string)SMTP_USER);
-        $mailer->Password = preg_replace('/\s+/', '', (string)SMTP_PASS);
-        $mailer->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-        $mailer->Port = SMTP_PORT;
-        $mailer->CharSet = 'UTF-8';
-        $mailer->SMTPOptions = [
-            'ssl' => [
-                'verify_peer' => false,
-                'verify_peer_name' => false,
-                'allow_self_signed' => true,
-            ],
-        ];
-        $mailer->setFrom(MAIL_FROM, MAIL_FROM_NAME);
-        $mailer->addAddress($email, $firstName);
-        $mailer->isHTML(true);
-        $mailer->Subject = 'We received your message - RF Dental Clinic';
+        $clinicName = $pdo !== null ? inquiryClinicName($pdo) : 'RF Dental Clinic';
         $safeName = htmlspecialchars($firstName);
         $safeLink = htmlspecialchars($conversationLink);
+
+        $mailer->addAddress($recipient, $firstName);
+        $mailer->isHTML(true);
+        $mailer->Subject = $subject !== '' ? $subject : 'We received your message - ' . $clinicName;
+        $introHtml = $intro !== ''
+            ? '<p>' . nl2br(htmlspecialchars($intro)) . '</p>'
+            : '<p>Thank you for contacting ' . htmlspecialchars($clinicName) . '. We received your message and will reply by email.</p>';
+
         $mailer->Body = '<p>Hi ' . $safeName . ',</p>'
-            . '<p>Thank you for contacting RF Dental Clinic. We received your message and will reply by email.</p>'
+            . $introHtml
+            . '<p>Use the button below any time to read the clinic replies and send an instant message back.</p>'
             . '<table border="0" cellpadding="0" cellspacing="0" style="margin:24px 0;">'
             . '<tr><td align="center" style="background:#2563eb;border-radius:12px;padding:14px 28px;">'
-            . '<a href="' . $safeLink . '" style="color:#fff;text-decoration:none;font-size:15px;font-weight:700;display:inline-block;">Open conversation &rarr;</a>'
+            . '<a href="' . $safeLink . '" style="color:#fff;text-decoration:none;font-size:15px;font-weight:700;display:inline-block;">Click here for instant reply &rarr;</a>'
             . '</td></tr></table>'
-            . '<p style="color:#64748b;font-size:13px;">If you did not send this inquiry, you can ignore this email.</p>';
-        $mailer->AltBody = "Hi {$firstName},\n\nThank you for contacting RF Dental Clinic. Open your conversation here: {$conversationLink}\n";
+            . '<p style="color:#64748b;font-size:13px;">Keep this email so you can always return to your conversation.</p>';
+        $mailer->AltBody = "Hi {$firstName},\n\nOpen your conversation here: {$conversationLink}\n";
         $mailer->send();
         return true;
     } catch (\Throwable $e) {
         error_log('sendInquiryConversationLinkEmail: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Alert the clinic that a new inquiry arrived on the website.
+ * Without this the only notification path was the in-app bell, which staff
+ * never see, so leads sat unread in the database.
+ */
+function sendNewInquiryStaffNotificationEmail(PDO $pdo, array $inquiry): bool
+{
+    $recipients = inquiryNotificationRecipients($pdo);
+    if ($recipients === []) {
+        error_log('sendNewInquiryStaffNotificationEmail: no recipient configured');
+        return false;
+    }
+
+    $mailer = inquiryCreateMailer();
+    if ($mailer === null) {
+        return false;
+    }
+
+    try {
+        $clinicName = inquiryClinicName($pdo);
+        $fullName = trim(implode(' ', array_filter([
+            $inquiry['first_name'] ?? '',
+            $inquiry['middle_name'] ?? '',
+            $inquiry['last_name'] ?? '',
+        ]))) ?: 'A website visitor';
+
+        $sentTo = 0;
+        foreach ($recipients as $recipient) {
+            $mailer->addAddress($recipient);
+            $sentTo++;
+        }
+
+        $dashboardUrl = inquiryStaffInquiriesUrl();
+        $replyToken = trim((string)($inquiry['reply_token'] ?? ''));
+        $conversationLink = $replyToken !== '' ? inquiryConversationUrl($replyToken) : '';
+        $source = trim((string)($inquiry['source'] ?? '')) ?: 'Website';
+        $receivedAt = trim((string)($inquiry['created_at'] ?? ''));
+
+        $detailRows = [
+            'Name' => $fullName,
+            'Email' => (string)($inquiry['email'] ?? ''),
+            'Phone' => (string)($inquiry['phone'] ?? ''),
+            'Source' => $source,
+            'Received' => $receivedAt !== '' ? $receivedAt : date('Y-m-d H:i:s'),
+        ];
+
+        $rowsHtml = '';
+        foreach ($detailRows as $label => $value) {
+            $rowsHtml .= '<tr>'
+                . '<td style="padding:6px 12px 6px 0;color:#64748b;font-size:13px;white-space:nowrap;">' . htmlspecialchars($label) . '</td>'
+                . '<td style="padding:6px 0;color:#0f172a;font-size:13px;font-weight:600;">' . htmlspecialchars((string)$value) . '</td>'
+                . '</tr>';
+        }
+
+        $mailer->isHTML(true);
+        $mailer->Subject = 'New website inquiry from ' . $fullName;
+        $mailer->Body = '<p style="margin:0 0 16px;">A new inquiry was submitted through the '
+            . htmlspecialchars($clinicName) . ' website contact form.</p>'
+            . '<table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">' . $rowsHtml . '</table>'
+            . '<p style="margin:0 0 6px;font-weight:700;color:#0f172a;">Message</p>'
+            . '<blockquote style="padding:12px 16px;border-left:4px solid #2563eb;background:#f8fafc;margin:0 0 24px;white-space:pre-wrap;">'
+            . nl2br(htmlspecialchars((string)($inquiry['concern'] ?? '')))
+            . '</blockquote>'
+            . '<table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 16px;">'
+            . '<tr><td align="center" style="background:#2563eb;border-radius:12px;padding:14px 28px;">'
+            . '<a href="' . htmlspecialchars($dashboardUrl) . '" style="color:#fff;text-decoration:none;font-size:15px;font-weight:700;display:inline-block;">Open inquiries dashboard</a>'
+            . '</td></tr></table>'
+            . ($conversationLink !== ''
+                ? '<p style="color:#64748b;font-size:13px;margin:0;">Guest conversation link: <a href="'
+                    . htmlspecialchars($conversationLink) . '">' . htmlspecialchars($conversationLink) . '</a></p>'
+                : '')
+            . '<hr><p style="color:#64748b;font-size:12px;margin:0;">Automated alert from ' . htmlspecialchars($clinicName) . '.</p>';
+
+        $altLines = ["New website inquiry from {$fullName}"];
+        foreach ($detailRows as $label => $value) {
+            $altLines[] = "{$label}: {$value}";
+        }
+        $altLines[] = '';
+        $altLines[] = 'Message:';
+        $altLines[] = (string)($inquiry['concern'] ?? '');
+        $altLines[] = '';
+        $altLines[] = "Open inquiries dashboard: {$dashboardUrl}";
+        $mailer->AltBody = implode("\n", $altLines);
+
+        $mailer->send();
+        return $sentTo > 0;
+    } catch (\Throwable $e) {
+        error_log('sendNewInquiryStaffNotificationEmail: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Alert the clinic that a guest posted a new reply from the public portal.
+ */
+function sendInquiryGuestReplyNotificationEmail(PDO $pdo, array $inquiry, string $guestMessage): bool
+{
+    $recipients = inquiryNotificationRecipients($pdo);
+    if ($recipients === []) {
+        error_log('sendInquiryGuestReplyNotificationEmail: no recipient configured');
+        return false;
+    }
+
+    $mailer = inquiryCreateMailer();
+    if ($mailer === null) {
+        return false;
+    }
+
+    try {
+        $clinicName = inquiryClinicName($pdo);
+        $fullName = trim(implode(' ', array_filter([
+            $inquiry['first_name'] ?? '',
+            $inquiry['middle_name'] ?? '',
+            $inquiry['last_name'] ?? '',
+        ]))) ?: 'A guest';
+
+        $sentTo = 0;
+        foreach ($recipients as $recipient) {
+            $mailer->addAddress($recipient);
+            $sentTo++;
+        }
+
+        $dashboardUrl = inquiryStaffInquiriesUrl();
+
+        $mailer->isHTML(true);
+        $mailer->Subject = 'New reply from ' . $fullName . ' on their inquiry';
+        $mailer->Body = '<p style="margin:0 0 16px;">A guest replied through the '
+            . htmlspecialchars($clinicName) . ' messaging portal.</p>'
+            . '<table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">'
+            . '<tr><td style="padding:6px 12px 6px 0;color:#64748b;font-size:13px;white-space:nowrap;">From</td>'
+            . '<td style="padding:6px 0;color:#0f172a;font-size:13px;font-weight:600;">'
+            . htmlspecialchars($fullName . ' (' . (string)($inquiry['email'] ?? '') . ')') . '</td></tr>'
+            . '<tr><td style="padding:6px 12px 6px 0;color:#64748b;font-size:13px;white-space:nowrap;">Phone</td>'
+            . '<td style="padding:6px 0;color:#0f172a;font-size:13px;font-weight:600;">'
+            . htmlspecialchars((string)($inquiry['phone'] ?? '')) . '</td></tr>'
+            . '</table>'
+            . '<p style="margin:0 0 6px;font-weight:700;color:#0f172a;">Reply</p>'
+            . '<blockquote style="padding:12px 16px;border-left:4px solid #2563eb;background:#f8fafc;margin:0 0 24px;white-space:pre-wrap;">'
+            . nl2br(htmlspecialchars($guestMessage))
+            . '</blockquote>'
+            . '<table border="0" cellpadding="0" cellspacing="0" style="margin:0 0 16px;">'
+            . '<tr><td align="center" style="background:#2563eb;border-radius:12px;padding:14px 28px;">'
+            . '<a href="' . htmlspecialchars($dashboardUrl) . '" style="color:#fff;text-decoration:none;font-size:15px;font-weight:700;display:inline-block;">Reply in dashboard</a>'
+            . '</td></tr></table>'
+            . '<hr><p style="color:#64748b;font-size:12px;margin:0;">Automated alert from ' . htmlspecialchars($clinicName) . '.</p>';
+        $mailer->AltBody = "New reply from {$fullName} ({$inquiry['email']}):\n\n{$guestMessage}\n\nReply here: {$dashboardUrl}";
+
+        $mailer->send();
+        return $sentTo > 0;
+    } catch (\Throwable $e) {
+        error_log('sendInquiryGuestReplyNotificationEmail: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Email a staff reply to a guest, including their portal link.
+ */
+function sendInquiryStaffReplyEmail(
+    string $email,
+    string $fullName,
+    string $replyMessage,
+    string $conversationLink,
+    ?PDO $pdo = null
+): bool {
+    $recipient = trim($email);
+    if ($recipient === '' || !filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+        error_log('sendInquiryStaffReplyEmail: invalid recipient');
+        return false;
+    }
+
+    $mailer = inquiryCreateMailer();
+    if ($mailer === null) {
+        return false;
+    }
+
+    try {
+        $clinicName = $pdo !== null ? inquiryClinicName($pdo) : 'RF Dental Clinic';
+        $mailer->addAddress($recipient, $fullName);
+        $mailer->isHTML(true);
+        $mailer->Subject = 'Re: Your Inquiry - ' . $clinicName;
+        $mailer->Body = '<p>Dear ' . htmlspecialchars($fullName) . ',</p>'
+            . '<p>' . nl2br(htmlspecialchars($replyMessage)) . '</p>'
+            . '<table border="0" cellpadding="0" cellspacing="0" style="margin:24px 0;">'
+            . '<tr><td align="center" style="background:#2563eb;border-radius:12px;padding:14px 28px;">'
+            . '<a href="' . htmlspecialchars($conversationLink) . '" style="color:#fff;text-decoration:none;font-size:15px;font-weight:700;display:inline-block;">Click here for instant reply &rarr;</a>'
+            . '</td></tr></table>'
+            . '<hr><p style="color:#64748b;font-size:13px;">This is a reply to your inquiry submitted through our website. Use the button above to view the full conversation and reply instantly.</p>';
+        $mailer->AltBody = "Dear {$fullName},\n\n{$replyMessage}\n\nTo reply, visit: {$conversationLink}\n\n-- {$clinicName}";
+        $mailer->send();
+        return true;
+    } catch (\Throwable $e) {
+        error_log('sendInquiryStaffReplyEmail: ' . $e->getMessage());
         return false;
     }
 }

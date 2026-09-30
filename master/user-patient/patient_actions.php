@@ -54,11 +54,11 @@ require_once '../../includes/audit_helper.php';
 
         // Destroy session
         session_destroy();
-        ob_clean();
 
         echo json_encode([
             'success' => true,
-            'redirect' => '../../master/welcome-page/login.php?deleted=1'
+            'account_removed' => true,
+            'redirect' => '../../master/welcome-page/login.php?archived=1'
         ]);
         exit();
     } catch (Exception $e) {
@@ -120,7 +120,10 @@ try {
             break;
             
         case 'delete':
-            // Hard delete - permanently remove from database
+            // Hard delete - permanently remove from database.
+            // The linked login is resolved via users.patient_id (getLinkedUserId)
+            // and its auth_version is bumped first so any session the patient
+            // still has open is invalidated on their very next request.
             $pdo->beginTransaction();
             
             try {
@@ -130,6 +133,12 @@ try {
                         if (!$oldPatient) {
                             throw new Exception('Patient not found');
                         }
+
+                $linkedUserId = getLinkedUserId($pdo, (int)$patientId);
+                if ($linkedUserId) {
+                    pusync_bumpAuthVersion($pdo, $linkedUserId);
+                }
+
                 // Delete related medical history first
                 $stmt = $pdo->prepare("DELETE FROM medical_history WHERE patient_id = ?");
                 $stmt->execute([$patientId]);
@@ -138,13 +147,22 @@ try {
                 $stmt = $pdo->prepare("DELETE FROM dental_history WHERE patient_id = ?");
                 $stmt->execute([$patientId]);
                 
-                // Delete related queue records
+                // Delete related queue records (and the consultations they own)
+                $queueIds = $pdo->prepare("SELECT id FROM queue WHERE patient_id = ?");
+                $queueIds->execute([$patientId]);
+                foreach ($queueIds->fetchAll(PDO::FETCH_COLUMN) as $queueId) {
+                    $pdo->prepare("DELETE FROM consultations WHERE queue_id = ?")->execute([$queueId]);
+                }
                 $stmt = $pdo->prepare("DELETE FROM queue WHERE patient_id = ?");
+                $stmt->execute([$patientId]);
+
+                // Appointments reference patients with a FK, so they must go too
+                // or the patient row cannot be removed.
+                $stmt = $pdo->prepare("DELETE FROM appointments WHERE patient_id = ?");
                 $stmt->execute([$patientId]);
 
                 // Delete the linked login account (if any). If other records
                 // still reference it, archive it instead so nothing breaks.
-                $linkedUserId = getLinkedUserId($pdo, (int)$patientId);
                 if ($linkedUserId) {
                     try {
                         $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");

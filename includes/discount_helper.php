@@ -125,12 +125,17 @@ function ensureDiscountSchema(PDO $pdo): void {
             'discount_amount'      => "ALTER TABLE billing ADD COLUMN discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER discount_rate",
             'discount_id_no'       => "ALTER TABLE billing ADD COLUMN discount_id_no VARCHAR(80) DEFAULT NULL AFTER discount_amount",
             'discount_holder_name' => "ALTER TABLE billing ADD COLUMN discount_holder_name VARCHAR(150) DEFAULT NULL AFTER discount_id_no",
+            'discount_reason'      => "ALTER TABLE billing ADD COLUMN discount_reason VARCHAR(255) DEFAULT NULL AFTER discount_holder_name",
         ];
         foreach ($billingCols as $colName => $ddl) {
             $col = $pdo->query("SHOW COLUMNS FROM billing LIKE '" . $colName . "'")->fetch();
             if (!$col) {
                 $pdo->exec($ddl);
             }
+        }
+        $typeCol = $pdo->query("SHOW COLUMNS FROM billing LIKE 'discount_type'")->fetch(PDO::FETCH_ASSOC);
+        if ($typeCol && stripos((string)$typeCol['Type'], "'custom'") === false) {
+            $pdo->exec("ALTER TABLE billing MODIFY COLUMN discount_type ENUM('none','senior','pwd','custom') NOT NULL DEFAULT 'none'");
         }
     } catch (Exception $e) {
         error_log('Discount schema ensure error: ' . $e->getMessage());

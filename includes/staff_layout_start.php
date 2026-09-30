@@ -319,6 +319,7 @@ try {
         .notif-icon.payment      { background: #ef4444; }
         .notif-icon.inquiry      { background: #3b82f6; }
         .notif-icon.appointment  { background: #10b981; }
+        .notif-icon.approval     { background: #f97316; }
         .notif-icon.system       { background: #6b7280; }
         .notif-icon.cancellation { background: #dc2626; }
         .notif-icon.patient      { background: #06b6d4; }
@@ -625,7 +626,7 @@ try {
                             <?php else: ?>
                                 <?php foreach ($notifications as $n):
                                     $typeClass = htmlspecialchars($n['type'] ?? 'system');
-                                    $iconMap = ['queue'=>'fa-layer-group','reminder'=>'fa-calendar-check','payment'=>'fa-credit-card','inquiry'=>'fa-comment-dots','appointment'=>'fa-calendar','cancellation'=>'fa-times-circle','patient'=>'fa-user-plus','system'=>'fa-info-circle'];
+                                    $iconMap = ['queue'=>'fa-layer-group','reminder'=>'fa-calendar-check','payment'=>'fa-credit-card','inquiry'=>'fa-comment-dots','appointment'=>'fa-calendar','approval'=>'fa-hourglass-half','cancellation'=>'fa-times-circle','patient'=>'fa-user-plus','system'=>'fa-info-circle'];
                                     $icon = $iconMap[$n['type']] ?? 'fa-bell';
                                     $unread = empty($n['is_read']) ? ' unread' : '';
                                     $diff = time() - strtotime($n['created_at']);
@@ -635,7 +636,7 @@ try {
                                     else $timeAgo = floor($diff/86400).'d ago';
                                     $notifType = strtolower((string)($n['type'] ?? 'system'));
                                     $notifHref = match ($notifType) {
-                                        'appointment', 'reminder', 'cancellation' => 'staff_appointments.php',
+                                        'appointment', 'approval', 'reminder', 'cancellation' => 'staff_appointments.php',
                                         'patient' => 'staff_patient_records.php',
                                         'queue' => 'staff_queue.php',
                                         'inquiry' => 'staff_inquiries.php',

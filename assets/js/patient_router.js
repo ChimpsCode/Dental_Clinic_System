@@ -486,6 +486,22 @@
                     console.error('patient cache refresh failed:', err);
                 });
             }
+            // The account behind this session was deleted/archived by an admin,
+            // or the session timed out. Stop here and send the patient to the
+            // login screen, which explains why.
+            if (res && typeof res.json === 'function') {
+                var pingUrl = typeof input === 'string' ? input : (input && input.url) || '';
+                // session_ping is polled by session_timeout.js, which shows the
+                // blocking modal itself; navigating here would skip it.
+                var isPing = String(pingUrl).indexOf('session_ping.php') !== -1;
+                if (!isPing) {
+                    res.clone().json().then(function (data) {
+                        if (data && (data.account_removed || data.session_expired) && data.redirect) {
+                            window.location.href = data.redirect;
+                        }
+                    }).catch(function () {});
+                }
+            }
             return res;
         });
     };

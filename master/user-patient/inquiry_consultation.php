@@ -3,9 +3,9 @@ ob_start();
 
 require_once __DIR__ . '/../../includes/session_bootstrap.php';
 
-if (!empty($GLOBALS['APP_SESSION_EXPIRED'])) {
+if (!empty($GLOBALS['APP_SESSION_EXPIRED']) || ($GLOBALS['APP_ACCOUNT_REMOVED'] ?? '') !== '') {
     ob_end_clean();
-    header('Location: ../../master/welcome-page/login.php?expired=1');
+    header('Location: ' . app_session_login_url());
     exit();
 }
 

@@ -54,9 +54,12 @@ try {
         exit;
     }
 
+    // Arrival is a check-in event.  Queue entries must therefore belong to the
+    // day the patient checks in, rather than a future appointment date.  Using
+    // the appointment date here caused an arrived patient to be hidden by the
+    // queue pages' "today" filter.
     $today = date('Y-m-d');
-    $appointmentDate = substr((string)($appt['appointment_date'] ?? ''), 0, 10);
-    $queueDate = ($appointmentDate !== '' && $appointmentDate >= $today) ? $appointmentDate : $today;
+    $queueDate = $today;
 
     $existingQueue = fetchQueueEntryByAppointment($pdo, $apptId, $queueDate);
     if ($existingQueue) {

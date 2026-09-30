@@ -644,7 +644,7 @@ $assets = [
               </div>
               <div class="form-group">
                 <label style="display:flex;align-items:center;gap:8px;font-weight:600;">
-                  <input type="checkbox" name="is_pwd" value="1" data-pwd-toggle="1" />
+                  <input type="checkbox" name="is_pwd" value="1" data-pwd-toggle="1" style="width:10px" />
                   Person with Disability (PWD)
                 </label>
               </div>

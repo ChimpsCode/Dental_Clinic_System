@@ -820,7 +820,9 @@ $assets = [
           }
 
           const header = document.querySelector('.site-header');
-          const offset = header ? header.getBoundingClientRect().height + 14 : 64;
+          // Align the section directly below the fixed header.  The old extra
+          // gap left the bottom edge of the hero visible above About Us.
+          const offset = header ? header.getBoundingClientRect().height : 64;
           const top = Math.max(0, target.getBoundingClientRect().top + currentScroll() - offset);
           smoothScrollTo(top);
         }
@@ -930,53 +932,66 @@ $assets = [
           });
         }
 
+        function hideContactSuccess() {
+          if (successToastTimer) {
+            clearTimeout(successToastTimer);
+            successToastTimer = null;
+          }
+          if (!successToast) return;
+          successToast.classList.remove('show', 'fade-out');
+          successToast.style.display = 'none';
+          successToast.innerHTML = '';
+        }
+
+        // How long the single line stays fully visible before it starts fading.
+        var CONTACT_TOAST_HOLD_MS = 5000;
+
+        // Read the fade length straight from --toast-fade-duration so the CSS
+        // animation and the JS teardown can never drift apart.
+        function contactToastFadeMs() {
+          if (!successToast) return CONTACT_TOAST_HOLD_MS;
+          var raw = getComputedStyle(successToast).getPropertyValue('--toast-fade-duration');
+          var seconds = parseFloat(raw);
+          return seconds > 0 ? seconds * 1000 : CONTACT_TOAST_HOLD_MS;
+        }
+
+        // The confirmation and the "Click here / for instant reply" shortcut are
+        // rendered together on a single row, then the whole row fades out
+        // instead of being swapped out or snapped away.
         function showContactSuccess(msg, link) {
           if (successToastTimer) {
             clearTimeout(successToastTimer);
             successToastTimer = null;
           }
-          successToast.innerHTML = msg;
-          if (link) {
-            successToast.innerHTML = msg + '<br><button id="copyLinkBtn" type="button" style="margin-top:12px;background:rgba(255,255,255,0.2);border:2px solid rgba(255,255,255,0.4);color:#fff;padding:8px 20px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;">Copy Link</button>';
+          if (!successToast) return;
+
+          var instantReply = link
+            ? '<span class="toast-sep" aria-hidden="true"></span>'
+              + '<a class="toast-reply-link" href="' + escapeHtml(link) + '" target="_blank" rel="noopener">Click here</a>'
+              + '<span class="toast-reply-hint">for instant reply</span>'
+            : '';
+
+          successToast.innerHTML =
+            '<div class="toast-row">'
+            + '<span class="toast-success-text">' + escapeHtml(msg) + '</span>'
+            + instantReply
+            + '</div>'
+            + '<button type="button" class="toast-reply-close" aria-label="Dismiss">&times;</button>';
+
+          var closeBtn = successToast.querySelector('.toast-reply-close');
+          if (closeBtn) {
+            closeBtn.addEventListener('click', hideContactSuccess);
           }
+
+          successToast.classList.remove('fade-out');
           successToast.classList.add('show');
           successToast.style.display = 'block';
-          successToast.style.cursor = 'default';
-          var btn = document.getElementById('copyLinkBtn');
-          if (btn) {
-            btn._link = link;
-            btn.onclick = function(e) {
-              e.preventDefault();
-              e.stopPropagation();
-              copyConversationLink(this._link);
-              successToast.classList.remove('show');
-              successToast.style.display = 'none';
-            };
-          }
-        }
 
-        function copyConversationLink(link) {
-          navigator.clipboard.writeText(link).then(function() {
-            var popup = document.getElementById('copyPopup');
-            if (!popup) {
-              popup = document.createElement('div');
-              popup.id = 'copyPopup';
-              popup.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:12px 24px;border-radius:12px;font-size:14px;font-weight:600;z-index:13000;box-shadow:0 8px 30px rgba(0,0,0,0.3);animation:toastFadeIn 0.3s ease;';
-              document.body.appendChild(popup);
-            }
-            popup.textContent = 'Copied!';
-            popup.style.display = 'block';
-            setTimeout(function() { popup.style.display = 'none'; }, 2000);
-          }).catch(function() {
-            var textarea = document.createElement('textarea');
-            textarea.value = link;
-            textarea.style.position = 'fixed';
-            textarea.style.opacity = '0';
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
-          });
+          successToastTimer = setTimeout(function() {
+            successToastTimer = null;
+            successToast.classList.add('fade-out');
+            successToastTimer = setTimeout(hideContactSuccess, contactToastFadeMs());
+          }, CONTACT_TOAST_HOLD_MS);
         }
 
         // Hero form submit - check email then show Registration or Welcome Back modal
@@ -1126,7 +1141,7 @@ $assets = [
 
               if (data.success) {
                 this.reset();
-                showContactSuccess('Your message has been sent! We will reply to you via email.');
+                showContactSuccess(data.message || 'Your message has been sent! We will reply to you via email.', data.link || '');
               } else {
                 alert(data.message || 'Failed to send. Please try again.');
               }
@@ -1263,7 +1278,7 @@ $assets = [
               </div>
               <div class="form-group">
                 <label style="display:flex;align-items:center;gap:8px;font-weight:600;">
-                  <input type="checkbox" name="is_pwd" value="1" data-pwd-toggle="1" />
+                  <input type="checkbox" name="is_pwd" value="1" data-pwd-toggle="1" style="width:10px"/>
                   Person with Disability (PWD)
                 </label>
               </div>
@@ -2966,6 +2981,7 @@ $assets = [
 
       /* Success Toast (used by Contact Us form) */
       .booking-success-toast {
+        --toast-fade-duration: 5s;
         display: none;
         position: fixed;
         top: 20px;
@@ -2974,18 +2990,80 @@ $assets = [
         z-index: 12000;
         background: linear-gradient(135deg, #0059a3, #005daa);
         color: #fff;
-        padding: 16px 24px;
+        padding: 14px 46px 14px 24px;
         border-radius: 12px;
         font-size: 15px;
         font-weight: 600;
         box-shadow: 0 8px 30px rgba(0,0,0,0.2);
         text-align: center;
+        max-width: calc(100vw - 32px);
         animation: toastFadeIn 0.3s ease;
       }
       .booking-success-toast.show { display: block !important; }
+      .booking-success-toast .toast-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .booking-success-toast .toast-sep {
+        flex: 0 0 auto;
+        width: 1px;
+        height: 18px;
+        background: rgba(255,255,255,.4);
+      }
+      .booking-success-toast .toast-reply-link {
+        display: inline-block;
+        background: #fff;
+        color: #0059a3;
+        padding: 9px 20px;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 800;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: transform .15s, box-shadow .15s;
+        box-shadow: 0 4px 14px rgba(0,0,0,.18);
+      }
+      .booking-success-toast .toast-reply-link:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 18px rgba(0,0,0,.24);
+      }
+      .booking-success-toast .toast-reply-hint {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: .3px;
+        opacity: .85;
+        white-space: nowrap;
+      }
+      .booking-success-toast .toast-reply-close {
+        position: absolute;
+        top: 4px;
+        right: 10px;
+        background: none;
+        border: none;
+        color: rgba(255,255,255,.75);
+        font-size: 20px;
+        line-height: 1;
+        cursor: pointer;
+        padding: 2px 6px;
+      }
+      .booking-success-toast .toast-reply-close:hover { color: #fff; }
+      .booking-success-toast.fade-out { animation: toastFadeOut var(--toast-fade-duration) ease forwards; }
+      @media (max-width: 640px) {
+        .booking-success-toast { font-size: 14px; padding: 12px 40px 12px 16px; }
+        .booking-success-toast .toast-sep { display: none; }
+        .booking-success-toast .toast-row { gap: 6px; }
+      }
       @keyframes toastFadeIn {
         from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
         to { opacity: 1; transform: translateX(-50%) translateY(0); }
+      }
+      @keyframes toastFadeOut {
+        0% { opacity: 1; transform: translateX(-50%) translateY(0); }
+        55% { opacity: 1; transform: translateX(-50%) translateY(0); }
+        100% { opacity: 0; transform: translateX(-50%) translateY(-16px); }
       }
     </style>
 

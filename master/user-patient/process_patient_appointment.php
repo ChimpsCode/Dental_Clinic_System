@@ -5,6 +5,12 @@ require_once __DIR__ . '/../../includes/session_bootstrap.php';
 require_once '../../config/database.php';
 require_once '../../includes/appointment_approval_helper.php';
 
+$revoked = app_session_revoked_response();
+if ($revoked !== null) {
+    echo json_encode($revoked);
+    exit();
+}
+
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('Invalid request method');
@@ -75,7 +81,7 @@ try {
 
     $pdo->commit();
 
-    // Notify staff/admin of new patient booking request
+    // Notify staff/admin that a new request is waiting for approval
     try {
         require_once __DIR__ . '/../../includes/notification_functions.php';
         $patStmt = $pdo->prepare("SELECT first_name, last_name FROM patients WHERE id = ? LIMIT 1");
@@ -83,7 +89,8 @@ try {
         $pat = $patStmt->fetch(PDO::FETCH_ASSOC);
         $patientName = $pat ? trim($pat['first_name'] . ' ' . $pat['last_name']) : 'Patient';
         $formattedDate = date('F j, Y', strtotime($appointment_date));
-        notifyNewAppointment($pdo, $patientName, $formattedDate);
+        $formattedTime = date('g:i A', strtotime($appointment_time));
+        notifyAppointmentPendingApproval($pdo, $patientName, $formattedDate, $formattedTime, $treatment);
     } catch (Exception $notifErr) {
         // Silent fail - don't break appointment creation
     }

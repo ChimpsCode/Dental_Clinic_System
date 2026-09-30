@@ -2569,21 +2569,38 @@ try {
 
 // Appointment status auto-polling
 var apptPollHashStaff = '';
+var appointmentPollInFlight = false;
 
 function startAppointmentPolling() {
-    setInterval(function() {
-        fetch('../shared/appointments_poll.php')
-            .then(function(r) { return r.json(); })
+    function pollAppointments() {
+        // The response replaces the appointment content.  Serialize requests so
+        // an older response cannot restore stale/empty sections over newer data.
+        if (appointmentPollInFlight || document.visibilityState !== 'visible') return;
+
+        appointmentPollInFlight = true;
+        fetch('../shared/appointments_poll.php', {
+            cache: 'no-store',
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(function(r) {
+                if (!r.ok) throw new Error('Appointment poll failed');
+                return r.json();
+            })
             .then(function(data) {
-                if (!data.success) return;
+                if (!data.success) return null;
                 if (data.hash !== apptPollHashStaff) {
                     apptPollHashStaff = data.hash;
                     refreshAppointmentStatuses(data.appointments);
-                    if (typeof refreshAppointmentsAjax === 'function') refreshAppointmentsAjax();
+                    if (typeof refreshAppointmentsAjax === 'function') return refreshAppointmentsAjax();
                 }
+                return null;
             })
-            .catch(function(e) { console.error('Appointment poll error:', e); });
-    }, 10000);
+            .catch(function(e) { console.error('Appointment poll error:', e); })
+            .then(function() { appointmentPollInFlight = false; });
+    }
+
+    setInterval(pollAppointments, 10000);
 }
 
 function refreshAppointmentStatuses(appts) {

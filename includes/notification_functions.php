@@ -54,7 +54,8 @@ function notifyRole($pdo, $role, $type, $title, $message, $actionUrl = null) {
     try {
         $userColumns = array_column($pdo->query("SHOW COLUMNS FROM users")->fetchAll(PDO::FETCH_ASSOC), 'Field');
         if (in_array('role', $userColumns, true)) {
-            $stmt = $pdo->prepare("SELECT id FROM users WHERE role = ?");
+            $activeClause = in_array('is_archived', $userColumns, true) ? ' AND COALESCE(is_archived, 0) = 0' : '';
+            $stmt = $pdo->prepare("SELECT id FROM users WHERE LOWER(role) = LOWER(?)$activeClause");
         } elseif (in_array('role_id', $userColumns, true)) {
             $stmt = $pdo->prepare("SELECT u.id FROM users u INNER JOIN roles r ON r.id = u.role_id WHERE LOWER(r.role_name) = LOWER(?)");
         } else {
@@ -179,16 +180,49 @@ function notifyNewPatient($pdo, $patientName, $patientId) {
 }
 
 /**
- * Notify when new appointment is created
+ * Notify when a new appointment is CONFIRMED (already approved).
+ * Use this only once the appointment is actually on the clinic calendar.
  */
-function notifyNewAppointment($pdo, $patientName, $appointmentDate, $dentistName = null) {
+function notifyNewAppointment($pdo, $patientName, $appointmentDate, $dentistName = null, $appointmentTime = null, $serviceName = null) {
     $title = "New Appointment";
+
     $message = "New appointment scheduled for $patientName on $appointmentDate";
+    if ($appointmentTime) {
+        $message .= " at $appointmentTime";
+    }
+    if ($serviceName) {
+        $message .= " ($serviceName)";
+    }
+
     $actionUrl = "admin_appointments.php";
-    
+
     notifyAdmin($pdo, 'appointment', $title, $message, $actionUrl);
     notifyDentist($pdo, 'appointment', $title, $message, "dentist_appointments.php");
-    notifyStaff($pdo, 'appointment', $title, $message, $actionUrl);
+    notifyStaff($pdo, 'appointment', $title, $message, "staff_appointments.php");
+}
+
+/**
+ * Notify when a patient REQUESTED an appointment that still needs approval.
+ * This is deliberately worded differently from notifyNewAppointment() so the
+ * clinic can tell an unconfirmed request apart from a confirmed booking.
+ */
+function notifyAppointmentPendingApproval($pdo, $patientName, $appointmentDate, $appointmentTime = null, $serviceName = null) {
+    $title = "New Appointment Needs Approval";
+
+    $name = trim((string)$patientName) !== '' ? $patientName : 'A patient';
+    $message = "New appointment needs approval: $name requested";
+    if ($serviceName) {
+        $message .= " $serviceName";
+    }
+    $message .= " on $appointmentDate";
+    if ($appointmentTime) {
+        $message .= " at $appointmentTime";
+    }
+    $message .= ". Approve or decline the request.";
+
+    notifyAdmin($pdo, 'approval', $title, $message, "admin_appointments.php");
+    notifyDentist($pdo, 'approval', $title, $message, "dentist_appointments.php");
+    notifyStaff($pdo, 'approval', $title, $message, "staff_appointments.php");
 }
 
 /**
@@ -206,10 +240,9 @@ function notifyPendingPayment($pdo, $patientName, $amount) {
 /**
  * Notify when new inquiry is received
  */
-function notifyNewInquiry($pdo, $inquiryName, $source) {
+function notifyNewInquiry($pdo, $inquiryName, $source, string $actionUrl = 'master/staff/staff_inquiries.php') {
     $title = "New Inquiry";
     $message = "New inquiry received from $inquiryName via $source";
-    $actionUrl = "admin_inquiries.php";
     
     notifyAdmin($pdo, 'inquiry', $title, $message, $actionUrl);
     notifyStaff($pdo, 'inquiry', $title, $message, $actionUrl);
@@ -620,16 +653,30 @@ function notifyPatientAppointmentDeclined(PDO $pdo, int $patientId, string $appo
 }
 
 /**
- * Notify patient when a payment has been recorded on their account.
+ * Notify patient when an appointment is cancelled by clinic staff.
+ * Distinct from a declined request: this one was previously confirmed.
  */
-function notifyPatientPaymentRecorded(PDO $pdo, int $patientId, float $amount, string $paymentMethod, string $treatmentType, float $balance): bool
+function notifyPatientAppointmentCancelled(PDO $pdo, int $patientId, string $appointmentDate, string $reason, string $serviceName = ''): void
 {
     $userId = getUserIdForPatient($pdo, $patientId);
     if (!$userId) {
-        notifLog("notifyPatientPaymentRecorded: no user_id for patient_id={$patientId}");
-        return false;
+        return;
     }
-    notifLog("notifyPatientPaymentRecorded: user_id={$userId} patient_id={$patientId} amount={$amount} method={$paymentMethod} treatment={$treatmentType} balance={$balance}");
+    $label = trim($serviceName) !== '' ? trim($serviceName) : 'your';
+    $title = 'Appointment Cancelled';
+    $message = "The clinic cancelled your {$label} appointment on {$appointmentDate}";
+    if (trim($reason) !== '') {
+        $message .= ". Reason: {$reason}";
+    }
+    $message .= ". Please book a new slot when convenient.";
+    createNotification($pdo, $userId, 'appointment', $title, $message, 'appointments.php');
+}
+
+/**
+ * Notify patient when a payment has been recorded on their account.
+ */
+function notifyPatientPaymentRecorded(PDO $pdo, int $patientId, float $amount, string $paymentMethod, string $treatmentType, float $balance, array $billingIds = []): bool
+{
     $methodLabels = [
         'cash' => 'Cash',
         'gcash' => 'GCash',
@@ -645,8 +692,78 @@ function notifyPatientPaymentRecorded(PDO $pdo, int $patientId, float $amount, s
     } else {
         $message .= ". Account fully paid. Thank you!";
     }
+    // Discounts are never texted when applied; they are reported in this single payment SMS instead
+    $smsMessage = $message;
+    $discountNote = describeCustomDiscountsForSms($pdo, $billingIds);
+    if ($discountNote !== '') {
+        $smsMessage = "Payment of ₱" . number_format($amount, 2) . " ({$methodLabel}) received for {$treatmentType} ({$discountNote})"
+            . ($balance > 0 ? ". Remaining balance: ₱" . number_format($balance, 2) : ". Account fully paid. Thank you!");
+    }
+    $smsSent = sendPatientSms($pdo, $patientId, $smsMessage);
+
+    $userId = getUserIdForPatient($pdo, $patientId);
+    if (!$userId) {
+        notifLog("notifyPatientPaymentRecorded: no user_id for patient_id={$patientId}, SMS only");
+        return $smsSent;
+    }
+    notifLog("notifyPatientPaymentRecorded: user_id={$userId} patient_id={$patientId} amount={$amount} method={$paymentMethod} treatment={$treatmentType} balance={$balance}");
     createNotification($pdo, $userId, 'payment', $title, $message, 'billing.php');
     return true;
+}
+
+/**
+ * Summarize manual (custom) discounts on the given bills, e.g. "15% discount applied: -₱300.00, Promo".
+ */
+function describeCustomDiscountsForSms(PDO $pdo, array $billingIds): string
+{
+    $billingIds = array_values(array_unique(array_filter(array_map('intval', $billingIds))));
+    if (empty($billingIds)) {
+        return '';
+    }
+    try {
+        $placeholders = implode(',', array_fill(0, count($billingIds), '?'));
+        $stmt = $pdo->prepare("SELECT discount_rate, discount_amount, discount_reason FROM billing
+            WHERE id IN ({$placeholders}) AND discount_type = 'custom' AND discount_amount > 0");
+        $stmt->execute($billingIds);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        notifLog("describeCustomDiscountsForSms failed: " . $e->getMessage());
+        return '';
+    }
+    if (empty($rows)) {
+        return '';
+    }
+    if (count($rows) === 1) {
+        $row = $rows[0];
+        $rate = (float)$row['discount_rate'];
+        $label = $rate > 0 ? rtrim(rtrim(number_format($rate, 2), '0'), '.') . '% discount' : 'Discount';
+        $note = "{$label} applied: -₱" . number_format((float)$row['discount_amount'], 2);
+        $reason = trim((string)($row['discount_reason'] ?? ''));
+        return $reason !== '' ? "{$note}, {$reason}" : $note;
+    }
+    $total = array_sum(array_map(function ($r) { return (float)$r['discount_amount']; }, $rows));
+    return "Discounts applied: -₱" . number_format($total, 2);
+}
+
+/**
+ * Text a patient using the phone number on their record.
+ *
+ * Respects the patient's Notification Preferences and leaves an audit row in
+ * sms_log. Returns false when SMS is not configured, the patient has no phone,
+ * the patient opted out, or the gateway rejected the message.
+ */
+function sendPatientSms(PDO $pdo, int $patientId, string $message): bool
+{
+    require_once __DIR__ . '/sms_functions.php';
+
+    // Peso sign forces UCS-2 encoding, which cuts each SMS segment from 160 to 70 characters
+    $smsText = str_replace('₱', 'PHP ', $message) . ' - RF Dental Clinic';
+
+    $sent = sendPatientSmsTracked($pdo, $patientId, $smsText, 'payment');
+    if (!$sent) {
+        notifLog("sendPatientSms: not sent for patient_id={$patientId}: " . describeSmsSkipReason($pdo, $patientId));
+    }
+    return $sent;
 }
 
 /**
@@ -664,6 +781,32 @@ function notifyPatientDueDateSet(PDO $pdo, int $patientId, int $billingId, strin
     $title = 'Payment due';
     $message = "{$invoice} has a payment of ₱" . number_format($balance, 2) . " due by {$dueLabel}. Please settle your balance at the clinic.";
     notifLog("notifyPatientDueDateSet: user_id={$userId} patient_id={$patientId} billing_id={$billingId} due={$dueDate} balance={$balance}");
+    createNotification($pdo, $userId, 'payment', $title, $message, 'billing.php');
+    return true;
+}
+
+/**
+ * Notify patient when staff/admin manually applies a discount to their bill.
+ * $ratePercent is null for fixed-amount discounts.
+ */
+function notifyPatientDiscountApplied(PDO $pdo, int $patientId, int $billingId, float $discountAmount, ?float $ratePercent, float $newTotal, float $balance, string $reason): bool
+{
+    $invoice = 'INV-' . str_pad((string)$billingId, 4, '0', STR_PAD_LEFT);
+    $label = $ratePercent !== null
+        ? 'A ' . rtrim(rtrim(number_format($ratePercent, 2), '0'), '.') . '% discount'
+        : 'A discount';
+    $title = 'Discount Applied';
+    $message = "{$label} (-₱" . number_format($discountAmount, 2) . ") was applied to {$invoice}.";
+    if ($reason !== '') {
+        $message .= " Reason: {$reason}.";
+    }
+    $message .= " New total: ₱" . number_format($newTotal, 2) . ". Remaining balance: ₱" . number_format($balance, 2) . ".";
+    $userId = getUserIdForPatient($pdo, $patientId);
+    if (!$userId) {
+        notifLog("notifyPatientDiscountApplied: no user_id for patient_id={$patientId}, discount is reported in the payment SMS only");
+        return false;
+    }
+    notifLog("notifyPatientDiscountApplied: user_id={$userId} patient_id={$patientId} billing_id={$billingId} discount={$discountAmount}");
     createNotification($pdo, $userId, 'payment', $title, $message, 'billing.php');
     return true;
 }

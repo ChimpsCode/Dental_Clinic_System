@@ -40,7 +40,11 @@
     }
 
     function warningIcon() {
-        return '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3.1c.58 0 1.1.31 1.38.82l8.16 14.4c.28.5.28 1.12 0 1.62A1.58 1.58 0 0 1 20.16 21H3.84a1.58 1.58 0 0 1-1.38-2.06l8.16-14.4A1.58 1.58 0 0 1 12 3.1z"/><rect x="11.1" y="8.5" width="1.8" height="6.1" rx=".9" fill="#fff"/><circle cx="12" cy="17.15" r="1.1" fill="#fff"/></svg>';
+        return '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3.1c.58 0 1.1.31 1.38.82l8.16 14.4c.28.5.28 1.12 0 1.62A1.58 1.58 0 0 1 20.16 21H3.84a1.58 1.58 0 0 1-1.38-2.06l8.16-14.4c.28-.51.8-.84 1.38-.84z"/><rect x="11.1" y="8.5" width="1.8" height="6.1" rx=".9" fill="#fff"/><circle cx="12" cy="17.15" r="1.1" fill="#fff"/></svg>';
+    }
+
+    function blockedIcon() {
+        return '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="1.9"/><rect x="6.4" y="10.9" width="11.2" height="2.2" rx="1.1" fill="currentColor"/><path d="M7.6 7.6l8.8 8.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>';
     }
 
     function formatSeconds(total) {
@@ -111,6 +115,10 @@
         var loggingOut = false;
         var sessionAlreadyExpired = false;
         var lastPingAt = 0;
+        // Set when the server reports the account behind this session was
+        // deleted/archived, so the copy and destination can say why.
+        var accountRemoved = '';
+        var serverRedirect = '';
         var loginUrl = options.loginUrl || '../../master/welcome-page/login.php?expired=1';
 
         function clearTimers() {
@@ -134,6 +142,22 @@
         }
 
         function setTimedOutCopy() {
+            if (accountRemoved) {
+                iconEl.classList.remove('is-logout');
+                iconEl.innerHTML = blockedIcon();
+                iconEl.hidden = false;
+                titleEl.textContent = 'Your account is no longer active';
+                bodyEl.hidden = false;
+                bodyEl.textContent = accountRemoved === 'deleted'
+                    ? 'The clinic has deleted your account, so you have been signed out.'
+                    : 'The clinic has deactivated your account, so you have been signed out.';
+                spinnerEl.hidden = true;
+                actionsEl.hidden = false;
+                stayBtn.hidden = true;
+                logoutBtn.hidden = true;
+                okBtn.hidden = false;
+                return;
+            }
             titleEl.textContent = 'Session time out';
             bodyEl.textContent = '';
             bodyEl.hidden = true;
@@ -172,6 +196,14 @@
                     cache: 'no-store'
                 }).then(function (res) {
                     if (res.status === 401) {
+                        res.clone().json().then(function (data) {
+                            if (data && data.account_removed) {
+                                accountRemoved = data.reason === 'archived' ? 'archived' : 'deleted';
+                            }
+                            if (data && data.redirect) {
+                                serverRedirect = data.redirect;
+                            }
+                        }).catch(function () {});
                         beginLogout(true);
                     }
                 }).catch(function () { /* ignore network errors while still on the page */ });
@@ -183,6 +215,10 @@
         }
 
         function goToLogin(alreadyExpired) {
+            if (serverRedirect) {
+                global.location.href = serverRedirect;
+                return;
+            }
             global.location.href = alreadyExpired ? loginUrl : logoutUrl;
         }
 

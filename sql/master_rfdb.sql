@@ -2143,6 +2143,8 @@ CREATE TABLE `users` (
   `last_name` varchar(50) DEFAULT NULL,
   `email` varchar(100) DEFAULT NULL,
   `phone` varchar(20) DEFAULT NULL,
+  `sms_notifications` tinyint(1) NOT NULL DEFAULT '1',
+  `email_notifications` tinyint(1) NOT NULL DEFAULT '1',
   `gender` enum('Male','Female') DEFAULT NULL,
   `date_of_birth` date DEFAULT NULL,
   `is_archived` tinyint(1) DEFAULT 0,
@@ -2756,3 +2758,30 @@ COMMIT;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+
+-- ===========================================================================
+-- SMS NOTIFICATIONS (see sql/sms_notifications_migration.sql)
+-- Outbound SMS audit trail. Populated by logSms() in includes/sms_functions.php
+-- so a message that fails to send is visible instead of silently lost.
+-- ===========================================================================
+CREATE TABLE IF NOT EXISTS `sms_log` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `phone` varchar(30) DEFAULT NULL,
+  `message` text,
+  `category` varchar(50) DEFAULT NULL,
+  `status` enum('sent','failed','skipped') NOT NULL DEFAULT 'failed',
+  `provider_message_id` varchar(100) DEFAULT NULL,
+  `error_message` text,
+  `patient_id` int(11) DEFAULT NULL,
+  `appointment_id` int(11) DEFAULT NULL,
+  `requested_by` int(11) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_sms_log_phone` (`phone`),
+  KEY `idx_sms_log_created` (`created_at`),
+  KEY `idx_sms_log_category` (`category`),
+  KEY `idx_sms_log_appointment` (`appointment_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Clinic-wide SMS kill switch. When 0, no patient-facing SMS is sent.
+INSERT IGNORE INTO `settings` (`setting_key`, `setting_value`) VALUES ('sms_enabled', '1');

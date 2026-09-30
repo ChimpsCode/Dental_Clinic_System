@@ -31,7 +31,12 @@ try {
         FROM queue q 
         LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id
         WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'cancelled', 'on_hold') AND q.is_archived = 0
-          AND {$dentistQueueDateExpression} = ?
+          -- Keep active patients visible until they are resolved; show only
+          -- today's completed/cancelled records as queue history.
+          AND (
+              q.status IN ('waiting', 'in_procedure', 'on_hold')
+              OR {$dentistQueueDateExpression} = ?
+          )
         ORDER BY 
             CASE COALESCE(q.status, 'waiting')
                 WHEN 'in_procedure' THEN 1 

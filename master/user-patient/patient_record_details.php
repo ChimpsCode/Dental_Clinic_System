@@ -7,8 +7,9 @@ ob_start();
 require_once __DIR__ . '/../../includes/session_bootstrap.php';
 header('Content-Type: application/json');
 
-if (!isset($_SESSION['user_id'])) {
-    echo json_encode(['success' => false, 'message' => 'Not logged in']);
+$revoked = app_session_revoked_response();
+if ($revoked !== null || !isset($_SESSION['user_id'])) {
+    echo json_encode($revoked ?? ['success' => false, 'message' => 'Not logged in']);
     exit();
 }
 

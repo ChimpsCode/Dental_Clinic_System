@@ -50,8 +50,8 @@ if ($__pjax) {
         var pollInFlight   = false;
 
         var iconMap = {queue:'fa-layer-group',reminder:'fa-calendar-check',payment:'fa-credit-card',
-            inquiry:'fa-comment-dots',appointment:'fa-calendar',cancellation:'fa-times-circle',
-            patient:'fa-user-plus',system:'fa-info-circle'};
+            inquiry:'fa-comment-dots',appointment:'fa-calendar',approval:'fa-hourglass-half',
+            cancellation:'fa-times-circle',patient:'fa-user-plus',system:'fa-info-circle'};
 
         function timeAgo(dateStr) {
             var d    = new Date(dateStr + 'Z');
@@ -69,6 +69,7 @@ if ($__pjax) {
         function destForType(type) {
             switch (String(type || 'system').toLowerCase()) {
                 case 'appointment':
+                case 'approval':
                 case 'reminder':
                 case 'cancellation':
                     return 'staff_appointments.php';

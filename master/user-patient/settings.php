@@ -3,9 +3,9 @@ ob_start();
 
 require_once __DIR__ . '/../../includes/session_bootstrap.php';
 
-if (!empty($GLOBALS['APP_SESSION_EXPIRED'])) {
+if (!empty($GLOBALS['APP_SESSION_EXPIRED']) || ($GLOBALS['APP_ACCOUNT_REMOVED'] ?? '') !== '') {
     ob_end_clean();
-    header('Location: ../../master/welcome-page/login.php?expired=1');
+    header('Location: ' . app_session_login_url());
     exit();
 }
 
@@ -31,12 +31,20 @@ require_once '../../config/database.php';
 require_once '../../includes/patient_session_helper.php';
 require_once '../../includes/send_otp_email.php';
 require_once '../../includes/patient_user_sync_helper.php';
+require_once '../../includes/sms_functions.php';
 
 $patientSessionSettings = getPatientSessionSettings($pdo, (int)$user_id);
 $settingsPatientUserJoin = 'LEFT JOIN users u ON u.id = p.user_id';
+$smsPreferencesAvailable = false;
+$smsGatewayConfigured = smsIsConfigured();
+$smsGatewayOnline = $smsGatewayConfigured;
+if ($smsGatewayConfigured) {
+    $smsGatewayOnline = true;
+}
 try {
     $usersColumns = $pdo->query('SHOW COLUMNS FROM users')->fetchAll(PDO::FETCH_COLUMN);
     $patientsColumns = $pdo->query('SHOW COLUMNS FROM patients')->fetchAll(PDO::FETCH_COLUMN);
+    $smsPreferencesAvailable = in_array('sms_notifications', $usersColumns, true);
     if (in_array('patient_id', $usersColumns, true)) {
         $settingsPatientUserJoin = 'LEFT JOIN users u ON u.patient_id = p.id';
     } elseif (!in_array('user_id', $patientsColumns, true)) {
@@ -174,11 +182,26 @@ try {
         if ($action === 'update_notifications') {
             $email_notifications = isset($_POST['email_notifications']) ? 1 : 0;
             $sms_notifications = isset($_POST['sms_notifications']) ? 1 : 0;
-            
-            $stmt = $pdo->prepare("UPDATE users SET email_notifications = ?, sms_notifications = ? WHERE id = ?");
-            $stmt->execute([$email_notifications, $sms_notifications, $user_id]);
-            $message = 'Notification preferences updated!';
-            $messageType = 'success';
+
+            $sets = [];
+            $params = [];
+            if ($smsPreferencesAvailable) {
+                $sets[] = 'email_notifications = ?';
+                $params[] = $email_notifications;
+                $sets[] = 'sms_notifications = ?';
+                $params[] = $sms_notifications;
+            }
+            if (!$sets) {
+                $message = 'Notification preferences are unavailable on this installation. Please contact the clinic.';
+                $messageType = 'error';
+            } else {
+                $params[] = $user_id;
+                $pdo->prepare('UPDATE users SET ' . implode(', ', $sets) . ' WHERE id = ?')->execute($params);
+                $user['email_notifications'] = $email_notifications;
+                $user['sms_notifications'] = $sms_notifications;
+                $message = 'Notification preferences updated!';
+                $messageType = 'success';
+            }
         }
 
         if ($action === 'update_session_timeout') {
@@ -455,20 +478,44 @@ $pageTitle = 'Account Settings';
 
             <div class="section">
                 <h2 class="section-title"><i class="fas fa-bell"></i> Notification Preferences</h2>
+                <?php if (!$smsGatewayConfigured): ?>
+                    <div class="alert alert-error" style="margin-bottom:16px;">
+                        SMS is not available yet. Ask the clinic to finish setting up the SMS gateway.
+                    </div>
+                <?php endif; ?>
+                <p style="color:#6b7280;font-size:14px;margin-bottom:16px;">
+                    Choose how the clinic reaches you. SMS messages cover appointment approvals, cancellations,
+                    and reminders. Turning SMS off only stops these texts &mdash; you will still see notifications
+                    here in the portal, and security codes for changing your phone number are always sent.
+                </p>
                 <form method="POST" action="">
                     <input type="hidden" name="action" value="update_notifications">
                     <div class="checkbox-group">
-                        <input type="checkbox" id="email_notifications" name="email_notifications" class="checkbox-input" <?php echo ($user['email_notifications'] ?? 1) ? 'checked' : ''; ?>>
+                        <input type="checkbox" id="email_notifications" name="email_notifications" class="checkbox-input" <?php echo ((int)($user['email_notifications'] ?? 1) === 1) ? 'checked' : ''; ?>>
                         <label for="email_notifications" class="checkbox-label">Email Notifications</label>
                     </div>
                     <div class="checkbox-group">
-                        <input type="checkbox" id="sms_notifications" name="sms_notifications" class="checkbox-input" <?php echo ($user['sms_notifications'] ?? 0) ? 'checked' : ''; ?>>
-                        <label for="sms_notifications" class="checkbox-label">SMS Notifications</label>
+                        <input type="checkbox" id="sms_notifications" name="sms_notifications" class="checkbox-input" <?php echo ((int)($user['sms_notifications'] ?? 1) === 1) ? 'checked' : ''; ?> <?php echo $smsPreferencesAvailable ? '' : 'disabled'; ?>>
+                        <label for="sms_notifications" class="checkbox-label">
+                            SMS Notifications
+                            <span style="color:#6b7280;font-weight:400;">
+                                (<?php echo $smsPreferencesAvailable ? 'texts to ' . htmlspecialchars($user['phone'] ?? 'your phone on file') : 'unavailable'; ?>)
+                            </span>
+                        </label>
                     </div>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary" <?php echo $smsPreferencesAvailable ? '' : 'disabled'; ?>>
                         <i class="fas fa-save"></i> Save Preferences
                     </button>
                 </form>
+
+                <div style="margin-top:20px;padding-top:16px;border-top:1px solid #e5e7eb;">
+                    <div class="section-title" style="font-size:15px;margin-bottom:12px;"><i class="fas fa-comment-sms"></i> Test your SMS</div>
+                    <p style="color:#6b7280;font-size:14px;margin-bottom:12px;">Send yourself a test text to confirm texts are reaching this number.</p>
+                    <button type="button" class="btn btn-secondary" id="smsTestBtn" <?php echo $smsGatewayConfigured ? '' : 'disabled'; ?>>
+                        <i class="fas fa-paper-plane"></i> Send me a test SMS
+                    </button>
+                    <div id="smsTestResult" style="margin-top:12px;font-size:14px;display:none;"></div>
+                </div>
             </div>
 
             <div class="section">
@@ -628,6 +675,44 @@ $pageTitle = 'Account Settings';
                 alertEl.style.opacity = '0';
                 setTimeout(function() { alertEl.remove(); }, 300);
             }, 2500);
+        })();
+    </script>
+    <script>
+        (function() {
+            var btn = document.getElementById('smsTestBtn');
+            var out = document.getElementById('smsTestResult');
+            if (!btn || !out) return;
+
+            btn.addEventListener('click', function() {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+                out.style.display = 'block';
+                out.className = '';
+                out.style.color = '#6b7280';
+                out.textContent = 'Sending a test message...';
+
+                var body = new URLSearchParams();
+                body.append('action', 'send_test_sms');
+
+                fetch('sms_actions.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+                    body: body.toString()
+                })
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    out.style.color = data.success ? '#065f46' : '#991b1b';
+                    out.textContent = data.message || (data.success ? 'Test SMS sent.' : 'Unable to send the test SMS.');
+                })
+                .catch(function() {
+                    out.style.color = '#991b1b';
+                    out.textContent = 'Connection error. Please try again.';
+                })
+                .finally(function() {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send me a test SMS';
+                });
+            });
         })();
     </script>
     <script>

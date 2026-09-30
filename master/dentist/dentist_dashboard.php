@@ -1389,6 +1389,7 @@ document.addEventListener('keydown', function(e) {
 
 // Queue auto-polling for dashboard (counts + queue list)
 var ddQueueHash = '';
+var ddQueuePollInFlight = false;
 var dentistProcedureTimer = null;
 var dentistProcedureStartedAt = null;
 
@@ -1417,8 +1418,18 @@ function setDentistProcedureTimer(startValue) {
 }
 
 function pollDashboardQueue() {
-    fetch('../shared/queue_poll.php')
-        .then(function(r) { return r.json(); })
+    if (ddQueuePollInFlight || document.visibilityState !== 'visible') return;
+
+    ddQueuePollInFlight = true;
+    fetch('../shared/queue_poll.php', {
+        cache: 'no-store',
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+        .then(function(r) {
+            if (!r.ok) throw new Error('Dashboard queue poll failed');
+            return r.json();
+        })
         .then(function(data) {
             if (!data.success) return;
             if (data.hash !== ddQueueHash) {
@@ -1426,7 +1437,8 @@ function pollDashboardQueue() {
                 refreshDashboardQueue(data);
             }
         })
-        .catch(function(e) { console.error('Dashboard queue poll error:', e); });
+        .catch(function(e) { console.error('Dashboard queue poll error:', e); })
+        .then(function() { ddQueuePollInFlight = false; });
 }
 
 function refreshDashboardQueue(data) {

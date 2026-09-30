@@ -54,7 +54,12 @@ try {
         LEFT JOIN patients p ON CAST(q.patient_id AS UNSIGNED) = p.id
                 {$staffDoctorJoin}
         WHERE q.status IN ('waiting', 'in_procedure', 'completed', 'cancelled', 'on_hold') AND q.is_archived = 0
-                    AND {$staffQueueDateFilter}
+                    -- A patient remains visible until their active queue entry is resolved.
+                    -- Only completed/cancelled history is limited to the current day.
+                    AND (
+                        q.status IN ('waiting', 'in_procedure', 'on_hold')
+                        OR {$staffQueueDateFilter}
+                    )
     ");
     $allStmt->execute([$today]);
     $allQueueItems = $allStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -2186,11 +2191,23 @@ function getQueueTeethDisplayText(teethString) {
 var previousQueueHash = '';
 var POLL_INTERVAL_MS = 8000;
 var ITEMS_PER_PAGE = 7;
+var queuePollInFlight = false;
 
 function startQueuePolling() {
-    setInterval(function() {
-        fetch('../shared/queue_poll.php')
-            .then(function(r) { return r.json(); })
+    function pollQueue() {
+        // Do not let a slow response overwrite the table after a newer one.
+        if (queuePollInFlight || document.visibilityState !== 'visible') return;
+
+        queuePollInFlight = true;
+        fetch('../shared/queue_poll.php', {
+            cache: 'no-store',
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(function(r) {
+                if (!r.ok) throw new Error('Queue poll failed');
+                return r.json();
+            })
             .then(function(data) {
                 if (!data.success) return;
                 var modal = document.getElementById('queuePatientModal');
@@ -2200,8 +2217,11 @@ function startQueuePolling() {
                     refreshQueueTable(data);
                 }
             })
-            .catch(function(e) { console.error('Queue poll error:', e); });
-    }, POLL_INTERVAL_MS);
+            .catch(function(e) { console.error('Queue poll error:', e); })
+            .then(function() { queuePollInFlight = false; });
+    }
+
+    setInterval(pollQueue, POLL_INTERVAL_MS);
 }
 
 function refreshQueueTable(data) {

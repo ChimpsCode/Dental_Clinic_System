@@ -221,7 +221,18 @@ if ($action === 'verify_otp') {
 
         try {
             require_once __DIR__ . '/../../includes/sms_functions.php';
-            sendRegistrationWelcomeSMS($phone, $first_name);
+            // ignorePreference: the account is brand new so there is no saved
+            // preference yet, and a welcome text confirms the number works.
+            sendPatientSmsTracked(
+                $pdo,
+                (int)$patient_id,
+                buildRegistrationWelcomeSms($first_name),
+                'registration_welcome',
+                null,
+                true,
+                true,
+                $phone
+            );
         } catch (\Throwable $e) {
             error_log("Welcome SMS skipped (non-blocking): " . $e->getMessage());
         }

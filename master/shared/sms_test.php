@@ -5,37 +5,114 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
+// Admin only. This page can send SMS to an arbitrary number, so it is a
+// paid relay: previously any staff, dentist or admin account could post to it.
 $role = $_SESSION['role'] ?? '';
-if (!in_array($role, ['staff', 'admin', 'dentist'], true)) {
+if ($role !== 'admin') {
     http_response_code(403);
     echo 'Unauthorized';
     exit();
 }
 
 require_once __DIR__ . '/../../includes/sms_functions.php';
+require_once __DIR__ . '/../../config/database.php';
+
+// Hard cap so this page cannot be used to burn through SMS credit.
+const SMS_TEST_MAX_PER_HOUR = 20;
+const SMS_TEST_WINDOW_SECONDS = 3600;
+
+function smsTestThrottleFile(): string
+{
+    return dirname(__DIR__, 2) . '/cache/rate_limit/sms_test_staff';
+}
+
+function smsTestSendsInWindow(): int
+{
+    $file = smsTestThrottleFile();
+    if (!is_file($file)) {
+        return 0;
+    }
+    $lines = @file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    if (!$lines) {
+        return 0;
+    }
+    $cutoff = time() - SMS_TEST_WINDOW_SECONDS;
+    return count(array_filter($lines, static fn($ts) => (int)$ts >= $cutoff));
+}
+
+function smsTestRecordSend(): void
+{
+    $file = smsTestThrottleFile();
+    $dir = dirname($file);
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0755, true);
+    }
+    $lines = @file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
+    $cutoff = time() - SMS_TEST_WINDOW_SECONDS;
+    $lines = array_values(array_filter($lines, static fn($ts) => (int)$ts >= $cutoff));
+    $lines[] = (string)time();
+    @file_put_contents($file, implode("\n", $lines) . "\n");
+}
 
 $recipients = defined('SMS_TEST_RECIPIENTS') ? (array)SMS_TEST_RECIPIENTS : [];
-$keyConfigured = defined('TEXTBEE_API_KEY') && TEXTBEE_API_KEY !== '' && TEXTBEE_API_KEY !== 'YOUR_TEXBEE_API_KEY';
-$deviceConfigured = defined('TEXTBEE_DEVICE_ID') && TEXTBEE_DEVICE_ID !== '' && TEXTBEE_DEVICE_ID !== 'YOUR_TEXBEE_DEVICE_ID';
+$keyConfigured = smsHasApiKey();
+$deviceConfigured = smsHasDeviceId();
+$rateLimitHit = smsTestSendsInWindow() >= SMS_TEST_MAX_PER_HOUR;
+$rateLimitRemaining = max(0, SMS_TEST_MAX_PER_HOUR - smsTestSendsInWindow());
 
 $results = [];
 $formNumber = '';
-if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+$notices = [];
+
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && !$rateLimitHit) {
     $formNumber = trim((string)($_POST['number'] ?? ''));
     if ($formNumber !== '') {
-        $results[$formNumber] = sendSMS($formNumber, 'RF Dental Clinic SMS test message.');
+        $result = sendSMS($formNumber, 'RF Dental Clinic SMS test message.');
+        $results[$formNumber] = $result;
+        logSms($pdo, [
+            'phone' => formatPhoneNumber($formNumber),
+            'message' => 'RF Dental Clinic SMS test message.',
+            'category' => 'staff_test',
+            'status' => !empty($result['success']) ? 'sent' : 'failed',
+            'provider_message_id' => $result['sms_id'] ?? null,
+            'error_message' => !empty($result['success']) ? null : ($result['error'] ?? 'Unknown'),
+            'requested_by' => (int)$_SESSION['user_id'],
+        ]);
+        smsTestRecordSend();
     }
 }
 
-if (isset($_GET['send']) && $_GET['send'] === '1') {
+if (isset($_GET['send']) && $_GET['send'] === '1' && !$rateLimitHit) {
     foreach ($recipients as $to) {
-        $results[$to] = sendSMS($to, 'RF Dental Clinic SMS test message.');
+        $result = sendSMS($to, 'RF Dental Clinic SMS test message.');
+        $results[$to] = $result;
+        logSms($pdo, [
+            'phone' => formatPhoneNumber($to),
+            'message' => 'RF Dental Clinic SMS test message.',
+            'category' => 'staff_test',
+            'status' => !empty($result['success']) ? 'sent' : 'failed',
+            'provider_message_id' => $result['sms_id'] ?? null,
+            'error_message' => !empty($result['success']) ? null : ($result['error'] ?? 'Unknown'),
+            'requested_by' => (int)$_SESSION['user_id'],
+        ]);
+        smsTestRecordSend();
     }
+}
+
+if ($rateLimitHit) {
+    $notices[] = 'Hourly test-SMS limit reached (' . SMS_TEST_MAX_PER_HOUR . ' per hour). Try again later.';
 }
 
 $connResult = null;
 if (isset($_GET['conn']) && $_GET['conn'] === '1') {
     $connResult = testTextBeeConnection();
+}
+
+$recentSms = [];
+try {
+    $recentSms = $pdo->query('SELECT phone, category, status, error_message, created_at FROM sms_log ORDER BY id DESC LIMIT 15')->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) {
+    // table may not exist yet on a fresh install
 }
 ?>
 <!DOCTYPE html>
@@ -51,11 +128,13 @@ if (isset($_GET['conn']) && $_GET['conn'] === '1') {
         .status { padding: 10px 12px; border-radius: 6px; margin: 10px 0; font-size: 14px; }
         .ok { background: #e6f4ea; color: #137333; }
         .warn { background: #fef7e0; color: #b06000; }
+        .bad { background: #fce8e6; color: #c5221f; }
         table { width: 100%; border-collapse: collapse; font-size: 14px; }
         th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
         code { background: #f1f3f4; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
         .btn { display: inline-block; background: #1a73e8; color: #fff; text-decoration: none; padding: 10px 16px; border-radius: 6px; font-size: 14px; border: none; cursor: pointer; }
         .btn:hover { background: #1765cc; }
+        .btn[disabled] { background: #9aa0a6; cursor: not-allowed; }
         input[type=text] { width: 100%; padding: 10px 12px; border: 1px solid #dadce0; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
         .muted { color: #5f6368; font-size: 13px; }
         pre { white-space: pre-wrap; margin: 0; }
@@ -65,11 +144,16 @@ if (isset($_GET['conn']) && $_GET['conn'] === '1') {
     <div class="card">
         <h1>SMS Test</h1>
 
+        <?php foreach ($notices as $notice): ?>
+            <div class="status bad"><?php echo htmlspecialchars($notice); ?></div>
+        <?php endforeach; ?>
+
         <form method="post" action="">
             <label for="sms-number"><strong>Send a test SMS to a phone number:</strong></label>
-            <input type="text" id="sms-number" name="number" value="<?php echo htmlspecialchars($formNumber); ?>" placeholder="e.g. 09171234567" required>
+            <input type="text" id="sms-number" name="number" value="<?php echo htmlspecialchars($formNumber); ?>" placeholder="e.g. 09171234567" <?php echo $rateLimitHit ? 'disabled' : ''; ?> required>
             <p class="muted">Enter any PH mobile number. Any format works: 09171234567, 9171234567, or 639171234567.</p>
-            <button type="submit" class="btn">Send test SMS</button>
+            <button type="submit" class="btn" <?php echo $rateLimitHit ? 'disabled' : ''; ?>>Send test SMS</button>
+            <p class="muted">Admin-only. <?php echo $rateLimitRemaining; ?> of <?php echo SMS_TEST_MAX_PER_HOUR; ?> test messages left this hour.</p>
         </form>
 
         <div class="status <?php echo $keyConfigured ? 'ok' : 'warn'; ?>">
@@ -137,5 +221,28 @@ if (isset($_GET['conn']) && $_GET['conn'] === '1') {
             <p class="muted">Full details are also written to <code>C:\xampp\apache\logs\error.log</code>.</p>
         </div>
     <?php endif; ?>
+
+    <div class="card">
+        <h2>Recent SMS activity</h2>
+        <p class="muted">Every outbound text is recorded so a missing message can be traced without reading the server logs.</p>
+        <?php if (!$recentSms): ?>
+            <p class="muted">Nothing recorded yet.</p>
+        <?php else: ?>
+            <table>
+                <tr><th>When</th><th>Number</th><th>Category</th><th>Status</th><th>Detail</th></tr>
+                <?php foreach ($recentSms as $row): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars((string)$row['created_at']); ?></td>
+                        <td><code><?php echo htmlspecialchars((string)$row['phone']); ?></code></td>
+                        <td><?php echo htmlspecialchars((string)$row['category']); ?></td>
+                        <td style="color:<?php echo $row['status'] === 'sent' ? '#137333' : ($row['status'] === 'skipped' ? '#b06000' : '#c5221f'); ?>;">
+                            <?php echo htmlspecialchars((string)$row['status']); ?>
+                        </td>
+                        <td class="muted"><?php echo htmlspecialchars((string)($row['error_message'] ?? '')); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </table>
+        <?php endif; ?>
+    </div>
 </body>
 </html>

@@ -2,7 +2,7 @@
 require_once __DIR__ . '/../../includes/session_bootstrap.php';
 
 $isLoginPost = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
-$explicitLogin = isset($_GET['form']) || isset($_GET['expired']) || isset($_GET['deleted']);
+$explicitLogin = isset($_GET['form']) || isset($_GET['expired']) || isset($_GET['deleted']) || isset($_GET['archived']);
 $inAuthFlow = !empty($_SESSION['2fa_user_id'])
     || !empty($_SESSION['2fa_user_data'])
     || !empty($_SESSION['reset_user_id'])
@@ -905,6 +905,7 @@ if ($role === 'dentist') {
 }
 
 $showDeletedMsg = isset($_GET['deleted']) && $_GET['deleted'] === '1';
+$showArchivedMsg = isset($_GET['archived']) && $_GET['archived'] === '1';
 $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
 ?>
 <!DOCTYPE html>
@@ -919,10 +920,13 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
     <style>
         #registrationContainer {
             position: relative;
-            max-height: calc(100vh - 24px);
-            overflow: hidden;
-            padding-top: 12px;
-            padding-bottom: 10px;
+            max-height: calc(100dvh - 24px);
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-top: 6px;
+            padding-bottom: 6px;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
         }
         #registrationContainer .logo {
             width: 72px;
@@ -1482,10 +1486,21 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
     
     <script src="../../assets/js/login.js?v=5"></script>
     
-    <?php if ($showDeletedMsg): ?>
+    <?php if ($showDeletedMsg || $showArchivedMsg): ?>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            window.showToast('Account Deactivated', 'Your account has been deactivated. If you believe this was a mistake, please contact the clinic.', 'success');
+            var deleted = <?php echo $showDeletedMsg ? 'true' : 'false'; ?>;
+            var title = deleted ? 'Account Deleted' : 'Account Deactivated';
+            var message = deleted
+                ? 'Your account has been deleted by the clinic, so you have been signed out.'
+                : 'Your account has been deactivated by the clinic, so you have been signed out.';
+            if (typeof window.showAppNotice === 'function') {
+                window.showAppNotice(title, message + '\n\nIf you believe this is a mistake, please contact the clinic.', 'error');
+            } else {
+                window.setTimeout(function() {
+                    window.alert(title + '\n\n' + message);
+                }, 100);
+            }
         });
     </script>
     <?php endif; ?>

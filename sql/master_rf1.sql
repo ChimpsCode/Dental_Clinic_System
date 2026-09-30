@@ -102,12 +102,34 @@ CREATE TABLE IF NOT EXISTS `users` (
   `username` varchar(50) NOT NULL,
   `password` varchar(255) NOT NULL,
   `status` enum('Active','Inactive') DEFAULT 'Active',
+  `sms_notifications` tinyint(1) NOT NULL DEFAULT '1',
+  `email_notifications` tinyint(1) NOT NULL DEFAULT '1',
   `last_active` timestamp NULL DEFAULT NULL,
   `last_logout` datetime DEFAULT NULL,
   `is_logged_in` tinyint(1) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Audit trail for outbound SMS. Written by logSms() in includes/sms_functions.php.
+CREATE TABLE IF NOT EXISTS `sms_log` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `phone` varchar(30) DEFAULT NULL,
+  `message` text,
+  `category` varchar(50) DEFAULT NULL,
+  `status` enum('sent','failed','skipped') NOT NULL DEFAULT 'failed',
+  `provider_message_id` varchar(100) DEFAULT NULL,
+  `error_message` text,
+  `patient_id` int(11) DEFAULT NULL,
+  `appointment_id` int(11) DEFAULT NULL,
+  `requested_by` int(11) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_sms_log_phone` (`phone`),
+  KEY `idx_sms_log_created` (`created_at`),
+  KEY `idx_sms_log_category` (`category`),
+  KEY `idx_sms_log_appointment` (`appointment_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --- 2. SUPPORTING TABLES ---
@@ -293,6 +315,9 @@ CREATE TABLE IF NOT EXISTS `settings` (
   `setting_value` text DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Clinic-wide SMS kill switch. When set to 0 no patient-facing SMS is sent.
+INSERT IGNORE INTO `settings` (`setting_key`, `setting_value`) VALUES ('sms_enabled', '1');
 
 CREATE TABLE IF NOT EXISTS `teeth` (
   `id` int(11) NOT NULL AUTO_INCREMENT,

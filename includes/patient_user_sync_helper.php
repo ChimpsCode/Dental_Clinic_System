@@ -199,6 +199,25 @@ if (!function_exists('syncUserToPatient')) {
     }
 }
 
+if (!function_exists('pusync_bumpAuthVersion')) {
+    /**
+     * Invalidate every open session for a user account.
+     *
+     * session_bootstrap compares users.auth_version against the value stored
+     * in $_SESSION on each request, so bumping it logs the account out
+     * everywhere at once. Used whenever an account is archived, restored or
+     * permanently deleted.
+     */
+    function pusync_bumpAuthVersion(PDO $pdo, int $userId): void
+    {
+        if ($userId <= 0 || !pusync_tableColumn($pdo, 'users', 'auth_version')) {
+            return;
+        }
+        $pdo->prepare('UPDATE users SET auth_version = auth_version + 1 WHERE id = ? LIMIT 1')
+            ->execute([$userId]);
+    }
+}
+
 if (!function_exists('archivePatientWithUser')) {
     /**
      * Archive or restore a patient TOGETHER with its linked user account
@@ -220,12 +239,21 @@ if (!function_exists('archivePatientWithUser')) {
                 ? ($hasArchivedAt ? "is_archived = 1, archived_at = NOW()" : "is_archived = 1")
                 : ($hasArchivedAt ? "is_archived = 0, archived_at = NULL" : "is_archived = 0");
             $pdo->prepare("UPDATE users SET $userSet WHERE patient_id = ?")->execute([$patientId]);
+            // Kick out any session the patient still has open in another tab.
+            $linkStmt = $pdo->prepare("SELECT id FROM users WHERE patient_id = ? ORDER BY id ASC");
+            $linkStmt->execute([$patientId]);
+            foreach ($linkStmt->fetchAll(PDO::FETCH_COLUMN) as $linkedUserId) {
+                pusync_bumpAuthVersion($pdo, (int)$linkedUserId);
+            }
         } elseif (pusync_tableColumn($pdo, 'patients', 'user_id')) {
             $hasArchivedAt = pusync_tableColumn($pdo, 'users', 'archived_at');
             $userSet = $archived
                 ? ($hasArchivedAt ? "is_archived = 1, archived_at = NOW()" : "is_archived = 1")
                 : ($hasArchivedAt ? "is_archived = 0, archived_at = NULL" : "is_archived = 0");
             $pdo->prepare("UPDATE users SET $userSet WHERE id = (SELECT user_id FROM patients WHERE id = ? LIMIT 1)")->execute([$patientId]);
+            $linkedUserId = $pdo->prepare("SELECT user_id FROM patients WHERE id = ? LIMIT 1");
+            $linkedUserId->execute([$patientId]);
+            pusync_bumpAuthVersion($pdo, (int)$linkedUserId->fetchColumn());
         }
     }
 }
@@ -242,6 +270,7 @@ if (!function_exists('archiveUserWithPatient')) {
             ? ($hasArchivedAt ? "is_archived = 1, archived_at = NOW()" : "is_archived = 1")
             : ($hasArchivedAt ? "is_archived = 0, archived_at = NULL" : "is_archived = 0");
         $pdo->prepare("UPDATE users SET $userSet WHERE id = ?")->execute([$userId]);
+        pusync_bumpAuthVersion($pdo, $userId);
 
         $patientId = getLinkedPatientId($pdo, $userId);
         if ($patientId) {

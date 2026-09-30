@@ -54,9 +54,33 @@ $token = generateReplyToken();
 $tokenStmt = $pdo->prepare("UPDATE inquiries SET reply_token = ? WHERE id = ?");
 $tokenStmt->execute([$token, $inquiryId]);
 
-$baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'];
-$projectBase = rtrim(dirname(dirname(dirname($_SERVER['SCRIPT_NAME']))), '/');
-$conversationLink = $baseUrl . $projectBase . '/inquiry/' . $token;
-sendInquiryConversationLinkEmail($email, $firstName, $conversationLink);
+$conversationLink = inquiryConversationUrl($token);
 
-echo json_encode(['success' => true, 'message' => 'Your message has been sent! We will reply to you via email.']);
+// Tell the clinic first: without this the inquiry only existed in the database
+// and staff never learned a new lead had arrived.
+$inquiryRow = $pdo->prepare("
+    SELECT id, first_name, middle_name, last_name, email, phone, concern, source, status, created_at, reply_token
+    FROM inquiries WHERE id = ? LIMIT 1
+");
+$inquiryRow->execute([$inquiryId]);
+$inquiryData = $inquiryRow->fetch(PDO::FETCH_ASSOC) ?: [];
+
+$clinicNotified = sendNewInquiryStaffNotificationEmail($pdo, $inquiryData);
+
+try {
+    require_once '../../includes/notification_functions.php';
+    ensureNotificationSchema($pdo);
+    notifyNewInquiry($pdo, trim($firstName . ' ' . $lastName) ?: 'A website visitor', 'Website');
+} catch (Throwable $e) {
+    error_log('public_contact: in-app inquiry notification failed: ' . $e->getMessage());
+}
+
+$guestEmailed = sendInquiryConversationLinkEmail($email, $firstName, $conversationLink, $pdo);
+
+echo json_encode([
+    'success' => true,
+    'message' => 'Your message has been sent! We will reply to you via email.',
+    'link' => $conversationLink,
+    'email_sent' => $guestEmailed,
+    'clinic_notified' => $clinicNotified,
+]);

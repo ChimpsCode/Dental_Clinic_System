@@ -138,41 +138,74 @@ try {
             session_write_close();
         }
 
-        // Send confirmation SMS (non-blocking)
+        // Send confirmation SMS. Gated on the patient's Notification
+        // Preferences (Account settings -> SMS Notifications) and recorded in
+        // sms_log so a silent failure is visible instead of invisible.
         $smsError = null;
-        if ($patientPhone) {
+        $smsNotified = false;
+        $patientId = (int)($appointment['patient_id'] ?? 0);
+        if ($patientId > 0) {
             try {
-                $smsResult = sendAppointmentConfirmationSMS(
-                    $patientPhone,
-                    $patientName,
-                    $appointment['appointment_date'],
-                    $appointment['appointment_time'],
-                    $appointment['service_name'] ?? ($appointment['treatment'] ?? 'General Checkup'),
-                    $isNewPatient,
-                    true
+                $smsNotified = sendPatientSmsTracked(
+                    $pdo,
+                    $patientId,
+                    buildAppointmentApprovalSms(
+                        $patientName,
+                        (string)($appointment['appointment_date'] ?? ''),
+                        (string)($appointment['appointment_time'] ?? ''),
+                        (string)($appointment['service_name'] ?? ($appointment['treatment'] ?? 'General Checkup')),
+                        $isNewPatient
+                    ),
+                    'appointment_approved',
+                    $appointment_id,
+                    false,
+                    true,
+                    $patientPhone ? (string)$patientPhone : null
                 );
-                if (!$smsResult['success']) {
-                    $smsError = $smsResult['error'] ?? 'Unknown SMS error';
-                    error_log("Approve SMS failed for appointment $appointment_id: $smsError");
+                if (!$smsNotified) {
+                    $smsError = describeSmsSkipReason($pdo, $patientId);
+                    error_log("Approve SMS not sent for appointment $appointment_id: $smsError");
                 }
-            } catch (Error $e) {
+            } catch (Throwable $e) {
                 $smsError = $e->getMessage();
                 error_log("Approve SMS error for appointment $appointment_id: $smsError");
             }
+        } else {
+            $smsError = 'the appointment has no patient record';
         }
 
         $message = 'Appointment approved and added to the calendar.';
         if ($smsError) {
-            $message .= ' The patient could not be notified by SMS.';
+            $message .= ' The patient could not be notified by SMS because ' . $smsError . '.';
         }
 
-        if (!empty($appointment['patient_id'])) {
+        if ($patientId > 0) {
             $svcName = $appointment['service_name'] ?? ($appointment['treatment'] ?? 'General Checkup');
-            notifyPatientAppointmentApproved($pdo, (int)$appointment['patient_id'], $appointment['appointment_date'], $appointment['appointment_time'], $svcName);
-            notifyPatientFollowUpReminder($pdo, (int)$appointment['patient_id'], $appointment['appointment_date'], $appointment['appointment_time'], $svcName);
+            notifyPatientAppointmentApproved($pdo, $patientId, $appointment['appointment_date'], $appointment['appointment_time'], $svcName);
+            notifyPatientFollowUpReminder($pdo, $patientId, $appointment['appointment_date'], $appointment['appointment_time'], $svcName);
         }
 
-        echo json_encode(['success' => true, 'message' => $message]);
+        // Now that it is actually on the calendar, tell the clinic it is booked
+        try {
+            $apptDateLabel = !empty($appointment['appointment_date'])
+                ? date('F j, Y', strtotime($appointment['appointment_date']))
+                : 'an upcoming date';
+            $apptTimeLabel = !empty($appointment['appointment_time'])
+                ? date('g:i A', strtotime($appointment['appointment_time']))
+                : null;
+            notifyNewAppointment(
+                $pdo,
+                $patientName,
+                $apptDateLabel,
+                null,
+                $apptTimeLabel,
+                $appointment['service_name'] ?? ($appointment['treatment'] ?? null)
+            );
+        } catch (Exception $clinicNotifErr) {
+            error_log("Approve clinic notification error for appointment $appointment_id: " . $clinicNotifErr->getMessage());
+        }
+
+        echo json_encode(['success' => true, 'message' => $message, 'sms_sent' => $smsNotified]);
     } else {
         $reason = $decline_reason !== '' ? $decline_reason : 'Declined by clinic staff';
 
@@ -200,25 +233,45 @@ try {
             session_write_close();
         }
 
-        // Send cancellation SMS (non-blocking)
-        if ($patientPhone) {
+        // Send cancellation SMS. Same preference gate and audit trail as approve.
+        $smsError = null;
+        $smsNotified = false;
+        $patientId = (int)($appointment['patient_id'] ?? 0);
+        if ($patientId > 0) {
             try {
-                $smsResult = sendAppointmentCancellationSMS($patientPhone, $patientName, $appointment['appointment_date'], $reason, true);
-                if (!$smsResult['success']) {
-                    error_log("Decline SMS failed for appointment $appointment_id: " . ($smsResult['error'] ?? 'Unknown'));
+                $smsNotified = sendPatientSmsTracked(
+                    $pdo,
+                    $patientId,
+                    buildAppointmentDeclineSms($patientName, (string)($appointment['appointment_date'] ?? ''), $reason),
+                    'appointment_declined',
+                    $appointment_id,
+                    false,
+                    true,
+                    $patientPhone ? (string)$patientPhone : null
+                );
+                if (!$smsNotified) {
+                    $smsError = describeSmsSkipReason($pdo, $patientId);
+                    error_log("Decline SMS not sent for appointment $appointment_id: $smsError");
                 }
-            } catch (Error $e) {
-                error_log("Decline SMS error for appointment $appointment_id: " . $e->getMessage());
+            } catch (Throwable $e) {
+                $smsError = $e->getMessage();
+                error_log("Decline SMS error for appointment $appointment_id: $smsError");
             }
+        }
+
+        $declineMessage = 'Appointment request declined and cancelled.';
+        if ($smsError) {
+            $declineMessage .= ' The patient could not be notified by SMS because ' . $smsError . '.';
         }
 
         echo json_encode([
             'success' => true,
-            'message' => 'Appointment request declined and cancelled.'
+            'message' => $declineMessage,
+            'sms_sent' => $smsNotified,
         ]);
 
-        if (!empty($appointment['patient_id'])) {
-            notifyPatientAppointmentDeclined($pdo, (int)$appointment['patient_id'], $appointment['appointment_date'], $reason);
+        if ($patientId > 0) {
+            notifyPatientAppointmentDeclined($pdo, $patientId, $appointment['appointment_date'], $reason);
         }
     }
 

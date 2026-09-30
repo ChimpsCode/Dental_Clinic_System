@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/session_bootstrap.php';
-if (!empty($GLOBALS['APP_SESSION_EXPIRED'])) {
-    header('Location: ../../master/welcome-page/login.php?expired=1');
+if (!empty($GLOBALS['APP_SESSION_EXPIRED']) || ($GLOBALS['APP_ACCOUNT_REMOVED'] ?? '') !== '') {
+    header('Location: ' . app_session_login_url());
     exit();
 }
 if (!isset($_SESSION['user_id'])) {

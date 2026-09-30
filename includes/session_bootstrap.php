@@ -27,6 +27,71 @@
  * redirect to the login screen with ?expired=1.
  */
 
+// Defaults, declared before the early return below so pages always see them.
+$GLOBALS['APP_SESSION_EXPIRED'] = false;
+$GLOBALS['APP_ACCOUNT_REMOVED'] = ''; // '' | 'deleted' | 'archived'
+
+// Helpers are declared BEFORE the early-return below: this file can return
+// immediately when the session is already active, and pages depend on these
+// being available on every include.
+if (!function_exists('app_session_login_url')) {
+    /**
+     * Login URL carrying the reason the session ended, so login.php can show
+     * the matching notice:
+     *   ?deleted=1    admin removed the account entirely
+     *   ?archived=1   admin archived/deactivated the account
+     *   ?expired=1    inactivity timeout
+     */
+    function app_session_login_url(string $base = '../../master/welcome-page/login.php'): string
+    {
+        if (($GLOBALS['APP_ACCOUNT_REMOVED'] ?? '') === 'deleted') {
+            return $base . '?deleted=1';
+        }
+        if (($GLOBALS['APP_ACCOUNT_REMOVED'] ?? '') === 'archived') {
+            return $base . '?archived=1';
+        }
+        if (!empty($GLOBALS['APP_SESSION_EXPIRED'])) {
+            return $base . '?expired=1';
+        }
+        return $base;
+    }
+}
+
+if (!function_exists('app_session_revoked_response')) {
+    /**
+     * JSON payload for endpoints that must tell a browser to stop and bounce
+     * to the login screen. Returns null while the session is still valid so
+     * callers can `if ($revoked = app_session_revoked_response()) { ... }`.
+     */
+    function app_session_revoked_response(): ?array
+    {
+        $removed = (string)($GLOBALS['APP_ACCOUNT_REMOVED'] ?? '');
+        $expired = !empty($GLOBALS['APP_SESSION_EXPIRED']);
+        if ($removed === '' && !$expired && !empty($_SESSION['user_id'])) {
+            return null;
+        }
+
+        if ($removed !== '') {
+            return [
+                'success' => false,
+                'account_removed' => true,
+                'reason' => $removed,
+                'message' => $removed === 'deleted'
+                    ? 'Your account has been deleted by the clinic.'
+                    : 'Your account has been deactivated by the clinic.',
+                'redirect' => app_session_login_url('../../master/welcome-page/login.php'),
+            ];
+        }
+
+        return [
+            'success' => false,
+            'session_expired' => true,
+            'message' => 'Your session has ended. Please sign in again.',
+            'redirect' => app_session_login_url('../../master/welcome-page/login.php'),
+        ];
+    }
+}
+
 // Already running (e.g. captcha_lib included after a page started the session)
 if (session_status() === PHP_SESSION_ACTIVE) {
     return;
@@ -99,23 +164,50 @@ if (!headers_sent()) {
 }
 
 // ---- 5. Sliding inactivity window (server-side) ----
-$GLOBALS['APP_SESSION_EXPIRED'] = false;
 $now = time();
 $inactivityEnabled = true;
 
+// Revalidate the account behind this session on every request (see the
+// APP_ACCOUNT_REMOVED default declared at the top of this file).
 if (!empty($_SESSION['user_id']) && isset($pdo) && $pdo instanceof PDO) {
     try {
-        $authStmt = $pdo->prepare('SELECT auth_version FROM users WHERE id = ? LIMIT 1');
+        $authStmt = $pdo->prepare('SELECT auth_version, is_archived FROM users WHERE id = ? LIMIT 1');
         $authStmt->execute([(int)$_SESSION['user_id']]);
-        $dbAuthVersion = $authStmt->fetchColumn();
-        if ($dbAuthVersion !== false && (int)$dbAuthVersion !== (int)($_SESSION['auth_version'] ?? 0)) {
+        $authRow = $authStmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($authRow === false) {
+            // The login row itself is gone (admin hard-deleted the account).
+            $GLOBALS['APP_ACCOUNT_REMOVED'] = 'deleted';
+        } elseif ((int)($authRow['is_archived'] ?? 0) === 1) {
+            $GLOBALS['APP_ACCOUNT_REMOVED'] = 'archived';
+        } elseif ((int)($authRow['auth_version'] ?? 0) !== (int)($_SESSION['auth_version'] ?? 0)) {
             $GLOBALS['APP_SESSION_EXPIRED'] = true;
+        }
+
+        // A patient session must also still have a live patient record. The
+        // clinical row can be archived/removed independently of the login row.
+        if ($GLOBALS['APP_ACCOUNT_REMOVED'] === '' && ($_SESSION['role'] ?? '') === 'user') {
+            $sessionPatientId = (int)($_SESSION['patient_id'] ?? 0);
+            if ($sessionPatientId > 0) {
+                $patientStmt = $pdo->prepare('SELECT is_archived FROM patients WHERE id = ? LIMIT 1');
+                $patientStmt->execute([$sessionPatientId]);
+                $patientRow = $patientStmt->fetch(PDO::FETCH_ASSOC);
+                if ($patientRow === false) {
+                    $GLOBALS['APP_ACCOUNT_REMOVED'] = 'deleted';
+                } elseif ((int)($patientRow['is_archived'] ?? 0) === 1) {
+                    $GLOBALS['APP_ACCOUNT_REMOVED'] = 'archived';
+                }
+            }
+        }
+
+        if ($GLOBALS['APP_ACCOUNT_REMOVED'] !== '' || !empty($GLOBALS['APP_SESSION_EXPIRED'])) {
             $_SESSION = [];
             session_destroy();
-            session_start();
+            session_start(); // fresh anonymous session so pages/AJAX can still write $_SESSION
         }
     } catch (Throwable $e) {
         // auth_version is created on password save; skip until that column exists.
+        error_log('session_bootstrap: account revalidation skipped. ' . $e->getMessage());
     }
 }
 

@@ -1129,13 +1129,16 @@ body {
         min-width: 0;
         max-width: none;
         width: 100%;
+        max-height: 100dvh;
         background: transparent;
         display: flex;
         align-items: center;
         justify-content: flex-end;
         flex-direction: column;
-        padding: 72px 16px 12px;
+        padding: 48px 16px 6px;
         overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
     }
     
     .login-form-container {
@@ -1212,13 +1215,16 @@ body {
         bottom: 96px;
         z-index: 20 !important;
         height: auto;
+        max-height: 100dvh;
         background: transparent;
         display: flex;
         align-items: center;
         justify-content: flex-end;
         flex-direction: column;
-        padding: 72px 16px 12px;
+        padding: 56px 16px 8px;
         overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
     }
     
     .login-form-container {
@@ -1227,7 +1233,7 @@ body {
         width: 100%;
         max-width: 420px;
         margin: 0 auto;
-        padding: 22px 20px 14px;
+        padding: 16px 18px 10px;
     }
     
     .clinic-name {
@@ -1276,11 +1282,14 @@ body {
     }
     
     .form-section {
-        padding: 64px 14px 100px;
+        padding: 40px 12px 6px;
+        bottom: 80px;
+        max-height: 100dvh;
+        overflow-y: auto;
     }
     
     .login-form-container {
-        padding: 18px 16px 12px;
+        padding: 14px 14px 8px;
     }
     
     .clinic-name {

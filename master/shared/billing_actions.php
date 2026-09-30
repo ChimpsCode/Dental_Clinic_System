@@ -580,7 +580,7 @@ try {
                 logAudit($pdo, $current_user_id, $current_username, $current_role, 'create', 'payments', 'Created payment record: ₱' . number_format($amount, 2) . ' for patient: ' . $patient_name, $payment_id, 'payments', null, '₱' . number_format($amount, 2));
                 
                 if (!empty($patient_id)) {
-                    $notifResult = notifyPatientPaymentRecorded($pdo, (int)$patient_id, floatval($paymentAmount), $payment_method, $treatment ?: 'consultation', 0);
+                    $notifResult = notifyPatientPaymentRecorded($pdo, (int)$patient_id, floatval($paymentAmount), $payment_method, $treatment ?: 'consultation', 0, [(int)$billing_id]);
                     if ($notifResult === false) {
                         notifLog("billing_actions mark_paid: notifyPatientPaymentRecorded FAILED for patient_id={$patient_id}");
                     } else {
@@ -660,6 +660,7 @@ try {
                     $billing_id = 0;
                     $new_status = 'partial';
                     $recordedBalance = $totalDue;
+                    $paidBillIds = [];
 
                     foreach ($openBills as $openBill) {
                         if ($remaining <= 0.009) {
@@ -700,6 +701,7 @@ try {
                         $payStmt->execute([$targetId, $patient_id, $apply, $payment_method, $paymentDate, $reference_number, $current_user_id]);
                         $payment_id = $pdo->lastInsertId();
                         $billing_id = $targetId;
+                        $paidBillIds[] = $targetId;
                         $remaining = round($remaining - $apply, 2);
                         $recordedBalance = round($recordedBalance - $apply, 2);
                     }
@@ -718,7 +720,7 @@ try {
                             $tStmt->execute([(int)$queue_id]);
                             $treatmentType = $tStmt->fetchColumn() ?: 'consultation';
                         }
-                        $notifResult = notifyPatientPaymentRecorded($pdo, (int)$patient_id, floatval($amount), $payment_method, $treatmentType, max(0, $recordedBalance));
+                        $notifResult = notifyPatientPaymentRecorded($pdo, (int)$patient_id, floatval($amount), $payment_method, $treatmentType, max(0, $recordedBalance), $paidBillIds);
                         if ($notifResult === false) {
                             notifLog("billing_actions: notifyPatientPaymentRecorded FAILED for patient_id={$patient_id} user_id check needed");
                         } else {
@@ -824,7 +826,7 @@ try {
                     $pTotal = floatval($total_amount ?? 0);
                     $pPaid = floatval($new_paid ?? 0);
                     $recordedBalance = $pTotal > 0 ? max(0, $pTotal - $pPaid) : 0;
-                    $notifResult = notifyPatientPaymentRecorded($pdo, (int)$patient_id, floatval($amount), $payment_method, $treatmentType, $recordedBalance);
+                    $notifResult = notifyPatientPaymentRecorded($pdo, (int)$patient_id, floatval($amount), $payment_method, $treatmentType, $recordedBalance, [(int)$billing_id]);
                     if ($notifResult === false) {
                         notifLog("billing_actions: notifyPatientPaymentRecorded FAILED for patient_id={$patient_id} user_id check needed");
                     } else {
@@ -911,7 +913,7 @@ try {
             }
             
             // Get current billing record
-            $stmt = $pdo->prepare("SELECT total_amount, paid_amount, patient_id FROM billing WHERE id = ?");
+            $stmt = $pdo->prepare("SELECT * FROM billing WHERE id = ?");
             $stmt->execute([$billing_id]);
             $billing = $stmt->fetch();
             
@@ -928,6 +930,22 @@ try {
             // Entered amount is a pre-discount subtotal; discount auto-applies when eligible
             $disc = getPatientDiscount($pdo, (int)$billing['patient_id']);
             $totals = computeDiscountedTotals(floatval($new_amount), $disc);
+            // A manually applied discount takes precedence and is carried over to the new amount
+            $keepCustom = ($billing['discount_type'] ?? 'none') === 'custom';
+            if ($keepCustom) {
+                $disc['eligible'] = false;
+                $customSubtotal = round(floatval($new_amount), 2);
+                $customRate = floatval($billing['discount_rate'] ?? 0);
+                $customAmount = $customRate > 0
+                    ? round($customSubtotal * $customRate / 100, 2)
+                    : floatval($billing['discount_amount'] ?? 0);
+                $customAmount = min($customAmount, $customSubtotal);
+                $totals = [
+                    'subtotal'        => $customSubtotal,
+                    'discount_amount' => $customAmount,
+                    'total'           => round($customSubtotal - $customAmount, 2),
+                ];
+            }
             $payable = $totals['total'];
             $new_balance = max(0, $payable - $paid_amount);
             
@@ -943,6 +961,8 @@ try {
             if ($disc['eligible'] && in_array('discount_amount', $bcols)) { $bupdates[] = "discount_amount = ?"; $bparams[] = $totals['discount_amount']; }
             if ($disc['eligible'] && in_array('discount_id_no', $bcols)) { $bupdates[] = "discount_id_no = ?"; $bparams[] = $disc['id_no']; }
             if ($disc['eligible'] && in_array('discount_holder_name', $bcols)) { $bupdates[] = "discount_holder_name = ?"; $bparams[] = $disc['holder_name']; }
+            if ($keepCustom && in_array('subtotal_amount', $bcols)) { $bupdates[] = "subtotal_amount = ?"; $bparams[] = $totals['subtotal']; }
+            if ($keepCustom && in_array('discount_amount', $bcols)) { $bupdates[] = "discount_amount = ?"; $bparams[] = $totals['discount_amount']; }
             if (in_array('balance', $bcols)) { $bupdates[] = "balance = ?"; $bparams[] = $new_balance; }
             if (in_array('updated_at', $bcols)) { $bupdates[] = "updated_at = NOW()"; }
             // If new amount exceeds what was already paid, reset payment status to partial
@@ -1029,7 +1049,7 @@ try {
                     // Restore the pre-discount amount
                     $restored = floatval($bill['subtotal_amount'] ?: ($bill['total_amount'] + $bill['discount_amount']));
                     
-                    $stmt = $pdo->prepare("UPDATE billing SET total_amount = ?, subtotal_amount = NULL, discount_type = 'none', discount_rate = 0, discount_amount = 0, discount_id_no = NULL, discount_holder_name = NULL, balance = GREATEST(0, ? - ?), updated_at = NOW() WHERE id = ?");
+                    $stmt = $pdo->prepare("UPDATE billing SET total_amount = ?, subtotal_amount = NULL, discount_type = 'none', discount_rate = 0, discount_amount = 0, discount_id_no = NULL, discount_holder_name = NULL, discount_reason = NULL, balance = GREATEST(0, ? - ?), updated_at = NOW() WHERE id = ?");
                     $stmt->execute([$restored, $restored, $paid, $billing_id]);
                     
                     logDiscountAudit($pdo, 'discount', $billing_id, 'Removed discount from bill of ' . $patient_name . ' (restored ₱' . number_format($restored, 2) . ')');
@@ -1040,6 +1060,100 @@ try {
             } catch (Exception $e) {
                 throw $e;
             }
+            break;
+            
+        case 'apply_custom_discount':
+            // Manual / promotional / goodwill discount at the clinic's discretion
+            $input = json_decode(file_get_contents('php://input'), true);
+            $billing_id = intval($input['billing_id'] ?? 0);
+            $mode = ($input['mode'] ?? '') === 'fixed' ? 'fixed' : 'percent';
+            $value = round(floatval($input['value'] ?? 0), 2);
+            $reason = trim((string)($input['reason'] ?? ''));
+            
+            if (!$billing_id) {
+                $response['message'] = 'Billing ID is required';
+                break;
+            }
+            if ($reason === '') {
+                $response['message'] = 'Please enter a reason for the discount';
+                break;
+            }
+            if (mb_strlen($reason) > 255) {
+                $reason = mb_substr($reason, 0, 255);
+            }
+            if ($value <= 0) {
+                $response['message'] = 'Discount value must be greater than zero';
+                break;
+            }
+            if ($mode === 'percent' && $value > 100) {
+                $response['message'] = 'Discount percentage cannot exceed 100%';
+                break;
+            }
+            
+            ensureDiscountSchema($pdo);
+            
+            $stmt = $pdo->prepare("SELECT * FROM billing WHERE id = ?");
+            $stmt->execute([$billing_id]);
+            $bill = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$bill) {
+                $response['message'] = 'Billing record not found';
+                break;
+            }
+            
+            $status = strtolower($bill['payment_status'] ?? 'unpaid');
+            if ($status === 'paid') {
+                $response['message'] = 'Cannot modify a fully paid bill';
+                break;
+            }
+            if (in_array($status, ['cancelled', 'canceled', 'voided'], true)) {
+                $response['message'] = 'Cannot modify a voided bill';
+                break;
+            }
+            
+            // Replace any existing discount rather than stacking on top of it
+            if (($bill['discount_type'] ?? 'none') !== 'none') {
+                $subtotal = floatval($bill['subtotal_amount'] ?: ($bill['total_amount'] + $bill['discount_amount']));
+            } else {
+                $subtotal = floatval($bill['subtotal_amount'] ?: $bill['total_amount']);
+            }
+            $subtotal = round($subtotal, 2);
+            
+            if ($subtotal <= 0) {
+                $response['message'] = 'This bill has no amount to discount yet';
+                break;
+            }
+            if ($mode === 'fixed' && $value > $subtotal) {
+                $response['message'] = 'Discount cannot exceed the bill amount of ₱' . number_format($subtotal, 2);
+                break;
+            }
+            
+            $rate = $mode === 'percent' ? $value : 0.0;
+            $discountAmount = $mode === 'percent' ? round($subtotal * $value / 100, 2) : $value;
+            $discountAmount = min($discountAmount, $subtotal);
+            $newTotal = round($subtotal - $discountAmount, 2);
+            $paid = floatval($bill['paid_amount'] ?? 0);
+            $newBalance = max(0, round($newTotal - $paid, 2));
+            
+            $stmt = $pdo->prepare("UPDATE billing SET total_amount = ?, subtotal_amount = ?, discount_type = 'custom', discount_rate = ?, discount_amount = ?, discount_id_no = NULL, discount_holder_name = NULL, discount_reason = ?, balance = ?, updated_at = NOW() WHERE id = ?");
+            $stmt->execute([$newTotal, $subtotal, $rate, $discountAmount, $reason, $newBalance, $billing_id]);
+            
+            $patientId = (int)$bill['patient_id'];
+            $patient_name = getPatientName($pdo, $patientId);
+            $discLabel = $mode === 'percent' ? rtrim(rtrim(number_format($rate, 2), '0'), '.') . '%' : 'fixed';
+            logDiscountAudit($pdo, 'discount', $billing_id, 'Applied ' . $discLabel . ' discount (₱' . number_format($discountAmount, 2) . ') to bill of ' . $patient_name . ' - Reason: ' . $reason);
+            
+            try {
+                $notified = notifyPatientDiscountApplied($pdo, $patientId, $billing_id, $discountAmount, $mode === 'percent' ? $rate : null, $newTotal, $newBalance, $reason);
+                if (!$notified) {
+                    notifLog("billing_actions apply_custom_discount: patient notification not sent for patient_id={$patientId}");
+                }
+            } catch (Exception $e) {
+                notifLog("billing_actions apply_custom_discount: notification error " . $e->getMessage());
+            }
+            
+            $response['success'] = true;
+            $response['message'] = 'Discount of ₱' . number_format($discountAmount, 2) . ' applied. New total: ₱' . number_format($newTotal, 2);
             break;
             
         default:

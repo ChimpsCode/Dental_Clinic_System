@@ -132,6 +132,16 @@ function deliverAppointmentReminder(PDO $pdo, array $row, string $kind): void
                 $hoursBefore,
                 true
             );
+            logSms($pdo, [
+                'phone' => $contact['phone'],
+                'message' => buildAppointmentReminderSms($patientName, (string)($row['appointment_date'] ?? ''), (string)($row['appointment_time'] ?? ''), $serviceName, $hoursBefore),
+                'category' => 'appointment_reminder',
+                'status' => !empty($result['success']) ? 'sent' : 'failed',
+                'provider_message_id' => $result['sms_id'] ?? null,
+                'error_message' => !empty($result['success']) ? null : (string)($result['error'] ?? 'Unknown error'),
+                'patient_id' => $patientId,
+                'appointment_id' => $appointmentId,
+            ]);
             if (empty($result['success'])) {
                 $smsError = (string)($result['error'] ?? 'Unknown SMS error');
             }
@@ -162,6 +172,14 @@ function deliverAppointmentReminder(PDO $pdo, array $row, string $kind): void
     }
 }
 
+/**
+ * Resolve where to send a reminder and whether the patient wants SMS at all.
+ *
+ * This used to bail out with sms_enabled = false whenever the
+ * users.sms_notifications column was absent, which silently disabled every
+ * reminder in the system. It now reads the preference through the shared
+ * helper and only reports "off" when the patient genuinely opted out.
+ */
 function appointmentReminderContact(PDO $pdo, int $patientId, $patientPhone): array
 {
     $phone = trim((string)$patientPhone);
@@ -169,33 +187,22 @@ function appointmentReminderContact(PDO $pdo, int $patientId, $patientPhone): ar
         return ['phone' => $phone, 'sms_enabled' => false];
     }
 
-    $userId = getUserIdForPatient($pdo, $patientId);
-    if (!$userId) {
+    $resolved = patientSmsPhone($pdo, $patientId, $phone);
+    if ($resolved !== '') {
+        $phone = $resolved;
+    }
+
+    if (!smsIsConfigured() || !smsGloballyEnabled($pdo)) {
         return ['phone' => $phone, 'sms_enabled' => false];
     }
 
-    static $hasSmsColumn = null;
-    if ($hasSmsColumn === null) {
-        $hasSmsColumn = (bool)$pdo->query("SHOW COLUMNS FROM users LIKE 'sms_notifications'")->fetch(PDO::FETCH_ASSOC);
-    }
-    if (!$hasSmsColumn) {
-        return ['phone' => $phone, 'sms_enabled' => false];
-    }
-
-    $stmt = $pdo->prepare('SELECT sms_notifications, phone FROM users WHERE id = ? LIMIT 1');
-    $stmt->execute([$userId]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$user) {
-        return ['phone' => $phone, 'sms_enabled' => false];
-    }
-
-    if ($phone === '' && !empty($user['phone'])) {
-        $phone = trim((string)$user['phone']);
-    }
+    // null means "no preference row" (e.g. a patient with no login yet), which
+    // we treat as allowed; only an explicit 0 opts the patient out.
+    $preference = patientSmsPreference($pdo, $patientId);
 
     return [
         'phone' => $phone,
-        'sms_enabled' => (int)($user['sms_notifications'] ?? 0) === 1,
+        'sms_enabled' => $preference !== false && $phone !== '',
     ];
 }
 

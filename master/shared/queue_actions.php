@@ -48,8 +48,28 @@ try {
         return trim(($item['first_name'] ?? '') . ' ' . ($item['middle_name'] ?? '') . ' ' . ($item['last_name'] ?? '') . ' ' . ($item['suffix'] ?? ''));
     }
 
+    // The dentist who starts the procedure is recorded as the visit's doctor.
+    function recordStartingDentist(PDO $pdo, int $queueId, int $dentistId): string {
+        $pdo->prepare("UPDATE queue SET doctor_id = ? WHERE id = ?")->execute([$dentistId, $queueId]);
+
+        $stmt = $pdo->prepare("SELECT appointment_id FROM queue WHERE id = ?");
+        $stmt->execute([$queueId]);
+        $appointmentId = (int)($stmt->fetchColumn() ?: 0);
+        if ($appointmentId > 0) {
+            $pdo->prepare("UPDATE appointments SET dentist_id = ? WHERE id = ?")->execute([$dentistId, $appointmentId]);
+        }
+
+        $stmt = $pdo->prepare("SELECT TRIM(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, ''))) FROM users WHERE id = ?");
+        $stmt->execute([$dentistId]);
+        return (string)($stmt->fetchColumn() ?: '');
+    }
+
     switch ($action) {
         case 'call':
+            if ($role !== 'dentist') {
+                echo json_encode(['success' => false, 'message' => 'Only dentists can start a procedure.']);
+                break;
+            }
             $stmt = $pdo->prepare("SELECT q.*, COALESCE(p.first_name, 'Unknown') as first_name, COALESCE(p.middle_name, '') as middle_name, COALESCE(p.last_name, '') as last_name, COALESCE(p.suffix, '') as suffix, COALESCE(p.phone, '') as phone FROM queue q 
                                    LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED) WHERE q.id = ?");
             $stmt->execute([$queueId]);
@@ -58,8 +78,9 @@ try {
 
             $stmt = $pdo->prepare("UPDATE queue SET status = 'in_procedure', updated_at = NOW() WHERE id = ?");
             $stmt->execute([$queueId]);
+            $dentistName = recordStartingDentist($pdo, (int)$queueId, $user_id);
 
-            logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Called patient: ' . $patientName, $queueId, 'queue', 'waiting', 'in_procedure');
+            logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Called patient: ' . $patientName . ' (Dr. ' . $dentistName . ')', $queueId, 'queue', 'waiting', 'in_procedure');
 
             if (!empty($queueItem['patient_id'])) {
                 $queueNum = $queueItem['queue_number'] ?? $queueId;
@@ -75,6 +96,11 @@ try {
             break;
             
         case 'start_procedure':
+            if ($role !== 'dentist') {
+                echo json_encode(['success' => false, 'message' => 'Only dentists can start a procedure.']);
+                break;
+            }
+
             // Check if there's already a procedure in progress
             $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix 
                                    FROM queue q 
@@ -106,6 +132,7 @@ try {
                 echo json_encode(['success' => false, 'message' => 'Failed to start procedure']);
                 break;
             }
+            $dentistName = recordStartingDentist($pdo, (int)$queueId, $user_id);
             
             $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name, p.suffix FROM queue q 
                                    LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED) WHERE q.id = ?");
@@ -113,7 +140,7 @@ try {
             $queueItem = $stmt->fetch();
             $patientName = buildFullName($queueItem);
             
-            logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Started procedure for patient: ' . $patientName, $queueId, 'queue', $oldStatus, 'in_procedure');
+            logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Started procedure for patient: ' . $patientName . ' (Dr. ' . $dentistName . ')', $queueId, 'queue', $oldStatus, 'in_procedure');
 
             if (!empty($queueItem['patient_id'])) {
                 $queueNum = $queueItem['queue_number'] ?? $queueId;

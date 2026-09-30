@@ -5,9 +5,10 @@ require_once __DIR__ . '/../../includes/session_bootstrap.php';
 
 header('Content-Type: application/json');
 
-if (!empty($GLOBALS['APP_SESSION_EXPIRED']) || !isset($_SESSION['user_id'])) {
+$revoked = app_session_revoked_response();
+if ($revoked !== null || !isset($_SESSION['user_id'])) {
     ob_end_clean();
-    echo json_encode(['success' => false, 'message' => 'Not authenticated']);
+    echo json_encode($revoked ?? ['success' => false, 'message' => 'Not authenticated']);
     exit();
 }
 

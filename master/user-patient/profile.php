@@ -3,9 +3,9 @@ ob_start();
 
 require_once __DIR__ . '/../../includes/session_bootstrap.php';
 
-if (!empty($GLOBALS['APP_SESSION_EXPIRED'])) {
+if (!empty($GLOBALS['APP_SESSION_EXPIRED']) || ($GLOBALS['APP_ACCOUNT_REMOVED'] ?? '') !== '') {
     ob_end_clean();
-    header('Location: ../../master/welcome-page/login.php?expired=1');
+    header('Location: ' . app_session_login_url());
     exit();
 }
 
@@ -255,30 +255,19 @@ try {
             }
         } elseif ($action === 'verify_and_update') {
             $change_type = $_POST['change_type'] ?? '';
-            $otp_code = trim($_POST['otp_code'] ?? '');
 
-            if ($change_type !== 'address' && empty($otp_code)) {
-                throw new Exception('OTP verification is required to update your phone number.');
+            // Phone changes are NOT accepted here. The number that receives the
+            // patient's SMS must be proven first, which only phone_change_actions.php
+            // can do (it texts a one-time code to the new number). Accepting it from
+            // this form would let anyone repoint a patient's appointment texts.
+            if ($change_type === 'phone') {
+                throw new Exception('Please verify your new phone number with the code we text you.');
             }
-
-            // TODO: Validate against your generated OTP code here if needed.
-            // if ($change_type !== 'address' && $otp_code !== $_SESSION['active_otp']) {
-            //     throw new Exception('Invalid OTP code.');
-            // }
 
             $pdo->beginTransaction();
 
             try {
-                if ($change_type === 'phone') {
-                    $phone = trim($_POST['phone'] ?? '');
-                    $stmt = $pdo->prepare("UPDATE users SET phone = ? WHERE id = ?");
-                    $stmt->execute([$phone, $user_id]);
-                    if ($patient_id) {
-                        $stmt = $pdo->prepare("UPDATE patients SET phone = ? WHERE id = ?");
-                        $stmt->execute([$phone, $patient_id]);
-                    }
-                    $message = 'Phone number successfully updated.';
-                } elseif ($change_type === 'address') {
+                if ($change_type === 'address') {
                     $address = trim($_POST['address'] ?? '');
                     $stmt = $pdo->prepare("UPDATE patients SET street_address = ? WHERE id = ?");
                     $stmt->execute([$address, $patient_id]);
@@ -683,9 +672,10 @@ $pageTitle = 'My Profile';
             <div class="form-group">
                 <input type="text" id="contactEditorInput" class="form-input" placeholder="Enter value">
             </div>
+            <div id="contactEditorError" style="display:none;margin-bottom:14px;padding:10px 12px;border-radius:8px;background:#fee2e2;border:1px solid #fecaca;color:#991b1b;font-size:13px;"></div>
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
                 <button type="button" class="btn btn-secondary" id="cancelContactEditBtn">Cancel</button>
-                <button type="button" class="btn btn-primary" id="sendOtpBtn">Send OTP</button>
+                <button type="button" class="btn btn-primary" id="sendOtpBtn">Send verification code</button>
                 <button type="button" class="btn btn-primary" id="saveContactBtn" style="display:none;">Save</button>
             </div>
         </div>
@@ -798,11 +788,13 @@ $pageTitle = 'My Profile';
             <h3 id="modalTitle" style="margin-bottom: 12px; font-size: 18px; color: #1a1a2e;">Enter Verification OTP</h3>
             <p id="modalDesc" style="font-size: 13px; color: #6b7280; margin-bottom: 16px;">Please enter the verification code sent to update your details.</p>
             <div class="form-group">
-                <input type="text" id="otpInputBox" class="form-input" placeholder="Enter 6-digit OTP" maxlength="6">
+                <input type="text" id="otpInputBox" class="form-input" placeholder="Enter 6-digit OTP" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
             </div>
+            <div id="otpError" style="display:none;margin-bottom:14px;padding:10px 12px;border-radius:8px;background:#fee2e2;border:1px solid #fecaca;color:#991b1b;font-size:13px;"></div>
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
                 <button type="button" class="btn btn-secondary" id="cancelOtpBtn">Cancel</button>
-                <button type="button" class="btn btn-primary" id="verifyOtpBtn">Confirm & Save</button>
+                <button type="button" class="btn btn-primary" id="resendOtpBtn" style="display:none;">Resend code</button>
+                <button type="button" class="btn btn-primary" id="verifyOtpBtn">Confirm &amp; Save</button>
             </div>
         </div>
     </div>
@@ -816,12 +808,15 @@ $pageTitle = 'My Profile';
         const cancelContactEditBtn = document.getElementById('cancelContactEditBtn');
         const sendOtpBtn = document.getElementById('sendOtpBtn');
         const saveContactBtn = document.getElementById('saveContactBtn');
+        const contactEditorError = document.getElementById('contactEditorError');
         const otpModal = document.getElementById('otpModal');
         const modalTitle = document.getElementById('modalTitle');
         const modalDesc = document.getElementById('modalDesc');
         const cancelOtpBtn = document.getElementById('cancelOtpBtn');
         const verifyOtpBtn = document.getElementById('verifyOtpBtn');
+        const resendOtpBtn = document.getElementById('resendOtpBtn');
         const otpInputBox = document.getElementById('otpInputBox');
+        const otpError = document.getElementById('otpError');
         const hiddenOtpCode = document.getElementById('hiddenOtpCode');
         const changeTypeField = document.getElementById('changeTypeField');
         const phoneInput = document.getElementById('phoneInput');
@@ -833,11 +828,84 @@ $pageTitle = 'My Profile';
         const personalInfoEditActions = document.getElementById('personalInfoEditActions');
         const cancelPersonalInfoBtn = document.getElementById('cancelPersonalInfoBtn');
         const savePersonalInfoBtn = document.getElementById('savePersonalInfoBtn');
+
+        // Pending phone-change state, kept only for the duration of the modal.
+        let pendingPhone = null;
+
+        const OTP_RESEND_COOLDOWN_SECONDS = 120;
+        let resendTimer = null;
+        let resendCooldownEndsAt = 0;
+
+        function showOtpError(text) {
+            otpError.textContent = text;
+            otpError.style.display = 'block';
+        }
+
+        function clearOtpError() {
+            otpError.textContent = '';
+            otpError.style.display = 'none';
+        }
+
+        function stopResendCooldown() {
+            if (resendTimer) {
+                clearInterval(resendTimer);
+                resendTimer = null;
+            }
+            resendCooldownEndsAt = 0;
+            if (resendOtpBtn) {
+                resendOtpBtn.disabled = false;
+                resendOtpBtn.textContent = 'Resend code';
+            }
+        }
+
+        // Counts the two-minute gap down on the button so the patient sees why
+        // they cannot request another code yet. The server re-checks it anyway.
+        function startResendCooldown(seconds) {
+            if (!resendOtpBtn) return;
+            stopResendCooldown();
+            const total = Math.max(1, Math.ceil(Number(seconds) || OTP_RESEND_COOLDOWN_SECONDS));
+            let remaining = total;
+            resendCooldownEndsAt = Date.now() + (remaining * 1000);
+            resendOtpBtn.disabled = true;
+            resendOtpBtn.textContent = 'Resend code (' + remaining + 's)';
+            resendTimer = setInterval(function() {
+                remaining = Math.max(0, Math.ceil((resendCooldownEndsAt - Date.now()) / 1000));
+                if (remaining <= 0) {
+                    stopResendCooldown();
+                    return;
+                }
+                resendOtpBtn.textContent = 'Resend code (' + remaining + 's)';
+            }, 1000);
+        }
+
+        async function postPhoneChange(action, extra) {
+            const body = new URLSearchParams();
+            body.append('action', action);
+            body.append('phone', pendingPhone || '');
+            Object.keys(extra || {}).forEach(function(k) { body.append(k, extra[k]); });
+
+            const res = await fetch('phone_change_actions.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+                body: body.toString()
+            });
+            return res.json();
+        }
         const personalInfoFields = Array.from(document.querySelectorAll('.personal-info-field'));
         const personalInfoAction = profileUpdateForm ? profileUpdateForm.querySelector('input[name="action"]') : null;
         const personalInfoOriginalValues = personalInfoFields.map(function(field) { return field.value; });
 
         let currentEditType = null;
+
+        function showContactError(text) {
+            contactEditorError.textContent = text;
+            contactEditorError.style.display = 'block';
+        }
+
+        function clearContactError() {
+            contactEditorError.textContent = '';
+            contactEditorError.style.display = 'none';
+        }
 
         function setPersonalInfoEditing(isEditing) {
             personalInfoFields.forEach(function(field) {
@@ -871,6 +939,9 @@ $pageTitle = 'My Profile';
             contactEditorModal.style.display = 'none';
             contactEditorInput.value = '';
             currentEditType = null;
+            clearContactError();
+            sendOtpBtn.disabled = false;
+            sendOtpBtn.innerHTML = '<i class="fas fa-key"></i> Send verification code';
         };
 
         window.openContactEditor = function(type) {
@@ -900,11 +971,13 @@ $pageTitle = 'My Profile';
             }
 
             contactEditorInput.value = currentValue || '';
+            clearContactError();
             const requiresOtp = type === 'phone';
             sendOtpBtn.style.display = requiresOtp ? 'inline-flex' : 'none';
             saveContactBtn.textContent = type === 'address' ? 'Save Address' : 'Save';
             saveContactBtn.style.display = requiresOtp ? 'none' : 'inline-flex';
             contactEditorModal.style.display = 'flex';
+            contactEditorInput.focus();
         }
 
         document.querySelectorAll('.edit-contact-btn').forEach(function(button) {
@@ -915,36 +988,87 @@ $pageTitle = 'My Profile';
 
         cancelContactEditBtn.addEventListener('click', window.closeContactEditor);
 
-        sendOtpBtn.addEventListener('click', function() {
-            if (!currentEditType || currentEditType !== 'phone') return;
+        sendOtpBtn.addEventListener('click', async function() {
+            if (currentEditType !== 'phone') return;
             const newValue = contactEditorInput.value.trim();
 
             if (!newValue) {
-                alert('Please enter a value before continuing.');
+                showContactError('Please enter your new phone number.');
+                return;
+            }
+            clearContactError();
+            if (!/^\+?[0-9\s\-()]{7,15}$/.test(newValue)) {
+                showContactError('Please enter a valid phone number.');
                 return;
             }
 
-            if (!/^\+?[0-9\s\-()]{7,15}$/.test(newValue)) {
-                alert('Please enter a valid phone number.');
+            sendOtpBtn.disabled = true;
+            sendOtpBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+
+            pendingPhone = newValue;
+            let data;
+            try {
+                data = await postPhoneChange('send_otp', {});
+            } catch (err) {
+                data = { success: false, message: 'Connection error. Please try again.' };
+            }
+
+            sendOtpBtn.disabled = false;
+            sendOtpBtn.innerHTML = '<i class="fas fa-key"></i> Send verification code';
+
+            if (!data.success) {
+                showContactError(data.message || 'We could not send a verification code. Please try again.');
                 return;
             }
 
             phoneInput.value = newValue;
             changeTypeField.value = 'phone';
-            modalTitle.textContent = 'Verify Phone Change';
-            modalDesc.textContent = 'Please enter the OTP sent to your mobile number.';
-
+            modalTitle.textContent = 'Verify Your New Number';
+            modalDesc.textContent = data.message || ('Enter the 6-digit code we texted to ' + newValue + '.');
+            clearOtpError();
+            otpInputBox.value = '';
             window.closeContactEditor();
             otpModal.style.display = 'flex';
-            otpInputBox.value = '';
-            hiddenOtpCode.value = '';
+            otpInputBox.focus();
+            resendOtpBtn.style.display = 'inline-flex';
+            startResendCooldown(data.resend_after);
+        });
+
+        resendOtpBtn.addEventListener('click', async function() {
+            if (resendOtpBtn.disabled) return;
+            resendOtpBtn.disabled = true;
+            let data;
+            try {
+                data = await postPhoneChange('send_otp', {});
+            } catch (err) {
+                data = { success: false, message: 'Connection error. Please try again.' };
+            }
+
+            if (data.success) {
+                clearOtpError();
+                modalDesc.textContent = data.message || 'A new code has been sent.';
+                if (data.resends_left === 0) {
+                    modalDesc.textContent += ' This is the last code you can request for now.';
+                }
+                otpInputBox.value = '';
+                otpInputBox.focus();
+                startResendCooldown(data.resend_after);
+            } else if (data.blocked) {
+                resendOtpBtn.disabled = true;
+                resendOtpBtn.textContent = 'Resend code unavailable';
+                showOtpError(data.message || 'Please try again in an hour.');
+            } else {
+                resendOtpBtn.disabled = false;
+                showOtpError(data.message || 'We could not resend the code.');
+                if (data.retry_after) startResendCooldown(data.retry_after);
+            }
         });
 
         saveContactBtn.addEventListener('click', function() {
             if (!currentEditType || currentEditType === 'phone') return;
             const newValue = contactEditorInput.value.trim();
             if (!newValue) {
-                alert('Please enter a value.');
+                showContactError('Please enter a value.');
                 return;
             }
 
@@ -954,7 +1078,7 @@ $pageTitle = 'My Profile';
                 emergencyNameInput.value = newValue;
             } else if (currentEditType === 'emergency_phone') {
                 if (!/^\+?[0-9\s\-()]{7,15}$/.test(newValue)) {
-                    alert('Please enter a valid phone number.');
+                    showContactError('Please enter a valid phone number.');
                     return;
                 }
                 emergencyPhoneInput.value = newValue;
@@ -962,35 +1086,61 @@ $pageTitle = 'My Profile';
                 emergencyRelationshipInput.value = newValue;
             }
 
-            const actionInput = document.createElement('input');
-            actionInput.type = 'hidden';
-            actionInput.name = 'action';
-            actionInput.value = 'verify_and_update';
-            profileUpdateForm.appendChild(actionInput);
+            // Reuse the form's existing action field rather than appending a
+            // duplicate name, which made the submitted action ambiguous.
+            if (profileUpdateForm) {
+                const actionInput = profileUpdateForm.querySelector('input[name="action"]');
+                if (actionInput) actionInput.value = 'verify_and_update';
+            }
 
             changeTypeField.value = currentEditType;
-            hiddenOtpCode.value = 'contact-update';
             window.closeContactEditor();
             profileUpdateForm.submit();
         });
 
         cancelOtpBtn.addEventListener('click', function() {
+            stopResendCooldown();
             otpModal.style.display = 'none';
             otpInputBox.value = '';
             hiddenOtpCode.value = '';
             changeTypeField.value = '';
+            pendingPhone = null;
+            clearOtpError();
+            resendOtpBtn.style.display = 'none';
+            postPhoneChange('cancel_otp', {}).catch(function() {});
         });
 
-        verifyOtpBtn.addEventListener('click', function() {
+        verifyOtpBtn.addEventListener('click', async function() {
             const enteredOtp = otpInputBox.value.trim();
-            if (!enteredOtp || enteredOtp.length < 4) {
-                alert('Please enter a valid OTP code.');
+            if (!/^\d{6}$/.test(enteredOtp)) {
+                showOtpError('Enter the 6-digit code from your text message.');
+                return;
+            }
+            clearOtpError();
+
+            verifyOtpBtn.disabled = true;
+            verifyOtpBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+
+            let data;
+            try {
+                data = await postPhoneChange('verify_otp', { otp: enteredOtp });
+            } catch (err) {
+                data = { success: false, message: 'Connection error. Please try again.' };
+            }
+
+            verifyOtpBtn.disabled = false;
+            verifyOtpBtn.innerHTML = 'Confirm &amp; Save';
+
+            if (!data.success) {
+                showOtpError(data.message || 'That code is not correct. Please try again.');
+                otpInputBox.value = '';
+                otpInputBox.focus();
                 return;
             }
 
-            hiddenOtpCode.value = enteredOtp;
             otpModal.style.display = 'none';
-            profileUpdateForm.submit();
+            // Reload so the header, contact row and settings page all show the new number.
+            window.location.reload();
         });
     </script>
     <script src="../../assets/js/profile_photo_view.js"></script>

@@ -3,9 +3,19 @@ ob_start();
 
 require_once __DIR__ . '/../../includes/session_bootstrap.php';
 
-if (!empty($GLOBALS['APP_SESSION_EXPIRED'])) {
+if (!empty($GLOBALS['APP_SESSION_EXPIRED']) || ($GLOBALS['APP_ACCOUNT_REMOVED'] ?? '') !== '') {
     ob_end_clean();
-    header('Location: ../../master/welcome-page/login.php?expired=1');
+    // XHR callers must get JSON they can act on, not a login-page redirect.
+    $revoked = app_session_revoked_response();
+    $wantsJson = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST'
+        || strpos($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json') !== false
+        || ($_POST['ajax'] ?? '') === '1';
+    if ($wantsJson) {
+        header('Content-Type: application/json');
+        echo json_encode($revoked);
+    } else {
+        header('Location: ' . app_session_login_url());
+    }
     exit();
 }
 

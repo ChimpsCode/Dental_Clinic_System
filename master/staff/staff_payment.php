@@ -8,6 +8,8 @@
 $pageTitle = 'Payment';
 
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/discount_helper.php';
+ensureDiscountSchema($pdo);
 
 // Pagination settings
 $itemsPerPage = 10;
@@ -168,9 +170,11 @@ try {
                 b.billing_date,
                 b.paid_amount,
                 b.notes as billing_notes,
-                COALESCE(b.total_amount, 0) as subtotal_amount,
-                'none' as discount_type,
-                0 as discount_amount
+                COALESCE(b.subtotal_amount, b.total_amount, 0) as subtotal_amount,
+                COALESCE(b.discount_type, 'none') as discount_type,
+                COALESCE(b.discount_rate, 0) as discount_rate,
+                COALESCE(b.discount_amount, 0) as discount_amount,
+                b.discount_reason
             FROM billing b
             LEFT JOIN patients p ON b.patient_id = p.id
             $queueJoin
@@ -417,10 +421,19 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                     <strong>P<?php echo number_format($calculatedAmount, 2); ?></strong>
                                     <?php endif; ?>
                                     <?php if (($record['discount_amount'] ?? 0) > 0): ?>
+                                        <?php
+                                            $dType = $record['discount_type'] ?? 'none';
+                                            if ($dType === 'custom') {
+                                                $dRate = (float)($record['discount_rate'] ?? 0);
+                                                $dLabel = 'DISCOUNT' . ($dRate > 0 ? ' ' . rtrim(rtrim(number_format($dRate, 2), '0'), '.') . '%' : '');
+                                            } else {
+                                                $dLabel = strtoupper($dType) . ' 20%';
+                                            }
+                                        ?>
                                         <div style="margin-top:3px;">
                                             <span style="text-decoration:line-through;color:#94a3b8;font-size:11px;">P<?php echo number_format((float)($record['subtotal_amount'] ?: ($calculatedAmount + $record['discount_amount'])), 2); ?></span>
-                                            <span style="display:inline-block;background:#ecfdf5;color:#047857;font-size:10px;font-weight:700;padding:1px 7px;border-radius:9999px;border:1px solid #a7f3d0;margin-left:4px;">
-                                                <?php echo strtoupper($record['discount_type']); ?> 20% &minus;P<?php echo number_format((float)$record['discount_amount'], 2); ?>
+                                            <span title="<?php echo htmlspecialchars($record['discount_reason'] ?? ''); ?>" style="display:inline-block;background:#ecfdf5;color:#047857;font-size:10px;font-weight:700;padding:1px 7px;border-radius:9999px;border:1px solid #a7f3d0;margin-left:4px;">
+                                                <?php echo $dLabel; ?> &minus;P<?php echo number_format((float)$record['discount_amount'], 2); ?>
                                             </span>
                                         </div>
                                     <?php endif; ?>
@@ -467,6 +480,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                             data-paid-amount="<?php echo (float)($record['paid_amount'] ?? 0); ?>"
                                             data-balance="<?php echo max(0, $calculatedAmount - (float)($record['paid_amount'] ?? 0)); ?>"
                                             data-discount-type="<?php echo htmlspecialchars($record['discount_type'] ?? 'none'); ?>"
+                                            data-subtotal="<?php echo (float)$record['subtotal_amount']; ?>"
                                             aria-label="Payment actions for queue <?php echo $record['queue_id']; ?>"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -661,8 +675,31 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                             </div>
                         </div>
                     </div>
-                    <div id="payMarkPaidConfirm" class="pay-mark-paid-confirm" style="display:none;">
-                        <p>Are you sure you want to mark this as <strong>Paid</strong>?</p>
+                    <div class="modal-actions pay-detail-footer">
+                        <div id="payDueDateSection" class="pay-detail-footer-left" style="display:none;">
+                            <label class="pay-detail-footer-label" for="setDueDateInput">Due Date</label>
+                            <input type="date" id="setDueDateInput">
+                            <button type="button" class="btn-primary" onclick="confirmSetDueDate()">Save due date</button>
+                        </div>
+                        <div class="pay-detail-footer-right">
+                            <div id="payMarkPaidSection" style="display:none;">
+                                <button type="button" class="btn-primary" id="payMarkPaidBtn" onclick="showMarkPaidConfirm()">Mark as Paid</button>
+                            </div>
+                            <button type="button" class="btn-cancel" onclick="closePaymentModal()">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mark as Paid Confirmation Modal -->
+            <div id="markPaidConfirmModal" class="modal-overlay" style="display: none; z-index: 100002;" onclick="if (event.target === this) hideMarkPaidConfirm()">
+                <div class="modal mark-paid-confirm-modal">
+                    <div class="modal-header">
+                        <h2>Confirm Payment</h2>
+                        <button type="button" class="modal-close" onclick="hideMarkPaidConfirm()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p style="margin:0 0 12px;">Are you sure you want to mark this as <strong>Paid</strong>?</p>
                         <div class="payment-details">
                             <div class="detail-row">
                                 <span class="detail-label">Treatment:</span>
@@ -681,23 +718,10 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                 <span class="detail-value" id="confirmPaymentBalance" style="font-weight: 700; color: #059669;">P0.00</span>
                             </div>
                         </div>
-                        <div class="pay-detail-due-row" style="margin-top:12px;justify-content:flex-end;">
-                            <button type="button" class="btn-cancel" onclick="hideMarkPaidConfirm()">Cancel</button>
-                            <button type="button" class="btn-primary" onclick="confirmPayment()">Confirm Payment</button>
-                        </div>
                     </div>
-                    <div class="modal-actions pay-detail-footer">
-                        <div id="payDueDateSection" class="pay-detail-footer-left" style="display:none;">
-                            <label class="pay-detail-footer-label" for="setDueDateInput">Due Date</label>
-                            <input type="date" id="setDueDateInput">
-                            <button type="button" class="btn-primary" onclick="confirmSetDueDate()">Save due date</button>
-                        </div>
-                        <div class="pay-detail-footer-right">
-                            <div id="payMarkPaidSection" style="display:none;">
-                                <button type="button" class="btn-primary" id="payMarkPaidBtn" onclick="showMarkPaidConfirm()">Mark as Paid</button>
-                            </div>
-                            <button type="button" class="btn-cancel" onclick="closePaymentModal()">Close</button>
-                        </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-cancel" onclick="hideMarkPaidConfirm()">Cancel</button>
+                        <button type="button" class="btn-primary" onclick="confirmPayment()">Confirm Payment</button>
                     </div>
                 </div>
             </div>
@@ -1395,18 +1419,10 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     font-weight: 600;
                 }
 
-                .pay-mark-paid-confirm {
-                    flex-shrink: 0;
-                    margin: 0;
-                    padding: 12px 1.25rem 0;
-                    border: none;
-                    border-top: 1px solid #e5e7eb;
-                    border-radius: 0;
-                    background: #f9fafb;
-                }
-
-                .pay-mark-paid-confirm .payment-details {
-                    margin-top: 0.5rem;
+                .mark-paid-confirm-modal {
+                    max-width: 440px;
+                    width: 90%;
+                    padding: 0;
                 }
 
                 .pay-history-table {
@@ -1588,6 +1604,18 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     if (printPaymentModal && printPaymentModal.parentElement !== document.body) {
                         document.body.appendChild(printPaymentModal);
                     }
+                    getMarkPaidConfirmModal();
+                }
+
+                // After in-app navigation an older copy may already sit in <body>; keep only the current page's copy.
+                function getMarkPaidConfirmModal() {
+                    var copies = Array.prototype.slice.call(document.querySelectorAll('#markPaidConfirmModal'));
+                    var current = null;
+                    copies.forEach(function(m) { if (m.parentElement !== document.body) current = m; });
+                    if (!current) return copies[0] || null;
+                    copies.forEach(function(m) { if (m !== current && m.parentNode) m.parentNode.removeChild(m); });
+                    document.body.appendChild(current);
+                    return current;
                 }
                 document.addEventListener('DOMContentLoaded', mountStaffPaymentModals);
 
@@ -1634,12 +1662,12 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                             View Details
                         </a>
                         ${!isPaid && !isVoided ? `
-                        <a href="javascript:void(0)" data-action="toggle-discount" data-billing-id="${billingId}" data-apply="${button.dataset.discountType === 'none' ? '1' : '0'}">
+                        <a href="javascript:void(0)" data-action="${button.dataset.discountType === 'none' ? 'apply-discount' : 'toggle-discount'}" data-billing-id="${billingId}" data-subtotal="${button.dataset.subtotal || amount}" data-apply="0">
                             ${button.dataset.discountType === 'none'
                                 ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M21.41 11.58l-9-9A2 2 0 0 0 11 2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 .59 1.42l9 9A2 2 0 0 0 13 22a2 2 0 0 0 1.41-.59l7-7A2 2 0 0 0 22 13a2 2 0 0 0-.59-1.42M6.5 8A1.5 1.5 0 1 1 8 6.5A1.5 1.5 0 0 1 6.5 8"/></svg>
-                            Apply SC/PWD Discount`
+                            Apply Discount`
                                 : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12z"/></svg>
-                            Remove SC/PWD Discount`}
+                            Remove Discount`}
                         </a>` : ''}
                         <a href="javascript:void(0)" data-action="print" data-invoice-id="${queueId}" data-billing-id="${billingId}">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
@@ -1750,10 +1778,143 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                         case 'toggle-discount':
                             toggleDiscount(billingId, link.dataset.apply === '1');
                             break;
+                        case 'apply-discount':
+                            openApplyDiscountModal(billingId, link.dataset.subtotal, 'P', function() {
+                                (window.appCache ? window.appCache.refreshCurrent(['staff-dashboard.php']) : location.reload());
+                            });
+                            break;
                         case 'print':
                             printPayment(billingId);
                             break;
                     }
+                }
+
+                var applyDiscountState = null;
+
+                function formatDiscountMoney(n) {
+                    return (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                }
+
+                function openApplyDiscountModal(billingId, subtotal, currency, onDone) {
+                    if (!billingId || billingId === '0') { alert('No billing record attached yet.'); return; }
+                    closeApplyDiscountModal();
+                    var labelStyle = 'display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:6px;';
+                    var rowStyle = 'display:flex;justify-content:space-between;padding:3px 0;';
+                    var overlay = document.createElement('div');
+                    overlay.className = 'modal-overlay';
+                    overlay.style.cssText = 'display:flex;z-index:100002;';
+                    overlay.innerHTML =
+                        '<div style="background:#fff;border-radius:12px;padding:20px;width:92%;max-width:420px;box-shadow:0 20px 40px rgba(0,0,0,0.2);">' +
+                            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
+                                '<h2 style="margin:0;font-size:1.15rem;font-weight:600;color:#111827;">Apply Discount</h2>' +
+                                '<button type="button" data-role="close" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#6b7280;">&times;</button>' +
+                            '</div>' +
+                            '<label style="' + labelStyle + '">Discount Type</label>' +
+                            '<div style="display:flex;gap:16px;margin-bottom:14px;font-size:0.9rem;color:#374151;">' +
+                                '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="radio" name="applyDiscountMode" value="percent" checked> Percentage (%)</label>' +
+                                '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="radio" name="applyDiscountMode" value="fixed"> Fixed Amount (' + currency + ')</label>' +
+                            '</div>' +
+                            '<label style="' + labelStyle + '">Value</label>' +
+                            '<input type="number" data-role="value" class="pay-detail-input" min="0" step="0.01" placeholder="e.g., 10" style="margin-bottom:14px;">' +
+                            '<label style="' + labelStyle + '">Reason</label>' +
+                            '<input type="text" data-role="reason" class="pay-detail-input" maxlength="255" placeholder="e.g., Promo, Goodwill, Loyal patient" style="margin-bottom:14px;">' +
+                            '<div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;font-size:0.85rem;color:#374151;">' +
+                                '<div style="' + rowStyle + '"><span>Bill Amount</span><span data-role="subtotal"></span></div>' +
+                                '<div style="' + rowStyle + 'color:#047857;"><span>Discount</span><span data-role="discount"></span></div>' +
+                                '<div style="' + rowStyle + 'font-weight:700;border-top:1px solid #e5e7eb;margin-top:4px;padding-top:6px;"><span>New Total</span><span data-role="total"></span></div>' +
+                            '</div>' +
+                            '<p style="font-size:0.75rem;color:#6b7280;margin:10px 0 0;">The patient will be notified in their account.</p>' +
+                            '<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">' +
+                                '<button type="button" data-role="cancel" style="padding:0.5rem 1rem;background:#fff;border:1px solid #d1d5db;border-radius:8px;cursor:pointer;font-weight:500;color:#374151;">Cancel</button>' +
+                                '<button type="button" data-role="submit" style="padding:0.5rem 1rem;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:500;">Apply Discount</button>' +
+                            '</div>' +
+                        '</div>';
+                    document.body.appendChild(overlay);
+
+                    applyDiscountState = {
+                        overlay: overlay,
+                        billingId: billingId,
+                        subtotal: parseFloat(subtotal) || 0,
+                        currency: currency,
+                        onDone: onDone,
+                        submitting: false
+                    };
+
+                    overlay.addEventListener('click', function(e) { if (e.target === overlay) closeApplyDiscountModal(); });
+                    overlay.querySelectorAll('input[name="applyDiscountMode"]').forEach(function(r) {
+                        r.addEventListener('change', function() {
+                            overlay.querySelector('[data-role="value"]').placeholder = r.value === 'fixed' ? 'e.g., 500' : 'e.g., 10';
+                            updateApplyDiscountPreview();
+                        });
+                    });
+                    overlay.querySelector('[data-role="value"]').addEventListener('input', updateApplyDiscountPreview);
+                    overlay.querySelector('[data-role="close"]').addEventListener('click', closeApplyDiscountModal);
+                    overlay.querySelector('[data-role="cancel"]').addEventListener('click', closeApplyDiscountModal);
+                    overlay.querySelector('[data-role="submit"]').addEventListener('click', submitApplyDiscount);
+                    updateApplyDiscountPreview();
+                    overlay.querySelector('[data-role="value"]').focus();
+                }
+
+                function closeApplyDiscountModal() {
+                    if (applyDiscountState && applyDiscountState.overlay && applyDiscountState.overlay.parentNode) {
+                        applyDiscountState.overlay.parentNode.removeChild(applyDiscountState.overlay);
+                    }
+                    applyDiscountState = null;
+                }
+
+                function computeApplyDiscount() {
+                    var s = applyDiscountState;
+                    var mode = s.overlay.querySelector('input[name="applyDiscountMode"]:checked').value;
+                    var value = parseFloat(s.overlay.querySelector('[data-role="value"]').value) || 0;
+                    var amount = mode === 'percent' ? Math.round(s.subtotal * value) / 100 : value;
+                    amount = Math.min(Math.max(amount, 0), s.subtotal);
+                    return { mode: mode, value: value, amount: amount, total: s.subtotal - amount };
+                }
+
+                function updateApplyDiscountPreview() {
+                    if (!applyDiscountState) return;
+                    var s = applyDiscountState;
+                    var c = computeApplyDiscount();
+                    s.overlay.querySelector('[data-role="subtotal"]').textContent = s.currency + formatDiscountMoney(s.subtotal);
+                    s.overlay.querySelector('[data-role="discount"]').textContent = '-' + s.currency + formatDiscountMoney(c.amount);
+                    s.overlay.querySelector('[data-role="total"]').textContent = s.currency + formatDiscountMoney(c.total);
+                }
+
+                function submitApplyDiscount() {
+                    var s = applyDiscountState;
+                    if (!s || s.submitting) return;
+                    var c = computeApplyDiscount();
+                    var reason = s.overlay.querySelector('[data-role="reason"]').value.trim();
+                    if (c.value <= 0) { alert('Please enter a discount value greater than zero.'); return; }
+                    if (c.mode === 'percent' && c.value > 100) { alert('Discount percentage cannot exceed 100%.'); return; }
+                    if (c.mode === 'fixed' && c.value > s.subtotal) { alert('Discount cannot exceed the bill amount of ' + s.currency + formatDiscountMoney(s.subtotal) + '.'); return; }
+                    if (!reason) { alert('Please enter a reason for the discount.'); return; }
+
+                    s.submitting = true;
+                    var submitBtn = s.overlay.querySelector('[data-role="submit"]');
+                    submitBtn.disabled = true;
+                    fetch('../shared/billing_actions.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'apply_custom_discount', billing_id: s.billingId, mode: c.mode, value: c.value, reason: reason })
+                    })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        alert(data.message || (data.success ? 'Done' : 'Failed'));
+                        if (data.success) {
+                            var done = s.onDone;
+                            closeApplyDiscountModal();
+                            if (done) done();
+                        } else {
+                            s.submitting = false;
+                            submitBtn.disabled = false;
+                        }
+                    })
+                    .catch(function() {
+                        alert('Request failed. Please try again.');
+                        s.submitting = false;
+                        submitBtn.disabled = false;
+                    });
                 }
 
                 function toggleDiscount(billingId, apply) {
@@ -2173,6 +2334,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     var balanceVal = parseFloat(document.getElementById('payDetailBalance').value || 0);
                     var paidVal = parseFloat(document.getElementById('payDetailPaidAmount').value || 0);
                     var amountVal = parseFloat(document.getElementById('payDetailAmount').value || 0);
+                    var confirmModal = getMarkPaidConfirmModal();
 
                     document.getElementById('confirmPaymentQueueId').value = queueId;
                     document.getElementById('confirmPaymentPatientId').value = patientId;
@@ -2183,15 +2345,11 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     document.getElementById('confirmPaymentPaidSoFar').textContent = 'P' + paidVal.toFixed(2);
                     document.getElementById('confirmPaymentBalance').textContent = 'P' + (balanceVal > 0 ? balanceVal : amountVal).toFixed(2);
                     document.getElementById('confirmPaymentTreatment').textContent = treatment || 'General Checkup';
-                    document.getElementById('payMarkPaidConfirm').style.display = 'block';
-                    document.getElementById('payMarkPaidBtn').style.display = 'none';
+                    if (confirmModal) confirmModal.style.display = 'flex';
                 }
 
                 function hideMarkPaidConfirm() {
-                    var confirmEl = document.getElementById('payMarkPaidConfirm');
-                    var btn = document.getElementById('payMarkPaidBtn');
-                    if (confirmEl) confirmEl.style.display = 'none';
-                    if (btn) btn.style.display = 'inline-block';
+                    document.querySelectorAll('#markPaidConfirmModal').forEach(function(m) { m.style.display = 'none'; });
                 }
 
                 function confirmPayment() {
@@ -2200,6 +2358,18 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     const billingId = document.getElementById('confirmPaymentBillingId').value;
                     const amount = document.getElementById('confirmPaymentAmountValue').value;
                     const treatment = document.getElementById('confirmPaymentTreatmentValue').value;
+                    const confirmModal = getMarkPaidConfirmModal();
+                    const confirmBtn = confirmModal ? confirmModal.querySelector('.btn-primary') : null;
+                    if (confirmBtn && confirmBtn.disabled) return;
+                    const resetConfirmBtn = function() {
+                        if (!confirmBtn) return;
+                        confirmBtn.disabled = false;
+                        confirmBtn.textContent = 'Confirm Payment';
+                    };
+                    if (confirmBtn) {
+                        confirmBtn.disabled = true;
+                        confirmBtn.textContent = 'Processing...';
+                    }
                     
                     fetch('../shared/billing_actions.php', {
                         method: 'POST',
@@ -2218,14 +2388,64 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            (window.appCache ? window.appCache.refreshCurrent(['staff-dashboard.php']) : location.reload());
+                            hideMarkPaidConfirm();
+                            closePaymentModal();
+                            resetConfirmBtn();
+                            if (window.appCache) {
+                                showPaymentSuccessModal(amount, treatment, 'P', null);
+                                window.appCache.refreshCurrent(['staff-dashboard.php']);
+                            } else {
+                                showPaymentSuccessModal(amount, treatment, 'P', function() { location.reload(); });
+                            }
                         } else {
+                            resetConfirmBtn();
                             alert('Error: ' + data.message);
                         }
                     })
                     .catch(error => {
+                        resetConfirmBtn();
                         alert('Error processing payment. Please try again.');
                     });
+                }
+
+                function showPaymentSuccessModal(amount, treatment, currency, onClose, customMessage) {
+                    var existing = document.getElementById('paymentSuccessModal');
+                    if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+
+                    var amountText = currency + (Number(amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    var overlay = document.createElement('div');
+                    overlay.id = 'paymentSuccessModal';
+                    overlay.className = 'modal-overlay';
+                    // Keeps the router's refresh from removing it before the user closes it
+                    overlay.setAttribute('data-persist-layout', '1');
+                    overlay.style.cssText = 'display:flex;z-index:100004;';
+                    overlay.innerHTML =
+                        '<div style="background:#fff;border-radius:12px;padding:28px 24px 20px;width:90%;max-width:400px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,0.2);">' +
+                            '<div style="width:56px;height:56px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">' +
+                                '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' +
+                            '</div>' +
+                            '<h2 style="margin:0 0 8px;font-size:1.2rem;font-weight:600;color:#111827;">Payment Successful</h2>' +
+                            '<p data-role="message" style="margin:0 0 6px;font-size:0.92rem;color:#374151;"></p>' +
+                            '<p style="margin:0 0 18px;font-size:0.8rem;color:#6b7280;">The patient has been notified.</p>' +
+                            '<button type="button" data-role="ok" style="padding:0.55rem 2rem;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:500;">OK</button>' +
+                        '</div>';
+                    overlay.querySelector('[data-role="message"]').textContent = customMessage ||
+                        ('Payment of ' + amountText + ' for ' + (treatment || 'General Checkup') + ' has been recorded and marked as Paid.');
+                    document.body.appendChild(overlay);
+
+                    var closed = false;
+                    function closeSuccess() {
+                        if (closed) return;
+                        closed = true;
+                        document.removeEventListener('keydown', onKey);
+                        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                        if (onClose) onClose();
+                    }
+                    function onKey(e) { if (e.key === 'Escape') closeSuccess(); }
+                    overlay.addEventListener('click', function(e) { if (e.target === overlay) closeSuccess(); });
+                    overlay.querySelector('[data-role="ok"]').addEventListener('click', closeSuccess);
+                    document.addEventListener('keydown', onKey);
+                    overlay.querySelector('[data-role="ok"]').focus();
                 }
 
                 function populateRecordPaymentTab() {
@@ -2364,9 +2584,123 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                         return;
                     }
 
+                    var methodEl = document.getElementById('recordPaymentMethod');
+                    var methodLabel = methodEl && methodEl.selectedIndex >= 0 ? methodEl.options[methodEl.selectedIndex].text : paymentMethod;
+                    var outstanding = parseFloat((document.getElementById('recordPaymentBalance').textContent || '').replace(/[^0-9.]/g, '')) || 0;
+
+                    showRecordPaymentReview({
+                        billingId: billingId,
+                        queueId: queueId,
+                        patientId: patientId,
+                        amount: amount,
+                        paymentMethod: paymentMethod,
+                        methodLabel: methodLabel,
+                        referenceNumber: paymentMethodNeedsReference(paymentMethod) ? referenceNumber : '',
+                        outstanding: outstanding,
+                        currency: 'P'
+                    });
+                }
+
+                var recordPaymentReviewState = null;
+
+                function formatReviewMoney(currency, n) {
+                    return currency + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                }
+
+                function showRecordPaymentReview(details) {
+                    closeRecordPaymentReview();
+                    var amountNum = parseFloat(details.amount) || 0;
+                    var remaining = Math.max(0, Math.round((details.outstanding - amountNum) * 100) / 100);
+                    var rowStyle = 'display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #e5e7eb;font-size:0.9rem;';
+                    var labelStyle = 'color:#6b7280;';
+                    var valueStyle = 'font-weight:600;color:#1f2937;text-align:right;';
+
+                    var overlay = document.createElement('div');
+                    overlay.id = 'recordPaymentReviewModal';
+                    overlay.className = 'modal-overlay';
+                    overlay.setAttribute('data-persist-layout', '1');
+                    overlay.style.cssText = 'display:flex;z-index:100003;';
+                    overlay.innerHTML =
+                        '<div style="background:#fff;border-radius:12px;width:90%;max-width:440px;box-shadow:0 20px 40px rgba(0,0,0,0.2);overflow:hidden;">' +
+                            '<div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;border-bottom:1px solid #e5e7eb;">' +
+                                '<h2 style="margin:0;font-size:1.2rem;font-weight:600;color:#111827;">Review Payment</h2>' +
+                                '<button type="button" data-role="close" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#6b7280;">&times;</button>' +
+                            '</div>' +
+                            '<div style="padding:1.25rem 1.5rem;">' +
+                                '<p style="margin:0 0 12px;font-size:0.85rem;color:#6b7280;">Please confirm the payment details below.</p>' +
+                                '<div style="text-align:center;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px;margin-bottom:12px;">' +
+                                    '<div style="font-size:0.8rem;color:#166534;font-weight:600;text-transform:uppercase;letter-spacing:0.03em;">Amount to Pay</div>' +
+                                    '<div data-role="amount" style="font-size:1.6rem;font-weight:700;color:#166534;margin-top:2px;"></div>' +
+                                '</div>' +
+                                '<div style="' + rowStyle + '"><span style="' + labelStyle + '">Payment Method</span><span data-role="method" style="' + valueStyle + '"></span></div>' +
+                                '<div data-role="refRow" style="' + rowStyle + 'display:none;"><span style="' + labelStyle + '">Reference No.</span><span data-role="reference" style="' + valueStyle + '"></span></div>' +
+                                '<div style="' + rowStyle + '"><span style="' + labelStyle + '">Outstanding Balance</span><span data-role="outstanding" style="' + valueStyle + '"></span></div>' +
+                                '<div style="' + rowStyle + 'border-bottom:none;"><span style="' + labelStyle + '">Remaining Balance After Payment</span><span data-role="remaining" style="' + valueStyle + '"></span></div>' +
+                            '</div>' +
+                            '<div style="display:flex;justify-content:flex-end;gap:10px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">' +
+                                '<button type="button" data-role="back" style="padding:0.5rem 1rem;background:#fff;border:1px solid #d1d5db;border-radius:8px;cursor:pointer;font-weight:500;color:#374151;">Back</button>' +
+                                '<button type="button" data-role="confirm" style="padding:0.5rem 1rem;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:500;">Confirm Payment</button>' +
+                            '</div>' +
+                        '</div>';
+
+                    overlay.querySelector('[data-role="amount"]').textContent = formatReviewMoney(details.currency, amountNum);
+                    overlay.querySelector('[data-role="method"]').textContent = details.methodLabel;
+                    if (details.referenceNumber) {
+                        overlay.querySelector('[data-role="refRow"]').style.display = 'flex';
+                        overlay.querySelector('[data-role="reference"]').textContent = details.referenceNumber;
+                    }
+                    overlay.querySelector('[data-role="outstanding"]').textContent = formatReviewMoney(details.currency, details.outstanding);
+                    var remainingEl = overlay.querySelector('[data-role="remaining"]');
+                    if (remaining <= 0) {
+                        remainingEl.textContent = 'Fully Paid';
+                        remainingEl.style.color = '#16a34a';
+                    } else {
+                        remainingEl.textContent = formatReviewMoney(details.currency, remaining);
+                        remainingEl.style.color = '#dc2626';
+                    }
+                    document.body.appendChild(overlay);
+
+                    function onKey(e) { if (e.key === 'Escape' && !recordPaymentInFlight) closeRecordPaymentReview(); }
+                    recordPaymentReviewState = { overlay: overlay, onKey: onKey };
+                    details.remaining = remaining;
+
+                    overlay.addEventListener('click', function(e) { if (e.target === overlay && !recordPaymentInFlight) closeRecordPaymentReview(); });
+                    overlay.querySelector('[data-role="close"]').addEventListener('click', function() { if (!recordPaymentInFlight) closeRecordPaymentReview(); });
+                    overlay.querySelector('[data-role="back"]').addEventListener('click', function() { if (!recordPaymentInFlight) closeRecordPaymentReview(); });
+                    overlay.querySelector('[data-role="confirm"]').addEventListener('click', function() { submitRecordPayment(details); });
+                    document.addEventListener('keydown', onKey);
+                    overlay.querySelector('[data-role="confirm"]').focus();
+                }
+
+                function closeRecordPaymentReview() {
+                    if (!recordPaymentReviewState) return;
+                    document.removeEventListener('keydown', recordPaymentReviewState.onKey);
+                    if (recordPaymentReviewState.overlay.parentNode) {
+                        recordPaymentReviewState.overlay.parentNode.removeChild(recordPaymentReviewState.overlay);
+                    }
+                    recordPaymentReviewState = null;
+                }
+
+                function submitRecordPayment(details) {
+                    if (recordPaymentInFlight) {
+                        return;
+                    }
                     var recordBtn = document.querySelector('#payTabRecord button.btn-primary');
+                    var confirmBtn = recordPaymentReviewState ? recordPaymentReviewState.overlay.querySelector('[data-role="confirm"]') : null;
+                    var resetButtons = function() {
+                        recordPaymentInFlight = false;
+                        if (recordBtn) recordBtn.disabled = false;
+                        if (confirmBtn) {
+                            confirmBtn.disabled = false;
+                            confirmBtn.textContent = 'Confirm Payment';
+                        }
+                    };
                     recordPaymentInFlight = true;
                     if (recordBtn) recordBtn.disabled = true;
+                    if (confirmBtn) {
+                        confirmBtn.disabled = true;
+                        confirmBtn.textContent = 'Processing...';
+                    }
 
                     fetch('../shared/billing_actions.php', {
                         method: 'POST',
@@ -2374,27 +2708,39 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                         body: JSON.stringify({
                             action: 'record_payment',
                             settle_outstanding: true,
-                            billing_id: billingId,
-                            queue_id: queueId,
-                            patient_id: patientId,
-                            amount: amount,
-                            payment_method: paymentMethod,
-                            reference_number: paymentMethodNeedsReference(paymentMethod) ? referenceNumber : ''
+                            billing_id: details.billingId,
+                            queue_id: details.queueId,
+                            patient_id: details.patientId,
+                            amount: details.amount,
+                            payment_method: details.paymentMethod,
+                            reference_number: details.referenceNumber
                         })
                     })
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            (window.appCache ? window.appCache.refreshCurrent(['staff-dashboard.php']) : location.reload());
-                        } else {
+                            closeRecordPaymentReview();
+                            closePaymentModal();
                             recordPaymentInFlight = false;
                             if (recordBtn) recordBtn.disabled = false;
+                            var amountText = formatReviewMoney(details.currency, details.amount);
+                            var message = 'Payment of ' + amountText + ' via ' + details.methodLabel + ' has been recorded. ' +
+                                (details.remaining > 0
+                                    ? 'Remaining balance: ' + formatReviewMoney(details.currency, details.remaining) + '.'
+                                    : 'The account is now fully paid.');
+                            if (window.appCache) {
+                                showPaymentSuccessModal(details.amount, '', details.currency, null, message);
+                                window.appCache.refreshCurrent(['staff-dashboard.php']);
+                            } else {
+                                showPaymentSuccessModal(details.amount, '', details.currency, function() { location.reload(); }, message);
+                            }
+                        } else {
+                            resetButtons();
                             alert('Error: ' + data.message);
                         }
                     })
                     .catch(error => {
-                        recordPaymentInFlight = false;
-                        if (recordBtn) recordBtn.disabled = false;
+                        resetButtons();
                         alert('Error recording payment. Please try again.');
                     });
                 }
