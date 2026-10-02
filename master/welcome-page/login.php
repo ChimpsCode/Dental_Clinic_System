@@ -1007,6 +1007,11 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
         .forgot-progress .line.active {
             background: #2563eb;
         }
+        @media (max-width: 768px) {
+            .login-form-container {
+                transform: translateY(-84px);
+            }
+        }
     </style>
     <?php require __DIR__ . '/../../includes/app_notice_modal_script.php'; ?>
 </head>
