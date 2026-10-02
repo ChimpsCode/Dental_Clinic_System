@@ -915,8 +915,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RF Dental Clinic - Login</title>
     <link rel="icon" type="image/png" href="<?php echo htmlspecialchars($loginLogo); ?>">
-    <link rel="stylesheet" href="../../assets/css/login-new.css?v=5">
-    <link rel="stylesheet" href="../../assets/css/login-new.css?v=4">
+    <link rel="stylesheet" href="../../assets/css/login-new.css?v=6">
     <style>
         #registrationContainer {
             position: relative;

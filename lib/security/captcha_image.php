@@ -16,7 +16,22 @@ $code = $_SESSION['captcha_code'];
 $width = 150;
 $height = 50;
 
-if (function_exists('imagecreatetruecolor') && function_exists('imagepng')) {
+$font = null;
+$fontCandidates = [
+    __DIR__ . '/../../assets/fonts/arial.ttf',
+    __DIR__ . '/../../assets/fonts/DejaVuSans.ttf',
+    'C:\\Windows\\Fonts\\arial.ttf',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+    '/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf',
+];
+foreach ($fontCandidates as $candidate) {
+    if (is_file($candidate)) {
+        $font = $candidate;
+        break;
+    }
+}
+
+if (function_exists('imagecreatetruecolor') && function_exists('imagepng') && $font !== null && function_exists('imagettftext')) {
     header('Content-Type: image/png');
     header('Cache-Control: no-cache, must-revalidate');
     header('Pragma: no-cache');
@@ -38,19 +53,10 @@ if (function_exists('imagecreatetruecolor') && function_exists('imagepng')) {
         imagesetpixel($image, rand(0, $width), rand(0, $height), $c);
     }
     
-    $font = 'C:\Windows\Fonts\arial.ttf';
-    if (!file_exists($font)) {
-        $font = 'C:\xampp\htdocs\Dental_Clinic_System\assets\fonts\arial.ttf';
-    }
-    
-    if (file_exists($font) && function_exists('imagettftext')) {
-        $x = 10;
-        for ($i = 0; $i < strlen($code); $i++) {
-            imagettftext($image, 20, rand(-10, 10), $x, rand(30, 35), $fg, $font, $code[$i]);
-            $x += 22;
-        }
-    } else {
-        imagestring($image, 4, 20, 15, $code, $fg);
+    $x = 10;
+    for ($i = 0; $i < strlen($code); $i++) {
+        imagettftext($image, 20, rand(-10, 10), $x, rand(30, 35), $fg, $font, $code[$i]);
+        $x += 22;
     }
     
     imagepng($image);

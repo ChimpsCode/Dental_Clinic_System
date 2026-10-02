@@ -709,3 +709,15 @@
 2026-09-30 21:52:02 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
 2026-09-30 21:52:09 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
 2026-09-30 21:52:11 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
+2026-09-30 23:06:01 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-10-01 22:23:44 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-10-02 09:36:06 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-10-02 09:44:52 | createNotification OK: id=659 user_id=2 type=system title=New device sign-in
+2026-10-02 09:50:28 | sendPatientSms: not sent for patient_id=125: the SMS gateway rejected the message (the SMS gateway could not be reached)
+2026-10-02 09:50:28 | getUserIdForPatient: no user found for patient_id=125
+2026-10-02 09:50:28 | notifyPatientPaymentRecorded: no user_id for patient_id=125, SMS only
+2026-10-02 09:50:28 | billing_actions: notifyPatientPaymentRecorded FAILED for patient_id=125 user_id check needed
+2026-10-02 11:06:22 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-10-02 17:58:02 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-10-02 21:06:54 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-10-02 21:06:58 | createNotification OK: id=660 user_id=66 type=reminder title=Appointment Reminder
