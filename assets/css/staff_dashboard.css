@@ -1933,6 +1933,24 @@ header.top-header {
     .queue-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 768px) {
+    body {
+        height: auto;
+        min-height: 100dvh;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    .main-content {
+        height: auto;
+        min-height: 100dvh;
+        overflow: visible;
+    }
+
+    .content-area {
+        min-height: 0;
+        overflow: visible;
+    }
+
     .summary-cards,
     .appt-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
