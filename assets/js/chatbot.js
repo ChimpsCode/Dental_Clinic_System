@@ -255,7 +255,7 @@
     typingRow = typingBubble.closest('.chat-msg');
 
     try {
-      var response = await fetch('../api/ai_chat.php', {
+      var response = await fetch(window.CHATBOT_API_URL || '../api/ai_chat.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: msg })

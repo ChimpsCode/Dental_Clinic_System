@@ -3933,6 +3933,10 @@ function openConsentSignatureModal(type) {
     var title = document.getElementById('consentSignatureModalTitle');
     title.textContent = 'Draw ' + (type === 'patient' ? 'Patient / Guardian' : type === 'doctor' ? 'Doctor' : 'Witness') + ' Signature';
     var canvas = document.getElementById('consentSignatureCanvas');
+    modal.classList.add('active');
+    if (type === 'patient' || type === 'witness') {
+        resizeConsentSignatureCanvas();
+    }
     if (!signaturePadInstance) {
         signaturePadInstance = new SignaturePad(canvas, {
             backgroundColor: 'rgb(255,255,255)',
@@ -3943,7 +3947,6 @@ function openConsentSignatureModal(type) {
     if (currentConsentSignatureData[type]) {
         signaturePadInstance.fromDataURL(currentConsentSignatureData[type]);
     }
-    modal.classList.add('active');
 }
 
 function closeConsentSignatureModal() {

@@ -142,9 +142,9 @@ $assets = [
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,700;1,400&family=Inria+Sans:wght@400;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="../../assets/css/home-styles.css?v=15" />
+    <link rel="stylesheet" href="../../assets/css/home-styles.css?v=16" />
     <link rel="stylesheet" href="../../assets/css/home-integration.css" />
-    <link rel="stylesheet" href="../../assets/css/chatbot-components.css" />
+    <link rel="stylesheet" href="../../assets/css/chatbot-components.css?v=2" />
     <script src="../../assets/js/home-integration.js" defer></script>
     <script src="../../assets/js/form-sanitize.js?v=2"></script>
     <style>
@@ -915,7 +915,13 @@ $assets = [
         echo json_encode($chatServices);
       ?>;
     </script>
-    <script src="../../assets/js/chatbot.js?v=5"></script>
+    <script>
+      window.CHATBOT_API_URL = <?php
+        $chatbotApiUrl = dirname($_SERVER['SCRIPT_NAME'] ?? '/master/welcome-page/home.php') . '/../api/ai_chat.php';
+        echo json_encode($chatbotApiUrl, JSON_UNESCAPED_SLASHES);
+      ?>;
+    </script>
+    <script src="../../assets/js/chatbot.js?v=6"></script>
 
     <script>
       (() => {
