@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../includes/session_bootstrap.php';
+require_once __DIR__ . '/../../includes/input_sanitize.php';
 
 $isLoginPost = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
 $explicitLogin = isset($_GET['form']) || isset($_GET['expired']) || isset($_GET['deleted']) || isset($_GET['archived']);
@@ -106,6 +107,11 @@ function verifyAndUpgradePassword($pdo, array $user, string $inputPassword): boo
 }
 
 function ensurePatientRecordForUser(PDO $pdo, array $user): ?int {
+    if (!empty($user['patient_id'])) {
+        $linked = $pdo->prepare("SELECT id FROM patients WHERE id = ? AND COALESCE(is_archived, 0) = 0 LIMIT 1");
+        $linked->execute([(int)$user['patient_id']]);
+        if ($linked->fetchColumn()) return (int)$user['patient_id'];
+    }
     if (tableHasColumn($pdo, 'patients', 'user_id')) {
         $patientStmt = $pdo->prepare("SELECT id FROM patients WHERE user_id = ? LIMIT 1");
         $patientStmt->execute([(int)$user['id']]);
@@ -229,73 +235,17 @@ if (
         $action = $_POST['action'];
 
         if ($action === 'send_code') {
-            $email = trim($_POST['email'] ?? '');
-            if ($email === '') {
-                echo json_encode(['success' => false, 'message' => 'Please enter your email address.']);
-                exit();
-            }
-
-            $stmt = $pdo->prepare("SELECT id, username FROM users WHERE email = ? AND is_archived = 0 LIMIT 1");
-            $stmt->execute([$email]);
-            $user = $stmt->fetch(PDO::FETCH_ASSOC);
-            if (!$user) {
-                echo json_encode(['success' => false, 'message' => 'Email not found.']);
-                exit();
-            }
-
-            $resetCode = (string)random_int(100000, 999999);
-            $_SESSION['reset_email'] = $email;
-            $_SESSION['reset_user_id'] = (int)$user['id'];
-            $_SESSION['reset_code'] = $resetCode;
-            $_SESSION['reset_code_sent_at'] = time();
-            unset($_SESSION['reset_code_verified']);
-
-            require_once '../../config/mailer_config.php';
-            $subject = 'RF Dental Clinic - Password Reset Code';
-            $plain = "Hi " . ($user['username'] ?? 'User') . ", your verification code is: " . $resetCode;
-            $html = '<p>Hi ' . htmlspecialchars($user['username'] ?? 'User') . ',</p>'
-                . '<p>Your verification code is:</p>'
-                . '<p style="font-size:22px;font-weight:bold;letter-spacing:4px;">' . htmlspecialchars($resetCode) . '</p>'
-                . '<p>Enter this code to continue resetting your password.</p>';
-
-            $phpMailerBase = __DIR__ . '/../../PHPMailer/src';
-            if (!file_exists($phpMailerBase . '/PHPMailer.php')) {
-                echo json_encode(['success' => false, 'message' => 'Email service is not configured.']);
-                exit();
-            }
-
-            require_once $phpMailerBase . '/Exception.php';
-            require_once $phpMailerBase . '/PHPMailer.php';
-            require_once $phpMailerBase . '/SMTP.php';
-
-            $mailer = new \PHPMailer\PHPMailer\PHPMailer(true);
-            $mailer->isSMTP();
-            $mailer->Host = trim((string)SMTP_HOST);
-            $mailer->SMTPAuth = true;
-            $mailer->Username = SMTP_USER;
-            $mailer->Password = preg_replace('/\s+/', '', (string)SMTP_PASS);
-            $mailer->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-            $mailer->Port = SMTP_PORT;
-            $mailer->SMTPOptions = [
-                'ssl' => [
-                    'verify_peer' => false,
-                    'verify_peer_name' => false,
-                    'allow_self_signed' => true,
-                ],
-            ];
-            $mailer->setFrom(MAIL_FROM, MAIL_FROM_NAME);
-            $mailer->addAddress($email, $user['username'] ?? 'User');
-            $mailer->isHTML(true);
-            $mailer->Subject = $subject;
-            $mailer->Body = $html;
-            $mailer->AltBody = $plain;
-            $mailer->send();
-
-            echo json_encode(['success' => true, 'message' => 'Code sent. Check your email.', 'step' => 2]);
+            require_once __DIR__ . '/../../includes/account_recovery.php';
+            echo json_encode(sendAccountRecoveryCode($pdo, trim($_POST['email'] ?? '')));
             exit();
         }
 
         if ($action === 'verify_code') {
+            require_once __DIR__ . '/../../includes/account_recovery.php';
+            if (!accountRecoveryAttemptAllowed()) {
+                echo json_encode(['success' => false, 'message' => 'Too many incorrect attempts. Request a new code.']);
+                exit();
+            }
             $code = trim($_POST['code'] ?? '');
             $sessionCode = (string)($_SESSION['reset_code'] ?? '');
             $sentAt = (int)($_SESSION['reset_code_sent_at'] ?? 0);
@@ -501,6 +451,9 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
     header('Content-Type: application/json; charset=utf-8');
     
     $username = trim($_POST['username'] ?? '');
+    if (preg_match('/^(?:09\d{9}|\+?639\d{9})$/', $username)) {
+        $username = sanitize_phone($username)['value'];
+    }
     $password = $_POST['password'] ?? '';
     $captcha = $_POST['captcha'] ?? '';
     
@@ -766,6 +719,9 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' &&
 // Regular form submission (for non-JS fallback)
 if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
     $username = trim($_POST['username'] ?? '');
+    if (preg_match('/^(?:09\d{9}|\+?639\d{9})$/', $username)) {
+        $username = sanitize_phone($username)['value'];
+    }
     $password = $_POST['password'] ?? '';
     $captcha = $_POST['captcha'] ?? '';
     
@@ -1181,7 +1137,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
                 
                 <form id="loginForm" method="POST">
                     <div class="input-group">
-                        <input type="text" id="username" name="username" placeholder="Username" required autocomplete="username">
+                        <input type="text" id="username" name="username" placeholder="Username, email or mobile number" required autocomplete="username">
                     </div>
                     
                     <div class="input-group">
@@ -1319,10 +1275,10 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
                 <form id="forgotInlineForm" onsubmit="return false;">
                     <div id="fpStep1" class="step-pane">
                         <p class="login-subtitle" style="text-align:center; margin-bottom: 16px;">
-                            Enter your email and we will send a 6-digit code.
+                            Enter your email or mobile number and we will send a 6-digit code.
                         </p>
                         <div class="input-group">
-                            <input type="email" id="fp_email" placeholder="Enter your email" required autocomplete="email">
+                            <input type="text" id="fp_email" placeholder="Email or mobile number" required autocomplete="username">
                         </div>
                         <button type="button" class="login-btn" id="fpSendBtn">
                             <span id="fpSendBtnText">Send Code</span>
@@ -1331,7 +1287,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
 
                     <div id="fpStep2" class="step-pane" style="display:none;">
                         <p class="login-subtitle" style="text-align:center; margin-bottom: 16px;">
-                            Enter the 6-digit code sent to your email.
+                            Enter the 6-digit code sent to your email or mobile number.
                         </p>
                         <div class="input-group">
                             <input type="text" id="fp_code" placeholder="Enter verification code" maxlength="6" inputmode="numeric" style="text-align: center; letter-spacing: 6px; font-size: 18px;">
@@ -1380,10 +1336,10 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
                 <div class="alert alert-error" id="registerError" style="display: none;"></div>
                 <div class="alert alert-success" id="registerSuccess" style="display: none;"></div>
                 
-                <form id="registerForm" method="POST" autocomplete="off">
+                <form id="registerForm" method="POST" autocomplete="off" novalidate>
                     <input type="text" tabindex="-1" aria-hidden="true" autocomplete="username" style="position:absolute;left:-9999px;height:0;width:0;opacity:0;" value="">
                     <input type="password" tabindex="-1" aria-hidden="true" autocomplete="current-password" style="position:absolute;left:-9999px;height:0;width:0;opacity:0;" value="">
-                    <div id="regStep1" class="registration-form-section">
+                    <div id="regStep1" data-registration-stage="details" class="registration-form-section">
                         <div style="display: flex; gap: 12px; width: 100%;">
                             <div class="input-group" style="flex:1;">
                                 <input type="text" id="reg_first_name" name="first_name" placeholder="First Name" required autocomplete="given-name">
@@ -1448,11 +1404,34 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
                         </button>
                     </div>
 
-                    <div id="regStep2" class="registration-form-section registration-form-section-last" style="display: none;">
+                    <div id="regStep2" data-registration-stage="contact" class="registration-form-section registration-form-section-last" style="display: none;">
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <label for="reg-contact-method">Register using</label>
+                            <select id="reg-contact-method" name="contact_method" class="styled-select" style="width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;">
+                                <option value="email">Email address</option>
+                                <option value="phone">Mobile number</option>
+                            </select>
+                            <p id="reg-contact-hint" data-contact-hint style="font-size:13px;color:#64748b;margin:8px 0;"></p>
+                        </div>
                         <div class="input-group">
                             <input type="email" id="reg_email" name="email" placeholder="Email Address" required autocomplete="off">
                         </div>
 
+                        <div class="input-group" data-contact-mobile-group style="display:none;">
+                            <label for="reg-contact-mobile">Mobile number</label>
+                            <input type="tel" id="reg-contact-mobile" placeholder="09123456789" inputmode="numeric" maxlength="11" pattern="09[0-9]{9}" autocomplete="tel" aria-describedby="reg-contact-hint" />
+                        </div>
+                        <p data-contact-error role="alert" style="display:none;color:#dc2626;font-size:13px;"></p>
+                        <div style="display:flex;gap:10px;width:100%;margin-top:16px;">
+                            <button type="button" class="login-btn" data-registration-back="details" style="flex:1;background:#e2e8f0;color:#1e293b;border-color:#cbd5e1;">Back</button>
+                            <button type="button" class="login-btn" data-registration-contact-next style="flex:2;">Next</button>
+                        </div>
+                    </div>
+                    <div id="regStep3" data-registration-stage="password" class="registration-form-section registration-form-section-last" style="display:none;">
+                        <div class="input-group" style="margin-bottom:16px;">
+                            <label for="reg-contact-summary">Registering with <span data-contact-summary-label>email address</span></label>
+                            <input type="text" id="reg-contact-summary" readonly aria-label="Selected registration contact" style="width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;box-sizing:border-box;" />
+                        </div>
                         <div class="input-group">
                             <input type="password" id="reg_password" name="password" placeholder="Password" required autocomplete="new-password" readonly>
                             <button type="button" class="toggle-password" id="toggleRegPassword" aria-label="Toggle password visibility" style="display: none;">
@@ -1735,5 +1714,6 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
         });
     </script>
     <?php endif; ?>
+    <script src="../../assets/js/patient_registration_contact.js"></script>
 </body>
 </html>

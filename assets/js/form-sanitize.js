@@ -69,6 +69,7 @@
 
   function phone(value, required) {
     var digits = str(value).replace(/\D+/g, '');
+    if (/^639\d{9}$/.test(digits)) digits = '0' + digits.slice(2);
     if (!digits) return required ? fail('Phone number is required.') : ok('');
     if (!PHONE_PATTERN.test(digits)) {
       return fail('Enter a valid 11-digit mobile number starting with 09.');
@@ -104,6 +105,7 @@
     if (!s) return fail('Username is required.');
     if (s.length > 254) return fail('Username is too long.');
     if (s.indexOf('@') !== -1) return email(s, true);
+    if (/^(?:09\d{9}|\+?639\d{9})$/.test(s)) return phone(s, true);
     if (!USERNAME_PATTERN.test(s)) return fail('Username contains invalid characters.');
     return ok(s);
   }

@@ -9,7 +9,8 @@ try {
         throw new Exception('Invalid request method');
     }
 
-    $emailResult = sanitize_email($_POST['email'] ?? '', false);
+    $raw = trim($_POST['email'] ?? '');
+    $emailResult = strpos($raw, '@') !== false ? sanitize_email($raw, false) : sanitize_phone($raw, false);
     if (!$emailResult['ok']) {
         echo json_encode(['exists' => false, 'error' => $emailResult['error']]);
         exit;

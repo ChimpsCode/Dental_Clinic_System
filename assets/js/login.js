@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (updateRegistrationRequiredField(field, true) && !firstMissing) firstMissing = field;
         });
         if (!firstMissing) return true;
-        showRegistrationStep(firstMissing.closest('#regStep1') ? 1 : 2);
+        showRegistrationStep(firstMissing.closest('#regStep1') ? 1 : (firstMissing.closest('#regStep3') ? 3 : 2));
         firstMissing.focus();
         showToast('Error', 'Please complete the fields marked with a red warning icon.', 'error');
         return false;
@@ -293,10 +293,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const fpLine2 = document.getElementById('fpLine2');
 
     function showRegistrationStep(step) {
-        if (regStep1) regStep1.style.display = step === 1 ? 'block' : 'none';
-        if (regStep2) regStep2.style.display = step === 2 ? 'block' : 'none';
+        window.PatientRegistration.showStage(['details', 'contact', 'password'][step - 1]);
         if (registerNextBtn) registerNextBtn.style.display = step === 1 ? 'flex' : 'none';
-        if (registerBtn) registerBtn.style.display = step === 2 ? 'flex' : 'none';
+        if (registerBtn) registerBtn.style.display = step === 3 ? 'flex' : 'none';
     }
 
     function showRegistration() {
@@ -427,7 +426,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function hideRegOtpStep() {
         if (regOtpStep) regOtpStep.style.display = 'none';
         if (registerForm) registerForm.style.display = 'block';
-        showRegistrationStep(2);
+        showRegistrationStep(3);
         stopRegOtpTimer();
     }
 
@@ -690,16 +689,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
             hideRegisterError();
             showRegistrationStep(2);
-            const emailField = document.getElementById('reg_email');
-            if (emailField) emailField.focus();
         });
     }
 
     if (registerBackBtn) {
         registerBackBtn.addEventListener('click', function() {
-            showRegistrationStep(1);
-            const firstNameField = document.getElementById('reg_first_name');
-            if (firstNameField) firstNameField.focus();
+            showRegistrationStep(2);
         });
     }
 
@@ -712,8 +707,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const confirmPwd = document.getElementById('reg_confirm_password').value;
             const email = document.getElementById('reg_email')?.value.trim() || '';
 
-            if (!email) {
-                showToast('Error', 'Please enter your email address.', 'error');
+            if (!email && !window.PatientRegistration?.isMobile()) {
+                showToast('Error', 'Please enter your email address or mobile number.', 'error');
                 return;
             }
 
@@ -738,8 +733,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.success) {
                     if (data.step === 'otp') {
                         const email = document.getElementById('reg_email')?.value || '';
-                        showRegOtpStep(email);
-                        showToast('Success', 'Verification code sent to your email.', 'success');
+                        showRegOtpStep(data.destination || window.PatientRegistration.identifier());
+                        showToast('Success', data.message || 'Verification code sent.', 'success');
                         if (data.dev_otp) {
                             showToast('Info', 'Local development mode code: ' + data.dev_otp, 'info');
                         }
@@ -752,7 +747,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         setTimeout(function() {
                             showLogin();
                             if (usernameInput) {
-                                usernameInput.value = document.getElementById('reg_email')?.value || '';
+                                usernameInput.value = window.PatientRegistration.identifier();
                                 usernameInput.focus();
                             }
                         }, 900);
@@ -811,7 +806,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     setTimeout(function() {
                         showLogin();
                         if (usernameInput) {
-                            usernameInput.value = document.getElementById('reg_email')?.value || '';
+                            usernameInput.value = window.PatientRegistration.identifier();
                             usernameInput.focus();
                         }
                     }, 900);
@@ -841,19 +836,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (regOtpResendBtn) {
         regOtpResendBtn.addEventListener('click', function() {
-            const email = document.getElementById('reg_email')?.value || '';
-            const body = new URLSearchParams();
-            body.append('action', 'register');
-            body.append('first_name', document.getElementById('reg_first_name')?.value || '');
-            body.append('middle_name', document.getElementById('reg_middle_name')?.value || '');
-            body.append('last_name', document.getElementById('reg_last_name')?.value || '');
-            body.append('email', email);
-            body.append('phone', document.getElementById('reg_phone')?.value || '');
-            body.append('gender', document.getElementById('reg_gender')?.value || '');
-            body.append('date_of_birth', document.getElementById('reg_dob')?.value || '');
-            body.append('address', document.getElementById('reg_address')?.value || '');
-            body.append('password', document.getElementById('reg_password')?.value || '');
-            body.append('confirm_password', document.getElementById('reg_confirm_password')?.value || '');
+            const body = new URLSearchParams(new FormData(registerForm));
+            body.set('action', 'register');
 
             regOtpResendBtn.disabled = true;
             regOtpResendBtn.textContent = 'Sending...';
@@ -942,7 +926,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fpSendBtn.addEventListener('click', function() {
             const email = (fpEmail?.value || '').trim();
             if (!email) {
-                showForgotError('Please enter your email address.');
+                showForgotError('Please enter your email address or mobile number.');
                 return;
             }
             clearForgotMessages();
@@ -966,7 +950,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fpVerifyBtn.addEventListener('click', function() {
             const code = (fpCode?.value || '').trim();
             if (!code) {
-                showForgotError('Enter the 6-digit code sent to your email.');
+                showForgotError('Enter the 6-digit code sent to your email or mobile number.');
                 return;
             }
             clearForgotMessages();

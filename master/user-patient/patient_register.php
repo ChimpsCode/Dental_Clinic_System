@@ -4,6 +4,7 @@ error_reporting(E_ALL);
 require_once __DIR__ . '/../../includes/session_bootstrap.php';
 header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../../includes/input_sanitize.php';
+require_once __DIR__ . '/../../includes/account_contact.php';
 
 function respond(bool $success, string $message, array $extra = [], int $status = 200): void {
     http_response_code($status);
@@ -62,6 +63,9 @@ if ($action === 'verify_otp') {
     if (!$otpResult['ok']) {
         respond(false, $otpResult['error']);
     }
+    if (!registrationOtpAttemptAllowed()) {
+        respond(false, 'Too many incorrect attempts. Please request a new code.');
+    }
     $enteredOtp = $otpResult['value'];
     $storedOtp = $_SESSION['reg_otp'] ?? '';
     $expires = $_SESSION['reg_otp_expires'] ?? 0;
@@ -69,15 +73,6 @@ if ($action === 'verify_otp') {
 
     if (!$storedOtp) {
         respond(false, 'Verification code has expired. Please register again.');
-    }
-
-    if (!$regData) {
-        $fallback = sanitize_patient_registration_input($_POST, ['require_dob' => true]);
-        $password = (string)($_POST['password'] ?? '');
-        if ($fallback['ok'] && $password !== '') {
-            $regData = $fallback['data'];
-            $regData['password'] = $password;
-        }
     }
 
     if (!$regData) {
@@ -122,10 +117,12 @@ if ($action === 'verify_otp') {
 
         $passwordHash = password_hash($password, PASSWORD_DEFAULT);
 
+        lockAccountContactWrites($pdo);
         $pdo->beginTransaction();
+        assertPatientContactAvailable($pdo, $regData);
 
         $userColumns = ['username', 'password', 'email'];
-        $userValues = [$email, $passwordHash, $email];
+        $userValues = [accountContactIdentifier($regData), $passwordHash, $email ?: null];
 
         if (tableHasColumn($pdo, 'users', 'role_id')) {
             $patientRoleId = findRoleId($pdo, 'Patient');
@@ -264,7 +261,7 @@ if ($action === 'verify_otp') {
             $pdo->rollBack();
         }
         error_log('Patient registration error: ' . $e->getMessage());
-        respond(false, 'Registration failed. Please try again.', [], 500);
+        respond(false, $e instanceof RuntimeException ? $e->getMessage() : 'Registration failed. Please try again.', [], 500);
     }
 }
 
@@ -302,34 +299,18 @@ try {
         respond(false, 'Database connection not available.', [], 500);
     }
 
-    $checkEmail = $pdo->prepare("SELECT id, is_archived FROM users WHERE email = ? OR username = ? LIMIT 1");
-    $checkEmail->execute([$email, $email]);
-    $existing = $checkEmail->fetch(PDO::FETCH_ASSOC);
-    if ($existing) {
-        if ($existing['is_archived']) {
-            respond(false, 'This email was previously used and is no longer active. Please contact support to restore your account.');
-        }
-        respond(false, 'Email already exists.');
-    }
-
-    $existingOtp = $_SESSION['reg_otp'] ?? '';
-    $existingExpires = $_SESSION['reg_otp_expires'] ?? 0;
-    if ($existingOtp !== '' && $existingExpires > 0 && time() < $existingExpires) {
-        respond(true, 'Verification code sent to your email.', ['step' => 'otp']);
-    }
+    assertPatientContactAvailable($pdo, $fields['data']);
 
     $emergencyContactName = $fields['data']['emergency_contact_name'];
     $emergencyContactPhone = $fields['data']['emergency_contact_phone'];
     $emergencyContactRelationship = $fields['data']['emergency_contact_relationship'];
 
-    $otpCode = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-    $_SESSION['reg_otp'] = $otpCode;
-    $_SESSION['reg_otp_expires'] = time() + 180;
-    $_SESSION['reg_data'] = [
+    $pendingData = [
         'first_name' => $firstName,
         'middle_name' => $middleName,
         'last_name' => $lastName,
         'email' => $email,
+        'contact_method' => $fields['data']['contact_method'],
         'phone' => $phone,
         'gender' => $gender,
         'date_of_birth' => $dateOfBirth,
@@ -339,21 +320,24 @@ try {
         'emergency_contact_relationship' => $emergencyContactRelationship,
         'password' => $password,
     ];
-
-    require_once __DIR__ . '/../../includes/send_otp_email.php';
-    $emailError = null;
-    $emailSent = sendOtpEmail($email, $firstName, $otpCode, 'registration', $emailError);
-
-    if (!$emailSent) {
-        $_SESSION['reg_otp'] = '';
-        $_SESSION['reg_otp_expires'] = 0;
-        $_SESSION['reg_data'] = null;
-        $detail = $emailError ? ' (' . $emailError . ')' : '';
-        respond(false, 'Unable to send verification email. Please check your SMTP settings or try again later.' . $detail);
+    $destination = accountContactIdentifier($pendingData);
+    $channel = $pendingData['contact_method'] === 'phone' ? 'mobile number' : 'email';
+    if (!registrationOtpReusable($pendingData)) {
+        registrationOtpThrottle();
+        $otpCode = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $_SESSION['reg_otp_sent_at'] = time();
+        unset($_SESSION['reg_otp'], $_SESSION['reg_data']);
+        if (!sendAccountVerification($destination, $firstName, $otpCode)) {
+            throw new RuntimeException('Unable to send the verification code. Please try again later or contact the clinic.');
+        }
+        $_SESSION['reg_data'] = $pendingData;
+        $_SESSION['reg_otp'] = $otpCode;
+        $_SESSION['reg_otp_expires'] = time() + 180;
+        $_SESSION['reg_otp_attempts'] = 0;
     }
+    respond(true, 'Verification code sent to your ' . $channel . '.', ['step' => 'otp', 'destination' => $destination]);
 
-    respond(true, 'Verification code sent to your email.', ['step' => 'otp']);
 } catch (Throwable $e) {
     error_log('Patient registration OTP send error: ' . $e->getMessage());
-    respond(false, 'Registration failed. Please try again.', [], 500);
+    respond(false, $e instanceof RuntimeException ? $e->getMessage() : 'Registration failed. Please try again.', [], 500);
 }

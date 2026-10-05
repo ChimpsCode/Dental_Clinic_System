@@ -393,7 +393,7 @@ function isActivePage($page) {
 
                 <div class="form-grid">
                     <input type="text" id="username" class="form-control" placeholder="Username" required>
-                    <input type="email" id="email" class="form-control" placeholder="Email" required>
+                    <input type="email" id="email" class="form-control" placeholder="Email (optional for patients)">
                 </div>
 
                 <input type="tel" id="phoneNumber" class="form-control" placeholder="Phone Number (11 digits)" maxlength="11" pattern="[0-9]{11}">

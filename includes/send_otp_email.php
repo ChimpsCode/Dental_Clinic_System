@@ -55,6 +55,10 @@ function sendOtpEmail(string $email, string $firstName, string $otpCode, string 
                 . 'Use the verification code below to continue:';
             $ignore = 'If you did not request a password change, '
                 . 'please ignore this email or contact the clinic.';
+        } elseif ($purpose === 'password_reset') {
+            $subject = 'RF Dental Clinic - Password Reset Code';
+            $intro = 'Use the verification code below to reset your password:';
+            $ignore = 'If you did not request a password reset, please ignore this email or contact the clinic.';
         } else {
             $subject = 'RF Dental Clinic - Email Verification Code';
             $intro = 'Thank you for registering. Use the verification code below to complete your registration:';

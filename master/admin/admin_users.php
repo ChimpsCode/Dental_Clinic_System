@@ -935,7 +935,7 @@ try {
                                                 </div>
                                                 <div class="form-group">
                                                     <label>Email</label>
-                                                    <input class="form-control" type="email" name="email" id="au-email">
+                                                    <input class="form-control" type="email" name="email" id="au-email" placeholder="Optional for patients using mobile">
                                                 </div>
                                             </div>
                                             <div class="form-group">

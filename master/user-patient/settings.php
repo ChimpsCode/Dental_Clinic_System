@@ -29,7 +29,7 @@ $passwordOtpPending = !empty($_SESSION['patient_password_otp']) && (int)($_SESSI
 
 require_once '../../config/database.php';
 require_once '../../includes/patient_session_helper.php';
-require_once '../../includes/send_otp_email.php';
+require_once '../../includes/account_contact.php';
 require_once '../../includes/patient_user_sync_helper.php';
 require_once '../../includes/sms_functions.php';
 require_once '../../includes/patient_sms_test_limit.php';
@@ -126,9 +126,9 @@ try {
                         $_SESSION['patient_password_otp'] = password_hash($passwordOtp, PASSWORD_DEFAULT);
                         $_SESSION['patient_password_pending'] = password_hash($new_password, PASSWORD_DEFAULT);
                         $_SESSION['patient_password_otp_expires'] = time() + 180;
-                        if (sendOtpEmail($user['email'] ?? '', $user['first_name'] ?? 'Patient', $passwordOtp, 'password_change')) {
+                        if (sendAccountVerification(($user['email'] ?? '') ?: ($user['phone'] ?? ''), $user['first_name'] ?? 'Patient', $passwordOtp, 'password_change')) {
                             $passwordOtpPending = true;
-                            $message = 'A verification code was sent to your email.';
+                            $message = 'A verification code was sent to your ' . (!empty($user['email']) ? 'email.' : 'mobile number.');
                             $messageType = 'success';
                         } else {
                             unset($_SESSION['patient_password_otp'], $_SESSION['patient_password_pending'], $_SESSION['patient_password_otp_expires']);
@@ -556,8 +556,8 @@ $pageTitle = 'Account Settings';
                 <div class="modal-overlay is-open" id="passwordOtpModal">
                     <div class="modal-box">
                         <div class="modal-icon" style="color:#005daa;"><i class="fas fa-envelope-circle-check"></i></div>
-                        <h2 class="modal-title">Email Verification Code</h2>
-                        <p class="modal-desc">Enter the 6-digit code sent to <?php echo htmlspecialchars($user['email'] ?? 'your email address'); ?> to finish changing your password.</p>
+                        <h2 class="modal-title">Verification Code</h2>
+                        <p class="modal-desc">Enter the 6-digit code sent to <?php echo htmlspecialchars(($user['email'] ?? '') ?: (($user['phone'] ?? '') ?: 'mobile number')); ?> to finish changing your password.</p>
                         <form method="POST" action="">
                             <input type="hidden" name="action" value="verify_password_otp">
                             <input type="text" name="password_otp" class="modal-input" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="Enter verification code" autocomplete="one-time-code" required autofocus>

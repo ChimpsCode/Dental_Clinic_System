@@ -39,73 +39,17 @@ if (
         $action = $_POST['action'];
 
         if ($action === 'send_code') {
-            $email = trim($_POST['email'] ?? '');
-            if ($email === '') {
-                echo json_encode(['success' => false, 'message' => 'Please enter your email address.']);
-                exit();
-            }
-
-            $stmt = $pdo->prepare("SELECT id, username FROM users WHERE email = ? AND is_archived = 0 LIMIT 1");
-            $stmt->execute([$email]);
-            $user = $stmt->fetch(PDO::FETCH_ASSOC);
-            if (!$user) {
-                echo json_encode(['success' => false, 'message' => 'Email not found.']);
-                exit();
-            }
-
-            $resetCode = (string)random_int(100000, 999999);
-            $_SESSION['reset_email'] = $email;
-            $_SESSION['reset_user_id'] = (int)$user['id'];
-            $_SESSION['reset_code'] = $resetCode;
-            $_SESSION['reset_code_sent_at'] = time();
-            unset($_SESSION['reset_code_verified']);
-
-            require_once '../../config/mailer_config.php';
-            $subject = 'RF Dental Clinic - Password Reset Code';
-            $plain = "Hi " . ($user['username'] ?? 'User') . ", your verification code is: " . $resetCode;
-            $html = '<p>Hi ' . htmlspecialchars($user['username'] ?? 'User') . ',</p>'
-                . '<p>Your verification code is:</p>'
-                . '<p style="font-size:22px;font-weight:bold;letter-spacing:4px;">' . htmlspecialchars($resetCode) . '</p>'
-                . '<p>Enter this code to continue resetting your password.</p>';
-
-            $phpMailerBase = __DIR__ . '/../../PHPMailer/src';
-            if (!file_exists($phpMailerBase . '/PHPMailer.php')) {
-                echo json_encode(['success' => false, 'message' => 'Email service is not configured.']);
-                exit();
-            }
-
-            require_once $phpMailerBase . '/Exception.php';
-            require_once $phpMailerBase . '/PHPMailer.php';
-            require_once $phpMailerBase . '/SMTP.php';
-
-            $mailer = new \PHPMailer\PHPMailer\PHPMailer(true);
-            $mailer->isSMTP();
-            $mailer->Host = trim((string)SMTP_HOST);
-            $mailer->SMTPAuth = true;
-            $mailer->Username = SMTP_USER;
-            $mailer->Password = preg_replace('/\s+/', '', (string)SMTP_PASS);
-            $mailer->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-            $mailer->Port = SMTP_PORT;
-            $mailer->SMTPOptions = [
-                'ssl' => [
-                    'verify_peer' => false,
-                    'verify_peer_name' => false,
-                    'allow_self_signed' => true,
-                ],
-            ];
-            $mailer->setFrom(MAIL_FROM, MAIL_FROM_NAME);
-            $mailer->addAddress($email, $user['username'] ?? 'User');
-            $mailer->isHTML(true);
-            $mailer->Subject = $subject;
-            $mailer->Body = $html;
-            $mailer->AltBody = $plain;
-            $mailer->send();
-
-            echo json_encode(['success' => true, 'message' => 'Code sent. Check your email.', 'step' => 2]);
+            require_once __DIR__ . '/../../includes/account_recovery.php';
+            echo json_encode(sendAccountRecoveryCode($pdo, trim($_POST['email'] ?? '')));
             exit();
         }
 
         if ($action === 'verify_code') {
+            require_once __DIR__ . '/../../includes/account_recovery.php';
+            if (!accountRecoveryAttemptAllowed()) {
+                echo json_encode(['success' => false, 'message' => 'Too many incorrect attempts. Request a new code.']);
+                exit();
+            }
             $code = trim($_POST['code'] ?? '');
             $sessionCode = (string)($_SESSION['reset_code'] ?? '');
             $sentAt = (int)($_SESSION['reset_code_sent_at'] ?? 0);
@@ -290,10 +234,10 @@ if (
                 <form id="forgotInlineForm" onsubmit="return false;">
                     <div id="fpStep1" class="step-pane">
                         <p class="login-subtitle" style="text-align:center; margin-bottom: 16px;">
-                            Enter your email and we will send a 6-digit code.
+                            Enter your email or mobile number and we will send a 6-digit code.
                         </p>
                         <div class="input-group">
-                            <input type="email" id="fp_email" placeholder="Enter your email" required autocomplete="email">
+                            <input type="text" id="fp_email" placeholder="Email or mobile number" required autocomplete="username">
                         </div>
                         <button type="button" class="login-btn" id="fpSendBtn">
                             <span id="fpSendBtnText">Send Code</span>
@@ -302,7 +246,7 @@ if (
 
                     <div id="fpStep2" class="step-pane" style="display:none;">
                         <p class="login-subtitle" style="text-align:center; margin-bottom: 16px;">
-                            Enter the 6-digit code sent to your email.
+                            Enter the 6-digit code sent to your email or mobile number.
                         </p>
                         <div class="input-group">
                             <input type="text" id="fp_code" placeholder="Enter verification code" maxlength="6" inputmode="numeric" style="text-align: center; letter-spacing: 6px; font-size: 18px;">
@@ -464,7 +408,7 @@ if (
             fpSendBtn.addEventListener('click', function() {
                 var email = (fpEmail.value || '').trim();
                 if (!email) {
-                    showForgotError('Please enter your email address.');
+                    showForgotError('Please enter your email address or mobile number.');
                     return;
                 }
                 clearForgotMessages();
@@ -488,7 +432,7 @@ if (
             fpVerifyBtn.addEventListener('click', function() {
                 var code = (fpCode.value || '').trim();
                 if (!code) {
-                    showForgotError('Enter the 6-digit code sent to your email.');
+                    showForgotError('Enter the 6-digit code sent to your email or mobile number.');
                     return;
                 }
                 clearForgotMessages();

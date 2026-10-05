@@ -571,8 +571,8 @@ $assets = [
                   <input name="last_name" type="text" placeholder="Last Name" required maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only" autocomplete="family-name" />
                 </label>
                 <label class="field">
-                  <span class="sr-only">Email Address</span>
-                  <input name="email" type="email" placeholder="Email Address" required maxlength="254" autocomplete="email" />
+                  <span class="sr-only">Email or mobile number</span>
+                  <input name="email" type="text" placeholder="Email or mobile number" required maxlength="254" autocomplete="username" />
                 </label>
                 <button class="btn btn-primary" type="submit">Book Now</button>
               </form>
@@ -1322,7 +1322,7 @@ $assets = [
               window.FormSanitize.name(firstVal, true, 'First name'),
               window.FormSanitize.name(middleVal, false, 'Middle name'),
               window.FormSanitize.name(lastVal, true, 'Last name'),
-              window.FormSanitize.email(emailVal, true)
+              emailVal.includes('@') ? window.FormSanitize.email(emailVal, true) : window.FormSanitize.phone(emailVal, true)
             ])) {
               return;
             }
@@ -1330,7 +1330,7 @@ $assets = [
               first: firstVal.trim(),
               middle: middleVal.trim(),
               last: lastVal.trim(),
-              email: emailVal.trim()
+              email: emailVal.includes('@') ? emailVal.trim() : window.FormSanitize.phone(emailVal, true).value
             };
             const cap = function(s) { return s ? s.replace(/\b\w/g, function(l) { return l.toUpperCase(); }) : ''; };
             document.getElementById('reg-first-name').value = cap(bookingData.first || '');
@@ -1341,7 +1341,9 @@ $assets = [
             document.getElementById('reg-last-name-display').value = cap(bookingData.last || '');
             document.getElementById('reg-email').value = bookingData.email || '';
             document.getElementById('reg-email-hidden').value = bookingData.email || '';
-            document.getElementById('reg-phone').value = '';
+            const mobileBooking = !bookingData.email.includes('@');
+            window.PatientRegistration.select(mobileBooking ? 'phone' : 'email');
+            document.getElementById('reg-phone').value = mobileBooking ? bookingData.email : '';
             document.getElementById('reg-gender').value = '';
             document.getElementById('reg-dob').value = '';
             document.getElementById('reg-age').value = '';
@@ -1522,7 +1524,7 @@ $assets = [
           <button type="button" class="modal-close" aria-label="Close">&times;</button>
         </div>
         <div class="modal-body">
-          <p class="modal-intro">Almost done! Complete your information and create a password to secure your account.</p>
+          <p class="modal-intro">Complete your patient details, then choose how to register.</p>
           <form id="registrationForm" class="modal-form" autocomplete="off" novalidate>
             <input type="text" tabindex="-1" aria-hidden="true" autocomplete="username" style="position:absolute;left:-9999px;height:0;width:0;opacity:0;" value="">
             <input type="password" tabindex="-1" aria-hidden="true" autocomplete="current-password" style="position:absolute;left:-9999px;height:0;width:0;opacity:0;" value="">
@@ -1533,6 +1535,7 @@ $assets = [
             <input type="hidden" id="reg-email-hidden" name="email_hidden" />
             
             <!-- Patient Information Section -->
+            <div data-registration-stage="details">
             <div class="form-section">
               <h4 class="form-section-title">Patient Information</h4>
               <div class="form-row">
@@ -1625,12 +1628,41 @@ $assets = [
             </div>
             
             <!-- Account Information Section -->
+              <button type="button" class="btn btn-primary btn-block" data-registration-details-next>Next</button>
+            </div>
+            <div data-registration-stage="contact" style="display:none;">
             <div class="form-section">
-              <h4 class="form-section-title">Account Information</h4>
+              <h4 class="form-section-title">Account contact</h4>
+              <div class="form-group" style="margin-bottom:12px;">
+                <label for="reg-contact-method">Register using</label>
+                <select id="reg-contact-method" name="contact_method" class="styled-select" style="width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;">
+                  <option value="email">Email address</option>
+                  <option value="phone">Mobile number</option>
+                </select>
+                <p id="reg-contact-hint" data-contact-hint style="font-size:13px;color:#64748b;margin:8px 0;"></p>
+              </div>
               <div class="form-group">
                 <label for="reg-email">Email (Username) <span style="color:#dc2626">*</span></label>
                 <input type="email" id="reg-email" name="email" required placeholder="your@email.com" maxlength="254" autocomplete="off" />
                 <div id="reg-email-status" style="display:none; margin-top:6px; font-size:13px; color:#dc3545;"></div>
+              </div>
+<div class="form-group" data-contact-mobile-group style="display:none;">
+                <label for="reg-contact-mobile">Mobile number</label>
+                <input type="tel" id="reg-contact-mobile" placeholder="09123456789" inputmode="numeric" maxlength="11" pattern="09[0-9]{9}" autocomplete="tel" aria-describedby="reg-contact-hint" />
+              </div>
+<p data-contact-error role="alert" style="display:none;color:#dc2626;font-size:13px;"></p>
+<div style="display:flex;gap:10px;width:100%;margin-top:16px;">
+                <button type="button" class="btn btn-outline login-btn" data-registration-back="details" style="flex:1;">Back</button>
+                <button type="button" class="btn btn-primary login-btn" data-registration-contact-next style="flex:2;">Next</button>
+              </div>
+            </div>
+            </div>
+            <div data-registration-stage="password" style="display:none;">
+            <div class="form-section">
+              <h4 class="form-section-title">Create your password</h4>
+<div class="form-group" style="margin-bottom:16px;">
+                <label for="reg-contact-summary">Registering with <span data-contact-summary-label>email address</span></label>
+                <input type="text" id="reg-contact-summary" readonly aria-label="Selected registration contact" style="width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;box-sizing:border-box;" />
               </div>
               <div class="form-group">
                 <label for="reg-password">Create Password <span style="color:#dc2626">*</span></label>
@@ -1726,7 +1758,9 @@ $assets = [
               </div>
             </div>
             
-            <button type="submit" class="btn btn-primary btn-block">Create Account & Book Appointment</button>
+            <button type="button" class="btn btn-outline btn-block" data-registration-back="contact" style="margin-bottom:10px;">Back</button>
+            <button type="submit" class="btn btn-primary btn-block">Create Account</button>
+            </div>
           </form>
 
           <div id="regOtpSection" style="display: none;">
@@ -1877,6 +1911,11 @@ $assets = [
         bindDigitsOnlyField(regEmergencyPhoneInput);
 
         function clearRegistrationAutofill() {
+          const form = document.getElementById('registrationForm');
+          if (form) form.style.display = 'block';
+          const otp = document.getElementById('regOtpSection');
+          if (otp) otp.style.display = 'none';
+          window.PatientRegistration.showStage('details', false);
           const pwd = document.getElementById('reg-password');
           const confirm = document.getElementById('reg-confirm-password');
           if (pwd) pwd.value = '';
@@ -2142,7 +2181,7 @@ $assets = [
               })
               .then(function(r) { return r.json(); })
               .then(function(data) {
-                if (currentRequestId !== regEmailRequestId) return;
+                if (currentRequestId !== regEmailRequestId || window.PatientRegistration?.isMobile()) return;
 
                 if (data && data.exists) {
                   if (data.is_archived) {
@@ -2206,7 +2245,7 @@ $assets = [
               window.FormSanitize.name(middleDisplay ? middleDisplay.value : '', false, 'Middle name'),
               window.FormSanitize.name(lastDisplay ? lastDisplay.value : '', true, 'Last name'),
               window.FormSanitize.phone(phone, true),
-              window.FormSanitize.email(email, true),
+              window.FormSanitize.email(email, !window.PatientRegistration?.isMobile()),
               window.FormSanitize.address(addressVal, false),
               window.FormSanitize.name(emergencyName, true, 'Emergency contact name'),
               window.FormSanitize.phone(emergencyPhone, true)
@@ -2230,7 +2269,7 @@ $assets = [
               return;
             }
 
-            if (!email) {
+            if (!email && !window.PatientRegistration?.isMobile()) {
               alert('Please enter your email address');
               return;
             }
@@ -2257,7 +2296,7 @@ $assets = [
 
             if (result.success) {
                 if (result.step === 'otp') {
-                  showRegOtpStep(email);
+                  showRegOtpStep(result.destination || window.PatientRegistration.identifier());
                   if (result.dev_otp) {
                     alert('Local development mode: use this verification code: ' + result.dev_otp);
                   }
@@ -2439,7 +2478,7 @@ $assets = [
             const email = document.getElementById('welcome-back-email').value;
 
             if (window.FormSanitize && !window.FormSanitize.alertIfInvalid([
-              window.FormSanitize.email(email, true)
+              email.includes('@') ? window.FormSanitize.email(email, true) : window.FormSanitize.phone(email, true)
             ])) {
               return;
             }
@@ -3456,5 +3495,6 @@ $assets = [
     </div>
 
     <script src="../../assets/js/discount_id_fields.js"></script>
+    <script src="../../assets/js/patient_registration_contact.js"></script>
   </body>
 </html>

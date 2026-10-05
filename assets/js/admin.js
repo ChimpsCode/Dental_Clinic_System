@@ -176,7 +176,9 @@ function openUserModal(userId = null) {
                     document.getElementById('middleName').value = user.middle_name || '';
                     document.getElementById('lastName').value = user.last_name || '';
                     document.getElementById('email').value = user.email || '';
-                    document.getElementById('role').value = user.role || 'staff';
+                    document.getElementById('role').value = (user.role || 'staff').toLowerCase();
+                    document.getElementById('role').dispatchEvent(new Event('change'));
+                    document.getElementById('phoneNumber').value = user.phone || '';
                     const genderSelect = document.getElementById('gender');
                     if (genderSelect) genderSelect.value = user.gender || '';
                     const dobInput = document.getElementById('dateOfBirth');
@@ -200,6 +202,7 @@ function openUserModal(userId = null) {
         } else {
             title.textContent = 'Add New User';
             form.reset();
+            document.getElementById('role').dispatchEvent(new Event('change'));
             if (userIdInput) userIdInput.value = '';
             document.getElementById('password').placeholder = 'Password';
             const editOnlyFields = modal.querySelectorAll('[data-edit-only="true"]');
@@ -313,6 +316,22 @@ function initFilters() {
  */
 function initForms() {
     const userForm = document.getElementById('userForm');
+    const userRoleField = document.getElementById('role');
+    const userEmailField = document.getElementById('email');
+    function updateUserContactRequirements() {
+        if (userRoleField && userEmailField) {
+            const patient = userRoleField.value === 'patient';
+            userEmailField.required = !patient;
+            const usernameField = document.getElementById('username');
+            if (usernameField) {
+                usernameField.required = !patient || userEmailField.value.trim() !== '';
+                usernameField.placeholder = patient ? 'Username (mobile used if no email)' : 'Username';
+            }
+        }
+    }
+    userRoleField?.addEventListener('change', updateUserContactRequirements);
+    userEmailField?.addEventListener('input', updateUserContactRequirements);
+    updateUserContactRequirements();
     if (userForm) {
         userForm.addEventListener('submit', function(e) {
             e.preventDefault();

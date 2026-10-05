@@ -127,7 +127,8 @@ try {
         $firstSan = sanitize_name($_POST['firstName'] ?? '', true, 80, 'First name');
         $middleSan = sanitize_name($_POST['middleName'] ?? '', false, 80, 'Middle name');
         $lastSan = sanitize_name($_POST['lastName'] ?? '', true, 80, 'Last name');
-        $emailSan = sanitize_email($_POST['email'] ?? '', true);
+        $isPatient = ($_POST['role'] ?? '') === 'patient';
+        $emailSan = sanitize_email($_POST['email'] ?? '', !$isPatient);
         foreach ([$firstSan, $middleSan, $lastSan, $emailSan] as $field) {
             if (!$field['ok']) {
                 jsonError($field['error']);
@@ -145,7 +146,7 @@ try {
         $status   = trim($_POST['status'] ?? 'active');
         $confirmPassword = trim($_POST['confirmPassword'] ?? '');
 
-        if ($username === '' || $firstName === '' || $lastName === '' || $email === '' || $role === '') {
+        if (($username === '' && !($isPatient && $email === '' && $action === 'create')) || $firstName === '' || $lastName === '' || (!$isPatient && $email === '') || $role === '') {
             jsonError('Please fill in all required fields.');
         }
 
@@ -161,8 +162,24 @@ try {
             jsonError('Invalid status selected.');
         }
 
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             jsonError('Invalid email address.');
+        }
+
+        if ($isPatient) {
+            require_once __DIR__ . '/../../includes/account_contact.php';
+            lockAccountContactWrites($pdo);
+            $mobileLogin = $email === '' || preg_match('/^09\d{9}$/', $username) === 1;
+            $phoneSan = sanitize_phone($phoneNumber, $mobileLogin);
+            if (!$phoneSan['ok']) jsonError($phoneSan['error']);
+            $phoneNumber = $phoneSan['value'];
+            if ($mobileLogin) $username = $phoneNumber;
+            if ($phoneNumber !== '') {
+                assertPatientContactAvailable($pdo, [
+                    'email' => $email, 'phone' => $phoneNumber,
+                    'contact_method' => $mobileLogin ? 'phone' : 'email'
+                ], $action === 'update' ? $id : 0);
+            }
         }
 
         if ($action === 'create') {
@@ -175,7 +192,7 @@ try {
 
             // Ensure email is unique among active accounts (duplicate emails make
             // login ambiguous - the password change may land on the wrong copy)
-            $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND is_archived = 0 LIMIT 1");
+            $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND email <> '' AND is_archived = 0 LIMIT 1");
             $stmt->execute([$email]);
             if ($stmt->fetch()) {
                 jsonError('Email is already used by another active account.');
@@ -196,7 +213,7 @@ try {
             $roleValue = $roleNameMap[strtolower($role)] ?? 'Staff';
 
             $fields = ['username', 'password', 'email', 'first_name', 'middle_name', 'last_name', 'role', 'status'];
-            $values = [$username, $hashed, $email, $firstName, $middleName, $lastName, $roleValue, ucfirst($status)];
+            $values = [$username, $hashed, $email ?: null, $firstName, $middleName, $lastName, $roleValue, ucfirst($status)];
             
             if ($gender !== '' && in_array($gender, ['Male', 'Female'])) {
                 $fields[] = 'gender';
@@ -300,7 +317,7 @@ try {
             }
 
             // Check email uniqueness among active accounts (excluding current user)
-            $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND id <> ? AND is_archived = 0 LIMIT 1");
+            $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND email <> '' AND id <> ? AND is_archived = 0 LIMIT 1");
             $stmt->execute([$email, $id]);
             if ($stmt->fetch()) {
                 jsonError('Email is already used by another active account.');
@@ -309,7 +326,7 @@ try {
             // Build update query dynamically (password optional)
             $roleNameMap = ['admin' => 'Admin', 'dentist' => 'Dentist', 'staff' => 'Staff', 'patient' => 'Patient'];
             $roleValue = $roleNameMap[strtolower($role)] ?? 'Staff';
-            $fields = ['username' => $username, 'email' => $email, 'first_name' => $firstName, 'middle_name' => $middleName, 'last_name' => $lastName, 'role' => $roleValue];
+            $fields = ['username' => $username, 'email' => $email ?: null, 'first_name' => $firstName, 'middle_name' => $middleName, 'last_name' => $lastName, 'role' => $roleValue];
             $setParts = ['username = :username', 'email = :email', 'first_name = :first_name', 'middle_name = :middle_name', 'last_name = :last_name', 'role = :role'];
 
             if ($hasStatusColumn) {
@@ -331,6 +348,11 @@ try {
             } elseif ($dateOfBirth === '') {
                 $fields['date_of_birth'] = null;
                 $setParts[] = 'date_of_birth = :date_of_birth';
+            }
+
+            if ($hasPhoneColumn) {
+                $fields['phone'] = $phoneNumber ?: null;
+                $setParts[] = 'phone = :phone';
             }
 
             if ($password !== '') {

@@ -21,6 +21,7 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/sms_functions.php';
+require_once __DIR__ . '/../../includes/account_contact.php';
 
 $revoked = app_session_revoked_response();
 if ($revoked !== null || !isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'user') {
@@ -36,6 +37,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 $userId = (int)$_SESSION['user_id'];
 $patientId = (int)($_SESSION['patient_id'] ?? 0);
 $action = $_POST['action'] ?? '';
+$accountStmt = $pdo->prepare('SELECT username, email FROM users WHERE id = ? LIMIT 1');
+$accountStmt->execute([$userId]);
+$phoneAccount = $accountStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+$usesMobileLogin = preg_match('/^09\d{9}$/', (string)($phoneAccount['username'] ?? '')) === 1;
+
+function checkNewAccountPhone(PDO $pdo, array $account, bool $mobileLogin, string $phone, int $userId): void
+{
+    assertPatientContactAvailable($pdo, [
+        'contact_method' => $mobileLogin ? 'phone' : 'email',
+        'email' => $account['email'] ?? '',
+        'phone' => '0' . $phone,
+    ], $userId);
+}
 
 const PHONE_OTP_TTL_SECONDS = 300;
 const PHONE_OTP_RESEND_SECONDS = 120;
@@ -131,6 +145,11 @@ if ($action === 'send_otp') {
     $phone = normalizePhoneForOtp((string)($_POST['phone'] ?? ''));
     if ($phone === '') {
         phoneOtpFail('Please enter a valid 10-digit Philippine mobile number (e.g. 0917 123 4567).');
+    }
+    try {
+        checkNewAccountPhone($pdo, $phoneAccount, $usesMobileLogin, $phone, $userId);
+    } catch (RuntimeException $e) {
+        phoneOtpFail($e->getMessage());
     }
 
     if (!smsIsConfigured()) {
@@ -247,12 +266,20 @@ if ($action === 'verify_otp') {
     }
 
     try {
+        lockAccountContactWrites($pdo);
         $pdo->beginTransaction();
-        $pdo->prepare('UPDATE users SET phone = ? WHERE id = ?')->execute([$phone, $userId]);
+        checkNewAccountPhone($pdo, $phoneAccount, $usesMobileLogin, $phone, $userId);
+        $storedPhone = $usesMobileLogin ? '0' . $phone : $phone;
+        if ($usesMobileLogin) {
+            $pdo->prepare('UPDATE users SET phone = ?, username = ? WHERE id = ?')->execute([$storedPhone, $storedPhone, $userId]);
+        } else {
+            $pdo->prepare('UPDATE users SET phone = ? WHERE id = ?')->execute([$storedPhone, $userId]);
+        }
         if ($patientId > 0) {
-            $pdo->prepare('UPDATE patients SET phone = ? WHERE id = ?')->execute([$phone, $patientId]);
+            $pdo->prepare('UPDATE patients SET phone = ? WHERE id = ?')->execute([$storedPhone, $patientId]);
         }
         $pdo->commit();
+        if ($usesMobileLogin) $_SESSION['username'] = $storedPhone;
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
@@ -266,8 +293,8 @@ if ($action === 'verify_otp') {
 
     echo json_encode([
         'success' => true,
-        'phone' => $phone,
-        'message' => 'Phone number updated to ' . $phone . '.',
+        'phone' => $storedPhone,
+        'message' => 'Phone number updated to ' . $storedPhone . '.' . ($usesMobileLogin ? ' Use this number to log in.' : ''),
     ]);
     exit();
 }

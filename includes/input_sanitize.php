@@ -80,6 +80,9 @@ function sanitize_email($raw, bool $required = true): array
 function sanitize_phone($raw, bool $required = true): array
 {
     $digits = preg_replace('/\D+/', '', (string)$raw) ?? '';
+    if (preg_match('/^639\d{9}$/', $digits)) {
+        $digits = '0' . substr($digits, 2);
+    }
 
     if ($digits === '') {
         return $required ? sanitize_fail('Phone number is required.') : sanitize_ok('');
@@ -149,6 +152,9 @@ function sanitize_login_identifier($raw): array
     }
     if (strpos($value, '@') !== false) {
         return sanitize_email($value, true);
+    }
+    if (preg_match('/^(?:09\d{9}|\+?639\d{9})$/', $value)) {
+        return sanitize_phone($value, true);
     }
     if (!preg_match('/^[A-Za-z0-9._\\-]+$/', $value)) {
         return sanitize_fail('Username contains invalid characters.');
@@ -269,7 +275,11 @@ function sanitize_patient_registration_input(array $post, array $options = []): 
         return ['ok' => false, 'error' => $last['error'], 'data' => []];
     }
 
-    $email = sanitize_email($post['email'] ?? '', true);
+    $method = $post['contact_method'] ?? 'email';
+    if (!in_array($method, ['email', 'phone'], true)) {
+        return ['ok' => false, 'error' => 'Choose email or mobile registration.', 'data' => []];
+    }
+    $email = sanitize_email($method === 'phone' ? '' : ($post['email'] ?? ''), $method === 'email');
     if (!$email['ok']) {
         return ['ok' => false, 'error' => $email['error'], 'data' => []];
     }
@@ -332,6 +342,7 @@ function sanitize_patient_registration_input(array $post, array $options = []): 
             'middle_name' => $middle['value'],
             'last_name' => $last['value'],
             'email' => $email['value'],
+            'contact_method' => $method,
             'phone' => $phone['value'],
             'gender' => strtolower($gender['value']),
             'date_of_birth' => $dob['value'],
