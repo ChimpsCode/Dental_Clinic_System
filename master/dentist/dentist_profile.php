@@ -156,7 +156,12 @@ $dentistTwoFactorEnabled = (int)($user['two_factor_enabled'] ?? 0) === 1;
     ?>
 
     <div class="section profile-intro-section">
-        <div class="profile-cover" aria-hidden="true"></div>
+        <div class="profile-cover">
+            <div class="profile-cover-menu">
+                <button type="button" class="profile-cover-menu-trigger" id="coverPhotoMenuTrigger" aria-label="Cover photo options" aria-haspopup="true" aria-expanded="false">&#8942;</button>
+                <div class="profile-cover-menu-options" id="coverPhotoMenu" hidden><button type="button" id="changeProfilePhotoBtn">Change Photo</button></div>
+            </div>
+        </div>
         <div class="profile-header">
             <div class="profile-avatar">
                 <?php if ($profPic && file_exists(dirname(__DIR__, 2) . '/' . $profPic)): ?>
@@ -172,19 +177,11 @@ $dentistTwoFactorEnabled = (int)($user['two_factor_enabled'] ?? 0) === 1;
         </div>
 
         <div style="padding-top: 20px; border-top: 1px solid #e5e7eb;">
-            <div class="section-title">Profile Photo</div>
             <form action="../shared/profile_picture_actions.php" method="POST" enctype="multipart/form-data" id="uploadForm">
                 <input type="hidden" name="action" value="upload">
                 <div class="avatar-upload-actions">
-                    <div class="upload-btn-wrapper">
-                        <button class="btn btn-primary" id="chooseBtn" type="button">Choose Photo</button>
-                        <input type="file" name="profile_picture" id="fileInput" accept="image/jpeg,image/png,image/gif,image/webp">
-                    </div>
+                    <input type="file" name="profile_picture" id="fileInput" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;">
                     <button class="btn btn-success" id="saveBtn" style="display:none;" type="button">Save Photo</button>
-                    <?php if ($profPic): ?>
-                        <a href="../shared/profile_picture_actions.php?action=delete" class="btn btn-danger" id="deleteBtn" onclick="return confirm('Remove your profile picture?')">Remove Photo</a>
-                    <?php endif; ?>
-                    <span class="upload-hint">JPG, PNG, GIF, WebP. Max 2MB.</span>
                 </div>
             </form>
         </div>
@@ -418,6 +415,7 @@ $dentistTwoFactorEnabled = (int)($user['two_factor_enabled'] ?? 0) === 1;
 </script>
 <?php require_once __DIR__ . '/../../includes/dentist_layout_end.php'; ?>
 <script src="../../assets/js/two_factor_setup.js"></script>
+<script src="../../assets/js/profile_photo_crop.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     initTwoFactorSetup({
@@ -428,53 +426,6 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 <script>
 (function() {
-    const fileInput = document.getElementById('fileInput');
-    const chooseBtn = document.getElementById('chooseBtn');
-    const saveBtn = document.getElementById('saveBtn');
-    const form = document.getElementById('uploadForm');
-    const preview = document.querySelector('.profile-avatar');
-
-    fileInput.addEventListener('change', function() {
-        const file = this.files[0];
-        if (!file) return;
-
-        const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        if (!allowed.includes(file.type)) {
-            alert('Only JPG, PNG, GIF, and WebP images are allowed.');
-            this.value = '';
-            return;
-        }
-        if (file.size > 2 * 1024 * 1024) {
-            alert('File size must be under 2MB.');
-            this.value = '';
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const img = preview.querySelector('img');
-            if (img) {
-                img.src = e.target.result;
-            } else {
-                preview.innerHTML = '';
-                const newImg = document.createElement('img');
-                newImg.src = e.target.result;
-                newImg.alt = 'Profile';
-                preview.appendChild(newImg);
-            }
-        };
-        reader.readAsDataURL(file);
-
-        saveBtn.style.display = 'inline-flex';
-        chooseBtn.textContent = 'Change Photo';
-    });
-
-    saveBtn.addEventListener('click', function() {
-        saveBtn.disabled = true;
-        chooseBtn.disabled = true;
-        form.submit();
-    });
-
     var alertEl = document.querySelector('.alert-success');
     if (alertEl) {
         setTimeout(function() {

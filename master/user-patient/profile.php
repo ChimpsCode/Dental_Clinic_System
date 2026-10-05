@@ -412,6 +412,24 @@ $pageTitle = 'My Profile';
         /* Modal styling for OTP */
         .otp-modal { display: none; position: fixed; z-index: 1100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
         .otp-modal-content { background: white; padding: 24px; border-radius: 12px; width: 100%; max-width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .photo-crop-modal { display: none; position: fixed; inset: 0; z-index: 1200; align-items: center; justify-content: center; padding: 20px; background: rgba(15, 30, 55, .62); backdrop-filter: blur(3px); }
+        .photo-crop-modal.open { display: flex; }
+        .photo-crop-card { width: min(100%, 520px); overflow: hidden; border: 1px solid #dbe8f2; border-radius: 18px; background: #fff; box-shadow: 0 24px 70px rgba(12, 43, 76, .3); }
+        .photo-crop-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 24px; border-bottom: 1px solid #e6eef5; background: linear-gradient(120deg, #f2f9ff, #f4fbfa); }
+        .photo-crop-title { color: #173b63; font-size: 18px; font-weight: 700; }
+        .photo-crop-subtitle { margin-top: 4px; color: #64748b; font-size: 12px; }
+        .photo-crop-close { width: 34px; height: 34px; flex: 0 0 34px; border: 1px solid #dbe5ed; border-radius: 50%; background: #fff; color: #47627a; cursor: pointer; }
+        .photo-crop-body { display: flex; flex-direction: column; align-items: center; padding: 24px; }
+        .photo-crop-canvas { width: 280px; height: 280px; max-width: 70vw; max-height: 70vw; border: 5px solid #fff; border-radius: 50%; background: #eaf3f9; box-shadow: 0 0 0 1px #d4e4ef, 0 12px 28px rgba(22, 74, 111, .16); cursor: grab; touch-action: none; }
+        .photo-crop-canvas.dragging { cursor: grabbing; }
+        .photo-crop-tip { margin-top: 15px; color: #64748b; font-size: 13px; text-align: center; }
+        .photo-crop-zoom { display: flex; align-items: center; gap: 12px; width: min(100%, 320px); margin-top: 16px; color: #47708e; }
+        .photo-crop-zoom input { flex: 1; accent-color: #087e8b; }
+        .photo-crop-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px; border-top: 1px solid #e6eef5; background: #fbfdff; }
+        .photo-crop-save { background: linear-gradient(135deg, #087e8b, #0564a7); color: #fff; }
+        .photo-crop-save:hover { filter: brightness(.94); }
+        body.photo-crop-open { overflow: hidden; }
+        @media (max-width: 520px) { .photo-crop-head, .photo-crop-foot { padding-left: 18px; padding-right: 18px; } .photo-crop-body { padding: 20px 16px; } }
     </style>
     <link rel="stylesheet" href="../../assets/css/patient_portal.css?v=7">
     <link rel="stylesheet" href="../../assets/css/profile_cover.css">
@@ -510,7 +528,14 @@ $pageTitle = 'My Profile';
             <?php endif; ?>
 
             <div class="section profile-intro-section">
-                <div class="profile-cover" aria-hidden="true"></div>
+                <div class="profile-cover">
+                    <div class="profile-cover-menu">
+                        <button type="button" class="profile-cover-menu-trigger" id="coverPhotoMenuTrigger" aria-label="Cover photo options" aria-haspopup="true" aria-expanded="false">&#8942;</button>
+                        <div class="profile-cover-menu-options" id="coverPhotoMenu" hidden>
+                            <button type="button" id="changeProfilePhotoBtn">Change Photo</button>
+                        </div>
+                    </div>
+                </div>
                 <div class="profile-header">
                     <div class="profile-avatar" style="overflow:hidden;">
                         <?php 
@@ -531,19 +556,27 @@ $pageTitle = 'My Profile';
                 </div>
 
                 <div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #e5e7eb;">
-                    <div class="section-title">Profile Photo</div>
                     <form action="../shared/profile_picture_actions.php" method="POST" enctype="multipart/form-data" id="uploadForm" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
                         <input type="hidden" name="action" value="upload">
-                        <div class="upload-btn-wrapper">
-                            <button class="btn btn-primary" id="chooseBtn" type="button">Choose Photo</button>
-                            <input type="file" name="profile_picture" id="fileInput" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;">
-                        </div>
-                        <button class="btn btn-primary" id="saveBtn" style="display:none;" type="submit">Save Photo</button>
-                        <?php if (!empty($profPic)): ?>
-                            <a href="../shared/profile_picture_actions.php?action=delete" class="btn btn-secondary" style="text-decoration:none;color:#dc2626;" onclick="return confirm('Remove profile photo?')">Remove Photo</a>
-                        <?php endif; ?>
-                        <span style="font-size:12px;color:#6b7280;">JPG, PNG, GIF, WebP. Max 2MB.</span>
+                        <input type="file" name="profile_picture" id="fileInput" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;">
                     </form>
+                    <div class="photo-crop-modal" id="photoCropModal" role="dialog" aria-modal="true" aria-labelledby="photoCropTitle" aria-hidden="true">
+                        <div class="photo-crop-card">
+                            <div class="photo-crop-head">
+                                <div><div class="photo-crop-title" id="photoCropTitle">Adjust your profile photo</div><div class="photo-crop-subtitle">Center your smile in the circle.</div></div>
+                                <button type="button" class="photo-crop-close" id="photoCropClose" aria-label="Close photo editor"><i class="fas fa-times"></i></button>
+                            </div>
+                            <div class="photo-crop-body">
+                                <canvas class="photo-crop-canvas" id="photoCropCanvas" width="280" height="280" aria-label="Drag to reposition your profile photo"></canvas>
+                                <div class="photo-crop-tip">Drag to reposition your photo</div>
+                                <label class="photo-crop-zoom"><i class="fas fa-minus" aria-hidden="true"></i><input type="range" id="photoCropZoom" min="1" max="3" step="0.01" value="1" aria-label="Zoom photo"><i class="fas fa-plus" aria-hidden="true"></i></label>
+                            </div>
+                            <div class="photo-crop-foot">
+                                <button type="button" class="btn btn-secondary" id="photoCropCancel">Cancel</button>
+                                <button type="button" class="btn photo-crop-save" id="photoCropSave"><i class="fas fa-tooth" aria-hidden="true"></i> Save Photo</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <form method="POST" action="" id="profileUpdateForm">
@@ -689,19 +722,149 @@ $pageTitle = 'My Profile';
     <script>
         (function() {
             const fileInput = document.getElementById('fileInput');
-            const chooseBtn = document.getElementById('chooseBtn');
-            const saveBtn = document.getElementById('saveBtn');
+            const menuTrigger = document.getElementById('coverPhotoMenuTrigger');
+            const menu = document.getElementById('coverPhotoMenu');
+            const changePhotoBtn = document.getElementById('changeProfilePhotoBtn');
+            const cropModal = document.getElementById('photoCropModal');
+            const cropCanvas = document.getElementById('photoCropCanvas');
+            const cropZoom = document.getElementById('photoCropZoom');
+            const cropSave = document.getElementById('photoCropSave');
+            const cropClose = document.getElementById('photoCropClose');
+            const cropCancel = document.getElementById('photoCropCancel');
             const form = document.getElementById('uploadForm');
-            if (!fileInput || !chooseBtn || !saveBtn || !form) return;
-            chooseBtn.addEventListener('click', function() { fileInput.click(); });
+            if (!fileInput || !menuTrigger || !menu || !changePhotoBtn || !cropModal || !cropCanvas || !cropZoom || !cropSave || !form) return;
+            const ctx = cropCanvas.getContext('2d');
+            let image = null;
+            let imageUrl = '';
+            let zoom = 1;
+            let offsetX = 0;
+            let offsetY = 0;
+            let dragPoint = null;
+            const cropSize = cropCanvas.width;
+
+            function imageRect() {
+                const scale = Math.max(cropSize / image.naturalWidth, cropSize / image.naturalHeight) * zoom;
+                const width = image.naturalWidth * scale;
+                const height = image.naturalHeight * scale;
+                const maxX = Math.max(0, (width - cropSize) / 2);
+                const maxY = Math.max(0, (height - cropSize) / 2);
+                offsetX = Math.max(-maxX, Math.min(maxX, offsetX));
+                offsetY = Math.max(-maxY, Math.min(maxY, offsetY));
+                return { x: (cropSize - width) / 2 + offsetX, y: (cropSize - height) / 2 + offsetY, width, height };
+            }
+            function drawCrop() {
+                if (!image) return;
+                const rect = imageRect();
+                ctx.clearRect(0, 0, cropSize, cropSize);
+                ctx.drawImage(image, rect.x, rect.y, rect.width, rect.height);
+            }
+            function closeCrop(clearFile) {
+                cropModal.classList.remove('open');
+                cropModal.setAttribute('aria-hidden', 'true');
+                document.body.classList.remove('photo-crop-open');
+                if (imageUrl) URL.revokeObjectURL(imageUrl);
+                imageUrl = '';
+                image = null;
+                if (clearFile !== false) fileInput.value = '';
+            }
+            function openCrop(file) {
+                if (imageUrl) URL.revokeObjectURL(imageUrl);
+                imageUrl = URL.createObjectURL(file);
+                image = new Image();
+                image.onload = function() {
+                    zoom = 1;
+                    offsetX = 0;
+                    offsetY = 0;
+                    cropZoom.value = '1';
+                    drawCrop();
+                    cropModal.classList.add('open');
+                    cropModal.setAttribute('aria-hidden', 'false');
+                    document.body.classList.add('photo-crop-open');
+                    cropSave.focus();
+                };
+                image.onerror = function() { alert('Unable to preview this image. Please choose another photo.'); closeCrop(); };
+                image.src = imageUrl;
+            }
+            menuTrigger.addEventListener('click', function() {
+                const isOpen = !menu.hidden;
+                menu.hidden = isOpen;
+                menuTrigger.setAttribute('aria-expanded', String(!isOpen));
+            });
+            changePhotoBtn.addEventListener('click', function() {
+                menu.hidden = true;
+                menuTrigger.setAttribute('aria-expanded', 'false');
+                fileInput.click();
+            });
+            document.addEventListener('click', function(event) {
+                if (!event.target.closest('.profile-cover-menu')) {
+                    menu.hidden = true;
+                    menuTrigger.setAttribute('aria-expanded', 'false');
+                }
+            });
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    menu.hidden = true;
+                    menuTrigger.setAttribute('aria-expanded', 'false');
+                    menuTrigger.focus();
+                }
+            });
             fileInput.addEventListener('change', function() {
                 const file = this.files[0];
                 if (!file) return;
                 const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
                 if (!validTypes.includes(file.type)) { alert('Please select a valid image file (JPG, PNG, GIF, WebP).'); this.value = ''; return; }
                 if (file.size > 2 * 1024 * 1024) { alert('File is too large. Maximum size is 2MB.'); this.value = ''; return; }
-                saveBtn.style.display = 'inline-flex';
-                chooseBtn.textContent = 'Change Photo';
+                openCrop(file);
+            });
+            cropZoom.addEventListener('input', function() { zoom = Number(this.value); drawCrop(); });
+            cropCanvas.addEventListener('pointerdown', function(event) {
+                if (!image) return;
+                dragPoint = { x: event.clientX, y: event.clientY };
+                cropCanvas.classList.add('dragging');
+                cropCanvas.setPointerCapture(event.pointerId);
+            });
+            cropCanvas.addEventListener('pointermove', function(event) {
+                if (!dragPoint) return;
+                const bounds = cropCanvas.getBoundingClientRect();
+                offsetX += (event.clientX - dragPoint.x) * (cropSize / bounds.width);
+                offsetY += (event.clientY - dragPoint.y) * (cropSize / bounds.height);
+                dragPoint = { x: event.clientX, y: event.clientY };
+                drawCrop();
+            });
+            function endDrag() { dragPoint = null; cropCanvas.classList.remove('dragging'); }
+            cropCanvas.addEventListener('pointerup', endDrag);
+            cropCanvas.addEventListener('pointercancel', endDrag);
+            cropClose.addEventListener('click', closeCrop);
+            cropCancel.addEventListener('click', closeCrop);
+            cropModal.addEventListener('click', function(event) { if (event.target === cropModal) closeCrop(); });
+            document.addEventListener('keydown', function(event) { if (event.key === 'Escape' && cropModal.classList.contains('open')) closeCrop(); });
+            cropSave.addEventListener('click', function() {
+                if (!image) return;
+                cropSave.disabled = true;
+                cropSave.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Saving...';
+                const output = document.createElement('canvas');
+                output.width = 512;
+                output.height = 512;
+                const outputCtx = output.getContext('2d');
+                const rect = imageRect();
+                const ratio = output.width / cropSize;
+                outputCtx.fillStyle = '#fff';
+                outputCtx.fillRect(0, 0, output.width, output.height);
+                outputCtx.drawImage(image, rect.x * ratio, rect.y * ratio, rect.width * ratio, rect.height * ratio);
+                output.toBlob(function(blob) {
+                    if (!blob) {
+                        cropSave.disabled = false;
+                        cropSave.innerHTML = '<i class="fas fa-tooth" aria-hidden="true"></i> Save Photo';
+                        alert('Unable to prepare this photo. Please try again.');
+                        return;
+                    }
+                    const croppedFile = new File([blob], 'profile-photo.jpg', { type: 'image/jpeg' });
+                    const transfer = new DataTransfer();
+                    transfer.items.add(croppedFile);
+                    fileInput.files = transfer.files;
+                    closeCrop(false);
+                    form.submit();
+                }, 'image/jpeg', 0.92);
             });
         })();
     </script>
