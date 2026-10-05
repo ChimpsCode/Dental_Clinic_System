@@ -2390,6 +2390,20 @@ document.addEventListener('DOMContentLoaded', startQueuePolling);
 
 <style>
 @media (max-width: 768px) {
+    .queue-table-container {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+    }
+    .queue-table-container .queue-table {
+        min-width: 1100px;
+    }
+    .queue-table-container .queue-table th {
+        white-space: nowrap;
+    }
     .summary-widgets {
         grid-template-columns: 1fr 1fr !important;
     }

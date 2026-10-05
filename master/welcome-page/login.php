@@ -948,8 +948,65 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
         #registrationContainer .input-group input {
             padding: 10px 14px;
         }
+        #registrationContainer .dob-input-group {
+            position: relative;
+            min-width: 0;
+        }
+        .dob-placeholder {
+            display: none;
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #b3b8c6;
+            font-size: 15px;
+            font-weight: 500;
+            pointer-events: none;
+        }
+        .dob-empty:not(:focus-within) .dob-placeholder {
+            display: block;
+        }
+        #reg_dob.dob-empty:not(:focus) {
+            color: transparent;
+        }
+        #reg_dob.dob-empty:not(:focus)::-webkit-datetime-edit {
+            opacity: 0;
+        }
         #registrationContainer .form-links {
             margin: 10px 0 8px 0 !important;
+        }
+        .policy-links a {
+            color: #0061e0;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+        .policy-dialog {
+            width: min(640px, calc(100% - 32px));
+            max-height: calc(100dvh - 48px);
+            box-sizing: border-box;
+            margin: auto;
+            padding: 24px;
+            border: 0;
+            border-radius: 16px;
+            background: #fff;
+            color: #1f2937;
+            overflow-y: auto;
+            line-height: 1.6;
+        }
+        .policy-dialog::backdrop { background: rgba(15, 23, 42, 0.65); }
+        .policy-dialog h2 { margin: 0 0 16px; font-size: 24px; }
+        .policy-dialog h3 { margin: 20px 0 8px; font-size: 17px; }
+        .policy-dialog p { margin: 0 0 12px; }
+        .policy-dialog .policy-close {
+            display: block;
+            margin: 20px 0 0 auto;
+            padding: 10px 20px;
+            border: 0;
+            border-radius: 8px;
+            background: #0061e0;
+            color: #fff;
+            font: inherit;
+            cursor: pointer;
         }
         #registrationContainer .login-btn {
             padding: 12px 20px;
@@ -1007,9 +1064,57 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
         .forgot-progress .line.active {
             background: #2563eb;
         }
-        @media (max-width: 768px) {
+        @keyframes mobileFormFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @media (max-width: 1024px) {
+            #loginContainer .login-navigation,
+            #registrationContainer .registration-login-link {
+                flex-direction: row;
+                align-items: center;
+                flex-wrap: nowrap;
+                gap: 6px;
+            }
+            #loginContainer .login-navigation {
+                justify-content: space-between;
+            }
+            #loginContainer .login-navigation .separator {
+                display: inline;
+            }
+            #registrationContainer .registration-login-link {
+                justify-content: center;
+                text-align: center;
+            }
+            .form-section {
+                bottom: auto;
+                height: 100svh;
+                max-height: 100svh;
+                justify-content: center;
+                padding: 48px 12px;
+                overflow: hidden;
+            }
             .login-form-container {
-                transform: translateY(-84px);
+                flex-shrink: 0;
+                max-height: calc(100svh - 96px);
+                overflow-y: auto;
+                overscroll-behavior: contain;
+                -webkit-overflow-scrolling: touch;
+                transform: none;
+                animation: mobileFormFadeIn 0.2s ease;
+            }
+            #registrationContainer {
+                max-height: calc(100svh - 96px);
+            }
+            .form-section.keyboard-open {
+                top: var(--keyboard-viewport-top, 0px);
+                height: var(--keyboard-viewport-height);
+                max-height: var(--keyboard-viewport-height);
+                padding: 12px;
+            }
+            .form-section.keyboard-open .login-form-container,
+            .form-section.keyboard-open #registrationContainer {
+                max-height: calc(var(--keyboard-viewport-height) - 24px);
             }
         }
     </style>
@@ -1111,7 +1216,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
                         </div>
                     </div>
                     
-                    <div class="form-links">
+                    <div class="form-links login-navigation">
                         <a class="link" href="#forgot" id="forgotPasswordLink">Forgot password?</a>
                         <span class="separator">|</span>
                         <a class="link" href="#register" id="createAccountLink">Create an account</a>
@@ -1125,7 +1230,11 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
                     <button type="button" class="login-btn" id="loginBtn">Login</button>
                 </form>
 
-                <p class="applicant-note">For clinic applicants, please contact the administrator.</p>
+                <p class="applicant-note policy-links">
+                    <a href="#privacy-policy" data-policy-dialog="privacy-policy">Privacy Policy</a>
+                    <span aria-hidden="true"> &middot; </span>
+                    <a href="#terms-of-use" data-policy-dialog="terms-of-use">Terms of Use</a>
+                </p>
                 
                 <?php if (!empty($error)): ?>
                     <script>
@@ -1296,8 +1405,9 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
                                     <option value="female">Female</option>
                                 </select>
                             </div>
-                            <div class="input-group" style="flex:1;">
-                                <input type="date" id="reg_dob" name="date_of_birth" required>
+                            <div class="input-group dob-input-group" style="flex:1;">
+                                <input type="date" id="reg_dob" name="date_of_birth" aria-label="Date of birth" required>
+                                <span class="dob-placeholder" aria-hidden="true">mm/dd/yyyy</span>
                             </div>
                         </div>
 
@@ -1465,7 +1575,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
                     </div>
                 </div>
                 
-                <div class="form-links" style="margin-top: 16px; justify-content: center;">
+                <div class="form-links registration-login-link" style="margin-top: 16px; justify-content: center;">
                     <span>Already have an account? </span>
                     <a href="#login" class="link" id="backToLoginLink">Login</a>
                 </div>
@@ -1473,6 +1583,38 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
         </div>
     </div>
     
+    <dialog class="policy-dialog" id="privacy-policy" aria-labelledby="privacyPolicyTitle">
+        <h2 id="privacyPolicyTitle" tabindex="-1" autofocus>Privacy Policy</h2>
+        <p>This notice explains how personal information is used in the <?php echo htmlspecialchars($clinicName); ?> patient portal.</p>
+        <h3>Information used by the clinic</h3>
+        <p>The portal collects the information you provide when registering, including your name, date of birth, gender, contact details, and emergency contact information. Your account may also contain appointments, dental and medical history, consultation records, prescriptions, consent forms, and signatures recorded during your care.</p>
+        <h3>Why this information is used</h3>
+        <p>This information supports account verification, appointment management, patient communication, dental care, and clinic recordkeeping. Account activity and device information may be recorded to help protect accounts and review system activity.</p>
+        <h3>Access and service providers</h3>
+        <p>Clinic personnel use patient information according to their assigned roles. Services used to deliver verification codes and account notifications process the information needed to deliver those messages. Ask the clinic administrator for details about access to your records and the providers used by the clinic.</p>
+        <h3>Cookies and remembered accounts</h3>
+        <p>The portal uses session cookies to maintain your sign-in. If you select Remember me, your username is stored in your browser and your sign-in session may be extended. Avoid this option on shared devices, and sign out when you finish.</p>
+        <h3>Questions and corrections</h3>
+        <p>Contact the clinic administrator to ask about your personal information, request a correction, or discuss access, retention, or deletion of your records. The clinic can explain which records must be kept for ongoing care or other applicable requirements.</p>
+        <form method="dialog"><button class="policy-close" type="submit">Close</button></form>
+    </dialog>
+
+    <dialog class="policy-dialog" id="terms-of-use" aria-labelledby="termsOfUseTitle">
+        <h2 id="termsOfUseTitle" tabindex="-1" autofocus>Terms of Use</h2>
+        <p>These terms describe use of the <?php echo htmlspecialchars($clinicName); ?> patient portal for registration, appointments, and access to clinic services.</p>
+        <h3>Your account</h3>
+        <p>Provide accurate information and keep your contact details current. Keep your password and verification codes private. Use only an account you are authorized to access, and contact the clinic if you suspect someone else has accessed your account.</p>
+        <h3>Appointments and clinic services</h3>
+        <p>Check the status of your appointment in the portal and follow instructions from the clinic. Contact the clinic for changes or questions about availability, fees, cancellations, or treatment.</p>
+        <h3>Health information and consent</h3>
+        <p>Provide complete and accurate health information to support your care. Read consent forms before signing and ask your dentist about anything you do not understand. Information in the portal does not replace an examination or advice from your treating dentist. For urgent care, contact an appropriate healthcare provider directly.</p>
+        <h3>Responsible use</h3>
+        <p>Do not submit false information, access another person's records without authorization, or attempt to disrupt the portal or bypass its security controls. Sign out after use, especially on a shared device.</p>
+        <h3>Availability and questions</h3>
+        <p>The portal may be unavailable during maintenance or technical interruptions. Contact the clinic directly if you cannot complete a request online or have questions about these terms or the Privacy Policy.</p>
+        <form method="dialog"><button class="policy-close" type="submit">Close</button></form>
+    </dialog>
+
     <!-- Toast Notification -->
     <div id="toast" class="toast">
         <div class="toast-wrapper">
@@ -1488,6 +1630,87 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
         <div class="toast-loading-line"></div>
     </div>
     
+    <script>
+        (function () {
+            var dobInput = document.getElementById('reg_dob');
+            function updateDobPlaceholder() {
+                var empty = !dobInput.value;
+                dobInput.classList.toggle('dob-empty', empty);
+                dobInput.parentElement.classList.toggle('dob-empty', empty);
+            }
+            dobInput.addEventListener('input', updateDobPlaceholder);
+            dobInput.addEventListener('change', updateDobPlaceholder);
+            window.addEventListener('pageshow', updateDobPlaceholder);
+            dobInput.form.addEventListener('reset', function () {
+                window.setTimeout(updateDobPlaceholder, 0);
+            });
+            updateDobPlaceholder();
+        })();
+    </script>
+    <script>
+        document.querySelectorAll('[data-policy-dialog]').forEach(function (link) {
+            link.addEventListener('click', function (event) {
+                event.preventDefault();
+                var dialog = document.getElementById(link.dataset.policyDialog);
+                dialog.showModal();
+                dialog.scrollTop = 0;
+            });
+        });
+        document.querySelectorAll('.policy-dialog').forEach(function (dialog) {
+            dialog.addEventListener('click', function (event) {
+                if (event.target !== dialog) return;
+                var rect = dialog.getBoundingClientRect();
+                if (event.clientX < rect.left || event.clientX > rect.right ||
+                    event.clientY < rect.top || event.clientY > rect.bottom) {
+                    dialog.close();
+                }
+            });
+        });
+    </script>
+    <script>
+        (function () {
+            var section = document.querySelector('.form-section');
+            var viewport = window.visualViewport;
+            var mobile = window.matchMedia('(max-width: 1024px)');
+            var fullHeight = viewport ? viewport.height : window.innerHeight;
+            var frame;
+
+            function keepFocusedFieldVisible() {
+                frame = null;
+                var input = document.activeElement;
+                var card = input && input.closest('.login-form-container');
+                var editing = card && input.matches('input:not([type="checkbox"]):not([type="button"]):not([type="submit"]), textarea, select');
+                var height = viewport ? viewport.height : window.innerHeight;
+                var keyboardOpen = mobile.matches && editing && fullHeight - height > 120;
+                section.classList.toggle('keyboard-open', !!keyboardOpen);
+                if (!keyboardOpen) {
+                    if (!editing && fullHeight - height <= 120) fullHeight = height;
+                    return;
+                }
+
+                section.style.setProperty('--keyboard-viewport-height', height + 'px');
+                section.style.setProperty('--keyboard-viewport-top', (viewport ? viewport.offsetTop : 0) + 'px');
+                var fieldRect = input.getBoundingClientRect();
+                var cardRect = card.getBoundingClientRect();
+                if (fieldRect.bottom > cardRect.bottom - 16) {
+                    card.scrollTop += fieldRect.bottom - cardRect.bottom + 16;
+                } else if (fieldRect.top < cardRect.top + 16) {
+                    card.scrollTop -= cardRect.top + 16 - fieldRect.top;
+                }
+            }
+
+            function scheduleAdjustment() {
+                if (!frame) frame = window.requestAnimationFrame(keepFocusedFieldVisible);
+            }
+            section.addEventListener('focusin', scheduleAdjustment);
+            section.addEventListener('focusout', scheduleAdjustment);
+            window.addEventListener('resize', scheduleAdjustment);
+            if (viewport) {
+                viewport.addEventListener('resize', scheduleAdjustment);
+                viewport.addEventListener('scroll', scheduleAdjustment);
+            }
+        })();
+    </script>
     <script src="../../assets/js/login.js?v=5"></script>
     
     <?php if ($showDeletedMsg || $showArchivedMsg): ?>

@@ -282,9 +282,13 @@ try {
     border: 1px solid #e5e7eb;
     border-radius: 8px;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-    min-width: 180px;
+    min-width: min(180px, calc(100vw - 16px));
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
     z-index: 99999;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    transform-origin: top right;
     animation: kebabFadeIn 0.15s ease;
 }
 .kebab-menu.show { display: block; }
@@ -575,6 +579,28 @@ try {
 }
 
 @media (max-width: 768px) {
+    #rxViewModal {
+        padding: 12px;
+    }
+    #rxViewModal .modal-rx {
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        padding: 12px;
+        max-height: calc(100dvh - 24px);
+    }
+    #rxViewModal .rx-preview {
+        width: 100%;
+        min-width: 0;
+    }
+    #rxViewModal .rx-preview-sheet {
+        width: 680px;
+        transform: scale(var(--rx-preview-scale, 1));
+        transform-origin: top left;
+    }
+    #rxViewModal .modal-footer {
+        flex-wrap: wrap;
+    }
     .view-grid {
         grid-template-columns: 1fr;
     }
@@ -715,7 +741,11 @@ try {
             <button class="modal-close" onclick="closeRxModal()">&times;</button>
         </div>
         <div class="modal-body">
-            <?php require __DIR__ . '/../../includes/rx_pad_paper.php'; ?>
+            <div class="rx-preview">
+                <div class="rx-preview-sheet">
+                    <?php require __DIR__ . '/../../includes/rx_pad_paper.php'; ?>
+                </div>
+            </div>
         </div>
         <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:12px;border-top:1px solid #e2e8f0;padding-top:20px;">
             <button type="button" class="btn-cancel" onclick="closeRxModal()" style="padding:10px 16px;border:1px solid #e2e8f0;background:white;border-radius:6px;cursor:pointer;color:#334155;">Close</button>
@@ -742,6 +772,23 @@ try {
 <script src="../../assets/js/rx_pad.js"></script>
 <script>
 let currentRxPrescriptionId = null;
+
+function fitRxMobilePreview() {
+    var modal = document.getElementById('rxViewModal');
+    var preview = modal.querySelector('.rx-preview');
+    var sheet = preview.querySelector('.rx-preview-sheet');
+    if (!window.matchMedia('(max-width: 768px)').matches) {
+        preview.style.removeProperty('--rx-preview-scale');
+        preview.style.removeProperty('height');
+        return;
+    }
+    if (!preview.clientWidth) return;
+    var scale = Math.min(1, preview.clientWidth / 680);
+    preview.style.setProperty('--rx-preview-scale', scale);
+    preview.style.height = Math.ceil(sheet.scrollHeight * scale) + 'px';
+}
+
+window.addEventListener('resize', fitRxMobilePreview);
 
 function escapeHtml(str) {
     var div = document.createElement('div');
@@ -778,6 +825,7 @@ function viewPrescription(prescriptionId) {
             }
             fillRxPad(data.prescription);
             document.getElementById('rxViewModal').style.display = 'flex';
+            fitRxMobilePreview();
         } else {
             showRxNotice('Failed to load prescription: ' + (data.message || 'Unknown error'));
         }
@@ -830,6 +878,17 @@ function toggleKebabMenu(event, btn) {
     if (!isOpen) {
         menu.classList.add('show');
         btn.classList.add('active');
+        var rect = btn.getBoundingClientRect();
+        var viewportWidth = document.documentElement.clientWidth;
+        var viewportHeight = window.innerHeight;
+        var left = Math.max(8, Math.min(rect.right - menu.offsetWidth, viewportWidth - menu.offsetWidth - 8));
+        var top = rect.bottom + 4;
+        if (top + menu.offsetHeight > viewportHeight - 8) {
+            top = rect.top - menu.offsetHeight - 4;
+        }
+        menu.style.left = left + 'px';
+        menu.style.right = 'auto';
+        menu.style.top = Math.max(8, Math.min(top, viewportHeight - menu.offsetHeight - 8)) + 'px';
     }
 }
 

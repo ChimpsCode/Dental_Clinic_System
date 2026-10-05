@@ -67,7 +67,14 @@ require_once '../../includes/staff_layout_start.php';
 <style>
 .page-shell {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    min-width: 0;
     gap: 22px;
+}
+.page-shell > * {
+    min-width: 0;
+    max-width: 100%;
 }
 .page-card,
 .table-card,
@@ -230,7 +237,13 @@ require_once '../../includes/staff_layout_start.php';
     color: #64748b;
 }
 .table-wrap {
-    overflow: auto;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
     padding: 16px 16px 4px;
 }
 .data-table {
@@ -1009,7 +1022,26 @@ require_once '../../includes/staff_layout_start.php';
     }
     .filter-row,
     .custom-range-row {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .page-shell .filter-group,
+    .page-shell .search-wrap,
+    .page-shell .filter-input,
+    .page-shell .filter-select,
+    .page-shell .search-input {
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    .page-shell .page-card {
+        padding: 16px;
+    }
+    .page-shell .pagination {
+        padding: 16px;
+    }
+    .page-shell .pagination-buttons {
+        flex-wrap: wrap;
+        max-width: 100%;
     }
     .results-bar {
         flex-direction: column;

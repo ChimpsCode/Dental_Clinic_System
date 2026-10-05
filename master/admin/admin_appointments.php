@@ -360,6 +360,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 .admin-day-modal-item { padding: 12px; border-bottom: 1px solid #f3f4f6; }
                 .admin-day-modal-item:last-child { border-bottom: none; }
                 </style>
+                <link rel="stylesheet" href="../../assets/css/appointment_calendar_mobile.css?v=1">
 
                 <div class="list-view" id="listView">
                 <div class="search-filters" style="margin-bottom: 20px;">
@@ -974,7 +975,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 const appts = apptByDate[dateStr] || [];
                 let html = `<div class="day-num">${i}</div>`;
                 if (appts.length > 0) {
-                    html += `<div class="appt-count">${appts.length} appointment${appts.length > 1 ? 's' : ''}</div>`;
+                    html += `<div class="appt-count" aria-label="${appts.length} appointment${appts.length > 1 ? 's' : ''}"><span class="cal-count-number">${appts.length}</span><span class="cal-count-label"> appointment${appts.length > 1 ? 's' : ''}</span></div>`;
                     appts.slice(0, 3).forEach(appt => {
                         const time = appt.appointment_time ? new Date('1970-01-01 ' + appt.appointment_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
                         const name = [appt.first_name, appt.middle_name, appt.last_name].filter(n => n).join(' ') || 'Unknown';

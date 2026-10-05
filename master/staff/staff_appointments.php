@@ -338,6 +338,7 @@ try {
 .staff-cal-day-modal-item { padding: 12px; border-bottom: 1px solid #f3f4f6; }
 .staff-cal-day-modal-item:last-child { border-bottom: none; }
 </style>
+<link rel="stylesheet" href="../../assets/css/appointment_calendar_mobile.css?v=1">
 
 
 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
@@ -600,7 +601,7 @@ try {
     </div>
 </div>
 
-<div id="onlineBookingModal" class="modal-overlay">
+<div id="onlineBookingModal" class="modal-overlay" data-preserve-open="1">
     <div class="modal" style="width: 480px; text-align: center;">
         <h2 style="margin: 0 0 8px; font-size: 1.25rem; font-weight: 600;">Online Booking</h2>
         <p style="margin: 0 0 20px; color: #6b7280; font-size: 0.9rem;">Scan the QR code or share the link so patients can book appointments online.</p>
@@ -616,7 +617,7 @@ try {
 </div>
 
 <div id="qrMaximizedModal" class="modal-overlay" data-preserve-open="1">
-    <div class="modal" style="width: auto; max-width: 620px; text-align: center;">
+    <div class="modal" style="width: 520px; text-align: center;">
         <h2 style="margin: 0 0 16px; font-size: 1.1rem; font-weight: 600;">Online Booking QR Code</h2>
         <div id="qrMaximizedContent"></div>
         <p style="margin: 14px 0 0; color: #6b7280; font-size: 0.85rem;" id="qrMaximizedUrl"></p>
@@ -644,6 +645,42 @@ try {
 }
 .search-input {
     width: 600px;
+}
+@media (max-width: 768px) {
+    #listView .search-filters {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 8px;
+        padding: 12px;
+        min-width: 0;
+    }
+    #listView .filter-tabs {
+        grid-column: 1 / -1;
+        flex-wrap: wrap;
+    }
+    #listView .filter-tabs span {
+        margin-right: 0;
+        padding: 8px 10px;
+    }
+    #listView .search-input {
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        height: 40px;
+        padding: 10px 8px;
+        font-size: 14px;
+    }
+    #listView .search-filters .section-title {
+        margin: 0;
+        min-width: 0;
+    }
+    #listView .search-filters .btn-primary {
+        height: 40px;
+        padding: 10px 8px;
+        font-size: 12px;
+        white-space: nowrap;
+    }
 }
 
 .pagination-buttons {
@@ -918,17 +955,40 @@ try {
 .btn-online-booking:hover { background: #ecfdf5; }
 
 .qr-clickable {
-    cursor: pointer; 
-    transition: transform 0.15s ease;
-    padding-left: 100px;
+    cursor: pointer;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto;
 }
-.qr-clickable:hover { transform: scale(1.03); }
+#onlineBookingModal .modal,
+#qrMaximizedModal .modal {
+    box-sizing: border-box;
+    max-width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+    margin: 0;
+    padding: 20px;
+}
+#qrMaximizedContent {
+    width: min(480px, 100%);
+    margin: 0 auto;
+}
+#onlineBookingQr canvas,
+#onlineBookingQr img,
+#qrMaximizedContent canvas,
+#qrMaximizedContent img {
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+}
+#qrMaximizedUrl {
+    overflow-wrap: anywhere;
+}
 
 .booking-link-row {
     display: flex; gap: 10px; margin: 18px 0 8px;
 }
 .booking-link-row input {
-    flex: 1; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px;
+    flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px;
     font-size: 0.9rem; color: #475569; background: #f8fafc; outline: none;
 }
 .booking-link-row button {
@@ -1213,7 +1273,7 @@ try {
                 const appts = apptByDate[dateStr] || [];
                 let html = `<div class="day-num">${i}</div>`;
                 if (appts.length > 0) {
-                    html += `<div class="appt-count">${appts.length} appointment${appts.length > 1 ? 's' : ''}</div>`;
+                    html += `<div class="appt-count" aria-label="${appts.length} appointment${appts.length > 1 ? 's' : ''}"><span class="cal-count-number">${appts.length}</span><span class="cal-count-label"> appointment${appts.length > 1 ? 's' : ''}</span></div>`;
                     appts.slice(0, 3).forEach(appt => {
                         const time = appt.appointment_time ? new Date('1970-01-01 ' + appt.appointment_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
                         const name = (appt.first_name || '') + ' ' + (appt.last_name || '');
