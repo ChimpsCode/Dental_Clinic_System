@@ -148,6 +148,165 @@ $assets = [
     <script src="../../assets/js/home-integration.js" defer></script>
     <script src="../../assets/js/form-sanitize.js?v=2"></script>
     <style>
+      .hero .hero-bg {
+        background: linear-gradient(135deg, #fcfaf6 0%, #f3f1eb 52%, #e9eef2 100%);
+        pointer-events: none;
+      }
+      .hero .hero-gradient {
+        inset: -60px;
+        width: auto;
+        height: auto;
+        background:
+          radial-gradient(ellipse at 76% 28%, rgba(203, 218, 232, 0.95) 0%, rgba(203, 218, 232, 0) 48%),
+          radial-gradient(ellipse at 88% 76%, rgba(221, 197, 153, 0.65) 0%, rgba(221, 197, 153, 0) 48%),
+          radial-gradient(ellipse at 42% 72%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 45%);
+        filter: blur(40px);
+        pointer-events: none;
+      }
+      .hero::after {
+        content: '';
+        position: absolute;
+        top: 12%;
+        right: -8%;
+        width: 54%;
+        height: 68%;
+        border: 1px solid rgba(170, 142, 92, 0.25);
+        border-radius: 50%;
+        box-shadow: 0 0 0 28px rgba(255, 255, 255, 0.2), 0 0 90px rgba(255, 255, 255, 0.5);
+        transform: rotate(-18deg);
+        pointer-events: none;
+      }
+      .hero .hero-inner { z-index: 1; }
+      .hero .hero-photo-wrap { translate: 0 var(--hero-photo-shift, 0px); }
+      .hero-eyebrow {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 0 0 22px;
+        color: #796444;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+      .hero-eyebrow::before { content: ''; width: 32px; height: 1px; background: #b69a68; flex-shrink: 0; }
+      .hero .appointment-card { border: 1px solid rgba(182, 154, 104, 0.28); box-shadow: 0 20px 60px rgba(51, 64, 77, 0.08); }
+      .booking-focus-backdrop { display: none; }
+      .hero-afterword {
+        position: relative;
+        z-index: 1;
+        padding: 32px 0 64px;
+        text-align: center;
+        border-top: 1px solid rgba(182, 154, 104, 0.3);
+      }
+      .hero-afterword h2 {
+        margin: 0 0 12px;
+        font-family: Georgia, 'Times New Roman', serif;
+        font-size: clamp(28px, 3.4vw, 46px);
+        line-height: 1.2;
+        font-weight: 400;
+        color: #16324f;
+      }
+      .hero-afterword p { margin: 0; color: #526477; font-size: 15px; line-height: 1.6; }
+      .hero-scroll-stage.is-enabled {
+        position: relative;
+        height: var(--hero-stage-height);
+      }
+      .hero-scroll-stage.is-enabled .hero {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: var(--hero-scene-height);
+        min-height: 0;
+        padding-bottom: 0;
+        overflow: clip;
+      }
+      .hero-scroll-stage.is-enabled.is-pinned .hero {
+        position: fixed;
+        top: var(--hero-fixed-top);
+        left: var(--hero-screen-left);
+        width: var(--hero-screen-width);
+      }
+      .hero-scroll-stage.is-enabled.is-finished .hero {
+        top: var(--hero-exit-top);
+      }
+      .hero-scroll-stage.is-enabled .hero-inner {
+        opacity: var(--hero-intro-opacity, 1);
+        will-change: opacity;
+      }
+      .hero-scroll-stage.is-enabled .hero-afterword {
+        position: absolute;
+        top: var(--hero-message-top);
+        left: 50%;
+        width: min(90%, 1100px);
+        padding: 0;
+        border: 0;
+        transform: translate(-50%, -50%);
+        translate: 0 var(--hero-message-shift, 24px);
+        opacity: var(--hero-message-opacity, 0);
+        pointer-events: none;
+        will-change: opacity, translate;
+      }
+      @media (max-width: 768px) {
+        .hero .hero-inner {
+          padding-top: var(--hero-mobile-padding-top, 72px);
+          padding-bottom: var(--hero-mobile-padding-bottom, 24px);
+        }
+        .hero .appointment-card { padding: 12px; margin-top: 12px; box-sizing: border-box; }
+        .hero .appointment-title { font-size: 15px; margin-bottom: 10px; }
+        .hero .appointment-form {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 8px;
+        }
+        .hero .appointment-form .field { width: 100%; min-width: 0; }
+        .hero .appointment-form input { height: 40px; padding: 0 8px; font-size: 16px; }
+        .hero .appointment-form button { grid-column: 1 / -1; height: 40px; font-size: 14px; }
+        .hero.booking-editing .booking-focus-backdrop {
+          display: block;
+          position: fixed;
+          inset: 0;
+          z-index: 40;
+          background: rgba(22, 50, 79, 0.16);
+          -webkit-backdrop-filter: blur(6px);
+          backdrop-filter: blur(6px);
+          pointer-events: none;
+        }
+        .hero.booking-editing .appointment-card {
+          position: fixed;
+          top: var(--booking-visible-top, 12px);
+          left: 14px;
+          width: calc(100% - 28px);
+          max-height: calc(var(--booking-visible-height, 100svh) - 24px);
+          overflow-y: auto;
+          margin: 0;
+          z-index: 50;
+          background: #fff;
+          box-shadow: 0 16px 48px rgba(22, 50, 79, 0.2);
+        }
+        html {
+          height: auto;
+          min-height: 100%;
+          overflow-x: clip;
+        }
+        body {
+          height: auto;
+          min-height: 100svh;
+          overflow-x: clip;
+        }
+        .hero-scroll-stage { touch-action: pan-y pinch-zoom; }
+        .hero::after { width: 85%; right: -38%; opacity: 0.6; }
+        .hero-afterword { padding: 28px 0 40px; }
+        .hero-eyebrow { font-size: 10px; letter-spacing: 0.1em; }
+        .hero .hero-photo-wrap { translate: none; }
+        .hero .hero-gradient { transform: none; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .hero .hero-photo-wrap { translate: none; }
+        .hero .hero-gradient { transform: none; }
+        .hero .reveal-item { opacity: 1; transform: none; transition: none; }
+      }
       @keyframes homeFadeIn {
         from { opacity: 0; }
         to { opacity: 1; }
@@ -355,11 +514,13 @@ $assets = [
     </header>
 
     <main id="home">
+      <div class="hero-scroll-stage">
       <section class="hero">
         <div class="hero-bg"></div>
         <div class="hero-gradient"></div>
         <div class="container hero-inner">
           <div class="hero-copy">
+            <p class="hero-eyebrow">A considered approach to dental care</p>
             <h1 class="hero-title">
               <?php foreach ($heroTitleBlocks as $i => $block): ?>
                 <?php $isNewLine = isset($block['newLine']) ? $block['newLine'] : true; ?>
@@ -376,6 +537,7 @@ $assets = [
               <a class="btn btn-outline btn-lg" href="login.php?form=1#register">Sign Up</a>
             </div>
 
+            <div class="booking-focus-backdrop" aria-hidden="true"></div>
             <div class="appointment-card" aria-label="Book an appointment">
               <div class="appointment-title">Book an Appointment Today</div>
               <form class="appointment-form" action="#" method="post" novalidate>
@@ -417,7 +579,141 @@ $assets = [
             </div>
           </div>
         </div>
+        <div class="container hero-afterword">
+          <h2>Thoughtful care. Confident smiles.</h2>
+          <p>Personalized dental care, with your comfort in mind.</p>
+        </div>
       </section>
+      </div>
+
+      <script>
+        (() => {
+          const hero = document.querySelector('.hero');
+          const stage = hero.parentElement;
+          const intro = hero.querySelector('.hero-inner');
+          const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+          let frame = null;
+          let metrics = null;
+          let needsMeasure = true;
+          const clamp = value => Math.max(0, Math.min(1, value));
+          const smooth = value => { const t = clamp(value); return t * t * (3 - 2 * t); };
+          function updateHeroDepth() {
+            frame = null;
+            if (reducedMotion.matches) {
+              stage.classList.remove('is-enabled', 'is-pinned', 'is-finished');
+              intro.inert = false;
+              hero.style.setProperty('--hero-photo-shift', '0px');
+              return;
+            }
+            if ((needsMeasure || !metrics) && (!metrics || !hero.classList.contains('booking-editing'))) {
+              const header = document.querySelector('.site-header');
+              const headerHeight = header ? Math.max(0, header.getBoundingClientRect().bottom) : 0;
+              const available = Math.max(240, window.innerHeight - headerHeight);
+              const pageScroll = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+              const anchorTop = Math.max(0, Math.min(headerHeight, stage.getBoundingClientRect().top + pageScroll));
+              let sceneHeight = Math.max(window.innerHeight - anchorTop, intro.offsetHeight + 24);
+              if (window.matchMedia('(max-width: 768px)').matches) {
+                const introStyle = getComputedStyle(intro);
+                const contentHeight = intro.offsetHeight - parseFloat(introStyle.paddingTop) - parseFloat(introStyle.paddingBottom);
+                const headerInset = headerHeight - anchorTop;
+                sceneHeight = Math.max(window.innerHeight - anchorTop, contentHeight + headerInset + 48);
+                const balancedSpace = Math.max(24, (sceneHeight - headerInset - contentHeight) / 2);
+                stage.style.setProperty('--hero-mobile-padding-top', (headerInset + balancedSpace) + 'px');
+                stage.style.setProperty('--hero-mobile-padding-bottom', balancedSpace + 'px');
+              }
+              metrics = { anchorTop, duration: available * 1.5 };
+              stage.style.setProperty('--hero-stage-height', (sceneHeight + metrics.duration) + 'px');
+              stage.style.setProperty('--hero-scene-height', sceneHeight + 'px');
+              stage.style.setProperty('--hero-exit-top', metrics.duration + 'px');
+              stage.style.setProperty('--hero-fixed-top', anchorTop + 'px');
+              stage.style.setProperty('--hero-message-top', (headerHeight - anchorTop + available / 2) + 'px');
+              stage.classList.add('is-enabled');
+              needsMeasure = false;
+            }
+            const stageRect = stage.getBoundingClientRect();
+            const distance = metrics.anchorTop - stageRect.top;
+            stage.style.setProperty('--hero-screen-left', stageRect.left + 'px');
+            stage.style.setProperty('--hero-screen-width', stageRect.width + 'px');
+            stage.classList.toggle('is-pinned', distance >= 0 && distance <= metrics.duration);
+            stage.classList.toggle('is-finished', distance > metrics.duration);
+            const progress = clamp(distance / metrics.duration);
+            const fade = smooth(progress / 0.42);
+            const reveal = smooth((progress - 0.28) / 0.32);
+            hero.style.setProperty('--hero-intro-opacity', 1 - fade);
+            hero.style.setProperty('--hero-message-opacity', reveal);
+            hero.style.setProperty('--hero-message-shift', ((1 - reveal) * 24) + 'px');
+            hero.style.setProperty('--hero-photo-shift', '0px');
+            intro.inert = fade > 0.98 && !hero.classList.contains('booking-editing');
+            if (hero.classList.contains('booking-editing')) hero.style.setProperty('--hero-intro-opacity', '1');
+          }
+          function scheduleHeroDepth() {
+            if (frame === null) frame = requestAnimationFrame(updateHeroDepth);
+          }
+          document.addEventListener('scroll', scheduleHeroDepth, { passive: true, capture: true });
+          function measureHero() { needsMeasure = true; scheduleHeroDepth(); }
+          window.addEventListener('resize', measureHero);
+          window.addEventListener('load', measureHero);
+          reducedMotion.addEventListener('change', measureHero);
+          if (document.fonts) document.fonts.ready.then(measureHero);
+          if (window.ResizeObserver) new ResizeObserver(measureHero).observe(intro);
+          const bookingCard = hero.querySelector('.appointment-card');
+          const bookingPlaceholder = document.createElement('div');
+          bookingPlaceholder.hidden = true;
+          bookingPlaceholder.setAttribute('aria-hidden', 'true');
+          bookingCard.before(bookingPlaceholder);
+          const viewport = window.visualViewport;
+          let fullViewportHeight = viewport ? viewport.height : window.innerHeight;
+          let bookingScrollBeforeFocus = 0;
+          function adjustBookingForKeyboard() {
+            const visibleHeight = viewport ? viewport.height : window.innerHeight;
+            const focused = bookingCard.contains(document.activeElement);
+            const keyboardVisible = fullViewportHeight - visibleHeight > 120;
+            const wasEditing = hero.classList.contains('booking-editing');
+            const editing = window.matchMedia('(max-width: 768px)').matches &&
+              keyboardVisible && (focused || wasEditing);
+            if (editing && !wasEditing) {
+              const cardStyle = getComputedStyle(bookingCard);
+              bookingPlaceholder.style.height = (bookingCard.offsetHeight +
+                parseFloat(cardStyle.marginTop) + parseFloat(cardStyle.marginBottom)) + 'px';
+              bookingPlaceholder.hidden = false;
+            }
+            hero.classList.toggle('booking-editing', editing);
+            const bookingHeader = document.querySelector('.site-header');
+            const visibleTop = viewport ? viewport.offsetTop : 0;
+            const headerBottom = bookingHeader ? bookingHeader.getBoundingClientRect().bottom : 0;
+            const panelTopLimit = Math.max(visibleTop + 12, headerBottom + 12);
+            const visibleBottom = visibleTop + visibleHeight;
+            hero.style.setProperty('--booking-visible-height', Math.max(80, visibleBottom - panelTopLimit + 12) + 'px');
+            if (editing) {
+              const panelTop = Math.max(panelTopLimit, visibleBottom - bookingCard.offsetHeight - 12);
+              hero.style.setProperty('--booking-visible-top', panelTop + 'px');
+            } else {
+              bookingPlaceholder.hidden = true;
+              hero.style.removeProperty('--booking-visible-top');
+              hero.style.removeProperty('--booking-visible-height');
+              if (wasEditing) {
+                window.scrollTo({ top: bookingScrollBeforeFocus, behavior: 'instant' });
+                needsMeasure = true;
+              }
+            }
+            if (!keyboardVisible) fullViewportHeight = visibleHeight;
+            scheduleHeroDepth();
+          }
+          bookingCard.addEventListener('focusin', () => {
+            if (!hero.classList.contains('booking-editing')) {
+              bookingScrollBeforeFocus = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+            }
+            adjustBookingForKeyboard();
+          });
+          bookingCard.addEventListener('focusout', () => requestAnimationFrame(adjustBookingForKeyboard));
+          if (viewport) {
+            viewport.addEventListener('resize', adjustBookingForKeyboard);
+            viewport.addEventListener('scroll', adjustBookingForKeyboard);
+          }
+          window.addEventListener('resize', adjustBookingForKeyboard);
+          updateHeroDepth();
+        })();
+      </script>
 
       <section id="about" class="section about" style="padding-bottom:50px">
         <div class="container about-inner">
@@ -833,9 +1129,6 @@ $assets = [
 
       (() => {
         const targets = document.querySelectorAll([
-          '.hero-copy',
-          '.hero-visual',
-          '.appointment-card',
           '.section-title',
           '.section-subtitle',
           '.service-card',
