@@ -1069,6 +1069,10 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
             to { opacity: 1; }
         }
         @media (max-width: 1024px) {
+            .login-container:has(#loginContainer:not([style*="display: none"]), #registrationContainer:not([style*="display: none"])) .carousel-image {
+                filter: blur(6px);
+                transform: scale(1.04);
+            }
             #loginContainer .login-navigation,
             #registrationContainer .registration-login-link {
                 flex-direction: row;
