@@ -121,6 +121,23 @@ if (!empty($featuredIds)) {
     }
 }
 
+$ribbonPhotos = [];
+foreach (array_merge($featuredServices, $allServices) as $ribbonService) {
+    $ribbonImage = $serviceImages[$ribbonService['id']] ?? '';
+    if ($ribbonImage && is_file(__DIR__ . '/../../' . $ribbonImage)) {
+        $ribbonPhotos[$ribbonImage] = ['src' => '../../' . $ribbonImage, 'alt' => $ribbonService['name']];
+    }
+}
+// Use existing public service photos when no service image is configured yet.
+if (!$ribbonPhotos) {
+    foreach (glob(__DIR__ . '/../../assets/images/content/services_*.{jpg,jpeg,png,webp}', GLOB_BRACE) ?: [] as $ribbonImage) {
+        $ribbonPhotos[] = ['src' => '../../assets/images/content/' . basename($ribbonImage), 'alt' => 'Dental service photo'];
+    }
+}
+$ribbonPhotos = array_values($ribbonPhotos);
+shuffle($ribbonPhotos);
+$ribbonPhotos = array_slice($ribbonPhotos, 0, 6);
+
 $imgAssetsDir = __DIR__ . '/../../assets/images/';
 $assets = [
   'logo' => $logoFull,
@@ -142,7 +159,7 @@ $assets = [
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,700;1,400&family=Inria+Sans:wght@400;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="../../assets/css/home-styles.css?v=16" />
+    <link rel="stylesheet" href="../../assets/css/home-styles.css?v=17" />
     <link rel="stylesheet" href="../../assets/css/home-integration.css" />
     <link rel="stylesheet" href="../../assets/css/chatbot-components.css?v=2" />
     <script src="../../assets/js/home-integration.js" defer></script>
@@ -916,19 +933,19 @@ $assets = [
                 <div class="form-row">
                   <label class="form-field">
                     <span class="form-label">First Name</span>
-                    <input type="text" name="first_name" placeholder="Juan" required maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only" autocomplete="given-name" />
+                    <input type="text" name="first_name" placeholder="Juan" required maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only" autocomplete="given-name" autocapitalize="sentences" />
                   </label>
                 </div>
                 <div class="form-row">
                   <label class="form-field">
                     <span class="form-label">Middle Name</span>
-                    <input type="text" name="middle_name" placeholder="Realina" maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only" autocomplete="additional-name" />
+                    <input type="text" name="middle_name" placeholder="Realina" maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only" autocomplete="additional-name" autocapitalize="sentences" />
                   </label>
                 </div>
                 <div class="form-row">
                   <label class="form-field">
                     <span class="form-label">Last Name</span>
-                    <input type="text" name="last_name" placeholder="Dela Cruz" required maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only" autocomplete="family-name" />
+                    <input type="text" name="last_name" placeholder="Dela Cruz" required maxlength="80" pattern="[A-Za-zÑñ\s\-]{1,80}" title="Letters, spaces, Ñ, and hyphens only" autocomplete="family-name" autocapitalize="sentences" />
                   </label>
                 </div>
                 <div class="form-row form-row-split">
@@ -944,7 +961,7 @@ $assets = [
                 <div class="form-row">
                   <label class="form-field">
                     <span class="form-label">Message</span>
-                    <textarea name="message" rows="4" placeholder="Your message..." required maxlength="2000"></textarea>
+                    <textarea name="message" rows="4" placeholder="Your message..." required maxlength="2000" autocapitalize="sentences"></textarea>
                   </label>
                 </div>
                 <div class="form-actions">
@@ -1397,8 +1414,27 @@ $assets = [
         // ---- Contact Us Form ----
         const contactForm = document.querySelector('.contact-form');
         if (contactForm) {
+          function capitalizeContactField(field) {
+            const value = field.value.replace(/\p{L}/u, letter => letter.toLocaleUpperCase());
+            if (value === field.value) return;
+            const start = field.selectionStart;
+            const end = field.selectionEnd;
+            const extra = value.length - field.value.length;
+            field.value = value;
+            if (start !== null && end !== null) field.setSelectionRange(start + extra, end + extra);
+          }
+          contactForm.querySelectorAll('[name="first_name"], [name="middle_name"], [name="last_name"], [name="message"]').forEach(field => {
+            field.setAttribute('autocapitalize', 'sentences');
+            field.addEventListener('input', event => {
+              if (!event.isComposing) capitalizeContactField(field);
+            });
+            field.addEventListener('compositionend', () => capitalizeContactField(field));
+            field.addEventListener('paste', () => setTimeout(() => capitalizeContactField(field), 0));
+            field.addEventListener('blur', () => capitalizeContactField(field));
+          });
           contactForm.addEventListener('submit', async function(e) {
             e.preventDefault();
+            this.querySelectorAll('[name="first_name"], [name="middle_name"], [name="last_name"], [name="message"]').forEach(capitalizeContactField);
             const first = this.querySelector('[name="first_name"]').value.trim();
             const middle = this.querySelector('[name="middle_name"]').value.trim();
             const last = this.querySelector('[name="last_name"]').value.trim();

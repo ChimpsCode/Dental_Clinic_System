@@ -32,11 +32,13 @@ require_once '../../includes/patient_session_helper.php';
 require_once '../../includes/send_otp_email.php';
 require_once '../../includes/patient_user_sync_helper.php';
 require_once '../../includes/sms_functions.php';
+require_once '../../includes/patient_sms_test_limit.php';
 
 $patientSessionSettings = getPatientSessionSettings($pdo, (int)$user_id);
 $settingsPatientUserJoin = 'LEFT JOIN users u ON u.id = p.user_id';
 $smsPreferencesAvailable = false;
 $smsGatewayConfigured = smsIsConfigured();
+$smsTestQuota = getPatientSmsTestQuota((int)$user_id);
 $smsGatewayOnline = $smsGatewayConfigured;
 if ($smsGatewayConfigured) {
     $smsGatewayOnline = true;
@@ -510,10 +512,11 @@ $pageTitle = 'Account Settings';
 
                 <div style="margin-top:20px;padding-top:16px;border-top:1px solid #e5e7eb;">
                     <div class="section-title" style="font-size:15px;margin-bottom:12px;"><i class="fas fa-comment-sms"></i> Test your SMS</div>
-                    <p style="color:#6b7280;font-size:14px;margin-bottom:12px;">Send yourself a test text to confirm texts are reaching this number.</p>
-                    <button type="button" class="btn btn-secondary" id="smsTestBtn" <?php echo $smsGatewayConfigured ? '' : 'disabled'; ?>>
+                    <p style="color:#6b7280;font-size:14px;margin-bottom:12px;">Send yourself a test text to confirm texts are reaching this number. Maximum 2 test SMS per day, with a 5-minute wait between tests. Resets at midnight Philippine time.</p>
+                    <button type="button" class="btn btn-secondary" id="smsTestBtn" <?php echo $smsGatewayConfigured && $smsTestQuota['can_send'] ? '' : 'disabled'; ?>>
                         <i class="fas fa-paper-plane"></i> Send me a test SMS
                     </button>
+                    <div id="smsTestLimitStatus" role="status" aria-live="polite" style="margin-top:10px;font-size:13px;color:#6b7280;"><?php echo htmlspecialchars($smsTestQuota['message'] ?: $smsTestQuota['remaining'] . ' of 2 test SMS remaining today.'); ?></div>
                     <div id="smsTestResult" style="margin-top:12px;font-size:14px;display:none;"></div>
                 </div>
             </div>
@@ -681,9 +684,47 @@ $pageTitle = 'Account Settings';
         (function() {
             var btn = document.getElementById('smsTestBtn');
             var out = document.getElementById('smsTestResult');
+            var status = document.getElementById('smsTestLimitStatus');
             if (!btn || !out) return;
+            var configured = <?php echo json_encode($smsGatewayConfigured); ?>;
+            var sending = false;
+            var quota;
+            var retryAt = 0;
+            var resetAt = 0;
+
+            function updateQuota(next) {
+                quota = next;
+                retryAt = Date.now() + Number(quota.retry_after || 0) * 1000;
+                resetAt = Date.now() + Number(quota.reset_after || 0) * 1000;
+                refreshQuota();
+            }
+            function refreshQuota() {
+                if (quota.reason === 'unavailable') {
+                    btn.disabled = true;
+                    status.textContent = quota.message;
+                    return;
+                }
+                if (Date.now() >= resetAt) {
+                    quota.remaining = 2;
+                    resetAt += 86400000;
+                }
+                var wait = Math.max(0, Math.ceil((retryAt - Date.now()) / 1000));
+                btn.disabled = !configured || sending || quota.remaining <= 0 || wait > 0;
+                if (quota.remaining <= 0) {
+                    status.textContent = 'Daily limit reached (2 of 2). Available again tomorrow.';
+                } else {
+                    status.textContent = quota.remaining + ' of 2 test SMS remaining today.';
+                    if (wait > 0) {
+                        status.textContent += ' Next test available in ' + Math.floor(wait / 60) + ':' + String(wait % 60).padStart(2, '0') + '.';
+                    }
+                }
+            }
+            updateQuota(<?php echo json_encode($smsTestQuota); ?>);
+            setInterval(refreshQuota, 1000);
 
             btn.addEventListener('click', function() {
+                if (btn.disabled || sending) return;
+                sending = true;
                 btn.disabled = true;
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
                 out.style.display = 'block';
@@ -701,6 +742,7 @@ $pageTitle = 'Account Settings';
                 })
                 .then(function(res) { return res.json(); })
                 .then(function(data) {
+                    if (data.quota) updateQuota(data.quota);
                     out.style.color = data.success ? '#065f46' : '#991b1b';
                     out.textContent = data.message || (data.success ? 'Test SMS sent.' : 'Unable to send the test SMS.');
                 })
@@ -709,7 +751,8 @@ $pageTitle = 'Account Settings';
                     out.textContent = 'Connection error. Please try again.';
                 })
                 .finally(function() {
-                    btn.disabled = false;
+                    sending = false;
+                    refreshQuota();
                     btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send me a test SMS';
                 });
             });

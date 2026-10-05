@@ -124,6 +124,10 @@ $assets = [
         text-decoration: none; padding: 8px 0;
       }
       .sd-back-btn:hover { color: var(--accent); }
+      @media (max-width: 768px) {
+        .site-header { display: none; }
+        body { padding-top: 0; }
+      }
 
       .sd-hero { padding: 24px 0 32px; }
       .sd-hero-inner {

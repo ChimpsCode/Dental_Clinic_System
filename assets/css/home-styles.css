@@ -963,6 +963,9 @@ details[open] .faq-chevron{transform:rotate(225deg)}
   }
   .footer-inner{grid-template-columns: 1fr 1fr}
 }
+@media (max-width: 768px){
+  .about-stats{justify-content:center;flex-wrap:wrap;text-align:center}
+}
 @media (max-width: 560px){
   *,*::before,*::after{box-sizing:border-box}
   html,body{overflow-x:hidden;max-width:100vw}

@@ -915,15 +915,15 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RF Dental Clinic - Login</title>
     <link rel="icon" type="image/png" href="<?php echo htmlspecialchars($loginLogo); ?>">
-    <link rel="stylesheet" href="../../assets/css/login-new.css?v=6">
+    <link rel="stylesheet" href="../../assets/css/login-new.css?v=7">
     <style>
         #registrationContainer {
             position: relative;
             max-height: calc(100dvh - 24px);
             overflow-y: auto;
             overflow-x: hidden;
-            padding-top: 6px;
-            padding-bottom: 6px;
+            padding-top: 16px;
+            padding-bottom: 16px;
             overscroll-behavior: contain;
             -webkit-overflow-scrolling: touch;
         }
@@ -1069,7 +1069,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
             to { opacity: 1; }
         }
         @media (max-width: 1024px) {
-            .login-container:has(#loginContainer:not([style*="display: none"]), #registrationContainer:not([style*="display: none"])) .carousel-image {
+            .login-container:has(#loginContainer:not([style*="display: none"]), #registrationContainer:not([style*="display: none"]), #forgotContainer:not([style*="display: none"])) .carousel-image {
                 filter: blur(6px);
                 transform: scale(1.04);
             }
@@ -1715,7 +1715,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
             }
         })();
     </script>
-    <script src="../../assets/js/login.js?v=5"></script>
+    <script src="../../assets/js/login.js?v=6"></script>
     
     <?php if ($showDeletedMsg || $showArchivedMsg): ?>
     <script>

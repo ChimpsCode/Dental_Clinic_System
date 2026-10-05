@@ -245,7 +245,7 @@ $pageTitle = 'Inquiry / Consultation';
         .dropdown-item { display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: #374151; text-decoration: none; }
         .dropdown-item.logout { border-top: 1px solid #e5e7eb; color: #dc2626; }
         
-        .dashboard-main { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; padding: 24px 32px 16px; width: 100%; max-width: 1500px; margin: 0 auto; }
+        .dashboard-main { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; padding: 24px 24px 24px 24px; width: 100%; max-width: 1500px; margin: 0 auto; }
         
         /* Updated Grid Layout */
         .top-layout {
@@ -481,7 +481,7 @@ $pageTitle = 'Inquiry / Consultation';
 
         @media (max-width: 1180px) {
             .dashboard-main {
-                padding: 12px 16px 12px;
+                padding: 12px 16px 0;
                 max-width: none;
             }
             .top-layout {
@@ -523,6 +523,10 @@ $pageTitle = 'Inquiry / Consultation';
                 right: 4px;
                 z-index: 1;
             }
+        }
+        @media (max-width: 1024px) {
+            /* This page has no floating launcher to reserve bottom space for. */
+            .dashboard-main { padding-bottom: 0 !important; }
         }
         @media (max-width: 768px) {
             .main-wrapper { margin-left: 0; }

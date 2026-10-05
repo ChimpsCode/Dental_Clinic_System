@@ -1,5 +1,27 @@
 <?php
 header('Content-Type: application/json');
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+    http_response_code(405);
+    header('Allow: POST');
+    echo json_encode(['success' => false, 'message' => 'Please submit the contact form.']);
+    exit;
+}
+foreach (['first_name', 'middle_name', 'last_name', 'email', 'phone', 'message', 'service_id', 'preferred_date', 'preferred_time'] as $contactField) {
+    if (isset($_POST[$contactField]) && (!is_string($_POST[$contactField]) ||
+        !preg_match('//u', $_POST[$contactField]) || preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $_POST[$contactField]))) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'The form contains invalid input.']);
+        exit;
+    }
+}
+
+function capitalizeContactInitial(string $value): string
+{
+    return preg_replace_callback('/\p{L}/u', function ($match) {
+        return function_exists('mb_strtoupper') ? mb_strtoupper($match[0], 'UTF-8') : strtoupper($match[0]);
+    }, $value, 1) ?? $value;
+}
+
 require_once '../../config/database.php';
 require_once '../../includes/inquiry_module_helper.php';
 require_once '../../includes/input_sanitize.php';
@@ -27,12 +49,12 @@ foreach ([$first, $middle, $last, $emailResult, $phoneResult, $messageResult] as
     }
 }
 
-$firstName = $first['value'];
-$middleName = $middle['value'];
-$lastName = $last['value'];
+$firstName = capitalizeContactInitial($first['value']);
+$middleName = capitalizeContactInitial($middle['value']);
+$lastName = capitalizeContactInitial($last['value']);
 $email = $emailResult['value'];
 $phone = $phoneResult['value'];
-$message = $messageResult['value'];
+$message = capitalizeContactInitial($messageResult['value']);
 $serviceId = isset($_POST['service_id']) ? (int)$_POST['service_id'] : null;
 $preferredDate = trim($_POST['preferred_date'] ?? '');
 $preferredTime = trim($_POST['preferred_time'] ?? '');

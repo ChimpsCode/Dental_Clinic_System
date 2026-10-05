@@ -740,3 +740,9 @@
 2026-10-05 09:26:18 | createNotification OK: id=671 user_id=2 type=system title=New device sign-in
 2026-10-05 09:27:39 | createNotification OK: id=672 user_id=4 type=system title=New device sign-in
 2026-10-05 09:28:20 | createNotification OK: id=673 user_id=1 type=system title=New device sign-in
+2026-10-05 15:53:00 | createNotification OK: id=674 user_id=75 type=system title=New device sign-in
+2026-10-05 15:57:21 | createNotification OK: id=675 user_id=75 type=system title=New device sign-in
+2026-10-05 15:57:25 | createNotification OK: id=676 user_id=75 type=system title=New device sign-in
+2026-10-05 15:57:25 | createNotification OK: id=677 user_id=75 type=system title=New device sign-in
+2026-10-05 15:57:26 | createNotification OK: id=678 user_id=75 type=system title=New device sign-in
+2026-10-05 18:46:01 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'

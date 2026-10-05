@@ -10,6 +10,7 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/sms_functions.php';
+require_once __DIR__ . '/../../includes/patient_sms_test_limit.php';
 
 $revoked = app_session_revoked_response();
 if ($revoked !== null || !isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'user') {
@@ -39,16 +40,6 @@ if (!smsIsConfigured()) {
     exit();
 }
 
-// Simple per-user throttle so this cannot be used to burn through SMS credit.
-$throttleFile = dirname(__DIR__, 2) . '/cache/rate_limit/sms_test_' . $userId;
-if (is_file($throttleFile) && (time() - (int)@file_get_contents($throttleFile)) < 60) {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Please wait a minute before requesting another test message.',
-    ]);
-    exit();
-}
-
 $phone = patientSmsPhone($pdo, $patientId);
 if ($phone === '') {
     echo json_encode([
@@ -59,7 +50,7 @@ if ($phone === '') {
 }
 
 // A test text proves delivery, so it ignores the notification preference.
-$sent = sendPatientSmsTracked(
+$quota = sendPatientSmsTestLimited($userId, static fn() => sendPatientSmsTracked(
     $pdo,
     $patientId,
     'This is a test message from RF Dental Clinic. If you received it, SMS notifications are working on your number. - RF Dental Clinic',
@@ -68,9 +59,15 @@ $sent = sendPatientSmsTracked(
     true,
     false,
     $phone
-);
+));
 
-if (!$sent) {
+if (!$quota['attempted']) {
+    http_response_code($quota['reason'] === 'unavailable' ? 503 : 429);
+    echo json_encode(['success' => false, 'message' => $quota['message'], 'quota' => $quota]);
+    exit();
+}
+
+if (!$quota['sent']) {
     logSms($pdo, [
         'phone' => $phone,
         'message' => 'patient-initiated SMS test',
@@ -83,17 +80,13 @@ if (!$sent) {
     echo json_encode([
         'success' => false,
         'message' => 'The test message could not be sent. Please contact the clinic.',
+        'quota' => $quota,
     ]);
     exit();
 }
 
-$dir = dirname($throttleFile);
-if (!is_dir($dir)) {
-    @mkdir($dir, 0755, true);
-}
-@file_put_contents($throttleFile, (string)time());
-
 echo json_encode([
     'success' => true,
     'message' => 'Test SMS sent to ' . $phone . '. It should arrive within a minute.',
+    'quota' => $quota,
 ]);

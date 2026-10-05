@@ -190,6 +190,51 @@ document.addEventListener('DOMContentLoaded', function() {
     const toggleRegisterPassword = document.getElementById('toggleRegPassword');
     const toggleRegisterConfirmPassword = document.getElementById('toggleRegConfirmPassword');
 
+    function updateRegistrationRequiredField(field, showMissing) {
+        const missing = showMissing && !field.value.trim();
+        field.closest('.input-group')?.classList.toggle('required-field-missing', missing);
+        if (missing) field.setAttribute('aria-invalid', 'true');
+        else field.removeAttribute('aria-invalid');
+        return missing;
+    }
+
+    function validateRegistrationRequiredFields(section) {
+        let firstMissing = null;
+        section?.querySelectorAll('input[required], select[required]').forEach(function(field) {
+            if (updateRegistrationRequiredField(field, true) && !firstMissing) firstMissing = field;
+        });
+        if (!firstMissing) return true;
+        showRegistrationStep(firstMissing.closest('#regStep1') ? 1 : 2);
+        firstMissing.focus();
+        showToast('Error', 'Please complete the fields marked with a red warning icon.', 'error');
+        return false;
+    }
+
+    if (registerForm) {
+        registerForm.querySelectorAll('input[required], select[required]').forEach(function(field) {
+            const group = field.closest('.input-group');
+            if (!group) return;
+            const icon = document.createElement('span');
+            icon.className = 'required-field-icon';
+            icon.textContent = '!';
+            icon.setAttribute('role', 'img');
+            icon.setAttribute('aria-label', 'Required field: please fill this in');
+            icon.title = 'Please fill in this required field';
+            group.appendChild(icon);
+            group.classList.toggle('required-field-with-control', field.type === 'date' || !!group.querySelector('.toggle-password'));
+            field.addEventListener('blur', function() { updateRegistrationRequiredField(field, true); });
+            ['input', 'change'].forEach(function(eventName) {
+                field.addEventListener(eventName, function() {
+                    updateRegistrationRequiredField(field, group.classList.contains('required-field-missing'));
+                });
+            });
+            field.addEventListener('invalid', function() { updateRegistrationRequiredField(field, true); });
+        });
+        registerBtn?.addEventListener('click', function(event) {
+            if (!validateRegistrationRequiredFields(registerForm)) event.preventDefault();
+        });
+    }
+
     const WORD_FIRST_LETTER = /([^\p{L}]|^)(\p{Ll})/gu;
 
     function autoCapitalizeField(field) {
@@ -634,19 +679,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (registerNextBtn) {
         registerNextBtn.addEventListener('click', function() {
-            const firstName = document.getElementById('reg_first_name')?.value.trim() || '';
-            const lastName = document.getElementById('reg_last_name')?.value.trim() || '';
+            if (!validateRegistrationRequiredFields(regStep1)) return;
             const phone = document.getElementById('reg_phone')?.value.trim() || '';
-            const gender = document.getElementById('reg_gender')?.value || '';
-            const dob = document.getElementById('reg_dob')?.value || '';
-            const emergencyName = document.getElementById('reg_emergency_name')?.value.trim() || '';
             const emergencyPhone = document.getElementById('reg_emergency_phone')?.value.trim() || '';
-            const emergencyRelationship = document.getElementById('reg_emergency_relationship')?.value.trim() || '';
-
-            if (!firstName || !lastName || !phone || !gender || !dob || !emergencyName || !emergencyPhone || !emergencyRelationship) {
-                showToast('Error', 'Please complete all personal and emergency contact details before continuing.', 'error');
-                return;
-            }
 
             if (!isValidPhMobile(phone) || !isValidPhMobile(emergencyPhone)) {
                 showRegisterError('Enter a valid 11-digit mobile number starting with 09.');
@@ -671,6 +706,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (registerForm) {
         registerForm.addEventListener('submit', function(e) {
             e.preventDefault();
+            if (!validateRegistrationRequiredFields(registerForm)) return;
 
             const pwd = document.getElementById('reg_password').value;
             const confirmPwd = document.getElementById('reg_confirm_password').value;

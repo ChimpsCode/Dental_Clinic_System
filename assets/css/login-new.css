@@ -571,6 +571,33 @@ body {
     border-color: #c5cad6;
 }
 
+#registerForm .required-field-icon {
+    display: none;
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 19px;
+    height: 19px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #dc2626;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    pointer-events: none;
+}
+#registerForm .required-field-missing .required-field-icon { display: flex; }
+#registerForm .required-field-missing > input,
+#registerForm .required-field-missing > select {
+    border-color: #dc2626;
+    padding-right: 44px;
+}
+#registerForm .required-field-with-control .required-field-icon { right: 48px; }
+#registerForm .required-field-with-control.required-field-missing > input { padding-right: 76px; }
+
 .registration-form-section {
     display: flex;
     flex-direction: column;
