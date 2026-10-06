@@ -528,16 +528,9 @@ $pageTitle = 'My Profile';
             <?php endif; ?>
 
             <div class="section profile-intro-section">
-                <div class="profile-cover">
-                    <div class="profile-cover-menu">
-                        <button type="button" class="profile-cover-menu-trigger" id="coverPhotoMenuTrigger" aria-label="Cover photo options" aria-haspopup="true" aria-expanded="false">&#8942;</button>
-                        <div class="profile-cover-menu-options" id="coverPhotoMenu" hidden>
-                            <button type="button" id="changeProfilePhotoBtn">Change Photo</button>
-                        </div>
-                    </div>
-                </div>
+                <div class="profile-cover"></div>
                 <div class="profile-header">
-                    <div class="profile-avatar" style="overflow:hidden;">
+                    <button type="button" class="profile-avatar profile-avatar-editable" data-photo-editable="true" aria-label="Add or change your profile photo" aria-haspopup="true" aria-expanded="false" aria-controls="profilePhotoMenu" title="Profile photo options">
                         <?php 
                             $profPic = $patient['profile_picture'] ?? $_SESSION['profile_picture'] ?? '';
                             if (!empty($profPic) && file_exists(dirname(__DIR__, 2) . '/' . $profPic)):
@@ -548,7 +541,12 @@ $pageTitle = 'My Profile';
                             $initials = strtoupper(substr($patient['first_name'] ?? 'P', 0, 1) . substr($patient['middle_name'] ?? '', 0, 1) . substr($patient['last_name'] ?? '', 0, 1));
                             echo $initials;
                         endif; ?>
-                    </div>
+                        <span class="profile-avatar-camera" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="currentColor" focusable="false">
+                                <path d="M9 3 7 6H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3l-2-3H9Zm3 5a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" />
+                            </svg>
+                        </span>
+                    </button>
                     <div class="profile-info">
                         <h2><?php echo htmlspecialchars(trim(($patient['first_name'] ?? '') . ' ' . ($patient['middle_name'] ?? '') . ' ' . ($patient['last_name'] ?? ''))); ?></h2>
                         <p>Patient since <?php echo date('F Y', strtotime($patient['created_at'] ?? 'now')); ?></p>
@@ -722,9 +720,6 @@ $pageTitle = 'My Profile';
     <script>
         (function() {
             const fileInput = document.getElementById('fileInput');
-            const menuTrigger = document.getElementById('coverPhotoMenuTrigger');
-            const menu = document.getElementById('coverPhotoMenu');
-            const changePhotoBtn = document.getElementById('changeProfilePhotoBtn');
             const cropModal = document.getElementById('photoCropModal');
             const cropCanvas = document.getElementById('photoCropCanvas');
             const cropZoom = document.getElementById('photoCropZoom');
@@ -732,7 +727,7 @@ $pageTitle = 'My Profile';
             const cropClose = document.getElementById('photoCropClose');
             const cropCancel = document.getElementById('photoCropCancel');
             const form = document.getElementById('uploadForm');
-            if (!fileInput || !menuTrigger || !menu || !changePhotoBtn || !cropModal || !cropCanvas || !cropZoom || !cropSave || !form) return;
+            if (!fileInput || !cropModal || !cropCanvas || !cropZoom || !cropSave || !form) return;
             const ctx = cropCanvas.getContext('2d');
             let image = null;
             let imageUrl = '';
@@ -785,29 +780,6 @@ $pageTitle = 'My Profile';
                 image.onerror = function() { alert('Unable to preview this image. Please choose another photo.'); closeCrop(); };
                 image.src = imageUrl;
             }
-            menuTrigger.addEventListener('click', function() {
-                const isOpen = !menu.hidden;
-                menu.hidden = isOpen;
-                menuTrigger.setAttribute('aria-expanded', String(!isOpen));
-            });
-            changePhotoBtn.addEventListener('click', function() {
-                menu.hidden = true;
-                menuTrigger.setAttribute('aria-expanded', 'false');
-                fileInput.click();
-            });
-            document.addEventListener('click', function(event) {
-                if (!event.target.closest('.profile-cover-menu')) {
-                    menu.hidden = true;
-                    menuTrigger.setAttribute('aria-expanded', 'false');
-                }
-            });
-            document.addEventListener('keydown', function(event) {
-                if (event.key === 'Escape') {
-                    menu.hidden = true;
-                    menuTrigger.setAttribute('aria-expanded', 'false');
-                    menuTrigger.focus();
-                }
-            });
             fileInput.addEventListener('change', function() {
                 const file = this.files[0];
                 if (!file) return;

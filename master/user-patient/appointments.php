@@ -241,9 +241,11 @@ $pageTitle = 'My Appointments';
         
         .time-slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0; }
         .time-slot { padding: 12px 8px; text-align: center; background: #f3f4f6; border: 2px solid transparent; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; }
-        .time-slot:hover:not(.unavailable) { background: #e5e7eb; border-color: #005daa; }
+        @media (hover: hover) and (pointer: fine) {
+            .time-slot:hover:not(.unavailable):not(.selected) { background: #e5e7eb; border-color: #005daa; }
+            .time-slot.available:hover:not(.selected) { background: #a7f3d0; }
+        }
         .time-slot.available { background: #d1fae5; color: #065f46; }
-        .time-slot.available:hover { background: #a7f3d0; }
         .time-slot.selected { background: #005daa; color: white; border-color: #005daa; }
         .time-slot.unavailable { background: #fee2e2; color: #991b1b; cursor: not-allowed; opacity: 0.7; }
         
@@ -303,6 +305,12 @@ $pageTitle = 'My Appointments';
         .modal-details strong { color: #1a1a2e; }
         .modal-btn { width: 100%; padding: 14px 24px; background: #005daa; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 16px; }
         .modal-btn:hover { background: #004080; }
+        #reviewModal .modal { max-height: 90vh; overflow-y: auto; }
+        #reviewDetails { overflow-wrap: anywhere; }
+        #reviewDetails p { white-space: pre-wrap; }
+        .review-edit-btn { background: #e5e7eb; color: #374151; margin-top: 10px; }
+        .review-edit-btn:hover { background: #d1d5db; }
+        #reviewModal button:disabled { opacity: .6; cursor: not-allowed; }
         
         @media (max-width: 1024px) { .booking-layout { grid-template-columns: 1fr; } }
         @media (max-width: 768px) {
@@ -469,8 +477,8 @@ $pageTitle = 'My Appointments';
                                 <textarea id="appointmentNotes" class="form-textarea" placeholder="Any additional notes..."></textarea>
                             </div>
                             
-                            <button id="bookBtn" class="btn-book" disabled>
-                                <i class="fas fa-calendar-check"></i> Book Appointment
+                            <button type="button" id="bookBtn" class="btn-book" disabled>
+                                <i class="fas fa-clipboard-check"></i> Review Appointment
                             </button>
                         </div>
                     </div>
@@ -551,6 +559,17 @@ $pageTitle = 'My Appointments';
         </main>
     </div>
 
+    <div class="modal-overlay" id="reviewModal" role="dialog" aria-modal="true" aria-labelledby="reviewTitle">
+        <div class="modal">
+            <button type="button" class="modal-close" id="reviewCloseBtn" aria-label="Close appointment review">&times;</button>
+            <h3 id="reviewTitle"><i class="fas fa-clipboard-check"></i> Review Appointment</h3>
+            <p>Please check your appointment details before booking.</p>
+            <div class="modal-details" id="reviewDetails"></div>
+            <button type="button" class="modal-btn" id="confirmBookBtn">Book Appointment</button>
+            <button type="button" class="modal-btn review-edit-btn" id="reviewEditBtn">Back to Edit</button>
+        </div>
+    </div>
+
     <div class="modal-overlay" id="successModal">
         <div class="modal">
             <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -570,6 +589,8 @@ $pageTitle = 'My Appointments';
         let currentDate = new Date();
         let selectedDate = null;
         let selectedTime = null;
+        let reviewedBooking = null;
+        let bookingInProgress = false;
 
         function renderCalendar() {
             const year = currentDate.getFullYear();
@@ -821,22 +842,82 @@ function selectDate(selDate, el) {
         // Service selection loads time slots for the selected date
         document.getElementById('serviceSelect').addEventListener('change', function() {
             const serviceId = this.value;
+            selectedTime = null;
+            document.querySelectorAll('.time-slot.selected').forEach(slot => slot.classList.remove('selected'));
             if (selectedDate && serviceId) {
                 loadSlots(serviceId);
             }
             updateBookBtn();
         });
 
+        function closeReviewModal() {
+            if (bookingInProgress) return;
+            document.getElementById('reviewModal').classList.remove('active');
+            reviewedBooking = null;
+            document.getElementById('bookBtn').focus();
+        }
+
+        document.getElementById('reviewCloseBtn').addEventListener('click', closeReviewModal);
+        document.getElementById('reviewEditBtn').addEventListener('click', closeReviewModal);
+        document.getElementById('reviewModal').addEventListener('click', function(event) {
+            if (event.target === this) closeReviewModal();
+        });
+        document.getElementById('reviewModal').addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') closeReviewModal();
+            if (event.key === 'Tab') {
+                const buttons = Array.from(this.querySelectorAll('button:not(:disabled)'));
+                const first = buttons[0], last = buttons[buttons.length - 1];
+                if (!first) { event.preventDefault(); return; }
+                if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+                else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+            }
+        });
         document.getElementById('bookBtn').addEventListener('click', function() {
+            const select = document.getElementById('serviceSelect');
+            if (bookingInProgress || !selectedDate || !selectedTime || !select.value) return;
+            const option = select.options[select.selectedIndex];
+            const duration = parseInt(option.getAttribute('data-duration'), 10) || 15;
+            reviewedBooking = {
+                date: selectedDate, time: selectedTime, serviceId: select.value,
+                serviceName: option.text.trim(), notes: document.getElementById('appointmentNotes').value
+            };
+            const [hours, minutes] = selectedTime.split(':').map(Number);
+            const endMinutes = hours * 60 + minutes + duration;
+            const endTime = String(Math.floor(endMinutes / 60) % 24).padStart(2, '0') + ':' + String(endMinutes % 60).padStart(2, '0');
+            const details = document.getElementById('reviewDetails');
+            details.replaceChildren();
+            const rows = [
+                ['Service', reviewedBooking.serviceName.replace(/\s*\(\d+\s*min\)\s*$/i, '').trim()],
+                ['Date', new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })],
+                ['Time', formatTime(selectedTime) + ' - ' + formatTime(endTime)],
+                ['Duration', duration + ' minutes'],
+                ['Notes', reviewedBooking.notes.trim() || 'None']
+            ];
+            rows.forEach(([label, value]) => {
+                const row = document.createElement('p');
+                const heading = document.createElement('strong');
+                heading.textContent = label + ': ';
+                row.append(heading, document.createTextNode(value));
+                details.append(row);
+            });
+            document.getElementById('reviewModal').classList.add('active');
+            document.getElementById('reviewEditBtn').focus();
+        });
+
+        document.getElementById('confirmBookBtn').addEventListener('click', function() {
+            if (bookingInProgress || !reviewedBooking) return;
+            const booking = reviewedBooking;
+            bookingInProgress = true;
+            document.querySelectorAll('#reviewModal button').forEach(button => { button.disabled = true; });
             const btn = this;
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Booking...';
             
             const formData = new FormData();
-            formData.append('appointment_date', selectedDate);
-            formData.append('appointment_time', selectedTime);
-            formData.append('service_id', document.getElementById('serviceSelect').value);
-            formData.append('notes', document.getElementById('appointmentNotes').value);
+            formData.append('appointment_date', booking.date);
+            formData.append('appointment_time', booking.time);
+            formData.append('service_id', booking.serviceId);
+            formData.append('notes', booking.notes);
             
             fetch('book_appointment.php', { method: 'POST', body: formData })
                 .then(r => r.text())
@@ -844,18 +925,20 @@ function selectDate(selDate, el) {
                     console.log('Response:', text);
                     const data = JSON.parse(text);
                     if (data.success) {
-                        const bookedDate = selectedDate;
-                        const bookedTime = selectedTime;
-                        const serviceName = document.querySelector('#serviceSelect option:checked').text;
-                        const notes = document.getElementById('appointmentNotes').value;
+                        const bookedDate = booking.date;
+                        const bookedTime = booking.time;
+                        const serviceName = booking.serviceName;
+                        const notes = booking.notes;
                         addUpcomingAppointment(bookedDate, bookedTime, serviceName, notes);
                         switchToUpcomingTab();
                         document.getElementById('modalMessage').textContent = data.message;
                         document.getElementById('modalDetails').innerHTML = `
-                            <p><strong>Service:</strong> ${serviceName}</p>
+                            <p><strong>Service:</strong> ${escapeHtml(serviceName)}</p>
                             <p><strong>Date:</strong> ${new Date(bookedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
                             <p><strong>Time:</strong> ${formatTime(bookedTime)}</p>
                         `;
+                        document.getElementById('reviewModal').classList.remove('active');
+                        reviewedBooking = null;
                         document.getElementById('successModal').classList.add('active');
                         
                         // Refresh the time slots to show the newly booked slot as unavailable
@@ -876,6 +959,9 @@ function selectDate(selDate, el) {
                     alert('An error occurred: ' + err.message)
                 })
                 .finally(() => {
+                    bookingInProgress = false;
+                    document.querySelectorAll('#reviewModal button').forEach(button => { button.disabled = false; });
+                    updateBookBtn();
                     btn.disabled = false;
                     btn.innerHTML = '<i class="fas fa-calendar-check"></i> Book Appointment';
                 });

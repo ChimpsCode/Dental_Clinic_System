@@ -1137,7 +1137,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
                 
                 <form id="loginForm" method="POST">
                     <div class="input-group">
-                        <input type="text" id="username" name="username" placeholder="Username, email or mobile number" required autocomplete="username">
+                        <input type="text" id="username" name="username" placeholder="Email or mobile number" required autocomplete="username">
                     </div>
                     
                     <div class="input-group">

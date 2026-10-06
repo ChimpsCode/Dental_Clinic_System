@@ -119,6 +119,46 @@ body.photo-crop-open { overflow:hidden; }
     cursor: pointer;
 }
 
+.profile-intro-section .profile-avatar-editable {
+    position: relative;
+    flex-shrink: 0;
+    padding: 0;
+    overflow: hidden;
+    cursor: pointer;
+    appearance: none;
+}
+
+.profile-avatar-camera {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    border-radius: inherit;
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(1.5px);
+    -webkit-backdrop-filter: blur(1.5px);
+    color: rgba(255, 255, 255, 0.9);
+    pointer-events: none;
+    transition: background 0.2s, color 0.2s;
+}
+
+.profile-avatar-camera svg {
+    width: 34px;
+    height: 34px;
+    filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.3));
+}
+
+.profile-avatar-editable:hover .profile-avatar-camera,
+.profile-avatar-editable:focus-visible .profile-avatar-camera {
+    background: rgba(255, 255, 255, 0.22);
+    color: #fff;
+}
+
+.profile-intro-section .profile-avatar-editable:focus-visible {
+    outline: 3px solid #005daa;
+    outline-offset: 3px;
+}
+
 .profile-intro-section .profile-avatar:has(img):hover {
     box-shadow: 0 2px 14px rgba(0, 0, 0, 0.28);
 }
@@ -160,6 +200,8 @@ body.photo-crop-open { overflow:hidden; }
 
 .profile-photo-menu button:hover,
 .profile-photo-menu button:focus-visible { background: #e5f1fb; }
+
+.profile-photo-menu button[hidden] { display: none; }
 
 .profile-photo-menu-icon {
     display: grid;

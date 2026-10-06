@@ -1554,22 +1554,6 @@ $pageTitle = 'Patient Dashboard';
                         <?php endif; ?>
                     </section>
 
-                    <!-- Your Information -->
-                    <section class="sidebar-card">
-                        <h3 class="sidebar-card-title">Your Information</h3>
-                        <div class="user-info-group">
-                            <div class="info-item">
-                                <span class="info-label">Phone:</span>
-                                <span class="info-value"><?php echo htmlspecialchars($patient['phone'] ?? '+1 (555) 123-4567'); ?></span>
-                            </div>
-                            <div class="info-item">
-                                <span class="info-label">Email:</span>
-                                <span class="info-value"><?php echo htmlspecialchars($patient['email'] ?? 'j.smith@email.com'); ?></span>
-                            </div>
-                        
-                        </div>
-                    </section>
-
                     <!-- Oral Health Insights -->
                     <section class="sidebar-card">
                         <h3 class="sidebar-card-title">Oral Health Insights</h3>

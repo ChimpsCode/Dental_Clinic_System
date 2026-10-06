@@ -25,11 +25,14 @@ $user_id = $_SESSION['user_id'] ?? null;
 $patient_id = $_SESSION['patient_id'] ?? null;
 $message = '';
 $messageType = '';
-$passwordOtpPending = !empty($_SESSION['patient_password_otp']) && (int)($_SESSION['patient_password_otp_expires'] ?? 0) > time();
+$passwordEditing = false;
+$_SESSION['patient_password_csrf'] = $_SESSION['patient_password_csrf'] ?? bin2hex(random_bytes(32));
+unset($_SESSION['patient_password_otp'], $_SESSION['patient_password_pending'], $_SESSION['patient_password_otp_expires']);
 
 require_once '../../config/database.php';
 require_once '../../includes/patient_session_helper.php';
 require_once '../../includes/account_contact.php';
+require_once '../../includes/patient_password_change.php';
 require_once '../../includes/patient_user_sync_helper.php';
 require_once '../../includes/sms_functions.php';
 require_once '../../includes/patient_sms_test_limit.php';
@@ -114,73 +117,15 @@ try {
             }
         }
         
-        if ($action === 'change_password') {
-            $current_password = $_POST['current_password'] ?? '';
-            $new_password = $_POST['new_password'] ?? '';
-            $confirm_password = $_POST['confirm_password'] ?? '';
-            
-            if (password_verify($current_password, $user['password'])) {
-                if (strlen($new_password) >= 8) {
-                    if ($new_password === $confirm_password) {
-                        $passwordOtp = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-                        $_SESSION['patient_password_otp'] = password_hash($passwordOtp, PASSWORD_DEFAULT);
-                        $_SESSION['patient_password_pending'] = password_hash($new_password, PASSWORD_DEFAULT);
-                        $_SESSION['patient_password_otp_expires'] = time() + 180;
-                        if (sendAccountVerification(($user['email'] ?? '') ?: ($user['phone'] ?? ''), $user['first_name'] ?? 'Patient', $passwordOtp, 'password_change')) {
-                            $passwordOtpPending = true;
-                            $message = 'A verification code was sent to your ' . (!empty($user['email']) ? 'email.' : 'mobile number.');
-                            $messageType = 'success';
-                        } else {
-                            unset($_SESSION['patient_password_otp'], $_SESSION['patient_password_pending'], $_SESSION['patient_password_otp_expires']);
-                            $message = 'Unable to send the verification code. Please try again.';
-                            $messageType = 'error';
-                        }
-                    } else {
-                        $message = 'New passwords do not match.';
-                        $messageType = 'error';
-                    }
-                } else {
-                    $message = 'Password must be at least 8 characters.';
-                    $messageType = 'error';
-                }
-            } else {
-                $message = 'Current password is incorrect.';
-                $messageType = 'error';
-            }
+        if (in_array($action, ['change_password', 'send_password_otp', 'verify_password_otp', 'cancel_password_otp'], true)) {
+            $result = is_string($_POST['password_csrf'] ?? null) && hash_equals($_SESSION['patient_password_csrf'], $_POST['password_csrf'])
+                ? patientPasswordChange($pdo, $user, $_SESSION, $_POST)
+                : ['message' => 'Please refresh the page and try again.', 'type' => 'error'];
+            $message = $result['message'];
+            $messageType = $result['type'];
+            $passwordEditing = $action === 'change_password' && $messageType === 'error';
         }
 
-        if ($action === 'verify_password_otp') {
-            $enteredOtp = trim($_POST['password_otp'] ?? '');
-            $storedOtp = $_SESSION['patient_password_otp'] ?? '';
-            $expires = (int)($_SESSION['patient_password_otp_expires'] ?? 0);
-            $pendingPassword = $_SESSION['patient_password_pending'] ?? '';
-
-            if (!$storedOtp || !$pendingPassword || $expires < time()) {
-                unset($_SESSION['patient_password_otp'], $_SESSION['patient_password_pending'], $_SESSION['patient_password_otp_expires']);
-                $message = 'The verification code has expired. Please start again.';
-                $messageType = 'error';
-                $passwordOtpPending = false;
-            } elseif (!preg_match('/^\d{6}$/', $enteredOtp) || !password_verify($enteredOtp, $storedOtp)) {
-                $message = 'The verification code is invalid.';
-                $messageType = 'error';
-                $passwordOtpPending = true;
-            } else {
-                $stmt = $pdo->prepare('UPDATE users SET password = ? WHERE id = ?');
-                $stmt->execute([$pendingPassword, $user_id]);
-                unset($_SESSION['patient_password_otp'], $_SESSION['patient_password_pending'], $_SESSION['patient_password_otp_expires']);
-                $message = 'Password changed successfully!';
-                $messageType = 'success';
-                $passwordOtpPending = false;
-            }
-        }
-
-        if ($action === 'cancel_password_otp') {
-            unset($_SESSION['patient_password_otp'], $_SESSION['patient_password_pending'], $_SESSION['patient_password_otp_expires']);
-            $passwordOtpPending = false;
-            $message = 'Password change cancelled.';
-            $messageType = 'success';
-        }
-        
         if ($action === 'update_notifications') {
             $email_notifications = isset($_POST['email_notifications']) ? 1 : 0;
             $sms_notifications = isset($_POST['sms_notifications']) ? 1 : 0;
@@ -237,6 +182,13 @@ try {
 }
 
 $pageTitle = 'Account Settings';
+$passwordContacts = patientPasswordContacts($user);
+$passwordChange = $_SESSION['patient_password_change'] ?? [];
+if ($passwordChange && (($passwordChange['expires'] ?? 0) <= time() || ($passwordChange['user_id'] ?? 0) !== (int)$user_id || !hash_equals($passwordChange['original'] ?? '', $user['password'] ?? ''))) {
+    unset($_SESSION['patient_password_change']);
+    $passwordChange = [];
+}
+$passwordOtpPending = !empty($passwordChange['otp']) && ($passwordChange['otp_expires'] ?? 0) > time();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -293,6 +245,15 @@ $pageTitle = 'Account Settings';
         .btn-primary:hover { background: #004080; }
         .btn-secondary { background: #e5e7eb; color: #374151; }
         .btn-secondary:hover { background: #d1d5db; }
+        #passwordChangeForm input:disabled { background: #f3f4f6; color: #9ca3af; cursor: not-allowed; }
+        #passwordChangeForm .password-toggle:disabled { opacity: .4; cursor: default; }
+        .password-contact-options { border: 0; padding: 0; margin: 0 0 24px; text-align: left; min-width: 0; }
+        .password-contact-option { display: flex; align-items: center; gap: 12px; border: 1px solid #d1d5db; border-radius: 8px; padding: 14px; margin-top: 10px; cursor: pointer; }
+        .password-contact-option:has(input:checked) { border-color: #005daa; background: #eff6ff; }
+        .password-contact-option input { accent-color: #005daa; width: 18px; height: 18px; flex-shrink: 0; }
+        .password-contact-option span { min-width: 0; }
+        .password-contact-option small { display: block; color: #6b7280; margin-top: 4px; overflow-wrap: anywhere; }
+        #passwordOtpModal .modal-box { max-height: 90vh; overflow-y: auto; }
         .btn-danger { background: #dc3545; color: white; }
         .btn-danger:hover { background: #c82333; }
         .checkbox-group { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
@@ -429,12 +390,20 @@ $pageTitle = 'Account Settings';
                 <h2 class="section-title"><i class="fas fa-user-circle"></i> Account Information</h2>
                 <div class="account-info">
                     <div class="account-info-row">
-                        <span class="account-info-label">User ID</span>
-                        <span class="account-info-value"><?php echo htmlspecialchars($user['id'] ?? 'N/A'); ?></span>
+                        <span class="account-info-label">Full Name</span>
+                        <span class="account-info-value"><?php echo htmlspecialchars(trim(implode(' ', array_filter([
+                            trim(($user['first_name'] ?? '') ?: ($patient['first_name'] ?? '')),
+                            trim(($user['middle_name'] ?? '') ?: ($patient['middle_name'] ?? '')),
+                            trim(($user['last_name'] ?? '') ?: ($patient['last_name'] ?? '')),
+                        ], static function ($part) { return $part !== ''; }))) ?: 'N/A'); ?></span>
                     </div>
                     <div class="account-info-row">
                         <span class="account-info-label">Email</span>
                         <span class="account-info-value"><?php echo htmlspecialchars($user['email'] ?? 'N/A'); ?></span>
+                    </div>
+                    <div class="account-info-row">
+                        <span class="account-info-label">Phone Number</span>
+                        <span class="account-info-value"><?php echo htmlspecialchars(($user['phone'] ?? '') ?: 'N/A'); ?></span>
                     </div>
                     <div class="account-info-row">
                         <span class="account-info-label">Role</span>
@@ -449,31 +418,33 @@ $pageTitle = 'Account Settings';
 
             <div class="section">
                 <h2 class="section-title"><i class="fas fa-lock"></i> Change Password</h2>
-                <form method="POST" action="">
+                <form method="POST" action="" id="passwordChangeForm">
                     <input type="hidden" name="action" value="change_password">
+                                <input type="hidden" name="password_csrf" value="<?php echo htmlspecialchars($_SESSION['patient_password_csrf']); ?>">
                     <div class="form-group">
                         <label class="form-label">Current Password</label>
                         <div class="password-field-wrapper">
-                            <input type="password" name="current_password" class="form-input password-input" required>
-                            <button type="button" class="password-toggle" aria-label="Show current password"><i class="fas fa-eye"></i></button>
+                            <input type="password" name="current_password" autocomplete="current-password" class="form-input password-input" <?php echo $passwordEditing ? '' : 'disabled'; ?> required>
+                            <button type="button" class="password-toggle" <?php echo $passwordEditing ? '' : 'disabled'; ?> aria-label="Show current password"><i class="fas fa-eye"></i></button>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">New Password</label>
                         <div class="password-field-wrapper">
-                            <input type="password" name="new_password" class="form-input password-input" minlength="8" required>
-                            <button type="button" class="password-toggle" aria-label="Show new password"><i class="fas fa-eye"></i></button>
+                            <input type="password" name="new_password" autocomplete="new-password" class="form-input password-input" <?php echo $passwordEditing ? '' : 'disabled'; ?> minlength="8" required>
+                            <button type="button" class="password-toggle" <?php echo $passwordEditing ? '' : 'disabled'; ?> aria-label="Show new password"><i class="fas fa-eye"></i></button>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Confirm New Password</label>
                         <div class="password-field-wrapper">
-                            <input type="password" name="confirm_password" class="form-input password-input" minlength="8" required>
-                            <button type="button" class="password-toggle" aria-label="Show confirmed password"><i class="fas fa-eye"></i></button>
+                            <input type="password" name="confirm_password" autocomplete="new-password" class="form-input password-input" <?php echo $passwordEditing ? '' : 'disabled'; ?> minlength="8" required>
+                            <button type="button" class="password-toggle" <?php echo $passwordEditing ? '' : 'disabled'; ?> aria-label="Show confirmed password"><i class="fas fa-eye"></i></button>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-key"></i> Change Password
+                    <p style="font-size:13px;color:#6b7280;margin-bottom:16px;">Use at least 8 characters for your new password.</p>
+                    <button type="<?php echo $passwordEditing ? 'submit' : 'button'; ?>" class="btn <?php echo $passwordEditing ? 'btn-primary' : 'btn-secondary'; ?>" id="passwordEditBtn">
+                        <i class="fas fa-key"></i> <span><?php echo $passwordEditing ? 'Save' : 'Change Password'; ?></span>
                     </button>
                 </form>
             </div>
@@ -552,21 +523,49 @@ $pageTitle = 'Account Settings';
                 </button>
             </div>
 
-            <?php if ($passwordOtpPending): ?>
-                <div class="modal-overlay is-open" id="passwordOtpModal">
+            <?php if ($passwordChange): ?>
+                <div class="modal-overlay is-open" id="passwordOtpModal" role="dialog" aria-modal="true" aria-labelledby="passwordOtpTitle">
                     <div class="modal-box">
-                        <div class="modal-icon" style="color:#005daa;"><i class="fas fa-envelope-circle-check"></i></div>
-                        <h2 class="modal-title">Verification Code</h2>
-                        <p class="modal-desc">Enter the 6-digit code sent to <?php echo htmlspecialchars(($user['email'] ?? '') ?: (($user['phone'] ?? '') ?: 'mobile number')); ?> to finish changing your password.</p>
-                        <form method="POST" action="">
-                            <input type="hidden" name="action" value="verify_password_otp">
-                            <input type="text" name="password_otp" class="modal-input" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="Enter verification code" autocomplete="one-time-code" required autofocus>
-                            <div class="modal-actions">
-                                <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Verify &amp; Save</button>
-                            </div>
-                        </form>
+                        <div class="modal-icon" style="color:#005daa;"><i class="fas fa-shield-alt"></i></div>
+                        <h2 class="modal-title" id="passwordOtpTitle"><?php echo $passwordOtpPending ? 'Enter verification code' : 'Send verification code'; ?></h2>
+                        <?php if ($messageType === 'error'): ?>
+                            <p role="alert" style="color:#b91c1c;margin-bottom:16px;"><?php echo htmlspecialchars($message); ?></p>
+                        <?php endif; ?>
+                        <?php if ($passwordOtpPending): ?>
+                            <p class="modal-desc">Enter the 6-digit code sent to <strong><?php echo htmlspecialchars($passwordChange['destination']); ?></strong>. The code expires in 3 minutes.</p>
+                            <form method="POST" action="">
+                                <input type="hidden" name="action" value="verify_password_otp">
+                    <input type="hidden" name="password_csrf" value="<?php echo htmlspecialchars($_SESSION['patient_password_csrf']); ?>">
+                                <label class="form-label" for="passwordOtpInput">Verification code</label>
+                                <input id="passwordOtpInput" type="text" name="password_otp" class="modal-input" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="Enter verification code" autocomplete="one-time-code" required autofocus>
+                                <div class="modal-actions"><button type="submit" class="btn btn-primary">Verify &amp; Save</button></div>
+                            </form>
+                            <form method="POST" action="" style="margin-top:12px;">
+                                <input type="hidden" name="action" value="send_password_otp">
+                                <input type="hidden" name="password_csrf" value="<?php echo htmlspecialchars($_SESSION['patient_password_csrf']); ?>">
+                                <input type="hidden" name="password_channel" value="<?php echo htmlspecialchars($passwordChange['channel']); ?>">
+                                <button type="submit" class="btn btn-secondary">Resend OTP</button>
+                            </form>
+                        <?php else: ?>
+                            <p class="modal-desc">Choose where to receive the OTP to confirm your password change.</p>
+                            <form method="POST" action="">
+                                <input type="hidden" name="action" value="send_password_otp">
+                                <input type="hidden" name="password_csrf" value="<?php echo htmlspecialchars($_SESSION['patient_password_csrf']); ?>">
+                                <fieldset class="password-contact-options">
+                                    <legend class="form-label">Send OTP using</legend>
+                                    <?php foreach ($passwordContacts as $channel => $destination): ?>
+                                        <label class="password-contact-option">
+                                            <input type="radio" name="password_channel" value="<?php echo $channel; ?>" required <?php echo $channel === array_key_first($passwordContacts) ? 'checked' : ''; ?>>
+                                            <span><strong><?php echo $channel === 'email' ? 'Email' : 'SMS'; ?></strong><small><?php echo htmlspecialchars($destination); ?></small></span>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </fieldset>
+                                <div class="modal-actions"><button type="submit" class="btn btn-primary">Send OTP</button></div>
+                            </form>
+                        <?php endif; ?>
                         <form method="POST" action="" style="margin-top:10px;">
                             <input type="hidden" name="action" value="cancel_password_otp">
+                                <input type="hidden" name="password_csrf" value="<?php echo htmlspecialchars($_SESSION['patient_password_csrf']); ?>">
                             <button type="submit" class="btn btn-secondary">Cancel</button>
                         </form>
                     </div>
@@ -593,6 +592,32 @@ $pageTitle = 'Account Settings';
         </main>
     </div>
     <script>
+        document.querySelectorAll('input[name="action"][value="send_password_otp"]').forEach(function (actionInput) {
+            const form = actionInput.form;
+            let sending = false;
+            form.addEventListener('submit', function (event) {
+                if (sending) {
+                    event.preventDefault();
+                    return;
+                }
+                sending = true;
+                const button = form.querySelector('button[type="submit"]');
+                button.disabled = true;
+                button.textContent = 'Sending OTP…';
+                button.setAttribute('aria-busy', 'true');
+            });
+        });
+        const passwordEditBtn = document.getElementById('passwordEditBtn');
+        passwordEditBtn.addEventListener('click', function (event) {
+            if (this.type === 'submit') return;
+            event.preventDefault();
+            document.querySelectorAll('#passwordChangeForm input, #passwordChangeForm .password-toggle').forEach(function (field) { field.disabled = false; });
+            this.type = 'submit';
+            this.classList.replace('btn-secondary', 'btn-primary');
+            this.querySelector('span').textContent = 'Save';
+            document.querySelector('#passwordChangeForm input[name="current_password"]').focus();
+        });
+
         (function () {
             const launcher = document.querySelector('[data-chat-launcher]');
             if (!launcher) return;
