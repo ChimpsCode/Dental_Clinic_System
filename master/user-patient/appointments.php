@@ -145,7 +145,7 @@ require_once '../../includes/medical_certificate_helper.php';
 ensureMedicalCertificateService($pdo);
 
 // Get services for booking
-$stmt = $pdo->prepare("SELECT id, name, duration_minutes, price FROM services WHERE is_active = 1 ORDER BY name");
+$stmt = $pdo->prepare("SELECT id, name, duration_minutes, price, description FROM services WHERE is_active = 1 ORDER BY name");
 $stmt->execute();
 $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -308,6 +308,12 @@ $pageTitle = 'My Appointments';
         #reviewModal .modal { max-height: 90vh; overflow-y: auto; }
         #reviewDetails { overflow-wrap: anywhere; }
         #reviewDetails p { white-space: pre-wrap; }
+        .review-price-row { margin-bottom: 8px; font-size: 14px; }
+        .review-price-help { display: inline; }
+        .review-price-help summary { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; margin-left: 6px; border: 1px solid #005daa; border-radius: 50%; color: #005daa; cursor: pointer; font-size: 12px; font-weight: 700; list-style: none; }
+        .review-price-help summary::-webkit-details-marker { display: none; }
+        .review-price-help summary:focus-visible { outline: 2px solid #005daa; outline-offset: 2px; }
+        .review-price-help p { background: #e0edfa; border-radius: 8px; padding: 12px; margin: 8px 0 0; line-height: 1.5; color: #374151; }
         .review-edit-btn { background: #e5e7eb; color: #374151; margin-top: 10px; }
         .review-edit-btn:hover { background: #d1d5db; }
         #reviewModal button:disabled { opacity: .6; cursor: not-allowed; }
@@ -453,7 +459,7 @@ $pageTitle = 'My Appointments';
                                 <select id="serviceSelect" class="form-select">
                                     <option value="">-- Choose a service --</option>
                                     <?php foreach ($services as $svc): ?>
-                                        <option value="<?php echo $svc['id']; ?>" data-duration="<?php echo $svc['duration_minutes']; ?>">
+                                        <option value="<?php echo $svc['id']; ?>" data-duration="<?php echo $svc['duration_minutes']; ?>" data-price="<?php echo htmlspecialchars((string)($svc['price'] ?? '')); ?>" data-case-to-case="<?php echo preg_match('/\bcase[\s-]+to[\s-]+case\b/i', $svc['description'] ?? '') ? 'true' : 'false'; ?>">
                                             <?php echo htmlspecialchars($svc['name']); ?> (<?php echo $svc['duration_minutes']; ?> min)
                                         </option>
                                     <?php endforeach; ?>
@@ -877,6 +883,8 @@ function selectDate(selDate, el) {
             if (bookingInProgress || !selectedDate || !selectedTime || !select.value) return;
             const option = select.options[select.selectedIndex];
             const duration = parseInt(option.getAttribute('data-duration'), 10) || 15;
+            const price = parseFloat(option.getAttribute('data-price'));
+            const isCaseToCase = option.getAttribute('data-case-to-case') === 'true';
             reviewedBooking = {
                 date: selectedDate, time: selectedTime, serviceId: select.value,
                 serviceName: option.text.trim(), notes: document.getElementById('appointmentNotes').value
@@ -891,13 +899,28 @@ function selectDate(selDate, el) {
                 ['Date', new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })],
                 ['Time', formatTime(selectedTime) + ' - ' + formatTime(endTime)],
                 ['Duration', duration + ' minutes'],
+                ['Price', (Number.isFinite(price) ? 'P' + price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'To be confirmed by the clinic') + (isCaseToCase ? ' (case to case)' : '')],
                 ['Notes', reviewedBooking.notes.trim() || 'None']
             ];
             rows.forEach(([label, value]) => {
-                const row = document.createElement('p');
+                const row = document.createElement(label === 'Price' ? 'div' : 'p');
                 const heading = document.createElement('strong');
                 heading.textContent = label + ': ';
                 row.append(heading, document.createTextNode(value));
+                if (label === 'Price') {
+                    row.className = 'review-price-row';
+                }
+                if (label === 'Price' && isCaseToCase) {
+                    const help = document.createElement('details');
+                    help.className = 'review-price-help';
+                    const toggle = document.createElement('summary');
+                    toggle.textContent = '?';
+                    toggle.setAttribute('aria-label', 'What does case to case mean?');
+                    const explanation = document.createElement('p');
+                    explanation.textContent = 'The displayed price is an estimate. The final cost may vary depending on your dental condition and the treatment needed. The clinic will confirm the price after assessing your case.';
+                    help.append(toggle, explanation);
+                    row.append(help);
+                }
                 details.append(row);
             });
             document.getElementById('reviewModal').classList.add('active');

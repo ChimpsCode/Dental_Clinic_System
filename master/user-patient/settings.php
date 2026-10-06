@@ -245,6 +245,8 @@ $passwordOtpPending = !empty($passwordChange['otp']) && ($passwordChange['otp_ex
         .btn-primary:hover { background: #004080; }
         .btn-secondary { background: #e5e7eb; color: #374151; }
         .btn-secondary:hover { background: #d1d5db; }
+        .preference-save-btn:disabled { cursor: not-allowed; }
+        .preference-save-btn.btn-secondary:disabled:hover { background: #e5e7eb; }
         #passwordChangeForm input:disabled { background: #f3f4f6; color: #9ca3af; cursor: not-allowed; }
         #passwordChangeForm .password-toggle:disabled { opacity: .4; cursor: default; }
         .password-contact-options { border: 0; padding: 0; margin: 0 0 24px; text-align: left; min-width: 0; }
@@ -476,7 +478,7 @@ $passwordOtpPending = !empty($passwordChange['otp']) && ($passwordChange['otp_ex
                             </span>
                         </label>
                     </div>
-                    <button type="submit" class="btn btn-primary" <?php echo $smsPreferencesAvailable ? '' : 'disabled'; ?>>
+                    <button type="submit" class="btn btn-secondary preference-save-btn" data-save-available="<?php echo $smsPreferencesAvailable ? 'true' : 'false'; ?>" disabled>
                         <i class="fas fa-save"></i> Save Preferences
                     </button>
                 </form>
@@ -509,7 +511,7 @@ $passwordOtpPending = !empty($passwordChange['otp']) && ($passwordChange['otp_ex
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Session Preference</button>
+                    <button type="submit" class="btn btn-secondary preference-save-btn" data-save-available="true" disabled><i class="fas fa-save"></i> Save Session Preference</button>
                 </form>
             </div>
 
@@ -592,6 +594,34 @@ $passwordOtpPending = !empty($passwordChange['otp']) && ($passwordChange['otp_ex
         </main>
     </div>
     <script>
+        document.querySelectorAll('.preference-save-btn').forEach(function (button) {
+            const form = button.form;
+            const fields = Array.from(form.querySelectorAll('input:not([type="hidden"]):not(:disabled), select:not(:disabled)'));
+            const readValues = function () {
+                return JSON.stringify(fields.map(function (field) {
+                    return field.type === 'checkbox' ? field.checked : field.value;
+                }));
+            };
+            const initialValues = readValues();
+            let saving = false;
+            const updateButton = function () {
+                const changed = readValues() !== initialValues && button.dataset.saveAvailable === 'true';
+                button.disabled = !changed || saving;
+                button.classList.toggle('btn-primary', changed);
+                button.classList.toggle('btn-secondary', !changed);
+            };
+            form.addEventListener('input', updateButton);
+            form.addEventListener('change', updateButton);
+            form.addEventListener('submit', function (event) {
+                if (button.disabled || saving) {
+                    event.preventDefault();
+                    return;
+                }
+                saving = true;
+                button.disabled = true;
+            });
+            updateButton();
+        });
         document.querySelectorAll('input[name="action"][value="send_password_otp"]').forEach(function (actionInput) {
             const form = actionInput.form;
             let sending = false;
