@@ -8,13 +8,15 @@
 require_once __DIR__ . '/../../includes/session_bootstrap.php';error_reporting(0);
 ini_set('display_errors', 0);
 
-if (!isset($_SESSION['user_id'])) {
+if (!isset($_SESSION['user_id']) || !in_array(strtolower($_SESSION['role'] ?? ''), ['dentist', 'admin', 'staff'], true)) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit();
 }
 
 require_once '../../config/database.php';
 require_once '../../includes/appointment_approval_helper.php';
+require_once '../../includes/treatment_plan_workflow.php';
+ensureTreatmentPlanWorkflowSchema($pdo);
 header('Content-Type: application/json');
 
 // HANDLE GET REQUEST - FETCH PLANS
@@ -43,6 +45,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
         // Resolve plan_name if it's a service ID and normalize status
         foreach ($plans as &$plan) {
+            linkLegacyTreatmentPlanSessions($pdo, $plan);
+            $progress = syncTreatmentPlanProgress($pdo, (int)$plan['id']);
+            $plan = array_merge($plan, $progress);
+            $plan['status'] = $progress['overall_status'];
             if ($plan['service_name']) {
                 $plan['treatment_name'] = $plan['service_name'];
             }
@@ -80,11 +86,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 }
 
+if (!in_array(strtolower($_SESSION['role'] ?? ''), ['dentist', 'admin'], true)) {
+    echo json_encode(['success' => false, 'message' => 'Only dentists or admins can change treatment plans']);
+    exit();
+}
+
 // HANDLE POST REQUEST - SAVE/UPDATE
 $plan_id = $_POST['plan_id'] ?? null;
 $patient_id = $_POST['patient_id'] ?? null;
 $plan_name = $_POST['treatment_name'] ?? $_POST['plan_name'] ?? '';
 $total_sessions = (int)($_POST['total_sessions'] ?? 1);
+if ($total_sessions < 1 || $total_sessions > 8) {
+    echo json_encode(['success' => false, 'message' => 'Choose between 1 and 8 sessions']);
+    exit();
+}
 
 // If no plan_name provided, derive from first session's treatment or use default
 if (empty($plan_name)) {
@@ -102,7 +117,12 @@ if (empty($plan_name)) {
     $plan_name = 'Treatment Plan';
 }
 $estimated_cost = $_POST['estimated_cost'] ?? null;
-$status = $_POST['status'] ?? 'Active';
+if ($estimated_cost !== null && $estimated_cost !== '' && (!is_numeric($estimated_cost) || !is_finite((float)$estimated_cost) || (float)$estimated_cost < 0)) {
+    echo json_encode(['success' => false, 'message' => 'Estimated cost must be a non-negative amount']);
+    exit();
+}
+$estimated_cost = $estimated_cost === null || $estimated_cost === '' ? null : round((float)$estimated_cost, 2);
+$status = 'Active'; // Progress is derived from the linked sessions.
 $notes = $_POST['notes'] ?? '';
 $teeth_numbers = $_POST['teeth_numbers'] ?? '';
 $session_date = $_POST['next_session_date'] ?? null;
@@ -117,16 +137,26 @@ for ($i = 1; $i <= $total_sessions; $i++) {
     $stx = $_POST["session_treatment_{$i}"] ?? '';
     $stxOther = $_POST["session_treatment_other_{$i}"] ?? '';
     $snotes = $_POST["session_notes_{$i}"] ?? '';
+    $sessionCost = $_POST["session_estimated_cost_{$i}"] ?? null;
+    if ($sessionCost !== null && (!is_numeric($sessionCost) || !is_finite((float)$sessionCost) || (float)$sessionCost < 0)) {
+        echo json_encode(['success' => false, 'message' => "Invalid estimated cost for Session {$i}"]);
+        exit();
+    }
     if (!empty($sd)) {
         $entry = ['date' => $sd];
         if (!empty($st)) $entry['time'] = date("H:i:s", strtotime($st));
         $treatment = !empty($stxOther) ? $stxOther : $stx;
         if (!empty($treatment)) $entry['treatment'] = $treatment;
         if (!empty($snotes)) $entry['notes'] = $snotes;
+        if ($sessionCost !== null) $entry['estimated_cost'] = round((float)$sessionCost, 2);
         $sessionsData[] = $entry;
     }
 }
 $sessionsJson = !empty($sessionsData) ? json_encode($sessionsData) : null;
+if (count($sessionsData) !== $total_sessions || count(array_filter($sessionsData, fn($s) => empty($s['time']) || empty($s['treatment'])))) {
+    echo json_encode(['success' => false, 'message' => 'Every session needs a treatment, date and time']);
+    exit();
+}
 
 if (!$patient_id || !$plan_name) {
     echo json_encode(['success' => false, 'message' => 'Patient and Plan Name required']);
@@ -143,100 +173,42 @@ try {
     }
 
     if ($plan_id) {
+        $existingStmt = $pdo->prepare('SELECT * FROM treatment_plans WHERE id = ? AND patient_id = ? FOR UPDATE');
+        $existingStmt->execute([$plan_id, $patient_id]);
+        $existingPlan = $existingStmt->fetch();
+        if (!$existingPlan) throw new Exception('Treatment plan not found');
+        linkLegacyTreatmentPlanSessions($pdo, $existingPlan);
+        $existingPlan = syncTreatmentPlanProgress($pdo, (int)$plan_id);
+        $oldSessions = json_decode($existingPlan['sessions_data'] ?? '', true) ?: [];
+        if (count($sessionsData) < count($oldSessions)) throw new Exception('Cancel individual sessions instead of removing them');
+        foreach ($oldSessions as $index => $oldSession) {
+            if (in_array($oldSession['status'] ?? '', ['Waiting','In-Progress','Completed','Cancelled'], true)) {
+                foreach (['date','time','treatment'] as $field) {
+                    if (($oldSession[$field] ?? '') !== ($sessionsData[$index][$field] ?? '')) throw new Exception('Started, completed or cancelled sessions cannot be changed');
+                }
+            }
+            if (isset($oldSession['status'])) $sessionsData[$index]['status'] = $oldSession['status'];
+            if (!isset($sessionsData[$index]['estimated_cost']) && isset($oldSession['estimated_cost'])) $sessionsData[$index]['estimated_cost'] = $oldSession['estimated_cost'];
+        }
+        $sessionsJson = json_encode($sessionsData);
+        $doctor_id = (int)$existingPlan['doctor_id'];
         $stmt = $pdo->prepare("UPDATE treatment_plans SET plan_name = ?, total_sessions = ?, total_estimated_cost = ?, overall_status = ?, notes = ?, teeth_numbers = ?, sessions_data = ?, next_session_date = ?, next_session_time = ?, updated_at = NOW() WHERE id = ? AND patient_id = ?");
-        $stmt->execute([$plan_name, $total_sessions, $estimated_cost ?: null, $status, $notes, $teeth_numbers, $sessionsJson, $session_date ?: null, $apptTime ?: null, $plan_id, $patient_id]);
+        $stmt->execute([$plan_name, $total_sessions, $estimated_cost, $status, $notes, $teeth_numbers, $sessionsJson, $session_date ?: null, $apptTime ?: null, $plan_id, $patient_id]);
         $message = 'Treatment plan updated';
     } else {
         $stmt = $pdo->prepare("INSERT INTO treatment_plans (patient_id, doctor_id, plan_name, total_sessions, total_estimated_cost, overall_status, notes, teeth_numbers, sessions_data, next_session_date, next_session_time, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
-        $stmt->execute([$patient_id, $doctor_id, $plan_name, $total_sessions, $estimated_cost ?: null, $status, $notes, $teeth_numbers, $sessionsJson, $session_date ?: null, $apptTime ?: null]);
+        $stmt->execute([$patient_id, $doctor_id, $plan_name, $total_sessions, $estimated_cost, $status, $notes, $teeth_numbers, $sessionsJson, $session_date ?: null, $apptTime ?: null]);
 
         $planId = $pdo->lastInsertId();
         $message = 'Treatment plan created';
 
-        // AUTO-CREATE APPOINTMENT(S) FOR ALL SCHEDULED SESSIONS
-        $appointmentsToCreate = [];
-        if (!empty($sessionsData)) {
-            $isFirst = true;
-            foreach ($sessionsData as $s) {
-                if (!empty($s['date']) && !empty($s['time'])) {
-                    $alreadyListed = false;
-                    foreach ($appointmentsToCreate as $existing) {
-                        if ($existing['date'] === $s['date'] && $existing['time'] === $s['time']) {
-                            $alreadyListed = true;
-                            break;
-                        }
-                    }
-                    if (!$alreadyListed) {
-                        $treatment = !empty($s['treatment']) ? $s['treatment'] : $plan_name;
-                        $appointmentsToCreate[] = ['date' => $s['date'], 'time' => $s['time'], 'is_first' => $isFirst, 'treatment' => $treatment];
-                        $isFirst = false;
-                    }
-                }
-            }
-        }
-
-        $createdApptIds = [];
-        $createdAppointments = [];
-        foreach ($appointmentsToCreate as $a) {
-            $conflictCheck = $pdo->prepare("
-                SELECT a.id, a.reference_code, p.first_name, p.last_name 
-                FROM appointments a 
-                LEFT JOIN patients p ON a.patient_id = p.id
-                WHERE a.appointment_date = ? 
-                AND a.appointment_time = ?
-                AND a.is_archived = 0
-                AND a.status NOT IN ('Cancelled', 'Pending Approval')
-            ");
-            $conflictCheck->execute([$a['date'], $a['time']]);
-            $conflict = $conflictCheck->fetch(PDO::FETCH_ASSOC);
-
-            if ($conflict) {
-                throw new Exception("Time slot conflict! There is already an appointment ($conflict[reference_code]) for $conflict[first_name] $conflict[last_name] at this time.");
-            }
-
-            $refCode = 'APT' . strtoupper(substr(md5(uniqid() . $a['date'] . $a['time']), 0, 6));
-
-            $serviceId = null;
-            $duration = 30;
-            $svcName = !empty($a['treatment']) ? $a['treatment'] : $plan_name;
-            $svc = $pdo->prepare("SELECT id, duration_minutes FROM services WHERE name = ? LIMIT 1");
-            $svc->execute([$svcName]);
-            if ($row = $svc->fetch(PDO::FETCH_ASSOC)) {
-                $serviceId = $row['id'];
-                $duration = $row['duration_minutes'] ?? 30;
-            }
-
-            $ins = $pdo->prepare("
-                INSERT INTO appointments 
-                (reference_code, patient_id, service_id, status, appointment_date, appointment_time, duration_minutes, booked_by_id, created_by, created_at, is_archived) 
-                VALUES (?, ?, ?, 'Scheduled', ?, ?, ?, ?, ?, NOW(), 0)
-            ");
-            $ins->execute([$refCode, $patient_id, $serviceId, $a['date'], $a['time'], $duration, $doctor_id, $doctor_id]);
-
-            $apptId = $pdo->lastInsertId();
-            $createdApptIds[] = $apptId;
-            $createdAppointments[] = [
-                'date' => $a['date'],
-                'time' => $a['time'],
-                'treatment' => $a['treatment'] ?? $plan_name
-            ];
-
-            if ($a['is_first']) {
-                try {
-                    require_once __DIR__ . '/../../includes/patient_type_helper.php';
-                    maybeTransitionToReturningPatient($pdo, $patient_id);
-                } catch (Exception $e) {}
-
-                $linkStmt = $pdo->prepare("UPDATE treatment_plans SET appointment_id = ?, updated_at = NOW() WHERE id = ?");
-                $linkStmt->execute([$apptId, $planId]);
-            }
-        }
-
-        if (!empty($sessionsData)) {
-            $count = count($sessionsData);
-            $message = "Treatment plan created. {$count} session(s) scheduled.";
-        }
     }
+
+    $planId = (int)($planId ?? $plan_id);
+    $createdAppointments = reserveTreatmentPlanSessions($pdo, $planId, (int)$patient_id, (int)$doctor_id, $sessionsData);
+    $updatedPlan = syncTreatmentPlanProgress($pdo, $planId);
+    $sessionsData = json_decode($updatedPlan['sessions_data'], true);
+    $message = $plan_id ? 'Treatment plan updated.' : 'Treatment plan created. ' . count($sessionsData) . ' session(s) scheduled.';
 
     $pdo->commit();
 
@@ -255,7 +227,7 @@ try {
         'success' => true, 
         'message' => $message,
         'plan_id' => $planId ?? $plan_id,
-        'appointment_id' => $apptId ?? null,
+        'appointment_id' => $updatedPlan['appointment_id'] ?? null,
         'appointments' => $createdAppointments ?? [],
         'sessions' => $sessionsData ?: []
     ]);

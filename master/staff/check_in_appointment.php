@@ -18,6 +18,8 @@ if (!in_array($role, ['staff', 'admin'], true)) {
 
 require_once '../../config/database.php';
 require_once '../../includes/queue_management_helper.php';
+require_once '../../includes/treatment_plan_workflow.php';
+ensureTreatmentPlanWorkflowSchema($pdo);
 
 function tableExistsCheckIn(PDO $pdo, string $tableName): bool
 {
@@ -35,6 +37,13 @@ function columnExistsCheckIn(PDO $pdo, string $tableName, string $columnName): b
 
 function checkInTreatmentType(PDO $pdo, array $appointment): string
 {
+    if (!empty($appointment['treatment_plan_id'])) {
+        $stmt = $pdo->prepare('SELECT sessions_data FROM treatment_plans WHERE id = ?');
+        $stmt->execute([$appointment['treatment_plan_id']]);
+        $sessions = json_decode($stmt->fetchColumn() ?: '[]', true) ?: [];
+        $treatment = $sessions[(int)$appointment['treatment_plan_session'] - 1]['treatment'] ?? '';
+        if ($treatment !== '') return $treatment;
+    }
     $treatmentType = trim((string)($appointment['treatment'] ?? ''));
     if ($treatmentType === '' && !empty($appointment['service_id'])) {
         $svc = $pdo->prepare('SELECT name FROM services WHERE id = ?');
@@ -102,6 +111,11 @@ try {
     }
 
     $pdo->beginTransaction();
+    $lock = $pdo->prepare('SELECT status FROM appointments WHERE id = ? FOR UPDATE');
+    $lock->execute([$appointmentId]);
+    if (!in_array(strtolower((string)$lock->fetchColumn()), ['scheduled','arrived','in queue',''], true)) {
+        throw new Exception('The appointment is no longer available for check-in.');
+    }
 
     $queueEntry = createQueueEntry($pdo, [
         'patient_id' => (int)$appointment['patient_id'],
@@ -116,6 +130,7 @@ try {
     $updateStmt = $pdo->prepare("UPDATE appointments SET status = 'In Queue' WHERE id = ?");
     $updateStmt->execute([$appointmentId]);
 
+    syncTreatmentPlanForAppointment($pdo, $appointmentId);
     $pdo->commit();
 
     echo json_encode([

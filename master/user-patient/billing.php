@@ -176,7 +176,7 @@ $pageTitle = 'Billing';
         .menu-item:hover { background: rgba(255,255,255,0.1); color: white; }
         .menu-item.active { background: rgba(255,255,255,0.2); color: white; font-weight: 600; }
         .menu-item i { width: 18px; text-align: center; }
-        .main-wrapper { flex: 1; margin-left: 220px; display: flex; flex-direction: column; min-height: 100vh; }
+        .main-wrapper { flex: 1; min-width: 0; margin-left: 220px; display: flex; flex-direction: column; min-height: 100vh; }
         .dashboard-header { background: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 50; height: 70px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .header-right { display: flex; align-items: center; gap: 16px; }
         .user-profile { position: relative; display: flex; align-items: center; gap: 12px; }
@@ -194,8 +194,8 @@ $pageTitle = 'Billing';
         .page-header { margin-bottom: 24px; }
         .page-title { font-size: 28px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
         .page-subtitle { color: #6b7280; font-size: 14px; }
-        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 24px; }
-        .stat-card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .stats-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; margin-bottom: 24px; }
+        .stat-card { min-width: 0; background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
         .stat-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 16px; }
         .stat-icon.paid { background: #d1fae5; color: #065f46; }
         .stat-icon.pending { background: #fef3c7; color: #92400e; }
@@ -232,7 +232,11 @@ $pageTitle = 'Billing';
             .dashboard-header { padding: 12px 16px; }
             .user-details { display: none; }
             .dashboard-main { padding: 16px; }
-            .stats-grid { grid-template-columns: 1fr; }
+            .stats-grid { gap: 8px; margin-bottom: 16px; }
+            .stat-card { padding: 12px 8px; border-radius: 10px; }
+            .stat-icon { width: 32px; height: 32px; border-radius: 8px; font-size: 15px; margin-bottom: 10px; }
+            .stat-value { font-size: clamp(12px, 3.4vw, 20px); line-height: 1.3; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+            .stat-label { font-size: clamp(10px, 2.5vw, 12px); line-height: 1.4; overflow-wrap: anywhere; }
             .invoice-table { display: block; overflow-x: auto; }
         }
     </style>

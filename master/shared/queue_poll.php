@@ -74,6 +74,8 @@ try {
     ");
     $stmt->execute([$today]);
     $items = $stmt->fetchAll();
+    require_once __DIR__ . '/../../includes/treatment_plan_queue_items.php';
+    $items = mergeTreatmentPlanQueueItems($pdo, $items);
 
     $waitingCount = count(array_filter($items, fn($q) => ($q['status'] ?? '') === 'waiting'));
     $procedureCount = count(array_filter($items, fn($q) => ($q['status'] ?? '') === 'in_procedure'));

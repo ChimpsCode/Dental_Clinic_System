@@ -45,7 +45,9 @@ try {
     ");
     $allStmt->execute([$today]);
     $allQueueItems = $allStmt->fetchAll(PDO::FETCH_ASSOC);
-    
+    require_once __DIR__ . '/../../includes/treatment_plan_queue_items.php';
+    $allQueueItems = mergeTreatmentPlanQueueItems($pdo, $allQueueItems);
+
     // Calculate counts
     $waitingCount = count(array_filter($allQueueItems, fn($q) => ($q['status_text'] ?? '') === 'waiting'));
     $procedureCount = count(array_filter($allQueueItems, fn($q) => ($q['status_text'] ?? '') === 'in_procedure'));
@@ -54,21 +56,21 @@ try {
     $onHoldCount = count(array_filter($allQueueItems, fn($q) => ($q['status_text'] ?? '') === 'on_hold'));
     $cancelledCount = count(array_filter($allQueueItems, fn($q) => ($q['status_text'] ?? '') === 'cancelled'));
     $totalInQueue = $waitingCount + $procedureCount + $onHoldCount;
-    
+
     // Pagination calculations
     $totalQueueItems = count($allQueueItems);
     $totalPages = max(1, ceil($totalQueueItems / $itemsPerPage));
-    
+
     if ($currentPage > $totalPages) $currentPage = $totalPages;
     $offset = ($currentPage - 1) * $itemsPerPage;
-    
+
     // Calculate showing range
     $showingStart = $totalQueueItems > 0 ? $offset + 1 : 0;
     $showingEnd = min($offset + $itemsPerPage, $totalQueueItems);
-    
+
     // Get paginated queue items
     $queueItems = array_slice($allQueueItems, $offset, $itemsPerPage);
-    
+
 } catch (Exception $e) {
     $queueItems = [];
     $allQueueItems = [];
@@ -86,6 +88,8 @@ try {
 }
 ?>
 
+<link rel="stylesheet" href="../../assets/css/treatment-plan-queue.css">
+<script src="../../assets/js/treatment-plan-queue.js"></script>
 <style>
 /* Ensure consistent background and full width layout */
 .content-area {
@@ -319,7 +323,7 @@ div.main-content {
 
 .summary-widget-icon.yellow {
     background: #d3e0fe;
-    
+
 }
 
 .summary-widget-icon.blue {
@@ -1029,10 +1033,11 @@ div.main-content {
 <div class="two-column-layout">
     <!-- Left Column: Main Content -->
     <div class="main-content">
+
         <!-- Tabbed Navigation -->
         <div class="tabs-navigation">
             <div class="tab-item active" data-tab="all">
-                All <span class="tab-count"><?php echo count($queueItems); ?></span>
+                All <span class="tab-count"><?php echo $totalQueueItems; ?></span>
             </div>
             <div class="tab-item" data-tab="waiting">
                 Waiting <span class="tab-count"><?php echo $waitingCount; ?></span>
@@ -1109,7 +1114,7 @@ div.main-content {
                                         <?php echo $statusLabel; ?>
                                     </span>
                                 </td>
-                                <td><?php echo htmlspecialchars($item['treatment_type'] ?? 'General Checkup'); ?></td>
+                                <td><?php echo htmlspecialchars($item['treatment_type'] ?? 'General Checkup'); ?><?php if (!empty($item['treatment_plan_id'])): ?><span class="treatment-plan-tag">Treatment Plan</span><?php endif; ?></td>
                                 <td><?php echo htmlspecialchars($item['assigned_doctor'] ?? 'Unassigned'); ?></td>
                                 <td>
                                     <div class="time-display">
@@ -1137,7 +1142,7 @@ div.main-content {
     </div>
 
     <!-- Right Column: Sidebar -->
-    
+
 </div>
 
 
@@ -1151,17 +1156,17 @@ div.main-content {
         <?php else: ?>
             <button class="pagination-btn" disabled>Previous</button>
         <?php endif; ?>
-        
+
         <?php
         // Smart page number display
         $maxVisiblePages = 5;
         $startPage = max(1, $currentPage - floor($maxVisiblePages / 2));
         $endPage = min($totalPages, $startPage + $maxVisiblePages - 1);
-        
+
         if ($endPage - $startPage + 1 < $maxVisiblePages) {
             $startPage = max(1, $endPage - $maxVisiblePages + 1);
         }
-        
+
         if ($startPage > 1) {
             ?>
             <a href="?page=1" class="pagination-btn">1</a>
@@ -1172,7 +1177,7 @@ div.main-content {
                 <?php
             }
         }
-        
+
         for ($i = $startPage; $i <= $endPage; $i++) {
             if ($i == $currentPage) {
                 ?>
@@ -1184,7 +1189,7 @@ div.main-content {
                 <?php
             }
         }
-        
+
         if ($endPage < $totalPages) {
             if ($endPage < $totalPages - 1) {
                 ?>
@@ -1196,7 +1201,7 @@ div.main-content {
             <?php
         }
         ?>
-        
+
         <?php if ($currentPage < $totalPages): ?>
             <a href="?page=<?php echo $currentPage + 1; ?>" class="pagination-btn">Next</a>
         <?php else: ?>
@@ -1304,7 +1309,7 @@ function getQueueMenuItems(queueId, patientId, status, doctorId = '') {
         </a>
         `;
     }
-    
+
     // Completed: Show View and Delete
     if (status === 'completed') {
         return `
@@ -1326,7 +1331,7 @@ function getQueueMenuItems(queueId, patientId, status, doctorId = '') {
         </a>
         `;
     }
-    
+
     // Cancelled: Show View, Re-queue, and Delete
     if (status === 'cancelled') {
         return `
@@ -1356,7 +1361,7 @@ function getQueueMenuItems(queueId, patientId, status, doctorId = '') {
         </a>
         `;
     }
-    
+
     // Default: Show View, Hold, Assign Doctor, Re-queue (if on_hold), Cancel
     return `
         <a href="javascript:void(0)" data-action="view" data-queue-id="${queueId}" data-patient-id="${patientId}">
@@ -1404,11 +1409,11 @@ function positionQueueKebabDropdown(button) {
     const rect = button.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-    
+
     const padding = 15;
     const dropdownWidth = 160;
     const dropdownHeight = 130;
-    
+
     let left = rect.right + 5;
     let top = rect.top;
 
@@ -1416,16 +1421,16 @@ function positionQueueKebabDropdown(button) {
     if (left + dropdownWidth > viewportWidth - padding) {
         left = rect.left - dropdownWidth - 5;
     }
-    
+
     if (left < padding) {
         left = padding;
     }
-    
+
     // Position above if not enough space below
     if (top + dropdownHeight > viewportHeight - padding) {
         top = rect.bottom - dropdownHeight;
     }
-    
+
     if (top < padding) {
         top = padding;
     }
@@ -1747,14 +1752,14 @@ let pendingHoldQueueId = null;
 
 function holdPatientQueue(queueId) {
     pendingHoldQueueId = queueId;
-    
+
     var modal = document.getElementById('deleteModal');
     var modalContent = modal ? modal.querySelector('.modal-content-delete') : null;
     var title = modalContent ? modalContent.querySelector('h3') : document.getElementById('modalTitle');
     var msg = document.getElementById('deleteModalMessage');
     var cancelBtn = document.getElementById('modalCancelBtn');
     var confirmBtn = document.getElementById('confirmDeleteBtn');
-    
+
     if (title) {
         title.textContent = 'Put On Hold';
     }
@@ -1783,7 +1788,7 @@ function requeuePatientQueue(queueId) {
     var msg = document.getElementById('deleteModalMessage');
     var cancelBtn = document.getElementById('modalCancelBtn');
     var confirmBtn = document.getElementById('confirmDeleteBtn');
-    
+
     if (title) {
         title.textContent = 'Re-queue Patient';
     }
@@ -1799,7 +1804,7 @@ function requeuePatientQueue(queueId) {
     if (modal) {
         modal.classList.add('show');
     }
-    
+
     pendingRequeueQueueId = queueId;
     window.currentModalAction = 'requeue';
 }
@@ -1809,14 +1814,14 @@ let pendingCancelQueueId = null;
 
 function cancelPatientQueue(queueId) {
     pendingCancelQueueId = queueId;
-    
+
     var modal = document.getElementById('deleteModal');
     var modalContent = modal ? modal.querySelector('.modal-content-delete') : null;
     var title = modalContent ? modalContent.querySelector('h3') : document.getElementById('modalTitle');
     var msg = document.getElementById('deleteModalMessage');
     var cancelBtn = document.getElementById('modalCancelBtn');
     var confirmBtn = document.getElementById('confirmDeleteBtn');
-    
+
     if (title) {
         title.textContent = 'Cancel Patient';
     }
@@ -1841,7 +1846,7 @@ function closeDeleteModal() {
     var msg = document.getElementById('deleteModalMessage');
     var cancelBtn = document.getElementById('modalCancelBtn');
     var confirmBtn = document.getElementById('confirmDeleteBtn');
-    
+
     if (modal) {
         modal.classList.remove('show');
     }
@@ -1849,7 +1854,7 @@ function closeDeleteModal() {
     pendingRequeueQueueId = null;
     pendingDeleteQueueId = null;
     pendingHoldQueueId = null;
-    
+
     // Reset modal to default
     if (title) {
         title.textContent = 'Delete Patient Queue Record';
@@ -1870,14 +1875,14 @@ let pendingDeleteQueueId = null;
 
 function deleteQueueItem(queueId) {
     pendingDeleteQueueId = queueId;
-    
+
     var modal = document.getElementById('deleteModal');
     var modalContent = modal ? modal.querySelector('.modal-content-delete') : null;
     var title = modalContent ? modalContent.querySelector('h3') : document.getElementById('modalTitle');
     var msg = document.getElementById('deleteModalMessage');
     var cancelBtn = document.getElementById('modalCancelBtn');
     var confirmBtn = document.getElementById('confirmDeleteBtn');
-    
+
     if (title) {
         title.textContent = 'Delete Patient Queue Record';
     }
@@ -2065,10 +2070,10 @@ document.querySelectorAll('.tab-item').forEach(tab => {
     tab.addEventListener('click', function() {
         // Remove active class from all tabs
         document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
-        
+
         // Add active class to clicked tab
         this.classList.add('active');
-        
+
         // Filter table rows
         const filterStatus = this.dataset.tab;
         filterQueueTable(filterStatus);
@@ -2089,26 +2094,26 @@ function filterQueueTable(tabStatus = null) {
     const searchTerm = document.getElementById('queueSearch').value.toLowerCase();
     const statusFilter = document.getElementById('statusFilter').value;
     const rows = document.querySelectorAll('.queue-row');
-    
+
     // Get active tab if not provided
     if (!tabStatus) {
         const activeTab = document.querySelector('.tab-item.active');
         tabStatus = activeTab ? activeTab.dataset.tab : 'all';
     }
-    
+
     rows.forEach(row => {
         const name = row.dataset.name;
         const status = row.dataset.status;
-        
+
         // Check search match
         const searchMatch = !searchTerm || name.includes(searchTerm);
-        
+
         // Check tab filter
         const tabMatch = tabStatus === 'all' || status === tabStatus;
-        
+
         // Check status dropdown filter
         const statusMatch = !statusFilter || status === statusFilter;
-        
+
         // Show/hide row
         row.style.display = (searchMatch && tabMatch && statusMatch) ? '' : 'none';
     });
@@ -2253,6 +2258,7 @@ function refreshQueueTable(data) {
         else if (tabName === 'completed') countSpan.textContent = counts.completed;
         else if (tabName === 'on_hold') countSpan.textContent = counts.on_hold;
         else if (tabName === 'waiting') countSpan.textContent = counts.waiting;
+
     }
 
     // Empty state
@@ -2288,16 +2294,16 @@ function refreshQueueTable(data) {
         var fullNameSearch = (item.first_name || '').toLowerCase();
 
         html += '<tr class="queue-row" data-status="' + statusText + '" data-name="' + escapeHtml(fullNameSearch) + '">';
-        html += '<td>#' + rowNumber + '</td>';
+        html += '<td>' + ('#' + rowNumber) + '</td>';
         html += '<td><div class="patient-name">' + escapeHtml(item.first_name || 'Unknown') + '</div></td>';
         html += '<td>' + escapeHtml(item.middle_name || '') + '</td>';
         html += '<td><div class="patient-name">' + escapeHtml(item.last_name || 'Unknown') + '</div></td>';
         html += '<td><div style="font-size: 0.75rem; color: #6b7280;">' + escapeHtml(item.phone || 'N/A') + '</div></td>';
         html += '<td><span class="status-badge ' + statusClass + '"><span class="status-dot"></span>' + statusLabel + '</span></td>';
-        html += '<td>' + escapeHtml(item.treatment_type || 'General Checkup') + '</td>';
+        html += '<td>' + escapeHtml(item.treatment_type || 'General Checkup') + treatmentPlanQueueBadge(item) + '</td>';
         html += '<td>' + escapeHtml(item.assigned_doctor || 'Unassigned') + '</td>';
         html += '<td><div class="time-display"><span class="time-12hr">' + time12hr + '</span></div></td>';
-        html += '<td><div class="queue-kebab-menu"><button class="queue-kebab-btn" data-queue-id="' + item.id + '" data-patient-id="' + item.patient_id + '" data-status="' + statusText + '" data-doctor-id="' + escapeHtml(String(item.doctor_id || '')) + '">';
+      html += '<td><div class="queue-kebab-menu"><button class="queue-kebab-btn" data-queue-id="' + item.id + '" data-patient-id="' + item.patient_id + '" data-status="' + statusText + '" data-doctor-id="' + escapeHtml(String(item.doctor_id || '')) + '">';
         html += '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="18" r="2"/></svg>';
         html += '</button></div></td>';
         html += '</tr>';

@@ -38,6 +38,8 @@ if ($action !== 'get_doctors' && !$queueId && !$patientId) {
 
 try {
     require_once '../../config/database.php';
+    require_once '../../includes/treatment_plan_workflow.php';
+    ensureTreatmentPlanWorkflowSchema($pdo);
     require_once '../../includes/audit_helper.php';
     require_once '../../includes/billing_helper.php';
     require_once '../../includes/notification_functions.php';
@@ -58,6 +60,8 @@ try {
         if ($appointmentId > 0) {
             $pdo->prepare("UPDATE appointments SET dentist_id = ? WHERE id = ?")->execute([$dentistId, $appointmentId]);
         }
+
+        syncTreatmentPlanForQueue($pdo, $queueId);
 
         $stmt = $pdo->prepare("SELECT TRIM(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, ''))) FROM users WHERE id = ?");
         $stmt->execute([$dentistId]);
@@ -197,15 +201,8 @@ try {
                 break;
             }
             
-            // Update appointment status to completed
-            $stmt = $pdo->prepare("UPDATE appointments SET status = 'Completed' WHERE patient_id = ? AND (status IN ('Scheduled', 'In Queue') OR status = '' OR status IS NULL)");
-            $stmt->execute([$patientId]);
-
-            // Find the patient's completed appointment id for billing linkage
-            $appointmentId = null;
-            $stmt = $pdo->prepare("SELECT id FROM appointments WHERE patient_id = ? AND status = 'Completed' ORDER BY appointment_date DESC, id DESC LIMIT 1");
-            $stmt->execute([$patientId]);
-            $appointmentId = $stmt->fetchColumn() ?: null;
+            // Complete only the appointment linked to this queue visit.
+            $appointmentId = syncTreatmentPlanForQueue($pdo, (int)$queueId, true);
 
             // Find-or-create billing record for this visit
             $visitDate = date('Y-m-d', strtotime($queueItem['created_at']));
@@ -308,6 +305,10 @@ try {
             
             $stmt = $pdo->prepare("UPDATE queue SET status = 'cancelled' WHERE id = ?");
             $stmt->execute([$queueId]);
+            if (!empty($queueItem['appointment_id'])) {
+                $pdo->prepare("UPDATE appointments SET status = 'Cancelled' WHERE id = ? AND treatment_plan_id IS NOT NULL AND status <> 'Completed'")->execute([$queueItem['appointment_id']]);
+                syncTreatmentPlanForAppointment($pdo, (int)$queueItem['appointment_id']);
+            }
 
             try {
                 voidUnpaidBillingForQueue($pdo, $queueItem);
@@ -327,6 +328,14 @@ try {
             $stmt = $pdo->prepare("SELECT * FROM queue WHERE id = ?");
             $stmt->execute([$queueId]);
             $queueItem = $stmt->fetch();
+            if (!empty($queueItem['appointment_id'])) {
+                $planSession = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE id = ? AND treatment_plan_id IS NOT NULL AND status = 'Cancelled'");
+                $planSession->execute([$queueItem['appointment_id']]);
+                if ($planSession->fetchColumn()) {
+                    echo json_encode(['success' => false, 'message' => 'This treatment plan session was permanently cancelled. Create a new scheduled session instead.']);
+                    break;
+                }
+            }
             
             if (!$queueItem) {
                 echo json_encode(['success' => false, 'message' => 'Queue item not found']);

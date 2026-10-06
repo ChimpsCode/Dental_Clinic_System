@@ -11,7 +11,7 @@
 
 require_once __DIR__ . '/../../includes/session_bootstrap.php';header('Content-Type: application/json');
 
-if (!isset($_SESSION['user_id'])) {
+if (!isset($_SESSION['user_id']) || !in_array(strtolower($_SESSION['role'] ?? ''), ['staff', 'admin', 'dentist'], true)) {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
@@ -19,6 +19,7 @@ if (!isset($_SESSION['user_id'])) {
 
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/queue_management_helper.php';
+require_once __DIR__ . '/../../includes/treatment_plan_workflow.php';
 
 $input = json_decode(file_get_contents('php://input'), true);
 $apptId = (int)($input['appt_id'] ?? $_POST['appt_id'] ?? 0);
@@ -29,6 +30,7 @@ if (!$apptId) {
 }
 
 try {
+    ensureTreatmentPlanWorkflowSchema($pdo);
     ensureQueueManagementSchema($pdo);
 
     $stmt = $pdo->prepare("
@@ -45,6 +47,9 @@ try {
     if (!$appt) {
         echo json_encode(['success' => false, 'message' => 'Appointment not found']);
         exit;
+    }
+    if (!in_array($appt['status'], ['Scheduled', 'In Queue'], true)) {
+        throw new RuntimeException('Only scheduled or checked-in appointments can be marked as arrived.');
     }
 
     $patientId = (int)($appt['patient_id'] ?? $appt['pid'] ?? 0);
@@ -76,11 +81,20 @@ try {
     }
 
     $treatmentType = trim($appt['service_name'] ?? $appt['treatment'] ?? 'General Checkup');
+    if (!empty($appt['treatment_plan_id'])) {
+        $plan = $pdo->prepare('SELECT sessions_data FROM treatment_plans WHERE id = ?');
+        $plan->execute([$appt['treatment_plan_id']]);
+        $sessions = json_decode($plan->fetchColumn() ?: '[]', true) ?: [];
+        $treatmentType = $sessions[(int)$appt['treatment_plan_session'] - 1]['treatment'] ?? $treatmentType;
+    }
     if (empty($treatmentType)) {
         $treatmentType = 'General Checkup';
     }
 
     $pdo->beginTransaction();
+    $lock = $pdo->prepare('SELECT status FROM appointments WHERE id = ? FOR UPDATE');
+    $lock->execute([$apptId]);
+    if (!in_array($lock->fetchColumn(), ['Scheduled', 'In Queue'], true)) throw new RuntimeException('This appointment is no longer available for check-in.');
 
     $queueEntry = createQueueEntry($pdo, [
         'patient_id'      => $patientId,
@@ -99,6 +113,7 @@ try {
     $stmtUpd = $pdo->prepare("UPDATE appointments SET check_in_time = NOW(), status = 'In Queue' WHERE id = ?");
     $stmtUpd->execute([$apptId]);
 
+    syncTreatmentPlanForAppointment($pdo, $apptId);
     $pdo->commit();
 
     echo json_encode([

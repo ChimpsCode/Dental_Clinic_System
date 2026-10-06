@@ -1,0 +1,13 @@
+.treatment-plan-tag {
+    display: table;
+    margin-top: 5px;
+    padding: 3px 8px;
+    border-radius: 5px;
+    background: #e0e7ff;
+    color: #4338ca;
+    font-size: 0.65rem;
+    font-weight: 600;
+    line-height: 1.4;
+}
+.mini-card-treatment-group { flex: 1; min-width: 0; }
+.mini-card-treatment-group .mini-card-treatment { display: block; }

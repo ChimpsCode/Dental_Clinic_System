@@ -17,6 +17,8 @@ if (!in_array($role, ['staff'])) {
 
 header('Content-Type: application/json');
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/treatment_plan_workflow.php';
+ensureTreatmentPlanWorkflowSchema($pdo);
 require_once __DIR__ . '/../../includes/sms_functions.php';
 require_once __DIR__ . '/../../includes/appointment_cancellation_notifier.php';
 
@@ -47,6 +49,8 @@ try {
         $pdo->exec("ALTER TABLE appointments ADD cancelled_at DATETIME DEFAULT NULL");
     } catch (Exception $e) {}
 
+    syncTreatmentPlanForAppointment($pdo, $appointment_id);
+    assertTreatmentPlanAppointmentEditable($pdo, $appointment_id);
     $effectiveReason = $cancel_reason !== '' ? $cancel_reason : 'No reason provided';
 
     // Update appointment status to cancelled
@@ -62,6 +66,8 @@ try {
         $_SESSION['user_id'],
         $appointment_id
     ]);
+
+    syncTreatmentPlanForAppointment($pdo, $appointment_id);
 
     // Log the cancellation
     try {

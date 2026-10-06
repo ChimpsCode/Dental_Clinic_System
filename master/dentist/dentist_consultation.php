@@ -90,6 +90,8 @@ try {
         if ($clinicRow['setting_key'] === 'clinic_phone') $clinicPhone = $clinicRow['setting_value'];
     }
 } catch (Exception $e) {}
+require_once '../../includes/medical_certificate_letterhead.php';
+$certificateLetterhead = medicalCertificateLetterhead($pdo);
 $rxClinicDetails = trim($clinicAddress . ' · ' . $clinicPhone, ' ·');
 $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doctor'));
 ?>
@@ -2362,17 +2364,16 @@ $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doc
                         <div style="display:flex;gap:16px;margin-bottom:16px;">
                             <div class="form-group" style="flex:1;">
                                 <label style="font-weight:600;color:#374151;margin-bottom:6px;display:block;">Estimated Cost (₱)</label>
-                                <input type="number" name="estimated_cost" id="tp_estimated_cost" class="form-control" placeholder="0.00" step="0.01" style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:0.875rem;">
+                                <div id="tpCostBreakdown" style="margin-bottom:10px;"></div>
+                                <label for="tp_estimated_cost" style="display:block;font-weight:600;margin-bottom:6px;">Total (₱)</label>
+                                <input type="number" name="estimated_cost" id="tp_estimated_cost" class="form-control" placeholder="0.00" step="0.01" min="0" oninput="tpShowCostAdjustment()" style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:0.875rem;">
+                                <div id="tpCostAdjustment" style="font-size:0.8rem;color:#64748b;margin-top:6px;" aria-live="polite"></div>
+                                <small style="color:#6b7280;">Edit treatment amounts to update the total, or adjust the total directly.</small>
                             </div>
                             <div class="form-group" style="flex:1;">
                                 <label style="font-weight:600;color:#374151;margin-bottom:6px;display:block;">Status</label>
-                                <select name="status" id="tp_status" class="form-control" style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:0.875rem;">
-                                    <option value="Active">Active</option>
-                                    <option value="In-Progress">In-Progress</option>
-                                    <option value="Completed">Completed</option>
-                                    <option value="On-Hold">On-Hold</option>
-                                    <option value="Cancelled">Cancelled</option>
-                                </select>
+                                <input type="text" id="tp_status" class="form-control" value="Active" readonly style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;background:#f8fafc;">
+                                <small style="color:#6b7280;">Status updates automatically when sessions start or finish.</small>
                             </div>
                         </div>
 
@@ -2443,6 +2444,7 @@ $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doc
                         <div style="font-size:0.78rem;color:#64748b;">Dentist</div>
                     </div>
                     <div style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap;justify-content:flex-end;">
+                        <small style="color:#64748b;font-size:0.78rem;align-self:center;max-width:260px;">Click Save Certificate so the patient can view, download, and print it from their Dental History.</small>
                         <button type="button" class="consult-complete-btn" id="certSaveBtn" style="background:#0ea5e9;color:white;" onclick="saveCertificate()">Save Certificate</button>
                         <button type="button" class="consult-complete-btn" id="certPrintBtn" style="background:#0f172a;color:white;" onclick="printCertificate()">Print Certificate</button>
                     </div>
@@ -2764,6 +2766,7 @@ $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doc
     </div>
 </div>
 
+<script src="../../assets/js/medical-certificate-template.js"></script>
 <script src="../../assets/js/signature_pad.min.js"></script>
 <script>
 // ===================== STATE =====================
@@ -3827,35 +3830,22 @@ function printCertificate() {
     var findings = (document.getElementById('certFindings').value || cert.findings || '').trim();
     var recommendation = (document.getElementById('certRecommendation').value || cert.recommendation || '').trim();
     var remarks = (document.getElementById('certRemarks').value || cert.remarks || '').trim();
-    var issued = formatCertDate(document.getElementById('certIssuedAt').value || cert.issued_at);
-    var restFrom = formatCertDate(document.getElementById('certRestFrom').value || cert.rest_from);
-    var restTo = formatCertDate(document.getElementById('certRestTo').value || cert.rest_to);
-    var dentistName = (cert.dentist_name || currentConsultation.dentist_name || rxDoctorName || 'Dentist');
-    var patientBits = [currentConsultation.patient_name || 'the patient'];
-    if (currentConsultation.patient_age) patientBits.push(currentConsultation.patient_age + ' years old');
-    if (currentConsultation.patient_gender) patientBits.push(currentConsultation.patient_gender);
-    var who = patientBits.join(', ');
-    var address = currentConsultation.patient_address ? (' of ' + currentConsultation.patient_address) : '';
-    var restLine = (restFrom || restTo) ? ('<p>Period of rest: ' + escapeHtml(restFrom || '—') + ' to ' + escapeHtml(restTo || '—') + '.</p>') : '';
-    var remarksLine = remarks ? ('<p>Remarks: ' + escapeHtml(remarks).replace(/\n/g, '<br>') + '</p>') : '';
-    var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Medical Certificate</title><style>' +
-        '@page { margin: 0.6in; } body { font-family: Georgia, "Times New Roman", serif; color: #111; margin: 0; }' +
-        '.sheet { max-width: 720px; margin: 0 auto; padding: 0.65in 0.75in 0.7in; box-sizing: border-box; } h1 { text-align: center; font-size: 22px; letter-spacing: 0.08em; margin: 0 0 4px; }' +
-        '.clinic { text-align: center; font-size: 14px; margin-bottom: 4px; } .sub { text-align: center; font-size: 12px; color: #444; margin-bottom: 28px; }' +
-        'p { font-size: 15px; line-height: 1.7; margin: 0 0 12px; } .sign { margin-top: 40px; text-align: right; } .sign-col { display: inline-block; width: 260px; text-align: center; } .sign-pad { padding: 0 36px 12px 8px; } .sign img { display: block; height: 68px; width: 180px; margin: 0 auto; object-fit: contain; object-position: center; } .name { font-weight: 700; border-top: 1px solid #111; margin: 0; padding-top: 6px; }' +
-        '</style></head><body><div class="sheet">' +
-        '<div class="clinic">' + escapeHtml(rxClinicName) + '</div>' +
-        '<h1>MEDICAL CERTIFICATE</h1>' +
-        '<div class="sub">' + escapeHtml(rxClinicDetails || '') + '</div>' +
-        '<p>Date: ' + escapeHtml(issued) + '</p>' +
-        '<p>To Whom It May Concern:</p>' +
-        '<p>This is to certify that <strong>' + escapeHtml(who) + '</strong>' + escapeHtml(address) + ' was examined at this clinic.</p>' +
-        '<p>Purpose: ' + escapeHtml(purpose) + '</p>' +
-        '<p>Findings: ' + escapeHtml(findings || '—').replace(/\n/g, '<br>') + '</p>' +
-        '<p>Recommendation: ' + escapeHtml(recommendation || '—').replace(/\n/g, '<br>') + '</p>' +
-        restLine + remarksLine +
-        '<div class="sign"><div class="sign-col"><div class="sign-pad"><img src="' + sig + '" alt="Signature"></div><div class="name">' + escapeHtml(dentistName) + '</div><div>Dentist</div></div></div>' +
-        '</div></body></html>';
+    var html = window.MedicalCertificateTemplate.documentHtml({
+        purpose: purpose,
+        findings: findings,
+        recommendation: recommendation,
+        remarks: remarks,
+        issued_at: document.getElementById('certIssuedAt').value || cert.issued_at,
+        rest_from: document.getElementById('certRestFrom').value || cert.rest_from,
+        rest_to: document.getElementById('certRestTo').value || cert.rest_to,
+        dentist_name: cert.dentist_name || currentConsultation.dentist_name || rxDoctorName || 'Dentist',
+        dentist_signature: sig
+    }, {
+        name: currentConsultation.patient_name,
+        age: currentConsultation.patient_age,
+        gender: currentConsultation.patient_gender,
+        address: currentConsultation.patient_address
+    }, <?php echo json_encode($certificateLetterhead, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE); ?>);
     var printWindow = window.open('', '_blank');
     if (!printWindow) { alert('Please allow popups to print the certificate.'); return; }
     printWindow.document.open();
@@ -3863,7 +3853,7 @@ function printCertificate() {
     printWindow.document.close();
     printWindow.focus();
     if (window.rfLogPrint) window.rfLogPrint('Medical Certificate', 'Medical certificate - ' + (currentConsultation.patient_name || '') + ' (' + purpose + ')', 'consultations', currentConsultation.id || null);
-    setTimeout(function() { printWindow.print(); }, 200);
+    window.MedicalCertificateTemplate.printWhenReady(printWindow);
 }
 
 function prescriptionSignatureHtml() {
@@ -4510,6 +4500,77 @@ function togglePastCard(idx) {
 }
 
 // ===================== TREATMENT PLAN =====================
+function tpMoney(value) {
+    return Number(value || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function tpCostCents(value) {
+    var amount = Number(value);
+    return Number.isFinite(amount) && amount >= 0 ? Math.round(amount * 100) : 0;
+}
+
+function tpCostSubtotal() {
+    var cents = 0;
+    document.querySelectorAll('#tpSessionRowsContainer .session-row').forEach(function(row) {
+        if (row.querySelector('.session-treatment').value) cents += tpCostCents(row.dataset.estimatedCost);
+    });
+    return cents / 100;
+}
+
+function tpShowCostAdjustment() {
+    var adjustment = (tpCostCents(document.getElementById('tp_estimated_cost').value) - tpCostCents(tpCostSubtotal())) / 100;
+    document.getElementById('tpCostAdjustment').textContent = adjustment ? 'Total adjustment: ' + (adjustment < 0 ? '-₱' : '+₱') + tpMoney(Math.abs(adjustment)) : '';
+}
+
+function tpUpdateCostTotal() {
+    document.getElementById('tp_estimated_cost').value = tpCostSubtotal().toFixed(2);
+    tpShowCostAdjustment();
+}
+
+function tpRenderCostBreakdown() {
+    var container = document.getElementById('tpCostBreakdown');
+    container.innerHTML = '';
+    document.querySelectorAll('#tpSessionRowsContainer .session-row').forEach(function(row) {
+        var select = row.querySelector('.session-treatment');
+        if (!select.value) return;
+        var custom = row.querySelector('.session-other-treatment input');
+        var name = select.value === '__other__' ? (custom.value.trim() || 'Custom treatment') : select.value;
+        var line = document.createElement('div');
+        line.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+        var label = document.createElement('label');
+        label.style.cssText = 'flex:1;font-size:0.875rem;';
+        label.textContent = name + ' (Session ' + row.dataset.session + ') — ₱';
+        var input = document.createElement('input');
+        input.type = 'number'; input.min = '0'; input.step = '0.01'; input.required = true;
+        input.name = 'session_estimated_cost_' + row.dataset.session;
+        input.id = 'tpSessionCost_' + row.dataset.session;
+        input.value = (tpCostCents(row.dataset.estimatedCost) / 100).toFixed(2);
+        input.disabled = isPastView;
+        input.style.cssText = 'width:110px;padding:8px;border:1px solid #d1d5db;border-radius:6px;';
+        label.htmlFor = input.id;
+        input.addEventListener('input', function() {
+            row.dataset.estimatedCost = this.value;
+            tpUpdateCostTotal();
+        });
+        line.appendChild(label); line.appendChild(input); container.appendChild(line);
+    });
+    if (!container.children.length) container.textContent = 'Select treatments to see the cost breakdown.';
+    tpUpdateCostTotal();
+}
+
+function tpBindTreatmentCost(row, existing) {
+    var select = row.querySelector('.session-treatment');
+    var custom = row.querySelector('.session-other-treatment input');
+    function defaultCost() {
+        var service = (window._cachedServices || []).find(function(s) { return s.name === select.value; });
+        row.dataset.estimatedCost = (tpCostCents(service ? service.price : 0) / 100).toFixed(2);
+    }
+    if (existing && existing.estimated_cost != null) row.dataset.estimatedCost = existing.estimated_cost;
+    else defaultCost();
+    select.addEventListener('change', function() { defaultCost(); tpRenderCostBreakdown(); });
+    custom.addEventListener('input', function() { tpRenderCostBreakdown(); });
+}
+
 function loadConsultTreatmentPlans() {
     if (!currentConsultation || !currentConsultation.patient_id) return;
     var container = document.getElementById('tpExistingPlansContainer');
@@ -4539,13 +4600,15 @@ function loadConsultTreatmentPlans() {
 }
 
 function renderConsultPlans(plans) {
+    window._consultTreatmentPlans = plans;
     var container = document.getElementById('tpExistingPlansContainer');
     container.innerHTML = '';
     plans.forEach(function(plan) {
         var card = document.createElement('div');
         card.className = 'tp-plan-card';
 
-        var statusClass = (plan.status || 'active').toLowerCase().replace(/\s+/g, '-');
+        var statusClass = (plan.status || 'active').toLowerCase().replace(/[\s_]+/g, '-');
+        var statusLabel = statusClass === 'in-progress' ? 'In Progress' : statusClass.charAt(0).toUpperCase() + statusClass.slice(1);
 
         var sessionsHtml = '';
         if (plan.sessions_data) {
@@ -4562,10 +4625,16 @@ function renderConsultPlans(plans) {
                         if (s.time) {
                             parts.push(tpFormatTime12h(s.time));
                         }
-                        sessionsHtml += '<div class="tp-plan-session-item"><span>Session ' + (idx + 1) + ':</span> ';
+                        var sessionStatus = s.status === 'Completed' ? 'complete' : (s.status === 'In-Progress' ? 'in progress' : (s.status === 'Waiting' ? 'waiting' : (s.status === 'Cancelled' ? 'cancelled' : 'scheduled')));
+                        sessionsHtml += '<div class="tp-plan-session-item"><span>Session ' + (idx + 1) + ' ' + sessionStatus + ':</span> ';
                         sessionsHtml += parts.length ? parts.join(' @ ') : '<span style="color:#9ca3af;">Not scheduled</span>';
                         if (s.treatment) {
                             sessionsHtml += ' <span class="tp-plan-treatment-label">— ' + escapeHtml(s.treatment) + '</span>';
+                        }
+                        if (s.estimated_cost != null) sessionsHtml += ' — ₱' + tpMoney(s.estimated_cost);
+                        if (!isPastView && s.appointment_id && (s.status || 'Scheduled') === 'Scheduled' && statusClass !== 'cancelled') {
+                            sessionsHtml += ' <button type="button" onclick="tpOpenReschedule(' + Number(plan.id) + ',' + (idx + 1) + ')" style="margin-left:8px;">Reschedule</button>';
+                            sessionsHtml += ' <button type="button" onclick="tpCancelScheduled(' + Number(plan.id) + ',' + (idx + 1) + ')">Cancel session</button>';
                         }
                         sessionsHtml += '</div>';
                         if (s.notes) {
@@ -4581,17 +4650,23 @@ function renderConsultPlans(plans) {
         if (plan.total_estimated_cost && parseFloat(plan.total_estimated_cost) > 0) {
             costHtml = ' | Est. Cost: ₱' + parseFloat(plan.total_estimated_cost).toLocaleString('en-PH', { minimumFractionDigits: 2 });
         }
+        if (Array.isArray(sessions) && sessions.length && sessions.every(function(s) { return s.estimated_cost != null; }) && plan.total_estimated_cost != null) {
+            var subtotalCents = sessions.reduce(function(sum, s) { return sum + tpCostCents(s.estimated_cost); }, 0);
+            var adjustment = (tpCostCents(plan.total_estimated_cost) - subtotalCents) / 100;
+            if (adjustment) costHtml += ' | Adjustment: ' + (adjustment < 0 ? '-₱' : '+₱') + tpMoney(Math.abs(adjustment));
+        }
 
         card.innerHTML =
             '<div class="tp-plan-card-header">' +
                 '<span class="tp-plan-name">' + escapeHtml(plan.treatment_name || plan.plan_name || 'Treatment Plan') + '</span>' +
-                '<span class="tp-plan-status ' + statusClass + '">' + escapeHtml(plan.status || 'Active') + '</span>' +
+                '<span class="tp-plan-status ' + statusClass + '">' + escapeHtml(statusLabel) + '</span>' +
             '</div>' +
             '<div class="tp-plan-meta">' + (plan.total_sessions || 1) + ' session(s)' + costHtml +
             (plan.teeth_numbers ? ' | Teeth: ' + escapeHtml(plan.teeth_numbers) : '') +
             '</div>' +
             (plan.notes ? '<div class="tp-plan-notes">📝 ' + escapeHtml(plan.notes) + '</div>' : '') +
-            sessionsHtml;
+            sessionsHtml +
+            (!isPastView && statusClass !== 'completed' && statusClass !== 'cancelled' ? '<div style="margin-top:12px;"><button type="button" onclick="tpCancelScheduled(' + Number(plan.id) + ',0)">Cancel remaining plan sessions</button></div>' : '');
 
         container.appendChild(card);
     });
@@ -4606,7 +4681,86 @@ function tpFormatTime12h(time24) {
     return hour12 + ':' + (minutes < 10 ? '0' : '') + minutes + ' ' + period;
 }
 
+function tpChangeSchedule(payload) {
+    return fetch('../shared/treatment_plan_actions.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    }).then(function(response) { return response.json(); }).then(function(data) {
+        if (!data.success) throw new Error(data.message || 'Unable to update the session');
+        loadConsultTreatmentPlans();
+        return data;
+    });
+}
+
+function tpCancelScheduled(planId, sessionNumber) {
+    if (isPastView || !confirm(sessionNumber ? 'Permanently cancel Session ' + sessionNumber + '?' : 'Permanently cancel all remaining scheduled sessions in this plan? Completed sessions will stay in the record.')) return;
+    tpChangeSchedule({ action: sessionNumber ? 'cancel_session' : 'cancel_plan', plan_id: planId, session_number: sessionNumber })
+        .catch(function(error) { alert(error.message); });
+}
+
+function tpOpenReschedule(planId, sessionNumber) {
+    if (isPastView) return;
+    var plan = (window._consultTreatmentPlans || []).find(function(p) { return Number(p.id) === planId; });
+    if (!plan) return;
+    var sessions = JSON.parse(plan.sessions_data || '[]');
+    var session = sessions[sessionNumber - 1];
+    if (!session) return;
+    var dialog = document.createElement('dialog');
+    dialog.style.cssText = 'border:0;border-radius:12px;padding:24px;width:420px;max-width:90vw;box-shadow:0 16px 48px #0003;';
+    dialog.innerHTML = '<form><h3 style="margin-top:0;">Reschedule Session ' + sessionNumber + '</h3>' +
+        '<p>' + escapeHtml(session.treatment || 'Treatment') + '</p>' +
+        '<label for="tpRescheduleDate">Date</label><input id="tpRescheduleDate" type="date" required style="display:block;width:100%;margin:8px 0 16px;padding:10px;">' +
+        '<label for="tpRescheduleTime">Available time</label><select id="tpRescheduleTime" required style="display:block;width:100%;margin:8px 0 16px;padding:10px;"></select>' +
+        '<p id="tpRescheduleMessage" role="status" style="color:#64748b;font-size:0.85rem;"></p>' +
+        '<div style="display:flex;justify-content:flex-end;gap:8px;"><button type="button" id="tpRescheduleClose">Close</button><button type="submit" id="tpRescheduleSave">Save schedule</button></div></form>';
+    document.body.appendChild(dialog);
+    var date = dialog.querySelector('#tpRescheduleDate');
+    var time = dialog.querySelector('#tpRescheduleTime');
+    var message = dialog.querySelector('#tpRescheduleMessage');
+    var save = dialog.querySelector('#tpRescheduleSave');
+    date.min = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    date.value = session.date;
+    function loadSlots() {
+        var requestedDate = date.value;
+        save.disabled = true; time.innerHTML = '<option value="">Loading...</option>';
+        message.textContent = '';
+        var url = '../user-patient/get_slots.php?date=' + encodeURIComponent(requestedDate) + '&exclude_appointment_id=' + Number(session.appointment_id);
+        if (session.service_id) url += '&service_id=' + Number(session.service_id);
+        fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+            if (date.value !== requestedDate || !dialog.isConnected) return;
+            time.innerHTML = '<option value="">Select time</option>';
+            if (!data.success || !data.is_open || data.is_past) { message.textContent = data.message || 'No available times'; return; }
+            (data.available_slots || []).forEach(function(slot) {
+                var option = document.createElement('option'); option.value = slot; option.textContent = tpFormatTime12h(slot); time.appendChild(option);
+            });
+            if (requestedDate === session.date) time.value = session.time.slice(0, 5);
+            save.disabled = !(data.available_slots || []).length;
+            if (save.disabled) message.textContent = 'No available times on this date.';
+        }).catch(function() { message.textContent = 'Unable to load available times.'; });
+    }
+    date.addEventListener('change', loadSlots);
+    dialog.querySelector('#tpRescheduleClose').onclick = function() { dialog.close(); };
+    dialog.addEventListener('close', function() { dialog.remove(); });
+    dialog.querySelector('form').onsubmit = function(event) {
+        event.preventDefault(); save.disabled = true; message.textContent = 'Saving...';
+        tpChangeSchedule({ action: 'reschedule_session', plan_id: planId, session_number: sessionNumber, date: date.value, time: time.value })
+            .then(function() { dialog.close(); }).catch(function(error) { message.textContent = error.message; save.disabled = false; });
+    };
+    dialog.showModal(); loadSlots();
+}
+
 function tpSetSessionCount(n, existingSessions) {
+    if (!existingSessions) {
+        existingSessions = Array.from(document.querySelectorAll('#tpSessionRowsContainer .session-row')).map(function(row) {
+            var select = row.querySelector('.session-treatment');
+            return {
+                date: row.querySelector('.session-date').value,
+                time: row.querySelector('.session-time-hidden').value,
+                treatment: select.value === '__other__' ? row.querySelector('.session-other-treatment input').value : select.value,
+                notes: row.querySelector('.session-notes').value,
+                estimated_cost: row.dataset.estimatedCost
+            };
+        });
+    }
     document.getElementById('tp_total_sessions').value = n;
     document.querySelectorAll('#tpSessionCountBtns .sess-btn').forEach(function(btn) {
         btn.classList.toggle('active', parseInt(btn.getAttribute('data-count')) === n);
@@ -4621,14 +4775,29 @@ function tpSetSessionCount(n, existingSessions) {
         row.className = 'session-row';
         row.setAttribute('data-session', i);
 
-        if (existing && existing.date) {
+        if (existing && existing.date && existing.time) {
             tpBuildTransitionedRow(row, i, existing);
         } else {
             tpBuildInitialRow(row, i);
         }
 
         container.appendChild(row);
+        if (existing && (!existing.date || !existing.time)) {
+            var select = row.querySelector('.session-treatment');
+            if (existing.treatment) {
+                var matched = Array.from(select.options).some(function(option) { return option.value === existing.treatment; });
+                select.value = matched ? existing.treatment : '__other__';
+                row.querySelector('.session-other-treatment').style.display = matched ? 'none' : 'block';
+                if (!matched) row.querySelector('.session-other-treatment input').value = existing.treatment;
+                row.querySelector('.session-date').disabled = false;
+            }
+            row.querySelector('.session-notes').value = existing.notes || '';
+            row.querySelector('.session-date').value = existing.date || '';
+            if (existing.date) tpLoadSessionTimeSlots(existing.date, i, row.querySelector('.session-time-slots'), row.querySelector('.session-time-hidden'));
+        }
+        tpBindTreatmentCost(row, existing);
     }
+    tpRenderCostBreakdown();
 }
 
 function tpBuildInitialRow(row, i) {
@@ -4824,7 +4993,10 @@ function tpBuildTransitionedRow(row, i, existing) {
     changeBtn.textContent = 'Change';
     changeBtn.onclick = function() { tpDeselectTimeSlot(row); };
     timeDisplay.appendChild(changeBtn);
-    rightInner.appendChild(timeDisplay);
+    var timeWrapper = document.createElement('div');
+    timeWrapper.className = 'session-time-wrapper';
+    timeWrapper.appendChild(timeDisplay);
+    rightInner.appendChild(timeWrapper);
     rightCol.appendChild(rightInner);
 
     content.appendChild(leftCol);
@@ -5086,7 +5258,7 @@ function resetConsultTpForm() {
     document.getElementById('tp_notes').value = '';
     document.getElementById('tp_estimated_cost').value = '';
     document.getElementById('tp_status').value = 'Active';
-    tpSetSessionCount(1);
+    tpSetSessionCount(1, []);
 }
 
 // ===================== HELPERS =====================

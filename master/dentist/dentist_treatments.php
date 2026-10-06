@@ -144,20 +144,27 @@ require_once '../../includes/dentist_layout_start.php';
 
 <!-- Search & Actions -->
 <div class="filter-bar-container">
-    <input type="text" id="searchInput" class="clean-input search-bar" placeholder="Search by name or phone...">
-    
-    <select id="statusFilter" class="clean-input filter-dropdown">
+    <div class="tp-filter-field tp-filter-search">
+        <label for="searchInput">Search patient</label>
+        <input type="text" id="searchInput" class="clean-input" placeholder="Search by name or phone...">
+    </div>
+    <div class="tp-filter-field">
+        <label for="statusFilter">Status</label>
+        <select id="statusFilter" class="clean-input filter-dropdown">
         <option value="">All Status</option>
         <option value="Active">Active</option>
         <option value="Completed">Completed</option>
         <option value="On-Hold">On-Hold</option>
         <option value="Cancelled">Cancelled</option>
-    </select>
-    
-    <select id="sortFilter" class="clean-input filter-dropdown">
+        </select>
+    </div>
+    <div class="tp-filter-field">
+        <label for="sortFilter">Sort by</label>
+        <select id="sortFilter" class="clean-input filter-dropdown">
         <option value="newest">Newest First</option>
         <option value="name">Name (A-Z)</option>
-    </select>
+        </select>
+    </div>
 </div>
 
 <!-- Treatment Plans Table -->
@@ -1598,18 +1605,35 @@ require_once '../../includes/dentist_layout_start.php';
 .summary-cards .summary-card.card-cancelled::after {
     background-image: url('../../assets/icons/delete.png');
 }
-/* Container to keep everything in a neat row */
 .filter-bar-container {
-    display: flex;
-    align-items: center;
-    gap: 12px;         /* The exact spacing between the boxes in your image */
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 164px 164px;
+    align-items: end;
+    gap: 12px;
     width: 100%;
     padding-bottom: 25px;
-    /* Optional: If your page background is white, you might want to wrap this in a very light gray (#f4f6f8) div so the white boxes pop, just like in your screenshot! */
+}
+.tp-filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+.tp-filter-field label {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: #475569;
 }
 
 /* Unified clean styling applied to BOTH the search input and dropdowns */
-.clean-input {
+.filter-bar-container .clean-input {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    height: 44px;
+    margin: 0;
     background-color: #ffffff;
     border: 1px solid #cbd5e1;  /* That specific soft, light grayish-blue border */
     border-radius: 6px;         /* Soft rounded corners */
@@ -1631,15 +1655,21 @@ require_once '../../includes/dentist_layout_start.php';
     border-color: #94a3b8;
 }
 
-/* Search bar specific rule */
-.search-bar {
-    flex: 1; /* This forces the search bar to stretch and push the dropdowns to the right */
+@media (max-width: 640px) {
+    .filter-bar-container {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .tp-filter-search {
+        grid-column: 1 / -1;
+    }
+    .filter-bar-container .clean-input {
+        font-size: 16px;
+    }
 }
 
 /* Dropdown specific rules for that ultra-clean look */
-.filter-dropdown {
+.filter-bar-container .filter-dropdown {
     cursor: pointer;
-    min-width: 130px;
     
     /* This removes the clunky default browser dropdown arrow */
     appearance: none; 

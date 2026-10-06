@@ -558,7 +558,29 @@ try {
     // keep x-rays already loaded by patient_id
 }
 
+// Only certificates persisted by Save Certificate are available to the patient.
+$certificatesByConsultation = [];
+try {
+    $stmt = $pdo->prepare("SELECT mc.* FROM medical_certificates mc
+        INNER JOIN consultations c ON c.id = mc.consultation_id
+        WHERE mc.patient_id IN ($patientIdPh) AND c.patient_id IN ($patientIdPh)");
+    $stmt->execute(array_merge($patientIds, $patientIds));
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $certificate) {
+        $certificatesByConsultation[(int)$certificate['consultation_id']] = $certificate;
+    }
+} catch (Exception $e) {
+    // Older installations may not have issued any certificates yet.
+    error_log('Patient certificate lookup: ' . $e->getMessage());
+}
+foreach ($visits as &$visit) {
+    $visit['medical_certificate'] = $certificatesByConsultation[(int)($visit['consultation_id'] ?? 0)] ?? null;
+}
+unset($visit);
+require_once '../../includes/medical_certificate_letterhead.php';
+$certificateClinic = medicalCertificateLetterhead($pdo);
+
 $recordPayload = [
+    'certificate_clinic' => $certificateClinic,
     'patient' => [
         'id' => (int)($patient['id'] ?? $patient_id ?? 0),
         'first_name' => $patient['first_name'] ?? '',
@@ -944,6 +966,10 @@ $pageTitle = 'Medical Records';
         </div>
     </div>
 
+    <script src="../../assets/js/vendor/jspdf.umd.min.js"></script>
+    <script src="../../assets/js/medical-certificate-pdf.js"></script>
+    <script src="../../assets/js/medical-certificate-template.js"></script>
+    <script src="../../assets/js/patient-medical-certificate.js"></script>
     <script>
         window.PATIENT_RECORD = <?php
             $payloadJson = json_encode($recordPayload, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
@@ -1166,6 +1192,7 @@ $pageTitle = 'Medical Records';
             content += odxSection('Dental History Notes', dhNotes ? '<div class="odx-text">' + escapeHtml(dhNotes) + '</div>' : '<span class="odx-empty">No dental history notes recorded.</span>');
             content += odxSection('Treatment Plan', renderPlansHtml((window.PATIENT_RECORD || {}).treatment_plans || []));
             content += odxSection('Prescription', renderRxHtml(session.prescription_data || [], session));
+            content += odxSection('Medical Certificate', patientCertificateSection(session));
             var dxHtml = '';
             if (session.primary_icd10) dxHtml += '<span class="odx-dx-chip"><strong>' + escapeHtml(session.primary_icd10) + '</strong> ' + escapeHtml(session.primary_icd10_desc || '') + '</span>';
             if (session.secondary_icd10) dxHtml += '<span class="odx-dx-chip"><strong>' + escapeHtml(session.secondary_icd10) + '</strong> ' + escapeHtml(session.secondary_icd10_desc || '') + '</span>';

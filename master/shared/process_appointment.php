@@ -22,6 +22,8 @@ if (!in_array($role, ['staff', 'dentist', 'admin'])) {
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/treatment_plan_workflow.php';
+ensureTreatmentPlanWorkflowSchema($pdo);
 require_once __DIR__ . '/../../includes/appointment_approval_helper.php';
 require_once __DIR__ . '/../../includes/input_sanitize.php';
 
@@ -81,6 +83,7 @@ try {
         $stmt = $pdo->prepare("SELECT * FROM appointments WHERE id = ? LIMIT 1");
         $stmt->execute([$appointment_id]);
         $existingAppointment = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($existingAppointment) { syncTreatmentPlanForAppointment($pdo, (int)$appointment_id); assertTreatmentPlanAppointmentEditable($pdo, (int)$appointment_id); }
 
         if (!$existingAppointment) {
             throw new Exception('Appointment not found');
@@ -369,6 +372,7 @@ try {
         }
     }
 
+    syncTreatmentPlanForAppointment($pdo, (int)$appointment_id);
     $pdo->commit();
 
         if (!empty($createdNewPatient)) {

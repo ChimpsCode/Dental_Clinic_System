@@ -162,6 +162,8 @@ function syncConsultationPrescriptionToPrescriptionTable(PDO $pdo, int $consultI
 
 try {
     require_once '../../config/database.php';
+    require_once '../../includes/treatment_plan_workflow.php';
+    ensureTreatmentPlanWorkflowSchema($pdo);
     require_once '../../includes/occlusion_schema.php';
     ensureOcclusionSchema($pdo);
     require_once '../../includes/billing_helper.php';
@@ -724,15 +726,8 @@ try {
                 $stmt = $pdo->prepare("UPDATE queue SET status = 'pending_payment', completed_at = NOW() WHERE id = ?");
                 $stmt->execute([$cons['queue_id']]);
 
-                // Update appointment
-                $stmt = $pdo->prepare("UPDATE appointments SET status = 'Completed' WHERE patient_id = ? AND (status IN ('Scheduled', 'In Queue') OR status = '' OR status IS NULL)");
-                $stmt->execute([$cons['patient_id']]);
-
-                // Find the patient's completed appointment id for billing linkage
-                $appointmentId = null;
-                $stmt = $pdo->prepare("SELECT id FROM appointments WHERE patient_id = ? AND status = 'Completed' ORDER BY appointment_date DESC, id DESC LIMIT 1");
-                $stmt->execute([$cons['patient_id']]);
-                $appointmentId = $stmt->fetchColumn() ?: null;
+                // Future plan sessions must remain scheduled.
+                $appointmentId = syncTreatmentPlanForQueue($pdo, (int)$cons['queue_id'], true);
 
                 // Get billing info
                 $stmt = $pdo->prepare("SELECT treatment_type FROM queue WHERE id = ?");

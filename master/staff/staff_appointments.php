@@ -8,6 +8,8 @@ if ($currentPage < 1) $currentPage = 1;
 
 try {
     require_once '../../config/database.php';
+require_once __DIR__ . '/../../includes/treatment_plan_workflow.php';
+ensureTreatmentPlanWorkflowSchema($pdo);
     require_once __DIR__ . '/../../includes/appointment_approval_helper.php';
     
     // Auto-cancel no-show trigger on page visit
@@ -66,7 +68,7 @@ try {
         COALESCE(p.city, '') as city,
         COALESCE(p.province, '') as province,
         COALESCE(p.zip_code, '') as zip_code,
-        s.name as service_name,
+        COALESCE(s.name, JSON_UNQUOTE(JSON_EXTRACT(tp.sessions_data, CONCAT('$[', a.treatment_plan_session - 1, '].treatment'))), tp.plan_name, 'Treatment') as service_name,
         a.status as status_label,
         tp.id as treatment_plan_id, tp.plan_name as treatment_plan_name,
         CONCAT(d.first_name, ' ', d.last_name) as dentist_name,
@@ -76,7 +78,7 @@ try {
         FROM appointments a 
         LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
         LEFT JOIN services s ON a.service_id = s.id
-        LEFT JOIN treatment_plans tp ON a.id = tp.appointment_id
+                         LEFT JOIN treatment_plans tp ON a.treatment_plan_id = tp.id
         LEFT JOIN users d ON a.dentist_id = d.id
         LEFT JOIN (
             SELECT q1.appointment_id, q1.status, q1.queue_number, q1.queue_label, q1.id AS queue_id,
@@ -254,6 +256,7 @@ try {
     </div>
 </div>
 
+<link rel="stylesheet" href="../../assets/css/treatment-plan-queue.css">
 <style>
 /* Staff appointments dashboard layout:
    Left = Scheduled (full height), right = In Queue (top) + Pending Approval (bottom) */
@@ -470,7 +473,8 @@ try {
                         </div>
                         <div class="mini-card-bottom">
                             <span class="mini-card-date">📅 <?php echo htmlspecialchars($dateLabel); ?></span>
-                            <span class="mini-card-treatment"><?php echo $treatment; ?> &middot; <?php echo $dentist; ?></span>
+                            <div class="mini-card-treatment-group"><span class="mini-card-treatment"><?php echo $treatment; ?> &middot; <?php echo $dentist; ?></span>
+                            <?php if (!empty($appt['treatment_plan_id'])): ?><span class="treatment-plan-tag">Treatment Plan</span><?php endif; ?></div>
                             <span class="status-badge badge-small <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($status); ?></span>
                         </div>
                         <?php

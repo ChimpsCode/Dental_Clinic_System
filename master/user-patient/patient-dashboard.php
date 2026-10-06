@@ -132,11 +132,19 @@ try {
         $_SESSION['patient_id'] = $patient_id;
     }
     
-    // Get appointments - only upcoming ones
+    // Use the same scheduled-only scope for the total and the upcoming preview.
+    $upcomingWhere = "a.patient_id = ? AND a.appointment_date >= CURDATE()
+        AND LOWER(TRIM(COALESCE(a.status, ''))) = 'scheduled'
+        AND COALESCE(a.is_archived, 0) = 0
+        AND a.deleted_at IS NULL";
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments a WHERE $upcomingWhere");
+    $stmt->execute([$patient_id]);
+    $upcomingCount = (int)$stmt->fetchColumn();
+
     $stmt = $pdo->prepare("
         SELECT a.*, a.status as status_label
         FROM appointments a 
-        WHERE a.patient_id = ? AND a.appointment_date >= CURDATE()
+        WHERE $upcomingWhere
         ORDER BY a.appointment_date ASC, a.appointment_time ASC
         LIMIT 5
     ");
@@ -167,7 +175,6 @@ try {
         ];
     }
 
-    $upcomingCount = count($appointments);
     $nextAppointment = $appointments[0] ?? null;
     $activeInquiryCount = 0;
     $queueStatusText = 'No active queue today';

@@ -12,6 +12,8 @@ if ($currentPage < 1) $currentPage = 1;
 
 try {
     require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/treatment_plan_workflow.php';
+ensureTreatmentPlanWorkflowSchema($pdo);
     
     // Auto-cancel no-show trigger on page visit
     try {
@@ -69,13 +71,14 @@ try {
     $allStmt = $pdo->query("SELECT a.*, 
                          p.first_name, p.middle_name, p.last_name,
                          COALESCE(p.phone, '') AS phone,
-                         s.name as service_name,
+                         COALESCE(s.name, JSON_UNQUOTE(JSON_EXTRACT(tp.sessions_data, CONCAT('$[', a.treatment_plan_session - 1, '].treatment'))), tp.plan_name, 'Treatment') as service_name,
                          a.status as status_label,
                          CONCAT(d.first_name, ' ', d.last_name) as dentist_name,
                          q.status as queue_status, q.queue_number, q.queue_label
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id
                          LEFT JOIN services s ON a.service_id = s.id
+                         LEFT JOIN treatment_plans tp ON a.treatment_plan_id = tp.id
                          LEFT JOIN users d ON a.dentist_id = d.id
                          LEFT JOIN (
                              SELECT q1.appointment_id, q1.status, q1.queue_number, q1.queue_label
@@ -101,7 +104,7 @@ try {
                          FROM appointments a 
                          LEFT JOIN patients p ON a.patient_id = p.id 
                          LEFT JOIN services s ON a.service_id = s.id
-                         LEFT JOIN treatment_plans tp ON a.id = tp.appointment_id
+                         LEFT JOIN treatment_plans tp ON a.treatment_plan_id = tp.id
                          LEFT JOIN users d ON a.dentist_id = d.id
                          $whereClause
                          ORDER BY a.created_at DESC
@@ -241,7 +244,8 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     <button class="view-toggle-btn" data-view="calendar">📅 Calendar View</button>
                 </div>
 
-                <style>
+                <link rel="stylesheet" href="../../assets/css/treatment-plan-queue.css">
+<style>
                 /* Summary cards - light blue dashboard design (matches staff dashboard) */
                 .summary-cards .summary-card {
                     background: #ffffff;
@@ -440,7 +444,8 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                     </div>
                                     <div class="mini-card-bottom">
                                         <span class="mini-card-date">📅 <?php echo htmlspecialchars($dateLabel); ?></span>
-                                        <span class="mini-card-treatment"><?php echo $treatment; ?> &middot; <?php echo $dentist; ?></span>
+                                        <div class="mini-card-treatment-group"><span class="mini-card-treatment"><?php echo $treatment; ?> &middot; <?php echo $dentist; ?></span>
+                            <?php if (!empty($appt['treatment_plan_id'])): ?><span class="treatment-plan-tag">Treatment Plan</span><?php endif; ?></div>
                                         <span class="status-badge badge-small <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($status); ?></span>
                                     </div>
                                     <?php

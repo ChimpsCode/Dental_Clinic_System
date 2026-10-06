@@ -20,6 +20,8 @@ header('Content-Type: application/json');
 
 try {
     require_once '../../config/database.php';
+require_once __DIR__ . '/../../includes/treatment_plan_workflow.php';
+ensureTreatmentPlanWorkflowSchema($pdo);
 
     $cal = (isset($_GET['cal']) && preg_match('/^\d{4}-\d{2}$/', $_GET['cal'])) ? $_GET['cal'] : date('Y-m');
     $year = (int)substr($cal, 0, 4);
@@ -39,10 +41,11 @@ try {
     $stmt = $pdo->prepare("
         SELECT a.appointment_date, a.appointment_time, a.status,
                COALESCE(CONCAT(p.first_name, ' ', COALESCE(p.middle_name, ''), ' ', p.last_name), '') AS patient_name,
-               s.name AS service_name
+               CONCAT(COALESCE(s.name, tp.plan_name, 'Treatment'), CASE WHEN a.treatment_plan_id IS NOT NULL THEN CONCAT(' - Plan session ', a.treatment_plan_session) ELSE '' END) AS service_name
         FROM appointments a
         LEFT JOIN patients p ON CAST(a.patient_id AS UNSIGNED) = p.id
         LEFT JOIN services s ON a.service_id = s.id
+        LEFT JOIN treatment_plans tp ON tp.id = a.treatment_plan_id
         WHERE a.appointment_date BETWEEN ? AND ?
           AND (a.is_archived = 0 OR a.is_archived IS NULL)
         ORDER BY a.appointment_date ASC, a.appointment_time ASC
