@@ -31,6 +31,8 @@ if ($isPatientUser) {
     if ($sessionPatientId <= 0 && $sessionUserId > 0) {
         try {
             require_once '../../config/database.php';
+require_once '../../includes/occlusion_schema.php';
+ensureOcclusionSchema($pdo);
             $ownStmt = $pdo->prepare('SELECT id FROM patients WHERE user_id = ? LIMIT 1');
             $ownStmt->execute([$sessionUserId]);
             $sessionPatientId = (int)$ownStmt->fetchColumn();
@@ -467,7 +469,7 @@ try {
             SELECT c.id, c.teeth_data, c.created_at, c.status AS consultation_status,
                    c.consultation_notes, c.dental_medical_history_notes, c.prescription_data,
                    c.periodontal_screening,
-                   c.occlusion_class_molar, c.occlusion_overjet, c.occlusion_overbite,
+                   c.occlusion_class_molar, c.occlusion_molar_class, c.occlusion_notes, c.occlusion_overjet, c.occlusion_overbite,
                    c.occlusion_midline_deviation, c.occlusion_crossbite,
                    c.appliances_orthodontic, c.appliances_skyplate, c.appliances_others, c.appliances_others_text,
                    c.tmd_clenching, c.tmd_clicking, c.tmd_trismus, c.tmd_muscle_spasm,

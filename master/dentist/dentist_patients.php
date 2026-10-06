@@ -663,7 +663,9 @@ function viewPatientDetails(patientId) {
 
                                 var examParts = [];
                                 if (c.periodontal_screening) examParts.push('Periodontal: ' + c.periodontal_screening);
-                                if (parseInt(c.occlusion_class_molar)) examParts.push('Class Molar');
+                                if (c.occlusion_molar_class) examParts.push('Molar: ' + c.occlusion_molar_class);
+                                else if (parseInt(c.occlusion_class_molar)) examParts.push('Molar: previously checked; class unspecified');
+                                if (c.occlusion_notes) examParts.push('Occlusion notes: ' + c.occlusion_notes);
                                 if (parseInt(c.occlusion_overjet)) examParts.push('Overjet');
                                 if (parseInt(c.occlusion_overbite)) examParts.push('Overbite');
                                 if (parseInt(c.occlusion_midline_deviation)) examParts.push('Midline Dev.');

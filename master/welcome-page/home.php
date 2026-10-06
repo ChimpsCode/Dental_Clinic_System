@@ -194,6 +194,7 @@ $assets = [
         pointer-events: none;
       }
       .hero .hero-inner { z-index: 1; }
+      .hero .hero-copy { top: -24px; }
       .hero .hero-photo-wrap { translate: 0 var(--hero-photo-shift, 0px); }
       .hero-eyebrow {
         display: flex;
@@ -266,6 +267,7 @@ $assets = [
         will-change: opacity, translate;
       }
       @media (max-width: 768px) {
+        .hero .hero-copy { top: -12px; }
         .hero .hero-inner {
           padding-top: var(--hero-mobile-padding-top, 72px);
           padding-bottom: var(--hero-mobile-padding-bottom, 24px);

@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS `consultations` (
 
   -- Dental Examination - Occlusion
   `occlusion_class_molar` tinyint(1) DEFAULT 0,
+  `occlusion_molar_class` varchar(20) DEFAULT NULL,
+  `occlusion_notes` text DEFAULT NULL,
   `occlusion_overjet` tinyint(1) DEFAULT 0,
   `occlusion_overbite` tinyint(1) DEFAULT 0,
   `occlusion_midline_deviation` tinyint(1) DEFAULT 0,

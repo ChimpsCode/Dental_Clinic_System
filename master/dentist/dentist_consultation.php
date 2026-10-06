@@ -2,6 +2,8 @@
 $pageTitle = 'Consultation';
 require_once '../../config/database.php';
 require_once '../../includes/dentist_layout_start.php';
+require_once '../../includes/occlusion_schema.php';
+ensureOcclusionSchema($pdo);
 
 $user_id = (int)$_SESSION['user_id'];
 $initialQueueId = isset($_GET['queue_id']) ? (int)$_GET['queue_id'] : 0;
@@ -2076,18 +2078,23 @@ $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doc
                         <!-- Occlusion -->
                         <div class="dental-exam-section">
                             <h4>Occlusion</h4>
+                            <label for="occClassMolar">Molar Classification</label>
+                            <select id="occClassMolar" onchange="saveDentalExam()">
+                                <option value="">Not assessed</option>
+                                <option value="Class I">Class I</option>
+                                <option value="Class II">Class II</option>
+                                <option value="Class III">Class III</option>
+                                <option value="legacy_unspecified" disabled>Previously checked; class unspecified</option>
+                            </select>
+                            <p style="font-size:0.75rem;color:#64748b;margin:8px 0;">Check findings observed. Unchecked items do not confirm a normal bite.</p>
                             <div class="dental-check-group">
                                 <div class="dental-check-item">
-                                    <input type="checkbox" id="occClassMolar" onchange="saveDentalExam()">
-                                    <label for="occClassMolar">Class (Molar)</label>
-                                </div>
-                                <div class="dental-check-item">
                                     <input type="checkbox" id="occOverjet" onchange="saveDentalExam()">
-                                    <label for="occOverjet">Overjet</label>
+                                    <label for="occOverjet">Increased Overjet</label>
                                 </div>
                                 <div class="dental-check-item">
                                     <input type="checkbox" id="occOverbite" onchange="saveDentalExam()">
-                                    <label for="occOverbite">Overbite</label>
+                                    <label for="occOverbite">Deep Overbite</label>
                                 </div>
                                 <div class="dental-check-item">
                                     <input type="checkbox" id="occMidline" onchange="saveDentalExam()">
@@ -2098,6 +2105,8 @@ $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doc
                                     <label for="occCrossbite">Crossbite</label>
                                 </div>
                             </div>
+                            <label for="occNotes" style="display:block;margin-top:10px;">Occlusion Notes (optional)</label>
+                            <textarea id="occNotes" class="notes-textarea" rows="3" style="min-height:75px;" placeholder="Measurements, affected teeth, or other bite findings" onchange="saveDentalExam()"></textarea>
                         </div>
 
                         <!-- Appliances -->
@@ -2833,7 +2842,8 @@ function switchConsultTab(btn, tabId) {
 function populateDentalExam() {
     var c = currentConsultation;
     document.getElementById('periodontalScreening').value = c.periodontal_screening || '';
-    document.getElementById('occClassMolar').checked = !!parseInt(c.occlusion_class_molar);
+    document.getElementById('occClassMolar').value = c.occlusion_molar_class || (parseInt(c.occlusion_class_molar) ? 'legacy_unspecified' : '');
+    document.getElementById('occNotes').value = c.occlusion_notes || '';
     document.getElementById('occOverjet').checked = !!parseInt(c.occlusion_overjet);
     document.getElementById('occOverbite').checked = !!parseInt(c.occlusion_overbite);
     document.getElementById('occMidline').checked = !!parseInt(c.occlusion_midline_deviation);
@@ -2908,7 +2918,9 @@ function saveDentalExam() {
     var payload = {
         consultation_id: currentConsultation.id,
         periodontal_screening: document.getElementById('periodontalScreening').value,
-        occlusion_class_molar: document.getElementById('occClassMolar').checked ? 1 : 0,
+        occlusion_class_molar: document.getElementById('occClassMolar').value ? 1 : 0,
+        occlusion_molar_class: document.getElementById('occClassMolar').value === 'legacy_unspecified' ? null : document.getElementById('occClassMolar').value,
+        occlusion_notes: document.getElementById('occNotes').value,
         occlusion_overjet: document.getElementById('occOverjet').checked ? 1 : 0,
         occlusion_overbite: document.getElementById('occOverbite').checked ? 1 : 0,
         occlusion_midline_deviation: document.getElementById('occMidline').checked ? 1 : 0,
@@ -4398,7 +4410,9 @@ function loadPastConsultations(patientId, currentConsultId) {
             // Dental Exam Summary
             var examFields = [];
             if (c.periodontal_screening) examFields.push('Periodontal: ' + c.periodontal_screening);
-            if (parseInt(c.occlusion_class_molar)) examFields.push('Class Molar');
+            if (c.occlusion_molar_class) examFields.push('Molar: ' + c.occlusion_molar_class);
+            else if (parseInt(c.occlusion_class_molar)) examFields.push('Molar: previously checked; class unspecified');
+            if (c.occlusion_notes) examFields.push('Occlusion notes: ' + c.occlusion_notes);
             if (parseInt(c.occlusion_overjet)) examFields.push('Overjet');
             if (parseInt(c.occlusion_overbite)) examFields.push('Overbite');
             if (parseInt(c.occlusion_midline_deviation)) examFields.push('Midline Deviation');

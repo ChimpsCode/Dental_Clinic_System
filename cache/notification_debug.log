@@ -757,3 +757,10 @@
 2026-10-06 12:37:12 | createNotification OK: id=679 user_id=84 type=system title=New device sign-in
 2026-10-06 12:37:13 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
 2026-10-06 13:19:35 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
+2026-10-06 13:37:16 | createNotification OK: id=684 user_id=2 type=system title=New device sign-in
+2026-10-06 13:37:21 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-10-06 13:37:32 | createNotification OK: id=685 user_id=84 type=appointment title=Appointment Declined
+2026-10-06 13:40:34 | createNotification OK: id=690 user_id=84 type=appointment title=Appointment Declined
+2026-10-06 13:43:20 | createNotification OK: id=695 user_id=84 type=appointment title=Appointment Approved
+2026-10-06 13:43:20 | createNotification OK: id=696 user_id=84 type=reminder title=Follow-up Reminder
+2026-10-06 13:51:16 | createNotification OK: id=701 user_id=84 type=queue title=Queue Update

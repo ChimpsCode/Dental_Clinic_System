@@ -298,6 +298,7 @@ $pageTitle = 'My Appointments';
         .modal-close:hover { color: #1a1a2e; }
         .modal-content { text-align: center; padding: 20px 0; }
         .modal-content i { font-size: 64px; color: #10b981; margin-bottom: 16px; }
+        .modal-content .pending-approval-icon { color: #d97706; }
         .modal-content h4 { font-size: 18px; color: #1a1a2e; margin-bottom: 8px; }
         .modal-content p { color: #6b7280; margin-bottom: 16px; }
         .modal-details { background: #f3f4f6; padding: 16px; border-radius: 8px; text-align: left; margin-top: 16px; }
@@ -579,11 +580,12 @@ $pageTitle = 'My Appointments';
     <div class="modal-overlay" id="successModal">
         <div class="modal">
             <button class="modal-close" onclick="closeModal()">&times;</button>
-            <h3><i class="fas fa-check-circle modal-success"></i> Booking Confirmed!</h3>
+            <h3><i class="fas fa-check-circle modal-success"></i> Appointment Request Received!</h3>
             <div class="modal-content">
-                <i class="fas fa-check-circle"></i>
-                <h4>Appointment Booked Successfully!</h4>
+                <i class="fas fa-clock pending-approval-icon" aria-hidden="true"></i>
+                <h4>Thank You! Pending Clinic Approval</h4>
                 <p id="modalMessage"></p>
+                <p>Our dental clinic staff will call you to confirm your appointment details. Please keep your registered contact number available while your request is being reviewed.</p>
                 <div class="modal-details" id="modalDetails"></div>
                 <button class="modal-btn" onclick="closeModal()">Great, Thank You!</button>
             </div>

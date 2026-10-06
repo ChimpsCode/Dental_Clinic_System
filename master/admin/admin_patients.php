@@ -1693,11 +1693,11 @@ function openOdontogramModal(sessionId, dateStr, dentistName, findingsJson, sess
     examHtml += '</div></div></div>';
 
     var periodontal = (session.periodontal_screening || '').trim();
-    var occChips = odxChipHtml('Class (Molar)', session.occlusion_class_molar)
+    var occChips = (session.occlusion_molar_class ? '<span class="odx-chip on">Molar: ' + escapeHtml(session.occlusion_molar_class) + '</span>' : (parseInt(session.occlusion_class_molar) ? '<span class="odx-chip on">Molar: previously checked; class unspecified</span>' : '<span class="odx-empty">Molar class not recorded</span>'))
         + odxChipHtml('Overjet', session.occlusion_overjet)
         + odxChipHtml('Overbite', session.occlusion_overbite)
         + odxChipHtml('Midline Deviation', session.occlusion_midline_deviation)
-        + odxChipHtml('Crossbite', session.occlusion_crossbite);
+        + odxChipHtml('Crossbite', session.occlusion_crossbite) + (session.occlusion_notes ? '<span class="odx-chip on">Occlusion notes: ' + escapeHtml(session.occlusion_notes) + '</span>' : '');
     var appChips = odxChipHtml('Orthodontic', session.appliances_orthodontic)
         + odxChipHtml('Skyplate', session.appliances_skyplate)
         + odxChipHtml('Others', session.appliances_others);

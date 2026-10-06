@@ -162,6 +162,8 @@ function syncConsultationPrescriptionToPrescriptionTable(PDO $pdo, int $consultI
 
 try {
     require_once '../../config/database.php';
+    require_once '../../includes/occlusion_schema.php';
+    ensureOcclusionSchema($pdo);
     require_once '../../includes/billing_helper.php';
     require_once '../../includes/notification_functions.php';
     require_once '../../includes/patient_dashboard_status_helper.php';
@@ -386,6 +388,12 @@ try {
         case 'save_dental_exam':
             $input = $requestBody ?: $_POST;
             if (!$input) { $input = $_POST; }
+            $molarClass = $input['occlusion_molar_class'] ?? null;
+            if (!in_array($molarClass, [null, '', 'Class I', 'Class II', 'Class III'], true)) {
+                ob_clean();
+                echo json_encode(['success' => false, 'message' => 'Invalid molar classification']);
+                break;
+            }
             $consultId = (int)($input['consultation_id'] ?? 0);
             if (!$consultId) {
                 ob_clean();
@@ -396,6 +404,8 @@ try {
             $stmt = $pdo->prepare("UPDATE consultations SET
                 periodontal_screening = ?,
                 occlusion_class_molar = ?,
+                occlusion_molar_class = ?,
+                occlusion_notes = ?,
                 occlusion_overjet = ?,
                 occlusion_overbite = ?,
                 occlusion_midline_deviation = ?,
@@ -415,6 +425,8 @@ try {
             $stmt->execute([
                 $input['periodontal_screening'] ?? null,
                 (int)($input['occlusion_class_molar'] ?? 0),
+                $molarClass ?: null,
+                trim($input['occlusion_notes'] ?? '') ?: null,
                 (int)($input['occlusion_overjet'] ?? 0),
                 (int)($input['occlusion_overbite'] ?? 0),
                 (int)($input['occlusion_midline_deviation'] ?? 0),

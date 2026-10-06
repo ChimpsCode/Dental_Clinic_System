@@ -25,6 +25,8 @@ $user_id = $_SESSION['user_id'] ?? null;
 $patient_id = $_SESSION['patient_id'] ?? null;
 
 require_once '../../config/database.php';
+require_once '../../includes/occlusion_schema.php';
+ensureOcclusionSchema($pdo);
 require_once '../../includes/patient_session_helper.php';
 $patientSessionSettings = getPatientSessionSettings($pdo, (int)($_SESSION['user_id'] ?? 0));
 
@@ -380,7 +382,7 @@ try {
         $stmt = $pdo->prepare("
             SELECT c.id, c.queue_id, c.teeth_data, c.consultation_notes, c.dental_medical_history_notes,
                    c.prescription_data, c.periodontal_screening,
-                   c.occlusion_class_molar, c.occlusion_overjet, c.occlusion_overbite,
+                   c.occlusion_class_molar, c.occlusion_molar_class, c.occlusion_notes, c.occlusion_overjet, c.occlusion_overbite,
                    c.occlusion_midline_deviation, c.occlusion_crossbite,
                    c.appliances_orthodontic, c.appliances_skyplate, c.appliances_others, c.appliances_others_text,
                    c.tmd_clenching, c.tmd_clicking, c.tmd_trismus, c.tmd_muscle_spasm,
@@ -407,7 +409,7 @@ try {
                 }
                 foreach ([
                     'teeth_data', 'prescription_data', 'consultation_notes', 'dental_medical_history_notes',
-                    'periodontal_screening', 'occlusion_class_molar', 'occlusion_overjet', 'occlusion_overbite',
+                    'periodontal_screening', 'occlusion_class_molar', 'occlusion_molar_class', 'occlusion_notes', 'occlusion_overjet', 'occlusion_overbite',
                     'occlusion_midline_deviation', 'occlusion_crossbite', 'appliances_orthodontic',
                     'appliances_skyplate', 'appliances_others', 'appliances_others_text',
                     'tmd_clenching', 'tmd_clicking', 'tmd_trismus', 'tmd_muscle_spasm',
@@ -1148,7 +1150,7 @@ $pageTitle = 'Medical Records';
 
             var examHtml = '<div class="odx-vitals-grid">' + odxVital('Blood Pressure', session.blood_pressure) + odxVital('Heart Rate', session.heart_rate, ' bpm') + odxVital('Temperature', session.temperature, ' °C') + odxVital('O2 Saturation', session.oxygen_saturation, ' %') + odxVital('Height', session.height, ' cm') + odxVital('Weight', session.weight, ' kg') + '</div>';
             examHtml += '<div class="odx-subrow" style="margin-top:10px;"><div class="odx-subblock"><div class="odx-subblock-title">Periodontal Screening</div>' + (session.periodontal_screening ? '<span class="odx-chip on">' + escapeHtml(session.periodontal_screening) + '</span>' : '<span class="odx-empty">Not recorded</span>') + '</div>';
-            examHtml += '<div class="odx-subblock"><div class="odx-subblock-title">Occlusion</div><div class="odx-check-row">' + odxChip('Class (Molar)', session.occlusion_class_molar) + odxChip('Overjet', session.occlusion_overjet) + odxChip('Overbite', session.occlusion_overbite) + odxChip('Midline Deviation', session.occlusion_midline_deviation) + odxChip('Crossbite', session.occlusion_crossbite) + '</div></div></div>';
+            examHtml += '<div class="odx-subblock"><div class="odx-subblock-title">Occlusion</div><div class="odx-check-row">' + (session.occlusion_molar_class ? '<span class="odx-chip on">Molar: ' + escapeHtml(session.occlusion_molar_class) + '</span>' : (parseInt(session.occlusion_class_molar) ? '<span class="odx-chip on">Molar: previously checked; class unspecified</span>' : '<span class="odx-empty">Molar class not recorded</span>')) + odxChip('Overjet', session.occlusion_overjet) + odxChip('Overbite', session.occlusion_overbite) + odxChip('Midline Deviation', session.occlusion_midline_deviation) + odxChip('Crossbite', session.occlusion_crossbite) + (session.occlusion_notes ? '<span class="odx-chip on">Occlusion notes: ' + escapeHtml(session.occlusion_notes) + '</span>' : '') + '</div></div></div>';
             var appChips = odxChip('Orthodontic', session.appliances_orthodontic) + odxChip('Skyplate', session.appliances_skyplate) + odxChip('Others', session.appliances_others);
             if (parseInt(session.appliances_others, 10) && session.appliances_others_text) {
                 appChips += '<span class="odx-chip on">' + escapeHtml(session.appliances_others_text) + '</span>';
