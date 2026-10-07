@@ -472,7 +472,7 @@ $sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'pe
                         <span class="mini-card-name" title="<?php echo $name; ?>"><?php echo $name; ?></span>
                         <span class="mini-card-time"><?php echo $time; ?></span>
                         <div class="appt-kebab-menu" style="flex-shrink:0;">
-                            <button class="appt-kebab-btn" data-appt-id="<?php echo $apt['id']; ?>" data-status="<?php echo htmlspecialchars($status); ?>" data-checked-in="<?php echo $apt['check_in_time'] ?? ''; ?>">
+                            <button type="button" class="appt-kebab-btn" aria-label="Appointment actions" aria-expanded="false" data-appt-id="<?php echo $apt['id']; ?>" data-status="<?php echo htmlspecialchars($status); ?>" data-checked-in="<?php echo $apt['check_in_time'] ?? ''; ?>">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                                     <circle cx="12" cy="6" r="2"/>
                                     <circle cx="12" cy="12" r="2"/>
@@ -1650,30 +1650,36 @@ document.addEventListener('DOMContentLoaded', startAppointmentPolling);
 
 <!-- Kebab Menu Functions -->
 <script>
+// The sidebar router runs DOMContentLoaded callbacks immediately. Initialize
+// menu state first so both sidebar navigation and a full page load can bind it.
+var apptKebabDropdown = null;
+var apptKebabBackdrop = null;
+var apptActiveButton = null;
+
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize kebab menu
     initApptKebabMenu();
 });
 
-let apptKebabDropdown = null;
-let apptKebabBackdrop = null;
-let apptActiveButton = null;
-
 function initApptKebabMenu() {
-    apptKebabDropdown = document.createElement('div');
+    closeApptKebabDropdown();
+    apptKebabDropdown = document.getElementById('apptKebabDropdown') || document.createElement('div');
     apptKebabDropdown.className = 'appt-kebab-dropdown-portal';
     apptKebabDropdown.id = 'apptKebabDropdown';
     document.body.appendChild(apptKebabDropdown);
     
-    apptKebabBackdrop = document.createElement('div');
+    apptKebabBackdrop = document.getElementById('apptKebabBackdrop') || document.createElement('div');
     apptKebabBackdrop.className = 'appt-kebab-backdrop';
     apptKebabBackdrop.id = 'apptKebabBackdrop';
     document.body.appendChild(apptKebabBackdrop);
     
-    apptKebabBackdrop.addEventListener('click', closeApptKebabDropdown);
+    apptKebabBackdrop.onclick = closeApptKebabDropdown;
     
     // Click handler for kebab buttons
-    document.addEventListener('click', function(e) {
+    if (window.__dentistApptKebabClickHandler) {
+        document.removeEventListener('click', window.__dentistApptKebabClickHandler);
+    }
+    window.__dentistApptKebabClickHandler = function(e) {
         const button = e.target.closest('.appt-kebab-btn');
         if (button) {
             e.preventDefault();
@@ -1687,7 +1693,8 @@ function initApptKebabMenu() {
         } else if (!e.target.closest('.appt-kebab-dropdown-portal')) {
             closeApptKebabDropdown();
         }
-    });
+    };
+    document.addEventListener('click', window.__dentistApptKebabClickHandler);
 }
 
 function openApptKebabDropdown(button) {
@@ -1723,8 +1730,10 @@ function openApptKebabDropdown(button) {
 
     apptKebabDropdown.innerHTML = html;
     
-    // Position dropdown
+    // Measure the visible menu so it stays inside the viewport on phones too.
+    apptKebabDropdown.classList.add('show');
     const rect = button.getBoundingClientRect();
+    const menuRect = apptKebabDropdown.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     const padding = 12;
@@ -1732,12 +1741,11 @@ function openApptKebabDropdown(button) {
     let left = rect.right + 8;
     let top = rect.top;
     
-    if (left + 200 > viewportWidth - padding) {
-        left = rect.left - 200 - 8;
+    if (left + menuRect.width > viewportWidth - padding) {
+        left = rect.left - menuRect.width - 8;
     }
-    if (top + 100 > viewportHeight - padding) {
-        top = viewportHeight - padding - 100;
-    }
+    left = Math.max(padding, Math.min(left, viewportWidth - padding - menuRect.width));
+    top = Math.max(padding, Math.min(top, viewportHeight - padding - menuRect.height));
     
     apptKebabDropdown.style.left = left + 'px';
     apptKebabDropdown.style.top = top + 'px';
@@ -1746,6 +1754,7 @@ function openApptKebabDropdown(button) {
     apptKebabBackdrop.classList.add('show');
     apptActiveButton = button;
     button.classList.add('active');
+    button.setAttribute('aria-expanded', 'true');
 }
 
 function closeApptKebabDropdown() {
@@ -1757,6 +1766,7 @@ function closeApptKebabDropdown() {
     }
     if (apptActiveButton) {
         apptActiveButton.classList.remove('active');
+        apptActiveButton.setAttribute('aria-expanded', 'false');
         apptActiveButton = null;
     }
 }
@@ -2179,6 +2189,11 @@ function closeApptKebabDropdown() {
     z-index: 100000;
 }
 
+/* Scheduled and pending approval appointments share this details modal. */
+#viewAppointmentModal > .modal {
+    padding-top: 28px !important;
+}
+
 .vitals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .vitals-section { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; }
 .vitals-section h4 { margin: 0 0 4px; font-size: 0.85rem; font-weight: 600; color: #334155; }
@@ -2312,10 +2327,12 @@ function closeApptKebabDropdown() {
     border-radius: 8px;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
     min-width: 160px;
-    max-width: 180px;
-    width: auto;
+    max-width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+    width: 220px;
     z-index: 100001;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 .appt-kebab-dropdown-portal.show {

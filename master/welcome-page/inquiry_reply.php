@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/../../includes/inquiry_module_helper.php';
+$defaultFavicon = inquiryPublicAssetUrl('assets/images/Logo.png');
 $token = trim($_GET['token'] ?? '');
 if ($token === '' || !preg_match('/^[a-f0-9]{64}$/', $token)) {
     header('Content-Type: text/html; charset=utf-8');
@@ -6,6 +8,7 @@ if ($token === '' || !preg_match('/^[a-f0-9]{64}$/', $token)) {
     <!doctype html>
     <html lang="en">
     <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Invalid Link</title>
+    <link rel="icon" type="image/png" href="<?php echo htmlspecialchars($defaultFavicon, ENT_QUOTES); ?>">
     <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f1f5f9;color:#0f172a;padding:20px}.card{background:#fff;border-radius:24px;box-shadow:0 20px 40px rgba(15,23,42,.06);padding:48px;text-align:center;max-width:480px;width:100%}.card h1{font-size:1.5rem;margin-bottom:12px}.card p{color:#64748b;line-height:1.6}</style>
     </head>
     <body>
@@ -17,7 +20,6 @@ if ($token === '' || !preg_match('/^[a-f0-9]{64}$/', $token)) {
 }
 
 require_once '../../config/database.php';
-require_once '../../includes/inquiry_module_helper.php';
 
 ensureInquiryModuleSchema($pdo);
 
@@ -36,6 +38,7 @@ if (!$inquiry) {
     <!doctype html>
     <html lang="en">
     <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Conversation Not Found</title>
+    <link rel="icon" type="image/png" href="<?php echo htmlspecialchars($defaultFavicon, ENT_QUOTES); ?>">
     <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f1f5f9;color:#0f172a;padding:20px}.card{background:#fff;border-radius:24px;box-shadow:0 20px 40px rgba(15,23,42,.06);padding:48px;text-align:center;max-width:480px;width:100%}.card h1{font-size:1.5rem;margin-bottom:12px}.card p{color:#64748b;line-height:1.6}</style>
     </head>
     <body>
@@ -73,6 +76,7 @@ $createdAt = $inquiry['created_at'] ?? '';
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Conversation with <?php echo htmlspecialchars($clinicName); ?></title>
+    <link rel="icon" href="<?php echo htmlspecialchars($logoFull, ENT_QUOTES); ?>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">

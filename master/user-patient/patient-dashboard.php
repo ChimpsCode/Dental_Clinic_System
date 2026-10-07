@@ -1557,7 +1557,7 @@ $pageTitle = 'Patient Dashboard';
                                 <?php endforeach; ?>
                             </ul>
                         <?php else: ?>
-                            <div class="empty-message">No upcoming appointments. <a href="#book-appointment">Book one now!</a></div>
+                            <div class="empty-message">No upcoming appointments. <a href="appointments.php">Book one now!</a></div>
                         <?php endif; ?>
                     </section>
 
