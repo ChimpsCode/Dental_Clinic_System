@@ -52,6 +52,9 @@ try {
 
     ensureAppointmentApprovalSchema($pdo);
 
+    // Serialize approval/decline with the patient's one-time edit or cancellation.
+    $pdo->beginTransaction();
+
     $stmt = $pdo->prepare("
         SELECT a.*, p.first_name, p.middle_name, p.last_name, p.phone, p.created_at,
                s.name AS service_name,
@@ -61,6 +64,7 @@ try {
         LEFT JOIN services s ON a.service_id = s.id
         WHERE a.id = ?
         LIMIT 1
+        FOR UPDATE
     ");
     $stmt->execute([$appointment_id]);
     $appointment = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -105,6 +109,7 @@ try {
 
         $params[] = $appointment_id;
         $pdo->prepare("UPDATE appointments SET " . implode(', ', $updates) . " WHERE id = ?")->execute($params);
+        $pdo->commit();
 
         try {
             require_once __DIR__ . '/../../includes/audit_helper.php';
@@ -227,6 +232,7 @@ try {
 
         $params[] = $appointment_id;
         $pdo->prepare("UPDATE appointments SET " . implode(', ', $updates) . " WHERE id = ?")->execute($params);
+        $pdo->commit();
 
         // Close session before external calls so other requests aren't blocked
         if (session_status() === PHP_SESSION_ACTIVE) {
@@ -276,12 +282,15 @@ try {
     }
 
 } catch (ApprovalUserException $e) {
+    if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
     error_log("Approve Appointment Error: " . $e->getMessage());
     echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 } catch (Exception $e) {
+    if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
     error_log("Approve Appointment Error: " . $e->getMessage());
     echo json_encode(['success' => false, 'message' => 'Something went wrong. Please try again.']);
 } catch (Error $e) {
+    if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
     error_log("Approve Appointment Fatal Error: " . $e->getMessage());
     echo json_encode(['success' => false, 'message' => 'Something went wrong. Please try again.']);
 }

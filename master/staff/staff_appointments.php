@@ -1925,8 +1925,12 @@ try {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    refreshAppointmentsAjax();
-                    showAppointmentNoticeModal(data.message || 'Appointment approved', { title: 'Appointment approved' });
+                    return refreshAppointmentsAjax({ afterCurrent: true }).then(function(updated) {
+                        showAppointmentNoticeModal(
+                            (data.message || 'Appointment approved') + (updated ? '' : '\nThe list could not be updated. It will retry automatically.'),
+                            { title: 'Appointment approved' }
+                        );
+                    });
                 } else {
                     showAppointmentNoticeModal(data.message || 'Error approving appointment', { error: true, title: 'Could not approve' });
                 }
@@ -2654,9 +2658,12 @@ function startAppointmentPolling() {
             .then(function(data) {
                 if (!data.success) return null;
                 if (data.hash !== apptPollHashStaff) {
-                    apptPollHashStaff = data.hash;
                     refreshAppointmentStatuses(data.appointments);
-                    if (typeof refreshAppointmentsAjax === 'function') return refreshAppointmentsAjax();
+                    if (typeof refreshAppointmentsAjax === 'function') {
+                        return refreshAppointmentsAjax().then(function(updated) {
+                            if (updated) apptPollHashStaff = data.hash;
+                        });
+                    }
                 }
                 return null;
             })

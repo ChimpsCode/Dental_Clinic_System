@@ -289,6 +289,9 @@
             list.forEach(function (page) {
                 var key = resolvePage(page);
                 if (!key) return;
+                // Navigation must not show the old fragment while its
+                // replacement is being fetched after a saved change.
+                delete window.appCache.data[key];
                 fetchFragment(key).catch(function (err) {
                     console.error('appCache invalidate failed:', key, err);
                 });

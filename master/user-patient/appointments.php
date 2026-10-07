@@ -30,6 +30,9 @@ $bookedDateSlots = [];
 $patient_name = 'Patient';
 
 require_once '../../config/database.php';
+require_once '../../includes/patient_appointment_management.php';
+ensurePatientAppointmentManagementSchema($pdo);
+$_SESSION['patient_appointment_csrf'] = $_SESSION['patient_appointment_csrf'] ?? bin2hex(random_bytes(32));
 require_once '../../includes/patient_session_helper.php';
 $patientSessionSettings = getPatientSessionSettings($pdo, (int)($_SESSION['user_id'] ?? 0));
 
@@ -108,7 +111,7 @@ $stmt = $pdo->prepare("
            COALESCE(a.status, 'Scheduled') as status_name
     FROM appointments a
     LEFT JOIN services s ON a.service_id = s.id
-    WHERE a.patient_id = ?{$archivedFilter}
+    WHERE a.patient_id = ?{$archivedFilter} AND a.deleted_at IS NULL
     ORDER BY a.appointment_date DESC, a.appointment_time DESC
 ");
 $stmt->execute([$patient_id]);
@@ -116,7 +119,7 @@ $all_appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Separate upcoming and past
 $today = date('Y-m-d');
-$completedStatuses = ['completed', 'cancelled'];
+$completedStatuses = ['completed', 'cancelled', 'canceled', 'no_show'];
 foreach ($all_appointments as $apt) {
     $apt_date = substr($apt['appointment_date'], 0, 10);
     $apt_status = strtolower(trim($apt['status'] ?? ''));
@@ -502,6 +505,7 @@ $pageTitle = 'My Appointments';
                         elseif (stripos($statusName, 'pending') !== false) $statusClass = 'status-pending-payment';
                         elseif (stripos($statusName, 'cancel') !== false) $statusClass = 'status-cancelled';
                         elseif (stripos($statusName, 'complete') !== false) $statusClass = 'status-completed';
+                        $permissions = patientAppointmentPermissions($apt, $today);
                     ?>
                         <div class="appointment-card">
                             <div class="apt-date">
@@ -516,9 +520,24 @@ $pageTitle = 'My Appointments';
                                 <div class="apt-notes"><i class="fas fa-sticky-note"></i> <?php echo htmlspecialchars(substr($apt['notes'], 0, 60)); ?><?php echo strlen($apt['notes']) > 60 ? '...' : ''; ?></div>
                                 <?php endif; ?>
                             </div>
+                            <div class="patient-apt-controls">
                             <span class="apt-status <?php echo $statusClass; ?>">
                                 <?php echo htmlspecialchars($statusName); ?>
                             </span>
+                            <div class="patient-apt-actions">
+                                <?php if ($permissions['edit']): ?>
+                                <button type="button" data-appt-management="edit" data-appointment-id="<?php echo (int)$apt['id']; ?>">Edit Request</button>
+                                <?php endif; ?>
+                                <?php if ($permissions['cancel']): ?>
+                                <button type="button" class="patient-apt-cancel" data-appt-management="cancel" data-appointment-id="<?php echo (int)$apt['id']; ?>">Cancel Appointment</button>
+                                <?php endif; ?>
+                            </div>
+                            <?php if (!empty($apt['patient_edited_at']) && strtolower(trim($statusName)) === 'pending approval'): ?>
+                            <small>Your one-time edit has been used. Awaiting staff approval.</small>
+                            <?php elseif (strtolower(trim($statusName)) === 'scheduled'): ?>
+                            <small>Approved appointments cannot be edited online.</small>
+                            <?php endif; ?>
+                            </div>
                         </div>
                     <?php endforeach; ?>
                 <?php else: ?>
@@ -592,6 +611,72 @@ $pageTitle = 'My Appointments';
         </div>
     </div>
 
+    <div class="modal-overlay" id="patientAppointmentEditModal" role="dialog" aria-modal="true" aria-labelledby="patientAppointmentEditTitle">
+        <div class="modal patient-apt-modal">
+            <h2 id="patientAppointmentEditTitle">Edit Appointment Request</h2>
+            <p class="patient-apt-warning">You may edit this request only once, before staff approval. Please ensure all details are accurate before confirming your changes.</p>
+            <form id="patientAppointmentEditForm">
+                <label for="patientEditService">Service</label>
+                <select id="patientEditService" required>
+                    <?php foreach ($services as $service): ?>
+                    <option value="<?php echo (int)$service['id']; ?>"><?php echo htmlspecialchars($service['name']); ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <label for="patientEditDate">Appointment date</label>
+                <input type="date" id="patientEditDate" min="<?php echo htmlspecialchars($today); ?>" required>
+                <label for="patientEditTime">Available time</label>
+                <select id="patientEditTime" required></select>
+                <label for="patientEditNotes">Notes (optional)</label>
+                <textarea id="patientEditNotes" rows="3" maxlength="5000"></textarea>
+                <p id="patientEditError" role="alert" class="patient-apt-error"></p>
+                <div class="patient-apt-actions"><button type="button" data-close-patient-edit>Back</button><button type="submit" id="patientEditReview">Review Changes</button></div>
+            </form>
+        </div>
+    </div>
+    <div class="modal-overlay" id="patientAppointmentConfirmModal" role="dialog" aria-modal="true" aria-labelledby="patientAppointmentConfirmTitle">
+        <div class="modal patient-apt-modal">
+            <h2 id="patientAppointmentConfirmTitle">Confirm Changes</h2>
+            <p id="patientAppointmentConfirmMessage" class="patient-apt-warning"></p>
+            <div id="patientAppointmentConfirmDetails"></div>
+            <div id="patientAppointmentCancelReasonWrap" hidden>
+                <label for="patientAppointmentCancelReason">Reason for cancellation (optional)</label>
+                <textarea id="patientAppointmentCancelReason" rows="3" maxlength="1000"></textarea>
+            </div>
+            <p id="patientAppointmentConfirmError" role="alert" class="patient-apt-error"></p>
+            <div class="patient-apt-actions"><button type="button" id="patientAppointmentConfirmBack">Back</button><button type="button" id="patientAppointmentConfirmSave">Confirm Changes</button></div>
+        </div>
+    </div>
+    <style>
+        .patient-apt-controls { display:grid; grid-template-columns:auto auto; align-items:center; justify-content:end; gap:8px; flex-shrink:0; }
+        .patient-apt-controls > .apt-status { white-space:nowrap; }
+        .patient-apt-controls > .patient-apt-actions { flex-wrap:nowrap; }
+        .patient-apt-controls > .patient-apt-actions button { white-space:nowrap; }
+        .patient-apt-controls small { grid-column:1 / -1; color:#64748b; font-size:11px; line-height:1.5; text-align:right; }
+        .patient-apt-actions { display:flex; gap:8px; flex-wrap:wrap; }
+        .patient-apt-actions button { border:1px solid #cbd5e1; border-radius:8px; background:#fff; color:#005daa; padding:10px 12px; font:inherit; font-size:13px; cursor:pointer; }
+        .patient-apt-actions .patient-apt-cancel { color:#b91c1c; border-color:#fecaca; }
+        .patient-apt-actions button:disabled { opacity:.6; cursor:wait; }
+        .patient-apt-modal { width:100%; max-width:520px; max-height:90dvh; overflow-y:auto; padding:28px; text-align:left; }
+        .patient-apt-modal h2 { margin:0 0 16px; font-size:20px; }
+        .patient-apt-modal label { display:block; margin:14px 0 6px; font-size:13px; font-weight:600; }
+        .patient-apt-modal input,.patient-apt-modal select,.patient-apt-modal textarea { width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; font:inherit; box-sizing:border-box; }
+        .patient-apt-modal .patient-apt-actions { justify-content:flex-end; margin-top:20px; }
+        .patient-apt-warning { background:#fffbeb; border:1px solid #fde68a; padding:12px; border-radius:8px; color:#854d0e; line-height:1.6; font-size:13px; margin-bottom:16px; }
+        .patient-apt-error { color:#b91c1c; margin-top:12px; font-size:13px; }
+        #patientAppointmentConfirmDetails p { margin:8px 0; font-size:14px; overflow-wrap:anywhere; }
+        @media(max-width:600px) { .patient-apt-controls { justify-content:start; max-width:100%; width:100%; } .patient-apt-controls small { text-align:left; } #upcoming .appointment-card { flex-wrap:wrap; } .patient-apt-modal { padding:22px; } }
+        @media(max-width:480px) {
+            #upcoming .appointment-card { padding:16px 12px; }
+            .patient-apt-controls { gap:6px; }
+            .patient-apt-controls > .apt-status { font-size:10px; padding:8px 6px; }
+            .patient-apt-controls > .patient-apt-actions { gap:6px; }
+            .patient-apt-controls > .patient-apt-actions button { font-size:10px; padding:8px 6px; }
+        }
+    </style>
+    <script>
+        window.PATIENT_APPOINTMENT_MANAGEMENT = <?php echo json_encode(['appointments' => $upcoming_appointments, 'csrf' => $_SESSION['patient_appointment_csrf']], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE); ?>;
+    </script>
+    <script src="../../assets/js/patient-appointment-management.js"></script>
     <script>
         const bookedDatesSlots = <?php echo json_encode($bookedDateSlots); ?>;
         let currentDate = new Date();
@@ -760,7 +845,7 @@ function selectDate(selDate, el) {
                 .replace(/'/g, '&#039;');
         }
 
-        function addUpcomingAppointment(dateStr, timeStr, serviceLabel, notes) {
+        function addUpcomingAppointment(dateStr, timeStr, serviceLabel, notes, appointmentId, serviceId) {
             const upcoming = document.getElementById('upcoming');
             if (!upcoming) return;
 
@@ -793,6 +878,9 @@ function selectDate(selDate, el) {
                 <span class="apt-status status-pending-approval">Pending Approval</span>
             `;
             upcoming.prepend(card);
+            if (window.addPatientAppointmentManagementCard) {
+                window.addPatientAppointmentManagementCard(card, { id:appointmentId, service_id:serviceId, appointment_date:dateStr, appointment_time:timeStr, notes:notes, service_name:serviceName, status:'Pending Approval' });
+            }
 
             const count = upcoming.querySelectorAll('.appointment-card').length;
             const upcomingBtn = document.querySelector('.tab-btn[data-tab="upcoming"]');
@@ -950,11 +1038,10 @@ function selectDate(selDate, el) {
                     console.log('Response:', text);
                     const data = JSON.parse(text);
                     if (data.success) {
+                        addUpcomingAppointment(booking.date, booking.time, booking.serviceName, booking.notes, data.appointment_id, booking.serviceId);
                         const bookedDate = booking.date;
                         const bookedTime = booking.time;
                         const serviceName = booking.serviceName;
-                        const notes = booking.notes;
-                        addUpcomingAppointment(bookedDate, bookedTime, serviceName, notes);
                         switchToUpcomingTab();
                         document.getElementById('modalMessage').textContent = data.message;
                         document.getElementById('modalDetails').innerHTML = `

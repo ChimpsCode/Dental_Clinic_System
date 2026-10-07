@@ -1630,6 +1630,7 @@ function approveAppointment(id) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                if (window.appCache) window.appCache.invalidate('staff_appointments.php');
                 showDashboardMessage(data.message || 'Appointment approved', 'Approved');
                 loadDashboardData();
             } else {
@@ -1652,6 +1653,7 @@ function declineAppointment(id) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                if (window.appCache) window.appCache.invalidate('staff_appointments.php');
                 showDashboardMessage(data.message || 'Appointment request declined', 'Declined');
                 loadDashboardData();
             } else {

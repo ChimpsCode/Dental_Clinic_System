@@ -184,11 +184,18 @@
         }
     });
 
-    window.refreshAppointmentsAjax = function () {
+    window.refreshAppointmentsAjax = function (options) {
         // Several actions and the status poll can request a refresh at nearly the
         // same time. Reuse the active request so an older HTML response cannot
         // replace newer appointment content.
         if (window.__appointmentAjaxRefreshPromise) {
+            // A completed mutation needs HTML fetched after it was saved, even
+            // if a background refresh already started before that mutation.
+            if (options && options.afterCurrent) {
+                return window.__appointmentAjaxRefreshPromise.then(function () {
+                    return window.refreshAppointmentsAjax(options);
+                });
+            }
             return window.__appointmentAjaxRefreshPromise;
         }
 
@@ -196,7 +203,7 @@
         if (!content) return Promise.resolve(false);
 
         var activeFilter = document.querySelector('.filter-tabs span.active');
-        var searchInput = document.getElementById('appointmentSearch');
+        var searchInput = document.getElementById('appointmentSearch') || document.getElementById('searchAppointment');
         var activeView = document.querySelector('.view-toggle-btn.active');
         var state = {
             filter: activeFilter ? activeFilter.dataset.filter : 'all',
@@ -249,14 +256,14 @@
                 return false;
             });
 
-        window.__appointmentAjaxRefreshPromise = refreshPromise;
-        return refreshPromise.then(function (result) {
+        window.__appointmentAjaxRefreshPromise = refreshPromise.then(function (result) {
             window.__appointmentAjaxRefreshPromise = null;
             return result;
         }, function (error) {
             window.__appointmentAjaxRefreshPromise = null;
             throw error;
         });
+        return window.__appointmentAjaxRefreshPromise;
     };
 
     function restoreAppointmentView(state) {
@@ -273,7 +280,7 @@
             }
         });
 
-        var searchInput = document.getElementById('appointmentSearch');
+        var searchInput = document.getElementById('appointmentSearch') || document.getElementById('searchAppointment');
         if (searchInput) {
             searchInput.value = state.search;
             if (!searchInput.dataset.ajaxBound) {

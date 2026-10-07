@@ -820,3 +820,18 @@
 2026-10-07 00:05:01 | createNotification OK: id=753 user_id=2 type=system title=New device sign-in
 2026-10-07 10:22:19 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
 2026-10-07 10:35:13 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
+2026-10-07 10:47:07 | createNotification OK: id=754 user_id=89 type=system title=New device sign-in
+2026-10-07 11:05:16 | createNotification OK: id=763 user_id=88 type=appointment title=Appointment Declined
+2026-10-07 11:07:10 | createNotification OK: id=768 user_id=89 type=appointment title=Appointment Declined
+2026-10-07 11:12:42 | createNotification OK: id=773 user_id=89 type=appointment title=Appointment Declined
+2026-10-07 11:12:53 | createNotification OK: id=774 user_id=88 type=appointment title=Appointment Declined
+2026-10-07 11:19:09 | createNotification OK: id=783 user_id=88 type=appointment title=Appointment Approved
+2026-10-07 11:19:09 | createNotification OK: id=784 user_id=88 type=reminder title=Follow-up Reminder
+2026-10-07 11:22:23 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-10-07 11:23:40 | createNotification OK: id=789 user_id=89 type=appointment title=Appointment Approved
+2026-10-07 11:23:40 | createNotification OK: id=790 user_id=89 type=reminder title=Follow-up Reminder
+2026-10-07 11:27:35 | createNotification OK: id=795 user_id=89 type=appointment title=Appointment Cancelled
+2026-10-07 11:28:09 | createNotification OK: id=800 user_id=89 type=appointment title=Appointment Approved
+2026-10-07 11:28:09 | createNotification OK: id=801 user_id=89 type=reminder title=Follow-up Reminder
+2026-10-07 11:28:42 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
+2026-10-07 12:01:40 | createNotification OK: id=806 user_id=1 type=system title=New device sign-in
