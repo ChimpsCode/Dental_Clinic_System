@@ -74,10 +74,13 @@ try {
               AND LOWER(COALESCE(x.payment_status, '')) = 'paid'
         )";
     $overallStatusExpr = "CASE
+            WHEN LOWER(COALESCE(b.payment_status, '')) = 'cancelled' THEN 'voided'
+            WHEN LOWER(COALESCE(b.payment_status, '')) IN ('unpaid', 'pending')
+                 AND COALESCE(b.total_amount, 0) = 0 AND COALESCE(b.paid_amount, 0) = 0 THEN 'unpaid'
             WHEN $overallUnpaidExists THEN 'unpaid'
             WHEN $overallPartialExists THEN 'partial'
             WHEN $overallPaidExists THEN 'paid'
-            ELSE 'voided'
+            ELSE 'unpaid'
         END";
     
     // Apply search filter
@@ -395,7 +398,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                                 $isPaid = ($payStatus === 'paid');
                                 $isPartial = ($payStatus === 'partial');
                                 $isVoided = ($payStatus === 'voided' || $payStatus === 'cancelled');
-                                $calculatedAmount = $record['amount'] > 0 ? $record['amount'] : calculateAmount($record['treatment_type'], $servicesMap);
+                                $calculatedAmount = (float)$record['amount'];
                                 $storedBalance = (float)($record['balance'] ?? 0);
                                 $paidSoFar = (float)($record['paid_amount'] ?? 0);
                                 $showDue = !$isVoided && !$isPaid && $storedBalance > 0;

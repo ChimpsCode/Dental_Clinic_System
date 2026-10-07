@@ -373,6 +373,7 @@
             list.forEach(function (page) {
                 var key = resolvePage(page);
                 if (!key) return;
+                delete window.appCache.data[key];
                 fetchFragment(key).catch(function (err) {
                     console.error('appCache invalidate failed:', key, err);
                 });

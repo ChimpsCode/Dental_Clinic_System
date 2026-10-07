@@ -1,9 +1,11 @@
 <?php
 require_once __DIR__ . '/appointment_approval_helper.php';
 require_once __DIR__ . '/appointment_slots_helper.php';
+require_once __DIR__ . '/appointment_cancellation_requests.php';
 
 function ensurePatientAppointmentManagementSchema(PDO $pdo): void
 {
+    ensureCancellationRequestSchema($pdo);
     if (!appointmentColumnExists($pdo, 'appointments', 'patient_edited_at')) {
         $pdo->exec('ALTER TABLE appointments ADD COLUMN patient_edited_at DATETIME NULL');
     }
@@ -17,7 +19,8 @@ function patientAppointmentPermissions(array $appointment, string $today): array
     return [
         'edit' => $active && $status === 'pending approval' && empty($appointment['approved_at'])
             && empty($appointment['approved_by']) && empty($appointment['patient_edited_at']),
-        'cancel' => $active && in_array($status, ['pending approval', 'scheduled'], true),
+        'cancel' => $active && $status === 'pending approval' && empty($appointment['approved_at']) && empty($appointment['approved_by']),
+        'request_cancel' => $active && $status === 'scheduled' && ($appointment['cancellation_request_status'] ?? '') !== 'pending',
     ];
 }
 
@@ -25,7 +28,7 @@ function managePatientAppointment(PDO $pdo, int $patientId, int $userId, array $
 {
     $action = $input['action'] ?? '';
     $id = (int)($input['appointment_id'] ?? 0);
-    if (!in_array($action, ['edit', 'cancel'], true) || $id <= 0) {
+    if (!in_array($action, ['edit', 'cancel', 'request_cancel'], true) || $id <= 0) {
         throw new InvalidArgumentException('Invalid appointment action.');
     }
     $pdo->beginTransaction();
@@ -43,7 +46,7 @@ function managePatientAppointment(PDO $pdo, int $patientId, int $userId, array $
         }
         // A scheduled appointment may already have entered the queue while this
         // page was open, even if its check-in timestamp has not been populated.
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM queue WHERE appointment_id = ? AND status IN ('waiting', 'in_procedure', 'pending_payment', 'completed')");
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM queue WHERE appointment_id = ? AND status IN ('waiting', 'on_hold', 'in_procedure', 'pending_payment', 'completed')");
         $stmt->execute([$id]);
         if ((int)$stmt->fetchColumn()) throw new InvalidArgumentException('This appointment has already entered the clinic queue. Please contact the clinic.');
 
@@ -88,17 +91,20 @@ function managePatientAppointment(PDO $pdo, int $patientId, int $userId, array $
             $stmt->execute($params);
             if ($stmt->rowCount() !== 1) throw new InvalidArgumentException('The appointment changed while you were editing. Please reload the page.');
             $message = 'Your appointment has been updated and remains pending staff approval. Your one-time edit has now been used.';
+        } elseif ($action === 'request_cancel') {
+            $requestId = submitAppointmentCancellationRequest($pdo, $appointment, trim((string)($input['cancel_reason'] ?? '')));
+            $message = 'Your cancellation request has been submitted. Your appointment remains scheduled until the clinic approves cancellation. The clinic may contact you to verify your request.';
         } else {
             $reason = trim((string)($input['cancel_reason'] ?? '')) ?: 'Cancelled by patient';
             if (strlen($reason) > 1000) throw new InvalidArgumentException('Cancellation reason is too long.');
-            $stmt = $pdo->prepare("UPDATE appointments SET status = 'Cancelled', cancel_reason = ?, cancelled_by = ?, cancelled_at = CURRENT_TIMESTAMP WHERE id = ? AND patient_id = ? AND LOWER(status) IN ('pending approval', 'scheduled')");
+            $stmt = $pdo->prepare("UPDATE appointments SET status = 'Cancelled', cancel_reason = ?, cancelled_by = ?, cancelled_at = CURRENT_TIMESTAMP WHERE id = ? AND patient_id = ? AND LOWER(status) = 'pending approval' AND approved_at IS NULL AND approved_by IS NULL");
             $stmt->execute([$reason, $userId, $id, $patientId]);
             if ($stmt->rowCount() !== 1) throw new InvalidArgumentException('The appointment changed. Please reload the page.');
             if (function_exists('syncTreatmentPlanForAppointment')) syncTreatmentPlanForAppointment($pdo, $id);
             $message = 'Your appointment has been cancelled.';
         }
         $pdo->commit();
-        return ['success' => true, 'message' => $message, 'appointment_id' => $id];
+        return ['success' => true, 'message' => $message, 'appointment_id' => $id, 'request_id' => $requestId ?? null];
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         throw $e;

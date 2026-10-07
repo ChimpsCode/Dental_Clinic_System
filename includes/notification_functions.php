@@ -472,11 +472,11 @@ function persistPatientUserLink(PDO $pdo, int $userId, int $patientId): void
 /**
  * Notify patient when their queue status changes.
  */
-function notifyPatientQueueUpdate(PDO $pdo, int $patientId, string $queueNumber, string $status): void
+function notifyPatientQueueUpdate(PDO $pdo, int $patientId, string $queueNumber, string $status): bool
 {
     $userId = getUserIdForPatient($pdo, $patientId);
     if (!$userId) {
-        return;
+        return true; // Walk-in patients may have no portal account to notify.
     }
     $labels = [
         'waiting'        => 'You are now in the waiting queue',
@@ -489,7 +489,7 @@ function notifyPatientQueueUpdate(PDO $pdo, int $patientId, string $queueNumber,
     $label = $labels[$status] ?? 'Your queue status has changed to ' . $status;
     $title = 'Queue Update';
     $message = "Queue #{$queueNumber}: {$label}";
-    createNotification($pdo, $userId, 'queue', $title, $message, 'patient-dashboard.php');
+    return createNotification($pdo, $userId, 'queue', $title, $message, 'patient-dashboard.php') !== false;
 }
 
 /**

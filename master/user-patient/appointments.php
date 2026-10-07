@@ -32,6 +32,8 @@ $patient_name = 'Patient';
 require_once '../../config/database.php';
 require_once '../../includes/patient_appointment_management.php';
 ensurePatientAppointmentManagementSchema($pdo);
+$clinicPhoneStmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key='clinic_phone' LIMIT 1");
+$cancellationClinicPhone = (string)($clinicPhoneStmt->fetchColumn() ?: '');
 $_SESSION['patient_appointment_csrf'] = $_SESSION['patient_appointment_csrf'] ?? bin2hex(random_bytes(32));
 require_once '../../includes/patient_session_helper.php';
 $patientSessionSettings = getPatientSessionSettings($pdo, (int)($_SESSION['user_id'] ?? 0));
@@ -106,11 +108,12 @@ try {
 // Get appointments for this patient
 $archivedFilter = $hasArchivedCol ? " AND a.is_archived = 0" : "";
 $stmt = $pdo->prepare("
-    SELECT a.*, 
+    SELECT a.*, cr.status AS cancellation_request_status,
            s.name as service_name,
            COALESCE(a.status, 'Scheduled') as status_name
     FROM appointments a
     LEFT JOIN services s ON a.service_id = s.id
+    LEFT JOIN appointment_cancellation_requests cr ON cr.appointment_id = a.id
     WHERE a.patient_id = ?{$archivedFilter} AND a.deleted_at IS NULL
     ORDER BY a.appointment_date DESC, a.appointment_time DESC
 ");
@@ -528,6 +531,11 @@ $pageTitle = 'My Appointments';
                                 <?php if ($permissions['edit']): ?>
                                 <button type="button" data-appt-management="edit" data-appointment-id="<?php echo (int)$apt['id']; ?>">Edit Request</button>
                                 <?php endif; ?>
+                                <?php if ($permissions['request_cancel']): ?>
+                                <button type="button" class="patient-apt-cancel" data-appt-management="request_cancel" data-appointment-id="<?php echo (int)$apt['id']; ?>">Cancel Appointment</button>
+                                <?php elseif (($apt['cancellation_request_status'] ?? '') === 'pending'): ?>
+                                <span class="apt-status status-pending-approval">Cancellation Requested</span>
+                                <?php endif; ?>
                                 <?php if ($permissions['cancel']): ?>
                                 <button type="button" class="patient-apt-cancel" data-appt-management="cancel" data-appointment-id="<?php echo (int)$apt['id']; ?>">Cancel Appointment</button>
                                 <?php endif; ?>
@@ -639,7 +647,8 @@ $pageTitle = 'My Appointments';
             <p id="patientAppointmentConfirmMessage" class="patient-apt-warning"></p>
             <div id="patientAppointmentConfirmDetails"></div>
             <div id="patientAppointmentCancelReasonWrap" hidden>
-                <label for="patientAppointmentCancelReason">Reason for cancellation (optional)</label>
+                <label for="patientAppointmentCancelReason" id="patientAppointmentCancelReasonLabel">Reason for cancellation (optional)</label>
+                <p id="patientAppointmentClinicContact" hidden></p>
                 <textarea id="patientAppointmentCancelReason" rows="3" maxlength="1000"></textarea>
             </div>
             <p id="patientAppointmentConfirmError" role="alert" class="patient-apt-error"></p>
@@ -674,7 +683,7 @@ $pageTitle = 'My Appointments';
         }
     </style>
     <script>
-        window.PATIENT_APPOINTMENT_MANAGEMENT = <?php echo json_encode(['appointments' => $upcoming_appointments, 'csrf' => $_SESSION['patient_appointment_csrf']], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE); ?>;
+        window.PATIENT_APPOINTMENT_MANAGEMENT = <?php echo json_encode(['appointments' => $upcoming_appointments, 'csrf' => $_SESSION['patient_appointment_csrf'], 'clinicPhone'=>$cancellationClinicPhone], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE); ?>;
     </script>
     <script src="../../assets/js/patient-appointment-management.js"></script>
     <script>

@@ -372,6 +372,7 @@ usort($sections['inqueue'], function ($a, $b) use ($queuePanelOrder) {
 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
     <button class="view-toggle-btn active" data-view="list">📋 List View</button>
     <button class="view-toggle-btn" data-view="calendar">📅 Calendar View</button>
+    <button type="button" class="cancellation-tab">Cancellation Requests (<span data-cancellation-count>0</span>)</button>
 </div>
 
 <style>

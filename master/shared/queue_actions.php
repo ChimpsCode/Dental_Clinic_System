@@ -293,28 +293,9 @@ try {
             break;
             
         case 'cancel':
-            $stmt = $pdo->prepare("SELECT q.*, p.first_name, p.middle_name, p.last_name FROM queue q LEFT JOIN patients p ON p.id = CAST(q.patient_id AS UNSIGNED) WHERE q.id = ?");
-            $stmt->execute([$queueId]);
-            $queueItem = $stmt->fetch(PDO::FETCH_ASSOC);
-            if (!$queueItem) {
-                echo json_encode(['success' => false, 'message' => 'Queue item not found']);
-                break;
-            }
-
+            require_once __DIR__ . '/../../includes/queue_cancellation_helper.php';
+            $queueItem = cancelQueueVisit($pdo, (int)$queueId);
             $oldStatusName = $queueItem['status'] ?? 'waiting';
-            
-            $stmt = $pdo->prepare("UPDATE queue SET status = 'cancelled' WHERE id = ?");
-            $stmt->execute([$queueId]);
-            if (!empty($queueItem['appointment_id'])) {
-                $pdo->prepare("UPDATE appointments SET status = 'Cancelled' WHERE id = ? AND treatment_plan_id IS NOT NULL AND status <> 'Completed'")->execute([$queueItem['appointment_id']]);
-                syncTreatmentPlanForAppointment($pdo, (int)$queueItem['appointment_id']);
-            }
-
-            try {
-                voidUnpaidBillingForQueue($pdo, $queueItem);
-            } catch (Exception $billingErr) {
-                // Queue cancel still succeeds if billing void fails
-            }
             
             $patientName = buildFullName($queueItem);
             
@@ -346,10 +327,13 @@ try {
             $oldStatusName = $queueItem['status'] ?? 'on_hold';
             
             // Set back to waiting
+            ensureBillingCancelledStatus($pdo);
+            $pdo->beginTransaction();
             $stmt = $pdo->prepare("UPDATE queue SET status = 'waiting' WHERE id = ?");
             $result = $stmt->execute([$queueId]);
             
             if (!$result || $stmt->rowCount() === 0) {
+                $pdo->rollBack();
                 echo json_encode(['success' => false, 'message' => 'Failed to re-queue patient']);
                 break;
             }
@@ -360,11 +344,14 @@ try {
             $queueItem = $stmt->fetch();
             $patientName = buildFullName($queueItem);
 
-            try {
-                restoreVoidedBillingForQueue($pdo, $queueItem);
-            } catch (Exception $billingErr) {
-                // Requeue still succeeds if billing restore fails
+            restoreVoidedBillingForQueue($pdo, $queueItem);
+            if (!empty($queueItem['appointment_id'])) {
+                $pdo->prepare("UPDATE appointments SET status = 'In Queue'
+                    WHERE id = ? AND patient_id = ? AND LOWER(COALESCE(status, '')) = 'cancelled'")
+                    ->execute([(int)$queueItem['appointment_id'], (int)$queueItem['patient_id']]);
+                syncTreatmentPlanForAppointment($pdo, (int)$queueItem['appointment_id']);
             }
+            $pdo->commit();
             
             logAudit($pdo, $user_id, $username, $user_role, 'status_change', 'queue', 'Patient re-queued: ' . $patientName, $queueId, 'queue', $oldStatusName, 'waiting');
 

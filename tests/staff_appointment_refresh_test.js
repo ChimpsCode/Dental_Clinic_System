@@ -22,6 +22,7 @@ current = makeContent('Pending Approval');
 search = { value: 'Maria', dataset: {}, addEventListener() {} };
 tabs = [];
 const document = {
+    dispatchEvent() {},
     addEventListener() {},
     getElementById(id) { return id === 'searchAppointment' ? search : null; },
     querySelector(selector) {
@@ -32,6 +33,7 @@ const document = {
     querySelectorAll(selector) { return selector === '.filter-tabs span' ? tabs : []; }
 };
 const context = vm.createContext({
+    CustomEvent: class {},
     document, console,
     window: { location: { href: 'http://localhost/master/staff/staff_appointments.php' } },
     fetch(url, options) {

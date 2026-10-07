@@ -5,6 +5,7 @@ $pdo = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE
 $pdo->exec("CREATE TABLE appointments (id INTEGER PRIMARY KEY, patient_id INTEGER, status TEXT, appointment_date TEXT, appointment_time TEXT, service_id INTEGER, duration_minutes INTEGER, notes TEXT, approved_at TEXT, approved_by INTEGER, patient_edited_at TEXT, is_archived INTEGER DEFAULT 0, deleted_at TEXT, check_in_time TEXT, is_reminded INTEGER DEFAULT 0, cancel_reason TEXT, cancelled_by INTEGER, cancelled_at TEXT)");
 $pdo->exec('CREATE TABLE services (id INTEGER PRIMARY KEY, name TEXT, duration_minutes INTEGER, is_active INTEGER)');
 $pdo->exec('CREATE TABLE queue (appointment_id INTEGER, status TEXT)');
+ensureCancellationRequestSchema($pdo);
 $pdo->exec("INSERT INTO services VALUES (1, 'Examination', 30, 1), (2, 'Cleaning', 60, 1), (3, 'Inactive', 30, 0)");
 $date = date('Y-m-d', strtotime('+30 days'));
 $insert = $pdo->prepare("INSERT INTO appointments (id, patient_id, status, appointment_date, appointment_time, service_id, duration_minutes, notes) VALUES (?, 7, 'Pending Approval', ?, '10:00:00', 1, 30, '')");
@@ -38,8 +39,18 @@ $check($read(1)['status'] === 'Cancelled' && $read(1)['cancelled_by'] == 99 && $
 $reject(['action'=>'cancel','appointment_id'=>1], 'no longer be cancelled');
 $pdo->exec("UPDATE appointments SET status='Scheduled', approved_by=88, approved_at=CURRENT_TIMESTAMP WHERE id=2");
 $reject(array_replace($input, ['appointment_id'=>2]), 'only once');
-managePatientAppointment($pdo,7,99,['action'=>'cancel','appointment_id'=>2]);
-$check($read(2)['status'] === 'Cancelled', 'Scheduled appointments can be cancelled before check-in');
+$reject(['action'=>'cancel','appointment_id'=>2], 'no longer be cancelled');
+$reject(['action'=>'request_cancel','appointment_id'=>2], 'cancellation reason');
+$request = managePatientAppointment($pdo,7,99,['action'=>'request_cancel','appointment_id'=>2,'cancel_reason'=>'Unable to attend']);
+$check($read(2)['status'] === 'Scheduled', 'Cancellation requests leave the approved appointment scheduled');
+$reject(['action'=>'request_cancel','appointment_id'=>2,'cancel_reason'=>'Duplicate'], 'already awaiting');
+reviewAppointmentCancellationRequest($pdo, $request['request_id'], 88, 'decline', 'Please call us');
+$check($read(2)['status'] === 'Scheduled', 'Declining a request preserves the appointment');
+$request = managePatientAppointment($pdo,7,99,['action'=>'request_cancel','appointment_id'=>2,'cancel_reason'=>'Verified reason']);
+reviewAppointmentCancellationRequest($pdo, $request['request_id'], 88, 'approve', 'Confirmed by phone');
+$check($read(2)['status'] === 'Cancelled' && $read(2)['cancelled_by'] == 88, 'Only clinic approval cancels a scheduled appointment');
+try { reviewAppointmentCancellationRequest($pdo, $request['request_id'], 88, 'approve', ''); throw new RuntimeException('Duplicate review accepted'); }
+catch (InvalidArgumentException $e) { $check(str_contains($e->getMessage(), 'already been reviewed'), 'Duplicate reviews rejected'); }
 $pdo->exec("UPDATE appointments SET approved_at=CURRENT_TIMESTAMP WHERE id=3");
 $reject(array_replace($input,['appointment_id'=>3]), 'only once');
 $pdo->exec("UPDATE appointments SET check_in_time=CURRENT_TIMESTAMP WHERE id=4");
@@ -58,4 +69,16 @@ $pdo->exec("UPDATE appointments SET appointment_date='2000-01-01' WHERE id=12");
 $reject(['action'=>'cancel','appointment_id'=>12], 'no longer be cancelled');
 $pdo->prepare('UPDATE appointments SET appointment_date=? WHERE id=14')->execute([$date]);
 $reject(array_replace($input,['appointment_id'=>13]), 'another appointment');
+
+$insert->execute([15, $date]);
+$pdo->exec("UPDATE appointments SET status='Scheduled', approved_at=CURRENT_TIMESTAMP WHERE id=15");
+$reject(['action'=>'request_cancel','appointment_id'=>15,'cancel_reason'=>'Reason'], 'not found', 8);
+$request = managePatientAppointment($pdo,7,99,['action'=>'request_cancel','appointment_id'=>15,'cancel_reason'=>'Reason']);
+$pdo->exec("INSERT INTO queue VALUES (15, 'on_hold')");
+try { reviewAppointmentCancellationRequest($pdo, $request['request_id'], 88, 'approve', ''); throw new RuntimeException('Queued appointment cancelled'); }
+catch (InvalidArgumentException $e) { $check(str_contains($e->getMessage(), 'clinic queue'), 'Approval rechecks queue state'); }
+$check(!$pdo->inTransaction() && $read(15)['status'] === 'Scheduled', 'Failed review rolls back without cancelling');
+reviewAppointmentCancellationRequest($pdo, $request['request_id'], 88, 'decline', 'Patient is in the clinic');
+
+echo "PASS: cancellation request ownership, required reason, duplicate prevention, decline/retry, clinic approval, and queue race protection\n";
 echo "PASS: ownership, approval lock, one-time edit, no-op/invalid slot recovery, cancellation, queue and terminal-state restrictions\n";

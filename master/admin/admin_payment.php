@@ -77,10 +77,13 @@ try {
               AND LOWER(COALESCE(x.payment_status, '')) = 'paid'
         )";
     $overallStatusExpr = "CASE
+            WHEN LOWER(COALESCE(b.payment_status, '')) = 'cancelled' THEN 'voided'
+            WHEN LOWER(COALESCE(b.payment_status, '')) IN ('unpaid', 'pending')
+                 AND COALESCE(b.total_amount, 0) = 0 AND COALESCE(b.paid_amount, 0) = 0 THEN 'unpaid'
             WHEN $overallUnpaidExists THEN 'unpaid'
             WHEN $overallPartialExists THEN 'partial'
             WHEN $overallPaidExists THEN 'paid'
-            ELSE 'voided'
+            ELSE 'unpaid'
         END";
     $overallBalanceExpr = "(SELECT COALESCE(SUM(CASE
             WHEN LOWER(COALESCE(x.payment_status, '')) = 'cancelled' THEN 0

@@ -60,10 +60,12 @@ function findBillingForQueue(PDO $pdo, array $queueItem): ?array
     }
 
     $visitDate = getQueueVisitDate($queueItem);
-    $stmt = $pdo->prepare("SELECT * FROM billing WHERE patient_id = ? AND DATE(billing_date) = ? ORDER BY id DESC LIMIT 1");
+    // Only reuse an unlinked legacy bill when it identifies one unambiguous visit.
+    // A different appointment on the same day must never be voided/restored here.
+    $stmt = $pdo->prepare("SELECT * FROM billing WHERE patient_id = ? AND DATE(billing_date) = ? AND appointment_id IS NULL ORDER BY id DESC LIMIT 2");
     $stmt->execute([$patientId, $visitDate]);
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    return $row ?: null;
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    return count($rows) === 1 ? $rows[0] : null;
 }
 
 function isUnpaidVoidableBilling(?array $billing): bool
@@ -115,6 +117,21 @@ function voidUnpaidBillingForQueue(PDO $pdo, array $queueItem): bool
 {
     ensureBillingCancelledStatus($pdo);
     $billing = findBillingForQueue($pdo, $queueItem);
+    if (!$billing && (int)($queueItem['patient_id'] ?? 0) > 0) {
+        // A visit cancelled before treatment still needs a payment history entry.
+        // No service was completed, so this record carries no charge or balance.
+        $stmt = $pdo->prepare("INSERT INTO billing
+            (patient_id, appointment_id, total_amount, paid_amount, balance, payment_status, billing_date, due_date, notes)
+            VALUES (?, ?, 0, 0, 0, 'Cancelled', ?, ?, ?)");
+        $visitDate = getQueueVisitDate($queueItem);
+        $stmt->execute([
+            (int)$queueItem['patient_id'], $queueItem['appointment_id'] ?? null,
+            $visitDate, $visitDate,
+            'Queue #' . ($queueItem['queue_number'] ?? $queueItem['id']) . ' - '
+                . ($queueItem['treatment_type'] ?? 'General Service') . ' [Voided: queue cancelled]'
+        ]);
+        return true;
+    }
     if (!isUnpaidVoidableBilling($billing)) {
         return false;
     }

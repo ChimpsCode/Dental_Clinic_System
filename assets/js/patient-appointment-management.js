@@ -71,10 +71,20 @@
             show(editModal);
             loadSlots(String(appointment.appointment_time).slice(0, 5));
         } else {
-            pending = { action:'cancel', appointment_id:Number(appointment.id) };
-            get('patientAppointmentConfirmTitle').textContent = 'Cancel Appointment';
-            get('patientAppointmentConfirmMessage').textContent = 'Are you sure you wish to cancel this appointment? This action cannot be undone. You may submit a new booking request if needed.';
-            get('patientAppointmentConfirmSave').textContent = 'Confirm Cancellation';
+            const request = button.dataset.apptManagement === 'request_cancel';
+            pending = { action:request ? 'request_cancel' : 'cancel', appointment_id:Number(appointment.id) };
+            get('patientAppointmentConfirmTitle').textContent = request ? 'Request Appointment Cancellation' : 'Cancel Appointment';
+            get('patientAppointmentConfirmMessage').textContent = request
+                ? 'This appointment has already been approved. Please provide a reason for cancellation. The clinic will review your request and may contact you to verify it. Your appointment remains scheduled until cancellation is approved. You may also call the clinic directly.'
+                : 'Are you sure you wish to cancel this appointment? This action cannot be undone. You may submit a new booking request if needed.';
+            get('patientAppointmentConfirmSave').textContent = request ? 'Submit Cancellation Request' : 'Confirm Cancellation';
+            get('patientAppointmentCancelReasonLabel').textContent = request ? 'Reason for cancellation (required)' : 'Reason for cancellation (optional)';
+            const contact = get('patientAppointmentClinicContact');
+            contact.replaceChildren(); contact.hidden = !request || !config.clinicPhone;
+            if (request && config.clinicPhone) {
+                const link = document.createElement('a'); link.href = 'tel:' + config.clinicPhone.replace(/[^+\d]/g, '');
+                link.textContent = 'Call the clinic: ' + config.clinicPhone; contact.appendChild(link);
+            }
             get('patientAppointmentCancelReasonWrap').hidden = false;
             get('patientAppointmentCancelReason').value = '';
             summary({ Service:appointment.service_name || 'Dental appointment', Date:appointment.appointment_date, Time:displayTime(appointment.appointment_time) });
@@ -114,12 +124,13 @@
         get('patientAppointmentConfirmError').textContent = '';
         try {
             const input = { ...pending, csrf:config.csrf };
-            if (pending.action === 'cancel') input.cancel_reason = get('patientAppointmentCancelReason').value.trim();
+            if (['cancel','request_cancel'].includes(pending.action)) input.cancel_reason = get('patientAppointmentCancelReason').value.trim();
+            if (pending.action === 'request_cancel' && !input.cancel_reason) throw new Error('Please enter your reason for requesting cancellation.');
             const response = await fetch('manage_appointment.php', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify(input) });
             const data = await response.json();
             if (!data.success) throw new Error(data.message || 'Unable to update this appointment.');
             done = true;
-            get('patientAppointmentConfirmTitle').textContent = pending.action === 'edit' ? 'Appointment Updated' : 'Appointment Cancelled';
+            get('patientAppointmentConfirmTitle').textContent = pending.action === 'edit' ? 'Appointment Updated' : (pending.action === 'request_cancel' ? 'Cancellation Requested' : 'Appointment Cancelled');
             get('patientAppointmentConfirmMessage').textContent = data.message;
             get('patientAppointmentConfirmDetails').replaceChildren();
             get('patientAppointmentCancelReasonWrap').hidden = true;

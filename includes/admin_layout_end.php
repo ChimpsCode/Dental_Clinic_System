@@ -10,6 +10,7 @@ if ($__pjax) {
         </div>
     </main>
 
+    <?php require __DIR__ . '/cancellation_review_script.php'; ?>
     <script src="../../assets/js/dashboard.js"></script>
     <script src="../../assets/js/notif_bell_ring.js"></script>
     <script src="../../assets/js/print_log.js"></script>
@@ -117,6 +118,8 @@ if ($__pjax) {
             return notifs.map(function(n) {
                 var type = n.type || 'system';
                 var href = destForType(type);
+                var cancellation = String(n.action_url || '').match(/[?&]cancellation_request=(\d+)/);
+                if (cancellation) href += '?cancellation_request=' + cancellation[1];
                 return '<a class="notif-item' + (n.is_read == 0 ? ' unread' : '') + '" href="' + href + '" data-notif-id="' + n.id + '" data-notif-type="' + esc(type) + '">'
                      + '<div class="notif-icon ' + type + '"><i class="fas ' + (iconMap[n.type] || 'fa-bell') + '"></i></div>'
                      + '<div class="notif-content"><p class="notif-title">' + esc(n.title) + '</p>'

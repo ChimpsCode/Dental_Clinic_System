@@ -835,3 +835,38 @@
 2026-10-07 11:28:09 | createNotification OK: id=801 user_id=89 type=reminder title=Follow-up Reminder
 2026-10-07 11:28:42 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
 2026-10-07 12:01:40 | createNotification OK: id=806 user_id=1 type=system title=New device sign-in
+2026-10-07 14:15:26 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-10-07 14:16:59 | createNotification OK: id=807 user_id=4 type=system title=New device sign-in
+2026-10-07 14:37:26 | createNotification OK: id=1 user_id=1 type=queue title=Queue Update
+2026-10-07 14:37:26 | createNotification OK: id=2 user_id=1 type=queue title=Queue Update
+2026-10-07 14:37:26 | createNotification OK: id=3 user_id=1 type=queue title=Queue Update
+2026-10-07 14:38:25 | createNotification OK: id=1 user_id=1 type=queue title=Queue Update
+2026-10-07 14:38:25 | createNotification OK: id=2 user_id=1 type=queue title=Queue Update
+2026-10-07 14:38:25 | createNotification OK: id=3 user_id=1 type=queue title=Queue Update
+2026-10-07 14:39:00 | createNotification OK: id=1 user_id=1 type=queue title=Queue Update
+2026-10-07 14:39:00 | createNotification OK: id=2 user_id=1 type=queue title=Queue Update
+2026-10-07 14:39:00 | createNotification OK: id=3 user_id=1 type=queue title=Queue Update
+2026-10-07 14:39:01 | createNotification FAILED: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'user_id' in 'field list'
+2026-10-07 14:39:57 | createNotification OK: id=808 user_id=89 type=queue title=Queue Update
+2026-10-07 14:41:12 | createNotification OK: id=809 user_id=89 type=queue title=Queue Update
+2026-10-07 14:41:30 | createNotification OK: id=810 user_id=89 type=queue title=Queue Update
+2026-10-07 14:42:21 | createNotification OK: id=811 user_id=89 type=queue title=Queue Update
+2026-10-07 14:42:47 | createNotification OK: id=812 user_id=89 type=queue title=Queue Update
+2026-10-07 14:46:55 | createNotification OK: id=1 user_id=1 type=queue title=Queue Update
+2026-10-07 14:46:55 | createNotification OK: id=2 user_id=1 type=queue title=Queue Update
+2026-10-07 14:46:55 | createNotification OK: id=3 user_id=1 type=queue title=Queue Update
+2026-10-07 14:46:56 | createNotification FAILED: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'user_id' in 'field list'
+2026-10-07 14:51:11 | createNotification OK: id=817 user_id=89 type=queue title=Queue Update
+2026-10-07 14:51:24 | createNotification OK: id=818 user_id=89 type=payment title=Consultation complete
+2026-10-07 14:51:24 | notifyPatientConsultationComplete OK: user_id=89 patient_id=144 balance=5000
+2026-10-07 14:51:24 | notifyStaffConsultationComplete OK: patient=Cj Perez amount=5000 treatment=Fixed Bridge
+2026-10-07 14:56:46 | sendPatientSms: not sent for patient_id=144: the SMS gateway rejected the message (TextBee error: Device does not exist or is not enabled)
+2026-10-07 14:56:46 | notifyPatientPaymentRecorded: user_id=89 patient_id=144 amount=200 method=gcash treatment=Fixed Bridge balance=4800
+2026-10-07 14:56:46 | createNotification OK: id=820 user_id=89 type=payment title=Payment Recorded
+2026-10-07 14:56:46 | billing_actions: notifyPatientPaymentRecorded OK for patient_id=144 amount=200 method=gcash
+2026-10-07 14:56:55 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'
+2026-10-07 14:57:36 | sendPatientSms: not sent for patient_id=144: the SMS gateway rejected the message (TextBee error: Device does not exist or is not enabled)
+2026-10-07 14:57:36 | notifyPatientPaymentRecorded: user_id=89 patient_id=144 amount=4800 method=Cash treatment=Fixed Bridge balance=0
+2026-10-07 14:57:36 | createNotification OK: id=821 user_id=89 type=payment title=Payment Recorded
+2026-10-07 14:57:36 | billing_actions mark_paid: notifyPatientPaymentRecorded OK for patient_id=144 amount=4800 method=Cash
+2026-10-07 14:57:41 | checkAndNotifyOverduePayments failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'b.is_archived' in 'where clause'

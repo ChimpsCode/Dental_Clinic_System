@@ -26,11 +26,12 @@ try {
         require_once __DIR__ . '/../../includes/audit_helper.php';
         logAudit($pdo, $_SESSION['user_id'], $_SESSION['username'] ?? '', 'user', $input['action'] === 'cancel' ? 'cancel' : 'update', 'appointments', $result['message'], $result['appointment_id'], 'appointments');
         require_once __DIR__ . '/../../includes/notification_functions.php';
-        $title = $input['action'] === 'edit' ? 'Patient Updated Appointment Request' : 'Patient Cancelled Appointment';
+        $title = $input['action'] === 'request_cancel' ? 'Patient Requested Appointment Cancellation' : ($input['action'] === 'edit' ? 'Patient Updated Appointment Request' : 'Patient Cancelled Appointment');
         $message = 'Appointment #' . $result['appointment_id'] . ': ' . $result['message'];
-        notifyAdmin($pdo, 'appointment', $title, $message, 'admin_appointments.php');
-        notifyStaff($pdo, 'appointment', $title, $message, 'staff_appointments.php');
-        notifyDentist($pdo, 'appointment', $title, $message, 'dentist_appointments.php');
+        $suffix = !empty($result['request_id']) ? '?cancellation_request=' . $result['request_id'] : '';
+        notifyAdmin($pdo, 'appointment', $title, $message, 'admin_appointments.php' . $suffix);
+        notifyStaff($pdo, 'appointment', $title, $message, 'staff_appointments.php' . $suffix);
+        notifyDentist($pdo, 'appointment', $title, $message, 'dentist_appointments.php' . $suffix);
     } catch (Throwable $e) { error_log('Patient appointment notification: ' . $e->getMessage()); }
     echo json_encode($result);
 } catch (InvalidArgumentException $e) {

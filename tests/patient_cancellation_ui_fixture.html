@@ -1,0 +1,37 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Patient cancellation UI test</title></head><body>
+<p id="result">Running...</p>
+<button data-appt-management="request_cancel" data-appointment-id="1">Cancel approved appointment</button>
+<button data-appt-management="cancel" data-appointment-id="2">Cancel pending booking</button>
+<div id="patientAppointmentEditModal"><button data-close-patient-edit>Close</button><form id="patientAppointmentEditForm"><input id="patientEditDate"><select id="patientEditService"></select><select id="patientEditTime"></select><textarea id="patientEditNotes"></textarea><button id="patientEditReview">Review</button><p id="patientEditError"></p></form></div>
+<div id="patientAppointmentConfirmModal"><h2 id="patientAppointmentConfirmTitle"></h2><p id="patientAppointmentConfirmMessage"></p><div id="patientAppointmentConfirmDetails"></div><div id="patientAppointmentCancelReasonWrap"><label id="patientAppointmentCancelReasonLabel"></label><textarea id="patientAppointmentCancelReason"></textarea><p id="patientAppointmentClinicContact"></p></div><p id="patientAppointmentConfirmError"></p><button id="patientAppointmentConfirmBack">Back</button><button id="patientAppointmentConfirmSave">Save</button></div>
+<script>
+window.PATIENT_APPOINTMENT_MANAGEMENT = {csrf:'test',clinicPhone:'0949 347 2725',appointments:[1,2].map(id => ({id,service_name:'Consultation',appointment_date:'2099-01-01',appointment_time:'10:00:00',status:id === 1 ? 'Scheduled' : 'Pending Approval'}))};
+const sent = [];
+window.fetch = async (url, options) => {
+    sent.push(JSON.parse(options.body));
+    return {json:async () => ({success:true,message:sent.at(-1).action === 'request_cancel' ? 'Your appointment remains scheduled until cancellation is approved.' : 'Your appointment has been cancelled.'})};
+};
+</script><script src="../assets/js/patient-appointment-management.js"></script>
+<script>
+const wait = () => new Promise(resolve => setTimeout(resolve, 30));
+function check(value, message) { if (!value) throw new Error(message); }
+(async () => {
+    try {
+        document.querySelector('[data-appt-management=request_cancel]').click();
+        const save = document.getElementById('patientAppointmentConfirmSave');
+        check(save.textContent === 'Submit Cancellation Request', 'Approved appointment opens request modal');
+        check(document.getElementById('patientAppointmentClinicContact').querySelector('a').href.startsWith('tel:'), 'Clinic call link');
+        save.click(); await wait();
+        check(sent.length === 0 && document.getElementById('patientAppointmentConfirmError').textContent.includes('reason'), 'Request requires reason before sending');
+        document.getElementById('patientAppointmentCancelReason').value = 'Cannot attend';
+        save.click(); save.click(); await wait();
+        check(sent.length === 1 && sent[0].action === 'request_cancel' && sent[0].cancel_reason === 'Cannot attend', 'Single cancellation request sent');
+        check(document.getElementById('patientAppointmentConfirmTitle').textContent === 'Cancellation Requested', 'Request is not presented as already cancelled');
+        document.querySelector('[data-appt-management=cancel]').click();
+        check(save.textContent === 'Confirm Cancellation', 'Pending booking opens direct cancellation');
+        save.click(); await wait();
+        check(sent.length === 2 && sent[1].action === 'cancel', 'Pending booking cancels directly');
+        document.getElementById('result').textContent = 'PASS: approved request, required reason, clinic call link, duplicate-click protection, and pending direct cancellation.';
+    } catch (error) { document.getElementById('result').textContent = 'FAIL: ' + error.message; }
+})();
+</script></body></html>

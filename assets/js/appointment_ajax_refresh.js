@@ -208,7 +208,7 @@
         var state = {
             filter: activeFilter ? activeFilter.dataset.filter : 'all',
             search: searchInput ? searchInput.value : '',
-            view: activeView ? activeView.dataset.view : 'list'
+            view: document.querySelector('.cancellation-tab.active') ? 'cancellations' : (activeView ? activeView.dataset.view : 'list')
         };
 
         content.setAttribute('aria-busy', 'true');
@@ -242,6 +242,7 @@
 
                 content.replaceWith(nextContent);
                 restoreAppointmentView(state);
+                document.dispatchEvent(new CustomEvent('appointments:refreshed'));
                 document.querySelectorAll('.modal-overlay').forEach(function (modal) {
                     // Never force-close modals the user is actively using
                     // (e.g. the Reschedule Appointment form); polling-triggered
@@ -316,6 +317,7 @@
         });
 
         if (typeof window.filterAppointments === 'function') window.filterAppointments();
+        if (state.view === 'cancellations' && typeof window.showCancellationRequests === 'function') window.showCancellationRequests();
         if (state.view === 'calendar') {
             var listView = document.getElementById('listView');
             var calendarView = document.getElementById('calendarView');
