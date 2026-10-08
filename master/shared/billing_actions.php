@@ -37,6 +37,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
 // Include audit helper
 require_once __DIR__ . '/../../includes/audit_helper.php';
+require_once __DIR__ . '/../../includes/payment_approval_helper.php';
+ensurePaymentApprovalSchema($pdo);
 
 // Include Senior/PWD discount helper
 require_once __DIR__ . '/../../includes/discount_helper.php';
@@ -114,20 +116,27 @@ try {
 
             if ($patient_id) {
                 $stmt = $pdo->prepare("
-                    SELECT pay.id, pay.billing_id, pay.patient_id, pay.amount, pay.payment_method,
-                           pay.payment_date, pay.reference_number, pay.created_by, pay.notes, pay.created_at
+                    SELECT pay.*,
+                           recorder.username AS recorded_by, approver.username AS approved_by, requester.username AS requested_by
                     FROM payments pay
                     LEFT JOIN billing b ON b.id = pay.billing_id
+                    LEFT JOIN users recorder ON recorder.id = pay.created_by
+                    LEFT JOIN users approver ON approver.id = pay.voided_by
+                    LEFT JOIN users requester ON requester.id = pay.void_requested_by
                     WHERE pay.patient_id = ? OR b.patient_id = ?
                     ORDER BY pay.payment_date DESC, pay.created_at DESC
                 ");
                 $stmt->execute([$patient_id, $patient_id]);
             } else {
                 $stmt = $pdo->prepare("
-                    SELECT id, billing_id, patient_id, amount, payment_method, payment_date, reference_number, created_by, notes, created_at
-                    FROM payments
-                    WHERE billing_id = ?
-                    ORDER BY payment_date DESC, created_at DESC
+                    SELECT pay.*, recorder.username AS recorded_by,
+                           approver.username AS approved_by, requester.username AS requested_by
+                    FROM payments pay
+                    LEFT JOIN users recorder ON recorder.id = pay.created_by
+                    LEFT JOIN users approver ON approver.id = pay.voided_by
+                    LEFT JOIN users requester ON requester.id = pay.void_requested_by
+                    WHERE pay.billing_id = ?
+                    ORDER BY pay.payment_date DESC, pay.created_at DESC
                 ");
                 $stmt->execute([$billing_id]);
             }
@@ -452,7 +461,7 @@ try {
                 // Find or create billing record
                 if ($billing_id) {
                     // Get old status before update
-                    $stmt = $pdo->prepare("SELECT payment_status, total_amount FROM billing WHERE id = ?");
+                    $stmt = $pdo->prepare("SELECT payment_status, total_amount FROM billing WHERE id = ? FOR UPDATE");
                     $stmt->execute([$billing_id]);
                     $existingBilling = $stmt->fetch(PDO::FETCH_ASSOC);
                     $old_status = strtolower(($existingBilling['payment_status'] ?? '') ?: 'unpaid');
@@ -631,6 +640,7 @@ try {
                           AND COALESCE(balance, 0) > 0
                           AND LOWER(COALESCE(payment_status, '')) NOT IN ('paid', 'cancelled', 'canceled', 'voided')
                         ORDER BY created_at ASC, id ASC
+                        FOR UPDATE
                     ");
                     $stmt->execute([$patient_id]);
                     $openBills = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -735,10 +745,10 @@ try {
 
                 // Find or create billing record
                 if ($billing_id) {
-                    $stmt = $pdo->prepare("SELECT id, total_amount, paid_amount, balance, payment_status FROM billing WHERE id = ?");
+                    $stmt = $pdo->prepare("SELECT id, total_amount, paid_amount, balance, payment_status FROM billing WHERE id = ? FOR UPDATE");
                     $stmt->execute([$billing_id]);
                 } else {
-                    $stmt = $pdo->prepare("SELECT id, total_amount, paid_amount, balance, payment_status FROM billing WHERE patient_id = ? ORDER BY created_at DESC LIMIT 1");
+                    $stmt = $pdo->prepare("SELECT id, total_amount, paid_amount, balance, payment_status FROM billing WHERE patient_id = ? ORDER BY created_at DESC LIMIT 1 FOR UPDATE");
                     $stmt->execute([$patient_id]);
                 }
                 $billing = $stmt->fetch(PDO::FETCH_ASSOC);

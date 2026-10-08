@@ -32,13 +32,13 @@ $result = managePatientAppointment($pdo, 7, 99, $input, $available);
 $after = $read(1);
 $check($result['success'] && $after['status'] === 'Pending Approval' && !empty($after['patient_edited_at']), 'First edit succeeds and remains pending approval');
 $check($after['service_id'] == 2 && $after['duration_minutes'] == 60 && $after['notes'] === 'Updated notes', 'Edited service, duration and notes persist');
-$reject(array_replace($input, ['notes'=>'Another edit']), 'only once');
+$reject(array_replace($input, ['notes'=>'Another edit']), 'one-time edit');
 $check($read(1)['notes'] === 'Updated notes', 'Second edit does not change saved content');
 managePatientAppointment($pdo, 7, 99, ['action'=>'cancel','appointment_id'=>1,'cancel_reason'=>'Cannot attend']);
 $check($read(1)['status'] === 'Cancelled' && $read(1)['cancelled_by'] == 99 && $read(1)['cancel_reason'] === 'Cannot attend', 'An edited pending request can still be cancelled');
 $reject(['action'=>'cancel','appointment_id'=>1], 'no longer be cancelled');
 $pdo->exec("UPDATE appointments SET status='Scheduled', approved_by=88, approved_at=CURRENT_TIMESTAMP WHERE id=2");
-$reject(array_replace($input, ['appointment_id'=>2]), 'only once');
+$reject(array_replace($input, ['appointment_id'=>2]), 'already been approved');
 $reject(['action'=>'cancel','appointment_id'=>2], 'no longer be cancelled');
 $reject(['action'=>'request_cancel','appointment_id'=>2], 'cancellation reason');
 $request = managePatientAppointment($pdo,7,99,['action'=>'request_cancel','appointment_id'=>2,'cancel_reason'=>'Unable to attend']);
@@ -52,7 +52,7 @@ $check($read(2)['status'] === 'Cancelled' && $read(2)['cancelled_by'] == 88, 'On
 try { reviewAppointmentCancellationRequest($pdo, $request['request_id'], 88, 'approve', ''); throw new RuntimeException('Duplicate review accepted'); }
 catch (InvalidArgumentException $e) { $check(str_contains($e->getMessage(), 'already been reviewed'), 'Duplicate reviews rejected'); }
 $pdo->exec("UPDATE appointments SET approved_at=CURRENT_TIMESTAMP WHERE id=3");
-$reject(array_replace($input,['appointment_id'=>3]), 'only once');
+$reject(array_replace($input,['appointment_id'=>3]), 'already been approved');
 $pdo->exec("UPDATE appointments SET check_in_time=CURRENT_TIMESTAMP WHERE id=4");
 $reject(['action'=>'cancel','appointment_id'=>4], 'no longer be cancelled');
 $pdo->exec("INSERT INTO queue VALUES (5, 'waiting')");
@@ -74,11 +74,15 @@ $insert->execute([15, $date]);
 $pdo->exec("UPDATE appointments SET status='Scheduled', approved_at=CURRENT_TIMESTAMP WHERE id=15");
 $reject(['action'=>'request_cancel','appointment_id'=>15,'cancel_reason'=>'Reason'], 'not found', 8);
 $request = managePatientAppointment($pdo,7,99,['action'=>'request_cancel','appointment_id'=>15,'cancel_reason'=>'Reason']);
+try { assertAppointmentCancellationReviewedBeforeArrival($pdo, 15); throw new RuntimeException('Pending cancellation allowed arrival'); }
+catch (InvalidArgumentException $e) { $check(str_contains($e->getMessage(), 'Decline'), 'Pending cancellation blocks arrival until declined'); }
 $pdo->exec("INSERT INTO queue VALUES (15, 'on_hold')");
 try { reviewAppointmentCancellationRequest($pdo, $request['request_id'], 88, 'approve', ''); throw new RuntimeException('Queued appointment cancelled'); }
 catch (InvalidArgumentException $e) { $check(str_contains($e->getMessage(), 'clinic queue'), 'Approval rechecks queue state'); }
 $check(!$pdo->inTransaction() && $read(15)['status'] === 'Scheduled', 'Failed review rolls back without cancelling');
 reviewAppointmentCancellationRequest($pdo, $request['request_id'], 88, 'decline', 'Patient is in the clinic');
+assertAppointmentCancellationReviewedBeforeArrival($pdo, 15);
+$check(!isset(pendingAppointmentCancellationRequests($pdo)[15]), 'Declined requests clear the badge and arrival restriction');
 
 echo "PASS: cancellation request ownership, required reason, duplicate prevention, decline/retry, clinic approval, and queue race protection\n";
 echo "PASS: ownership, approval lock, one-time edit, no-op/invalid slot recovery, cancellation, queue and terminal-state restrictions\n";

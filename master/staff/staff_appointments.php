@@ -8,6 +8,8 @@ if ($currentPage < 1) $currentPage = 1;
 
 try {
     require_once '../../config/database.php';
+require_once __DIR__ . '/../../includes/appointment_cancellation_requests.php';
+$pendingCancellationRequests = pendingAppointmentCancellationRequests($pdo);
 require_once __DIR__ . '/../../includes/treatment_plan_workflow.php';
 ensureTreatmentPlanWorkflowSchema($pdo);
     require_once __DIR__ . '/../../includes/appointment_approval_helper.php';
@@ -452,6 +454,7 @@ try {
                         elseif (stripos($status, 'cancel') !== false) $badgeClass = 'status-cancelled';
                     ?>
                     <div class="appointment-mini-card" 
+                         data-id="<?php echo (int)$appt['id']; ?>"
                          data-name="<?php echo strtolower($name); ?>"
                          data-date="<?php echo $date; ?>"
                          data-status="<?php echo strtolower($status); ?>"
@@ -461,7 +464,7 @@ try {
                             <span class="mini-card-time"><?php echo $time; ?></span>
                             <div class="appt-kebab-menu" style="flex-shrink:0;">
                                 <button class="appt-kebab-btn"
-                                        data-appt-id="<?php echo $appt['id']; ?>"
+                                        data-appt-id="<?php echo $appt['id']; ?>" data-cancellation-request="<?php echo (int)($pendingCancellationRequests[$appt['id']] ?? 0); ?>"
                                         data-status="<?php echo htmlspecialchars($appt['status_label'] ?? $appt['status'] ?? 'Scheduled'); ?>"
                                         data-checked-in="<?php echo $appt['check_in_time'] ?? ''; ?>">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -476,13 +479,16 @@ try {
                             <span class="mini-card-date">📅 <?php echo htmlspecialchars($dateLabel); ?></span>
                             <div class="mini-card-treatment-group"><span class="mini-card-treatment"><?php echo $treatment; ?> &middot; <?php echo $dentist; ?></span>
                             <?php if (!empty($appt['treatment_plan_id'])): ?><span class="treatment-plan-tag">Treatment Plan</span><?php endif; ?></div>
-                            <span class="status-badge badge-small <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($status); ?></span>
+                            <span class="status-badge badge-small <?php echo $badgeClass; ?><?php echo !empty($pendingCancellationRequests[$appt['id']]) && $sec === 'scheduled' ? ' status-requesting-cancellation' : ''; ?>" data-original-status="<?php echo htmlspecialchars($status, ENT_QUOTES, 'UTF-8'); ?>"><?php echo !empty($pendingCancellationRequests[$appt['id']]) && $sec === 'scheduled' ? 'Requesting for cancellation' : htmlspecialchars($status); ?></span>
                         </div>
                         <?php
                         $pendingNotes = trim((string)($appt['notes'] ?? ''));
                         if ($sec === 'pendingapproval' && $pendingNotes !== ''):
                         ?>
                         <div class="mini-card-notes">notes: <?php echo htmlspecialchars($pendingNotes); ?></div>
+                        <?php endif; ?>
+                        <?php if ($sec === 'pendingapproval' && !empty($appt['patient_edited_at'])): ?>
+                        <div class="mini-card-notes" style="font-size:11px;font-weight:400;color:#64748b;margin-top:3px;line-height:1.4;">Edited by patient &middot; Awaiting approval</div>
                         <?php endif; ?>
                         <?php if ($sec === 'pendingapproval'): ?>
                         <div class="appt-approval-actions">
@@ -524,13 +530,13 @@ try {
 </div>
 
 <div id="viewAppointmentModal" class="modal-overlay" data-preserve-open="1">
-    <div class="modal" style="width: 500px;">
-        <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Appointment Details</h2>
+    <div class="modal appointment-details-modal" role="dialog" aria-modal="true" aria-labelledby="staffAppointmentDetailsTitle">
+        <h2 id="staffAppointmentDetailsTitle">Appointment Details</h2>
         <div id="viewAppointmentContent"></div>
-        <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px; flex-wrap: wrap;">
+        <div class="appointment-details-footer">
             <button type="button" id="messagePatientFromNotesBtn" onclick="messagePatientFromNotes()" class="btn-primary" style="display:none; background:#0369a1;">Message patient</button>
-            <button onclick="closeViewAppointmentModal()" class="btn-primary">Close</button>
-            <button onclick="editAppointmentFromView()" class="btn-primary">Edit</button>
+            <button type="button" onclick="closeViewAppointmentModal()" class="appointment-details-close">Close</button>
+            <button type="button" onclick="editAppointmentFromView()" class="appointment-details-edit">Edit</button>
         </div>
     </div>
 </div>
@@ -938,6 +944,44 @@ try {
 .modal-overlay[style*="display: flex"] {
     display: flex !important;
 }
+
+#viewAppointmentModal { padding:16px;background:rgba(15,23,42,.5); }
+#viewAppointmentModal .appointment-details-modal { width:620px;max-width:100%;max-height:calc(100dvh - 32px);padding:24px;border:1px solid #e2e8f0;border-radius:16px;color:#334155;font:400 14px/1.5 "Segoe UI",Arial,sans-serif;box-shadow:0 20px 60px #0f172a30; }
+#viewAppointmentModal h2 { margin:0 0 20px;font-size:20px;font-weight:600;line-height:1.3;color:#1e293b; }
+#viewAppointmentContent .appointment-details-list { display:grid;grid-template-columns:90px minmax(0,1fr);gap:12px 16px;margin:0;padding:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px; }
+#viewAppointmentContent dt { margin:0;color:#64748b;font-size:13px;font-weight:400;line-height:1.5; }
+#viewAppointmentContent dd { margin:0;color:#334155;font-size:14px;font-weight:400;line-height:1.5;overflow-wrap:anywhere; }
+#viewAppointmentContent .status-badge { display:inline-block;margin:0;padding:3px 10px;font-size:11px;font-weight:500;line-height:1.4; }
+#viewAppointmentContent .appointment-details-notes { margin-top:18px; }
+#viewAppointmentContent .appointment-details-notes h3 { margin:0 0 7px;color:#64748b;font-size:13px;font-weight:500; }
+#viewAppointmentContent .appointment-details-notes p { margin:0;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;font-weight:400;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere; }
+#viewAppointmentModal .appointment-details-footer { display:flex;justify-content:flex-end;flex-wrap:wrap;gap:10px;margin:24px -24px -24px;padding:16px 24px;border-top:1px solid #e2e8f0;background:#f8fafc; }
+#viewAppointmentModal button { padding:9px 16px;min-height:40px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#475569;font:500 13px/1.5 "Segoe UI",Arial,sans-serif;cursor:pointer; }
+#viewAppointmentModal .appointment-details-close:hover { background:#f1f5f9; }
+#viewAppointmentModal .appointment-details-edit { background:#005daa;border-color:#005daa;color:#fff; }
+#viewAppointmentModal .appointment-details-edit:hover { background:#004b89;border-color:#004b89; }
+#viewAppointmentModal #messagePatientFromNotesBtn { color:#fff;border-color:#0369a1; }
+#viewAppointmentModal button:focus-visible { outline:2px solid #005daa;outline-offset:3px; }
+#viewAppointmentContent .appointment-detail-heading { margin:0 0 10px;font-size:14px;font-weight:500;color:#475569; }
+#viewAppointmentContent .appointment-payment-section { margin-top:24px; }
+#viewAppointmentContent .appointment-payment-heading { display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px; }
+#viewAppointmentContent .appointment-payment-heading h3 { margin:0; }
+#viewAppointmentContent .appointment-payment-summary { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px; }
+#viewAppointmentContent .appointment-payment-summary div { padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px; }
+#viewAppointmentContent .appointment-payment-summary span { display:block;font-size:12px;color:#64748b;margin-bottom:4px; }
+#viewAppointmentContent .appointment-payment-summary strong { font-size:15px;font-weight:500;overflow-wrap:anywhere; }
+#viewAppointmentContent .appointment-payment-status { padding:3px 9px;border-radius:999px;background:#e2e8f0;color:#475569;font-size:11px;font-weight:500;white-space:nowrap; }
+#viewAppointmentContent .appointment-payment-status.paid { background:#dcfce7;color:#15803d; }
+#viewAppointmentContent .appointment-payment-status.partial,#viewAppointmentContent .appointment-payment-status.unpaid { background:#fff7ed;color:#c2410c; }
+#viewAppointmentContent .appointment-payment-message { font-size:13px;color:#64748b;line-height:1.5;margin:0; }
+#viewAppointmentContent .appointment-payment-table-wrap { overflow-x:auto;margin-top:14px;border:1px solid #e2e8f0;border-radius:8px; }
+#viewAppointmentContent .appointment-payment-table { width:100%;border-collapse:collapse;font-size:12px; }
+#viewAppointmentContent .appointment-payment-table th { background:#f8fafc;color:#64748b;font-weight:500;text-align:left; }
+#viewAppointmentContent .appointment-payment-table th,#viewAppointmentContent .appointment-payment-table td { padding:10px;border-bottom:1px solid #e2e8f0;overflow-wrap:anywhere; }
+#viewAppointmentContent .appointment-payment-table tr:last-child td { border-bottom:0; }
+#viewAppointmentContent .appointment-payment-table .payment-amount { text-align:right;white-space:nowrap; }
+#viewAppointmentContent .appointment-payment-date { margin-top:10px;color:#64748b;font-size:12px; }
+@media(max-width:420px) { #viewAppointmentContent .appointment-payment-summary { grid-template-columns:1fr; } }
 
 .modal {
     background: white;
@@ -1761,21 +1805,21 @@ try {
         const displayName = [firstName, middleName, lastName].filter(n => n).join(' ') || 'Unknown';
         
         document.getElementById('viewAppointmentContent').innerHTML = `
-            <div style="display: flex; flex-direction: column; gap: 16px;">
-                <div>
-                    <span style="color: #6b7280;">Patient:</span> 
-                    <span style="font-weight: 600; margin-left: 8px;">${firstName}</span>
-                    ${middleName ? `<span style="color: #6b7280; margin-left: 4px;">${middleName}</span>` : ''}
-                    <span style="font-weight: 600; margin-left: 4px;">${lastName}</span>
-                </div>
-                <div><span style="color: #6b7280;">Phone:</span> <span style="font-weight: 500; margin-left: 8px;">${eh(appt.phone) || 'N/A'}</span></div>
-                <div><span style="color: #6b7280;">Date:</span> <span style="font-weight: 500; margin-left: 8px;">${new Date(appt.appointment_date).toLocaleDateString()}</span></div>
-                <div><span style="color: #6b7280;">Time:</span> <span style="font-weight: 500; margin-left: 8px;">${appt.appointment_time ? new Date('1970-01-01 ' + appt.appointment_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'N/A'}</span></div>
-                <div><span style="color: #6b7280;">Treatment:</span> <span style="font-weight: 500; margin-left: 8px;">${eh(appt.service_name || appt.treatment || 'General')}</span></div>
-                <div><span style="color: #6b7280;">Dentist:</span> <span style="font-weight: 500; margin-left: 8px;">${eh(appt.dentist_name || 'Unassigned')}</span></div>
-                <div><span style="color: #6b7280;">Status:</span> <span class="status-badge" style="margin-left: 8px; background: ${getAppointmentDisplayStatus(appt) === 'Completed' ? '#dcfce7' : getAppointmentDisplayStatus(appt) === 'Cancelled' ? '#fee2e2' : getAppointmentDisplayStatus(appt).toLowerCase() === 'in procedure' ? '#cffafe' : getAppointmentDisplayStatus(appt).toLowerCase() === 'arrived' ? '#ccfbf1' : '#e0f2fe'}; color: ${getAppointmentDisplayStatus(appt) === 'Completed' ? '#15803d' : getAppointmentDisplayStatus(appt) === 'Cancelled' ? '#dc2626' : getAppointmentDisplayStatus(appt).toLowerCase() === 'in procedure' ? '#0e7490' : getAppointmentDisplayStatus(appt).toLowerCase() === 'arrived' ? '#0f766e' : '#0369a1'};">${eh(getAppointmentDisplayStatus(appt))}</span></div>
-                ${appt.notes ? `<div><span style="color: #6b7280;">Notes:</span><p style="background: #f9fafb; padding: 12px; border-radius: 8px; margin: 8px 0 0;">${eh(appt.notes)}</p></div>` : ''}
-            </div>
+            <h3 class="appointment-detail-heading">Appointment information</h3>
+            <dl class="appointment-details-list">
+                <dt>Patient</dt><dd>${displayName}</dd>
+                <dt>Phone</dt><dd>${eh(appt.phone) || 'N/A'}</dd>
+                <dt>Date</dt><dd>${new Date(appt.appointment_date).toLocaleDateString()}</dd>
+                <dt>Time</dt><dd>${appt.appointment_time ? new Date('1970-01-01 ' + appt.appointment_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'N/A'}</dd>
+                <dt>Treatment</dt><dd>${eh(appt.service_name || appt.treatment || 'General')}</dd>
+                <dt>Dentist</dt><dd>${eh(appt.dentist_name || 'Unassigned')}</dd>
+                <dt>Status</dt><dd><span class="status-badge" style="background: ${getAppointmentDisplayStatus(appt) === 'Completed' ? '#dcfce7' : getAppointmentDisplayStatus(appt) === 'Cancelled' ? '#fee2e2' : getAppointmentDisplayStatus(appt).toLowerCase() === 'in procedure' ? '#cffafe' : getAppointmentDisplayStatus(appt).toLowerCase() === 'arrived' ? '#ccfbf1' : '#e0f2fe'}; color: ${getAppointmentDisplayStatus(appt) === 'Completed' ? '#15803d' : getAppointmentDisplayStatus(appt) === 'Cancelled' ? '#dc2626' : getAppointmentDisplayStatus(appt).toLowerCase() === 'in procedure' ? '#0e7490' : getAppointmentDisplayStatus(appt).toLowerCase() === 'arrived' ? '#0f766e' : '#0369a1'};">${eh(getAppointmentDisplayStatus(appt))}</span></dd>
+            </dl>
+            ${appt.notes ? `<div class="appointment-details-notes"><h3>Notes</h3><p>${eh(appt.notes)}</p></div>` : ''}
+            <section class="appointment-payment-section" aria-label="Payment details">
+                <div class="appointment-payment-heading"><h3 class="appointment-detail-heading">Payment details</h3></div>
+                <div id="appointmentPaymentDetails" aria-live="polite"><p class="appointment-payment-message">Loading payment details...</p></div>
+            </section>
         `;
         
         document.getElementById('viewAppointmentModal').dataset.appointmentId = id;
@@ -1785,6 +1829,33 @@ try {
             msgBtn.style.display = (appt.notes && String(appt.notes).trim()) ? 'inline-flex' : 'none';
         }
         document.getElementById('viewAppointmentModal').style.display = 'flex';
+        loadAppointmentPaymentDetails(id);
+    }
+
+    async function loadAppointmentPaymentDetails(id) {
+        const box = document.getElementById('appointmentPaymentDetails');
+        const escape = value => escapeHtmlQueue(String(value ?? ''));
+        const money = value => new Intl.NumberFormat('en-PH', {style:'currency', currency:'PHP'}).format(Number(value || 0));
+        try {
+            const response = await fetch('../shared/appointment_payment_details.php?appointment_id=' + encodeURIComponent(id), {credentials:'same-origin', cache:'no-store'});
+            const data = await response.json();
+            if (!response.ok || !data.success) throw new Error(data.message || 'Unable to load payment details.');
+            if (!box.isConnected || document.getElementById('viewAppointmentModal').dataset.appointmentId != id) return;
+            if (!data.invoices.length) {
+                box.innerHTML = '<p class="appointment-payment-message">No invoice or payment has been recorded for this appointment yet.</p>';
+                return;
+            }
+            const statusClass = ['paid','partial','unpaid'].includes(data.status.toLowerCase()) ? data.status.toLowerCase() : '';
+            const invoices = data.invoices.map(invoice => 'INV-' + String(invoice.id).padStart(4, '0') + (invoice.due_date ? ' · Due ' + invoice.due_date : '')).join(' / ');
+            const rows = data.payments.map(payment => `<tr><td>${escape(payment.payment_date)}</td><td>${escape(payment.payment_method || 'Not specified')}</td><td class="payment-amount">${escape(money(payment.amount))}</td><td>${escape(payment.reference_number || '—')}<br><span class="appointment-payment-message">${payment.voided_at ? 'Voided' : 'Recorded'}</span></td></tr>`).join('');
+            box.innerHTML = `<div class="appointment-payment-heading"><span class="appointment-payment-message">${escape(invoices)}</span><span class="appointment-payment-status ${statusClass}">${escape(data.status)}</span></div>
+                <div class="appointment-payment-summary"><div><span>Total billed</span><strong>${escape(money(data.total))}</strong></div><div><span>Paid</span><strong>${escape(money(data.paid))}</strong></div><div><span>Balance</span><strong>${escape(money(data.balance))}</strong></div></div>
+                ${rows ? `<div class="appointment-payment-table-wrap"><table class="appointment-payment-table"><thead><tr><th>Date</th><th>Method</th><th class="payment-amount">Amount</th><th>Reference / Status</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="appointment-payment-date">No payments recorded yet.</p>'}`;
+        } catch (error) {
+            if (!box.isConnected || document.getElementById('viewAppointmentModal').dataset.appointmentId != id) return;
+            box.textContent = error.message;
+            box.classList.add('appointment-payment-message');
+        }
     }
 
     function messagePatientFromNotes() {
@@ -1985,6 +2056,7 @@ try {
         const status = (button ? button.getAttribute('data-status') : '').toLowerCase();
         const checkedIn = button ? button.getAttribute('data-checked-in') : '';
         const isPendingApproval = status.includes('pending approval');
+        const cancellationRequestId = Number(button?.dataset.cancellationRequest || 0);
         const isArrived = checkedIn && checkedIn.trim() !== '';
 
         let menuItems = `
@@ -2004,7 +2076,11 @@ try {
             </a>
         `;
 
-        if (!isPendingApproval && !isArrived) {
+        if (cancellationRequestId) {
+            menuItems = menuItems.replace('</a>', '</a><a href="#" data-cancellation-request="' + cancellationRequestId + '" style="color:#374151;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>View Request</a>');
+        }
+
+        if (!isPendingApproval && !isArrived && !cancellationRequestId) {
             menuItems += `<a href="javascript:void(0)" data-action="mark_arrived" data-id="${apptId}" style="color:#374151;"><span aria-hidden="true">✓</span> Mark as Arrived</a>`;
         }
         if (!isPendingApproval) {
@@ -2749,6 +2825,6 @@ document.addEventListener('DOMContentLoaded', startAppointmentPolling);
     }
 })();
 </script>
-<script src="../../assets/js/appointment_ajax_refresh.js?v=2"></script>
+<script src="../../assets/js/appointment_ajax_refresh.js?v=3"></script>
 
 <?php require_once '../../includes/staff_layout_end.php'; ?>

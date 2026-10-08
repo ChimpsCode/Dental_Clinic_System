@@ -91,6 +91,8 @@ function tableHasColumn(PDO $pdo, string $table, string $column): bool {
 
 try {
     require_once '../../config/database.php';
+    require_once __DIR__ . '/../../includes/payment_approval_helper.php';
+    ensurePaymentApprovalSchema($pdo);
 
     $selectList = [
         'p.id',
@@ -453,6 +455,7 @@ try {
             SELECT id, billing_id, amount, payment_method, payment_date, reference_number, notes, created_at
             FROM payments
             WHERE patient_id = ?
+              AND voided_at IS NULL
             ORDER BY payment_date DESC, created_at DESC
             LIMIT 50
         ");

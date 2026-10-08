@@ -718,6 +718,7 @@ function isActivePage($page) {
                                         default => 'admin_dashboard.php',
                                     };
                                     if (preg_match('/[?&]cancellation_request=(\d+)/', (string)($n['action_url'] ?? ''), $cancelMatch)) $notifHref .= '?cancellation_request=' . $cancelMatch[1];
+                                    if ($notifType === 'payment' && preg_match('/^admin_payment_log\.php\?search=\d+$/D', (string)($n['action_url'] ?? ''))) $notifHref = $n['action_url'];
                                 ?>
                                 <a class="notif-item<?php echo $unread; ?>" href="<?php echo htmlspecialchars($notifHref); ?>" data-notif-id="<?php echo (int)$n['id']; ?>" data-notif-type="<?php echo htmlspecialchars($notifType); ?>">
                                     <div class="notif-icon <?php echo $typeClass; ?>"><i class="fas <?php echo $icon; ?>"></i></div>

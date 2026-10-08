@@ -685,7 +685,7 @@ $pageTitle = 'My Appointments';
     <script>
         window.PATIENT_APPOINTMENT_MANAGEMENT = <?php echo json_encode(['appointments' => $upcoming_appointments, 'csrf' => $_SESSION['patient_appointment_csrf'], 'clinicPhone'=>$cancellationClinicPhone], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE); ?>;
     </script>
-    <script src="../../assets/js/patient-appointment-management.js"></script>
+    <script src="../../assets/js/patient-appointment-management.js?v=2"></script>
     <script>
         const bookedDatesSlots = <?php echo json_encode($bookedDateSlots); ?>;
         let currentDate = new Date();

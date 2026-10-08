@@ -208,7 +208,7 @@
         var state = {
             filter: activeFilter ? activeFilter.dataset.filter : 'all',
             search: searchInput ? searchInput.value : '',
-            view: document.querySelector('.cancellation-tab.active') ? 'cancellations' : (activeView ? activeView.dataset.view : 'list')
+            view: activeView ? activeView.dataset.view : 'list'
         };
 
         content.setAttribute('aria-busy', 'true');
@@ -317,7 +317,6 @@
         });
 
         if (typeof window.filterAppointments === 'function') window.filterAppointments();
-        if (state.view === 'cancellations' && typeof window.showCancellationRequests === 'function') window.showCancellationRequests();
         if (state.view === 'calendar') {
             var listView = document.getElementById('listView');
             var calendarView = document.getElementById('calendarView');

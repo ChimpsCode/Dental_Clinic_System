@@ -6,6 +6,8 @@
 $pageTitle = 'Payment Logs';
 
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/payment_approval_helper.php';
+ensurePaymentApprovalSchema($pdo);
 
 $logRows = [];
 $totalCollected = 0;
@@ -56,12 +58,17 @@ try {
     $select[] = 'p.suffix';
     $select[] = 'COALESCE(pay.billing_id, b.id) AS invoice_billing_id';
     $select[] = 'b.payment_status';
+    $select[] = 'pay.voided_at';
+    $select[] = 'pay.void_reason';
+    $select[] = 'approver.username AS approved_by';
+    $select[] = 'requester.username AS requested_by';
 
     $patientJoin = $hasPatientId
         ? 'LEFT JOIN patients p ON p.id = pay.patient_id'
         : 'LEFT JOIN billing bjoin ON bjoin.id = pay.billing_id LEFT JOIN patients p ON p.id = bjoin.patient_id';
     $billingJoin = 'LEFT JOIN billing b ON b.id = pay.billing_id';
     $userJoin = $hasCreatedBy ? 'LEFT JOIN users u ON u.id = pay.created_by' : '';
+    $userJoin .= ' LEFT JOIN users approver ON approver.id = pay.voided_by LEFT JOIN users requester ON requester.id = pay.void_requested_by';
 
     $where = 'WHERE 1=1';
     $params = [];
@@ -106,6 +113,7 @@ try {
     $statsSql = "SELECT
             COALESCE(SUM(CASE
                 WHEN LOWER(COALESCE(b.payment_status, '')) NOT IN ('cancelled', 'canceled', 'voided')
+                     AND pay.voided_at IS NULL
                 THEN pay.amount ELSE 0
             END), 0) AS total_collected,
             COUNT(*) AS total_transactions
@@ -215,7 +223,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                 $recordedBy = trim((string)($row['recorded_by'] ?? ''));
                                 $payDate = $row['payment_date'] ?? $row['created_at'] ?? '';
                                 $billStatus = strtolower((string)($row['payment_status'] ?? ''));
-                                $isVoided = in_array($billStatus, ['cancelled', 'canceled', 'voided'], true);
+                                $isVoided = !empty($row['voided_at']) || in_array($billStatus, ['cancelled', 'canceled', 'voided'], true);
                             ?>
                             <tr>
                                 <td><?php echo $payDate !== '' ? htmlspecialchars(substr((string)$payDate, 0, 10)) : 'N/A'; ?></td>
@@ -229,7 +237,16 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                 </td>
                                 <td><?php echo $method !== '' ? htmlspecialchars($method) : '—'; ?></td>
                                 <td><?php echo $ref !== '' ? htmlspecialchars($ref) : '—'; ?></td>
-                                <td><?php echo $recordedBy !== '' ? htmlspecialchars($recordedBy) : '—'; ?></td>
+                                <td><?php echo $recordedBy !== '' ? htmlspecialchars($recordedBy) : '—'; ?>
+                                    <?php if (!empty($row['voided_at'])): ?>
+                                    <div style="font-size:12px;color:#6b7280;margin-top:6px;">
+                                        Reason: <?php echo htmlspecialchars($row['void_reason']); ?><br>
+                                        Initiated by: <?php echo htmlspecialchars($row['requested_by'] ?? 'Unknown'); ?><br>
+                                        Approved by: <?php echo htmlspecialchars($row['approved_by'] ?? 'Unknown'); ?><br>
+                                        Voided: <?php echo htmlspecialchars($row['voided_at']); ?>
+                                    </div>
+                                    <?php endif; ?>
+                                </td>
                             </tr>
                             <?php endforeach; ?>
                             <?php endif; ?>

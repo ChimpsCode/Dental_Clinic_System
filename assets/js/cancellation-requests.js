@@ -62,7 +62,9 @@
                 phone.textContent = 'Call patient: ' + active.phone; box.appendChild(phone);
             }
             if (active.review_note) box.append(detail('Clinic note', active.review_note));
-            box.append(detail('Review', 'Contact the patient if verification is needed. Approving cancels the appointment; declining leaves it unchanged.'));
+            const guidance = detail('Review', 'Contact the patient if verification is needed. Approving cancels the appointment; declining leaves it unchanged.');
+            guidance.className = 'cancellation-review-guidance';
+            box.append(guidance);
             overlay.querySelectorAll('[data-decision]').forEach(button => { button.hidden = active.status !== 'pending'; });
             get('[data-review-note]').disabled = active.status !== 'pending';
         } catch (error) { if (version === openVersion) get('[data-review-error]').textContent = error.message; }
@@ -90,6 +92,22 @@
         finally { busy = false; overlay.querySelectorAll('button').forEach(item => { item.disabled = false; }); }
     }));
     function render() {
+        document.querySelectorAll('.appointment-mini-card').forEach(card => {
+            const button = card.querySelector('.appt-kebab-btn');
+            const appointmentId = Number(card.dataset.id || button?.dataset.apptId || 0);
+            const request = requests.find(item => Number(item.appointment_id) === appointmentId);
+            if (button) button.dataset.cancellationRequest = request ? request.id : '0';
+            const badge = card.querySelector('.status-badge');
+            if (!badge) return;
+            if (request && (card.dataset.status || '').toLowerCase() === 'scheduled') {
+                if (!badge.classList.contains('status-requesting-cancellation')) badge.dataset.originalStatus = badge.textContent;
+                badge.textContent = 'Requesting for cancellation';
+                badge.classList.add('status-requesting-cancellation');
+            } else if (badge.classList.contains('status-requesting-cancellation')) {
+                badge.textContent = badge.dataset.originalStatus || 'Scheduled';
+                badge.classList.remove('status-requesting-cancellation');
+            }
+        });
         document.querySelectorAll('[data-cancellation-list]').forEach(box => {
             box.replaceChildren();
             if (!requests.length) { box.textContent = 'No pending cancellation requests.'; return; }
@@ -106,44 +124,35 @@
     }
     function mount() {
         const calendar = document.querySelector('.view-toggle-btn[data-view="calendar"]');
-        if (calendar && !document.querySelector('.cancellation-tab')) {
-            const button = document.createElement('button'); button.type = 'button'; button.className = 'cancellation-tab';
-            button.innerHTML = 'Cancellation Requests (<span data-cancellation-count>0</span>)';
-            calendar.after(button);
-        }
+        document.querySelectorAll('.cancellation-tab, #cancellationRequestsPanel').forEach(node => node.remove());
         if (calendar) calendar.parentElement.style.flexWrap = 'wrap';
-        if (calendar && !document.getElementById('cancellationRequestsPanel')) {
-            const panel = document.createElement('section'); panel.className = 'cancellation-panel'; panel.id = 'cancellationRequestsPanel'; panel.hidden = true;
-            panel.innerHTML = '<h2>Cancellation Requests</h2><div data-cancellation-list></div>';
-            calendar.parentElement.after(panel);
-        }
         const pending = document.getElementById('pending-approval-list');
         if (pending && !document.getElementById('dashboardCancellationRequests')) {
             const panel = document.createElement('section'); panel.className = 'section-card cancellation-panel'; panel.id = 'dashboardCancellationRequests';
-            panel.innerHTML = '<h2>Cancellation Requests (<span data-cancellation-count>0</span>)</h2><div data-cancellation-list></div>';
+            const compact = pending.closest('.section-card').classList.contains('compact-queue');
+            if (compact) panel.classList.add('compact-queue');
+            panel.innerHTML = compact
+                ? '<h2 class="section-title">Cancellation Requests <span class="section-count" data-cancellation-count>0</span></h2><div data-cancellation-list></div>'
+                : '<h2>Cancellation Requests (<span data-cancellation-count>0</span>)</h2><div data-cancellation-list></div>';
             pending.closest('.section-card').after(panel);
         }
-        render();
     }
     async function load() {
         mount();
-        if (loading || !document.querySelector('[data-cancellation-list]')) return;
+        if (loading || !document.querySelector('[data-cancellation-list], .view-toggle-btn[data-view="calendar"]')) return;
         loading = true;
         try { requests = (await api(endpoint)).requests; render(); }
         catch (error) { document.querySelectorAll('[data-cancellation-list]').forEach(box => { box.textContent = error.message; }); }
         finally { loading = false; }
     }
-    window.showCancellationRequests = function () {
-        mount();
-        document.querySelectorAll('.view-toggle-btn').forEach(button => button.classList.remove('active'));
-        document.querySelector('.cancellation-tab')?.classList.add('active');
-        const list = document.getElementById('listView'), calendar = document.getElementById('calendarView');
-        list?.classList.add('hidden'); if (list) list.style.display = 'none';
-        calendar?.classList.remove('active'); if (calendar) calendar.style.display = 'none';
-        const panel = document.getElementById('cancellationRequestsPanel'); if (panel) panel.hidden = false;
-        load();
-    };
     document.addEventListener('click', event => {
+        const requestLink = event.target.closest('a[data-cancellation-request]');
+        if (requestLink && /^\d+$/.test(requestLink.dataset.cancellationRequest)) {
+            event.preventDefault(); event.stopImmediatePropagation();
+            if (typeof window.closeApptKebabDropdown === 'function') window.closeApptKebabDropdown();
+            open(requestLink.dataset.cancellationRequest);
+            return;
+        }
         const notification = event.target.closest('.notif-item');
         if (notification) {
             const url = new URL(notification.getAttribute('href'), location.href), id = url.searchParams.get('cancellation_request');
@@ -155,13 +164,6 @@
                     headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'action=mark_read&id=' + encodeURIComponent(notifId) }).catch(() => {});
                 notification.classList.remove('unread'); open(id); return;
             }
-        }
-        if (event.target.closest('.cancellation-tab')) { event.preventDefault(); window.showCancellationRequests(); }
-        else if (event.target.closest('.view-toggle-btn')) {
-            const panel = document.getElementById('cancellationRequestsPanel'); if (panel) panel.hidden = true;
-            document.querySelector('.cancellation-tab')?.classList.remove('active');
-            const list = document.getElementById('listView'), calendar = document.getElementById('calendarView');
-            if (list) list.style.display = ''; if (calendar) calendar.style.display = '';
         }
     }, true);
     document.addEventListener('pjax:loaded', load);

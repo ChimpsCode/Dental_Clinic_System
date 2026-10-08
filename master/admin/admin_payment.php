@@ -9,6 +9,8 @@ $pageTitle = 'Payment';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/discount_helper.php';
 ensureDiscountSchema($pdo);
+require_once __DIR__ . '/../../includes/payment_approval_helper.php';
+ensurePaymentApprovalSchema($pdo);
 
 $isSuggest = isset($_GET['suggest']);
 if ($isSuggest) {
@@ -551,10 +553,11 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                         <th>Amount</th>
                                         <th>Method</th>
                                         <th>Reference</th>
+                                        <th class="payment-history-action">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody id="paymentHistoryBody">
-                                    <tr><td colspan="4" style="text-align:center;padding:2rem;color:#9ca3af;">Loading...</td></tr>
+                                    <tr><td colspan="5" style="text-align:center;padding:2rem;color:#9ca3af;">Loading...</td></tr>
                                 </tbody>
                             </table>
                             <div id="paymentHistoryEmpty" style="display:none;text-align:center;padding:2rem;color:#9ca3af;">
@@ -1877,7 +1880,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                         return;
                     }
 
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:#6b7280;">Loading...</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:#6b7280;">Loading...</td></tr>';
                     empty.style.display = 'none';
                     empty.querySelector('p').textContent = 'No payment records found.';
                     if (payTable) payTable.style.display = '';
@@ -1897,14 +1900,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                 empty.style.display = 'none';
                                 if (payTable) payTable.style.display = '';
                                 payments.forEach(function(p) {
-                                    var row = document.createElement('tr');
-                                    var methodLabel = (p.payment_method || 'Cash').charAt(0).toUpperCase() + (p.payment_method || 'Cash').slice(1);
-                                    row.innerHTML =
-                                        '<td>' + (p.payment_date || 'N/A') + '</td>' +
-                                        '<td><strong>P' + parseFloat(p.amount || 0).toFixed(2) + '</strong></td>' +
-                                        '<td>' + methodLabel + '</td>' +
-                                        '<td>' + (p.reference_number || '-') + '</td>';
-                                    tbody.appendChild(row);
+                                    tbody.appendChild(window.PaymentApproval.renderHistoryRow(p));
                                 });
                         } else {
                                 if (payTable) payTable.style.display = 'none';
@@ -1912,7 +1908,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                         }
                     })
                     .catch(function() {
-                            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:#dc2626;">Error loading payment history.</td></tr>';
+                            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:#dc2626;">Error loading payment history.</td></tr>';
                     });
                 }
 
@@ -2327,5 +2323,6 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 </style>
 
 <?php
+require_once __DIR__ . '/../../includes/payment_approval_dialog.php';
 require_once __DIR__ . '/../../includes/admin_layout_end.php';
 ?>

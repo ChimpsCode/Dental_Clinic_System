@@ -37,6 +37,12 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 // Two-factor status is per-user (Google Authenticator), not a clinic-wide flag.
 $adminTwoFactorEnabled = false;
 $adminUserId = (int)($_SESSION['user_id'] ?? 0);
+require_once __DIR__ . '/../../includes/payment_approval_helper.php';
+ensurePaymentApprovalSchema($pdo);
+$_SESSION['payment_approval_csrf'] = $_SESSION['payment_approval_csrf'] ?? bin2hex(random_bytes(32));
+$pinStmt = $pdo->prepare('SELECT pin_hash IS NOT NULL FROM admin_payment_pins WHERE user_id = ?');
+$pinStmt->execute([$adminUserId]);
+$paymentPinConfigured = (bool)$pinStmt->fetchColumn();
 if ($adminUserId > 0) {
     try {
         $twoFaStmt = $pdo->prepare("SELECT two_factor_enabled FROM users WHERE id = ? LIMIT 1");
@@ -418,6 +424,28 @@ if ($autoBackupDay < 1 || $autoBackupDay > 28) {
                         </form>
                     </div>
 
+                    <div class="settings-section" id="paymentApprovalSecurity">
+                        <h3 class="section-title">🔒 Security · Payment Approval PIN</h3>
+                        <div class="toggle-setting">
+                            <div class="toggle-info">
+                                <span class="toggle-label">Your payment approval PIN</span>
+                                <span class="toggle-description">Set or reset your private six-digit PIN. Enter it personally to approve payment voids requested by staff.</span>
+                                <span class="twofa-status <?php echo $paymentPinConfigured ? 'on' : 'off'; ?>" id="paymentApprovalPinConfigured"><?php echo $paymentPinConfigured ? 'PIN configured' : 'PIN not configured'; ?></span>
+                            </div>
+                        </div>
+                        <form class="settings-form" id="paymentApprovalPinForm" method="POST" action="../shared/payment_approval.php">
+                            <input type="hidden" name="csrf" value="<?php echo htmlspecialchars($_SESSION['payment_approval_csrf']); ?>">
+                            <input type="hidden" name="action" value="set_pin">
+                            <div class="form-group"><label for="approvalAccountPassword">Current account password</label><input class="form-control is-locked" id="approvalAccountPassword" name="password" type="password" autocomplete="current-password" required disabled></div>
+                            <div class="form-row">
+                                <div class="form-group" style="flex:1;"><label for="approvalNewPin">New approval PIN</label><input class="form-control is-locked" id="approvalNewPin" name="pin" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="new-password" required disabled></div>
+                                <div class="form-group" style="flex:1;"><label for="approvalConfirmPin">Confirm approval PIN</label><input class="form-control is-locked" id="approvalConfirmPin" name="confirmation" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="new-password" required disabled></div>
+                            </div>
+                            <p id="paymentApprovalPinStatus" role="status" class="backup-help"></p>
+                            <button type="button" class="btn-edit" id="paymentApprovalPinEdit" data-editing="false">Edit</button>
+                        </form>
+                    </div>
+
                     <div class="settings-section">
                         <h3 class="section-title">💾 Backup & Data</h3>
                         <p class="backup-note">Downloading saves a copy of patients, appointments, billing, and settings to this computer. Activity logs older than 1 year are already removed, so 12 months is the furthest a file can go. Auto backup, when turned on, saves a copy on the server instead of downloading it.</p>
@@ -561,6 +589,7 @@ if ($autoBackupDay < 1 || $autoBackupDay > 28) {
 
 <?php require_once __DIR__ . '/../../includes/partials/two_factor_modals.php'; ?>
 
+<script src="../../assets/js/payment-approval.js"></script>
 <?php
 require_once __DIR__ . '/../../includes/admin_layout_end.php';
 ?>

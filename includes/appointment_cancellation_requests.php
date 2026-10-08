@@ -26,6 +26,21 @@ function submitAppointmentCancellationRequest(PDO $pdo, array $appointment, stri
     return (int)$pdo->lastInsertId();
 }
 
+function pendingAppointmentCancellationRequests(PDO $pdo): array
+{
+    ensureCancellationRequestSchema($pdo);
+    return $pdo->query("SELECT appointment_id, id FROM appointment_cancellation_requests WHERE status='pending'")->fetchAll(PDO::FETCH_KEY_PAIR);
+}
+
+function assertAppointmentCancellationReviewedBeforeArrival(PDO $pdo, int $appointmentId): void
+{
+    $stmt = $pdo->prepare("SELECT id FROM appointment_cancellation_requests WHERE appointment_id=? AND status='pending'");
+    $stmt->execute([$appointmentId]);
+    if ($stmt->fetchColumn()) {
+        throw new InvalidArgumentException('This patient is requesting cancellation. Decline the cancellation request before marking the patient as arrived.');
+    }
+}
+
 function reviewAppointmentCancellationRequest(PDO $pdo, int $requestId, int $reviewer, string $decision, string $note): array
 {
     if (!in_array($decision, ['approve', 'decline'], true) || strlen($note) > 1000) throw new InvalidArgumentException('Invalid review details.');

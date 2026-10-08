@@ -1,6 +1,8 @@
 <?php
 $pageTitle = 'Appointments';
 require_once '../../config/database.php';
+require_once __DIR__ . '/../../includes/appointment_cancellation_requests.php';
+$pendingCancellationRequests = pendingAppointmentCancellationRequests($pdo);
 
 // Auto-cancel no-show trigger on page visit
 try {
@@ -473,7 +475,7 @@ $sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'pe
                         <span class="mini-card-name" title="<?php echo $name; ?>"><?php echo $name; ?></span>
                         <span class="mini-card-time"><?php echo $time; ?></span>
                         <div class="appt-kebab-menu" style="flex-shrink:0;">
-                            <button type="button" class="appt-kebab-btn" aria-label="Appointment actions" aria-expanded="false" data-appt-id="<?php echo $apt['id']; ?>" data-status="<?php echo htmlspecialchars($status); ?>" data-checked-in="<?php echo $apt['check_in_time'] ?? ''; ?>">
+                            <button type="button" class="appt-kebab-btn" aria-label="Appointment actions" aria-expanded="false" data-appt-id="<?php echo $apt['id']; ?>" data-cancellation-request="<?php echo (int)($pendingCancellationRequests[$apt['id']] ?? 0); ?>" data-status="<?php echo htmlspecialchars($status); ?>" data-checked-in="<?php echo $apt['check_in_time'] ?? ''; ?>">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                                     <circle cx="12" cy="6" r="2"/>
                                     <circle cx="12" cy="12" r="2"/>
@@ -485,7 +487,7 @@ $sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'pe
                     <div class="mini-card-bottom">
                         <span class="mini-card-date">📅 <?php echo htmlspecialchars($dateLabel); ?></span>
                         <span class="mini-card-treatment"><?php echo $treatment; ?></span>
-                        <span class="status-badge badge-small <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($status); ?></span>
+                        <span class="status-badge badge-small <?php echo $badgeClass; ?><?php echo !empty($pendingCancellationRequests[$apt['id']]) && $sec === 'scheduled' ? ' status-requesting-cancellation' : ''; ?>" data-original-status="<?php echo htmlspecialchars($status, ENT_QUOTES, 'UTF-8'); ?>"><?php echo !empty($pendingCancellationRequests[$apt['id']]) && $sec === 'scheduled' ? 'Requesting for cancellation' : htmlspecialchars($status); ?></span>
                     </div>
                     <?php
                     $pendingNotes = trim((string)($apt['notes'] ?? ''));
@@ -493,7 +495,10 @@ $sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'pe
                     ?>
                     <div class="mini-card-notes">notes: <?php echo htmlspecialchars($pendingNotes); ?></div>
                     <?php endif; ?>
-                    <?php if ($sec === 'pendingapproval'): ?>
+                    <?php if ($sec === 'pendingapproval' && !empty($apt['patient_edited_at'])): ?>
+                        <div class="mini-card-notes" style="font-size:11px;font-weight:400;color:#64748b;margin-top:3px;line-height:1.4;">Edited by patient &middot; Awaiting approval</div>
+                        <?php endif; ?>
+                        <?php if ($sec === 'pendingapproval'): ?>
                     <div class="appt-approval-actions">
                         <button type="button" class="btn-approve" onclick="approveAppointment(<?php echo (int)$apt['id']; ?>)">✓ Approve</button>
                         <button type="button" class="btn-decline" onclick="declineAppointment(<?php echo (int)$apt['id']; ?>)">✕ Decline</button>
@@ -1703,6 +1708,7 @@ function openApptKebabDropdown(button) {
     const status = (button.getAttribute('data-status') || '').toLowerCase();
     const checkedIn = button.getAttribute('data-checked-in') || '';
     const isPendingApproval = status.includes('pending approval');
+        const cancellationRequestId = Number(button?.dataset.cancellationRequest || 0);
     const isArrived = checkedIn.trim() !== '';
 
     let html = `
@@ -1722,7 +1728,11 @@ function openApptKebabDropdown(button) {
         </a>
     `;
 
-    if (!isPendingApproval && !isArrived) {
+    if (cancellationRequestId) {
+            html = html.replace('</a>', '</a><a href="#" data-cancellation-request="' + cancellationRequestId + '" style="color:#374151;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>View Request</a>');
+        }
+
+        if (!isPendingApproval && !isArrived && !cancellationRequestId) {
         html += `<a href="javascript:void(0)" onclick="markArrived(${apptId})" style="color:#374151;"><span aria-hidden="true">✓</span> Mark as Arrived</a>`;
     }
     if (!isPendingApproval) {
@@ -2134,7 +2144,7 @@ function closeApptKebabDropdown() {
         closeCancelReasonModal();
     }
 </script>
-<script src="../../assets/js/appointment_ajax_refresh.js?v=2"></script>
+<script src="../../assets/js/appointment_ajax_refresh.js?v=3"></script>
 
 <style>
 /* Filter Tabs Styles */

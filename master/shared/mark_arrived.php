@@ -20,6 +20,7 @@ if (!isset($_SESSION['user_id']) || !in_array(strtolower($_SESSION['role'] ?? ''
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/queue_management_helper.php';
 require_once __DIR__ . '/../../includes/treatment_plan_workflow.php';
+require_once __DIR__ . '/../../includes/appointment_cancellation_requests.php';
 
 $input = json_decode(file_get_contents('php://input'), true);
 $apptId = (int)($input['appt_id'] ?? $_POST['appt_id'] ?? 0);
@@ -32,6 +33,8 @@ if (!$apptId) {
 try {
     ensureTreatmentPlanWorkflowSchema($pdo);
     ensureQueueManagementSchema($pdo);
+    ensureCancellationRequestSchema($pdo);
+    $pdo->beginTransaction();
 
     $stmt = $pdo->prepare("
         SELECT a.*, p.id AS pid, p.first_name, p.last_name, s.name AS service_name
@@ -39,22 +42,25 @@ try {
         LEFT JOIN patients p ON a.patient_id = p.id
         LEFT JOIN services s ON a.service_id = s.id
         WHERE a.id = ?
-        LIMIT 1
+        LIMIT 1 FOR UPDATE
     ");
     $stmt->execute([$apptId]);
     $appt = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$appt) {
+        $pdo->rollBack();
         echo json_encode(['success' => false, 'message' => 'Appointment not found']);
         exit;
     }
     if (!in_array($appt['status'], ['Scheduled', 'In Queue'], true)) {
         throw new RuntimeException('Only scheduled or checked-in appointments can be marked as arrived.');
     }
+    assertAppointmentCancellationReviewedBeforeArrival($pdo, $apptId);
 
     $patientId = (int)($appt['patient_id'] ?? $appt['pid'] ?? 0);
 
     if (!$patientId) {
+        $pdo->rollBack();
         echo json_encode(['success' => false, 'message' => 'This appointment has no linked patient. Please use New Admission.']);
         exit;
     }
@@ -70,6 +76,7 @@ try {
     if ($existingQueue) {
         $stmtUpd = $pdo->prepare("UPDATE appointments SET check_in_time = COALESCE(check_in_time, NOW()), status = 'In Queue' WHERE id = ?");
         $stmtUpd->execute([$apptId]);
+        $pdo->commit();
         echo json_encode([
             'success' => true,
             'message' => 'Patient already in queue as ' . ($existingQueue['queue_label'] ?? buildQueueLabel((int)($existingQueue['queue_number'] ?? 0))) . '.',
@@ -90,11 +97,6 @@ try {
     if (empty($treatmentType)) {
         $treatmentType = 'General Checkup';
     }
-
-    $pdo->beginTransaction();
-    $lock = $pdo->prepare('SELECT status FROM appointments WHERE id = ? FOR UPDATE');
-    $lock->execute([$apptId]);
-    if (!in_array($lock->fetchColumn(), ['Scheduled', 'In Queue'], true)) throw new RuntimeException('This appointment is no longer available for check-in.');
 
     $queueEntry = createQueueEntry($pdo, [
         'patient_id'      => $patientId,
@@ -123,6 +125,10 @@ try {
         'queue_number' => $queueNumber,
         'queue_label'  => $queueLabel,
     ]);
+} catch (InvalidArgumentException $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    http_response_code(409);
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 } catch (Exception $e) {
     if (isset($pdo) && $pdo->inTransaction()) {
         $pdo->rollBack();

@@ -12,6 +12,8 @@ if ($currentPage < 1) $currentPage = 1;
 
 try {
     require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/appointment_cancellation_requests.php';
+$pendingCancellationRequests = pendingAppointmentCancellationRequests($pdo);
 require_once __DIR__ . '/../../includes/treatment_plan_workflow.php';
 ensureTreatmentPlanWorkflowSchema($pdo);
     
@@ -432,7 +434,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                         <span class="mini-card-time"><?php echo $time; ?></span>
                                         <div class="appt-kebab-menu" style="flex-shrink:0;">
                                             <button class="appt-kebab-btn"
-                                                    data-appt-id="<?php echo $appt['id']; ?>"
+                                                    data-appt-id="<?php echo $appt['id']; ?>" data-cancellation-request="<?php echo (int)($pendingCancellationRequests[$appt['id']] ?? 0); ?>"
                                                     data-status="<?php echo htmlspecialchars($status); ?>"
                                                     data-checked-in="<?php echo $appt['check_in_time'] ?? ''; ?>">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -447,7 +449,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                         <span class="mini-card-date">📅 <?php echo htmlspecialchars($dateLabel); ?></span>
                                         <div class="mini-card-treatment-group"><span class="mini-card-treatment"><?php echo $treatment; ?> &middot; <?php echo $dentist; ?></span>
                             <?php if (!empty($appt['treatment_plan_id'])): ?><span class="treatment-plan-tag">Treatment Plan</span><?php endif; ?></div>
-                                        <span class="status-badge badge-small <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($status); ?></span>
+                                        <span class="status-badge badge-small <?php echo $badgeClass; ?><?php echo !empty($pendingCancellationRequests[$appt['id']]) && $sec === 'scheduled' ? ' status-requesting-cancellation' : ''; ?>" data-original-status="<?php echo htmlspecialchars($status, ENT_QUOTES, 'UTF-8'); ?>"><?php echo !empty($pendingCancellationRequests[$appt['id']]) && $sec === 'scheduled' ? 'Requesting for cancellation' : htmlspecialchars($status); ?></span>
                                     </div>
                                     <?php
                                     $pendingNotes = trim((string)($appt['notes'] ?? ''));
@@ -455,7 +457,10 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                     ?>
                                     <div class="mini-card-notes">notes: <?php echo htmlspecialchars($pendingNotes); ?></div>
                                     <?php endif; ?>
-                                    <?php if ($sec === 'pendingapproval'): ?>
+                                    <?php if ($sec === 'pendingapproval' && !empty($appt['patient_edited_at'])): ?>
+                        <div class="mini-card-notes" style="font-size:11px;font-weight:400;color:#64748b;margin-top:3px;line-height:1.4;">Edited by patient &middot; Awaiting approval</div>
+                        <?php endif; ?>
+                        <?php if ($sec === 'pendingapproval'): ?>
                                     <div class="appt-approval-actions">
                                         <button type="button" class="btn-approve" onclick="approveAppointment(<?php echo (int)$appt['id']; ?>)">✓ Approve</button>
                                         <button type="button" class="btn-decline" onclick="declineAppointment(<?php echo (int)$appt['id']; ?>)">✕ Decline</button>
@@ -1521,6 +1526,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
         const status = (button ? button.getAttribute('data-status') : '').toLowerCase();
         const checkedIn = button ? button.getAttribute('data-checked-in') : '';
         const isPendingApproval = status.includes('pending approval');
+        const cancellationRequestId = Number(button?.dataset.cancellationRequest || 0);
         const isArrived = checkedIn && checkedIn.trim() !== '';
 
         let menuItems = `
@@ -1540,7 +1546,11 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
             </a>
         `;
 
-        if (!isPendingApproval && !isArrived) {
+        if (cancellationRequestId) {
+            menuItems = menuItems.replace('</a>', '</a><a href="#" data-cancellation-request="' + cancellationRequestId + '" style="color:#374151;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>View Request</a>');
+        }
+
+        if (!isPendingApproval && !isArrived && !cancellationRequestId) {
             menuItems += `<a href="javascript:void(0)" data-action="mark_arrived" data-id="${apptId}" style="color:#374151;"><span aria-hidden="true">✓</span> Mark as Arrived</a>`;
         }
         if (!isPendingApproval) {
@@ -1986,7 +1996,7 @@ function getApptBadgeClass(status) {
 document.addEventListener('DOMContentLoaded', startAppointmentPolling);
 </script>
 
-<script src="../../assets/js/appointment_ajax_refresh.js?v=2"></script>
+<script src="../../assets/js/appointment_ajax_refresh.js?v=3"></script>
 <!-- live_refresh must load LAST: both files define window.refreshAppointmentsAjax,
      and this gentle version (swaps only .list-view) must win so background
      polling never replaces .content-main and force-closes open modals -->

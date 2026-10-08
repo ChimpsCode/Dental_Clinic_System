@@ -1200,8 +1200,78 @@ header.top-header {
 #pending-approval-list {
     min-height: 95px;
     display: flex;
-    align-items: center;
+    align-items: stretch;
     justify-content: center;
+}
+
+#pending-approval-list .patient-item {
+    gap: 8px;
+    min-width: 0;
+}
+
+#pending-approval-list .patient-info {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+#pending-approval-list .patient-details {
+    flex-wrap: wrap;
+}
+
+#pending-approval-list .patient-actions {
+    flex-shrink: 0;
+}
+
+/* Keep the staff cancellation summary consistent with its compact neighbors. */
+#dashboardCancellationRequests.compact-queue {
+    padding: 10px;
+    margin: 0;
+}
+
+#dashboardCancellationRequests.compact-queue .section-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0 0 5px;
+}
+
+#dashboardCancellationRequests.compact-queue [data-cancellation-list] {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 30px;
+    font-size: 0.85rem;
+    line-height: 1.3;
+    color: var(--text-secondary);
+}
+
+#dashboardCancellationRequests.compact-queue .cancellation-request-row {
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-main);
+}
+
+#dashboardCancellationRequests.compact-queue .cancellation-request-row > div {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+#dashboardCancellationRequests.compact-queue .cancellation-request-row strong {
+    font-weight: 600;
+}
+
+#dashboardCancellationRequests.compact-queue .cancellation-request-row p {
+    margin: 3px 0 0;
+    font-size: 0.75rem;
+    line-height: 1.3;
+}
+
+#dashboardCancellationRequests.compact-queue .cancellation-request-row button {
+    flex-shrink: 0;
+    padding: 4px 8px;
+    font-size: 0.72rem;
+    border-radius: 5px;
 }
 
 .compact-queue .action-btn.icon {

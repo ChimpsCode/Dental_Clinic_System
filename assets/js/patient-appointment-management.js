@@ -5,7 +5,7 @@
     const confirmModal = document.getElementById('patientAppointmentConfirmModal');
     if (!config || !editModal || !confirmModal) return;
     const get = id => document.getElementById(id);
-    let appointment = null, pending = null, busy = false, slotsVersion = 0, returnFocus = null, done = false;
+    let appointment = null, pending = null, busy = false, slotsVersion = 0, returnFocus = null, done = false, editEligible = false;
 
     function show(modal) { modal.classList.add('active'); modal.querySelector('button,select,input').focus(); }
     function hide(modal) { modal.classList.remove('active'); }
@@ -30,6 +30,7 @@
         return (Number(h) % 12 || 12) + ':' + m + (Number(h) >= 12 ? ' PM' : ' AM');
     }
     async function loadSlots(preferred) {
+        if (!editEligible) return;
         const version = ++slotsVersion, select = get('patientEditTime');
         select.replaceChildren(new Option('Loading available times...', ''));
         select.disabled = true;
@@ -56,7 +57,7 @@
         }
     }
 
-    document.addEventListener('click', function (event) {
+    get('upcoming').addEventListener('click', async function (event) {
         const button = event.target.closest('[data-appt-management]');
         if (!button || busy) return;
         appointment = config.appointments.find(item => Number(item.id) === Number(button.dataset.appointmentId));
@@ -65,10 +66,30 @@
         get('patientAppointmentConfirmError').textContent = '';
         get('patientAppointmentConfirmBack').hidden = false;
         if (button.dataset.apptManagement === 'edit') {
+            editEligible = false;
+            ++slotsVersion;
             get('patientEditDate').value = appointment.appointment_date;
             get('patientEditService').value = appointment.service_id || '';
             get('patientEditNotes').value = appointment.notes || '';
             show(editModal);
+            get('patientEditReview').disabled = true;
+            get('patientEditError').textContent = 'Checking appointment availability...';
+            busy = true;
+            try {
+                const response = await fetch('manage_appointment.php', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'check_edit', appointment_id:Number(appointment.id), csrf:config.csrf}) });
+                const data = await response.json();
+                if (!data.success) throw new Error(data.message || 'Unable to check this appointment.');
+                Object.assign(appointment, data.appointment);
+                editEligible = true;
+            } catch (error) {
+                get('patientEditError').textContent = error.message;
+                busy = false;
+                return;
+            }
+            busy = false;
+            get('patientEditDate').value = appointment.appointment_date;
+            get('patientEditService').value = appointment.service_id || '';
+            get('patientEditNotes').value = appointment.notes || '';
             loadSlots(String(appointment.appointment_time).slice(0, 5));
         } else {
             const request = button.dataset.apptManagement === 'request_cancel';
@@ -95,7 +116,7 @@
     get('patientEditService').addEventListener('change', () => loadSlots());
     get('patientAppointmentEditForm').addEventListener('submit', function (event) {
         event.preventDefault();
-        if (busy || !this.reportValidity() || get('patientEditTime').disabled) return;
+        if (busy || !editEligible || !this.reportValidity() || get('patientEditTime').disabled) return;
         pending = { action:'edit', appointment_id:Number(appointment.id), appointment_date:get('patientEditDate').value,
             appointment_time:get('patientEditTime').value, service_id:Number(get('patientEditService').value), notes:get('patientEditNotes').value.trim() };
         if (pending.appointment_date === appointment.appointment_date && pending.appointment_time === String(appointment.appointment_time).slice(0,5)

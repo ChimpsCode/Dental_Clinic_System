@@ -22,10 +22,13 @@ header('Pragma: no-cache');
 
 try {
     require_once '../../config/database.php';
+    require_once __DIR__ . '/../../includes/appointment_cancellation_requests.php';
+    ensureCancellationRequestSchema($pdo);
 
     $stmt = $pdo->prepare("
         SELECT a.id, a.patient_id, a.status, a.appointment_date, a.appointment_time,
-               a.check_in_time, a.service_id,
+               a.check_in_time, a.service_id, a.patient_edited_at,
+               (SELECT cr.id FROM appointment_cancellation_requests cr WHERE cr.appointment_id=a.id AND cr.status='pending') AS cancellation_request_id,
                COALESCE(p.first_name, 'Unknown') as first_name,
                COALESCE(p.last_name, 'Unknown') as last_name
         FROM appointments a

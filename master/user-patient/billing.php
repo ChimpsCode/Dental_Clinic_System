@@ -25,6 +25,8 @@ $user_id = $_SESSION['user_id'] ?? null;
 $patient_id = $_SESSION['patient_id'] ?? null;
 
 require_once '../../config/database.php';
+require_once __DIR__ . '/../../includes/payment_approval_helper.php';
+ensurePaymentApprovalSchema($pdo);
 require_once '../../includes/patient_session_helper.php';
 $patientSessionSettings = getPatientSessionSettings($pdo, (int)($_SESSION['user_id'] ?? 0));
 
@@ -437,6 +439,7 @@ $pageTitle = 'Billing';
                                 <th>Amount</th>
                                 <th>Method</th>
                                 <th>Reference</th>
+                                <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -447,6 +450,9 @@ $pageTitle = 'Billing';
                                     <td class="amount" style="color:#065f46;">₱<?php echo number_format(floatval($payment['amount']), 2); ?></td>
                                     <td><?php echo htmlspecialchars(ucfirst($payment['payment_method'] ?? 'Cash')); ?></td>
                                     <td><?php echo htmlspecialchars($payment['reference_number'] ?? '-'); ?></td>
+                                    <?php if (!empty($payment['voided_at'])): ?>
+                                    <td><strong>VOIDED</strong><br><?php echo htmlspecialchars($payment['void_reason'] ?? ''); ?></td>
+                                    <?php else: ?><td>Recorded</td><?php endif; ?>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>

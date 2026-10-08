@@ -4,7 +4,7 @@
 <h1>Cancellation review interaction test</h1><p id="result">Running...</p>
 <main id="testPage">
 <div><button class="view-toggle-btn active" data-view="list">List View</button><button class="view-toggle-btn" data-view="calendar">Calendar View</button><button type="button" class="cancellation-tab">Cancellation Requests (<span data-cancellation-count>0</span>)</button><button id="online">Online Booking</button></div>
-<div id="listView">Scheduled appointments</div><div id="calendarView">Calendar</div>
+<div id="listView"><div class="appointment-mini-card" data-id="11" data-status="scheduled"><button class="appt-kebab-btn" data-appt-id="11"></button><span class="status-badge">Scheduled</span></div><div class="appointment-mini-card" data-id="12" data-status="scheduled"><button class="appt-kebab-btn" data-appt-id="12"></button><span class="status-badge">Scheduled</span></div></div><div id="calendarView">Calendar</div>
 <div class="queue-grid-right"><section class="section-card" id="pending"><h2>Pending Approval</h2><div id="pending-approval-list"></div></section></div>
 <a class="notif-item unread" data-notif-id="21" href="staff_appointments.php?cancellation_request=1">Cancellation notification</a>
 </main>
@@ -34,10 +34,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         await tick();
         const calendar = document.querySelector('[data-view=calendar]'), tab = document.querySelector('.cancellation-tab');
-        check(calendar.nextElementSibling === tab && tab.nextElementSibling.id === 'online', 'Third cancellation tab and fourth Online Booking');
+        check(!tab && calendar.nextElementSibling.id === 'online', 'Cancellation tab removed, Online Booking beside calendar');
+        check(document.querySelector('.status-badge').textContent === 'Requesting for cancellation', 'Scheduled card shows cancellation request');
         check(document.getElementById('pending').nextElementSibling.id === 'dashboardCancellationRequests', 'Dashboard section below Pending Approval');
-        tab.click(); await tick();
-        check(!document.getElementById('cancellationRequestsPanel').hidden && document.getElementById('listView').style.display === 'none', 'Cancellation view opens');
         const before = location.href;
         document.querySelector('.notif-item').click(); await tick();
         const overlay = document.querySelector('.cancellation-review-overlay');
@@ -47,13 +46,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         overlay.querySelector('[data-decision=decline]').click(); await tick();
         check(reviewCalls[0].decision === 'decline' && reviewCalls[0].csrf === 'test-token', 'Decline submits authenticated decision');
         overlay.querySelector('[data-review-close]').click();
-        document.querySelector('#cancellationRequestsPanel .cancellation-request-row button').click(); await tick();
+        document.querySelector('#dashboardCancellationRequests .cancellation-request-row button').click(); await tick();
         overlay.querySelector('[data-decision=approve]').click(); await tick();
         check(reviewCalls[1].decision === 'approve' && reviewCalls[1].request_id === 2, 'Approve acts on correct request');
-        check(document.querySelector('#cancellationRequestsPanel [data-cancellation-list]').textContent.includes('No pending'), 'Reviewed requests removed');
+        check(document.querySelector('#dashboardCancellationRequests [data-cancellation-list]').textContent.includes('No pending'), 'Reviewed requests removed');
         overlay.querySelector('[data-review-close]').click();
         document.querySelector('[data-view=list]').click();
-        check(document.getElementById('cancellationRequestsPanel').hidden && document.getElementById('listView').style.display === '', 'Return to list');
+        check(document.querySelector('.status-badge').textContent === 'Scheduled', 'Declining restores Scheduled badge');
         for (let i = 0; i < 2; i++) {
             // Mirror the router's shell snapshot: page content is replaced and
             // only layout nodes or explicitly persistent body nodes survive.
@@ -65,16 +64,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.dispatchEvent(new CustomEvent('pjax:loaded')); await tick();
             page.innerHTML = initialPage;
             document.dispatchEvent(new CustomEvent('pjax:loaded')); await tick();
-            const returnedTab = document.querySelector('.cancellation-tab');
-            check(returnedTab && document.querySelectorAll('.cancellation-tab').length === 1, 'One cancellation button after returning');
-            check(getComputedStyle(returnedTab).borderRadius === '6px', 'Cancellation button retains stylesheet after navigation');
-            returnedTab.click(); await tick();
-            check(!document.getElementById('cancellationRequestsPanel').hidden, 'Returned cancellation tab works');
+            check(!document.querySelector('.cancellation-tab'), 'No cancellation tab after navigation');
             document.querySelector('.notif-item').click(); await tick();
             check(overlay.isConnected && !overlay.hidden, 'Shared notification modal survives navigation');
             overlay.querySelector('[data-review-close]').click();
         }
-        document.getElementById('result').textContent = 'PASS: tab order, dashboard, notification review, approve/decline, and styled functional controls after repeated navigation.';
+        document.getElementById('result').textContent = 'PASS: scheduled request badges, no cancellation tab, dashboard review, approve/decline, and review after navigation.';
     } catch (error) { document.getElementById('result').textContent = 'FAIL: ' + error.message; }
 });
 </script></body></html>

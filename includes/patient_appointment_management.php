@@ -24,6 +24,17 @@ function patientAppointmentPermissions(array $appointment, string $today): array
     ];
 }
 
+function patientAppointmentEditBlockReason(array $appointment): string
+{
+    if (!empty($appointment['patient_edited_at'])) return 'Your one-time edit has already been used. Please contact the clinic for further changes.';
+    if (!empty($appointment['approved_at']) || !empty($appointment['approved_by']) || strtolower(trim($appointment['status'] ?? '')) === 'scheduled') {
+        return 'This appointment has already been approved. Please contact the clinic to request a schedule change.';
+    }
+    if (!empty($appointment['check_in_time'])) return 'This appointment has already been checked in. Please contact the clinic.';
+    if (($appointment['appointment_date'] ?? '') < date('Y-m-d')) return 'The appointment date has passed. Please contact the clinic.';
+    return 'This appointment is no longer awaiting approval and cannot be edited. Please refresh your appointments.';
+}
+
 function managePatientAppointment(PDO $pdo, int $patientId, int $userId, array $input, ?callable $slotLoader = null): array
 {
     $action = $input['action'] ?? '';
@@ -41,7 +52,7 @@ function managePatientAppointment(PDO $pdo, int $patientId, int $userId, array $
         $permissions = patientAppointmentPermissions($appointment, date('Y-m-d'));
         if (!$permissions[$action]) {
             throw new InvalidArgumentException($action === 'edit'
-                ? 'This appointment cannot be edited. Only requests awaiting approval may be edited, and only once.'
+                ? patientAppointmentEditBlockReason($appointment)
                 : 'This appointment can no longer be cancelled online. Please contact the clinic.');
         }
         // A scheduled appointment may already have entered the queue while this

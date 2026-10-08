@@ -45,7 +45,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'dashboard') {
         autoDeclineExpiredPendingAppointments($pdo);
 
         $pendingApprovalItems = $pdo->query("
-            SELECT a.id, a.appointment_date, a.appointment_time, a.status, a.notes,
+            SELECT a.id, a.appointment_date, a.appointment_time, a.status, a.notes, a.patient_edited_at,
                    COALESCE(p.first_name, 'Unknown') as first_name,
                    COALESCE(p.middle_name, '') as middle_name,
                    COALESCE(p.last_name, '') as last_name,
@@ -129,6 +129,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'dashboard') {
                 'appointment_date' => $appt['appointment_date'] ?? '',
                 'appointment_time' => $appt['appointment_time'] ?? '',
                 'notes' => $appt['notes'] ?? '',
+                'patient_edited_at' => $appt['patient_edited_at'] ?? null,
             ];
         }
 
@@ -213,7 +214,7 @@ try {
     autoDeclineExpiredPendingAppointments($pdo);
 
     $pendingApprovalAll = $pdo->query("
-        SELECT a.id, a.appointment_date, a.appointment_time, a.status, a.notes,
+        SELECT a.id, a.appointment_date, a.appointment_time, a.status, a.notes, a.patient_edited_at,
                COALESCE(p.first_name, 'Unknown') as first_name,
                COALESCE(p.middle_name, '') as middle_name,
                COALESCE(p.last_name, '') as last_name,
@@ -614,6 +615,9 @@ try {
                                         <span class="patient-time"><?php echo htmlspecialchars(trim($paDate . ' · ' . $paTime)); ?></span>
                                     </div>
                                     <div class="patient-treatment"><?php echo htmlspecialchars($appt['service_name'] ?? 'General'); ?></div>
+                                    <?php if (!empty($appt['patient_edited_at'])): ?>
+                                    <div class="mini-card-notes" style="font-weight:400;">Edited by patient &middot; Awaiting approval</div>
+                                    <?php endif; ?>
                                     <?php if ($paNotes !== ''): ?>
                                     <div class="mini-card-notes">notes: <?php echo htmlspecialchars($paNotes); ?></div>
                                     <?php endif; ?>
@@ -1211,6 +1215,7 @@ function renderDashboardPending(items) {
                     </div>
                     <div class="patient-treatment">${escapeDashboardHtml(appt.service_name || 'General')}</div>
                     ${notesHtml}
+                    ${appt.patient_edited_at ? '<div class="mini-card-notes" style="font-weight:400;">Edited by patient &middot; Awaiting approval</div>' : ''}
                 </div>
                 <div class="patient-actions">
                     <button class="action-btn pa-approve" onclick="approveAppointment(${Number(appt.id || 0)})">✓</button>

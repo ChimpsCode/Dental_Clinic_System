@@ -120,6 +120,7 @@ if ($__pjax) {
                 var href = destForType(type);
                 var cancellation = String(n.action_url || '').match(/[?&]cancellation_request=(\d+)/);
                 if (cancellation) href += '?cancellation_request=' + cancellation[1];
+                if (String(type).toLowerCase() === 'payment' && /^admin_payment_log\.php\?search=\d+$/.test(String(n.action_url || ''))) href = n.action_url;
                 return '<a class="notif-item' + (n.is_read == 0 ? ' unread' : '') + '" href="' + href + '" data-notif-id="' + n.id + '" data-notif-type="' + esc(type) + '">'
                      + '<div class="notif-icon ' + type + '"><i class="fas ' + (iconMap[n.type] || 'fa-bell') + '"></i></div>'
                      + '<div class="notif-content"><p class="notif-title">' + esc(n.title) + '</p>'

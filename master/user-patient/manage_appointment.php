@@ -19,6 +19,20 @@ try {
     require_once __DIR__ . '/../../includes/patient_appointment_management.php';
     require_once __DIR__ . '/../../includes/treatment_plan_workflow.php';
     ensurePatientAppointmentManagementSchema($pdo);
+    if (($input['action'] ?? '') === 'check_edit') {
+        $stmt = $pdo->prepare('SELECT a.*, s.name AS service_name FROM appointments a LEFT JOIN services s ON s.id=a.service_id WHERE a.id=? AND a.patient_id=?');
+        $stmt->execute([(int)($input['appointment_id'] ?? 0), (int)$_SESSION['patient_id']]);
+        $appointment = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$appointment) throw new InvalidArgumentException('Appointment not found.');
+        if (!patientAppointmentPermissions($appointment, date('Y-m-d'))['edit']) {
+            throw new InvalidArgumentException(patientAppointmentEditBlockReason($appointment));
+        }
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM queue WHERE appointment_id=? AND status IN ('waiting','on_hold','in_procedure','pending_payment','completed')");
+        $stmt->execute([$appointment['id']]);
+        if ($stmt->fetchColumn()) throw new InvalidArgumentException('This appointment has already entered the clinic queue. Please contact the clinic.');
+        echo json_encode(['success'=>true, 'appointment'=>$appointment]);
+        exit;
+    }
     ensureAppointmentSlotSchema($pdo);
     ensureTreatmentPlanWorkflowSchema($pdo);
     $result = managePatientAppointment($pdo, (int)$_SESSION['patient_id'], (int)$_SESSION['user_id'], $input);

@@ -6,6 +6,8 @@
 $pageTitle = 'Reports';
 
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/payment_approval_helper.php';
+ensurePaymentApprovalSchema($pdo);
 require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
 $patientsReport = [];
@@ -118,6 +120,7 @@ try {
                 SELECT DISTINCT billing_id, amount, payment_date,
                        DATE_FORMAT(created_at, '%Y-%m-%d %H:%i') AS created_minute
                 FROM payments
+                WHERE voided_at IS NULL
             ) dp
             GROUP BY billing_id
         ) pc ON pc.billing_id = b.id
@@ -126,6 +129,7 @@ try {
                    GROUP_CONCAT(DISTINCT LOWER(TRIM(payment_method)) ORDER BY LOWER(TRIM(payment_method)) SEPARATOR ',') AS methods
             FROM payments
             WHERE payment_method IS NOT NULL AND TRIM(payment_method) <> ''
+              AND voided_at IS NULL
             GROUP BY billing_id
         ) pm ON pm.billing_id = b.id
         ORDER BY b.billing_date DESC, b.id DESC
@@ -194,6 +198,7 @@ $revenueStmt = $pdo->prepare("
             SELECT DISTINCT billing_id, amount, payment_date,
                    DATE_FORMAT(created_at, '%Y-%m-%d %H:%i') AS created_minute
             FROM payments
+            WHERE voided_at IS NULL
         ) dp
         GROUP BY billing_id
     ) pc ON pc.billing_id = b.id
@@ -311,6 +316,7 @@ try {
         FROM payments p
         INNER JOIN billing b ON b.id = p.billing_id
         WHERE COALESCE(b.payment_status, '') <> 'Cancelled'
+          AND p.voided_at IS NULL
         ORDER BY p.billing_id, p.payment_date, p.created_at, p.id
     ")->fetchAll(PDO::FETCH_ASSOC);
     foreach ($svcPayments as $pay) {
@@ -488,6 +494,7 @@ try {
         FROM payments p
         INNER JOIN billing b ON b.id = p.billing_id
         WHERE COALESCE(b.payment_status, '') <> 'Cancelled'
+          AND p.voided_at IS NULL
         ORDER BY p.billing_id, p.payment_date, p.created_at, p.id
     ")->fetchAll(PDO::FETCH_ASSOC);
 
