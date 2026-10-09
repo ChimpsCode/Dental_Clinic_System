@@ -706,6 +706,18 @@ try {
                 break;
             }
 
+            // Schema changes must run before the transaction (MySQL DDL commits).
+            ensureBillingCancelledStatus($pdo);
+            ensureDiscountSchema($pdo);
+            $pdo->beginTransaction();
+
+            // Lock this session so repeated completion requests reuse its bill.
+            $stmt = $pdo->prepare("SELECT id FROM consultations WHERE id = ? FOR UPDATE");
+            $stmt->execute([$consultId]);
+            if (!$stmt->fetchColumn()) {
+                throw new RuntimeException('Consultation not found');
+            }
+
             // Mark consultation completed
             $stmt = $pdo->prepare("UPDATE consultations SET status = 'completed' WHERE id = ?");
             $stmt->execute([$consultId]);
@@ -765,6 +777,8 @@ try {
                 $paymentStatus = $billingInfo['payment_status'];
                 $billingId = $billingInfo['billing_id'];
 
+                $pdo->commit();
+
                 $outstanding = getPatientOutstandingBalance($pdo, (int)$cons['patient_id']);
                 notifyPatientConsultationComplete($pdo, (int)$cons['patient_id'], $outstanding);
 
@@ -788,8 +802,7 @@ try {
                     'payment_status' => $paymentStatus
                 ]);
             } else {
-                ob_clean();
-                echo json_encode(['success' => true, 'message' => 'Consultation completed']);
+                throw new RuntimeException('Consultation not found');
             }
             break;
 
@@ -948,6 +961,9 @@ try {
     }
 
 } catch (Exception $e) {
+    if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     error_log("Consultation Action Error: " . $e->getMessage());
     ob_clean();
     echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);

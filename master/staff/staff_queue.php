@@ -320,6 +320,11 @@ try {
     padding: 0 4px;
 }
 
+#queuePatientModal,
+body:has(#queuePatientModal) #app-notice-modal {
+    backdrop-filter: blur(3px);
+}
+
 .fullscreen-modal-overlay {
     display: none;
     position: fixed;

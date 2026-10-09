@@ -538,10 +538,18 @@ $sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'pe
 </div>
 
 <!-- New Appointment Modal -->
-<div id="newAppointmentModal" class="modal-overlay" data-preserve-open="1">
-    <div class="modal" style="width: 550px; max-height: 90vh; overflow-y: auto;">
-        <h2 style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">Schedule New Appointment</h2>
+<link rel="stylesheet" href="../../assets/css/appointment_schedule_modal.css">
+<div id="newAppointmentModal" class="modal-overlay appointment-schedule-overlay" data-preserve-open="1">
+    <div class="modal appointment-schedule-modal" role="dialog" aria-modal="true" aria-labelledby="dentistScheduleTitle">
+        <div class="schedule-modal-header">
+            <div class="schedule-modal-heading">
+                <span class="schedule-modal-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M16 3v4M8 3v4M3 11h18M12 14v4M10 16h4"/></svg></span>
+                <div><h2 id="dentistScheduleTitle">Schedule New Appointment</h2><p>Enter patient details and choose an appointment slot.</p></div>
+            </div>
+            <button type="button" class="schedule-modal-close" aria-label="Close appointment form" onclick="closeNewAppointmentModal()">&times;</button>
+        </div>
         <form id="newAppointmentForm">
+            <div class="schedule-form-body">
             <div class="form-row">
                 <div class="form-group" style="flex: 1;">
                     <label>First Name *</label>
@@ -551,11 +559,10 @@ $sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'pe
                     <label>Middle Name</label>
                     <input type="text" name="middle_name" class="form-control" placeholder="Enter middle name">
                 </div>
-            </div>
-            
-            <div class="form-group">
-                <label>Last Name *</label>
-                <input type="text" name="last_name" required class="form-control" placeholder="Enter last name">
+                <div class="form-group" style="flex: 1;">
+                    <label>Last Name *</label>
+                    <input type="text" name="last_name" required class="form-control" placeholder="Enter last name">
+                </div>
             </div>
             
             <div class="form-row">
@@ -601,6 +608,7 @@ $sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'pe
                 <textarea name="notes" rows="3" class="form-control" placeholder="Additional notes about the appointment..."></textarea>
             </div>
             
+            </div>
             <div class="modal-actions">
                 <button type="button" onclick="closeNewAppointmentModal()" class="btn-cancel">Cancel</button>
                 <button type="submit" class="btn-primary">Schedule Appointment</button>

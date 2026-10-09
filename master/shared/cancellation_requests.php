@@ -36,9 +36,7 @@ try {
     $result = reviewAppointmentCancellationRequest($pdo, (int)($input['request_id'] ?? 0), (int)$_SESSION['user_id'], (string)($input['decision'] ?? ''), trim((string)($input['note'] ?? '')));
     try {
         require_once __DIR__ . '/../../includes/notification_functions.php';
-        $stmt = $pdo->prepare('SELECT user_id FROM patients WHERE id=?');
-        $stmt->execute([$result['patient_id']]);
-        $user = $stmt->fetchColumn();
+        $user = getUserIdForPatient($pdo, (int)$result['patient_id']);
         if ($user) createNotification($pdo, (int)$user, 'appointment', 'Cancellation Request Reviewed', $result['message'] . (!empty($input['note']) ? ' Clinic note: ' . trim($input['note']) : ''), 'appointments.php?tab=upcoming');
         require_once __DIR__ . '/../../includes/audit_helper.php';
         logAudit($pdo, $_SESSION['user_id'], $_SESSION['username'] ?? '', $_SESSION['role'], 'update', 'appointments', $result['message'], $result['appointment_id'], 'appointments');

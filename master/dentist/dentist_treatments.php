@@ -270,10 +270,13 @@ require_once '../../includes/dentist_layout_start.php';
 
 <!-- View Treatment Plan Modal (Patient History View) -->
 <div id="viewPlanModal" class="modal-overlay">
-    <div class="modal" style="width: 800px; max-width: 95%; max-height: 90vh; overflow-y: auto;">
-        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h2 style="margin: 0; font-size: 1.25rem; font-weight: 600;">📋 Patient Treatment Plans</h2>
-            <button onclick="closeViewPlanModal()" class="modal-close" style="background: none; border: none; font-size: 1.5rem; color: #6b7280; cursor: pointer;">&times;</button>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="viewPlanTitle">
+        <div class="modal-header">
+            <div class="tp-modal-heading">
+                <span class="tp-modal-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 11h6M9 15h6"/></svg></span>
+                <div><h2 id="viewPlanTitle">Patient Treatment Plans</h2><p>Review progress, scheduled sessions, and treatment history.</p></div>
+            </div>
+            <button type="button" onclick="closeViewPlanModal()" class="modal-close" aria-label="Close treatment plans">&times;</button>
         </div>
         
         <div class="modal-body">
@@ -314,7 +317,7 @@ require_once '../../includes/dentist_layout_start.php';
             </div>
         </div>
         
-        <div class="modal-footer" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px;">
+        <div class="modal-footer">
             <button onclick="closeViewPlanModal()" class="btn-cancel">Close</button>
             <button onclick="addNewPlanForCurrentPatient()" class="btn-primary">+ Create New Plan</button>
         </div>
@@ -323,10 +326,17 @@ require_once '../../includes/dentist_layout_start.php';
 
 <!-- New/Edit Treatment Plan Modal -->
 <div id="treatmentPlanModal" class="modal-overlay">
-    <div class="modal" style="width: 650px; max-height: 90vh; overflow-y: auto;">
-        <h2 id="treatmentPlanModalTitle" style="margin: 0 0 20px; font-size: 1.25rem; font-weight: 600;">New Treatment Plan</h2>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="treatmentPlanModalTitle">
+        <div class="tp-form-header">
+            <div class="tp-form-heading">
+                <span class="tp-form-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 11h6M9 15h6"/></svg></span>
+                <div><h2 id="treatmentPlanModalTitle">New Treatment Plan</h2><p>Choose a patient and arrange their treatment sessions.</p></div>
+            </div>
+            <button type="button" class="tp-form-close" aria-label="Close treatment plan form" onclick="closeTreatmentPlanModal()">&times;</button>
+        </div>
         <form id="treatmentPlanForm">
             <input type="hidden" name="plan_id" id="plan_id" value="">
+            <div class="tp-form-body">
             
             <div class="form-group">
                 <label>Patient *</label>
@@ -395,7 +405,7 @@ require_once '../../includes/dentist_layout_start.php';
             </div>
             
             <input type="hidden" name="plan_id" id="plan_id" value="">
-            
+            </div>
             <div class="modal-actions">
                 <button type="button" onclick="closeTreatmentPlanModal()" class="btn-cancel">Cancel</button>
                 <button type="submit" class="btn-primary">Save Treatment Plan</button>
@@ -450,6 +460,10 @@ require_once '../../includes/dentist_layout_start.php';
         document.getElementById('progressForm').addEventListener('submit', saveProgress);
     });
     
+    function isTreatmentPlanCompleted(plan) {
+        return String(plan?.overall_status || plan?.status || '').trim().toLowerCase() === 'completed';
+    }
+
     let tpKebabDropdown = null;
     let tpActiveButton = null;
     
@@ -475,6 +489,7 @@ require_once '../../includes/dentist_layout_start.php';
         } else {
             // Open new dropdown
             const planId = button.getAttribute('data-plan-id');
+            const plan = treatmentPlans.find(p => String(p.id) === String(planId));
             
             tpKebabDropdown.innerHTML = `
                 <a href="javascript:void(0)" onclick="viewTreatmentPlan(${planId}); toggleTpKebab(document.activeElement)">
@@ -484,13 +499,13 @@ require_once '../../includes/dentist_layout_start.php';
                     </svg>
                     View
                 </a>
-                <a href="javascript:void(0)" onclick="editTreatmentPlan(${planId}); toggleTpKebab(document.activeElement)">
+                ${isTreatmentPlanCompleted(plan) ? '' : `<a href="javascript:void(0)" onclick="editTreatmentPlan(${planId}); toggleTpKebab(document.activeElement)">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                     </svg>
                     Edit
-                </a>
+                </a>`}
             `;
             
             const rect = button.getBoundingClientRect();
@@ -1080,8 +1095,8 @@ require_once '../../includes/dentist_layout_start.php';
             const statusText = plan.status === 'completed' ? 'Completed' : plan.status === 'in_progress' ? 'In Progress' : 'Active';
             
             html += `
-                <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 16px; position: relative;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                <div class="tp-plan-card" style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 16px; position: relative;">
+                    <div class="tp-plan-card-heading" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
                         <div>
                             <div style="font-weight: 600; font-size: 1rem;">${plan.treatment_name || 'General'}</div>
                             <div style="font-size: 0.85rem; color: #6b7280;">Treatment Plan</div>
@@ -1090,17 +1105,17 @@ require_once '../../includes/dentist_layout_start.php';
                             <span style="background: ${statusColor}20; color: ${statusColor}; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">
                                 ${statusText}
                             </span>
-                            <button onclick="editTreatmentPlan(${plan.id})" style="background: none; border: none; color: #6b7280; cursor: pointer; padding: 4px;">
+                            ${isTreatmentPlanCompleted(plan) ? '' : `<button class="tp-edit-plan" aria-label="Edit treatment plan" onclick="editTreatmentPlan(${plan.id})" style="background: none; border: none; color: #6b7280; cursor: pointer; padding: 4px;">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                                 </svg>
-                            </button>
+                            </button>`}
                         </div>
                     </div>
                     
                     <div style="margin-bottom: 12px;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                        <div class="tp-progress-labels" style="display: flex; justify-content: space-between; margin-bottom: 6px;">
                             <span style="font-size: 0.85rem; color: #6b7280;">Progress</span>
                             <span style="font-size: 0.85rem; font-weight: 600;">${completed} / ${total} sessions (${percent}%)</span>
                         </div>
@@ -1109,7 +1124,7 @@ require_once '../../includes/dentist_layout_start.php';
                         </div>
                     </div>
                     
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 0.85rem;">
+                    <div class="tp-plan-metadata" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 0.85rem;">
                         <div>
                             <div style="color: #6b7280;">Teeth</div>
                             <div style="font-weight: 500;">${plan.teeth_numbers || 'Not specified'}</div>
@@ -1193,7 +1208,7 @@ require_once '../../includes/dentist_layout_start.php';
 
     function editTreatmentPlan(id) {
         const plan = treatmentPlans.find(p => p.id == id);
-        if (!plan) return;
+        if (!plan || isTreatmentPlanCompleted(plan)) return;
         
         document.getElementById('treatmentPlanModalTitle').textContent = 'Edit Treatment Plan';
         document.getElementById('plan_id').value = plan.id;
@@ -1335,8 +1350,117 @@ require_once '../../includes/dentist_layout_start.php';
 </script>
 
 <style>
+#viewPlanModal { padding: 24px; background: rgba(15, 23, 42, 0.42) !important; backdrop-filter: blur(3px); }
+#viewPlanModal > .modal {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 800px;
+    max-height: calc(100dvh - 48px);
+    padding: 0 !important;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+}
+#viewPlanModal .modal-header { position: static; flex-shrink: 0; gap: 16px; margin: 0; padding: 22px 28px; border-bottom: 1px solid #e8edf4; }
+#viewPlanModal .tp-modal-heading { display: flex; align-items: center; gap: 14px; min-width: 0; }
+#viewPlanModal .tp-modal-heading h2 { margin: 0; font-size: 20px; font-weight: 600; line-height: 1.3; }
+#viewPlanModal .tp-modal-heading p { margin: 5px 0 0; font-size: 13px; line-height: 1.5; color: #64748b; }
+#viewPlanModal .tp-modal-icon { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; background: #eff6ff; color: #2563eb; }
+#viewPlanModal .modal-close { width: 36px; height: 36px; flex-shrink: 0; padding: 0; border-radius: 10px; }
+#viewPlanModal .modal-close:hover { background: #f1f5f9; color: #334155; }
+#viewPlanModal .modal-body { min-height: 0; padding: 24px 28px; background: #f8fafc; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+#viewPlanModal #tpPatientInfo { border-radius: 12px !important; margin-bottom: 18px !important; }
+#viewPlanModal #tpPatientInfo svg { flex-shrink: 0; }
+#viewPlanModal #tpPatientName { overflow-wrap: anywhere; }
+#viewPlanModal .tp-plan-card { padding: 20px !important; background: #fff !important; border-color: #e2e8f0 !important; }
+#viewPlanModal .tp-plan-card:last-child { margin-bottom: 0 !important; }
+#viewPlanModal .tp-plan-card-heading { gap: 14px; }
+#viewPlanModal .tp-plan-card-heading > div { min-width: 0; overflow-wrap: anywhere; }
+#viewPlanModal .tp-plan-card-heading > div:last-child { flex-shrink: 0; }
+#viewPlanModal .tp-edit-plan { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; }
+#viewPlanModal .tp-edit-plan:hover { background: #f1f5f9 !important; }
+#viewPlanModal .tp-progress-labels { gap: 12px; flex-wrap: wrap; }
+#viewPlanModal .tp-plan-metadata { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 16px !important; line-height: 1.5; }
+#viewPlanModal .tp-plan-metadata > div { overflow-wrap: anywhere; }
+#viewPlanModal .modal-footer { flex-shrink: 0; display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin: 0; padding: 16px 28px; border-top: 1px solid #e8edf4; background: #fff; }
+#viewPlanModal .modal-footer button { min-height: 42px; border-radius: 9px; font-size: 14px; }
+#viewPlanModal .btn-cancel { background: #fff; }
+#viewPlanModal button:focus-visible { outline: 3px solid #93c5fd; outline-offset: 3px; }
+@media (max-width: 540px) {
+    #viewPlanModal { padding: 12px; }
+    #viewPlanModal > .modal { max-height: calc(100dvh - 24px); border-radius: 16px; }
+    #viewPlanModal .modal-header { padding: 18px; }
+    #viewPlanModal .tp-modal-heading h2 { font-size: 18px; }
+    #viewPlanModal .modal-body { padding: 20px 18px; }
+    #viewPlanModal .tp-plan-card { padding: 16px !important; }
+    #viewPlanModal .tp-plan-card-heading { flex-wrap: wrap; }
+    #viewPlanModal .tp-plan-metadata { grid-template-columns: 1fr !important; }
+    #viewPlanModal .modal-footer { padding: 14px 18px; }
+}
 
 /* Session Button Styles */
+#treatmentPlanModal { padding: 24px; background: rgba(15, 23, 42, 0.42) !important; backdrop-filter: blur(3px); }
+#treatmentPlanModal > .modal {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 820px;
+    max-height: calc(100dvh - 48px);
+    padding: 0 !important;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+}
+#treatmentPlanModal .tp-form-header { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; gap: 16px; padding: 22px 28px; border-bottom: 1px solid #e8edf4; }
+#treatmentPlanModal .tp-form-heading { display: flex; align-items: center; gap: 14px; min-width: 0; }
+#treatmentPlanModal .tp-form-heading h2 { margin: 0; font-size: 20px; font-weight: 600; line-height: 1.3; }
+#treatmentPlanModal .tp-form-heading p { margin: 5px 0 0; font-size: 13px; line-height: 1.5; color: #64748b; }
+#treatmentPlanModal .tp-form-icon { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; background: #eff6ff; color: #2563eb; }
+#treatmentPlanModal .tp-form-close { width: 36px; height: 36px; flex-shrink: 0; padding: 0; border: 0; border-radius: 10px; background: transparent; color: #64748b; font-size: 26px; cursor: pointer; }
+#treatmentPlanModal .tp-form-close:hover { background: #f1f5f9; color: #334155; }
+#treatmentPlanForm { display: flex; flex-direction: column; min-height: 0; margin: 0; overflow: hidden; }
+#treatmentPlanModal .tp-form-body { display: flex; flex-direction: column; gap: 20px; min-height: 0; padding: 24px 28px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+#treatmentPlanModal .tp-form-body > * { flex-shrink: 0; }
+#treatmentPlanModal .form-group { min-width: 0; margin-bottom: 0 !important; }
+#treatmentPlanModal .form-group label { margin-bottom: 8px; color: #334155; font-size: 13px; font-weight: 600; }
+#treatmentPlanModal .form-control { width: 100%; min-width: 0; min-height: 44px; padding: 11px 13px; border: 1px solid #dbe3ee; border-radius: 9px; background: #fff; color: #0f172a; font: inherit; font-size: 14px; line-height: 1.5; box-sizing: border-box; }
+#treatmentPlanModal .form-control:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px #eff6ff; }
+#treatmentPlanModal .form-control:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+#treatmentPlanModal .form-control::placeholder { color: #94a3b8; }
+#treatmentPlanModal textarea.form-control { min-height: 76px; resize: vertical; }
+#treatmentPlanModal .form-group small { display: block; margin-top: 6px; font-size: 12px; line-height: 1.5; }
+#treatmentPlanModal #sessionCountBtns { gap: 8px !important; }
+#treatmentPlanModal .sess-btn { width: 38px; height: 38px; border-width: 1px; border-radius: 10px; font-size: 14px; }
+#treatmentPlanModal .sess-btn.active { box-shadow: none; }
+#treatmentPlanModal .session-row { padding: 18px; border-radius: 12px; margin-bottom: 16px; }
+#treatmentPlanModal .session-row:last-child { margin-bottom: 0; }
+#treatmentPlanModal .session-row-header { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; letter-spacing: 0; }
+#treatmentPlanModal .session-row-content { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+#treatmentPlanModal .session-right { min-width: 0; }
+#treatmentPlanModal .session-left-inner, #treatmentPlanModal .session-right-inner { gap: 14px; }
+#treatmentPlanModal .session-field-label { color: #475569; font-size: 12px; text-transform: none; letter-spacing: 0; }
+#treatmentPlanModal .session-time-slots { grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 6px; }
+#treatmentPlanModal .time-slot-btn { font-size: 12px; padding: 8px 6px; min-height: 36px; }
+#treatmentPlanModal .form-row { gap: 18px; }
+#treatmentPlanModal .modal-actions { flex-shrink: 0; flex-wrap: wrap; gap: 10px; margin: 0; padding: 16px 28px; background: #f8fafc; border-top: 1px solid #e8edf4; }
+#treatmentPlanModal .modal-actions button { min-height: 42px; border-radius: 9px; font-size: 14px; }
+#treatmentPlanModal .btn-cancel { background: #fff; }
+#treatmentPlanModal button:focus-visible { outline: 3px solid #93c5fd; outline-offset: 3px; }
+@media (max-width: 600px) {
+    #treatmentPlanModal { padding: 12px; }
+    #treatmentPlanModal > .modal { max-height: calc(100dvh - 24px); border-radius: 16px; }
+    #treatmentPlanModal .tp-form-header { padding: 18px; }
+    #treatmentPlanModal .tp-form-heading h2 { font-size: 18px; }
+    #treatmentPlanModal .tp-form-body { padding: 20px 18px; }
+    #treatmentPlanModal .session-row { padding: 16px; }
+    #treatmentPlanModal .session-row-content { grid-template-columns: 1fr; }
+    #treatmentPlanModal .form-row { flex-direction: column; }
+    #treatmentPlanModal .modal-actions { padding: 14px 18px; }
+}
+
 .sess-btn {
     width: 40px; height: 40px;
     border-radius: 50%;

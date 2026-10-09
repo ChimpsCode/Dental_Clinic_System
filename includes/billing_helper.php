@@ -168,18 +168,26 @@ function findOrCreateBillingForVisit(PDO $pdo, int $patientId, string $visitDate
 {
     ensureBillingCancelledStatus($pdo);
 
-    // Look for an existing billing record for this patient on the visit date
+    // Match the appointment first. Another appointment on the same day has
+    // its own charges and must never reuse this patient's earlier invoice.
     if (!empty($appointmentId)) {
         $stmt = $pdo->prepare("SELECT * FROM billing WHERE patient_id = ? AND appointment_id = ? ORDER BY id DESC LIMIT 1");
         $stmt->execute([$patientId, (int)$appointmentId]);
         $billing = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$billing) {
-            $stmt = $pdo->prepare("SELECT * FROM billing WHERE patient_id = ? AND DATE(billing_date) = ? ORDER BY id DESC LIMIT 1");
+            $stmt = $pdo->prepare("SELECT * FROM billing WHERE patient_id = ? AND DATE(billing_date) = ? AND appointment_id IS NULL ORDER BY id DESC LIMIT 2");
             $stmt->execute([$patientId, $visitDate]);
-            $billing = $stmt->fetch(PDO::FETCH_ASSOC);
+            $legacyBills = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $billing = count($legacyBills) === 1 ? $legacyBills[0] : false;
+            if ($billing) {
+                // Claim an unambiguous legacy invoice so a later session cannot
+                // reuse it again merely because the visit date matches.
+                $stmt = $pdo->prepare("UPDATE billing SET appointment_id = ? WHERE id = ? AND appointment_id IS NULL");
+                $stmt->execute([(int)$appointmentId, (int)$billing['id']]);
+            }
         }
     } else {
-        $stmt = $pdo->prepare("SELECT * FROM billing WHERE patient_id = ? AND DATE(billing_date) = ? ORDER BY id DESC LIMIT 1");
+        $stmt = $pdo->prepare("SELECT * FROM billing WHERE patient_id = ? AND DATE(billing_date) = ? AND appointment_id IS NULL ORDER BY id DESC LIMIT 1");
         $stmt->execute([$patientId, $visitDate]);
         $billing = $stmt->fetch(PDO::FETCH_ASSOC);
     }

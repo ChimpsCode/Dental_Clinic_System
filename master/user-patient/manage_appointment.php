@@ -42,6 +42,17 @@ try {
         require_once __DIR__ . '/../../includes/notification_functions.php';
         $title = $input['action'] === 'request_cancel' ? 'Patient Requested Appointment Cancellation' : ($input['action'] === 'edit' ? 'Patient Updated Appointment Request' : 'Patient Cancelled Appointment');
         $message = 'Appointment #' . $result['appointment_id'] . ': ' . $result['message'];
+        if ($input['action'] === 'cancel') {
+            $stmt = $pdo->prepare('SELECT first_name, middle_name, last_name, suffix FROM patients WHERE id = ?');
+            $stmt->execute([(int)$_SESSION['patient_id']]);
+            $patient = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+            $patientName = implode(' ', array_filter(array_map('trim', [
+                (string)($patient['first_name'] ?? ''), (string)($patient['middle_name'] ?? ''),
+                (string)($patient['last_name'] ?? ''), (string)($patient['suffix'] ?? ''),
+            ]), static fn($part) => $part !== ''));
+            $message = ($patientName ?: 'Patient #' . (int)$_SESSION['patient_id'])
+                . ' cancelled appointment #' . $result['appointment_id'] . '.';
+        }
         $suffix = !empty($result['request_id']) ? '?cancellation_request=' . $result['request_id'] : '';
         notifyAdmin($pdo, 'appointment', $title, $message, 'admin_appointments.php' . $suffix);
         notifyStaff($pdo, 'appointment', $title, $message, 'staff_appointments.php' . $suffix);

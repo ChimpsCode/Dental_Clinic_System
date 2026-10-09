@@ -46,17 +46,13 @@ try {
     $whereClause = "WHERE 1=1";
     $params = [];
 
-    $queueJoin = "LEFT JOIN (
-            SELECT q1.patient_id, DATE(q1.created_at) AS created_date,
-                   q1.id, q1.queue_number, q1.treatment_type, q1.teeth_numbers,
-                   q1.status, q1.created_at, q1.notes
-            FROM queue q1
-            INNER JOIN (
-                SELECT patient_id, DATE(created_at) AS created_date, MIN(id) AS min_id
-                FROM queue
-                GROUP BY patient_id, DATE(created_at)
-            ) q2 ON q2.min_id = q1.id
-        ) q ON q.patient_id = b.patient_id AND q.created_date = DATE(b.billing_date)";
+    $queueJoin = "LEFT JOIN queue q ON q.id = (
+            SELECT q1.id FROM queue q1
+            WHERE q1.patient_id = b.patient_id
+              AND ((b.appointment_id IS NOT NULL AND q1.appointment_id = b.appointment_id)
+                OR (b.appointment_id IS NULL AND DATE(q1.created_at) = DATE(b.billing_date)))
+            ORDER BY q1.id DESC LIMIT 1
+        )";
 
     $overallUnpaidExists = "EXISTS (
             SELECT 1 FROM billing x
@@ -301,7 +297,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                 
 
                 <!-- Stats Cards -->
-                <div class="summary-cards">
+                <div class="summary-cards" id="staffPaymentSummary">
                     <div class="summary-card card-collected">
                         <div class="summary-icon">
                             <img src="../../assets/icons/peso.png" alt="Collected Today">
@@ -503,6 +499,7 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     </table>
                 </div>
 
+                <div id="staffPaymentPagination">
                 <?php if ($totalRecords > 0): ?>
                 <!-- Pagination -->
                 <div class="pagination">
@@ -577,10 +574,11 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
                     </div>
                 </div>
                 <?php endif; ?>
+                </div>
             </div>
 
             <!-- View Payment Details Modal (Overview / History / Record Payment) -->
-            <div id="paymentModal" class="modal-overlay" style="display: none;">
+            <div id="paymentModal" class="modal-overlay" style="display: none; backdrop-filter: blur(3px);">
                 <div class="modal pay-detail-modal">
                     <div class="modal-header">
                         <h2>Payment Details</h2>
@@ -3083,5 +3081,28 @@ require_once __DIR__ . '/../../includes/staff_layout_start.php';
 
 <?php
 require_once __DIR__ . '/../../includes/payment_approval_dialog.php';
+// Live updates reuse the server-rendered rows and the same receipt data shape.
+$livePaymentData = [];
+foreach ($paymentRecords as $record) {
+    if (empty($record['billing_id'])) continue;
+    $livePaymentData[(int)$record['billing_id']] = [
+        'billing_id' => (int)$record['billing_id'],
+        'patient_id' => (int)$record['patient_id'],
+        'queue_id' => (int)($record['queue_id'] ?? 0),
+        'patient' => $record['patient_name'] ?? '',
+        'phone' => $record['patient_phone'] ?? '',
+        'services' => $record['treatment_type'] ?: 'General Checkup',
+        'amount' => (float)($record['amount'] ?? 0),
+        'paid_amount' => (float)($record['paid_amount'] ?? 0),
+        'balance' => max(0, (float)($record['amount'] ?? 0) - (float)($record['paid_amount'] ?? 0)),
+        'date' => date('Y-m-d', strtotime($record['billing_date'])),
+        'status' => $record['payment_status'] ?? 'Unpaid',
+        'invoice_id' => !empty($record['queue_number']) ? '#' . $record['queue_number'] : 'INV-' . str_pad($record['billing_id'], 4, '0', STR_PAD_LEFT),
+    ];
+}
+?>
+<script type="application/json" id="staffPaymentLiveData"><?php echo json_encode((object)$livePaymentData, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE); ?></script>
+<script src="../../assets/js/staff_payment_live_refresh.js"></script>
+<?php
 require_once __DIR__ . '/../../includes/staff_layout_end.php';
 ?>

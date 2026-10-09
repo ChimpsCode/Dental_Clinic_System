@@ -374,7 +374,7 @@ try {
     </div>
 
 <!-- Scheduled Patients Modal -->
-<div id="scCalModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
+<div id="scCalModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(3px); z-index: 99999; align-items: center; justify-content: center;">
     <div style="background: white; border-radius: 14px; width: 92%; max-width: 640px; max-height: 82vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 24px 60px rgba(15,23,42,0.25); position: relative; z-index: 100000; margin: 20px;">
         <div style="display: flex; align-items: center; gap: 12px; padding: 18px 22px; background: linear-gradient(135deg, #2444d5 10%, #412fa3be 48%, #0891b2 90%); color: white;">
             <span style="font-size: 1.3rem;">📅</span>

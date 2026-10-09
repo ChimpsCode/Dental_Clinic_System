@@ -163,20 +163,20 @@ try {
 
 <!-- Full Screen Patient Record Modal -->
 <div id="patientRecordModal" class="fullscreen-modal-overlay">
-    <div class="fullscreen-modal-content">
+    <div class="fullscreen-modal-content" role="dialog" aria-modal="true" aria-labelledby="staffPatientRecordTitle">
         <div class="fullscreen-modal-header">
             <div style="display:flex;align-items:center;gap:12px;flex:1;">
                 <div id="staffModalPatientAvatar" style="width:56px;height:56px;border-radius:50%;overflow:hidden;background:#6366f1;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:700;">
                 </div>
                 <div style="flex:1;">
-                    <h2 style="font-size:1.25rem;font-weight:600;margin:0;">Patient Record Details</h2>
-                    <div style="display:flex;align-items:center;gap:10px;margin-top:6px;white-space:nowrap;">
+                    <h2 id="staffPatientRecordTitle" style="font-size:1.25rem;font-weight:600;margin:0;">Patient Record Details</h2>
+                    <div class="patient-record-identity" style="display:flex;align-items:center;gap:10px;margin-top:6px;white-space:nowrap;">
                         <p id="staffModalPatientName" style="color:#6b7280;margin:0;font-size:0.95rem;overflow:hidden;text-overflow:ellipsis;max-width:520px;white-space:nowrap;"></p>
                         <div id="staffModalPatientBadge" style="margin-left:6px;flex:0 0 auto;"></div>
                     </div>
                 </div>
             </div>
-            <button onclick="closePatientRecordModal()" class="fullscreen-modal-close" style="background:none;border:none;font-size:1.6rem;color:#6b7280;cursor:pointer;">&times;</button>
+            <button type="button" onclick="closePatientRecordModal()" class="fullscreen-modal-close" aria-label="Close patient details" style="background:none;border:none;font-size:1.6rem;color:#6b7280;cursor:pointer;">&times;</button>
         </div>
         <div class="fullscreen-modal-body" id="patientRecordContent">
         </div>
@@ -185,6 +185,68 @@ try {
 </div>
 
 <style>
+#patientRecordModal { padding: 24px; box-sizing: border-box; background: rgba(15, 23, 42, 0.42); backdrop-filter: blur(2px); }
+#patientRecordModal > .fullscreen-modal-content {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 920px;
+    max-height: calc(100dvh - 48px);
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+    box-sizing: border-box;
+}
+#patientRecordModal .fullscreen-modal-header {
+    display: flex;
+    align-items: center;
+    position: static;
+    flex-shrink: 0;
+    gap: 16px;
+    padding: 22px 28px;
+    margin: 0;
+    border-bottom: 1px solid #e8edf4;
+}
+#patientRecordModal .fullscreen-modal-header > div,
+#patientRecordModal .fullscreen-modal-header > div > div { min-width: 0; }
+#patientRecordModal #staffModalPatientAvatar { width: 48px !important; height: 48px !important; flex-shrink: 0; }
+#patientRecordModal #staffModalPatientAvatar img { width: 100% !important; height: 100% !important; }
+#patientRecordModal .patient-record-identity { flex-wrap: wrap; row-gap: 6px !important; white-space: normal !important; }
+#patientRecordModal #staffModalPatientName { white-space: normal !important; overflow-wrap: anywhere; }
+#patientRecordModal #staffModalPatientBadge { margin-left: 0 !important; }
+#patientRecordModal #staffModalPatientBadge span { font-size: 12px !important; padding: 4px 9px !important; border-radius: 8px !important; }
+#patientRecordModal .fullscreen-modal-close { position: static; width: 36px; height: 36px; padding: 0; flex-shrink: 0; border-radius: 10px; }
+#patientRecordModal .fullscreen-modal-close:hover { color: #334155; background: #f1f5f9; }
+#patientRecordModal .fullscreen-modal-close:focus-visible { outline: 3px solid #93c5fd; outline-offset: 3px; }
+#patientRecordContent {
+    min-height: 0;
+    max-height: none;
+    padding: 24px 28px;
+    background: #f8fafc;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+#patientRecordContent::-webkit-scrollbar { display: block; width: 6px; }
+#patientRecordContent::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }
+#patientRecordModal .patient-record-card { padding: 20px !important; margin-bottom: 16px !important; border: 1px solid #e2e8f0; border-radius: 12px !important; background: #fff !important; }
+#patientRecordModal .patient-record-card h4 { margin-bottom: 16px !important; color: #334155 !important; }
+#patientRecordModal .patient-record-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 16px 28px !important; }
+#patientRecordModal .patient-record-grid > div { min-width: 0; overflow-wrap: anywhere; }
+#patientRecordModal .patient-record-grid p { line-height: 1.5; }
+@media (max-width: 600px) {
+    #patientRecordModal { padding: 12px; }
+    #patientRecordModal > .fullscreen-modal-content { max-height: calc(100dvh - 24px); border-radius: 16px; }
+    #patientRecordModal .fullscreen-modal-header { padding: 18px; }
+    #patientRecordContent { padding: 18px; }
+    #patientRecordModal .patient-record-card { padding: 16px !important; }
+    #patientRecordModal .patient-record-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
+    #patientRecordModal #staffPatientRecordTitle { font-size: 18px !important; }
+}
+
 .fullscreen-modal-overlay {
     display: none;
     position: fixed;
@@ -1201,12 +1263,12 @@ function viewPatientRecord(patientId) {
 
                                    
             document.getElementById('patientRecordContent').innerHTML = `
-                <div style="width:100%;max-width:820px;margin:0 auto;">
+                <div class="patient-record-overview">
                     
 
-                    <div style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:12px;">
+                    <div class="patient-record-card" style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:12px;">
                         <h4 style="margin:0 0 12px 0;color:#374151;font-size:14px;font-weight:600;">👤 Account Information</h4>
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <div class="patient-record-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                             <div><p style="margin:0;color:#6b7280;font-size:12px;">Username</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.username || '-'}</p></div>
                             <div><p style="margin:0;color:#6b7280;font-size:12px;">Email</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.email || '-'}</p></div>
                             <div><p style="margin:0;color:#6b7280;font-size:12px;">Phone</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.phone || '-'}</p></div>
@@ -1214,10 +1276,10 @@ function viewPatientRecord(patientId) {
                         </div>
                     </div>
 
-                    <div style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:12px;">
+                    <div class="patient-record-card" style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:12px;">
                         <h4 style="margin:0 0 12px 0;color:#374151;font-size:14px;font-weight:600;">📝 Personal Information</h4>
                         ${personalInfoUpdate ? `<div style="font-size:12px;color:#6b7280;margin:-4px 0 12px;">Patient updated: ${new Date(personalInfoUpdate.updated_at).toLocaleString()}${personalInfoUpdate.changed_fields && personalInfoUpdate.changed_fields.length ? ' · Changed: ' + personalInfoUpdate.changed_fields.join(', ') : ''}</div>` : ''}
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <div class="patient-record-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                             <div><p style="margin:0;color:#6b7280;font-size:12px;">First Name</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.first_name || '-'}</p></div>
                             <div><p style="margin:0;color:#6b7280;font-size:12px;">Middle Name</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.middle_name || '-'}</p></div>
                             <div><p style="margin:0;color:#6b7280;font-size:12px;">Last Name</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.last_name || '-'}</p></div>
@@ -1229,9 +1291,9 @@ function viewPatientRecord(patientId) {
                         </div>
                     </div>
 
-                    <div style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:12px;">
+                    <div class="patient-record-card" style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:12px;">
                         <h4 style="margin:0 0 12px 0;color:#374151;font-size:14px;font-weight:600;">📞 Emergency Contact</h4>
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <div class="patient-record-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                             <div><p style="margin:0;color:#6b7280;font-size:12px;">Contact Name</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.emergency_contact_name || '-'}</p></div>
                             <div><p style="margin:0;color:#6b7280;font-size:12px;">Contact Phone</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.emergency_contact_phone || '-'}</p></div>
                             <div style="grid-column:1 / -1;"><p style="margin:0;color:#6b7280;font-size:12px;">Relationship</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.emergency_contact_relationship || '-'}</p></div>

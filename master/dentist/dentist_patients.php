@@ -158,7 +158,7 @@ try {
 
 <!-- Patient Details Modal - Full Screen -->
 <div id="patientModal" class="modal-overlay">
-    <div class="modal" style="max-width: 900px;">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="patientRecordTitle">
         <div class="modal-header">
                 <!-- <div>
                     <h2 style="font-size: 1.5rem; font-weight: 600; margin: 0;">Patient Record Details</h2>
@@ -171,8 +171,8 @@ try {
                     <div id="dentistModalPatientAvatar" style="width:56px;height:56px;border-radius:50%;overflow:hidden;background:#6366f1;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:700;">
                     </div>
                         <div>
-                            <h2 style="font-size:1.25rem;font-weight:600;margin:0;">Patient Record Details</h2>
-                            <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+                            <h2 id="patientRecordTitle" style="font-size:1.25rem;font-weight:600;margin:0;">Patient Record Details</h2>
+                            <div class="patient-record-identity" style="display:flex;align-items:center;gap:10px;margin-top:6px;">
                                 <p id="dentistModalPatientName" style="color:#6b7280;margin:0;font-size:0.95rem;"></p>
                                 <div id="dentistModalPatientBadge"></div>
                             </div>
@@ -183,7 +183,7 @@ try {
         </div>
 
 
-            <button onclick="closePatientModal()" class="modal-close">&times;</button>
+            <button type="button" onclick="closePatientModal()" class="modal-close" aria-label="Close patient details">&times;</button>
         </div>
         <div class="modal-body" id="patientModalContent">
             <!-- Content loaded dynamically -->
@@ -192,13 +192,14 @@ try {
 </div>
 
 <script>
-const allPatients = <?php echo json_encode($patients); ?>;
-let currentPage = 1;
-let perPage = 7;
-let filteredPatients = [...allPatients];
+// The shell initializes these page values again when returning to this tab.
+var allPatients = <?php echo json_encode($patients); ?>;
+var currentPage = 1;
+var perPage = 7;
+var filteredPatients = [...allPatients];
 
-const statusLabels = {'waiting':'Waiting','in_procedure':'In Procedure','on_hold':'On Hold','completed':'Completed','cancelled':'Cancelled','pending_payment':'Pending Payment','Scheduled':'Scheduled','In Queue':'In Queue','Pending Payment':'Pending Payment'};
-const statusColors = {'waiting':'#fef3c7:#92400e','in_procedure':'#dbeafe:#1e40af','on_hold':'#fed7aa:#9a3412','completed':'#d1fae5:#065f46','cancelled':'#fee2e2:#dc2626','pending_payment':'#fed7aa:#c2410c','Scheduled':'#dbeafe:#1d4ed8','In Queue':'#fef3c7:#92400e','Pending Payment':'#fed7aa:#c2410c'};
+var statusLabels = {'waiting':'Waiting','in_procedure':'In Procedure','on_hold':'On Hold','completed':'Completed','cancelled':'Cancelled','pending_payment':'Pending Payment','Scheduled':'Scheduled','In Queue':'In Queue','Pending Payment':'Pending Payment'};
+var statusColors = {'waiting':'#fef3c7:#92400e','in_procedure':'#dbeafe:#1e40af','on_hold':'#fed7aa:#9a3412','completed':'#d1fae5:#065f46','cancelled':'#fee2e2:#dc2626','pending_payment':'#fed7aa:#c2410c','Scheduled':'#dbeafe:#1d4ed8','In Queue':'#fef3c7:#92400e','Pending Payment':'#fed7aa:#c2410c'};
 
 // Portal Pattern: Move modals to body level
 document.addEventListener('DOMContentLoaded', function() {
@@ -426,12 +427,12 @@ function viewPatientDetails(patientId) {
             window._currentAllBillings = allBillings;
             // Prepare admin-style header HTML to prepend to full modal
             const headerHtml = `
-                <div style="width:100%;max-width:820px;margin:0 auto;">
+                <div class="patient-record-overview">
                     
 
-                    <div style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:12px;">
+                    <div class="patient-record-card" style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:12px;">
                         <h4 style="margin:0 0 12px 0;color:#374151;font-size:14px;font-weight:600;">👤 Account Information</h4>
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <div class="patient-record-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                             <div><p style="margin:0;color:#6b7280;font-size:12px;">Username</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.username || '-'}</p></div>
                             <div><p style="margin:0;color:#6b7280;font-size:12px;">Email</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.email || '-'}</p></div>
                             <div><p style="margin:0;color:#6b7280;font-size:12px;">Phone</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.phone || '-'}</p></div>
@@ -439,10 +440,10 @@ function viewPatientDetails(patientId) {
                         </div>
                     </div>
 
-                    <div style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:12px;">
+                    <div class="patient-record-card" style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:12px;">
                         <h4 style="margin:0 0 12px 0;color:#374151;font-size:14px;font-weight:600;">📝 Personal Information</h4>
                         ${personalInfoUpdate ? `<div style="font-size:12px;color:#6b7280;margin:-4px 0 12px;">Patient updated: ${new Date(personalInfoUpdate.updated_at).toLocaleString()}${personalInfoUpdate.changed_fields && personalInfoUpdate.changed_fields.length ? ' · Changed: ' + personalInfoUpdate.changed_fields.join(', ') : ''}</div>` : ''}
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <div class="patient-record-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                             <div><p style="margin:0;color:#6b7280;font-size:12px;">First Name</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.first_name || '-'}</p></div>
                             <div><p style="margin:0;color:#6b7280;font-size:12px;">Middle Name</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.middle_name || '-'}</p></div>
                             <div><p style="margin:0;color:#6b7280;font-size:12px;">Last Name</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.last_name || '-'}</p></div>
@@ -454,9 +455,9 @@ function viewPatientDetails(patientId) {
                         </div>
                     </div>
 
-                    <div style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:12px;">
+                    <div class="patient-record-card" style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:12px;">
                         <h4 style="margin:0 0 12px 0;color:#374151;font-size:14px;font-weight:600;">📞 Emergency Contact</h4>
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <div class="patient-record-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                             <div><p style="margin:0;color:#6b7280;font-size:12px;">Contact Name</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.emergency_contact_name || '-'}</p></div>
                             <div><p style="margin:0;color:#6b7280;font-size:12px;">Contact Phone</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.emergency_contact_phone || '-'}</p></div>
                             <div style="grid-column:1 / -1;"><p style="margin:0;color:#6b7280;font-size:12px;">Relationship</p><p style="margin:4px 0 0 0;color:#111827;font-size:14px;font-weight:500;">${p.emergency_contact_relationship || '-'}</p></div>
@@ -1054,22 +1055,20 @@ document.addEventListener('keydown', function(e) {
 });
 
 // Patient Kebab Menu Functions
-let patientKebabDropdown = null;
-let patientKebabBackdrop = null;
-let patientActiveButton = null;
+var patientKebabDropdown = null;
+var patientActiveButton = null;
+
+// Remove portals left by an earlier visit before creating this page's menu.
+['patientKebabDropdownPortal', 'patientKebabBackdrop'].forEach(function(id) {
+    var oldPortal = document.getElementById(id);
+    if (oldPortal) oldPortal.remove();
+});
 
 function createPatientKebabDropdown() {
     patientKebabDropdown = document.createElement('div');
     patientKebabDropdown.className = 'patient-kebab-dropdown-portal';
     patientKebabDropdown.id = 'patientKebabDropdownPortal';
     document.body.appendChild(patientKebabDropdown);
-
-    patientKebabBackdrop = document.createElement('div');
-    patientKebabBackdrop.className = 'patient-kebab-backdrop';
-    patientKebabBackdrop.id = 'patientKebabBackdrop';
-    document.body.appendChild(patientKebabBackdrop);
-
-    patientKebabBackdrop.addEventListener('click', closePatientKebabDropdown);
 }
 
 function getPatientMenuItems(patientId) {
@@ -1159,7 +1158,7 @@ function positionPatientKebabDropdown(button) {
 }
 
 function openPatientKebabDropdown(button) {
-    if (!patientKebabDropdown) {
+    if (!patientKebabDropdown || !patientKebabDropdown.isConnected) {
         createPatientKebabDropdown();
     }
 
@@ -1169,7 +1168,6 @@ function openPatientKebabDropdown(button) {
     positionPatientKebabDropdown(button);
 
     patientKebabDropdown.classList.add('show');
-    patientKebabBackdrop.classList.add('show');
     patientActiveButton = button;
     button.classList.add('active');
 
@@ -1185,9 +1183,6 @@ function closePatientKebabDropdown() {
         patientKebabDropdown.style.left = '';
         patientKebabDropdown.style.top = '';
         patientKebabDropdown.removeEventListener('click', handlePatientKebabClick);
-    }
-    if (patientKebabBackdrop) {
-        patientKebabBackdrop.classList.remove('show');
     }
     if (patientActiveButton) {
         patientActiveButton.classList.remove('active');
@@ -1300,11 +1295,14 @@ function savePatientPrescription() {
     });
 }
 
-document.addEventListener('click', function(e) {
+if (window.__dentistPatientKebabClickHandler) {
+    document.removeEventListener('click', window.__dentistPatientKebabClickHandler, true);
+}
+window.__dentistPatientKebabClickHandler = function(e) {
     const button = e.target.closest('.patient-kebab-btn');
-    if (button) {
+    if (button && button.closest('#patientsTableBody')) {
         e.preventDefault();
-        e.stopPropagation();
+        e.stopImmediatePropagation();
 
         if (patientActiveButton === button && patientKebabDropdown && patientKebabDropdown.classList.contains('show')) {
             closePatientKebabDropdown();
@@ -1320,9 +1318,13 @@ document.addEventListener('click', function(e) {
     if (!e.target.closest('.patient-kebab-dropdown-portal')) {
         closePatientKebabDropdown();
     }
-});
+};
+document.addEventListener('click', window.__dentistPatientKebabClickHandler, true);
 
-document.addEventListener('keydown', function(e) {
+if (window.__dentistPatientKebabKeyHandler) {
+    document.removeEventListener('keydown', window.__dentistPatientKebabKeyHandler);
+}
+window.__dentistPatientKebabKeyHandler = function(e) {
     if (e.key === 'Escape') {
         if (patientKebabDropdown && patientKebabDropdown.classList.contains('show')) {
             closePatientKebabDropdown();
@@ -1344,16 +1346,21 @@ document.addEventListener('keydown', function(e) {
             closeSetDueDateModal();
         }
     }
-});
+};
+document.addEventListener('keydown', window.__dentistPatientKebabKeyHandler);
 
-window.addEventListener('resize', function() {
+if (window.__dentistPatientKebabResizeHandler) {
+    window.removeEventListener('resize', window.__dentistPatientKebabResizeHandler);
+}
+window.__dentistPatientKebabResizeHandler = function() {
     if (patientKebabDropdown && patientKebabDropdown.classList.contains('show') && patientActiveButton) {
         positionPatientKebabDropdown(patientActiveButton);
     }
-});
+};
+window.addEventListener('resize', window.__dentistPatientKebabResizeHandler);
 
 // Add Appointment Modal Functions
-let selectedPatientId = null;
+var selectedPatientId = null;
 
 function openAddAppointmentModal(patientId) {
     closePatientKebabDropdown();
@@ -1874,8 +1881,8 @@ function getDentistTeethDisplayText(teethString) {
 
 <script>
 // Billing Modal Functions
-let billingQueueId = null;
-let billingPatientId = null;
+var billingQueueId = null;
+var billingPatientId = null;
 
 function openBillingModal(patientId) {
     console.log('Opening billing for patient ID:', patientId);
@@ -2020,7 +2027,7 @@ function closeBillingModal() {
 }
 
 // Treatment Plan Modal Functions
-let treatmentPlanPatientId = null;
+var treatmentPlanPatientId = null;
 
 function openTreatmentPlanModal(patientId) {
     closePatientKebabDropdown();
@@ -2281,7 +2288,7 @@ function showTpPlansList() {
 }
 
 // Auto-populate Treatment Type based on Treatment Name
-let selectedTeeth = [];
+var selectedTeeth = [];
 
 function toggleToothTp(element) {
     const toothNumber = element.dataset.tooth;
@@ -2310,7 +2317,7 @@ function clearTeeth() {
 }
 
 // Switch between Adult and Primary teeth
-let currentTeethType = 'adult';
+var currentTeethType = 'adult';
 
 function switchTeethType(type) {
     currentTeethType = type;
@@ -2518,7 +2525,7 @@ document.getElementById('addAptTreatment').addEventListener('change', function()
 
 
 // Important: When you open the Add Appointment Modal, reset the form and trigger the service load
-const originalOpenAptModal = openAddAppointmentModal;
+var originalOpenAptModal = openAddAppointmentModal;
 openAddAppointmentModal = function(patientId) {
     originalOpenAptModal(patientId);
     document.getElementById('addAppointmentForm').reset();
@@ -3180,6 +3187,61 @@ setInterval(function() {
 
 <style>
 /* Tooth Chart Styles */
+#patientModal { padding: 24px; background: rgba(15, 23, 42, 0.42) !important; backdrop-filter: blur(2px); }
+#patientModal > .modal {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 920px;
+    max-height: calc(100dvh - 48px);
+    padding: 0 !important;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+}
+#patientModal .modal-header {
+    position: static;
+    flex-shrink: 0;
+    gap: 16px;
+    padding: 22px 28px;
+    margin: 0;
+    border-bottom: 1px solid #e8edf4;
+    background: #fff;
+}
+#patientModal .fullscreen-modal-header { min-width: 0; padding: 0; }
+#patientModal .fullscreen-modal-header > div { min-width: 0; }
+#patientModal #dentistModalPatientAvatar { width: 48px !important; height: 48px !important; flex-shrink: 0; }
+#patientModal .patient-record-identity { flex-wrap: wrap; row-gap: 6px !important; }
+#patientModal #dentistModalPatientName { overflow-wrap: anywhere; }
+#patientModal #dentistModalPatientBadge span { font-size: 12px !important; padding: 4px 9px !important; border-radius: 8px !important; }
+#patientModal .modal-close { width: 36px; height: 36px; padding: 0; flex-shrink: 0; border-radius: 10px; }
+#patientModal .modal-close:hover { color: #334155; background: #f1f5f9; }
+#patientModal .modal-close:focus-visible { outline: 3px solid #93c5fd; outline-offset: 3px; }
+#patientModalContent {
+    min-height: 0;
+    padding: 24px 28px;
+    background: #f8fafc;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+#patientModal .patient-record-card { padding: 20px !important; margin-bottom: 16px !important; border: 1px solid #e2e8f0; border-radius: 12px !important; background: #fff !important; }
+#patientModal .patient-record-card h4 { margin-bottom: 16px !important; color: #334155 !important; }
+#patientModal .patient-record-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 16px 28px !important; }
+#patientModal .patient-record-grid > div { min-width: 0; overflow-wrap: anywhere; }
+#patientModal .patient-record-grid p { line-height: 1.5; }
+@media (max-width: 600px) {
+    #patientModal { padding: 12px; }
+    #patientModal > .modal { max-height: calc(100dvh - 24px); border-radius: 16px; }
+    #patientModal .modal-header { padding: 18px; }
+    #patientModalContent { padding: 18px; }
+    #patientModal .patient-record-card { padding: 16px !important; }
+    #patientModal .patient-record-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
+    #patientModal #patientRecordTitle { font-size: 18px !important; }
+}
+
 .tooth-chart-modal {
     background: #f8fafc;
     border: 1px solid #e2e8f0;
@@ -3981,6 +4043,7 @@ setInterval(function() {
 
 .patient-kebab-backdrop {
     display: none;
+    pointer-events: none;
     position: fixed;
     top: 0;
     left: 0;

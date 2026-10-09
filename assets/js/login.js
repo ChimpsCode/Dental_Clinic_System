@@ -512,9 +512,9 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 
-    function updatePasswordRequirementChecks(password) {
+    function updatePasswordRequirementChecks(password, boxSelector = '#regPasswordStrengthBox') {
         const flags = getPasswordRuleFlags(password || '');
-        document.querySelectorAll('#regPasswordStrengthBox [data-rule]').forEach(function(item) {
+        document.querySelectorAll(boxSelector + ' [data-rule]').forEach(function(item) {
             const met = !!flags[item.getAttribute('data-rule')];
             if (item.classList.contains('is-met') === met) return;
             item.classList.toggle('is-met', met);
@@ -610,6 +610,15 @@ document.addEventListener('DOMContentLoaded', function() {
     setupPasswordStrengthMeter(
         registerPasswordInput
     );
+
+    if (fpNewPassword) {
+        const updateForgotPasswordRequirements = () => {
+            updatePasswordRequirementChecks(fpNewPassword.value, '#fpPasswordStrengthBox');
+        };
+        fpNewPassword.addEventListener('input', updateForgotPasswordRequirements);
+        fpNewPassword.addEventListener('blur', updateForgotPasswordRequirements);
+        updateForgotPasswordRequirements();
+    }
 
     if (registerConfirmPasswordInput) {
         registerConfirmPasswordInput.addEventListener('input', updateConfirmPasswordMatch);
@@ -976,6 +985,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const confirmPwd = fpConfirmPassword?.value || '';
             if (!newPwd || !confirmPwd) {
                 showForgotError('Please complete both password fields.');
+                return;
+            }
+            if (!isStrongPassword(newPwd)) {
+                showForgotError('Password must be at least 8 characters with an uppercase letter, lowercase letter, number, and symbol.');
+                return;
+            }
+            if (newPwd !== confirmPwd) {
+                showForgotError('Passwords do not match.');
                 return;
             }
             clearForgotMessages();

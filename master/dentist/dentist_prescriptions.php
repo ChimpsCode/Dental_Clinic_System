@@ -427,7 +427,100 @@ try {
 .btn-print:hover { background: #e0e7ff; }
 
 /* Modal */
-
+#prescriptionModal {
+    padding: 24px;
+    background: rgba(15, 23, 42, 0.48) !important;
+    backdrop-filter: blur(3px);
+}
+#prescriptionModal > .modal {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 680px;
+    max-height: calc(100dvh - 48px);
+    padding: 0 !important;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+}
+#prescriptionModal .modal-header {
+    position: static;
+    flex-shrink: 0;
+    gap: 16px;
+    margin: 0;
+    padding: 22px 28px;
+    border-bottom: 1px solid #e8edf4;
+}
+#prescriptionModal .rx-form-heading { display: flex; align-items: center; gap: 14px; min-width: 0; }
+#prescriptionModal .rx-form-icon {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border-radius: 12px;
+    background: #eff6ff;
+    color: #2563eb;
+    font-size: 26px;
+    font-weight: 600;
+}
+#prescriptionModal .rx-form-heading p { margin: 5px 0 0; font-size: 13px; line-height: 1.5; color: #64748b; }
+#prescriptionModal .modal-close { width: 36px; height: 36px; padding: 0; flex-shrink: 0; border-radius: 10px; }
+#prescriptionModal .modal-close:hover { background: #f1f5f9; color: #334155; }
+#prescriptionModal .modal-body {
+    min-height: 0;
+    padding: 24px 28px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+#prescriptionModal #prescriptionForm { display: grid; gap: 18px; margin: 0; padding: 0; }
+#prescriptionModal .rx-form-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; }
+#prescriptionModal .form-group { margin-bottom: 0 !important; min-width: 0; }
+#prescriptionModal .form-group label { margin-bottom: 8px !important; font-size: 13px !important; font-weight: 600 !important; }
+#prescriptionModal .form-group input,
+#prescriptionModal .form-group textarea {
+    display: block;
+    width: 100%;
+    padding: 11px 13px !important;
+    border: 1px solid #dbe3ee !important;
+    border-radius: 9px !important;
+    background: #fff;
+    font: inherit;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #0f172a;
+    box-sizing: border-box;
+    outline: none;
+}
+#prescriptionModal .form-group textarea { min-height: 76px; resize: vertical; }
+#prescriptionModal #medications { min-height: 100px; }
+#prescriptionModal .form-group input:focus,
+#prescriptionModal .form-group textarea:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 3px #eff6ff; }
+#prescriptionModal .form-group input::placeholder,
+#prescriptionModal .form-group textarea::placeholder { color: #94a3b8; }
+#prescriptionModal .modal-footer {
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 16px 28px !important;
+    background: #f8fafc;
+    border-top: 1px solid #e8edf4 !important;
+}
+#prescriptionModal .modal-footer button { min-height: 42px; border-radius: 9px !important; font-size: 14px; font-weight: 600; }
+#prescriptionModal button:focus-visible { outline: 3px solid #93c5fd; outline-offset: 3px; }
+@media (max-width: 540px) {
+    #prescriptionModal { padding: 12px; }
+    #prescriptionModal > .modal { max-height: calc(100dvh - 24px); border-radius: 16px; }
+    #prescriptionModal .modal-header { padding: 18px; }
+    #prescriptionModal .modal-body { padding: 20px 18px; }
+    #prescriptionModal .modal-footer { padding: 14px 18px !important; gap: 8px !important; }
+    #prescriptionModal .rx-form-row { grid-template-columns: 1fr; }
+    #prescriptionModal .safety-grid { grid-template-columns: 1fr !important; }
+    #prescriptionModal .rx-form-heading p { font-size: 12px; }
+}
 
 /* Patient Search Dropdown */
 .search-results-dropdown {
@@ -610,10 +703,16 @@ try {
 
 
 <div id="prescriptionModal" class="modal-overlay" style="display: none; z-index: 999999 !important;">
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-header">
-            <h2 id="modalTitle" style="font-size: 1.25rem; font-weight: 600; margin: 0; color: #0f172a;">New Prescription</h2>
-            <button class="modal-close" onclick="closePrescriptionModal()">&times;</button>
+            <div class="rx-form-heading">
+                <span class="rx-form-icon" aria-hidden="true">&#8478;</span>
+                <div>
+                    <h2 id="modalTitle" style="font-size: 1.25rem; font-weight: 600; margin: 0; color: #0f172a;">New Prescription</h2>
+                    <p>Add medication details and patient instructions.</p>
+                </div>
+            </div>
+            <button type="button" class="modal-close" aria-label="Close prescription" onclick="closePrescriptionModal()">&times;</button>
         </div>
         <div class="modal-body" id="prescriptionModalContent">
             <div id="patientSafetyInfo" class="safety-info" style="display: none; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
@@ -642,7 +741,7 @@ try {
                 <input type="hidden" id="prescriptionId" name="prescription_id">
                 <input type="hidden" id="patientId" name="patient_id">
                 
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 20px;">
+                <div class="rx-form-row">
                     <div class="form-group" style="position: relative;">
                         <label for="patientSearch" style="display: block; margin-bottom: 6px; font-weight: 500; color: #334155; font-size: 0.9rem;">Search Patient: *</label>
                         <input type="text" id="patientSearch" placeholder="Type patient name..." autocomplete="off" style="width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px; box-sizing: border-box;">
@@ -681,7 +780,7 @@ try {
 </div>
 
 <!-- Rx View Modal -->
-<div id="rxViewModal" class="modal-overlay" style="display:none;z-index:999999!important;" onclick="if(event.target===this)closeRxModal()">
+<div id="rxViewModal" class="modal-overlay" style="display:none;z-index:999999!important;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);" onclick="if(event.target===this)closeRxModal()">
     <div class="modal modal-rx" onclick="event.stopPropagation()">
         <div class="modal-header">
             <h2>Prescription</h2>

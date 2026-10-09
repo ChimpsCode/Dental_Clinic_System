@@ -734,7 +734,7 @@ try {
 
 
 <!-- Rx View Modal -->
-<div id="rxViewModal" class="modal-overlay" style="display:none;z-index:999999!important;" onclick="if(event.target===this)closeRxModal()">
+<div id="rxViewModal" class="modal-overlay" style="display:none;z-index:999999!important;backdrop-filter:blur(3px);" onclick="if(event.target===this)closeRxModal()">
     <div class="modal modal-rx" onclick="event.stopPropagation()">
         <div class="modal-header">
             <h2>Prescription</h2>
