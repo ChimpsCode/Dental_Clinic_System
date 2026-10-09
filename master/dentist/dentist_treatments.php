@@ -2,6 +2,7 @@
 $pageTitle = 'Treatment Plan';
 
 require_once '../../config/database.php';
+require_once '../../includes/treatment_plan_workflow.php';
 
 // Get treatment plans with appointment info - NO try-catch to see any errors
 $sql = "
@@ -39,6 +40,8 @@ foreach ($services as $s) {
 
 // Map patient names and resolve service names
 foreach ($treatmentPlans as &$plan) {
+    // Read current session progress without changing appointments or historical records.
+    $plan = array_merge($plan, syncTreatmentPlanProgress($pdo, (int)$plan['id'], false));
     $plan['full_name'] = $patientNames[$plan['patient_id']] ?? 'Patient #' . $plan['patient_id'];
     // If plan_name is a number, try to get service name
     if (is_numeric($plan['plan_name']) && isset($serviceNames[$plan['plan_name']])) {
@@ -241,6 +244,9 @@ require_once '../../includes/dentist_layout_start.php';
                                 <span class="status-badge" style="background: #<?php echo $colors['bg']; ?>; color: #<?php echo $colors['text']; ?>;">
                                     <?php echo htmlspecialchars($status); ?>
                                 </span>
+                                <?php if (!empty($plan['missing_appointments'])): ?>
+                                    <div style="font-size: 0.75rem; color: #b45309; margin-top: 4px;">Appointment missing &middot; Review required</div>
+                                <?php endif; ?>
                             </td>
                             <td><?php echo $plan['created_at'] ? date('M d, Y', strtotime($plan['created_at'])) : '-'; ?></td>
                             <td>
@@ -965,6 +971,9 @@ require_once '../../includes/dentist_layout_start.php';
                 if (s.treatment) {
                     sessionStr += ' <span style="color:#059669;">\u2014 ' + escapeHtml(s.treatment) + '</span>';
                 }
+                const sessionStatus = s.status || 'Appointment missing';
+                const sessionColor = sessionStatus === 'Cancelled' ? '#dc2626' : sessionStatus === 'Appointment missing' ? '#b45309' : '#475569';
+                sessionStr += ' <span style="font-size:0.75rem; color:' + sessionColor + ';">(' + escapeHtml(sessionStatus) + ')</span>';
                 sessionStr += '</div>';
                 if (s.notes) {
                     sessionStr += '<div style="margin: 0 0 6px 16px; font-size: 0.8rem; color: #6b7280;">\uD83D\uDCDD ' + escapeHtml(s.notes) + '</div>';
@@ -1091,8 +1100,8 @@ require_once '../../includes/dentist_layout_start.php';
             const total = plan.total_sessions || 1;
             const completed = plan.completed_sessions || 0;
             const percent = Math.round((completed / total) * 100);
-            const statusColor = plan.status === 'completed' ? '#22c55e' : plan.status === 'in_progress' ? '#f59e0b' : '#3b82f6';
-            const statusText = plan.status === 'completed' ? 'Completed' : plan.status === 'in_progress' ? 'In Progress' : 'Active';
+            const statusColor = ({completed: '#22c55e', in_progress: '#f59e0b', cancelled: '#dc2626', on_hold: '#64748b'})[plan.status] || '#3b82f6';
+            const statusText = ({completed: 'Completed', in_progress: 'In Progress', cancelled: 'Cancelled', on_hold: 'On-Hold'})[plan.status] || 'Active';
             
             html += `
                 <div class="tp-plan-card" style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 16px; position: relative;">
@@ -1135,6 +1144,7 @@ require_once '../../includes/dentist_layout_start.php';
                         </div>
                     </div>
                     ${renderSessionsHtml(plan.sessions_data)}
+                    ${plan.missing_appointments ? '<div style="margin-top: 12px; color: #b45309; font-size: 0.85rem;">Appointment missing. Review this plan and reschedule the missing session before continuing.</div>' : ''}
                     ${plan.notes ? `
                         <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
                             <div style="color: #6b7280; font-size: 0.8rem; margin-bottom: 4px;">Notes</div>

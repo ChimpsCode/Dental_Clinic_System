@@ -78,12 +78,13 @@ try {
         p.phone, p.email,
         s.name as service_name, s.price as service_price,
         a.status as status_label,
-        tp.id as treatment_plan_id, tp.plan_name as treatment_plan_name,
+        COALESCE(a.treatment_plan_id, tp.id) as treatment_plan_id, tp.plan_name as treatment_plan_name,
+        tp.total_sessions as treatment_plan_total_sessions,
         q.status as queue_status, q.queue_number, q.queue_label
     FROM appointments a 
     LEFT JOIN patients p ON a.patient_id = p.id
     LEFT JOIN services s ON a.service_id = s.id
-    LEFT JOIN treatment_plans tp ON a.id = tp.appointment_id
+    LEFT JOIN treatment_plans tp ON tp.id = a.treatment_plan_id OR (a.treatment_plan_id IS NULL AND a.id = tp.appointment_id)
     LEFT JOIN (
         SELECT q1.appointment_id, q1.status, q1.queue_number, q1.queue_label
         FROM queue q1
@@ -490,6 +491,9 @@ $sectionIds = ['scheduled' => 'countScheduled', 'inqueue' => 'countInqueue', 'pe
                         <span class="status-badge badge-small <?php echo $badgeClass; ?><?php echo !empty($pendingCancellationRequests[$apt['id']]) && $sec === 'scheduled' ? ' status-requesting-cancellation' : ''; ?>" data-original-status="<?php echo htmlspecialchars($status, ENT_QUOTES, 'UTF-8'); ?>"><?php echo !empty($pendingCancellationRequests[$apt['id']]) && $sec === 'scheduled' ? 'Requesting for cancellation' : htmlspecialchars($status); ?></span>
                     </div>
                     <?php
+                    if (!empty($apt['treatment_plan_id'])): ?>
+                        <div style="margin-top: 5px;"><span style="display: inline-block; font-size: 11px; color: #92400e; background: #fef3c7; padding: 2px 8px; border-radius: 9999px;">Treatment Plan &middot; Session <?php echo (int)($apt['treatment_plan_session'] ?: 1); ?>/<?php echo (int)($apt['treatment_plan_total_sessions'] ?: 1); ?></span></div>
+                    <?php endif;
                     $pendingNotes = trim((string)($apt['notes'] ?? ''));
                     if ($sec === 'pendingapproval' && $pendingNotes !== ''):
                     ?>
@@ -831,7 +835,7 @@ function openDentistDayModal(dateStr, appts, closedEntry) {
                     <div>
                         <div style="font-weight: 500;">${name}${isTreatmentPlan ? ' <span style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 9999px; font-size: 0.7rem;">📋 Treatment Plan</span>' : ''}</div>
                         <div style="font-size: 14px; color: #6b7280;">${time} - ${appt.service_name || appt.treatment || 'General'}</div>
-                        ${isTreatmentPlan ? `<div style="font-size: 12px; color: #92400e; margin-top: 2px;">Plan: ${appt.treatment_plan_name || ''}</div>` : ''}
+                        ${isTreatmentPlan ? `<div style="font-size: 12px; color: #92400e; margin-top: 2px;">Plan: ${appt.treatment_plan_name || ''} &middot; Session ${appt.treatment_plan_session || 1}/${appt.treatment_plan_total_sessions || 1}</div>` : ''}
                     </div>
                     <span class="status-badge" style="background: ${status === 'Completed' ? '#d1fae5' : status === 'Cancelled' ? '#fee2e2' : status.toLowerCase() === 'arrived' ? '#ccfbf1' : '#e0f2fe'}; color: ${status === 'Completed' ? '#065f46' : status === 'Cancelled' ? '#dc2626' : status.toLowerCase() === 'arrived' ? '#0f766e' : '#1d4ed8'};">${status}</span>
                 </div>

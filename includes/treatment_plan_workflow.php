@@ -40,12 +40,12 @@ function linkLegacyTreatmentPlanSessions(PDO $pdo, array $plan): void
     }
 }
 
-function syncTreatmentPlanProgress(PDO $pdo, int $planId): array
+function syncTreatmentPlanProgress(PDO $pdo, int $planId, bool $persist = true): array
 {
-    $ownsTransaction = !$pdo->inTransaction();
+    $ownsTransaction = $persist && !$pdo->inTransaction();
     if ($ownsTransaction) $pdo->beginTransaction();
     try {
-        $stmt = $pdo->prepare('SELECT * FROM treatment_plans WHERE id = ? FOR UPDATE');
+        $stmt = $pdo->prepare('SELECT * FROM treatment_plans WHERE id = ?' . ($persist ? ' FOR UPDATE' : ''));
         $stmt->execute([$planId]);
         $plan = $stmt->fetch();
         if (!$plan) throw new RuntimeException('Treatment plan not found');
@@ -56,9 +56,11 @@ function syncTreatmentPlanProgress(PDO $pdo, int $planId): array
             FROM appointments a LEFT JOIN services s ON s.id = a.service_id
             WHERE a.treatment_plan_id = ? ORDER BY a.treatment_plan_session");
         $stmt->execute([$planId]);
+        $linkedSessions = [];
         foreach ($stmt->fetchAll() as $appointment) {
             $index = (int)$appointment['treatment_plan_session'] - 1;
             if (!isset($sessions[$index])) continue;
+            $linkedSessions[$index] = true;
             $session = &$sessions[$index];
             $session['appointment_id'] = (int)$appointment['id'];
             $session['date'] = $appointment['appointment_date'];
@@ -74,15 +76,24 @@ function syncTreatmentPlanProgress(PDO $pdo, int $planId): array
             else $session['status'] = 'Scheduled';
             unset($session);
         }
+        foreach ($sessions as $index => &$session) {
+            if (!isset($linkedSessions[$index])) {
+                unset($session['appointment_id']);
+                $session['status'] = 'Appointment missing';
+            }
+        }
+        unset($session);
+        $missing = count(array_filter($sessions, fn($s) => ($s['status'] ?? '') === 'Appointment missing'));
         $completed = count(array_filter($sessions, fn($s) => ($s['status'] ?? '') === 'Completed'));
         $cancelled = count(array_filter($sessions, fn($s) => ($s['status'] ?? '') === 'Cancelled'));
         $started = count(array_filter($sessions, fn($s) => ($s['status'] ?? '') === 'In-Progress'));
         $total = max((int)$plan['total_sessions'], count($sessions));
         $status = $completed === $total ? 'Completed' : ($completed + $cancelled === $total ? 'Cancelled' : ($started || $completed ? 'In-Progress' : 'Active'));
-        $upcoming = array_values(array_filter($sessions, fn($s) => !in_array($s['status'] ?? '', ['Completed', 'Cancelled'], true) && !empty($s['date'])));
+        if ($missing || count($sessions) < $total) $status = 'On-Hold';
+        $upcoming = array_values(array_filter($sessions, fn($s) => !in_array($s['status'] ?? '', ['Completed', 'Cancelled', 'Appointment missing'], true) && !empty($s['date'])));
         usort($upcoming, fn($a, $b) => strcmp($a['date'] . ($a['time'] ?? ''), $b['date'] . ($b['time'] ?? '')));
         $next = $upcoming[0] ?? [];
-        $pdo->prepare('UPDATE treatment_plans SET sessions_data = ?, completed_sessions = ?, overall_status = ?, next_session_date = ?, next_session_time = ?, updated_at = NOW() WHERE id = ?')
+        if ($persist) $pdo->prepare('UPDATE treatment_plans SET sessions_data = ?, completed_sessions = ?, overall_status = ?, next_session_date = ?, next_session_time = ?, updated_at = NOW() WHERE id = ?')
             ->execute([json_encode($sessions), $completed, $status, $next['date'] ?? null, $next['time'] ?? null, $planId]);
         if ($ownsTransaction) $pdo->commit();
         $plan['sessions_data'] = json_encode($sessions);
@@ -90,6 +101,7 @@ function syncTreatmentPlanProgress(PDO $pdo, int $planId): array
         $plan['overall_status'] = $status;
         $plan['next_session_date'] = $next['date'] ?? null;
         $plan['next_session_time'] = $next['time'] ?? null;
+        $plan['missing_appointments'] = $missing + max(0, $total - count($sessions));
         return $plan;
     } catch (Throwable $e) {
         if ($ownsTransaction && $pdo->inTransaction()) $pdo->rollBack();

@@ -134,3 +134,20 @@ $stmt = $pdo->prepare('SELECT * FROM queue WHERE id = ?'); $stmt->execute([$arri
 checkPlan((int)$entry['appointment_id'] === $arrivalId && $entry['status'] === 'waiting' && $entry['treatment_type'] === 'Cleaning', 'Arrival must link the plan appointment to its waiting queue row');
 checkPlan(syncTreatmentPlanProgress($pdo, 4)['overall_status'] === 'Active', 'Arrival must keep the plan Active until the dentist starts');
 echo "PASS: Scheduled appointment query and real Mark as Arrived endpoint produce a linked waiting queue entry with its normal number.\n";
+
+// Historical plan: cancelled first visit, second date saved without an appointment.
+$pdo->prepare('INSERT INTO treatment_plans (id, patient_id, doctor_id, plan_name, total_sessions, sessions_data) VALUES (90, 90, 1, ?, 2, ?)')
+    ->execute(['Missing appointment test', json_encode([
+        ['date' => '2030-01-07', 'time' => '09:00:00', 'treatment' => 'Cleaning'],
+        ['date' => '2030-01-08', 'time' => '10:00:00', 'treatment' => 'Extraction']
+    ])]);
+$pdo->exec("INSERT INTO appointments (reference_code, patient_id, appointment_date, appointment_time, status, treatment_plan_id, treatment_plan_session) VALUES ('TPMISSINGTEST', 90, '2030-01-07', '09:00:00', 'Cancelled', 90, 1)");
+$before = $pdo->query('SELECT * FROM treatment_plans WHERE id = 90')->fetch();
+$progress = syncTreatmentPlanProgress($pdo, 90, false);
+$reportedSessions = json_decode($progress['sessions_data'], true);
+checkPlan($progress['overall_status'] === 'On-Hold' && $progress['missing_appointments'] === 1, 'A missing appointment must flag the plan for review');
+checkPlan($reportedSessions[0]['status'] === 'Cancelled' && $reportedSessions[1]['status'] === 'Appointment missing', 'Session status must distinguish cancellation from a missing booking');
+checkPlan($progress['next_session_date'] === null, 'An unbooked session must not appear as the next scheduled visit');
+checkPlan($before === $pdo->query('SELECT * FROM treatment_plans WHERE id = 90')->fetch(), 'Read-only status calculation must preserve stored records');
+checkPlan((int)$pdo->query('SELECT COUNT(*) FROM appointments WHERE treatment_plan_id = 90')->fetchColumn() === 1, 'Review must not create historical appointments');
+echo "PASS: missing appointments are reported separately, excluded from next session, and read-only review preserves history.\n";
