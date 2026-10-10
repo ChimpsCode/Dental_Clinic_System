@@ -277,7 +277,9 @@ function inquiryRequestBaseUrl(): string
 
 function inquiryConversationUrl(string $replyToken): string
 {
-    return inquiryRequestBaseUrl() . inquiryProjectWebBase() . '/inquiry/' . $replyToken;
+    // Direct PHP links also work on hosts without the optional /inquiry rewrite.
+    return inquiryRequestBaseUrl() . inquiryProjectWebBase()
+        . '/master/welcome-page/inquiry_reply.php?token=' . rawurlencode($replyToken);
 }
 
 function inquiryStaffInquiriesUrl(): string

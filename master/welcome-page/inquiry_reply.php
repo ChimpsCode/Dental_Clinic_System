@@ -19,7 +19,7 @@ if ($token === '' || !preg_match('/^[a-f0-9]{64}$/', $token)) {
     exit;
 }
 
-require_once '../../config/database.php';
+require_once __DIR__ . '/../../config/database.php';
 
 ensureInquiryModuleSchema($pdo);
 
@@ -51,9 +51,7 @@ if (!$inquiry) {
 
 $inquiryId = (int)$inquiry['id'];
 $replies = fetchInquiryReplies($pdo, $inquiryId);
-$baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'];
-$projectBase = rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/');
-$apiUrl = $baseUrl . $projectBase . '/api/public_inquiry_reply.php';
+$apiUrl = inquiryPublicAssetUrl('master/api/public_inquiry_reply.php');
 
 $stmt = $pdo->query("SELECT setting_key, setting_value FROM settings");
 $clinicSettings = [];
