@@ -490,17 +490,17 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
             </div>
 
             <!-- Payment Details Modal (Overview / History / Record Payment) -->
-            <div id="paymentModal" class="modal-overlay" style="display: none;">
-                <div class="modal pay-detail-modal">
+            <div id="paymentModal" class="modal-overlay" style="display: none; backdrop-filter: blur(3px);">
+                <div class="modal pay-detail-modal" role="dialog" aria-modal="true" aria-labelledby="paymentModalTitle">
                     <div class="modal-header">
-                        <h2>Payment Details</h2>
-                        <button type="button" class="modal-close" onclick="closePaymentModal()">&times;</button>
+                        <div class="pay-heading"><span class="pay-heading-icon" aria-hidden="true">&#8369;</span><div><h2 id="paymentModalTitle">Payment details</h2><p>Review charges, payments, and remaining balances.</p></div></div>
+                        <button type="button" class="modal-close" aria-label="Close payment details" onclick="closePaymentModal()">&times;</button>
                     </div>
                     <div class="pay-detail-tabs">
                         <button type="button" class="pay-detail-tab active" data-tab="overview" onclick="switchPayDetailTab('overview')">Overview</button>
-                        <button type="button" class="pay-detail-tab" data-tab="history" onclick="switchPayDetailTab('history')">History</button>
+                        <button type="button" class="pay-detail-tab" data-tab="history" onclick="switchPayDetailTab('history')">Payment history</button>
                         <button type="button" class="pay-detail-tab" data-tab="record" onclick="switchPayDetailTab('record')">Record Payment</button>
-                </div>
+                    </div>
                     <div class="modal-body pay-detail-body">
                         <input type="hidden" id="payDetailQueueId">
                         <input type="hidden" id="payDetailPatientId">
@@ -559,8 +559,8 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                             </table>
                             <div id="paymentHistoryEmpty" style="display:none;text-align:center;padding:2rem;color:#9ca3af;">
                                 <p>No payment records found.</p>
-                    </div>
                             </div>
+                        </div>
 
                         <div id="payTabRecord" class="pay-detail-tab-panel" style="display:none;">
                             <div id="recordPaymentPaidState" class="pay-detail-paid-state" style="display:none;">
@@ -570,6 +570,8 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                 <p>This invoice is voided. No payment is expected.</p>
                             </div>
                             <div id="recordPaymentFormWrap">
+                                <h3 class="pay-section-title">Record a payment</h3>
+                                <p class="pay-section-copy">Enter the amount received. You can record a partial or full payment.</p>
                                 <div id="recordPaymentBreakdown" class="pay-detail-breakdown"></div>
                                 <div class="pay-detail-balance-box">
                                     <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -582,11 +584,11 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                             </div>
                         </div>
                         <div style="margin-top: 1rem;">
-                                    <label class="pay-detail-label">Payment Amount</label>
+                                    <label class="pay-detail-label" for="recordPaymentAmount">Amount received (&#8369;)</label>
                                     <input type="number" id="recordPaymentAmount" step="0.01" min="0.01" class="pay-detail-input">
                         </div>
                         <div style="margin-top: 1rem;">
-                                    <label class="pay-detail-label">Payment Method</label>
+                                    <label class="pay-detail-label" for="recordPaymentMethod">Payment method</label>
                                     <select id="recordPaymentMethod" class="pay-detail-input">
                                 <option value="cash">Cash</option>
                                 <option value="gcash">GCash</option>
@@ -601,49 +603,46 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     </div>
                 </div>
             </div>
-                    <div class="modal-actions pay-detail-footer">
+                    <div id="payDetailFooter" class="modal-actions pay-detail-footer">
                         <div id="payDueDateSection" class="pay-detail-footer-left" style="display:none;">
-                            <label class="pay-detail-footer-label" for="setDueDateInput">Due Date</label>
+                            <label class="pay-detail-footer-label" for="setDueDateInput">Invoice due date</label>
                             <input type="date" id="setDueDateInput">
-                            <button type="button" class="btn-primary" onclick="confirmSetDueDate()">Save due date</button>
-                    </div>
+                            <button type="button" class="btn-primary pay-secondary" onclick="confirmSetDueDate()">Save date</button>
+                        </div>
                         <div class="pay-detail-footer-right">
                             <div id="payMarkPaidSection" style="display:none;">
-                                <button type="button" class="btn-primary" id="payMarkPaidBtn" onclick="showMarkPaidConfirm()">Mark as Paid</button>
-                </div>
+                                <button type="button" class="btn-primary" id="payMarkPaidBtn" onclick="showMarkPaidConfirm()">Mark invoice paid</button>
+                            </div>
                             <button type="button" class="btn-cancel" onclick="closePaymentModal()">Close</button>
-            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Mark as Paid Confirmation Modal -->
             <div id="markPaidConfirmModal" class="modal-overlay" style="display: none; z-index: 100003;" onclick="if (event.target === this) hideMarkPaidConfirm()">
-                <div class="modal mark-paid-confirm-modal">
+                <div class="modal mark-paid-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirmPaymentTitle" aria-describedby="confirmPaymentHelp">
                     <div class="modal-header">
-                        <h2>Confirm Payment</h2>
-                        <button type="button" class="modal-close" onclick="hideMarkPaidConfirm()">&times;</button>
+                        <div class="pay-confirm-heading"><span class="pay-confirm-icon" aria-hidden="true">&#8369;</span><div><h2 id="confirmPaymentTitle">Confirm payment</h2><p>Settle the selected invoice</p></div></div>
+                        <button type="button" class="modal-close" aria-label="Close payment confirmation" onclick="hideMarkPaidConfirm()">&times;</button>
                     </div>
                     <div class="modal-body">
-                        <p style="margin:0 0 12px;">Are you sure you want to mark this as <strong>Paid</strong>?</p>
+                        <p id="confirmPaymentHelp">Confirm only after receiving the remaining balance from the patient.</p>
                         <div class="payment-details">
                             <div class="detail-row">
-                                <span class="detail-label">Treatment:</span>
+                                <span class="detail-label">Treatment</span>
                                 <span class="detail-value" id="confirmPaymentTreatment">-</span>
                             </div>
                             <div class="detail-row">
-                                <span class="detail-label">Total Amount:</span>
+                                <span class="detail-label">Invoice total</span>
                                 <span class="detail-value" id="confirmPaymentTotalAmount">P0.00</span>
                             </div>
                             <div class="detail-row">
-                                <span class="detail-label">Already Paid:</span>
+                                <span class="detail-label">Already paid</span>
                                 <span class="detail-value" id="confirmPaymentPaidSoFar">P0.00</span>
                             </div>
-                            <div class="detail-row">
-                                <span class="detail-label">Balance to Pay:</span>
-                                <span class="detail-value" id="confirmPaymentBalance" style="font-weight: 700; color: #059669;">P0.00</span>
-                            </div>
                         </div>
+                        <div class="pay-confirm-amount"><span>Amount to receive</span><strong id="confirmPaymentBalance">&#8369;0.00</strong><p>This payment will mark the invoice as paid.</p></div>
                     </div>
                     <div class="modal-actions">
                         <button type="button" class="btn-cancel" onclick="hideMarkPaidConfirm()">Cancel</button>
@@ -779,6 +778,109 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 .pay-detail-modal .btn-cancel:hover { background: #0284c7; }
                 .pay-detail-modal .btn-primary { padding: 0.5rem 1rem; background: #16a34a; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; }
                 .pay-detail-modal .btn-primary:hover { background: #15803d; }
+                #markPaidConfirmModal { padding: 16px; box-sizing: border-box; background: rgba(15,23,42,.5); backdrop-filter: blur(3px); }
+                #markPaidConfirmModal .mark-paid-confirm-modal { width: 100%; max-width: 480px; padding: 0; border-radius: 18px; overflow: auto; max-height: calc(100dvh - 32px); box-shadow: 0 24px 80px rgba(15,23,42,.28); }
+                #markPaidConfirmModal .modal-header { padding: 24px 24px 18px; align-items: flex-start; border-bottom: 1px solid #e8edf4; }
+                #markPaidConfirmModal .pay-confirm-heading { display: flex; align-items: center; gap: 12px; }
+                #markPaidConfirmModal .pay-confirm-icon { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; background: #eaf3ff; color: #1663ca; border-radius: 13px; font-size: 24px; font-weight: 700; }
+                #markPaidConfirmModal h2 { color: #18263c; font-size: 21px; margin: 0; }
+                #markPaidConfirmModal .pay-confirm-heading p { color: #64748b; font-size: 12px; margin: 4px 0 0; }
+                #markPaidConfirmModal .modal-close { position: static; width: 30px; height: 30px; border-radius: 50%; background: #f1f5f9; color: #64748b; flex-shrink: 0; }
+                #markPaidConfirmModal .modal-body { padding: 20px 24px 24px; }
+                #markPaidConfirmModal #confirmPaymentHelp { margin: 0 0 18px; color: #64748b; font-size: 13px; line-height: 1.6; }
+                #markPaidConfirmModal .payment-details { padding: 0; background: transparent; margin: 0; }
+                #markPaidConfirmModal .detail-row { gap: 20px; padding: 12px 0; font-size: 13px; align-items: baseline; border-color: #edf1f6; }
+                #markPaidConfirmModal .detail-label { color: #64748b; flex-shrink: 0; }
+                #markPaidConfirmModal .detail-value { color: #25344b; text-align: right; overflow-wrap: anywhere; min-width: 0; font-variant-numeric: tabular-nums; }
+                #markPaidConfirmModal #confirmPaymentTreatment { font-size: 14px; }
+                #markPaidConfirmModal #confirmPaymentPaidSoFar { color: #15803d; }
+                #markPaidConfirmModal .pay-confirm-amount { margin-top: 18px; padding: 20px; border: 1px solid #dce7f6; border-radius: 12px; background: #eff6ff; text-align: center; }
+                #markPaidConfirmModal .pay-confirm-amount > span { font-size: 13px; font-weight: 600; color: #365b89; }
+                #markPaidConfirmModal .pay-confirm-amount strong { display: block; margin: 6px 0 8px; font-size: 32px; letter-spacing: -.7px; color: #183f76; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+                #markPaidConfirmModal .pay-confirm-amount p { margin: 0; color: #64748b; font-size: 12px; line-height: 1.5; }
+                #markPaidConfirmModal .modal-actions { padding: 16px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; gap: 10px; }
+                #markPaidConfirmModal .btn-primary, #markPaidConfirmModal .btn-cancel { padding: 11px 18px; border-radius: 9px; font-size: 13px; font-weight: 600; }
+                #markPaidConfirmModal .btn-primary { background: #1663ca; border: 1px solid #1663ca; }
+                #markPaidConfirmModal .btn-primary:hover { background: #104fa6; }
+                #markPaidConfirmModal .btn-primary:disabled { opacity: .65; cursor: wait; }
+                #markPaidConfirmModal .btn-cancel { background: #fff; color: #475569; border: 1px solid #cbd5e1; }
+                #markPaidConfirmModal .btn-cancel:hover { background: #eaf0f7; }
+                #markPaidConfirmModal button:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+                @media (max-width: 400px) {
+                    #markPaidConfirmModal .modal-header, #markPaidConfirmModal .modal-body, #markPaidConfirmModal .modal-actions { padding: 18px; }
+                    #markPaidConfirmModal .pay-confirm-icon { display: none; }
+                    #markPaidConfirmModal .modal-actions button { flex: 1; padding: 11px 8px; }
+                }
+                /* Payment details: a clear summary, quiet tables, and distinct actions. */
+                #paymentModal { padding: 20px; box-sizing: border-box; background: rgba(15,23,42,.48); }
+                #paymentModal .pay-detail-modal { width: 100%; max-width: 880px; max-height: calc(100dvh - 40px); border-radius: 20px; box-shadow: 0 24px 80px rgba(15,23,42,.24); background: #fff; }
+                #paymentModal .modal-header { padding: 24px 28px 20px; margin: 0; border-bottom: 0; align-items: flex-start; }
+                #paymentModal .pay-heading { display: flex; align-items: center; gap: 14px; }
+                #paymentModal .pay-heading-icon { display: grid; place-items: center; width: 46px; height: 46px; flex-shrink: 0; background: #eaf3ff; color: #1663ca; border-radius: 14px; font-size: 25px; font-weight: 700; }
+                #paymentModal h2 { margin: 0; font-size: 22px; color: #18263c; }
+                #paymentModal .pay-heading p { margin: 5px 0 0; color: #64748b; font-size: 13px; line-height: 1.5; }
+                #paymentModal .modal-close { position: static; width: 32px; height: 32px; border: 0; border-radius: 50%; background: #f1f5f9; color: #64748b; font-size: 24px; cursor: pointer; }
+                #paymentModal .pay-detail-tabs { gap: 6px; padding: 0 28px 16px; border-bottom: 1px solid #e8edf4; }
+                #paymentModal .pay-detail-tab { flex: 1; padding: 11px 12px; border: 0; margin: 0; border-radius: 9px; font-weight: 600; color: #64748b; font-size: 13px; }
+                #paymentModal .pay-detail-tab.active { background: #eaf3ff; color: #1663ca; }
+                #paymentModal .pay-detail-tab:hover { background: #f1f5f9; }
+                #paymentModal .pay-detail-body { padding: 24px 28px; background: #fff; }
+                #paymentModal .pay-patient { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+                #paymentModal .pay-eyebrow { display: block; color: #64748b; font-size: 12px; margin-bottom: 5px; }
+                #paymentModal .pay-patient strong { font-size: 17px; color: #1e293b; overflow-wrap: anywhere; }
+                #paymentModal .pay-phone { text-align: right; font-size: 14px; color: #334155; }
+                #paymentModal .pay-summary { display: grid; grid-template-columns: 1.35fr 1fr 1fr; border: 1px solid #dce7f6; border-radius: 14px; overflow: hidden; margin-bottom: 24px; background: #f8fafc; }
+                #paymentModal .pay-summary-main { padding: 20px; background: #eff6ff; }
+                #paymentModal .pay-summary-main .pay-eyebrow { color: #365b89; font-weight: 600; font-size: 13px; }
+                #paymentModal .pay-balance { display: block; font-size: 30px; font-weight: 750; letter-spacing: -.7px; color: #183f76; margin: 6px 0 12px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+                #paymentModal .pay-metric { padding: 20px 18px; display: flex; justify-content: center; flex-direction: column; }
+                #paymentModal .pay-metric + .pay-metric { border-left: 1px solid #e2e8f0; }
+                #paymentModal .pay-metric strong { font-size: 20px; color: #334155; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+                #paymentModal .pay-metric.received strong { color: #15803d; }
+                #paymentModal .pay-section-title { margin: 0 0 5px; color: #25344b; font-size: 15px; font-weight: 650; }
+                #paymentModal .pay-section-copy { margin: 0 0 16px; font-size: 12px; color: #64748b; line-height: 1.6; }
+                #paymentModal .pay-table-wrap { border: 1px solid #e2e8f0; border-radius: 12px; overflow: auto; margin-bottom: 12px; }
+                #paymentModal .pay-table-wrap table { width: 100%; min-width: 580px; border-collapse: collapse; font-size: 13px; }
+                #paymentModal .pay-table-wrap th { padding: 12px; background: #f8fafc; color: #64748b; font-weight: 600; text-align: right; white-space: nowrap; }
+                #paymentModal .pay-table-wrap th:first-child { text-align: left; }
+                #paymentModal .pay-table-wrap th:last-child { text-align: center; }
+                #paymentModal .pay-table-wrap td { vertical-align: top; }
+                #paymentModal .pay-table-total td { padding: 14px 12px; background: #f8fafc; border-top: 1px solid #e2e8f0; font-weight: 700; text-align: right; white-space: nowrap; color: #334155; }
+                #paymentModal .pay-table-total td:first-child { text-align: left; }
+                #paymentModal .pay-table-total td:nth-child(4) { color: #b45309; }
+                #paymentModal .pay-detail-footer { padding: 16px 28px; background: #f8fafc; border-top: 1px solid #e2e8f0; gap: 16px; }
+                #paymentModal .pay-detail-footer-label { font-size: 12px; color: #64748b; }
+                #paymentModal button { transition: background .15s, box-shadow .15s; }
+                #paymentModal .btn-primary { background: #1663ca; padding: 11px 16px; font-size: 13px; font-weight: 600; border-radius: 9px; }
+                #paymentModal .btn-primary:hover { background: #104fa6; }
+                #paymentModal .btn-cancel, #paymentModal .pay-secondary { padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 9px; background: #fff; color: #475569; font-size: 13px; font-weight: 600; }
+                #paymentModal .btn-cancel:hover, #paymentModal .pay-secondary:hover { background: #eaf0f7; }
+                #paymentModal .pay-detail-input, #paymentModal input[type="date"] { padding: 11px 12px; border: 1px solid #cbd5e1; border-radius: 9px; color: #1e293b; font-size: 14px; background: #fff; }
+                #paymentModal :is(button,input,select):focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+                #paymentModal .pay-detail-label { font-size: 13px; font-weight: 600; }
+                #paymentModal .pay-detail-balance-box { background: #eff6ff; border-color: #dce7f6; padding: 18px; border-radius: 12px; }
+                #paymentModal .pay-detail-breakdown { overflow-x: auto; }
+                #paymentModal #payTabHistory { overflow-x: auto; }
+                #paymentModal .pay-history-table { min-width: 540px; }
+                #paymentModal .billing-detail-view .detail-row { gap: 20px; padding: 12px 0; }
+                @media (max-width: 640px) {
+                    #paymentModal { padding: 10px; }
+                    #paymentModal .pay-detail-modal { max-height: calc(100dvh - 20px); border-radius: 14px; }
+                    #paymentModal .modal-header, #paymentModal .pay-detail-body { padding: 18px; }
+                    #paymentModal .pay-heading-icon { display: none; }
+                    #paymentModal h2 { font-size: 20px; }
+                    #paymentModal .pay-detail-tabs { padding: 0 12px 12px; gap: 2px; }
+                    #paymentModal .pay-detail-tab { font-size: 12px; padding: 10px 6px; }
+                    #paymentModal .pay-summary { grid-template-columns: 1fr 1fr; }
+                    #paymentModal .pay-summary-main { grid-column: 1 / -1; }
+                    #paymentModal .pay-metric { padding: 16px; }
+                    #paymentModal .pay-metric strong { font-size: 17px; }
+                    #paymentModal .pay-detail-footer { padding: 16px 18px; }
+                    #paymentModal .pay-detail-footer-left { width: 100%; gap: 8px; }
+                    #paymentModal .pay-detail-footer-left input { flex: 1; min-width: 0; }
+                    #paymentModal .pay-detail-footer-right { width: 100%; justify-content: flex-end; }
+                    #paymentModal .pay-method-fields { flex-direction: column; align-items: stretch !important; }
+                }
             </style>
 
             <script>
@@ -1132,7 +1234,13 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 }
 
                 function formatPayMoney(n) {
-                    return 'P' + parseFloat(n || 0).toFixed(2);
+                    return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(parseFloat(n || 0));
+                }
+
+                function escapePayText(value) {
+                    var span = document.createElement('span');
+                    span.textContent = String(value == null ? '' : value);
+                    return span.innerHTML;
                 }
 
                 function serviceAdjustmentNote(bl) {
@@ -1149,12 +1257,11 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     var rowVoided = isVoidedBilling(bl, billingId, invoiceVoided);
                     var rowBalance = rowVoided ? 0 : parseFloat(bl.balance || 0);
                     var sBg = '#fee2e2', sClr = '#991b1b', sLbl = 'UNPAID';
-                    var rowBg = '#fff5f5';
-                    if (rowVoided) { sBg = '#fee2e2'; sClr = '#dc2626'; sLbl = 'VOIDED'; rowBg = '#fef2f2'; }
-                    else if (st === 'paid') { sBg = '#dcfce7'; sClr = '#15803d'; sLbl = 'PAID'; rowBg = '#f0fdf4'; }
-                    else if (st === 'partial') { sBg = '#fef3c7'; sClr = '#92400e'; sLbl = 'PARTIAL'; rowBg = '#fffbeb'; }
-                    return '<tr style="border-top:1px solid #f1f5f9;background:' + rowBg + ';">' +
-                        '<td style="padding:10px 12px;color:#374151;font-weight:500;">' + (bl.service_name || 'General Service') + serviceAdjustmentNote(bl) + '</td>' +
+                    if (rowVoided) { sBg = '#fee2e2'; sClr = '#dc2626'; sLbl = 'VOIDED'; }
+                    else if (st === 'paid') { sBg = '#dcfce7'; sClr = '#15803d'; sLbl = 'PAID'; }
+                    else if (st === 'partial') { sBg = '#fef3c7'; sClr = '#92400e'; sLbl = 'PARTIAL'; }
+                    return '<tr style="border-top:1px solid #f1f5f9;background:#fff;">' +
+                        '<td style="padding:14px 12px;color:#374151;font-weight:500;">' + escapePayText(bl.service_name || 'General Service') + serviceAdjustmentNote(bl) + '</td>' +
                         '<td style="padding:10px 12px;text-align:right;color:#111827;font-weight:600;">' + formatPayMoney(bl.total_amount) + '</td>' +
                         '<td style="padding:10px 12px;text-align:right;color:#16a34a;font-weight:600;">' + formatPayMoney(bl.paid_amount) + '</td>' +
                         '<td style="padding:10px 12px;text-align:right;color:' + (rowBalance > 0 ? '#dc2626' : '#16a34a') + ';font-weight:600;">' + formatPayMoney(rowBalance) + '</td>' +
@@ -1214,6 +1321,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                         btn.classList.toggle('active', btn.dataset.tab === tab);
                     });
                     document.getElementById('payTabOverview').style.display = tab === 'overview' ? 'block' : 'none';
+                    document.getElementById('payDetailFooter').style.display = tab === 'overview' ? 'flex' : 'none';
                     document.getElementById('payTabHistory').style.display = tab === 'history' ? 'block' : 'none';
                     document.getElementById('payTabRecord').style.display = tab === 'record' ? 'block' : 'none';
                     if (tab === 'history') {
@@ -1355,9 +1463,9 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
                                     var statusBadge;
                                     if (collectableUnpaid) {
-                                        statusBadge = '<span style="background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:9999px;font-size:0.8rem;font-weight:600;">UNPAID</span>';
+                                        statusBadge = '<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:9999px;font-size:0.75rem;font-weight:600;">Balance remaining</span>';
                                     } else if (collectablePartial) {
-                                        statusBadge = '<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:9999px;font-size:0.8rem;font-weight:600;">PARTIAL</span>';
+                                        statusBadge = '<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:9999px;font-size:0.75rem;font-weight:600;">Balance remaining</span>';
                                     } else if (invoiceVoided || anyVoided) {
                                         statusBadge = '<span style="background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:9999px;font-size:0.8rem;font-weight:600;">VOIDED</span>';
                                     } else {
@@ -1376,41 +1484,40 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                                             dueBal += parseFloat(bl.balance || 0);
                                         });
                                         dueTableHtml =
-                                            '<div style="font-weight:600;color:#374151;margin-bottom:8px;font-size:0.9rem;">Still unpaid</div>' +
-                                            '<div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:12px;">' +
-                                            '<table style="width:100%;border-collapse:collapse;font-size:0.85rem;">' +
-                                            '<thead><tr style="background:#fff7ed;">' +
-                                            '<th style="padding:10px 12px;text-align:left;color:#9a3412;font-weight:600;">Service</th>' +
-                                            '<th style="padding:10px 12px;text-align:right;color:#9a3412;font-weight:600;">Amount</th>' +
-                                            '<th style="padding:10px 12px;text-align:right;color:#9a3412;font-weight:600;">Paid</th>' +
-                                            '<th style="padding:10px 12px;text-align:right;color:#9a3412;font-weight:600;">Balance</th>' +
-                                            '<th style="padding:10px 12px;text-align:center;color:#9a3412;font-weight:600;">Status</th>' +
+                                            '<h3 class="pay-section-title">Outstanding services</h3>' +
+                                            '<p class="pay-section-copy">Services with a remaining balance. Fully paid services are in Payment history.</p>' +
+                                            '<div class="pay-table-wrap">' +
+                                            '<table aria-label="Outstanding service charges">' +
+                                            '<thead><tr>' +
+                                            '<th scope="col">Service</th>' +
+                                            '<th scope="col">Charge</th>' +
+                                            '<th scope="col">Paid</th>' +
+                                            '<th scope="col">Remaining</th>' +
+                                            '<th scope="col">Status</th>' +
                                             '</tr></thead><tbody>' + dueRows +
-                                            '<tr style="border-top:2px solid #d1d5db;background:#fff7ed;">' +
-                                            '<td style="padding:10px 12px;color:#9a3412;font-weight:700;">TOTAL DUE</td>' +
-                                            '<td style="padding:10px 12px;text-align:right;color:#9a3412;font-weight:700;">' + formatPayMoney(dueBilled) + '</td>' +
-                                            '<td style="padding:10px 12px;text-align:right;color:#16a34a;font-weight:700;">' + formatPayMoney(duePaid) + '</td>' +
-                                            '<td style="padding:10px 12px;text-align:right;color:#dc2626;font-weight:700;">' + formatPayMoney(dueBal) + '</td>' +
+                                            '<tr class="pay-table-total">' +
+                                            '<td>Services total</td>' +
+                                            '<td>' + formatPayMoney(dueBilled) + '</td>' +
+                                            '<td>' + formatPayMoney(duePaid) + '</td>' +
+                                            '<td>' + formatPayMoney(dueBal) + '</td>' +
                                             '<td></td></tr></tbody></table></div>';
                                     } else {
                                         dueTableHtml = '<p style="color:#166534;margin:0 0 12px;font-size:0.9rem;">All services are paid. Open History to see paid items and payments.</p>';
                                     }
 
                                     document.getElementById('paymentModalContent').innerHTML =
-                                        '<div style="margin-bottom:16px;">' +
-                                            '<div class="detail-row"><span class="detail-label">Patient:</span><span class="detail-value">' + patientName + '</span></div>' +
-                                            '<div class="detail-row"><span class="detail-label">Phone:</span><span class="detail-value">' + (patientInfo.phone || 'N/A') + '</span></div>' +
-                        '</div>' +
-                                        '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;margin-bottom:16px;">' +
-                                            '<div style="display:flex;justify-content:space-between;align-items:center;">' +
-                                                '<span style="color:#0f172a;font-weight:600;">Still due</span>' + statusBadge +
+                                        '<div class="pay-patient">' +
+                                            '<div><span class="pay-eyebrow">Patient</span><strong>' + escapePayText(patientName) + '</strong></div>' +
+                                            '<div class="pay-phone"><span class="pay-eyebrow">Phone number</span>' + escapePayText(patientInfo.phone || 'N/A') + '</div>' +
+                                        '</div>' +
+                                        '<div class="pay-summary">' +
+                                            '<div class="pay-summary-main">' +
+                                                '<span class="pay-eyebrow">Outstanding balance</span>' +
+                                                '<strong class="pay-balance">' + formatPayMoney(balance) + '</strong>' + statusBadge +
                                             '</div>' +
-                                            '<div style="margin-top:8px;font-size:1.25rem;font-weight:700;color:' + (balance > 0 ? '#dc2626' : '#16a34a') + ';">' + formatPayMoney(balance) + '</div>' +
-                                            '<div style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.85rem;color:#6b7280;">' +
-                                                '<span>Billed: <strong>' + formatPayMoney(totalAmount) + '</strong></span>' +
-                                                '<span>Collected: <strong style="color:#16a34a;">' + formatPayMoney(paidAmount) + '</strong></span>' +
-                                            '</div>' +
-                                        '</div>' + dueTableHtml;
+                                            '<div class="pay-metric"><span class="pay-eyebrow">Total billed</span><strong>' + formatPayMoney(totalAmount) + '</strong></div>' +
+                                            '<div class="pay-metric received"><span class="pay-eyebrow">Payments received</span><strong>' + formatPayMoney(paidAmount) + '</strong></div>' +
+                                        '</div><p class="pay-section-copy">Summary across the patient\'s services. Payment actions apply to the selected invoice.</p>' + dueTableHtml;
                                     loadPaymentHistory(billingId, pid || patientId);
                                 });
                         })
@@ -1479,9 +1586,9 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     document.getElementById('confirmPaymentBillingId').value = billingId || 0;
                     document.getElementById('confirmPaymentAmountValue').value = balanceVal > 0 ? balanceVal : amountVal;
                     document.getElementById('confirmPaymentTreatmentValue').value = treatment;
-                    document.getElementById('confirmPaymentTotalAmount').textContent = 'P' + amountVal.toFixed(2);
-                    document.getElementById('confirmPaymentPaidSoFar').textContent = 'P' + paidVal.toFixed(2);
-                    document.getElementById('confirmPaymentBalance').textContent = 'P' + (balanceVal > 0 ? balanceVal : amountVal).toFixed(2);
+                    document.getElementById('confirmPaymentTotalAmount').textContent = formatPayMoney(amountVal);
+                    document.getElementById('confirmPaymentPaidSoFar').textContent = formatPayMoney(paidVal);
+                    document.getElementById('confirmPaymentBalance').textContent = formatPayMoney(balanceVal > 0 ? balanceVal : amountVal);
                     document.getElementById('confirmPaymentTreatment').textContent = treatment || 'General Checkup';
                     document.getElementById('markPaidConfirmModal').style.display = 'flex';
                 }
@@ -1734,7 +1841,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                     overlay.id = 'recordPaymentReviewModal';
                     overlay.className = 'modal-overlay';
                     overlay.setAttribute('data-persist-layout', '1');
-                    overlay.style.cssText = 'display:flex;z-index:100003;';
+                    overlay.style.cssText = 'display:flex;z-index:100003;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);';
                     overlay.innerHTML =
                         '<div style="background:#fff;border-radius:12px;width:90%;max-width:440px;box-shadow:0 20px 40px rgba(0,0,0,0.2);overflow:hidden;">' +
                             '<div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;border-bottom:1px solid #e5e7eb;">' +

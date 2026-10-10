@@ -27,7 +27,20 @@
     </form>
 </dialog>
 <style>
-#paymentVoidDialog::backdrop { background: #0007; }
+#paymentVoidDialog::backdrop { background: #0007; -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+#paymentVoidDialog[open] { animation: paymentVoidSlideIn .3s ease; }
+#paymentVoidDialog[open]::backdrop { animation: paymentVoidFadeIn .2s ease; }
+@keyframes paymentVoidFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes paymentVoidSlideIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+    #paymentVoidDialog[open], #paymentVoidDialog[open]::backdrop { animation: none; }
+}
 #paymentVoidDialog { position:fixed;inset:0;margin:auto;transform:none;height:fit-content;width:min(480px,calc(100vw - 32px));box-sizing:border-box;max-height:calc(100dvh - 32px);overflow:auto;border:1px solid #e2e8f0;border-radius:16px;padding:0;background:#fff;color:#334155;font:400 14px/1.5 "Segoe UI",Arial,sans-serif;box-shadow:0 20px 60px #0f172a30; }
 #paymentVoidDialog form { margin:0; }
 #paymentVoidDialog .payment-void-header { padding:24px 24px 0; }
