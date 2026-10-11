@@ -1,6 +1,23 @@
 <?php
 $pageTitle = 'Dentist Schedule';
 
+require_once '../../includes/session_bootstrap.php';
+
+// Save requests must return JSON before any page HTML is rendered.
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    header('Content-Type: application/json');
+    if (!empty($GLOBALS['APP_SESSION_EXPIRED']) || !isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'message' => 'Your session has expired. Please sign in again.']);
+        exit;
+    }
+    if (($_SESSION['role'] ?? '') !== 'staff') {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'You do not have permission to update dentist schedules.']);
+        exit;
+    }
+}
+
 require_once '../../config/database.php';
 
 // Inline migration: ensure schedules table has required columns
@@ -34,6 +51,90 @@ try {
     // Silent fail
 }
 
+// Handle save action
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json');
+    try {
+        $input = json_decode(file_get_contents('php://input'), true);
+        if (($input['action'] ?? '') !== 'save_schedules') {
+            echo json_encode(['success' => false, 'message' => 'Invalid action']);
+            exit;
+        }
+
+        $schedules = $input['schedules'] ?? [];
+        $pdo->beginTransaction();
+
+        foreach ($schedules as $s) {
+            $doctorId = (int)($s['doctor_id'] ?? 0);
+            $day = $s['day'] ?? '';
+            $startTime = $s['start_time'] ?? '08:00';
+            $endTime = $s['end_time'] ?? '17:00';
+            $isAvailable = (int)($s['is_available'] ?? 0);
+
+            if (!$doctorId || !$day) continue;
+
+            // Check if record exists
+            $stmt = $pdo->prepare("SELECT id FROM schedules WHERE doctor_id = ? AND available_day = ?");
+            $stmt->execute([$doctorId, $day]);
+            $existing = $stmt->fetch();
+
+            if ($existing) {
+                $stmt = $pdo->prepare("UPDATE schedules SET start_time = ?, end_time = ?, is_available = ? WHERE id = ?");
+                $stmt->execute([$startTime, $endTime, $isAvailable, $existing['id']]);
+            } else {
+                $stmt = $pdo->prepare("INSERT INTO schedules (doctor_id, available_day, start_time, end_time, is_available) VALUES (?, ?, ?, ?, ?)");
+                $stmt->execute([$doctorId, $day, $startTime, $endTime, $isAvailable]);
+            }
+        }
+
+        // Save date overrides
+        $dateOverrides = $input['date_overrides'] ?? [];
+        foreach ($dateOverrides as $o) {
+            $doctorId = (int)($o['doctor_id'] ?? 0);
+            $date = $o['date'] ?? '';
+            $isFullDay = (int)($o['is_full_day'] ?? 1);
+            $startTime = !empty($o['start_time']) ? $o['start_time'] : null;
+            $endTime = !empty($o['end_time']) ? $o['end_time'] : null;
+            $reason = $o['reason'] ?? '';
+
+            if (!$doctorId || !$date) continue;
+
+            // Upsert
+            $stmt = $pdo->prepare("SELECT id FROM dentist_unavailable WHERE dentist_id = ? AND unavailable_date = ?");
+            $stmt->execute([$doctorId, $date]);
+            $existing = $stmt->fetch();
+
+            if ($existing) {
+                $stmt = $pdo->prepare("UPDATE dentist_unavailable SET is_full_day = ?, start_time = ?, end_time = ?, reason = ? WHERE id = ?");
+                $stmt->execute([$isFullDay, $startTime, $endTime, $reason, $existing['id']]);
+            } else {
+                $stmt = $pdo->prepare("INSERT INTO dentist_unavailable (dentist_id, unavailable_date, is_full_day, start_time, end_time, reason) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$doctorId, $date, $isFullDay, $startTime, $endTime, $reason]);
+            }
+        }
+
+        // Handle removed overrides (ones that existed in DB but were removed by user)
+        $removedOverrides = $input['removed_overrides'] ?? [];
+        if (!empty($removedOverrides)) {
+            foreach ($removedOverrides as $r) {
+                $rDoctorId = (int)($r['doctor_id'] ?? 0);
+                $rDate = $r['date'] ?? '';
+                if ($rDoctorId && $rDate) {
+                    $stmt = $pdo->prepare("DELETE FROM dentist_unavailable WHERE dentist_id = ? AND unavailable_date = ?");
+                    $stmt->execute([$rDoctorId, $rDate]);
+                }
+            }
+        }
+
+        $pdo->commit();
+        echo json_encode(['success' => true]);
+    } catch (Exception $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+    exit;
+}
+
 try {
     // Get all dentists
     $dentists = $pdo->query("
@@ -45,7 +146,7 @@ try {
 
     // Get existing schedules
     $schedules = $pdo->query("SELECT * FROM schedules ORDER BY doctor_id, FIELD(available_day, 'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday')")->fetchAll(PDO::FETCH_ASSOC);
-    
+
     // Index schedules by doctor_id + available_day
     $schedIndex = [];
     foreach ($schedules as $s) {
@@ -71,15 +172,23 @@ try {
 require_once '../../includes/staff_layout_start.php';
 ?>
 
-<div class="page-header">
+<div id="dentistSchedulePage">
+<div class="page-header schedule-page-header">
     <div>
+        <span class="schedule-eyebrow">APPOINTMENT AVAILABILITY</span>
         <h1 style="margin: 0; font-size: 1.5rem; font-weight: 600; color: #1e293b;">Dentist Schedule</h1>
-        <p style="margin: 4px 0 0; color: #64748b; font-size: 0.875rem;">Manage dentist availability for appointments</p>
+        <p style="margin: 4px 0 0; color: #64748b; font-size: 0.875rem;">Set each dentist's weekly hours and availability for specific dates.</p>
     </div>
     <button onclick="saveAllSchedules()" class="btn-primary" style="display: flex; align-items: center; gap: 8px; padding: 10px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
         Save All Changes
     </button>
+</div>
+
+<div class="schedule-guide">
+    <span class="schedule-guide-icon" aria-hidden="true"><i class="far fa-calendar-alt"></i></span>
+    <div><strong>Plan the regular week, then adjust individual dates.</strong><p>Enable working days and set the start and end times. Use Date overrides for leave or custom hours, then select Save All Changes.</p></div>
+    <div class="schedule-legend"><span><i class="legend-dot working"></i>Working day</span><span><i class="legend-dot off"></i>Day off</span></div>
 </div>
 
 <?php if (!empty($error)): ?>
@@ -99,11 +208,11 @@ require_once '../../includes/staff_layout_start.php';
                 $fullName = trim($dentist['first_name'] . ' ' . ($dentist['middle_name'] ? $dentist['middle_name'] . ' ' : '') . $dentist['last_name']);
             ?>
             <div class="dentist-schedule-card" data-doctor-id="<?php echo $dentist['id']; ?>" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 20px; overflow: hidden;">
-                <div style="padding: 16px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 40px; height: 40px; border-radius: 50%; background: #0d92f7; color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 16px;">
+                <div class="schedule-dentist-header" style="padding: 16px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 12px;">
+                    <div class="schedule-avatar" style="width: 40px; height: 40px; border-radius: 50%; background: #0d92f7; color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 16px;">
                         <?php echo strtoupper(substr($dentist['first_name'], 0, 1) . substr($dentist['last_name'], 0, 1)); ?>
                     </div>
-                    <div>
+                    <div class="schedule-dentist-info">
                         <h3 style="margin: 0; font-size: 1rem; font-weight: 600; color: #1e293b;"><?php echo htmlspecialchars($fullName); ?></h3>
                         <span style="font-size: 0.8rem; color: #64748b;"><?php echo htmlspecialchars($dentist['email'] ?? ''); ?></span>
                     </div>
@@ -115,14 +224,15 @@ require_once '../../includes/staff_layout_start.php';
                             if (!($chkSched ? (int)$chkSched['is_available'] : 1)) { $allDaysEnabled = false; break; }
                         }
                     ?>
-                    <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+                    <div class="schedule-all-days" style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
                         <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #64748b; cursor: pointer;">
                             <input type="checkbox" class="toggle-all-days" data-doctor="<?php echo $dentist['id']; ?>" <?php echo $allDaysEnabled ? 'checked' : ''; ?>>
-                            All days enabled
+                            Enable all days
                         </label>
                     </div>
                 </div>
-                <div style="padding: 16px 20px;">
+                <div class="schedule-week" style="padding: 16px 20px;">
+                    <div class="schedule-week-label">Weekly working hours <span>Uncheck a day to mark it as a day off.</span></div>
                     <div class="schedule-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;">
                         <?php foreach ($daysOfWeek as $dayIndex => $day): ?>
                             <?php
@@ -136,21 +246,21 @@ require_once '../../includes/staff_layout_start.php';
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                                     <span style="font-size: 12px; font-weight: 600; color: #475569; text-transform: uppercase;"><?php echo substr($day, 0, 3); ?></span>
                                     <label style="display: flex; align-items: center;">
-                                        <input type="checkbox" class="day-toggle" data-doctor="<?php echo $dentist['id']; ?>" data-day="<?php echo $day; ?>" <?php echo $isAvailable ? 'checked' : ''; ?> style="width: 16px; height: 16px; cursor: pointer;">
+                                        <input type="checkbox" class="day-toggle" aria-label="<?php echo htmlspecialchars($fullName . ' available on ' . $day); ?>" data-doctor="<?php echo $dentist['id']; ?>" data-day="<?php echo $day; ?>" <?php echo $isAvailable ? 'checked' : ''; ?> style="width: 16px; height: 16px; cursor: pointer;">
                                     </label>
                                 </div>
                                 <div class="time-inputs" style="display: <?php echo $isAvailable ? 'flex' : 'none'; ?>; flex-direction: column; gap: 4px;">
                                     <div style="display: flex; align-items: center; gap: 4px;">
-                                        <span style="font-size: 10px; color: #64748b; min-width: 14px;">F</span>
-                                        <input type="time" class="start-time" value="<?php echo $startTime; ?>" data-doctor="<?php echo $dentist['id']; ?>" data-day="<?php echo $day; ?>" style="width: 100%; padding: 4px 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px; outline: none;">
+                                        <span style="font-size: 10px; color: #64748b; min-width: 14px;">From</span>
+                                        <input type="time" class="start-time" aria-label="<?php echo htmlspecialchars($fullName . ' ' . $day . ' start time'); ?>" value="<?php echo $startTime; ?>" data-doctor="<?php echo $dentist['id']; ?>" data-day="<?php echo $day; ?>" style="width: 100%; padding: 4px 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px; outline: none;">
                                     </div>
                                     <div style="display: flex; align-items: center; gap: 4px;">
-                                        <span style="font-size: 10px; color: #64748b; min-width: 14px;">T</span>
-                                        <input type="time" class="end-time" value="<?php echo $endTime; ?>" data-doctor="<?php echo $dentist['id']; ?>" data-day="<?php echo $day; ?>" style="width: 100%; padding: 4px 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px; outline: none;">
+                                        <span style="font-size: 10px; color: #64748b; min-width: 14px;">To</span>
+                                        <input type="time" class="end-time" aria-label="<?php echo htmlspecialchars($fullName . ' ' . $day . ' end time'); ?>" value="<?php echo $endTime; ?>" data-doctor="<?php echo $dentist['id']; ?>" data-day="<?php echo $day; ?>" style="width: 100%; padding: 4px 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px; outline: none;">
                                     </div>
                                 </div>
                                 <div class="off-label" style="display: <?php echo $isAvailable ? 'none' : 'block'; ?>; text-align: center; padding: 14px 0; font-size: 11px; color: #94a3b8; font-weight: 500;">
-                                    Day Off/leave
+                                    Day off / leave
                                 </div>
                             </div>
                         <?php endforeach; ?>
@@ -163,12 +273,13 @@ require_once '../../includes/staff_layout_start.php';
                         if (strpos($oKey, $dentist['id'] . '_') === 0) $docOvCount++;
                     }
                 ?>
-                <div style="padding: 0 20px 16px; border-top: 1px solid #e5e7eb;">
+                <div class="schedule-overrides" style="padding: 0 20px 16px; border-top: 1px solid #e5e7eb;">
                     <details class="date-overrides-section" data-doctor="<?php echo $dentist['id']; ?>">
                         <summary style="padding: 12px 0; cursor: pointer; font-size: 13px; font-weight: 600; color: #374151; display: flex; align-items: center; gap: 8px; user-select: none;">
-                            <span>📅 Date Overrides</span>
+                            <span><i class="far fa-calendar-alt" aria-hidden="true"></i> Date overrides</span>
                             <span class="override-badge" id="overrideBadge_<?php echo $dentist['id']; ?>" style="font-size: 11px; background: #e5e7eb; color: #374151; padding: 1px 8px; border-radius: 9999px;"><?php echo $docOvCount; ?></span>
                         </summary>
+                        <p class="schedule-override-help">Select a date to set leave or custom hours. These settings override the regular weekly hours for that date.</p>
                         <div class="override-cal">
                             <div class="override-cal-nav">
                                 <button type="button" onclick="changeOverrideMonth(<?php echo $dentist['id']; ?>, -1)" style="background: none; border: 1px solid #d1d5db; border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 14px;">&#9664;</button>
@@ -177,6 +288,7 @@ require_once '../../includes/staff_layout_start.php';
                             </div>
                             <div class="override-cal-grid" id="overrideCalGrid_<?php echo $dentist['id']; ?>"></div>
                         </div>
+                        <div class="schedule-legend override-legend"><span><i class="legend-dot absent"></i>Absent all day</span><span><i class="legend-dot custom"></i>Custom hours</span></div>
                     </details>
                 </div>
             </div>
@@ -185,6 +297,7 @@ require_once '../../includes/staff_layout_start.php';
 </div>
 
 <div id="saveStatus" style="position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; display: none; z-index: 9999;"></div>
+</div>
 
 <style>
 .page-header {
@@ -239,6 +352,84 @@ require_once '../../includes/staff_layout_start.php';
 }
 @media (max-width: 600px) {
     .schedule-grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+/* Presentation only: retain the schedule controls and their existing handlers. */
+#dentistSchedulePage { padding-top: 12px; color: #25344b; }
+#dentistSchedulePage .schedule-page-header { align-items: center; gap: 20px; margin-bottom: 20px; }
+#dentistSchedulePage .schedule-eyebrow { display: block; margin-bottom: 7px; color: #1663ca; font-size: 10px; font-weight: 700; letter-spacing: 1.3px; }
+#dentistSchedulePage .schedule-page-header h1 { font-size: 25px !important; font-weight: 700 !important; letter-spacing: -.5px; }
+#dentistSchedulePage .schedule-page-header p { line-height: 1.6; }
+#dentistSchedulePage .schedule-page-header .btn-primary { flex-shrink: 0; background: #1663ca; color: #fff; padding: 12px 20px !important; border-radius: 10px !important; box-shadow: 0 3px 8px #1663ca18; }
+#dentistSchedulePage .schedule-guide { display: flex; align-items: center; gap: 14px; background: #eff6ff; border: 1px solid #dce7f6; padding: 18px 20px; border-radius: 12px; margin-bottom: 24px; }
+#dentistSchedulePage .schedule-guide-icon { color: #1663ca; font-size: 22px; }
+#dentistSchedulePage .schedule-guide strong { font-size: 13px; font-weight: 600; color: #254974; }
+#dentistSchedulePage .schedule-guide p { margin: 4px 0 0; font-size: 12px; color: #64748b; line-height: 1.6; }
+#dentistSchedulePage .schedule-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; font-size: 11px; color: #64748b; }
+#dentistSchedulePage .schedule-guide .schedule-legend { margin-left: auto; flex-shrink: 0; }
+#dentistSchedulePage .schedule-legend > span { display: inline-flex; align-items: center; gap: 6px; }
+#dentistSchedulePage .legend-dot { width: 8px; height: 8px; border-radius: 50%; background: #cbd5e1; }
+#dentistSchedulePage .legend-dot.working { background: #3b82f6; }
+#dentistSchedulePage .legend-dot.absent { background: #ef4444; }
+#dentistSchedulePage .legend-dot.custom { background: #f59e0b; }
+#dentistSchedulePage .dentist-schedule-card { border-radius: 16px !important; margin-bottom: 24px !important; box-shadow: 0 3px 12px #0f172a04; }
+#dentistSchedulePage .schedule-dentist-header { padding: 22px 24px !important; background: #fff !important; gap: 14px !important; }
+#dentistSchedulePage .schedule-avatar { width: 46px !important; height: 46px !important; flex-shrink: 0; border-radius: 14px !important; background: #eaf3ff !important; color: #1663ca !important; }
+#dentistSchedulePage .schedule-dentist-info { min-width: 0; }
+#dentistSchedulePage .schedule-dentist-info h3 { line-height: 1.5; }
+#dentistSchedulePage .schedule-dentist-info > span { overflow-wrap: anywhere; }
+#dentistSchedulePage .schedule-all-days label { padding: 9px 12px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc; white-space: nowrap; }
+#dentistSchedulePage input[type="checkbox"] { accent-color: #1663ca; width: 17px; height: 17px; }
+#dentistSchedulePage .schedule-week { padding: 20px 24px 24px !important; }
+#dentistSchedulePage .schedule-week-label { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 14px; font-size: 12px; font-weight: 600; }
+#dentistSchedulePage .schedule-week-label > span { font-size: 11px; color: #64748b; font-weight: 400; }
+#dentistSchedulePage .schedule-grid { grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)) !important; gap: 12px !important; }
+#dentistSchedulePage .day-card { padding: 14px 12px !important; border-radius: 11px !important; min-width: 0; transition: box-shadow .2s ease; }
+#dentistSchedulePage .day-card:has(.day-toggle:checked) { border-color: #b9d4fa !important; background: #f4f8ff !important; }
+#dentistSchedulePage .day-card > div:first-child { margin-bottom: 14px !important; }
+#dentistSchedulePage .time-inputs { gap: 8px !important; }
+#dentistSchedulePage .time-inputs > div { gap: 6px !important; }
+#dentistSchedulePage .time-inputs span { font-size: 11px !important; min-width: 28px !important; }
+#dentistSchedulePage .time-inputs input { box-sizing: border-box; min-width: 0; font-size: 12px !important; padding: 8px 5px !important; border-radius: 6px !important; border-color: #d8e1ed !important; background: #fff; color: #25344b; }
+#dentistSchedulePage .off-label { padding: 28px 0 !important; font-size: 12px !important; color: #94a3b8 !important; }
+#dentistSchedulePage .schedule-overrides { background: #fbfcfe; padding: 0 24px !important; }
+#dentistSchedulePage .date-overrides-section summary { padding: 17px 0 !important; gap: 10px !important; }
+#dentistSchedulePage .date-overrides-section summary > span:first-child i { margin-right: 7px; color: #1663ca; }
+#dentistSchedulePage .date-overrides-section summary::after { content: '\203A'; font-size: 22px; margin-left: auto; color: #64748b; transform: rotate(90deg); }
+#dentistSchedulePage .date-overrides-section[open] summary::after { transform: rotate(-90deg); }
+#dentistSchedulePage .schedule-override-help { color: #64748b; font-size: 12px; line-height: 1.6; margin: 0 0 16px; }
+#dentistSchedulePage .override-cal { max-width: 540px; border: 1px solid #e2e8f0; background: #fff; padding: 16px; border-radius: 12px; }
+#dentistSchedulePage .override-cal-nav { margin-bottom: 16px; }
+#dentistSchedulePage .override-cal-nav button { width: 32px; height: 32px; border-radius: 8px !important; background: #f8fafc !important; border-color: #e2e8f0 !important; color: #475569; }
+#dentistSchedulePage .override-cal-grid { gap: 5px; }
+#dentistSchedulePage .override-cal-grid .cal-day { padding: 9px 0; border-radius: 7px; font-size: 12px; }
+#dentistSchedulePage .override-legend { padding: 14px 0 20px; }
+#dentistSchedulePage :is(input,button,summary):focus-visible { outline: 3px solid #93c5fd !important; outline-offset: 2px; }
+#overridePopupOverlay { backdrop-filter: blur(3px); padding: 16px; box-sizing: border-box; }
+#overridePopupOverlay .override-popup { width: 100%; max-width: 420px; box-sizing: border-box; border-radius: 16px; max-height: calc(100dvh - 32px); overflow-y: auto; }
+#overridePopupOverlay .override-popup h3 { line-height: 1.5; color: #25344b; }
+#overridePopupOverlay .radio-group { flex-wrap: wrap; }
+#overridePopupOverlay .time-row input { min-width: 0; width: 100%; box-sizing: border-box; }
+#overridePopupOverlay #overridePopupReason { box-sizing: border-box; padding: 11px 12px !important; border-radius: 8px !important; }
+#overridePopupOverlay .popup-actions button { padding: 10px 16px; border-radius: 8px; }
+#overridePopupOverlay .btn-save { background: #1663ca; }
+@media (max-width: 1100px) {
+    #dentistSchedulePage .schedule-guide { flex-wrap: wrap; }
+    #dentistSchedulePage .schedule-guide .schedule-legend { margin-left: 36px; }
+}
+@media (max-width: 600px) {
+    #dentistSchedulePage .schedule-page-header { flex-direction: column; align-items: stretch; }
+    #dentistSchedulePage .schedule-page-header .btn-primary { justify-content: center; }
+    #dentistSchedulePage .schedule-guide { padding: 16px; }
+    #dentistSchedulePage .schedule-guide-icon { display: none; }
+    #dentistSchedulePage .schedule-guide .schedule-legend { margin-left: 0; }
+    #dentistSchedulePage .schedule-dentist-header { flex-wrap: wrap; padding: 18px !important; }
+    #dentistSchedulePage .schedule-all-days { margin-left: 0 !important; width: 100%; }
+    #dentistSchedulePage .schedule-week { padding: 18px !important; }
+    #dentistSchedulePage .schedule-week-label { flex-direction: column; gap: 4px; }
+    #dentistSchedulePage .schedule-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    #dentistSchedulePage .time-inputs > div { flex-direction: column; align-items: stretch !important; gap: 4px !important; }
+    #dentistSchedulePage .schedule-overrides { padding: 0 18px !important; }
 }
 </style>
 
@@ -632,89 +823,5 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <?php
-// Handle save action
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    header('Content-Type: application/json');
-    try {
-        $input = json_decode(file_get_contents('php://input'), true);
-        if (($input['action'] ?? '') !== 'save_schedules') {
-            echo json_encode(['success' => false, 'message' => 'Invalid action']);
-            exit;
-        }
-        
-        $schedules = $input['schedules'] ?? [];
-        $pdo->beginTransaction();
-        
-        foreach ($schedules as $s) {
-            $doctorId = (int)($s['doctor_id'] ?? 0);
-            $day = $s['day'] ?? '';
-            $startTime = $s['start_time'] ?? '08:00';
-            $endTime = $s['end_time'] ?? '17:00';
-            $isAvailable = (int)($s['is_available'] ?? 0);
-            
-            if (!$doctorId || !$day) continue;
-            
-            // Check if record exists
-            $stmt = $pdo->prepare("SELECT id FROM schedules WHERE doctor_id = ? AND available_day = ?");
-            $stmt->execute([$doctorId, $day]);
-            $existing = $stmt->fetch();
-            
-            if ($existing) {
-                $stmt = $pdo->prepare("UPDATE schedules SET start_time = ?, end_time = ?, is_available = ? WHERE id = ?");
-                $stmt->execute([$startTime, $endTime, $isAvailable, $existing['id']]);
-            } else {
-                $stmt = $pdo->prepare("INSERT INTO schedules (doctor_id, available_day, start_time, end_time, is_available) VALUES (?, ?, ?, ?, ?)");
-                $stmt->execute([$doctorId, $day, $startTime, $endTime, $isAvailable]);
-            }
-        }
-        
-        // Save date overrides
-        $dateOverrides = $input['date_overrides'] ?? [];
-        foreach ($dateOverrides as $o) {
-            $doctorId = (int)($o['doctor_id'] ?? 0);
-            $date = $o['date'] ?? '';
-            $isFullDay = (int)($o['is_full_day'] ?? 1);
-            $startTime = !empty($o['start_time']) ? $o['start_time'] : null;
-            $endTime = !empty($o['end_time']) ? $o['end_time'] : null;
-            $reason = $o['reason'] ?? '';
-            
-            if (!$doctorId || !$date) continue;
-            
-            // Upsert
-            $stmt = $pdo->prepare("SELECT id FROM dentist_unavailable WHERE dentist_id = ? AND unavailable_date = ?");
-            $stmt->execute([$doctorId, $date]);
-            $existing = $stmt->fetch();
-            
-            if ($existing) {
-                $stmt = $pdo->prepare("UPDATE dentist_unavailable SET is_full_day = ?, start_time = ?, end_time = ?, reason = ? WHERE id = ?");
-                $stmt->execute([$isFullDay, $startTime, $endTime, $reason, $existing['id']]);
-            } else {
-                $stmt = $pdo->prepare("INSERT INTO dentist_unavailable (dentist_id, unavailable_date, is_full_day, start_time, end_time, reason) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$doctorId, $date, $isFullDay, $startTime, $endTime, $reason]);
-            }
-        }
-        
-        // Handle removed overrides (ones that existed in DB but were removed by user)
-        $removedOverrides = $input['removed_overrides'] ?? [];
-        if (!empty($removedOverrides)) {
-            foreach ($removedOverrides as $r) {
-                $rDoctorId = (int)($r['doctor_id'] ?? 0);
-                $rDate = $r['date'] ?? '';
-                if ($rDoctorId && $rDate) {
-                    $stmt = $pdo->prepare("DELETE FROM dentist_unavailable WHERE dentist_id = ? AND unavailable_date = ?");
-                    $stmt->execute([$rDoctorId, $rDate]);
-                }
-            }
-        }
-        
-        $pdo->commit();
-        echo json_encode(['success' => true]);
-    } catch (Exception $e) {
-        if ($pdo->inTransaction()) $pdo->rollBack();
-        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
-    }
-    exit;
-}
-
 require_once '../../includes/staff_layout_end.php';
 ?>
