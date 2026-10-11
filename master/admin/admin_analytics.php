@@ -6,6 +6,7 @@
 $pageTitle = 'Analytics';
 
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/analytics_insights.php';
 require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
 $period = $_GET['period'] ?? 'month';
@@ -68,6 +69,7 @@ $periodStats = [
     'month' => ['inquiries' => 0, 'appointments' => 0],
     'total' => ['inquiries' => 0, 'appointments' => 0],
 ];
+$periodStatsAvailable = false;
 
 try {
     $totalPatients = (int)($pdo->query("SELECT COUNT(*) FROM patients")->fetchColumn() ?? 0);
@@ -151,6 +153,7 @@ try {
                 'month' => ['inquiries' => (int)($periodStatsRow['inquiries_month'] ?? 0), 'appointments' => (int)($periodStatsRow['appointments_month'] ?? 0)],
                 'total' => ['inquiries' => (int)($periodStatsRow['inquiries_total'] ?? 0), 'appointments' => (int)($periodStatsRow['appointments_total'] ?? 0)],
         ];
+        $periodStatsAvailable = true;
 
     // Revenue series for full year (2026)
     $stmt = $pdo->prepare("
@@ -354,6 +357,12 @@ try {
     $appointmentTypeGradient = '#e5e7eb';
     $appointmentTypeTotal = 0;
 }
+$periodInsights = [];
+foreach (['inquiry' => 'inquiries', 'appointment' => 'appointments'] as $view => $field) {
+    foreach ($periodStats as $key => $counts) {
+        $periodInsights[$view][$key] = clinicPeriodInsight($counts[$field], $key, $view, $periodStatsAvailable);
+    }
+}
 ?>
             <div class="content-main">
                 <!-- Page Header -->
@@ -406,6 +415,7 @@ try {
                     <!-- Revenue Chart -->
                     <div class="chart-card">
                         <h3 class="chart-title">Revenue Overview</h3>
+                        <p class="analytics-insight-range">January–December <?php echo $chartYear; ?></p>
                         <div class="dash-revenue-chart" style="display: flex; align-items: flex-end; gap: 10px; height: 180px; padding: 10px 15px 30px 15px; border-bottom: 1px solid #e5e7eb;">
                                 <?php 
                                 // Get all 12 months for the chart year
@@ -453,11 +463,17 @@ try {
                                 }
                                 ?>
                         </div>
+                        <?php $revenueInsight = clinicRevenueInsight($allMonths, $chartYear); ?>
+                        <div class="analytics-insight">
+                            <p><strong>Description</strong><?php echo htmlspecialchars($revenueInsight['description'], ENT_QUOTES, 'UTF-8'); ?></p>
+                            <p><strong>Recommendation</strong><?php echo htmlspecialchars($revenueInsight['recommendation'], ENT_QUOTES, 'UTF-8'); ?></p>
+                        </div>
                     </div>
 
                     <!-- Appointments Chart -->
                     <div class="chart-card">
                         <h3 class="chart-title">Appointments by Type</h3>
+                        <p class="analytics-insight-range"><?php echo htmlspecialchars($startDate->format('M j, Y') . ' – ' . $endDate->format('M j, Y')); ?></p>
                         <div class="chart-placeholder">
                             <div class="pie-chart analytics-pie-chart" style="background: <?php echo htmlspecialchars($appointmentTypeGradient, ENT_QUOTES, 'UTF-8'); ?>;"></div>
                             <div class="chart-legend analytics-pie-legend">
@@ -475,6 +491,11 @@ try {
                                 <?php endif; ?>
                             </div>
                         </div>
+                        <?php $serviceInsight = clinicServiceInsight($appointmentTypeRows ?? [], $appointmentTypeTotal, $startDate->format('M j, Y') . ' to ' . $endDate->format('M j, Y')); ?>
+                        <div class="analytics-insight">
+                            <p><strong>Description</strong><?php echo htmlspecialchars($serviceInsight['description'], ENT_QUOTES, 'UTF-8'); ?></p>
+                            <p><strong>Recommendation</strong><?php echo htmlspecialchars($serviceInsight['recommendation'], ENT_QUOTES, 'UTF-8'); ?></p>
+                        </div>
                     </div>
                 </div>
 
@@ -482,7 +503,7 @@ try {
                     <div class="period-statistics-header">
                         <div>
                             <h2 id="periodStatisticsTitle">Inquiry Statistics</h2>
-                            <p>Automatically calculated from active records.</p>
+                            <p>Non-archived records for calendar periods. These periods overlap and should not be added together.</p>
                         </div>
                         <select class="filter-select" id="periodStatisticsView" aria-label="Choose statistics type">
                             <option value="inquiry" selected>Inquiry Statistics</option>
@@ -492,12 +513,18 @@ try {
                     <div class="period-statistics-grid">
                         <?php foreach (['today' => 'Today', 'week' => 'This Week', 'month' => 'This Month', 'total' => 'Total'] as $periodKey => $periodLabel): ?>
                             <div class="period-stat-card"
+                                 data-period="<?php echo $periodKey; ?>"
                                  data-inquiries="<?php echo (int)$periodStats[$periodKey]['inquiries']; ?>"
                                  data-appointments="<?php echo (int)$periodStats[$periodKey]['appointments']; ?>">
                                 <h3><?php echo $periodLabel; ?></h3>
                                 <div class="period-stat-row">
                                     <span class="period-stat-label">Patient inquiries</span>
                                     <strong class="period-stat-value"><?php echo number_format($periodStats[$periodKey]['inquiries']); ?></strong>
+                                </div>
+                                <?php $periodInsight = clinicPeriodInsight($periodStats[$periodKey]['inquiries'], $periodKey, 'inquiry', $periodStatsAvailable); ?>
+                                <div class="analytics-insight period-stat-insight">
+                                    <p><strong>Description</strong><span class="period-description"><?php echo htmlspecialchars($periodInsight['description'], ENT_QUOTES, 'UTF-8'); ?></span></p>
+                                    <p><strong>Recommendation</strong><span class="period-recommendation"><?php echo htmlspecialchars($periodInsight['recommendation'], ENT_QUOTES, 'UTF-8'); ?></span></p>
                                 </div>
                             </div>
                         <?php endforeach; ?>
@@ -580,6 +607,7 @@ try {
         const select = document.getElementById('periodStatisticsView');
         const title = document.getElementById('periodStatisticsTitle');
         if (!section || !select || !title) return;
+        const insights = <?php echo json_encode($periodInsights, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 
         function applyPeriodView(view) {
             const isAppointment = view === 'appointment';
@@ -591,6 +619,11 @@ try {
                 const strong = card.querySelector('.period-stat-value');
                 if (label) label.textContent = isAppointment ? 'Appointments' : 'Patient inquiries';
                 if (strong) strong.textContent = Number(value || 0).toLocaleString();
+                const insight = insights[isAppointment ? 'appointment' : 'inquiry'][card.dataset.period];
+                const description = card.querySelector('.period-description');
+                const recommendation = card.querySelector('.period-recommendation');
+                if (description) description.textContent = insight.description;
+                if (recommendation) recommendation.textContent = insight.recommendation;
             });
         }
 
@@ -601,6 +634,12 @@ try {
     })();
 </script>
 <style>
+    .analytics-insight-range { margin: -6px 0 18px; font-size: 12px; color: #64748b; }
+    .analytics-insight { margin-top: 18px; padding: 16px; border: 1px solid #dce7f6; border-radius: 10px; background: #f5f9ff; }
+    .analytics-insight p { margin: 0; color: #475569; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+    .analytics-insight p + p { margin-top: 12px; }
+    .analytics-insight strong { display: block; margin-bottom: 3px; color: #254974; font-size: 11px; font-weight: 700; }
+    .period-stat-insight { padding: 12px 0 0; margin-top: 14px; border: 0; border-top: 1px solid #e2e8f0; border-radius: 0; background: transparent; }
     .content-main {
         
         margin-bottom: 40px;
