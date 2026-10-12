@@ -357,35 +357,10 @@ function getAuditStats($pdo, $date = null) {
 }
 
 /**
- * Delete audit_logs rows older than 1 year. Runs at most once per calendar day.
+ * Legacy scheduler compatibility. Cleanup now requires an admin password and backup.
+ * Do not silently delete records from page visits or the old cron entry point.
  */
 function purgeOldAuditLogs($pdo) {
-    try {
-        if (!($pdo instanceof PDO)) {
-            return 0;
-        }
-
-        $cacheDir = dirname(__DIR__) . '/cache';
-        $marker = $cacheDir . '/.audit_purge_date';
-        $today = date('Y-m-d');
-
-        if (is_file($marker) && trim((string)@file_get_contents($marker)) === $today) {
-            return 0;
-        }
-
-        $stmt = $pdo->prepare('DELETE FROM audit_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL 1 YEAR)');
-        $stmt->execute();
-        $deleted = $stmt->rowCount();
-
-        if (!is_dir($cacheDir)) {
-            @mkdir($cacheDir, 0755, true);
-        }
-        @file_put_contents($marker, $today);
-
-        return $deleted;
-    } catch (Exception $e) {
-        error_log('Audit log purge error: ' . $e->getMessage());
-        return 0;
-    }
+    return 0;
 }
 ?>

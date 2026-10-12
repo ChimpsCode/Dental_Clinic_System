@@ -56,8 +56,7 @@ $returningPatients = 0;
 $ageGroupLabel = 'N/A';
 $genderDistribution = 'N/A';
 $topServices = [];
-$topDentistName = 'No dentist activity';
-$topDentistCount = 0;
+$dentistPerformance = [];
 $topStaffName = 'No staff activity';
 $topStaffCount = 0;
 $appointmentTypeSlices = [];
@@ -234,27 +233,30 @@ try {
 }
 
 try {
-    // Top Dentist - finished queue visits (completed or awaiting payment)
+    // List every active dentist, including those with no finished visits in this period.
     $stmt = $pdo->prepare("
-        SELECT CONCAT(u.first_name, ' ', u.last_name) AS full_name, COUNT(DISTINCT q.id) AS total
-        FROM queue q
-        LEFT JOIN consultations c ON c.queue_id = q.id
-        LEFT JOIN appointments a ON a.id = q.appointment_id
-        JOIN users u ON u.id = COALESCE(c.dentist_id, q.doctor_id, q.dentist_id, a.dentist_id)
+        SELECT u.id, TRIM(CONCAT_WS(' ', NULLIF(u.first_name, ''), NULLIF(u.last_name, ''))) AS full_name,
+               COALESCE(visits.total, 0) AS total
+        FROM users u
+        LEFT JOIN (
+            SELECT assigned.dentist_id, COUNT(DISTINCT assigned.queue_id) AS total
+            FROM (
+                SELECT q.id AS queue_id, COALESCE(c.dentist_id, q.doctor_id, q.dentist_id, a.dentist_id) AS dentist_id
+                FROM queue q
+                LEFT JOIN consultations c ON c.queue_id = q.id
+                LEFT JOIN appointments a ON a.id = q.appointment_id
+                WHERE q.status IN ('completed', 'pending_payment')
+                  AND COALESCE(q.is_archived, 0) = 0
+                  AND DATE(COALESCE(q.completed_at, q.created_at)) BETWEEN ? AND ?
+            ) assigned
+            GROUP BY assigned.dentist_id
+        ) visits ON visits.dentist_id = u.id
         WHERE LOWER(u.role) = 'dentist'
-          AND q.status IN ('completed', 'pending_payment')
-          AND COALESCE(q.is_archived, 0) = 0
-          AND DATE(COALESCE(q.completed_at, q.created_at)) BETWEEN ? AND ?
-        GROUP BY u.id
-        ORDER BY total DESC
-        LIMIT 1
+          AND COALESCE(u.is_archived, 0) = 0
+        ORDER BY total DESC, full_name ASC, u.id ASC
     ");
     $stmt->execute([$startStr, $endStr]);
-    $topDentist = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($topDentist) {
-        $topDentistName = trim($topDentist['full_name'] ?: '') ?: 'Dentist';
-        $topDentistCount = (int)$topDentist['total'];
-    }
+    $dentistPerformance = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
     // Keep defaults on error
 }
@@ -582,10 +584,18 @@ foreach (['inquiry' => 'inquiries', 'appointment' => 'appointments'] as $view =>
                     <div class="stat-card">
                         <h3 class="stat-title">Staff Performance</h3>
                         <div class="stat-content">
+                            <p class="staff-performance-caption">Dentists &middot; finished visits in the selected period</p>
+                            <?php if (!$dentistPerformance): ?>
                             <div class="staff-stat">
-                                <span class="staff-name"><?php echo htmlspecialchars($topDentistName); ?></span>
-                                <span class="staff-metric"><?php echo number_format($topDentistCount); ?> patients treated</span>
+                                <span class="staff-name">No active dentists found</span>
                             </div>
+                            <?php else: foreach ($dentistPerformance as $dentist): ?>
+                            <div class="staff-stat">
+                                <span class="staff-name"><?php echo htmlspecialchars($dentist['full_name'] ?: 'Dentist #' . $dentist['id'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                <span class="staff-metric"><?php echo number_format((int)$dentist['total']); ?> finished visits</span>
+                            </div>
+                            <?php endforeach; endif; ?>
+                            <p class="staff-performance-caption">Staff &middot; appointments created or approved</p>
                             <div class="staff-stat">
                                 <span class="staff-name"><?php echo htmlspecialchars($topStaffName); ?></span>
                                 <span class="staff-metric"><?php echo number_format($topStaffCount); ?> appointments managed</span>
@@ -634,6 +644,8 @@ foreach (['inquiry' => 'inquiries', 'appointment' => 'appointments'] as $view =>
     })();
 </script>
 <style>
+    .staff-performance-caption { margin: 14px 0 8px; color: #64748b; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+    .staff-performance-caption:first-child { margin-top: 0; }
     .analytics-insight-range { margin: -6px 0 18px; font-size: 12px; color: #64748b; }
     .analytics-insight { margin-top: 18px; padding: 16px; border: 1px solid #dce7f6; border-radius: 10px; background: #f5f9ff; }
     .analytics-insight p { margin: 0; color: #475569; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }

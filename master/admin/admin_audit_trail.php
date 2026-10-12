@@ -7,8 +7,9 @@ $pageTitle = 'Audit Trail';
 
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/audit_helper.php';
+require_once __DIR__ . '/../../includes/require_admin.php';
 
-purgeOldAuditLogs($pdo);
+$_SESSION['audit_cleanup_csrf'] = $_SESSION['audit_cleanup_csrf'] ?? bin2hex(random_bytes(32));
 
 // Get filter parameters
 $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : '';
@@ -64,6 +65,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
                 
                     
                     <div class="export-options">
+                        <button type="button" class="btn-secondary audit-cleanup-trigger" onclick="openAuditCleanup()">Back up &amp; delete old logs</button>
                         <button class="btn-secondary" onclick="openAuditExport('csv')">Export as CSV</button>
                         <button class="btn-secondary" onclick="openAuditExport('excel')">Export as Excel</button>
                         <button class="btn-secondary" onclick="openAuditExport('print')">Print Logs</button>
@@ -491,5 +493,6 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
             </script>
 
 <?php
+require_once __DIR__ . '/../../includes/audit_cleanup_dialog.php';
 require_once __DIR__ . '/../../includes/admin_layout_end.php';
 ?>
