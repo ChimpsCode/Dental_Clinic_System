@@ -308,6 +308,11 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
             </div>
 
             <style>
+                #auditRangeModal,
+                #auditPasswordModal {
+                    backdrop-filter: blur(3px);
+                    -webkit-backdrop-filter: blur(3px);
+                }
                 .audit-export-modal { background: white; border-radius: 12px; padding: 24px; max-width: 440px; width: 100%; }
                 .audit-export-modal .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
                 .audit-export-modal .modal-header h3 { margin: 0; font-size: 18px; }
@@ -494,5 +499,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
 
 <?php
 require_once __DIR__ . '/../../includes/audit_cleanup_dialog.php';
+require_once __DIR__ . '/../../includes/audit_backup_confirm_dialog.php';
+require_once __DIR__ . '/../../includes/audit_import_dialog.php';
 require_once __DIR__ . '/../../includes/admin_layout_end.php';
 ?>

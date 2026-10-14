@@ -10,10 +10,10 @@
             <div id="auditCleanupPreview" role="status">Checking older logs...</div>
             <label for="auditCleanupPassword">Your admin password</label>
             <input type="password" id="auditCleanupPassword" name="password" autocomplete="current-password" required placeholder="Re-enter your login password">
-            <p class="audit-cleanup-hint">A server copy is retained. The CSV download starts after cleanup, and can be downloaded again below. No restore feature is included.</p>
+            <p class="audit-cleanup-hint">Your CSV download starts after cleanup. Confirm that it is saved on your computer to remove the temporary server copy. Saved backups then keeps only the filename, date, count and a recovery fingerprint. Restore asks you to select your local CSV.</p>
             <p id="auditCleanupError" role="alert"></p>
             <p id="auditCleanupSuccess" role="status"></p>
-            <a id="auditCleanupDownload" hidden>Download backup CSV again</a>
+            <a id="auditCleanupDownload" hidden aria-hidden="true" tabindex="-1"></a>
             <details id="auditBackupHistory"><summary>Saved backups</summary><div id="auditBackupList">Loading...</div></details>
         </div>
         <div class="audit-cleanup-actions"><button type="button" onclick="closeAuditCleanup()">Cancel</button><button type="submit" id="auditCleanupConfirm" disabled>Back up &amp; delete</button></div>
@@ -45,7 +45,14 @@
 #auditCleanupDialog :is(input,button,a,summary):focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
 #auditCleanupDialog details { margin-top: 18px; border-top: 1px solid #e2e8f0; padding-top: 12px; }
 #auditCleanupDialog summary { cursor: pointer; font-size: 13px; font-weight: 600; }
-#auditBackupList a { display: block; margin-top: 10px; overflow-wrap: anywhere; font-size: 12px; }
+#auditBackupList .audit-backup-row { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:12px; padding:12px; border:1px solid #e2e8f0; border-radius:8px; }
+#auditBackupList .audit-backup-label { flex:1 1 100%; overflow-wrap:anywhere; font-size:12px; }
+#auditBackupList .audit-backup-name { font-weight:600; color:#334155; }
+#auditBackupList .audit-backup-detail { flex:1 1 100%; font-size:12px; line-height:1.6; color:#64748b; }
+#auditBackupList .audit-backup-badge { display:inline-flex; padding:3px 9px; border-radius:999px; background:#f1f5f9; color:#475569; font-size:11px; font-weight:600; }
+#auditBackupList .audit-backup-badge.restored { background:#dcfce7; color:#166534; }
+#auditBackupList .audit-backup-badge.partial { background:#fef3c7; color:#92400e; }
+#auditBackupList a,#auditBackupList button { font:inherit; font-size:12px; padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#1d4ed8; text-decoration:none; cursor:pointer; }
 @media (prefers-reduced-motion: reduce) { #auditCleanupDialog[open] { animation: none; } }
 </style>
 <script>
@@ -83,12 +90,44 @@
             const data = await responseData(await fetch(endpoint + '?action=list', {cache: 'no-store'}));
             list.replaceChildren();
             if (!data.backups.length) list.textContent = 'No saved backups yet.';
+            const formatDate = value => {
+                const date = new Date(String(value).replace(' ', 'T'));
+                return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('en-PH', {month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
+            };
             data.backups.forEach(backup => {
-                const link = document.createElement('a'); link.href = url(backup.file); link.textContent = backup.label;
-                list.appendChild(link);
+                const row = document.createElement('div'); row.className = 'audit-backup-row';
+                const label = document.createElement('span'); label.className = 'audit-backup-label audit-backup-name'; label.textContent = backup.label;
+                const last = backup.last_restore;
+                const badge = document.createElement('span'); badge.className = 'audit-backup-badge' + (last ? last.status === 'partial' ? ' partial' : ' restored' : '');
+                badge.textContent = last ? last.status === 'partial' ? 'Partially restored' : 'Restored' : 'Not yet restored';
+                const details = document.createElement('span'); details.className = 'audit-backup-detail';
+                details.textContent = `${backup.count.toLocaleString()} logs · Backup created ${formatDate(backup.created_at)}`;
+                const storage = document.createElement('span'); storage.className = 'audit-backup-detail';
+                storage.textContent = backup.has_server_copy ? 'Temporary server copy awaiting saved-copy confirmation' : 'Server copy removed · Local CSV required to restore';
+                row.append(label, badge, details, storage);
+                if (last) {
+                    const when = document.createElement('span'); when.className = 'audit-backup-detail';
+                    when.textContent = 'Last restored: ' + formatDate(last.at);
+                    const summary = document.createElement('span'); summary.className = 'audit-backup-detail';
+                    summary.textContent = `Restored: ${last.restored.toLocaleString()} · Already present: ${last.duplicates.toLocaleString()} · Conflicts skipped: ${last.conflicts.toLocaleString()}`;
+                    const note = document.createElement('span'); note.className = 'audit-backup-detail';
+                    note.textContent = 'Status reflects the last restoration. Check again to see what is missing now.';
+                    row.append(when, summary, note);
+                }
+                const restore = document.createElement('button'); restore.type = 'button'; restore.textContent = last ? 'Check / Restore again' : 'Restore';
+                restore.setAttribute('aria-label', restore.textContent + ' ' + backup.label);
+                restore.addEventListener('click', () => { if (!pending) window.openAuditSavedRestore(backup.file, backup.label); });
+                row.appendChild(restore);
+                if (backup.has_server_copy) {
+                    const finish = document.createElement('button'); finish.type = 'button'; finish.textContent = 'Finish saving';
+                    finish.addEventListener('click', () => { if (!pending) window.openAuditBackupConfirmation(backup.file, backup.label); });
+                    row.appendChild(finish);
+                }
+                list.appendChild(row);
             });
         } catch (e) { list.textContent = e.message; }
     }
+    window.refreshAuditBackupHistory = loadBackups;
     async function updatePreview() {
         const version = ++previewVersion;
         confirm.disabled = true; error.textContent = ''; preview.textContent = 'Checking older logs...';
@@ -119,10 +158,11 @@
         pending = true; confirm.disabled = true; before.readOnly = true; confirm.textContent = 'Backing up...'; error.textContent = '';
         try {
             const result = await request('cleanup');
-            changed = true; password.value = ''; download.href = url(result.file); download.hidden = false;
-            success.textContent = result.count.toLocaleString() + ' logs backed up and deleted. Your CSV download is starting. Close this window to refresh the audit trail.';
-            preview.textContent = 'Backup saved securely. Recent logs were kept.';
+            changed = true; password.value = ''; download.href = url(result.file);
+            success.textContent = result.count.toLocaleString() + ' logs removed from the database. Your CSV download is starting. Confirm that the file is saved to remove the temporary server copy.';
+            preview.textContent = 'Recent logs were kept. The temporary backup awaits your confirmation.';
             download.click(); loadBackups(); updatePreview();
+            window.openAuditBackupConfirmation(result.file, result.file.slice(0, -4), false);
         } catch (e) { error.textContent = e.message; password.value = ''; }
         finally { pending = false; before.readOnly = false; confirm.textContent = 'Back up & delete'; if (!changed) confirm.disabled = false; }
     });

@@ -1,8 +1,19 @@
 <?php
 const AUDIT_BACKUP_GUARD = "<?php http_response_code(404); exit; ?>\n";
+require_once __DIR__ . '/audit_backup_history.php';
 
 function auditBackupDirectory(): string {
     return __DIR__ . '/../storage/audit_backups';
+}
+
+function auditSavedBackupPath(string $name, ?string $directory = null): string {
+    if (!preg_match('/^audit-backup-\d{4}-\d{2}-\d{2}-\d{6}-[a-f0-9]{16}\.csv\.php$/D', $name)) {
+        throw new InvalidArgumentException('Invalid saved backup.');
+    }
+    $directory = $directory ?? auditBackupDirectory();
+    $path = $directory . '/' . $name;
+    if (!is_file($path) || is_link($path)) throw new InvalidArgumentException('Saved backup not found.');
+    return $path;
 }
 
 function auditCleanupCutoff(string $value): string {
@@ -19,6 +30,15 @@ function auditBackupCsvCell($value): string {
     return preg_match('/^[\s\x00-\x1f]*[=+@-]/', $value) ? "'" . $value : $value;
 }
 
+// Version 2 preserves NULL, literal apostrophes and spreadsheet-safe text.
+function auditBackupRestoreCell($value): string {
+    if ($value === null) return '\\N';
+    $value = (string)$value;
+    if (str_starts_with($value, '\\')) return '\\' . $value;
+    if (str_starts_with($value, "'")) return "'" . $value;
+    return auditBackupCsvCell($value);
+}
+
 function backupAndDeleteAuditLogs(PDO $pdo, string $cutoff, array $actor, ?string $directory = null): array {
     $engine = $pdo->query("SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'audit_logs'")->fetchColumn();
     if (strtolower((string)$engine) !== 'innodb') throw new RuntimeException('Audit cleanup requires a transactional audit table.');
@@ -32,6 +52,7 @@ function backupAndDeleteAuditLogs(PDO $pdo, string $cutoff, array $actor, ?strin
     $count = 0;
     try {
         if (fwrite($file, AUDIT_BACKUP_GUARD) !== strlen(AUDIT_BACKUP_GUARD) || fwrite($file, "\xEF\xBB\xBF") !== 3) throw new RuntimeException('Could not write the backup.');
+        if (fputcsv($file, ['#dental-audit-backup', '2'], ',', '"', '') === false) throw new RuntimeException('Could not write the backup format.');
         $pdo->beginTransaction();
         $maxId = (int)$pdo->query('SELECT COALESCE(MAX(id), 0) FROM audit_logs')->fetchColumn();
         $cursor = 0;
@@ -45,7 +66,7 @@ function backupAndDeleteAuditLogs(PDO $pdo, string $cutoff, array $actor, ?strin
                     $columns = array_keys($row);
                     if (fputcsv($file, $columns, ',', '"', '') === false) throw new RuntimeException('Could not write backup columns.');
                 }
-                if (fputcsv($file, array_map('auditBackupCsvCell', array_values($row)), ',', '"', '') === false) throw new RuntimeException('Could not write backup records.');
+                if (fputcsv($file, array_map('auditBackupRestoreCell', array_values($row)), ',', '"', '') === false) throw new RuntimeException('Could not write backup records.');
                 $cursor = (int)$row['id'];
                 $count++;
             }
@@ -56,6 +77,8 @@ function backupAndDeleteAuditLogs(PDO $pdo, string $cutoff, array $actor, ?strin
         $file = null;
         if (!rename($path, $finalPath)) throw new RuntimeException('Could not finalize the backup.');
         $path = $finalPath;
+        writeAuditBackupHistory($name, ['file'=>$name, 'count'=>$count, 'created_at'=>date('Y-m-d H:i:s'),
+            'csv_sha256'=>auditBackupCsvHash($path), 'confirmed_at'=>null], $directory);
         $delete = $pdo->prepare('DELETE FROM audit_logs WHERE created_at < ? AND id <= ?');
         $delete->execute([$cutoff, $maxId]);
         if ($delete->rowCount() !== $count) throw new RuntimeException('The audit records changed. Cleanup was cancelled.');

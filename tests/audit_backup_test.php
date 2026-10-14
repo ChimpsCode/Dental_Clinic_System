@@ -53,6 +53,7 @@ try {
     $file = fopen($directory . '/' . $result['file'], 'rb');
     checkAuditBackup(fread($file, strlen(AUDIT_BACKUP_GUARD)) === AUDIT_BACKUP_GUARD, 'Missing direct-access guard.');
     fread($file, 3);
+    checkAuditBackup(fgetcsv($file, null, ',', '"', '') === ['#dental-audit-backup', '2'], 'Missing restore format marker.');
     $header = fgetcsv($file, null, ',', '"', '');
     $rows = 0;
     while (($row = fgetcsv($file, null, ',', '"', '')) !== false) { $rows++; checkAuditBackup($row[1] === "'=test,\"quoted\"", 'CSV escaping failed.'); }
