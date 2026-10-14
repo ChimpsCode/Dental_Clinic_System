@@ -172,7 +172,7 @@ try {
 
                 <!-- Search and Filter -->
                 <div class="search-filters">
-                    <input type="text" class="search-input" placeholder="Search users..." id="userSearch">
+                    <input type="search" class="search-input" placeholder="Search users..." id="userSearch" name="user_management_search" autocomplete="off" aria-label="Search users">
                     <select class="filter-select" id="roleFilter">
                         <option value="">All Roles</option>
                         <option value="admin">Admin</option>
@@ -181,6 +181,7 @@ try {
                         <option value="patient">Patient</option>
                     </select>
                     <button class="btn-primary" onclick="openUserModal()">+ Add New User</button>
+                    <button class="btn-primary" type="button" onclick="openClinicSwitchSetup()">Manage Switch Profiles</button>
                 </div>
                 
 
@@ -300,6 +301,41 @@ try {
 
                 <div id="userKebabDropdown" class="user-kebab-dropdown"></div>
                 <div id="userKebabBackdrop" class="user-kebab-backdrop"></div>
+
+                <dialog id="clinicSwitchSetup" aria-labelledby="clinicSwitchSetupTitle">
+                    <div class="clinic-link-header"><div><h2 id="clinicSwitchSetupTitle">Manage Switch Profiles</h2><p>Choose which clinic accounts can switch between profiles.</p></div><button type="button" onclick="closeClinicSwitchSetup()" aria-label="Close">&times;</button></div>
+                    <div class="clinic-link-body">
+                        <p class="clinic-link-explainer">Only Admin and Dentist accounts can be linked. Linked profiles appear in each other’s menus and can switch with one click.</p>
+                        <label for="clinicLinkTarget">Clinic account to link</label>
+                        <select id="clinicLinkTarget"></select>
+                        <label for="clinicLinkAdminUsername">Admin account</label>
+                        <input id="clinicLinkAdminUsername" type="text" autocomplete="username" value="<?php echo htmlspecialchars((string)($_SESSION['username'] ?? ''), ENT_QUOTES); ?>" readonly>
+                        <label for="clinicLinkPassword">Your admin password</label>
+                        <input id="clinicLinkPassword" type="password" autocomplete="off" placeholder="Required to add or remove a link">
+                        <button type="button" id="clinicLinkAdd" onclick="saveClinicSwitchLink('add')">Add switch profile</button>
+                        <h3>Linked profiles</h3><div id="clinicLinkList"></div>
+                        <p id="clinicLinkMessage" role="status" aria-live="polite"></p>
+                    </div>
+                </dialog>
+                <style>
+                    #clinicSwitchSetup { position:fixed; inset:0; margin:auto; width:min(480px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); padding:0; overflow:auto; border:1px solid #dce7f6; border-radius:16px; background:#fff; color:#1f2937; box-shadow:0 24px 70px #0f172a40; }
+                    #clinicSwitchSetup::backdrop { background:#0f172a80; backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); }
+                    #clinicSwitchSetup .clinic-link-header { display:flex; justify-content:space-between; gap:12px; padding:20px 24px; border-bottom:1px solid #e2e8f0; }
+                    #clinicSwitchSetup h2 { margin:0; font-size:20px; }
+                    #clinicSwitchSetup .clinic-link-header p { margin:4px 0 0; color:#64748b; font-size:12px; }
+                    #clinicSwitchSetup .clinic-link-header button { align-self:flex-start; border:0; background:transparent; color:#64748b; font-size:26px; cursor:pointer; }
+                    #clinicSwitchSetup .clinic-link-body { padding:20px 24px 24px; }
+                    #clinicSwitchSetup .clinic-link-explainer { margin:0 0 16px; padding:12px; border-radius:8px; background:#eff6ff; color:#1e40af; font-size:12px; }
+                    #clinicSwitchSetup label { display:block; margin:13px 0 5px; font-size:13px; font-weight:600; }
+                    #clinicSwitchSetup select,#clinicSwitchSetup input { box-sizing:border-box; width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; font:inherit; }
+                    #clinicSwitchSetup input[readonly] { background:#f8fafc; color:#475569; }
+                    #clinicLinkAdd { width:100%; margin-top:15px; padding:11px; border:0; border-radius:8px; background:#1663ca; color:white; font-weight:600; cursor:pointer; }
+                    #clinicSwitchSetup h3 { margin:22px 0 8px; font-size:14px; }
+                    .clinic-link-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-top:1px solid #e2e8f0; font-size:13px; }
+                    .clinic-link-row small { display:block; color:#64748b; }
+                    .clinic-link-row button { padding:7px 9px; border:1px solid #fecaca; border-radius:7px; background:#fff; color:#b91c1c; cursor:pointer; }
+                    #clinicLinkMessage { min-height:18px; color:#b91c1c; font-size:12px; }
+                </style>
 
                 <style>
                     .user-kebab-btn {
@@ -1131,6 +1167,71 @@ try {
                 });
                 </script>
 
+                <script>
+                (function () {
+                    const dialog = document.getElementById('clinicSwitchSetup');
+                    const target = document.getElementById('clinicLinkTarget');
+                    const password = document.getElementById('clinicLinkPassword');
+                    const list = document.getElementById('clinicLinkList');
+                    const message = document.getElementById('clinicLinkMessage');
+                    const addButton = document.getElementById('clinicLinkAdd');
+                    const csrf = <?php
+                        if (empty($_SESSION['clinic_switch_csrf'])) $_SESSION['clinic_switch_csrf'] = bin2hex(random_bytes(32));
+                        echo json_encode($_SESSION['clinic_switch_csrf'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+                    ?>;
+                    let accounts = [];
+                    let linked = [];
+                    async function request(action, id = 0) {
+                        const body = new FormData();
+                        body.set('action', action); body.set('csrf', csrf);
+                        if (id) body.set('id', String(id));
+                        if (action !== 'list') body.set('password', password.value);
+                        const response = await fetch('admin_switch_links.php', {method:'POST', body});
+                        const data = await response.json();
+                        if (!response.ok || !data.success) throw new Error(data.message || 'Could not save switch profiles.');
+                        return data;
+                    }
+                    async function refresh() {
+                        const data = await request('list'); accounts = data.users; linked = data.linked.map(Number);
+                        target.replaceChildren(); list.replaceChildren();
+                        accounts.filter(account => !linked.includes(Number(account.id))).forEach(account => {
+                            const option = document.createElement('option'); option.value = account.id;
+                            option.textContent = `${account.first_name || account.username} ${account.last_name || ''} (${account.role})`;
+                            target.append(option);
+                        });
+                        addButton.disabled = !target.options.length;
+                        if (!linked.length) list.textContent = 'No profiles linked yet.';
+                        linked.forEach(id => {
+                            const account = accounts.find(item => Number(item.id) === id);
+                            const row = document.createElement('div'); row.className = 'clinic-link-row';
+                            const label = document.createElement('span'); label.textContent = account ? `${account.first_name || account.username} ${account.last_name || ''}` : `Account #${id}`;
+                            if (account) { const small = document.createElement('small'); small.textContent = account.role; label.append(small); }
+                            const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = 'Remove';
+                            remove.addEventListener('click', () => window.saveClinicSwitchLink('remove', id));
+                            row.append(label, remove); list.append(row);
+                        });
+                    }
+                    window.openClinicSwitchSetup = async function () {
+                        password.value = ''; message.textContent = ''; dialog.showModal();
+                        try { await refresh(); } catch (e) { message.textContent = e.message; }
+                    };
+                    window.closeClinicSwitchSetup = function () { dialog.close(); };
+                    window.saveClinicSwitchLink = async function (action, id = 0) {
+                        message.textContent = '';
+                        if (!password.value) { message.textContent = 'Enter your admin password first.'; password.focus(); return; }
+                        const selected = id || Number(target.value);
+                        if (!selected) { message.textContent = 'Choose a clinic account.'; return; }
+                        addButton.disabled = true;
+                        try {
+                            await request(action, selected); password.value = '';
+                            await refresh(); message.style.color = '#166534';
+                            message.textContent = action === 'add' ? 'Profile linked. Refresh the profile menu to see it.' : 'Profile link removed. Refresh the profile menu to update it.';
+                        } catch (e) { message.style.color = '#b91c1c'; message.textContent = e.message; }
+                        finally { addButton.disabled = !target.options.length; }
+                    };
+                })();
+                </script>
+
                 <!-- Pagination -->
                 <div class="pagination">
                     <span class="pagination-info" id="usersPaginationInfo">Showing 0 of 0 users</span>
@@ -1141,4 +1242,3 @@ try {
 <?php
 require_once __DIR__ . '/../../includes/admin_layout_end.php';
 ?>
-    

@@ -496,7 +496,9 @@
         if (h1 && !current.getAttribute('data-page-title')) {
             current.setAttribute('data-page-title', h1.textContent.trim());
         }
-        window.appCache.set(listKey(location.href), current.outerHTML);
+        // The initial page can have scripts and styles after .content-area.
+        // Its outerHTML omits those assets, so fetching on the first return
+        // ensures controls such as the dashboard inquiry FAB are initialized.
     })();
 
     (function preloadNav() {
