@@ -120,6 +120,64 @@ $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doc
     font-weight: 700;
     margin: 0 0 4px 0;
 }
+.consult-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+.consult-focus-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    border-radius: 10px;
+    background: transparent;
+    color: white;
+    cursor: pointer;
+}
+.consult-focus-btn:hover, .consult-focus-btn[aria-pressed="true"] {
+    background: rgba(255, 255, 255, 0.18);
+}
+.consult-focus-btn:focus-visible {
+    outline: 3px solid white;
+    outline-offset: 3px;
+}
+.consult-focus-btn .focus-exit-icon { display: none; }
+.consult-focus-btn[aria-pressed="true"] .focus-enter-icon { display: none; }
+.consult-focus-btn[aria-pressed="true"] .focus-exit-icon { display: block; }
+/* Scope the shell changes to this consultation so navigation restores the layout. */
+body:has(.consult-container.is-focus-view) > .sidebar,
+body:has(.consult-container.is-focus-view) .main-content > .top-header,
+body:has(.consult-container.is-focus-view) .sidebar-overlay {
+    display: none !important;
+}
+body:has(.consult-container.is-focus-view) .main-content {
+    margin: 0;
+    width: 100%;
+    min-height: 0;
+}
+body:has(.consult-container.is-focus-view) .content-area {
+    padding: 0;
+    overflow: hidden;
+}
+body:has(.consult-container.is-focus-view) .content-main {
+    padding: 0;
+    gap: 0;
+    min-height: 0;
+}
+.consult-container.is-focus-view {
+    height: 100vh;
+    height: 100dvh;
+}
+@media (max-width: 768px) {
+    .consult-header { flex-wrap: wrap; gap: 12px; padding: 16px; }
+    .consult-header-left { min-width: 0; }
+    .consult-header-actions { margin-left: auto; }
+}
 .consult-header-left .consult-patient-info {
     font-size: 0.9rem;
     opacity: 0.9;
@@ -1952,7 +2010,7 @@ $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doc
 }
 </style>
 
-<div class="consult-container <?php echo $isPastView ? 'is-past-view' : ''; ?>">
+<div id="consultationWorkspace" class="consult-container <?php echo $isPastView ? 'is-past-view' : ''; ?>">
     <!-- Header -->
     <div class="consult-header">
         <div class="consult-header-left">
@@ -1972,6 +2030,11 @@ $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doc
                 Treatment: <span id="consultTreatment"><?php echo $isPastView ? htmlspecialchars($pastConsultData['treatment_type'] ?? '-') : '-'; ?></span>
             </div>
         </div>
+        <div class="consult-header-actions">
+            <button type="button" class="consult-focus-btn" id="consultFocusBtn" onclick="toggleConsultFocusView()" aria-label="Enter Focus View" title="Enter Focus View" aria-pressed="false" aria-controls="consultationWorkspace">
+                <svg class="focus-enter-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5"/></svg>
+                <svg class="focus-exit-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h5V3M21 8h-5V3M16 21v-5h5M8 21v-5H3"/></svg>
+            </button>
         <?php if ($isPastView): ?>
             <a href="dentist_patients.php" class="past-view-back-btn">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -1983,6 +2046,7 @@ $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doc
                 Complete Consultation
             </button>
         <?php endif; ?>
+        </div>
     </div>
 
     <!-- Queue Bar -->
@@ -2769,6 +2833,26 @@ $rxDoctorName = trim($_SESSION['display_name'] ?? ($_SESSION['username'] ?? 'Doc
 <script src="../../assets/js/medical-certificate-template.js"></script>
 <script src="../../assets/js/signature_pad.min.js"></script>
 <script>
+// Focus View changes the layout without rebuilding consultation forms or data.
+function toggleConsultFocusView(force) {
+    var workspace = document.getElementById('consultationWorkspace');
+    var button = document.getElementById('consultFocusBtn');
+    if (!workspace || !button) return;
+    var enabled = typeof force === 'boolean' ? force : !workspace.classList.contains('is-focus-view');
+    workspace.classList.toggle('is-focus-view', enabled);
+    button.setAttribute('aria-pressed', String(enabled));
+    button.setAttribute('aria-label', enabled ? 'Exit Focus View' : 'Enter Focus View');
+    button.title = enabled ? 'Exit Focus View (Esc)' : 'Enter Focus View';
+}
+
+// Assign on the workspace so cached page navigation cannot leave a document listener behind.
+document.getElementById('consultationWorkspace').addEventListener('keydown', function(event) {
+    if (event.key !== 'Escape' || event.defaultPrevented || !this.classList.contains('is-focus-view')) return;
+    event.preventDefault();
+    toggleConsultFocusView(false);
+    document.getElementById('consultFocusBtn').focus();
+});
+
 // ===================== STATE =====================
 var currentConsultation = null;
 var currentQueueId = <?php echo $initialQueueId; ?>;
