@@ -95,10 +95,11 @@ try {
     $stmt->execute([$chartYear]);
     $monthlyRevenue = (float)($stmt->fetchColumn() ?? 0);
 
+    // paid_amount is the invoice's received total, reduced when a payment is voided.
+    // Include partial payments regardless of the invoice's settlement status.
     $totalCollected = (float)($pdo->query("
         SELECT COALESCE(SUM(paid_amount), 0)
         FROM billing
-        WHERE payment_status = 'paid'
     ")->fetchColumn() ?? 0);
 
     $pendingPayments = (float)($pdo->query("
@@ -391,7 +392,7 @@ foreach (['inquiry' => 'inquiries', 'appointment' => 'appointments'] as $view =>
                         <div class="summary-icon blue"><img src="../../assets/icons/peso.png" alt="Total Collected"></div>
                         <div class="summary-info">
                             <h3>&#8369;<?php echo number_format($totalCollected, 2); ?></h3>
-                            <p>Total Collected</p>
+                            <p>Total Collected This Year</p>
                         </div>
                     </div>
                     <div class="summary-card card-pending">
@@ -415,10 +416,9 @@ foreach (['inquiry' => 'inquiries', 'appointment' => 'appointments'] as $view =>
                 <!-- Charts Row -->
                 <div class="charts-row" style="margin-bottom: 0px;">
                     <!-- Revenue Chart -->
-                    <div class="chart-card">
+                    <div class="chart-card revenue-line-card">
                         <h3 class="chart-title">Revenue Overview</h3>
                         <p class="analytics-insight-range">January–December <?php echo $chartYear; ?></p>
-                        <div class="dash-revenue-chart" style="display: flex; align-items: flex-end; gap: 10px; height: 180px; padding: 10px 15px 30px 15px; border-bottom: 1px solid #e5e7eb;">
                                 <?php 
                                 // Get all 12 months for the chart year
                                 $allMonths = [];
@@ -441,35 +441,13 @@ foreach (['inquiry' => 'inquiries', 'appointment' => 'appointments'] as $view =>
                                     }
                                 }
                                 
-                                $maxRevenue = max($allMonths);
-                                if ($maxRevenue == 0) $maxRevenue = 1;
-                                $labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                                
-                                foreach ($allMonths as $ym => $total) {
-                                    $monthNum = (int)substr($ym, 5, 2);
-                                    $label = $labels[$monthNum - 1];
-                                    if ($total > 0) {
-                                        $height = ($total / $maxRevenue) * 100;
-                                        if ($height < 20) $height = 20;
-                                        $bg = 'linear-gradient(to top, #3b82f6, #60a5fa)';
-                                    } else {
-                                        $height = 8;
-                                        $bg = '#e5e7eb';
-                                    }
-                                    ?>
-                                    <div class="dash-revenue-col" title="<?php echo $label; ?>: ₱<?php echo number_format($total); ?>">
-                                        <div class="dash-revenue-bar" style="height: <?php echo $height; ?>%; min-height: 15px; background: <?php echo $bg; ?>;"></div>
-                                        <span class="dash-revenue-label"><?php echo $label; ?></span>
-                                    </div>
-                                    <?php
-                                }
+                                require __DIR__ . '/../../includes/revenue_line_chart.php';
                                 ?>
-                        </div>
-                        <?php $revenueInsight = clinicRevenueInsight($allMonths, $chartYear); ?>
-                        <div class="analytics-insight">
+                        <?php $revenueInsight = clinicRevenueInsight($displayedRevenueMonths, $chartYear); ?>
+                        <!-- <div class="analytics-insight">
                             <p><strong>Description</strong><?php echo htmlspecialchars($revenueInsight['description'], ENT_QUOTES, 'UTF-8'); ?></p>
                             <p><strong>Recommendation</strong><?php echo htmlspecialchars($revenueInsight['recommendation'], ENT_QUOTES, 'UTF-8'); ?></p>
-                        </div>
+                        </div> -->
                     </div>
 
                     <!-- Appointments Chart -->
@@ -524,10 +502,10 @@ foreach (['inquiry' => 'inquiries', 'appointment' => 'appointments'] as $view =>
                                     <strong class="period-stat-value"><?php echo number_format($periodStats[$periodKey]['inquiries']); ?></strong>
                                 </div>
                                 <?php $periodInsight = clinicPeriodInsight($periodStats[$periodKey]['inquiries'], $periodKey, 'inquiry', $periodStatsAvailable); ?>
-                                <div class="analytics-insight period-stat-insight">
+                                <!-- <div class="analytics-insight period-stat-insight">
                                     <p><strong>Description</strong><span class="period-description"><?php echo htmlspecialchars($periodInsight['description'], ENT_QUOTES, 'UTF-8'); ?></span></p>
                                     <p><strong>Recommendation</strong><span class="period-recommendation"><?php echo htmlspecialchars($periodInsight['recommendation'], ENT_QUOTES, 'UTF-8'); ?></span></p>
-                                </div>
+                                </div> -->
                             </div>
                         <?php endforeach; ?>
                     </div>

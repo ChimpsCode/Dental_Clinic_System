@@ -408,7 +408,6 @@ try {
                     <!-- Revenue Overview -->
                     <div class="section-card" style="flex: 1; min-width: 300px;">
                         <h2 class="section-title">6-Month Revenue</h2>
-                        <div class="dash-revenue-chart" style="display: flex; align-items: flex-end; gap: 15px; height: 180px; padding: 10px 20px 30px 20px; border-bottom: 1px solid #e5e7eb;">
                                 <?php 
                                 // Get last 6 months dynamically
                                 $currentMonth = (int)date('n');
@@ -439,34 +438,15 @@ try {
                                     $sixMonthsData[$row['ym']] = (float)$row['total'];
                                 }
                                 
-                                $maxRevenue = max($sixMonthsData);
-                                if ($maxRevenue == 0) $maxRevenue = 1;
-                                $labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                                
                                 // Sort by date and take last 6 months that have data
                                 ksort($sixMonthsData);
                                 $sixMonthsData = array_slice($sixMonthsData, -6, 6, true);
                                 
-                                foreach ($sixMonthsData as $ym => $total) {
-                                    $monthNum = (int)substr($ym, 5, 2);
-                                    $label = $labels[$monthNum - 1];
-                                    if ($total > 0) {
-                                        $height = ($total / $maxRevenue) * 100;
-                                        if ($height < 20) $height = 20;
-                                        $bg = 'linear-gradient(to top, #3b82f6, #60a5fa)';
-                                    } else {
-                                        $height = 8;
-                                        $bg = '#e5e7eb';
-                                    }
-                                    ?>
-                                    <div class="dash-revenue-col" title="<?php echo $label; ?>: ₱<?php echo number_format($total); ?>">
-                                        <div class="dash-revenue-bar" style="height: <?php echo $height; ?>%; min-height: 15px; background: <?php echo $bg; ?>;"></div>
-                                        <span class="dash-revenue-label"><?php echo $label; ?></span>
-                                    </div>
-                                    <?php
-                                }
+                                $allMonths = $sixMonthsData;
+                                $revenueCompact = true;
+                                require __DIR__ . '/../../includes/revenue_line_chart.php';
+                                unset($revenueCompact);
                                 ?>
-                        </div>
                     </div>
 
                     <!-- Live Queue Status -->

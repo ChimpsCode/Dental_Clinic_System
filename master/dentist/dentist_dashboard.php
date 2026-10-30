@@ -823,39 +823,68 @@ function recordPayment(patientId, queueId) {
     });
 }
 
+let pendingFullPayment = null;
+let fullPaymentSaving = false;
+let fullPaymentTrigger = null;
+
 function markAsPaidComplete(patientId, queueId) {
+    if (fullPaymentSaving) return;
     const paidEl = document.getElementById('detailsPaidAmount');
     const paidText = paidEl ? paidEl.innerText.replace('₱', '').replace(/,/g, '') : '0';
     const paidAmount = parseFloat(paidText) || 0;
     const remaining = Math.max(0, currentTotalAmount - paidAmount);
-    const amount = remaining > 0 ? remaining : currentTotalAmount;
+    const amount = remaining;
     if (amount <= 0) { alert('This bill is already fully paid.'); return; }
-    if (!confirm('Mark as paid for ₱' + amount.toLocaleString('en-PH', {minimumFractionDigits: 2}) + '?')) return;
-    
-    fetch('../shared/billing_actions.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            action: 'mark_paid',
-            patient_id: patientId,
-            queue_id: queueId,
-            amount: amount,
-            treatment: 'Dental Procedure'
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('Payment marked as paid!');
-            (window.appCache ? window.appCache.refreshCurrent(['dentist_queue.php', 'dentist_appointments.php']) : location.reload());
-        } else {
-            alert('Error: ' + data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Failed to mark as paid');
-    });
+    pendingFullPayment = { patientId, queueId, amount };
+    fullPaymentTrigger = document.activeElement;
+    document.getElementById('fullPaymentPatient').textContent = document.getElementById('dentistModalPatientName').textContent;
+    document.getElementById('fullPaymentAmount').textContent = '₱' + amount.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('fullPaymentError').textContent = '';
+    document.getElementById('fullPaymentModal').style.display = 'flex';
+    document.getElementById('cancelFullPaymentBtn').focus();
+}
+
+function closeFullPaymentModal() {
+    if (fullPaymentSaving) return;
+    document.getElementById('fullPaymentModal').style.display = 'none';
+    pendingFullPayment = null;
+    if (fullPaymentTrigger && fullPaymentTrigger.isConnected) fullPaymentTrigger.focus();
+}
+
+async function confirmFullPayment() {
+    if (!pendingFullPayment || fullPaymentSaving) return;
+    const { patientId, queueId, amount } = pendingFullPayment;
+    const modal = document.getElementById('fullPaymentModal');
+    const confirmBtn = document.getElementById('confirmFullPaymentBtn');
+    fullPaymentSaving = true;
+    modal.querySelectorAll('button').forEach(button => button.disabled = true);
+    confirmBtn.textContent = 'Saving...';
+    document.getElementById('fullPaymentError').textContent = '';
+    try {
+        const response = await fetch('../shared/billing_actions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'mark_paid',
+                patient_id: patientId,
+                queue_id: queueId,
+                amount: amount,
+                treatment: 'Dental Procedure'
+            })
+        });
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message || 'Failed to mark as paid.');
+        fullPaymentSaving = false;
+        closeFullPaymentModal();
+        alert('Payment marked as paid!');
+        (window.appCache ? window.appCache.refreshCurrent(['dentist_queue.php', 'dentist_appointments.php']) : location.reload());
+    } catch (error) {
+        document.getElementById('fullPaymentError').textContent = error.message || 'Failed to mark as paid. Please try again.';
+    } finally {
+        fullPaymentSaving = false;
+        modal.querySelectorAll('button').forEach(button => button.disabled = false);
+        confirmBtn.textContent = 'Confirm Fully Paid';
+    }
 }
 
 // View patient details
@@ -1334,6 +1363,8 @@ function dcCalClose() {
 
 // Move modal to body for total screen coverage
 document.addEventListener('DOMContentLoaded', function() {
+    const fullPaymentModal = document.getElementById('fullPaymentModal');
+    if (fullPaymentModal) document.body.appendChild(fullPaymentModal);
     const modal = document.getElementById('patientModal');
     if (modal) {
         document.body.appendChild(modal);
@@ -1358,6 +1389,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Close modals on outside click
 window.onclick = function(event) {
+    if (event.target === document.getElementById('fullPaymentModal')) closeFullPaymentModal();
     const cpModal = document.getElementById('completeProcedureModal');
     const pcModal = document.getElementById('procedureCompleteModal');
     const spModal = document.getElementById('startProcedureModal');
@@ -1370,6 +1402,27 @@ window.onclick = function(event) {
 
 // Close modals on ESC key
 document.addEventListener('keydown', function(e) {
+    const fullPaymentModal = document.getElementById('fullPaymentModal');
+    if (fullPaymentModal && fullPaymentModal.style.display === 'flex') {
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            closeFullPaymentModal();
+        } else if (e.key === 'Tab') {
+            const buttons = Array.from(fullPaymentModal.querySelectorAll('button:not(:disabled)'));
+            const first = buttons[0];
+            const last = buttons[buttons.length - 1];
+            if (!first) {
+                e.preventDefault();
+            } else if (e.shiftKey && document.activeElement === first) {
+                e.preventDefault();
+                last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+                e.preventDefault();
+                first.focus();
+            }
+        }
+        return;
+    }
     if (e.key === 'Escape') {
         const spModal = document.getElementById('startProcedureModal');
         const cpModal = document.getElementById('completeProcedureModal');
@@ -1686,6 +1739,34 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('dcCalPrev'))
     </div>
 </div>
 
+<!-- Full Payment Confirmation Modal -->
+<div id="fullPaymentModal" class="full-payment-overlay" style="display:none;">
+    <div class="complete-procedure-modal" role="dialog" aria-modal="true" aria-labelledby="fullPaymentTitle" aria-describedby="fullPaymentDescription" style="position:relative;">
+        <div class="cp-banner">
+            <div>
+                <div class="cp-kicker">Billing Confirmation</div>
+                <h2 id="fullPaymentTitle" style="font-size:1.4rem;margin:6px 0 0;">Mark as Fully Paid?</h2>
+            </div>
+            <button type="button" onclick="closeFullPaymentModal()" class="cp-close" aria-label="Close payment confirmation">&times;</button>
+        </div>
+        <div class="cp-body">
+            <p id="fullPaymentDescription" class="cp-text">Confirm that the remaining balance has been received for <strong id="fullPaymentPatient"></strong>.</p>
+            <div class="cp-highlight">
+                <div>
+                    <div class="cp-highlight-label">Remaining balance to record</div>
+                    <div id="fullPaymentAmount" class="cp-highlight-value" style="font-size:1.5rem;"></div>
+                </div>
+            </div>
+            <p class="cp-text" style="font-size:0.92rem;">This will record the payment and mark this bill as fully paid.</p>
+            <p id="fullPaymentError" role="alert" style="color:#b91c1c;margin:0;"></p>
+        </div>
+        <div class="cp-actions">
+            <button type="button" id="cancelFullPaymentBtn" onclick="closeFullPaymentModal()" class="cp-btn-cancel">Cancel</button>
+            <button type="button" id="confirmFullPaymentBtn" onclick="confirmFullPayment()" class="cp-btn-confirm">Confirm Fully Paid</button>
+        </div>
+    </div>
+</div>
+
 <!-- Complete Procedure Modal -->
 <div id="completeProcedureModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999999; align-items: center; justify-content: center;">
     <div class="complete-procedure-modal" style="position: relative; z-index: 100000;">
@@ -1846,6 +1927,18 @@ if (typeof MiniCalendar !== 'undefined' && document.getElementById('dcCalPrev'))
 </div>
 
 <style>
+.full-payment-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000000;
+    background: rgba(15, 23, 42, 0.6);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-y: auto;
+}
+.full-payment-overlay button:disabled { opacity: 0.65; cursor: wait; }
+.full-payment-overlay button:focus-visible { outline: 3px solid #22c55e; outline-offset: 3px; }
 .fullscreen-modal-overlay {
     display: none; 
     position: fixed; 

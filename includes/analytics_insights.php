@@ -17,7 +17,7 @@ function clinicRevenueInsight(array $months, int $year): array
     $names = implode(', ', $leaders);
     $peakText = count($leaders) === 1 ? "{$names} has the highest recorded revenue" : "{$names} share the highest recorded revenue";
     return ['description' => 'The displayed monthly revenue for ' . $year . ' totals ₱' . number_format($total, 2) . '. ' . $peakText . ' at ₱' . number_format($peak, 2) . '. These amounts are grouped by billing date; this graph covers the displayed year rather than the period filter.',
-        'recommendation' => 'Review the services and collections contributing to the highest months when planning resources. Check whether other months are complete before interpreting a lower bar as a decline.'];
+        'recommendation' => 'Review the services and collections contributing to the highest months when planning resources. Check that monthly records are complete before interpreting a lower point as a decline. The current month is still in progress, and future months are not plotted.'];
 }
 
 function clinicServiceInsight(array $services, int $total, string $range): array
