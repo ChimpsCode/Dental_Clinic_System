@@ -1,0 +1,184 @@
+/* Three independent image planes; controls always stay above the foreground. */
+/* EDIT THE EXPERIENCE BADGE HERE (applies to desktop, tablet, and mobile).
+   Smaller top = higher. Larger right = farther left. Save, then refresh. */
+.hero {
+  --experience-badge-top: 5%;
+  --experience-badge-right: 2%;
+}
+.hero .hero-bg {
+  inset: -120px 0;
+  height: auto;
+  background: #edf6ff url('../images/rf-image-bg.png') center / cover no-repeat;
+  transform: translate3d(0, var(--hero-bg-shift, 0px), 0);
+  will-change: transform;
+}
+.hero .hero-gradient { display: none; }
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  width: 100%;
+  height: clamp(80px, 12vw, 160px);
+  z-index: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: linear-gradient(to bottom, transparent, var(--bg, #fff));
+  transform: none;
+  opacity: 1;
+  pointer-events: none;
+}
+#about .about-inner {
+  translate: 0 var(--about-entry-shift, 0px);
+  will-change: translate;
+}
+.hero .hero-inner {
+  /* Match the header and About Us content boundaries. Background layers stay full-width. */
+  width: min(1100px, calc(100% - 48px));
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 24px;
+  row-gap: 0;
+  padding-top: 48px;
+  padding-bottom: 28px;
+  align-items: center;
+}
+.hero .hero-copy { top: 0; z-index: 4; padding: 24px 0; min-width: 0; }
+.hero .hero-title, .hero .hero-subtitle { overflow-wrap: break-word; }
+.hero .hero-visual {
+  z-index: 2;
+  min-width: 0;
+  width: 100%;
+  align-self: end;
+  aspect-ratio: 1.2;
+  max-height: clamp(360px, calc(100svh - 300px), 650px);
+  overflow: visible;
+}
+.hero .hero-photo-wrap {
+  /* Let the natural image continue beneath the following booking card. */
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  margin-top: 0;
+  translate: 0 var(--hero-photo-shift, 0px);
+  will-change: translate;
+}
+.hero .hero-photo {
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: auto;
+  max-height: none;
+  padding-bottom: 0;
+  border-radius: 0;
+  object-fit: contain;
+  object-position: center top;
+}
+.hero .hero-note, .hero .hero-badge { z-index: 4; border: 1px solid #e4eef8; border-radius: 16px; }
+.hero .hero-note { padding: 12px 16px; box-shadow: 0 8px 28px #153e6b14; max-width: calc(100% - 24px); box-sizing: border-box; }
+.hero .hero-note-text { font: 600 14px/1.4 Inter, sans-serif; color: #14253a; }
+.hero .hero-note-1 { top:-2%; left: 48%; right: auto; max-width: calc(52% - 12px); }
+.hero .hero-note-2 { top: 20%; right: -15%; }
+.hero .hero-badge {
+  top: var(--experience-badge-top);
+  right: var(--experience-badge-right);
+  padding: 8px 12px;
+  min-width: 0;
+}
+.hero-glass-arrow {
+  position: absolute;
+  width: 64px;
+  height: 68px;
+  stroke: #269cef;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.75;
+  pointer-events: none;
+}
+.hero-glass-arrow-rex { top: calc(100% + 8px); bottom: auto; left: 12%; transform: rotate(-90deg) scale(-1, -1); }
+.hero-glass-arrow-floralyn { top: calc(100% + 8px); left: 0; transform: rotate(8deg); }
+.hero-glass-message {
+  position: absolute;
+  z-index: 3;
+  top: -72px;
+  right: -196px;
+  width: 112px;
+  color: #349ee6;
+  font-family: 'Caveat', 'Segoe Print', 'Bradley Hand', cursive;
+  font-size: clamp(28px, 2.2vw, 38px);
+  font-weight: 400;
+  line-height: 1.02;
+  opacity: 0.68;
+  transform: translate3d(0, var(--hero-bg-shift, 0px), 0) rotate(-9deg);
+  transform-origin: center;
+  pointer-events: none;
+  user-select: none;
+}
+.hero-foreground {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  bottom: -64px;
+  width: 100%;
+  height: clamp(260px, 34vw, 580px);
+  object-fit: fill;
+  pointer-events: none;
+  user-select: none;
+  transform: translate3d(0, var(--hero-leaves-shift, 0px), 0);
+  will-change: transform;
+}
+.hero .appointment-card {
+  grid-column: 1 / -1;
+  z-index: 5;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 20px 24px;
+  border: 1px solid #e2ebf5;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 16px 48px #193d6014;
+}
+.hero .appointment-title { text-align: left; }
+@media (max-width: 1024px) and (min-width: 769px) {
+  .hero .hero-inner { column-gap: 16px; }
+  .hero .hero-title span { font-size: clamp(32px, 4.5vw, 52px) !important; }
+  .hero .hero-subtitle { font-size: 17px; }
+  .hero .hero-note-1 { left: 35%; }
+  .hero .hero-note-2 { right: 0; }
+  .hero-glass-message { width: 80px; font-size: 25px; top: -22px; }
+}
+@media (max-width: 768px) {
+  .hero .hero-bg { background-position: 38% center; }
+  .hero .hero-inner {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding-top: var(--hero-mobile-padding-top, 72px);
+    padding-bottom: var(--hero-mobile-padding-bottom, 24px);
+  }
+  .hero .hero-copy { padding: 0; }
+  .hero .hero-visual { display: flex; justify-content: center; justify-self: center; max-width: 420px; max-height: none; }
+  .hero .hero-photo-wrap { width: min(100%, 420px); }
+  .hero .hero-photo { height: auto; }
+  .hero .hero-note { padding: 8px 10px; }
+  .hero .hero-note-text { font-size: 12px; }
+  .hero .hero-note-1 { top: 8%; left: 32%; max-width: calc(68% - 12px); }
+  .hero .hero-note-2 { top: 38%; right: 0; }
+  .hero .hero-badge { font-size: 11px; }
+  .hero-glass-arrow { width: 44px; height: 48px; }
+  .hero-glass-arrow-rex { top: calc(100% + 4px); }
+  .hero-glass-arrow-floralyn { top: calc(100% + 4px); }
+  .hero-glass-message { width: 76px; font-size: 22px; top: -12px; }
+  .hero-foreground { height: 300px; bottom: -48px; }
+}
+@media (max-width: 560px) {
+  .hero .hero-inner { width: calc(100% - 28px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero .hero-bg, .hero-foreground { transform: none; will-change: auto; }
+  .hero .hero-photo-wrap { translate: none; will-change: auto; }
+  #about .about-inner { translate: none; will-change: auto; }
+  .hero-glass-message { transform: rotate(-9deg); }
+}

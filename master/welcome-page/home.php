@@ -158,7 +158,7 @@ $assets = [
     <link rel="icon" type="image/png" href="../../assets/images/Logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,700;1,400&family=Inria+Sans:wght@400;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500&family=Inter:ital,wght@0,400;0,700;1,400&family=Inria+Sans:wght@400;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="../../assets/css/home-styles.css?v=17" />
     <link rel="stylesheet" href="../../assets/css/home-integration.css" />
     <link rel="stylesheet" href="../../assets/css/chatbot-components.css?v=2" />
@@ -210,62 +210,6 @@ $assets = [
       .hero-eyebrow::before { content: ''; width: 32px; height: 1px; background: #b69a68; flex-shrink: 0; }
       .hero .appointment-card { border: 1px solid rgba(182, 154, 104, 0.28); box-shadow: 0 20px 60px rgba(51, 64, 77, 0.08); }
       .booking-focus-backdrop { display: none; }
-      .hero-afterword {
-        position: relative;
-        z-index: 1;
-        padding: 32px 0 64px;
-        text-align: center;
-        border-top: 1px solid rgba(182, 154, 104, 0.3);
-      }
-      .hero-afterword h2 {
-        margin: 0 0 12px;
-        font-family: Georgia, 'Times New Roman', serif;
-        font-size: clamp(28px, 3.4vw, 46px);
-        line-height: 1.2;
-        font-weight: 400;
-        color: #16324f;
-      }
-      .hero-afterword p { margin: 0; color: #526477; font-size: 15px; line-height: 1.6; }
-      .hero-scroll-stage.is-enabled {
-        position: relative;
-        height: var(--hero-stage-height);
-      }
-      .hero-scroll-stage.is-enabled .hero {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: var(--hero-scene-height);
-        min-height: 0;
-        padding-bottom: 0;
-        overflow: clip;
-      }
-      .hero-scroll-stage.is-enabled.is-pinned .hero {
-        position: fixed;
-        top: var(--hero-fixed-top);
-        left: var(--hero-screen-left);
-        width: var(--hero-screen-width);
-      }
-      .hero-scroll-stage.is-enabled.is-finished .hero {
-        top: var(--hero-exit-top);
-      }
-      .hero-scroll-stage.is-enabled .hero-inner {
-        opacity: var(--hero-intro-opacity, 1);
-        will-change: opacity;
-      }
-      .hero-scroll-stage.is-enabled .hero-afterword {
-        position: absolute;
-        top: var(--hero-message-top);
-        left: 50%;
-        width: min(90%, 1100px);
-        padding: 0;
-        border: 0;
-        transform: translate(-50%, -50%);
-        translate: 0 var(--hero-message-shift, 24px);
-        opacity: var(--hero-message-opacity, 0);
-        pointer-events: none;
-        will-change: opacity, translate;
-      }
       @media (max-width: 768px) {
         .hero .hero-copy { top: -12px; }
         .hero .hero-inner {
@@ -316,7 +260,6 @@ $assets = [
         }
         .hero-scroll-stage { touch-action: pan-y pinch-zoom; }
         .hero::after { width: 85%; right: -38%; opacity: 0.6; }
-        .hero-afterword { padding: 28px 0 40px; }
         .hero-eyebrow { font-size: 10px; letter-spacing: 0.1em; }
         .hero .hero-photo-wrap { translate: none; }
         .hero .hero-gradient { transform: none; }
@@ -494,6 +437,7 @@ $assets = [
         margin-top: 12px;
       }
     </style>
+    <link rel="stylesheet" href="../../assets/css/hero-parallax.css?v=<?= filemtime(__DIR__ . '/../../assets/css/hero-parallax.css') ?>" />
     <?php require __DIR__ . '/../../includes/app_notice_modal_script.php'; ?>
     <?php app_guest_bfcache_reload_script(); ?>
   </head>
@@ -535,8 +479,9 @@ $assets = [
     <main id="home">
       <div class="hero-scroll-stage">
       <section class="hero">
-        <div class="hero-bg"></div>
-        <div class="hero-gradient"></div>
+        <div class="hero-bg" aria-hidden="true"></div>
+        <div class="hero-gradient" aria-hidden="true"></div>
+        <img class="hero-foreground" src="../../assets/images/grass-blur.png" alt="" aria-hidden="true" decoding="async" />
         <div class="container hero-inner">
           <div class="hero-copy">
             <p class="hero-eyebrow">A considered approach to dental care</p>
@@ -555,7 +500,35 @@ $assets = [
               <a class="btn btn-primary btn-lg" href="#services">Explore Services</a>
               <a class="btn btn-outline btn-lg" href="login.php?form=1#register">Sign Up</a>
             </div>
+          </div>
 
+          <div class="hero-visual">
+            <div class="hero-glass-message" aria-label="Healthy smiles, brighter day :)">
+              <span aria-hidden="true">Healthy<br>smiles,<br>brighter<br>day :)</span>
+            </div>
+            <div class="hero-photo-wrap">
+              <img class="hero-photo" src="<?= htmlspecialchars($assets['hero']) ?>" alt="Dentists from RF Dental Clinic" fetchpriority="high" decoding="async" />
+
+              <div class="hero-note hero-note-1">
+                <svg class="hero-glass-arrow hero-glass-arrow-rex" viewBox="0 0 72 76" fill="none" aria-hidden="true" focusable="false">
+                  <path d="M13 12C40 4 58 30 55 64M47 54L55 65L63 52" />
+                  <path d="M13 12L23 7M13 12L23 17" />
+                </svg>
+                <div class="hero-note-text"><?php echo htmlspecialchars($heroNote1); ?></div>
+              </div>
+              <div class="hero-note hero-note-2">
+                <svg class="hero-glass-arrow hero-glass-arrow-floralyn" viewBox="0 0 72 76" fill="none" aria-hidden="true" focusable="false">
+                  <path d="M12 60C34 72 57 40 54 10M46 20L54 9L62 23" />
+                  <path d="M12 60L20 57M12 60L16 66" />
+                </svg>
+                <div class="hero-note-text"><?php echo htmlspecialchars($heroNote2); ?></div>
+              </div>
+              <div class="hero-badge">
+                <div class="hero-badge-big"><?php echo htmlspecialchars($heroBadgeBig); ?></div>
+                <div class="hero-badge-small"><?php echo htmlspecialchars($heroBadgeSmall); ?></div>
+              </div>
+            </div>
+          </div>
             <div class="booking-focus-backdrop" aria-hidden="true"></div>
             <div class="appointment-card" aria-label="Book an appointment">
               <div class="appointment-title">Book an Appointment Today</div>
@@ -579,28 +552,6 @@ $assets = [
                 <button class="btn btn-primary" type="submit">Book Now</button>
               </form>
             </div>
-          </div>
-
-          <div class="hero-visual">
-            <div class="hero-photo-wrap">
-              <img class="hero-photo" src="<?= htmlspecialchars($assets['hero']) ?>" alt="Dentists from RF Dental Clinic" />
-
-              <div class="hero-note hero-note-1">
-                <div class="hero-note-text"><?php echo htmlspecialchars($heroNote1); ?></div>
-              </div>
-              <div class="hero-note hero-note-2">
-                <div class="hero-note-text"><?php echo htmlspecialchars($heroNote2); ?></div>
-              </div>
-              <div class="hero-badge">
-                <div class="hero-badge-big"><?php echo htmlspecialchars($heroBadgeBig); ?></div>
-                <div class="hero-badge-small"><?php echo htmlspecialchars($heroBadgeSmall); ?></div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="container hero-afterword">
-          <h2>Thoughtful care. Confident smiles.</h2>
-          <p>Personalized dental care, with your comfort in mind.</p>
         </div>
       </section>
       </div>
@@ -610,66 +561,54 @@ $assets = [
           const hero = document.querySelector('.hero');
           const stage = hero.parentElement;
           const intro = hero.querySelector('.hero-inner');
+          let about = null;
           const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
           let frame = null;
-          let metrics = null;
-          let needsMeasure = true;
+          let depth = 0;
+          let aboutShift = 0;
+          let previousFrameTime = null;
+          const depthProperties = ['--hero-bg-shift', '--hero-photo-shift', '--hero-leaves-shift'];
           const clamp = value => Math.max(0, Math.min(1, value));
-          const smooth = value => { const t = clamp(value); return t * t * (3 - 2 * t); };
-          function updateHeroDepth() {
+          function animateLayers(targetDepth, targetAboutShift, timestamp) {
+            const elapsed = previousFrameTime === null || typeof timestamp !== 'number' ? 16.67 : Math.max(0, Math.min(64, timestamp - previousFrameTime));
+            previousFrameTime = typeof timestamp === 'number' ? timestamp : null;
+            const easing = 1 - Math.exp(-elapsed / 110);
+            depth += (targetDepth - depth) * easing;
+            aboutShift += (targetAboutShift - aboutShift) * easing;
+            if (Math.abs(targetDepth - depth) < 0.0005) depth = targetDepth;
+            if (Math.abs(targetAboutShift - aboutShift) < 0.05) aboutShift = targetAboutShift;
+            hero.style.setProperty('--hero-bg-shift', (depth * 96).toFixed(2) + 'px');
+            hero.style.setProperty('--hero-photo-shift', (depth * 24).toFixed(2) + 'px');
+            hero.style.setProperty('--hero-leaves-shift', (-depth * 110).toFixed(2) + 'px');
+            if (about) about.style.setProperty('--about-entry-shift', aboutShift.toFixed(2) + 'px');
+            if (depth !== targetDepth || aboutShift !== targetAboutShift) scheduleHeroDepth();
+          }
+          function updateHeroDepth(timestamp) {
             frame = null;
+            if (!about) about = document.getElementById('about');
             if (reducedMotion.matches) {
-              stage.classList.remove('is-enabled', 'is-pinned', 'is-finished');
-              intro.inert = false;
-              hero.style.setProperty('--hero-photo-shift', '0px');
+              depthProperties.forEach(property => hero.style.setProperty(property, '0px'));
+              depth = 0;
+              aboutShift = 0;
+              if (about) about.style.setProperty('--about-entry-shift', '0px');
+              previousFrameTime = null;
               return;
             }
-            if ((needsMeasure || !metrics) && (!metrics || !hero.classList.contains('booking-editing'))) {
-              const header = document.querySelector('.site-header');
-              const headerHeight = header ? Math.max(0, header.getBoundingClientRect().bottom) : 0;
-              const available = Math.max(240, window.innerHeight - headerHeight);
-              const pageScroll = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
-              const anchorTop = Math.max(0, Math.min(headerHeight, stage.getBoundingClientRect().top + pageScroll));
-              let sceneHeight = Math.max(window.innerHeight - anchorTop, intro.offsetHeight + 24);
-              if (window.matchMedia('(max-width: 768px)').matches) {
-                const introStyle = getComputedStyle(intro);
-                const contentHeight = intro.offsetHeight - parseFloat(introStyle.paddingTop) - parseFloat(introStyle.paddingBottom);
-                const headerInset = headerHeight - anchorTop;
-                sceneHeight = Math.max(window.innerHeight - anchorTop, contentHeight + headerInset + 48);
-                const balancedSpace = Math.max(24, (sceneHeight - headerInset - contentHeight) / 2);
-                stage.style.setProperty('--hero-mobile-padding-top', (headerInset + balancedSpace) + 'px');
-                stage.style.setProperty('--hero-mobile-padding-bottom', balancedSpace + 'px');
-              }
-              metrics = { anchorTop, duration: available * 1.5 };
-              stage.style.setProperty('--hero-stage-height', (sceneHeight + metrics.duration) + 'px');
-              stage.style.setProperty('--hero-scene-height', sceneHeight + 'px');
-              stage.style.setProperty('--hero-exit-top', metrics.duration + 'px');
-              stage.style.setProperty('--hero-fixed-top', anchorTop + 'px');
-              stage.style.setProperty('--hero-message-top', (headerHeight - anchorTop + available / 2) + 'px');
-              stage.classList.add('is-enabled');
-              needsMeasure = false;
-            }
-            const stageRect = stage.getBoundingClientRect();
-            const distance = metrics.anchorTop - stageRect.top;
-            stage.style.setProperty('--hero-screen-left', stageRect.left + 'px');
-            stage.style.setProperty('--hero-screen-width', stageRect.width + 'px');
-            stage.classList.toggle('is-pinned', distance >= 0 && distance <= metrics.duration);
-            stage.classList.toggle('is-finished', distance > metrics.duration);
-            const progress = clamp(distance / metrics.duration);
-            const fade = smooth(progress / 0.42);
-            const reveal = smooth((progress - 0.28) / 0.32);
-            hero.style.setProperty('--hero-intro-opacity', 1 - fade);
-            hero.style.setProperty('--hero-message-opacity', reveal);
-            hero.style.setProperty('--hero-message-shift', ((1 - reveal) * 24) + 'px');
-            hero.style.setProperty('--hero-photo-shift', '0px');
-            intro.inert = fade > 0.98 && !hero.classList.contains('booking-editing');
-            if (hero.classList.contains('booking-editing')) hero.style.setProperty('--hero-intro-opacity', '1');
+            // Natural page scrolling drives the image layers without pinning or fading content.
+            const bounds = stage.getBoundingClientRect();
+            const header = document.querySelector('.site-header');
+            const headerBottom = header ? header.getBoundingClientRect().bottom : 0;
+            const progress = clamp((headerBottom - bounds.top) / Math.max(1, bounds.height));
+            const strength = window.matchMedia('(max-width: 768px)').matches ? 0.4 : 1;
+            const aboutProgress = about ? clamp((window.innerHeight - about.getBoundingClientRect().top) / Math.max(1, window.innerHeight * 0.6)) : 1;
+            const easedEntry = aboutProgress * aboutProgress * (3 - 2 * aboutProgress);
+            animateLayers(progress * strength, (1 - easedEntry) * 52 * strength, timestamp);
           }
           function scheduleHeroDepth() {
             if (frame === null) frame = requestAnimationFrame(updateHeroDepth);
           }
           document.addEventListener('scroll', scheduleHeroDepth, { passive: true, capture: true });
-          function measureHero() { needsMeasure = true; scheduleHeroDepth(); }
+          function measureHero() { scheduleHeroDepth(); }
           window.addEventListener('resize', measureHero);
           window.addEventListener('load', measureHero);
           reducedMotion.addEventListener('change', measureHero);
@@ -712,7 +651,6 @@ $assets = [
               hero.style.removeProperty('--booking-visible-height');
               if (wasEditing) {
                 window.scrollTo({ top: bookingScrollBeforeFocus, behavior: 'instant' });
-                needsMeasure = true;
               }
             }
             if (!keyboardVisible) fullViewportHeight = visibleHeight;
