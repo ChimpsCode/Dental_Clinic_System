@@ -73,6 +73,8 @@ if ($autoBackupDay < 1 || $autoBackupDay > 28) {
 }
 ?>
             <style>
+                /* Keep bottom spacing after the full settings form in the scrolling flex layout. */
+                .settings-content { align-self: flex-start; padding-bottom: 40px; }
                 .schedule-tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 2px solid #e5e7eb; padding-bottom: 0; }
                 .schedule-tab { padding: 12px 24px; cursor: pointer; border: none; background: transparent; font-size: 15px; font-weight: 500; color: #6b7280; border-bottom: 3px solid transparent; transition: all 0.2s; }
                 .schedule-tab:hover { color: #005daa; }
@@ -188,7 +190,7 @@ if ($autoBackupDay < 1 || $autoBackupDay > 28) {
                 }
             </style>
 
-            <div class="content-main">
+            <div class="content-main settings-content">
                 <div class="page-header">
                     <h2>Settings</h2>
                     <p class="page-subtitle">Manage system configuration and preferences</p>

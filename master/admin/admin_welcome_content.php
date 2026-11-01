@@ -37,7 +37,8 @@ $uploadedImages = $stmt2->fetchAll(PDO::FETCH_ASSOC);
 require_once __DIR__ . '/../../includes/admin_layout_start.php';
 ?>
 <style>
-.content-layout { width: 100%; }
+/* Let long panels determine the wrapper height so bottom spacing follows the last card. */
+.content-layout { width: 100%; flex-shrink: 0; align-self: flex-start; }
 .content-tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 2px solid #e5e7eb; padding-bottom: 0; overflow-x: auto; }
 .content-tab { padding: 12px 22px; cursor: pointer; border: none; background: transparent; font-size: 14px; font-weight: 500; color: #6b7280; border-bottom: 3px solid transparent; transition: all 0.2s; white-space: nowrap; }
 .content-tab:hover { color: #005daa; }

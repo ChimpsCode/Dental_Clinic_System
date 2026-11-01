@@ -481,7 +481,7 @@ $assets = [
       <section class="hero">
         <div class="hero-bg" aria-hidden="true"></div>
         <div class="hero-gradient" aria-hidden="true"></div>
-        <img class="hero-foreground" src="../../assets/images/grass-blur.png" alt="" aria-hidden="true" decoding="async" />
+        <!-- <img class="hero-foreground" src="../../assets/images/grass-blur.png" alt="" aria-hidden="true" decoding="async" /> -->
         <div class="container hero-inner">
           <div class="hero-copy">
             <p class="hero-eyebrow">A considered approach to dental care</p>
@@ -496,8 +496,29 @@ $assets = [
               <?php echo htmlspecialchars($heroSubtitle); ?>
             </p>
 
+            <ul class="hero-care-highlights" aria-label="Our care commitments">
+              <li>
+                <span class="hero-care-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c-2.6 2-5.2 2.8-8 3v6c0 4.3 3.4 7.2 8 9 4.6-1.8 8-4.7 8-9V6c-2.8-.2-5.4-1-8-3Z"/><path d="m8.5 12 2.3 2.3 4.7-4.6"/></svg>
+                </span>
+                <span><strong>Safe &amp;</strong><span>Hygienic Care</span></span>
+              </li>
+              <li>
+                <span class="hero-care-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="7" r="3.2"/><circle cx="4.5" cy="8.5" r="2.4"/><circle cx="19.5" cy="8.5" r="2.4"/><path d="M6 20v-4a6 6 0 0 1 12 0v4H6ZM1 18v-3a4 4 0 0 1 5-3.9A8 8 0 0 0 4 16v2H1Zm19 0v-2a8 8 0 0 0-2-4.9 4 4 0 0 1 5 3.9v3h-3Z"/></svg>
+                </span>
+                <span><strong>Friendly</strong><span>Dental Team</span></span>
+              </li>
+              <li>
+                <span class="hero-care-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4c-2-1.7-6.4-1.6-7.4 1.6-1 3.3 1 5.4 1.5 7.5.5 2 .2 7.9 2.5 7.9 2.1 0 1.3-8 3.4-8s1.3 8 3.4 8c2.3 0 2-5.9 2.5-7.9.5-2.1 2.5-4.2 1.5-7.5C18.4 2.4 14 2.3 12 4Z"/><path d="M9 6c1.6 1.2 3.9 1.4 5.5.5"/></svg>
+                </span>
+                <span><strong>Modern</strong><span>Equipment</span></span>
+              </li>
+            </ul>
+
             <div class="hero-ctas">
-              <a class="btn btn-primary btn-lg" href="#services">Explore Services</a>
+              <a class="btn btn-primary btn-lg hero-explore-btn" href="#services">Explore Services<span class="hero-button-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m10 7 5 5-5 5"/></svg></span></a>
               <a class="btn btn-outline btn-lg" href="login.php?form=1#register">Sign Up</a>
             </div>
           </div>

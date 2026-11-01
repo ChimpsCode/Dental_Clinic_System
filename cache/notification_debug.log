@@ -1180,3 +1180,5 @@
 2026-10-30 08:43:40 | createNotification OK: id=1110 user_id=4 type=system title=New device sign-in
 2026-10-30 08:44:10 | createNotification OK: id=1111 user_id=4 type=system title=New device sign-in
 2026-10-30 08:49:50 | createNotification OK: id=1112 user_id=71 type=queue title=Queue Update
+2026-11-01 14:10:51 | createNotification OK: id=1113 user_id=1 type=system title=New device sign-in
+2026-11-01 14:10:58 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
