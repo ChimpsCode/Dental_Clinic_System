@@ -1736,7 +1736,7 @@ $showExpiredMsg = isset($_GET['expired']) && $_GET['expired'] === '1';
             }
         })();
     </script>
-    <script src="../../assets/js/login.js?v=7"></script>
+    <script src="../../assets/js/login.js?v=8"></script>
     
     <?php if ($showDeletedMsg || $showArchivedMsg): ?>
     <script>

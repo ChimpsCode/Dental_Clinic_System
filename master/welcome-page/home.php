@@ -481,7 +481,10 @@ $assets = [
       <section class="hero">
         <div class="hero-bg" aria-hidden="true"></div>
         <div class="hero-gradient" aria-hidden="true"></div>
-        <!-- <img class="hero-foreground" src="../../assets/images/grass-blur.png" alt="" aria-hidden="true" decoding="async" /> -->
+        <div class="hero-foreground" aria-hidden="true">
+          <img class="hero-foreground-image hero-foreground-left" src="../../assets/images/image1.1a.webp" alt="" decoding="async" />
+          <!-- <img class="hero-foreground-image hero-foreground-right" src="../../assets/images/image1.2.webp" alt="" decoding="async" /> -->
+        </div>
         <div class="container hero-inner">
           <div class="hero-copy">
             <p class="hero-eyebrow">A considered approach to dental care</p>

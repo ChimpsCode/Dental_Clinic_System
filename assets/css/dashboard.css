@@ -1300,11 +1300,22 @@ body {
         left: -260px;
         z-index: 1002;
         transition: left 0.3s ease;
-        height: 100vh;
+        height: 100dvh;
+        min-height: 0;
+        overflow: hidden;
     }
     
     .sidebar.open {
         left: 0;
+    }
+
+    .sidebar-nav {
+        min-height: 0;
+    }
+
+    .sidebar-storage {
+        flex: 0 0 auto;
+        margin-bottom: calc(22px + env(safe-area-inset-bottom));
     }
     
     .main-content {
@@ -1802,7 +1813,6 @@ body {
     }
     
 }
-
 
 
 

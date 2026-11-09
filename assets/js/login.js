@@ -1462,13 +1462,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Auto-focus username field
-    if (usernameInput && !usernameInput.value) {
-        setTimeout(function() {
-            usernameInput.focus();
-        }, 100);
-    }
-
     // Show PHP error message as toast on page load if it exists
     if (errorMessage && errorMessage.textContent.trim()) {
         const errorText = errorMessage.textContent.trim();
@@ -1497,4 +1490,3 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
-

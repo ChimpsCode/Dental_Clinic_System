@@ -169,11 +169,29 @@
   bottom: -64px;
   width: 100%;
   height: clamp(260px, 34vw, 580px);
-  object-fit: fill;
   pointer-events: none;
   user-select: none;
   transform: translate3d(0, var(--hero-leaves-shift, 0px), 0);
   will-change: transform;
+}
+.hero-foreground-image {
+  position: absolute;
+  bottom: 0;
+  width: 20%;
+  height: 70%;
+  object-fit: contain;
+  object-position: bottom;
+}
+.hero-foreground-left {
+  left: 10px;
+  bottom:-30px;
+  width: 30%;
+  height: 90%;
+  transform: rotate(-20deg);
+  transform-origin: bottom left;
+}
+.hero-foreground-right {
+  right: 0;
 }
 .hero .appointment-card {
   grid-column: 1 / -1;
@@ -227,6 +245,7 @@
 }
 @media (max-width: 768px) {
   .hero .hero-bg { background-position: 38% center; }
+  .hero-foreground { display: none; }
   .hero .hero-inner {
     grid-template-columns: 1fr;
     gap: 16px;
@@ -235,22 +254,11 @@
   }
   .hero .hero-copy { padding: 0; }
   .hero .hero-subtitle { font-size: 14px; }
-  .hero .hero-visual { display: flex; justify-content: center; justify-self: center; max-width: 420px; max-height: none; }
-  .hero .hero-photo-wrap { width: min(100%, 420px); }
-  .hero .hero-photo { height: auto; }
-  .hero .hero-note { padding: 8px 10px; }
-  .hero .hero-note-text { font-size: 12px; }
-  .hero .hero-note-1 { top: 8%; left: 32%; max-width: calc(68% - 12px); }
-  .hero .hero-note-2 { top: 38%; right: 0; }
-  .hero .hero-badge { font-size: 11px; }
-  .hero-glass-arrow { width: 44px; height: 48px; }
-  .hero-glass-arrow-rex { top: calc(100% + 4px); }
-  .hero-glass-arrow-floralyn { top: calc(100% + 4px); }
-  .hero-glass-message { width: 76px; font-size: 22px; top: -12px; }
-  .hero-foreground { height: 200px; bottom: -48px; }
+  .hero .hero-visual { display: none; }
 }
 @media (max-width: 560px) {
   .hero .hero-inner { width: calc(100% - 28px); }
+  .hero .appointment-card { margin-top: -8px; }
   .hero-care-highlights { gap: 8px; margin: 20px 0 24px; }
   .hero-care-highlights li { gap: 6px; font-size: 11px; }
   .hero-care-icon { flex-basis: 34px; height: 34px; }

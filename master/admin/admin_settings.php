@@ -184,6 +184,31 @@ if ($autoBackupDay < 1 || $autoBackupDay > 28) {
                 @media (max-width: 640px) { .backup-info { grid-template-columns: 1fr; } }
                 
                 @media (max-width: 768px) {
+                    .settings-content {
+                        width: 100%;
+                        min-width: 0;
+                        padding: 0 0 calc(80px + env(safe-area-inset-bottom));
+                    }
+                    .settings-container,
+                    .settings-section,
+                    .settings-form {
+                        width: 100%;
+                        min-width: 0;
+                        max-width: 100%;
+                    }
+                    .settings-section {
+                        padding: 16px;
+                    }
+                    .settings-section input,
+                    .settings-section select,
+                    .settings-section textarea,
+                    .settings-section button {
+                        max-width: 100%;
+                    }
+                    .settings-section [style*="justify-content: flex-end"],
+                    .settings-section [style*="display: flex"] {
+                        flex-wrap: wrap;
+                    }
                     .cal-day { min-height: 40px; font-size: 12px; }
                     .day-schedule { gap: 8px; }
                     .day-label { min-width: 80px; }
