@@ -10,6 +10,9 @@ foreach ($rows as $key => $value) {
 }
 
 $heroImage = $settings['welcome_hero_image'] ?? '';
+$heroDefault = file_exists(__DIR__ . '/../../assets/images/Dentists.webp')
+    ? '../../assets/images/Dentists.webp'
+    : '../../assets/images/Dentists.png';
 $aboutImage = $settings['welcome_about_image'] ?? '';
 $logoPath = $settings['welcome_logo'] ?? '';
 
@@ -178,7 +181,7 @@ require_once __DIR__ . '/../../includes/admin_layout_start.php';
             <div class="form-row">
                 <label>Hero Image</label>
                 <div class="image-upload-area">
-                    <img id="heroImagePreview" class="image-preview" src="<?php echo $heroImage ? '../../' . $heroImage : '../../assets/images/Dentists.png'; ?>" alt="" onerror="this.src='../../assets/images/Dentists.png'">
+                    <img id="heroImagePreview" class="image-preview" src="<?php echo htmlspecialchars($heroImage ? '../../' . $heroImage : $heroDefault); ?>" alt="" onerror="this.src='<?php echo htmlspecialchars($heroDefault, ENT_QUOTES); ?>'">
                     <label class="upload-btn">
                         <span>Choose Image</span>
                         <input type="file" id="heroImageInput" accept="image/*" data-section="hero">

@@ -1187,3 +1187,7 @@
 2026-11-08 13:38:58 | createNotification OK: id=1115 user_id=1 type=system title=New device sign-in
 2026-11-08 13:39:24 | createNotification OK: id=1116 user_id=1 type=system title=New device sign-in
 2026-11-08 18:24:44 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-11-09 16:54:04 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-11-09 17:58:35 | createNotification OK: id=1117 user_id=2 type=system title=New device sign-in
+2026-11-09 17:58:41 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'
+2026-11-12 13:01:57 | backfillUserPatientLinks failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.role_id' in 'where clause'

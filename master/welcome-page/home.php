@@ -91,10 +91,17 @@ $serviceImages = json_decode($clinicSettings['welcome_service_images'] ?? '', tr
 $footerTagline = $clinicSettings['welcome_footer_tagline'] ?? 'Providing exceptional dental care with a commitment to your comfort and health.';
 $footerFacebook = $clinicSettings['welcome_footer_facebook'] ?? 'https://www.facebook.com';
 $footerMessenger = $clinicSettings['welcome_footer_messenger'] ?? 'https://m.me';
+$seoDescription = trim($heroSubtitle);
+if ($clinicPhone !== '') {
+    $seoDescription .= ' Contact Info ' . $clinicPhone;
+}
 
 $logoFull = $welcomeLogo ? '../../' . $welcomeLogo : '../../assets/images/Logo.png';
-$heroFull = $heroImage ? '../../' . $heroImage : '../../assets/images/Dentists.png';
-$aboutFull = $aboutImage ? '../../' . $aboutImage : '../../assets/images/2nd_Anniv.jpg';
+$heroDefault = file_exists(__DIR__ . '/../../assets/images/Dentists.webp')
+    ? '../../assets/images/Dentists.webp'
+    : '../../assets/images/Dentists.png';
+$heroFull = $heroImage ? '../../' . $heroImage : $heroDefault;
+$aboutFull = $aboutImage ? '../../' . $aboutImage : '../../assets/images/2nd_Anniv.webp';
 
 // Fetch all active services from DB (excluding featured ones, since they already appear above)
 $allServices = [];
@@ -155,6 +162,7 @@ $assets = [
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title><?php echo htmlspecialchars($clinicName); ?></title>
+    <meta name="description" content="<?php echo htmlspecialchars($seoDescription, ENT_QUOTES, 'UTF-8'); ?>" />
     <link rel="icon" type="image/png" href="../../assets/images/Logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
