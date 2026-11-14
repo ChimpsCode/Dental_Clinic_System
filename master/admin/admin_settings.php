@@ -6,6 +6,7 @@
 $pageTitle = 'Settings';
 
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/sms_functions.php';
 
 // Load settings from database
 $settings = [];
@@ -71,6 +72,21 @@ $autoBackupDay = (int)($settings['auto_backup_day'] ?? 1);
 if ($autoBackupDay < 1 || $autoBackupDay > 28) {
     $autoBackupDay = 1;
 }
+
+$textbeeConfigured = smsIsConfigured();
+$textbeeApiKey = defined('TEXTBEE_API_KEY') ? (string)TEXTBEE_API_KEY : '';
+$textbeeDeviceId = defined('TEXTBEE_DEVICE_ID') ? (string)TEXTBEE_DEVICE_ID : '';
+$textbeeSettingsCsrf = $_SESSION['textbee_settings_csrf'] ?? bin2hex(random_bytes(32));
+$_SESSION['textbee_settings_csrf'] = $textbeeSettingsCsrf;
+$maskTextbeeValue = static function (string $value): string {
+    if ($value === '') {
+        return 'Not configured';
+    }
+    if (strlen($value) <= 8) {
+        return str_repeat('•', strlen($value));
+    }
+    return substr($value, 0, 4) . str_repeat('•', max(4, strlen($value) - 8)) . substr($value, -4);
+};
 ?>
             <style>
                 /* Keep bottom spacing after the full settings form in the scrolling flex layout. */
@@ -212,6 +228,58 @@ if ($autoBackupDay < 1 || $autoBackupDay > 28) {
                     .cal-day { min-height: 40px; font-size: 12px; }
                     .day-schedule { gap: 8px; }
                     .day-label { min-width: 80px; }
+                }
+                .textbee-status { display: flex; align-items: flex-start; gap: 12px; padding: 14px; border-radius: 10px; margin-bottom: 18px; }
+                .textbee-status.connected { background: #ecfdf3; border: 1px solid #bbf7d0; color: #166534; }
+                .textbee-status.missing { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+                .textbee-status-content { flex: 1; min-width: 0; }
+                .textbee-status strong { display: block; margin-bottom: 4px; }
+                .textbee-status small { display: block; color: #4b5563; line-height: 1.5; }
+                .textbee-status-action { flex: 0 0 auto; align-self: center; }
+                .textbee-status-action button { white-space: nowrap; }
+                .textbee-account-label { display: inline-block; margin: 0 0 8px; padding: 4px 9px; border-radius: 999px; background: rgba(255,255,255,.8); font-size: 12px; font-weight: 700; color: #166534; }
+                .textbee-config-panel { display: none; margin: 18px 0 6px; padding: 18px; border: 1px solid #dbeafe; border-radius: 12px; background: #f8fbff; }
+                .textbee-config-panel.is-visible { display: block; }
+                .textbee-config-heading { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 14px; }
+                .textbee-config-heading h4 { margin: 0; color: #1f2937; }
+                .textbee-config-heading p { margin: 3px 0 0; color: #6b7280; font-size: 13px; }
+                .textbee-cancel-button { border: 0; background: transparent; color: #6b7280; cursor: pointer; font-size: 13px; }
+                .textbee-cancel-button:hover { color: #1f2937; text-decoration: underline; }
+                .textbee-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+                .textbee-field-value { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .04em; }
+                .textbee-link { display: inline-flex; align-items: center; gap: 6px; color: #005daa; font-weight: 600; text-decoration: none; }
+                .textbee-link:hover { text-decoration: underline; }
+                .textbee-guide { margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; }
+                .textbee-guide-header { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; margin-bottom: 12px; }
+                .textbee-guide-header h4 { margin: 0; color: #1f2937; }
+                .textbee-guide-header span { color: #6b7280; font-size: 13px; }
+                .textbee-carousel { position: relative; overflow: hidden; border: 1px solid #dbeafe; border-radius: 12px; background: #f8fbff; }
+                .textbee-slide { display: none; grid-template-columns: minmax(360px, 50%) 1fr; min-height: 300px; }
+                .textbee-slide.active { display: grid; }
+                .textbee-slide-art { display: flex; align-items: stretch; justify-content: stretch; padding: 0; overflow: hidden; background: #eaf3ff; }
+                .textbee-slide-art img { display: block; width: 100%; height: 100%; max-width: none; max-height: none; object-fit: cover; object-position: center; cursor: zoom-in; transition: transform .2s ease, filter .2s ease; }
+                .textbee-slide-art img:hover { transform: scale(1.025); filter: brightness(1.04); }
+                .textbee-slide-copy { padding: 22px 24px; }
+                .textbee-slide-copy h5 { margin: 0 0 8px; color: #111827; font-size: 16px; }
+                .textbee-slide-copy p { margin: 0; color: #4b5563; line-height: 1.55; font-size: 14px; }
+                .textbee-carousel-controls { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-top: 1px solid #dbeafe; background: #fff; }
+                .textbee-carousel-button { border: 1px solid #bfdbfe; background: #fff; color: #1d4ed8; border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+                .textbee-carousel-button:hover { background: #eff6ff; }
+                .textbee-dots { display: flex; gap: 6px; }
+                .textbee-dot { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 50%; background: #bfdbfe; cursor: pointer; }
+                .textbee-dot.active { background: #2563eb; }
+                .textbee-lightbox { position: fixed; inset: 0; z-index: 9999; display: none; align-items: center; justify-content: center; padding: 24px; background: rgba(15, 23, 42, .62); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); cursor: zoom-out; }
+                .textbee-lightbox.is-open { display: flex; }
+                .textbee-lightbox-image { display: block; max-width: min(94vw, 1500px); max-height: 88vh; width: auto; height: auto; object-fit: contain; border-radius: 8px; box-shadow: 0 24px 80px rgba(0,0,0,.45); transform: scale(1.03); cursor: default; }
+                .textbee-lightbox-close { position: absolute; top: 18px; right: 22px; width: 42px; height: 42px; border: 1px solid rgba(255,255,255,.55); border-radius: 50%; background: rgba(15,23,42,.65); color: #fff; font-size: 26px; line-height: 1; cursor: pointer; }
+                .textbee-lightbox-close:hover { background: rgba(15,23,42,.9); }
+                .textbee-lightbox-caption { position: absolute; left: 24px; right: 24px; bottom: 18px; color: #fff; text-align: center; font-size: 13px; text-shadow: 0 1px 3px #000; pointer-events: none; }
+                @media (max-width: 640px) {
+                    .textbee-fields, .textbee-slide { grid-template-columns: 1fr; }
+                    .textbee-slide-art { min-height: 220px; }
+                    .textbee-slide { min-height: 0; }
+                    .textbee-status { flex-wrap: wrap; }
+                    .textbee-status-action { width: 100%; }
                 }
             </style>
 
@@ -383,6 +451,132 @@ if ($autoBackupDay < 1 || $autoBackupDay > 28) {
                             
                             <button type="submit" class="btn-primary is-idle" id="saveNotificationsBtn" disabled>Save Settings</button>
                         </form>
+                    </div>
+
+                    <div class="settings-section" id="textbeeSettings">
+                        <h3 class="section-title">📱 TextBee SMS Connection</h3>
+                        <p class="toggle-description" style="margin: -8px 0 16px;">
+                            Manage the TextBee connection used for appointment reminders, OTPs, and other clinic SMS notifications.
+                        </p>
+
+                        <div class="textbee-status <?php echo $textbeeConfigured ? 'connected' : 'missing'; ?>" role="status">
+                            <span aria-hidden="true"><?php echo $textbeeConfigured ? '✅' : '⚠️'; ?></span>
+                            <div class="textbee-status-content">
+                                <?php if ($textbeeConfigured): ?>
+                                    <span class="textbee-account-label">CURRENT CONNECTION</span>
+                                <?php endif; ?>
+                                <strong><?php echo $textbeeConfigured ? 'An existing TextBee connection is configured' : 'TextBee is not fully configured'; ?></strong>
+                                <small>
+                                    <?php if ($textbeeConfigured): ?>
+                                        This clinic is already connected. The secret values are hidden for safety.
+                                        API key: <span class="textbee-field-value"><?php echo htmlspecialchars($maskTextbeeValue($textbeeApiKey), ENT_QUOTES, 'UTF-8'); ?></span>
+                                        · Device ID: <span class="textbee-field-value"><?php echo htmlspecialchars($maskTextbeeValue($textbeeDeviceId), ENT_QUOTES, 'UTF-8'); ?></span>
+                                    <?php else: ?>
+                                        No TextBee connection is set up yet. Create or connect the clinic account, then add its credentials here.
+                                    <?php endif; ?>
+                                </small>
+                            </div>
+                            <div class="textbee-status-action">
+                                <?php if ($textbeeConfigured): ?>
+                                    <button type="button" class="btn-secondary" id="changeTextbeeBtn">Change connection</button>
+                                <?php else: ?>
+                                    <button type="button" class="btn-primary" id="addTextbeeBtn">Add TextBee connection</button>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+
+                        <p style="margin: 0 0 14px;">
+                            <a class="textbee-link" href="https://textbee.dev/" target="_blank" rel="noopener noreferrer">
+                                <?php echo $textbeeConfigured ? 'Open TextBee.dev to manage this clinic account ↗' : 'No account yet? Create one at TextBee.dev ↗'; ?>
+                            </a>
+                        </p>
+
+                        <div class="textbee-config-panel <?php echo $textbeeConfigured ? '' : 'is-visible'; ?>" id="textbeeConfigPanel">
+                            <div class="textbee-config-heading">
+                                <div>
+                                    <h4><?php echo $textbeeConfigured ? 'Change TextBee connection' : 'Add TextBee connection'; ?></h4>
+                                    <p><?php echo $textbeeConfigured ? 'Enter the new account credentials below. Existing values will be replaced after saving.' : 'Enter the credentials from the TextBee dashboard to connect SMS.'; ?></p>
+                                </div>
+                                <?php if ($textbeeConfigured): ?>
+                                    <button type="button" class="textbee-cancel-button" id="cancelTextbeeBtn">Cancel</button>
+                                <?php endif; ?>
+                            </div>
+                            <form class="settings-form" id="textbeeSettingsForm">
+                                <input type="hidden" name="csrf" value="<?php echo htmlspecialchars($textbeeSettingsCsrf, ENT_QUOTES, 'UTF-8'); ?>">
+                                <div class="textbee-fields">
+                                    <div class="form-group">
+                                        <label for="textbeeApiKey">TextBee API key</label>
+                                        <input type="password" class="form-control" id="textbeeApiKey" name="textbee_api_key" autocomplete="new-password" placeholder="<?php echo $textbeeConfigured ? 'Enter the new API key' : 'Paste the API key from TextBee'; ?>">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="textbeeDeviceId">TextBee device ID</label>
+                                        <input type="text" class="form-control" id="textbeeDeviceId" name="textbee_device_id" value="" autocomplete="off" placeholder="<?php echo $textbeeConfigured ? 'Enter the new device ID' : 'Paste the device ID from TextBee'; ?>">
+                                    </div>
+                                </div>
+                                <p class="toggle-description" style="margin: -4px 0 14px;">Your saved API key is never displayed. Both fields are required when adding or changing the connection.</p>
+                                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                                    <button type="submit" class="btn-primary" id="saveTextbeeBtn"><?php echo $textbeeConfigured ? 'Save new connection' : 'Save TextBee connection'; ?></button>
+                                    <button type="button" class="btn-secondary" id="testTextbeeBtn">Test connection</button>
+                                    <span id="textbeeActionMessage" class="toggle-description" role="status"></span>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="textbee-guide" aria-labelledby="textbeeGuideTitle">
+                            <div class="textbee-guide-header">
+                                <h4 id="textbeeGuideTitle">TextBee setup guide</h4>
+                                <span id="textbeeGuideCount">Step 1 of 7</span>
+                            </div>
+                            <div class="textbee-carousel" id="textbeeGuideCarousel">
+                                <div class="textbee-slide active" data-step="1">
+                                    <div class="textbee-slide-art"><img src="../../assets/images/guides/textbee/guide1.webp" alt="Illustration of the TextBee account setup page"></div>
+                                    <div class="textbee-slide-copy"><h5>1. Open TextBee</h5><p>Use the link above to create an account or sign in to the clinic's existing TextBee account. Keep this clinic settings page open in another tab.</p></div>
+                                </div>
+                                <div class="textbee-slide" data-step="2">
+                                    <div class="textbee-slide-art"><img src="../../assets/images/guides/textbee/guide2.webp" alt="Illustration of connecting an Android phone in TextBee"></div>
+                                    <div class="textbee-slide-copy"><h5>2. Connect the Android phone</h5><p>Install the TextBee Android app on the phone that will send clinic messages, then connect it from the TextBee dashboard.</p></div>
+                                </div>
+                                <div class="textbee-slide" data-step="3">
+                                    <div class="textbee-slide-art"><img src="../../assets/images/guides/textbee/guide3.webp" alt="Illustration of copying TextBee API credentials"></div>
+                                    <div class="textbee-slide-copy"><h5>3. Copy the credentials</h5><p>From the TextBee dashboard, copy the API key and the connected device ID. Do not send these values by chat or share them with patients.</p></div>
+                                </div>
+                                <div class="textbee-slide" data-step="4">
+                                    <div class="textbee-slide-art"><img src="../../assets/images/guides/textbee/guide4.webp" alt="TextBee Register your device screen with a QR code"></div>
+                                    <div class="textbee-slide-copy"><h5>4. Register your device</h5><p>In TextBee, choose <strong>Register your device</strong>. Install the TextBee app on the Android phone, scan the QR code shown on the dashboard, and allow the SMS permission when the app asks.</p></div>
+                                </div>
+                                <div class="textbee-slide" data-step="5">
+                                    <div class="textbee-slide-art"><img src="../../assets/images/guides/textbee/guide6.webp" alt="Illustration of entering TextBee credentials in clinic settings"></div>
+                                    <div class="textbee-slide-copy"><h5>5. Return here and verify</h5><p>Paste the API key and device ID into the secure configuration fields, save the connection, and use Test connection. Existing values remain hidden.</p></div>
+                                </div>
+                                <div class="textbee-slide" data-step="6">
+                                    <div class="textbee-slide-art"><img src="../../assets/images/guides/textbee/guide5.webp" alt="TextBee Android gateway enabled with an internet connection"></div>
+                                    <div class="textbee-slide-copy"><h5>6. Keep this ON every time</h5><p><strong>Important:</strong> Keep the TextBee gateway switch ON every time. Your registered Android phone must stay powered on and connected to the internet through Wi-Fi or mobile data so SMS remains functional anytime.</p></div>
+                                </div>
+                                <div class="textbee-slide" data-step="7">
+                                    <div class="textbee-slide-art"><img src="../../assets/images/guides/textbee/guide7.svg
+                                    " alt="Illustration of a successful TextBee connection test"></div>
+                                    <div class="textbee-slide-copy"><h5>7. Confirm the connection</h5><p>A successful connection means the clinic can reach TextBee. Send a single test SMS only after the connection test succeeds.</p></div>
+                                </div>
+                                <div class="textbee-carousel-controls">
+                                    <button type="button" class="textbee-carousel-button" id="textbeeGuidePrevious">Previous</button>
+                                    <div class="textbee-dots" aria-label="TextBee guide steps">
+                                        <button type="button" class="textbee-dot active" aria-label="Go to step 1"></button>
+                                        <button type="button" class="textbee-dot" aria-label="Go to step 2"></button>
+                                        <button type="button" class="textbee-dot" aria-label="Go to step 3"></button>
+                                        <button type="button" class="textbee-dot" aria-label="Go to step 4"></button>
+                                        <button type="button" class="textbee-dot" aria-label="Go to step 5"></button>
+                                        <button type="button" class="textbee-dot" aria-label="Go to step 6"></button>
+                                        <button type="button" class="textbee-dot" aria-label="Go to step 7"></button>
+                                    </div>
+                                    <button type="button" class="textbee-carousel-button" id="textbeeGuideNext">Next</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="textbee-lightbox" id="textbeeGuideLightbox" role="dialog" aria-modal="true" aria-label="Enlarged TextBee guide image">
+                            <button type="button" class="textbee-lightbox-close" id="textbeeLightboxClose" aria-label="Close enlarged image">&times;</button>
+                            <img class="textbee-lightbox-image" id="textbeeLightboxImage" alt="">
+                            <div class="textbee-lightbox-caption" id="textbeeLightboxCaption"></div>
+                        </div>
                     </div>
 
                     <div class="settings-section">
@@ -1343,5 +1537,124 @@ initCalendar();
                 alert('Failed to save auto backup');
             });
     });
+
+    (function () {
+        var textbeeForm = document.getElementById('textbeeSettingsForm');
+        if (!textbeeForm) return;
+        var configPanel = document.getElementById('textbeeConfigPanel');
+        var addButton = document.getElementById('addTextbeeBtn');
+        var changeButton = document.getElementById('changeTextbeeBtn');
+        var cancelButton = document.getElementById('cancelTextbeeBtn');
+        var message = document.getElementById('textbeeActionMessage');
+        var saveButton = document.getElementById('saveTextbeeBtn');
+        var testButton = document.getElementById('testTextbeeBtn');
+        var csrf = textbeeForm.querySelector('input[name="csrf"]').value;
+
+        function showConfigPanel() {
+            configPanel.classList.add('is-visible');
+            textbeeForm.querySelector('input[name="textbee_api_key"]').focus();
+        }
+
+        function hideConfigPanel() {
+            configPanel.classList.remove('is-visible');
+            textbeeForm.reset();
+            message.textContent = '';
+        }
+
+        if (addButton) addButton.addEventListener('click', showConfigPanel);
+        if (changeButton) changeButton.addEventListener('click', showConfigPanel);
+        if (cancelButton) cancelButton.addEventListener('click', hideConfigPanel);
+
+        function showMessage(text, isError) {
+            message.textContent = text;
+            message.style.color = isError ? '#b91c1c' : '#166534';
+        }
+
+        textbeeForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            saveButton.disabled = true;
+            showMessage('Saving credentials…', false);
+            var body = new FormData(textbeeForm);
+            body.append('action', 'save_textbee_settings');
+            fetch('settings_actions.php', { method: 'POST', body: body })
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    if (!data.success) throw new Error(data.message || 'Could not save TextBee credentials.');
+                    showMessage(data.message, false);
+                    setTimeout(function () { window.location.reload(); }, 700);
+                })
+                .catch(function (error) {
+                    showMessage(error.message, true);
+                    saveButton.disabled = false;
+                });
+        });
+
+        testButton.addEventListener('click', function () {
+            testButton.disabled = true;
+            showMessage('Testing connection…', false);
+            var body = new FormData();
+            body.append('action', 'test_textbee_connection');
+            body.append('csrf', csrf);
+            fetch('settings_actions.php', { method: 'POST', body: body })
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    showMessage(data.message || 'Connection test completed.', !data.success);
+                })
+                .catch(function () { showMessage('Connection test failed to run.', true); })
+                .finally(function () { testButton.disabled = false; });
+        });
+    })();
+
+    (function () {
+        var slides = Array.prototype.slice.call(document.querySelectorAll('#textbeeGuideCarousel .textbee-slide'));
+        var dots = Array.prototype.slice.call(document.querySelectorAll('#textbeeGuideCarousel .textbee-dot'));
+        var guideImages = Array.prototype.slice.call(document.querySelectorAll('#textbeeGuideCarousel .textbee-slide-art img'));
+        var count = document.getElementById('textbeeGuideCount');
+        var lightbox = document.getElementById('textbeeGuideLightbox');
+        var lightboxImage = document.getElementById('textbeeLightboxImage');
+        var lightboxCaption = document.getElementById('textbeeLightboxCaption');
+        var lightboxClose = document.getElementById('textbeeLightboxClose');
+        var previousFocus = null;
+        var current = 0;
+        if (!slides.length) return;
+
+        function showSlide(index) {
+            current = (index + slides.length) % slides.length;
+            slides.forEach(function (slide, i) { slide.classList.toggle('active', i === current); });
+            dots.forEach(function (dot, i) { dot.classList.toggle('active', i === current); });
+            count.textContent = 'Step ' + (current + 1) + ' of ' + slides.length;
+        }
+
+        document.getElementById('textbeeGuidePrevious').addEventListener('click', function () { showSlide(current - 1); });
+        document.getElementById('textbeeGuideNext').addEventListener('click', function () { showSlide(current + 1); });
+        dots.forEach(function (dot, i) { dot.addEventListener('click', function () { showSlide(i); }); });
+
+        function closeLightbox() {
+            lightbox.classList.remove('is-open');
+            lightboxImage.removeAttribute('src');
+            document.body.style.overflow = '';
+            if (previousFocus) previousFocus.focus();
+        }
+
+        guideImages.forEach(function (image) {
+            image.addEventListener('click', function () {
+                previousFocus = document.activeElement;
+                lightboxImage.src = image.currentSrc || image.src;
+                lightboxImage.alt = image.alt;
+                lightboxCaption.textContent = image.alt + ' — click outside the image or press Escape to close';
+                lightbox.classList.add('is-open');
+                document.body.style.overflow = 'hidden';
+                lightboxClose.focus();
+            });
+        });
+
+        lightbox.addEventListener('click', function (event) {
+            if (event.target === lightbox) closeLightbox();
+        });
+        lightboxClose.addEventListener('click', closeLightbox);
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && lightbox.classList.contains('is-open')) closeLightbox();
+        });
+    })();
 })();
 </script>

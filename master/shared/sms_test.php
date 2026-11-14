@@ -160,7 +160,7 @@ try {
             <?php if ($keyConfigured): ?>
                 TextBee API key is configured.
             <?php else: ?>
-                TextBee API key is NOT configured. Open <code>config/sms_credentials.php</code> and set <code>TEXTBEE_API_KEY</code>.
+                TextBee API key is NOT configured. An admin can add it from <a href="../admin/admin_settings.php#textbeeSettings">Admin Settings → TextBee SMS Connection</a>.
             <?php endif; ?>
         </div>
 
@@ -168,12 +168,12 @@ try {
             <?php if ($deviceConfigured): ?>
                 TextBee device ID is configured.
             <?php else: ?>
-                TextBee device ID is NOT configured. Open <code>config/sms_credentials.php</code> and set <code>TEXTBEE_DEVICE_ID</code>.
+                TextBee device ID is NOT configured. An admin can add it from <a href="../admin/admin_settings.php#textbeeSettings">Admin Settings → TextBee SMS Connection</a>.
             <?php endif; ?>
         </div>
 
         <div class="status <?php echo $recipients ? 'ok' : 'warn'; ?>">
-            <?php echo $recipients ? count($recipients) . ' test recipient(s) configured.' : 'No test recipients yet. Add numbers to <code>SMS_TEST_RECIPIENTS</code> in <code>config/sms_credentials.php</code> (international format, e.g. 639171234567).'; ?>
+            <?php echo $recipients ? count($recipients) . ' test recipient(s) configured.' : 'No default test recipients configured. Enter a number above for a one-off test SMS.'; ?>
         </div>
 
         <?php if ($recipients): ?>

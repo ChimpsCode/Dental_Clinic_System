@@ -2,6 +2,19 @@
 
 ## What Was Fixed
 
+## TextBee SMS Setup
+
+Admins can configure the existing TextBee connection without editing PHP files:
+
+1. Open **Admin → Settings → TextBee SMS Connection**.
+2. Confirm the page shows the existing masked connection, if one is already configured.
+3. Use **Open TextBee.dev** to create or manage the clinic account.
+4. Follow the seven-step setup carousel to connect the Android phone, register the device by QR code, keep the gateway online, and locate the API key and device ID.
+5. Paste the values into the settings form and choose **Save TextBee credentials**.
+6. Choose **Test connection**. This checks TextBee access and does not send an SMS.
+
+The API key is never displayed in full or written to the audit log. Leave the API key or device ID blank to keep its existing value. The SMS test page links back to this settings section when a credential is missing.
+
 ### 1. Created `api_public_services.php`
 This API returns all active services from database for staff admission page.
 

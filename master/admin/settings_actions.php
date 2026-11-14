@@ -22,6 +22,73 @@ $auditRole = $_SESSION['role'] ?? 'admin';
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
+if (in_array($action, ['save_textbee_settings', 'test_textbee_connection'], true)) {
+    if (empty($_SESSION['textbee_settings_csrf'])
+        || !hash_equals((string)$_SESSION['textbee_settings_csrf'], (string)($_POST['csrf'] ?? ''))) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Reload the page and try again.']);
+        exit;
+    }
+}
+
+if ($action === 'save_textbee_settings') {
+    $credentialsFile = __DIR__ . '/../../config/sms_credentials.php';
+    $existingApiKey = '';
+    $existingDeviceId = '';
+    $existingRecipients = [];
+
+    if (is_file($credentialsFile)) {
+        require_once $credentialsFile;
+        $existingApiKey = defined('TEXTBEE_API_KEY') ? (string)TEXTBEE_API_KEY : '';
+        $existingDeviceId = defined('TEXTBEE_DEVICE_ID') ? (string)TEXTBEE_DEVICE_ID : '';
+        $existingRecipients = defined('SMS_TEST_RECIPIENTS') ? (array)SMS_TEST_RECIPIENTS : [];
+    }
+
+    $apiKey = trim((string)($_POST['textbee_api_key'] ?? ''));
+    $deviceId = trim((string)($_POST['textbee_device_id'] ?? ''));
+    $apiKey = $apiKey === '' ? $existingApiKey : $apiKey;
+    $deviceId = $deviceId === '' ? $existingDeviceId : $deviceId;
+
+    if ($apiKey === '' || strlen($apiKey) > 200 || preg_match('/\s/', $apiKey)) {
+        echo json_encode(['success' => false, 'message' => 'Enter a valid TextBee API key.']);
+        exit;
+    }
+    if ($deviceId === '' || strlen($deviceId) > 120 || !preg_match('/^[A-Za-z0-9_-]+$/', $deviceId)) {
+        echo json_encode(['success' => false, 'message' => 'Enter a valid TextBee device ID.']);
+        exit;
+    }
+
+    $contents = "<?php\n\n"
+        . "// Local SMS credentials. Managed from the admin Settings page.\n"
+        . "define('TEXTBEE_API_KEY', " . var_export($apiKey, true) . ");\n"
+        . "define('TEXTBEE_DEVICE_ID', " . var_export($deviceId, true) . ");\n"
+        . "define('SMS_TEST_RECIPIENTS', " . var_export(array_values($existingRecipients), true) . ");\n";
+    $temporaryFile = $credentialsFile . '.tmp';
+
+    if (@file_put_contents($temporaryFile, $contents, LOCK_EX) === false
+        || !@rename($temporaryFile, $credentialsFile)) {
+        @unlink($temporaryFile);
+        echo json_encode(['success' => false, 'message' => 'The server could not save the TextBee credentials. Check the config folder permissions.']);
+        exit;
+    }
+
+    auditedUpsertSetting($pdo, 'textbee_configured', '1', 'Updated TextBee SMS credentials', $auditUserId, $auditUsername, $auditRole);
+    echo json_encode(['success' => true, 'message' => 'TextBee credentials saved.']);
+    exit;
+}
+
+if ($action === 'test_textbee_connection') {
+    require_once '../../includes/sms_functions.php';
+    $result = testTextBeeConnection();
+    if (!empty($result['success'])) {
+        echo json_encode(['success' => true, 'message' => 'TextBee connection is working. No SMS was sent.']);
+    } else {
+        $error = (string)($result['error'] ?? 'TextBee connection failed.');
+        echo json_encode(['success' => false, 'message' => 'TextBee connection failed: ' . $error]);
+    }
+    exit;
+}
+
 if ($action === 'get_settings') {
     $stmt = $pdo->query("SELECT setting_key, setting_value FROM settings");
     $settings = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);

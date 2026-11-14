@@ -1,6 +1,6 @@
 <?php
 // Database configuration
-// Source of truth: sql/master_rf.sql
+// Source of truth: sql/master_rfdb.sql
 
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'master_rfdb');
@@ -8,7 +8,7 @@ define('DB_USER', 'root');
 define('DB_PASS', '');
 
 // Connect only - do not create tables automatically
-// Use sql/master_rf.sql for schema reference
+// Use sql/master_rfdb.sql for schema reference
 
 if (!isset($pdo)) {
     try {
